@@ -157,13 +157,17 @@ def play():
 
     conn.close()
 
+    display_album = album if album and album != "NEEDS_REFETCH" else None
+    yt_url = f"https://www.youtube.com/results?search_query={url_quote(artist + ' ' + title + ' official')}"
+
     return render_template("chartburst/play.html",
         card=True, card_id=card_id, song_id=song_id,
         diff=diff, c3=c3, c2=c2, c1=c1, answer=answer,
-        title=title, artist=artist, year=year, album=album,
+        title=title, artist=artist, year=year, album=display_album,
         album_art_url=album_art_url, chart_info=" · ".join(chart_parts),
         play_url=play_url, genius_url=genius_url, cat_label=cat_label,
         decades=decades, genres=genres, difficulty=difficulty,
+        yt_url=yt_url,
     )
 
 
@@ -174,13 +178,28 @@ def report():
     song_id = data.get("song_id")
     action = data.get("action", "")
 
-    if card_id and action in ("bad_album", "remake_card"):
+    if card_id and action in ("bad_album", "remake_card", "change_difficulty"):
         conn = get_db()
         if action == "bad_album":
-            conn.execute("UPDATE song_burst_songs SET album = NULL, album_art_url = NULL WHERE id = ?",
+            # Add to blacklist before clearing
+            song = conn.execute("SELECT album, bad_albums FROM song_burst_songs WHERE id = ?",
+                                (int(song_id),)).fetchone()
+            if song:
+                current = song[0] or ""
+                existing_bad = song[1] or "" if len(song) > 1 else ""
+                if current and current != "NEEDS_REFETCH":
+                    bad_list = [b for b in existing_bad.split("|") if b] + [current]
+                    conn.execute("UPDATE song_burst_songs SET bad_albums = ? WHERE id = ?",
+                                 ("|".join(bad_list), int(song_id)))
+            conn.execute("UPDATE song_burst_songs SET album = 'NEEDS_REFETCH', album_art_url = NULL WHERE id = ?",
                          (int(song_id),))
         elif action == "remake_card":
             conn.execute("DELETE FROM song_burst_cards WHERE id = ?", (int(card_id),))
+        elif action == "change_difficulty":
+            new_diff = data.get("new_difficulty", "")
+            if new_diff in ("easy", "medium", "hard"):
+                conn.execute("UPDATE song_burst_cards SET difficulty = ? WHERE id = ?",
+                             (new_diff, int(card_id)))
         conn.commit()
         conn.close()
         return jsonify({"ok": True})
