@@ -5,7 +5,8 @@
 body { background: linear-gradient(170deg, #111 0%, #1a1a2e 50%, #16213e 100%); }
 .home { display: flex; flex-direction: column; align-items: center; justify-content: center;
         min-height: 100vh; padding: 40px 20px; text-align: center; }
-.home h1 { font-size: 42px; font-weight: 800; letter-spacing: -1px; color: #fff; }
+.home-logo { margin-bottom: 12px; }
+.home-logo img { width: 280px; height: 64px; }
 .home p { font-size: 16px; color: #888; margin-top: 8px; }
 .home-apps { margin-top: 40px; }
 .app-card { display: block; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
@@ -18,7 +19,9 @@ body { background: linear-gradient(170deg, #111 0%, #1a1a2e 50%, #16213e 100%); 
 
 {% block body %}
 <div class="home">
-    <h1>Casdra Software</h1>
+    <div class="home-logo">
+        <img src="/static/logo.svg" alt="Casdra Software LLC">
+    </div>
     <p>Building things we love</p>
     <div class="home-apps">
         <a class="app-card" href="/chartburst">
