@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}ChartBurst{% endblock %}
+
+{% block extra_css %}
+body { background: linear-gradient(170deg, #2a9d8f 0%, #248f82 40%, #1e7b70 70%, #16655b 100%);
+       min-height: 100vh; color: #1c1c1e; }
+.navbar { display: flex; align-items: center; padding: 56px 16px 12px;
+          background: transparent; border-bottom: 0.5px solid rgba(255,255,255,0.25); position: relative; }
+.navbar a { color: #fff; text-decoration: none; font-size: 17px; }
+.navbar-title { position: absolute; left: 50%; transform: translateX(-50%);
+                font-size: 17px; font-weight: 600; color: #fff; pointer-events: none; }
+
+.sb-card { margin: 16px; border-radius: 16px; overflow: hidden; padding: 10px; background: #5cb8ff; }
+.sb-card-easy { background: #5cb8ff; }
+.sb-card-medium { background: #f0a500; }
+.sb-card-hard { background: #e0544e; }
+.sb-card-inner { background: #fff; border-radius: 10px; overflow: hidden; }
+
+.sb-card-top { display: flex; padding: 16px 20px 12px; gap: 14px; align-items: flex-start; }
+.sb-card-art { width: 80px; height: 80px; border-radius: 6px; object-fit: cover;
+               flex-shrink: 0; box-shadow: 0 2px 12px rgba(0,0,0,0.4); }
+.sb-card-art-placeholder { width: 80px; height: 80px; border-radius: 6px; flex-shrink: 0;
+                           background: #f0f0f0; display: flex; align-items: center;
+                           justify-content: center; font-size: 28px; color: #ccc; }
+.sb-card-meta { flex: 1; min-width: 0; }
+.sb-card-song { font-size: 18px; font-weight: 800; color: #1c1c1e; letter-spacing: -0.3px; line-height: 1.2; }
+.sb-card-artist { font-size: 15px; font-weight: 600; color: #444; }
+.sb-album { font-size: 13px; font-weight: 500; color: #888; font-style: italic;
+            overflow: hidden; text-overflow: ellipsis;
+            display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+.sb-chart-info { font-size: 13px; font-weight: 500; color: #666; margin-top: 6px; }
+.sb-diff-word { font-size: 10px; font-weight: 800; text-transform: uppercase;
+                letter-spacing: 1.5px; padding: 2px 10px; border-radius: 4px;
+                display: inline-block; margin-top: 6px; }
+.sb-diff-word-easy { background: #5cb8ff; color: #fff; }
+.sb-diff-word-medium { background: #f0a500; color: #fff; }
+.sb-diff-word-hard { background: #e0544e; color: #fff; }
+
+.sb-clues { padding: 4px 20px 12px; }
+.sb-clue { padding: 7px 0; font-size: 17px; line-height: 1.5; display: none; color: #1c1c1e; }
+.sb-clue.visible { display: flex; align-items: flex-start; gap: 10px; }
+.sb-clue-num { flex-shrink: 0; display: inline-flex; width: 30px; height: 30px;
+               align-items: center; justify-content: center; border-radius: 50%;
+               background: #1c1c1e; color: #fff; font-size: 15px; font-weight: 800; }
+.sb-clue-text { flex: 1; padding-top: 4px; }
+
+.sb-answer { padding: 16px 20px; font-size: 18px; font-weight: 700; font-style: italic;
+             text-align: center; display: none; line-height: 1.4; }
+.sb-answer.visible { display: block; }
+.sb-answer-easy { background: #5cb8ff; color: #fff; }
+.sb-answer-medium { background: #f0a500; color: #fff; }
+.sb-answer-hard { background: #e0544e; color: #fff; }
+
+.sb-bottom-bar { display: none; padding: 16px 20px 24px; align-items: center; justify-content: space-between; }
+.sb-bottom-bar.visible { display: flex; }
+.sb-bottom-right { display: flex; gap: 12px; align-items: center; }
+.sb-btn { padding: 14px 28px; border-radius: 12px; border: none; font-size: 16px;
+          font-weight: 600; font-family: inherit; cursor: pointer; transition: transform 0.1s; }
+.sb-btn:active { transform: scale(0.96); }
+.sb-btn-play { background: #fc3c44; color: #fff; font-size: 14px; padding: 10px 18px; text-decoration: none; }
+.sb-btn-next { color: #fff; text-decoration: none; }
+.sb-btn-next-easy { background: #5cb8ff; }
+.sb-btn-next-medium { background: #f0a500; }
+.sb-btn-next-hard { background: #e0544e; }
+
+.sb-uhoh-btn { background: #e0544e; color: #fff; border: none; border-radius: 12px;
+               padding: 14px 18px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; }
+.sb-uhoh-btn:active { opacity: 0.8; }
+.sb-uhoh-menu { display: none; margin-top: 8px; background: #fff; border-radius: 10px;
+                overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
+.sb-uhoh-menu.visible { display: block; }
+.sb-uhoh-item { display: block; width: 100%; padding: 12px 16px; border: none; background: #fff;
+                color: #1c1c1e; font-size: 15px; font-family: inherit; cursor: pointer;
+                text-align: left; border-bottom: 0.5px solid #eee; }
+.sb-uhoh-item:last-child { border-bottom: none; }
+.sb-uhoh-item:active { background: #f0f0f0; }
+.sb-uhoh-done { color: #5cb8ff; font-weight: 600; font-size: 13px; margin-top: 8px; display: none; }
+
+.sb-tap-hint { text-align: center; padding: 12px; font-size: 13px; color: rgba(255,255,255,0.6); font-style: italic; }
+
+.sb-filter { display: flex; gap: 8px; justify-content: center; padding: 12px 16px 0; }
+.sb-filter a { padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 600;
+               text-decoration: none; color: #fff; background: rgba(0,0,0,0.25); border: 3px solid transparent; }
+.sb-filter a.active { background: inherit; }
+.sb-filter a.f-all.active { background: #1c1c1e; border-color: #1c1c1e; }
+.sb-filter a.f-easy.active { background: #5cb8ff; border-color: #5cb8ff; }
+.sb-filter a.f-medium.active { background: #f0a500; border-color: #f0a500; }
+.sb-filter a.f-hard.active { background: #e0544e; border-color: #e0544e; }
+.sb-filter a.f-nope { background: rgba(255,255,255,0.25); color: #fff; margin-left: auto; }
+
+.no-results { padding: 40px 16px; text-align: center; color: rgba(255,255,255,0.7); font-size: 17px; }
+{% endblock %}
+
+{% macro play_url(diff=None) %}
+{%- set parts = [] -%}
+{%- if diff %}{% set _ = parts.append('difficulty=' + diff) %}{% endif -%}
+{%- if decades %}{% set _ = parts.append('decades=' + decades) %}{% endif -%}
+{%- if genres %}{% set _ = parts.append('genres=' + genres) %}{% endif -%}
+/chartburst/play{{ '?' + parts|join('&') if parts else '' }}
+{%- endmacro %}
+
+{% block body %}
+<div class="navbar">
+    <a href="/chartburst">&#8249; Back</a>
+    <span class="navbar-title">{{ cat_label or 'ChartBurst' }}</span>
+</div>
+
+{% if not card %}
+<div class="no-results">No cards available for this selection yet.</div>
+<div style="text-align:center;padding:16px;"><a href="/chartburst" style="color:#fff;font-weight:600;">&#8249; Back to categories</a></div>
+{% else %}
+
+<div class="sb-filter">
+    <a href="{{ play_url() }}" class="f-all {{ 'active' if not difficulty else '' }}">All</a>
+    <a href="{{ play_url('easy') }}" class="f-easy {{ 'active' if difficulty == 'easy' else '' }}">Easy</a>
+    <a href="{{ play_url('medium') }}" class="f-medium {{ 'active' if difficulty == 'medium' else '' }}">Medium</a>
+    <a href="{{ play_url('hard') }}" class="f-hard {{ 'active' if difficulty == 'hard' else '' }}">Hard</a>
+    <a href="#" class="f-nope" onclick="skipToAnswer();return false;">Nope</a>
+</div>
+
+<div class="sb-card sb-card-{{ diff }}" onclick="revealNext()" style="cursor:pointer;">
+  <div class="sb-card-inner">
+    <div class="sb-card-top">
+        {% if album_art_url %}
+        <img class="sb-card-art" src="{{ album_art_url }}" alt="Album art">
+        {% else %}
+        <div class="sb-card-art-placeholder">&#9835;</div>
+        {% endif %}
+        <div class="sb-card-meta">
+            <div class="sb-card-song">{{ title }}</div>
+            <div class="sb-card-artist">{{ artist }} &middot; {{ year }}</div>
+            {% if album %}<div class="sb-album">{{ album }}</div>{% endif %}
+            {% if chart_info %}<div class="sb-chart-info">{{ chart_info }}</div>{% endif %}
+            <span class="sb-diff-word sb-diff-word-{{ diff }}">{{ diff }}</span>
+        </div>
+    </div>
+    <div class="sb-clues">
+        <div class="sb-clue visible" id="clue3">
+            <span class="sb-clue-num">3</span>
+            <span class="sb-clue-text">{{ c3 }}</span>
+        </div>
+        <div class="sb-clue" id="clue2">
+            <span class="sb-clue-num">2</span>
+            <span class="sb-clue-text">{{ c2 }}</span>
+        </div>
+        <div class="sb-clue" id="clue1">
+            <span class="sb-clue-num">1</span>
+            <span class="sb-clue-text">{{ c1 }}</span>
+        </div>
+    </div>
+    <div class="sb-answer sb-answer-{{ diff }}" id="answer">
+        <a href="{{ genius_url }}" target="_blank" style="color:inherit;text-decoration:none;">
+            &ldquo;{{ answer }}&rdquo;
+            <div style="font-size:11px;font-weight:400;font-style:normal;margin-top:4px;opacity:0.8;">View lyrics on Genius &#8599;</div>
+        </a>
+    </div>
+  </div>
+</div>
+
+<div class="sb-bottom-bar" id="bottomBar">
+    <div>
+        <button class="sb-uhoh-btn" onclick="toggleUhOh()">Uh Oh</button>
+        <div class="sb-uhoh-menu" id="uhohMenu">
+            <button class="sb-uhoh-item" onclick="reportCard('bad_album')">Bad album</button>
+            <button class="sb-uhoh-item" onclick="reportCard('remake_card')">Remake card</button>
+        </div>
+        <div class="sb-uhoh-done" id="uhohDone">Reported — thanks!</div>
+    </div>
+    <div class="sb-bottom-right">
+        <a class="sb-btn sb-btn-play" href="{{ play_url }}" target="_blank">&#9654; Play</a>
+        <a class="sb-btn sb-btn-next sb-btn-next-{{ diff }}" href="{{ play_url(difficulty) }}">New Card</a>
+    </div>
+</div>
+<div class="sb-tap-hint" id="tapHint">Tap card for next clue</div>
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if card %}
+var step = 0;
+var cardId = {{ card_id }};
+var songId = {{ song_id }};
+
+function showAnswer() {
+    document.getElementById('clue2').classList.add('visible');
+    document.getElementById('clue1').classList.add('visible');
+    document.getElementById('answer').classList.add('visible');
+    document.getElementById('bottomBar').classList.add('visible');
+    document.getElementById('tapHint').style.display = 'none';
+    var card = document.querySelector('.sb-card');
+    card.style.cursor = 'default';
+    card.onclick = null;
+    step = 3;
+}
+function revealNext() {
+    step++;
+    if (step === 1) document.getElementById('clue2').classList.add('visible');
+    else if (step === 2) document.getElementById('clue1').classList.add('visible');
+    else if (step >= 3) showAnswer();
+}
+function skipToAnswer() {
+    if (step >= 3) window.location.href = document.querySelector('.sb-btn-next').href;
+    else showAnswer();
+}
+function toggleUhOh() {
+    document.getElementById('uhohMenu').classList.toggle('visible');
+}
+function reportCard(action) {
+    fetch('/chartburst/report', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({card_id: cardId, song_id: songId, action: action})
+    }).then(function() {
+        document.getElementById('uhohMenu').style.display = 'none';
+        document.getElementById('uhohDone').style.display = 'block';
+        document.querySelector('.sb-uhoh-btn').style.display = 'none';
+    });
+}
+{% endif %}
+{% endblock %}
