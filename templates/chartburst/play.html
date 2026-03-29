@@ -187,7 +187,7 @@ body { background: linear-gradient(170deg, #2a9d8f 0%, #248f82 40%, #1e7b70 70%,
         <div class="sb-uhoh-done" id="uhohDone">Reported — thanks!</div>
     </div>
     <div class="sb-bottom-right">
-        <button class="sb-btn sb-btn-play" onclick="openYouTube()">&#9654; Play Song</button>
+        <a class="sb-btn sb-btn-play" href="{{ yt_url }}" target="_blank">&#9654; Play Song</a>
         <a class="sb-btn sb-btn-next sb-btn-next-{{ diff }}" href="{{ make_play_url(difficulty) }}">New Card</a>
     </div>
 </div>
