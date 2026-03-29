@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Casdra Font Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Exo+2:ital,wght@0,400;0,700;1,400;1,700&family=Rajdhani:wght@400;700&family=Orbitron:wght@400;700&family=Oxanium:wght@400;700&family=Michroma&family=Audiowide&family=Big+Shoulders+Display:wght@400;800&family=Barlow+Condensed:ital,wght@0,400;0,800;1,400;1,800&family=Saira+Condensed:wght@400;800" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0f1e; color: white; padding: 40px; font-family: sans-serif; }
+
+  h2 {
+    color: #60A5FA; font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    margin: 48px 0 14px; border-bottom: 1px solid #1e3a5f; padding-bottom: 8px;
+  }
+  h2:first-of-type { margin-top: 0; }
+
+  .group { display: flex; flex-direction: column; gap: 6px; }
+
+  .row {
+    display: grid;
+    grid-template-columns: 140px 1fr 1fr 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+  }
+
+  .row-label { color: #475569; font-size: 11px; letter-spacing: 1px; }
+
+  .swatch {
+    border-radius: 12px;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 68px;
+  }
+  .swatch.dark   { background: #0F172A; }
+  .swatch.medium { background: #334155; }
+  .swatch.light  { background: #E2E8F0; }
+
+  /* On light bg, flip text colors */
+  .swatch.light .name { color: #0F172A; }
+  .swatch.light .sub  { color: #2563EB; }
+  .swatch.light .divider { background: #94A3B8; }
+
+  .c-icon {
+    width: 40px; height: 40px; border-radius: 9px;
+    background: #0F172A; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0;
+  }
+  .swatch.light .c-icon { background: #1e3a5f; }
+  .c-icon svg { width: 40px; height: 40px; }
+
+  .divider {
+    width: 1px; height: 32px;
+    background: #1e3a5f;
+    margin: 0 14px; flex-shrink: 0;
+  }
+
+  .text-block { display: flex; flex-direction: column; gap: 3px; }
+  .name { font-size: 22px; color: white; letter-spacing: 5px; line-height: 1; }
+  .sub  { font-size: 9px; color: #60A5FA; letter-spacing: 3px;
+          font-family: sans-serif !important; font-style: normal !important; font-weight: 400 !important; }
+
+  /* ── Font styles ── */
+  .bebas-normal     .name { font-family: 'Bebas Neue'; font-weight:400; font-style:normal; letter-spacing:7px; }
+  .orbitron-normal  .name { font-family: 'Orbitron'; font-weight:400; font-style:normal; font-size:15px; letter-spacing:2px; }
+  .orbitron-bold    .name { font-family: 'Orbitron'; font-weight:700; font-style:normal; font-size:15px; letter-spacing:2px; }
+  .barlow-normal    .name { font-family: 'Barlow Condensed'; font-weight:400; font-style:normal; letter-spacing:7px; }
+  .barlow-bold      .name { font-family: 'Barlow Condensed'; font-weight:800; font-style:normal; letter-spacing:7px; }
+  .barlow-italic    .name { font-family: 'Barlow Condensed'; font-weight:400; font-style:italic; letter-spacing:7px; }
+  .barlow-boldital  .name { font-family: 'Barlow Condensed'; font-weight:800; font-style:italic; letter-spacing:7px; }
+  .oxanium-normal   .name { font-family: 'Oxanium'; font-weight:400; font-style:normal; letter-spacing:4px; }
+  .oxanium-bold     .name { font-family: 'Oxanium'; font-weight:700; font-style:normal; letter-spacing:4px; }
+  .michroma-normal  .name { font-family: 'Michroma'; font-weight:400; font-style:normal; font-size:15px; letter-spacing:2px; }
+  .audiowide-normal .name { font-family: 'Audiowide'; font-weight:400; font-style:normal; font-size:15px; letter-spacing:2px; }
+  .bigshoulders-normal .name { font-family: 'Big Shoulders Display'; font-weight:400; font-style:normal; letter-spacing:7px; }
+  .bigshoulders-bold   .name { font-family: 'Big Shoulders Display'; font-weight:800; font-style:normal; letter-spacing:7px; }
+  .rajdhani-normal  .name { font-family: 'Rajdhani'; font-weight:400; font-style:normal; letter-spacing:7px; }
+  .rajdhani-bold    .name { font-family: 'Rajdhani'; font-weight:700; font-style:normal; letter-spacing:7px; }
+  .saira-normal     .name { font-family: 'Saira Condensed'; font-weight:400; font-style:normal; letter-spacing:7px; }
+  .saira-bold       .name { font-family: 'Saira Condensed'; font-weight:800; font-style:normal; letter-spacing:7px; }
+  .exo-normal       .name { font-family: 'Exo 2'; font-weight:400; font-style:normal; letter-spacing:4px; }
+  .exo-bold         .name { font-family: 'Exo 2'; font-weight:700; font-style:normal; letter-spacing:4px; }
+  .exo-italic       .name { font-family: 'Exo 2'; font-weight:400; font-style:italic; letter-spacing:4px; }
+  .exo-boldital     .name { font-family: 'Exo 2'; font-weight:700; font-style:italic; letter-spacing:4px; }
+
+  /* column headers */
+  .col-headers {
+    display: grid;
+    grid-template-columns: 140px 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .col-headers span {
+    color: #334155; font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    text-align: center;
+  }
+  .col-headers span:first-child { text-align: left; }
+</style>
+</head>
+<body>
+
+<script>
+function icon(id) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+    <defs><linearGradient id="g${id}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60A5FA"/>
+      <stop offset="100%" style="stop-color:#2563EB"/>
+    </linearGradient></defs>
+    <rect width="40" height="40" rx="9" fill="transparent"/>
+    <path d="M 27 11 A 11 11 0 1 0 27 29 L 23 29 A 7 7 0 1 1 23 11 Z" fill="url(#g${id})"/>
+  </svg>`;
+}
+
+function logo(fontClass, id) {
+  let i = 0;
+  const swatch = (bg) => `
+    <div class="swatch ${bg} ${fontClass}">
+      <div class="c-icon">${icon(id + '_' + bg)}</div>
+      <div class="divider"></div>
+      <div class="text-block">
+        <span class="name">CASDRA</span>
+        <span class="sub">SOFTWARE LLC</span>
+      </div>
+    </div>`;
+  return `
+    <div class="row">
+      <span class="row-label">${fontClass.replace(/-/g,' ')}</span>
+      ${swatch('dark')}
+      ${swatch('medium')}
+      ${swatch('light')}
+    </div>`;
+}
+
+const fonts = [
+  ['bebas-normal'],
+  ['orbitron-normal','orbitron-bold'],
+  ['barlow-normal','barlow-bold','barlow-italic','barlow-boldital'],
+  ['oxanium-normal','oxanium-bold'],
+  ['michroma-normal'],
+  ['audiowide-normal'],
+  ['bigshoulders-normal','bigshoulders-bold'],
+  ['rajdhani-normal','rajdhani-bold'],
+  ['saira-normal','saira-bold'],
+  ['exo-normal','exo-bold','exo-italic','exo-boldital'],
+];
+
+const names = [
+  '1 · Bebas Neue','2 · Orbitron','3 · Barlow Condensed','4 · Oxanium',
+  '5 · Michroma','6 · Audiowide','7 · Big Shoulders','8 · Rajdhani',
+  '9 · Saira Condensed','10 · Exo 2'
+];
+
+let html = `<div class="col-headers"><span></span><span>Dark</span><span>Medium</span><span>Light</span></div>`;
+let uid = 0;
+fonts.forEach((group, gi) => {
+  html += `<h2>${names[gi]}</h2><div class="group">`;
+  group.forEach(f => { html += logo(f, uid++); });
+  html += `</div>`;
+});
+document.write(html);
+</script>
+
+</body>
+</html>
