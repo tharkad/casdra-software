@@ -1,6 +1,6 @@
-*.db
 *.db-shm
 *.db-wal
+# chartburst.db IS tracked (deployed to Railway with the code)
 __pycache__/
 *.pyc
 .env
