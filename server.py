@@ -1459,9 +1459,10 @@ def html_page(title, body, extra_css="", extra_js=""):
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Casdra">
-    <meta name="theme-color" content="#e91e8c">
+    <meta name="theme-color" content="#2563EB">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title>{title}</title>
     <style>
 {COMMON_CSS}
