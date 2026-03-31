@@ -865,6 +865,7 @@ def build_song_burst_play_page(conn, difficulty=None, category=None, decades=Non
         card.style.cursor = 'default';
         card.onclick = null;
         step = 3;
+        updateDiffUI();
     }}
     function revealNext() {{
         step++;
