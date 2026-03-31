@@ -249,6 +249,28 @@ def init_db():
     conn.close()
 
 
+_last_cleanup = [0]
+
+def cleanup_old_sessions():
+    """End abandoned game sessions older than 2 hours. Runs at most once per 10 min."""
+    import time as _time
+    now = _time.time()
+    if now - _last_cleanup[0] < 600:
+        return
+    _last_cleanup[0] = now
+    try:
+        conn = get_db()
+        conn.execute("""
+            UPDATE game_sessions SET status = 'ended'
+            WHERE status != 'ended'
+            AND created_at < datetime('now', '-2 hours')
+        """)
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+
 def log_page_view(path, ip=None, user_agent=None):
     """Log a page view. Non-blocking — errors silently ignored."""
     try:
@@ -4225,6 +4247,9 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         qs = dict(parse_qsl(parsed.query))
+
+        # Periodic cleanup
+        cleanup_old_sessions()
 
         # Log page views (skip static/api/polling)
         if not path.startswith("/static/") and not path.endswith("/state") and not path.endswith("/count") and not path.endswith("/players"):
