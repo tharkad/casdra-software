@@ -229,8 +229,41 @@ def init_db():
             FOREIGN KEY (session_id) REFERENCES game_sessions(id)
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS page_views (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT DEFAULT (datetime('now')),
+            path TEXT NOT NULL,
+            ip TEXT,
+            user_agent TEXT,
+            session_id TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_views_timestamp ON page_views(timestamp)
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_views_path ON page_views(path)
+    """)
     conn.commit()
     conn.close()
+
+
+def log_page_view(path, ip=None, user_agent=None):
+    """Log a page view. Non-blocking — errors silently ignored."""
+    try:
+        conn = get_db()
+        # Hash IP for privacy
+        import hashlib
+        hashed_ip = hashlib.sha256((ip or "").encode()).hexdigest()[:12] if ip else None
+        conn.execute(
+            "INSERT INTO page_views (path, ip, user_agent) VALUES (?, ?, ?)",
+            (path, hashed_ip, (user_agent or "")[:200]),
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
 
 
 def _build_restaurant_dict(rest, items):
@@ -2986,6 +3019,143 @@ def _git_version():
 _GIT_HASH, _GIT_DATE = _git_version()
 
 
+def build_admin_stats_page():
+    """Admin dashboard with usage statistics."""
+    conn = get_db()
+
+    # Total views
+    total = conn.execute("SELECT COUNT(*) FROM page_views").fetchone()[0]
+
+    # Views today
+    today = conn.execute(
+        "SELECT COUNT(*) FROM page_views WHERE timestamp >= date('now')"
+    ).fetchone()[0]
+
+    # Views this week
+    week = conn.execute(
+        "SELECT COUNT(*) FROM page_views WHERE timestamp >= date('now', '-7 days')"
+    ).fetchone()[0]
+
+    # Views this month
+    month = conn.execute(
+        "SELECT COUNT(*) FROM page_views WHERE timestamp >= date('now', '-30 days')"
+    ).fetchone()[0]
+
+    # Unique visitors (by hashed IP) this month
+    mau = conn.execute(
+        "SELECT COUNT(DISTINCT ip) FROM page_views WHERE timestamp >= date('now', '-30 days') AND ip IS NOT NULL"
+    ).fetchone()[0]
+
+    # Unique visitors today
+    dau = conn.execute(
+        "SELECT COUNT(DISTINCT ip) FROM page_views WHERE timestamp >= date('now') AND ip IS NOT NULL"
+    ).fetchone()[0]
+
+    # Top pages (last 30 days)
+    top_pages = conn.execute("""
+        SELECT path, COUNT(*) as hits FROM page_views
+        WHERE timestamp >= date('now', '-30 days')
+        GROUP BY path ORDER BY hits DESC LIMIT 15
+    """).fetchall()
+
+    # Hits by day (last 14 days)
+    daily = conn.execute("""
+        SELECT date(timestamp) as day, COUNT(*) as hits, COUNT(DISTINCT ip) as visitors
+        FROM page_views
+        WHERE timestamp >= date('now', '-14 days')
+        GROUP BY day ORDER BY day
+    """).fetchall()
+
+    # Hits by hour (today)
+    hourly = conn.execute("""
+        SELECT strftime('%H', timestamp) as hour, COUNT(*) as hits
+        FROM page_views
+        WHERE timestamp >= date('now')
+        GROUP BY hour ORDER BY hour
+    """).fetchall()
+
+    # Active game sessions
+    active_sessions = conn.execute(
+        "SELECT COUNT(*) FROM game_sessions WHERE status = 'active'"
+    ).fetchone()[0]
+
+    conn.close()
+
+    # Build page
+    css = """
+    body { background: #111; color: #e0e0e0; }
+    .navbar { background: transparent; border-bottom: 0.5px solid #333; }
+    .navbar a { color: #5cb8ff; }
+    .stats { padding: 16px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                 gap: 12px; margin-bottom: 20px; }
+    .stat-card { background: #1a1a1a; border-radius: 12px; padding: 16px; text-align: center; }
+    .stat-num { font-size: 28px; font-weight: 800; color: #5cb8ff; }
+    .stat-label { font-size: 12px; color: #888; margin-top: 4px; text-transform: uppercase;
+                  letter-spacing: 0.5px; }
+    .stat-section { background: #1a1a1a; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .stat-section h3 { font-size: 14px; font-weight: 700; color: #888; text-transform: uppercase;
+                       letter-spacing: 0.5px; margin-bottom: 12px; }
+    .stat-row { display: flex; justify-content: space-between; padding: 6px 0;
+                border-bottom: 1px solid #222; font-size: 14px; }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-bar { height: 6px; background: #333; border-radius: 3px; margin-top: 4px; }
+    .stat-bar-fill { height: 100%; background: #5cb8ff; border-radius: 3px; }
+    """
+
+    # Stats cards
+    cards = f"""
+    <div class="stat-grid">
+        <div class="stat-card"><div class="stat-num">{dau}</div><div class="stat-label">Visitors Today</div></div>
+        <div class="stat-card"><div class="stat-num">{today}</div><div class="stat-label">Hits Today</div></div>
+        <div class="stat-card"><div class="stat-num">{mau}</div><div class="stat-label">Monthly Visitors</div></div>
+        <div class="stat-card"><div class="stat-num">{month:,}</div><div class="stat-label">Monthly Hits</div></div>
+        <div class="stat-card"><div class="stat-num">{week:,}</div><div class="stat-label">Weekly Hits</div></div>
+        <div class="stat-card"><div class="stat-num">{total:,}</div><div class="stat-label">All Time</div></div>
+        <div class="stat-card"><div class="stat-num">{active_sessions}</div><div class="stat-label">Active Games</div></div>
+    </div>"""
+
+    # Top pages
+    max_hits = top_pages[0][1] if top_pages else 1
+    pages_html = ""
+    for path, hits in top_pages:
+        pct = (hits / max_hits) * 100
+        pages_html += f"""
+        <div class="stat-row">
+            <span>{h(path)}</span><span style="color:#5cb8ff;font-weight:600;">{hits:,}</span>
+        </div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:{pct}%;"></div></div>"""
+
+    # Daily chart
+    daily_html = ""
+    max_daily = max((d[1] for d in daily), default=1)
+    for day, hits, visitors in daily:
+        pct = (hits / max_daily) * 100
+        daily_html += f"""
+        <div class="stat-row">
+            <span>{day}</span>
+            <span><span style="color:#5cb8ff;">{hits}</span> hits · <span style="color:#f0a500;">{visitors}</span> visitors</span>
+        </div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:{pct}%;"></div></div>"""
+
+    body = f"""
+    <div class="navbar"><a href="/">&#8249; Back</a></div>
+    <div class="stats">
+        <h2 style="font-size:24px;font-weight:800;margin-bottom:16px;">📊 Usage Stats</h2>
+        {cards}
+        <div class="stat-section">
+            <h3>Top Pages (30 days)</h3>
+            {pages_html}
+        </div>
+        <div class="stat-section">
+            <h3>Daily Activity (14 days)</h3>
+            {daily_html}
+        </div>
+    </div>"""
+
+    return html_page("Admin Stats", body, extra_css=css)
+
+
 def build_dice_page():
     """Dice roller — skeleton app for spec-driven development."""
     body = """
@@ -4054,12 +4224,20 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         qs = dict(parse_qsl(parsed.query))
 
+        # Log page views (skip static/api/polling)
+        if not path.startswith("/static/") and not path.endswith("/state") and not path.endswith("/count") and not path.endswith("/players"):
+            import threading
+            threading.Thread(target=log_page_view, args=(
+                path, self.client_address[0], self.headers.get("User-Agent")
+            ), daemon=True).start()
+
         # In web mode, /chartburst → /song-burst (alias)
         if WEB_MODE and path.startswith("/chartburst"):
             path = "/song-burst" + path[len("/chartburst"):]
 
         # In web mode, block internal routes
         if WEB_MODE and not (path == "/" or path.startswith("/song-burst") or path == "/dice"
+                            or path.startswith("/static/") or path.startswith("/admin/")
                             or path.startswith("/manifest") or path.startswith("/apple-touch")
                             or path.startswith("/favicon")):
             self.send_response(404)
@@ -4074,6 +4252,9 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/big-ideas":
             self.send_html(build_big_ideas_page())
+
+        elif path == "/admin/stats":
+            self.send_html(build_admin_stats_page())
 
         elif path == "/dice":
             self.send_html(build_dice_page())
