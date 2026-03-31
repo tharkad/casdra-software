@@ -3203,8 +3203,8 @@ def build_web_home_page():
     .navbar { display: none; }
     .home { display: flex; flex-direction: column; align-items: center; justify-content: center;
             min-height: 100vh; padding: 40px 20px; text-align: center; }
-    .home h1 { font-size: 42px; font-weight: 800; letter-spacing: -1px; color: #fff; }
-    .home p { font-size: 16px; color: #888; margin-top: 8px; }
+    .home-logo { margin-bottom: 24px; }
+    .home-logo img { width: 280px; height: 64px; }
     .home-apps { margin-top: 40px; }
     .app-card { display: block; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
                 border-radius: 16px; padding: 24px 32px; text-decoration: none; color: #fff;
@@ -3216,8 +3216,9 @@ def build_web_home_page():
     """
     body = """
     <div class="home">
-        <h1>Casdra Software</h1>
-        <p>Building things we love</p>
+        <div class="home-logo">
+            <img src="/static/logo.svg" alt="Casdra Software LLC">
+        </div>
         <div class="home-apps">
             <a class="app-card" href="/chartburst">
                 <h2>ChartBurst</h2>
@@ -4513,12 +4514,42 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(APPLE_TOUCH_ICON_PNG)
 
         elif path == "/favicon.ico":
-            self.send_response(200)
-            self.send_header("Content-Type", "image/png")
-            self.send_header("Content-Length", str(len(APPLE_TOUCH_ICON_PNG)))
-            self.send_header("Cache-Control", "no-cache")
-            self.end_headers()
-            self.wfile.write(APPLE_TOUCH_ICON_PNG)
+            svg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "favicon.svg")
+            if os.path.exists(svg_path):
+                with open(svg_path, "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/svg+xml")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            else:
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Length", str(len(APPLE_TOUCH_ICON_PNG)))
+                self.end_headers()
+                self.wfile.write(APPLE_TOUCH_ICON_PNG)
+
+        elif path.startswith("/static/"):
+            file_name = path[len("/static/"):]
+            file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", file_name)
+            if os.path.isfile(file_path) and ".." not in file_name:
+                with open(file_path, "rb") as f:
+                    data = f.read()
+                ct = "application/octet-stream"
+                if file_name.endswith(".svg"): ct = "image/svg+xml"
+                elif file_name.endswith(".css"): ct = "text/css"
+                elif file_name.endswith(".js"): ct = "application/javascript"
+                elif file_name.endswith(".png"): ct = "image/png"
+                self.send_response(200)
+                self.send_header("Content-Type", ct)
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "public, max-age=86400")
+                self.end_headers()
+                self.wfile.write(data)
+            else:
+                self.send_response(404)
+                self.end_headers()
 
         else:
             self.send_html("<h1>404 Not Found</h1>", 404)
