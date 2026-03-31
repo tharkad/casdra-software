@@ -301,10 +301,11 @@ def build_song_burst_page():
     document.addEventListener('DOMContentLoaded', function() { loadSettings(); updateUI(); checkRejoin(); });
     """
 
-    body = """
+    app_name = _app_name()
+    body = f"""
     <div class="navbar"><a href="/">&#8249; Back</a></div>
     <div class="sb-hero">
-        <h1>" + _app_name() + "</h1>
+        <h1>{app_name}</h1>
     </div>
     <div style="display:flex;justify-content:space-between;padding:0 16px 8px;align-items:center;">
         <div id="rejoinWrap" style="display:none;">
@@ -382,7 +383,7 @@ def build_song_burst_page():
                 <div class="sb-section-header">
                     <div class="sb-section-title">Game Name</div>
                 </div>
-                <input id="gameName" value="" + _app_name() + " — """ + datetime.now().strftime("%m/%d/%Y %I:%M %p") + """"
+                <input id="gameName" value=\"""" + _app_name() + " — " + datetime.now().strftime("%m/%d/%Y %I:%M %p") + """"
                        style="width:100%;padding:10px 14px;border:2px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;box-sizing:border-box;">
             </div>
             <div class="sb-section">
