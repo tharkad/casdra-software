@@ -17,7 +17,7 @@ from urllib.parse import parse_qs, quote as url_quote, urlencode, urlparse, pars
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "casdra.db")
 
 # Web mode: public-facing, hides internal apps, renames Song Burst → ChartBurst
-WEB_MODE = True  # Always web mode for casdra.com
+WEB_MODE = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("WEB_MODE"))
 
 # Import page modules (initialized after helpers are defined — see bottom of helpers section)
 import pages.song_burst as _song_burst
@@ -3033,8 +3033,8 @@ def build_web_home_page():
     .navbar { display: none; }
     .home { display: flex; flex-direction: column; align-items: center; justify-content: center;
             min-height: 100vh; padding: 40px 20px; text-align: center; }
-    .home-logo { margin-bottom: 24px; }
-    .home-logo img { width: 280px; height: 64px; }
+    .home h1 { font-size: 42px; font-weight: 800; letter-spacing: -1px; color: #fff; }
+    .home p { font-size: 16px; color: #888; margin-top: 8px; }
     .home-apps { margin-top: 40px; }
     .app-card { display: block; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
                 border-radius: 16px; padding: 24px 32px; text-decoration: none; color: #fff;
@@ -3046,13 +3046,12 @@ def build_web_home_page():
     """
     body = """
     <div class="home">
-        <div class="home-logo">
-            <img src="/static/logo.svg" alt="Casdra Software LLC">
-        </div>
+        <h1>Casdra Software</h1>
+        <p>Building things we love</p>
         <div class="home-apps">
             <a class="app-card" href="/chartburst">
                 <h2>ChartBurst</h2>
-                <p>How well do you know the lyrics? Music trivia from the 50s to today.</p>
+                <p>You need to know the lyrics, AND the melody!</p>
             </a>
         </div>
     </div>
@@ -4061,7 +4060,6 @@ class Handler(BaseHTTPRequestHandler):
 
         # In web mode, block internal routes
         if WEB_MODE and not (path == "/" or path.startswith("/song-burst") or path == "/dice"
-                            or path.startswith("/static/")
                             or path.startswith("/manifest") or path.startswith("/apple-touch")
                             or path.startswith("/favicon")):
             self.send_response(404)
@@ -4334,48 +4332,12 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(APPLE_TOUCH_ICON_PNG)
 
         elif path == "/favicon.ico":
-            # Serve SVG favicon if available
-            svg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "favicon.svg")
-            if os.path.exists(svg_path):
-                with open(svg_path, "rb") as f:
-                    data = f.read()
-                self.send_response(200)
-                self.send_header("Content-Type", "image/svg+xml")
-                self.send_header("Content-Length", str(len(data)))
-                self.end_headers()
-                self.wfile.write(data)
-            else:
-                self.send_response(200)
-                self.send_header("Content-Type", "image/png")
-                self.send_header("Content-Length", str(len(APPLE_TOUCH_ICON_PNG)))
-                self.end_headers()
-                self.wfile.write(APPLE_TOUCH_ICON_PNG)
-
-        elif path.startswith("/static/"):
-            # Serve static files
-            file_name = path[len("/static/"):]
-            file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", file_name)
-            if os.path.isfile(file_path) and not ".." in file_name:
-                with open(file_path, "rb") as f:
-                    data = f.read()
-                content_type = "application/octet-stream"
-                if file_name.endswith(".svg"):
-                    content_type = "image/svg+xml"
-                elif file_name.endswith(".css"):
-                    content_type = "text/css"
-                elif file_name.endswith(".js"):
-                    content_type = "application/javascript"
-                elif file_name.endswith(".png"):
-                    content_type = "image/png"
-                self.send_response(200)
-                self.send_header("Content-Type", content_type)
-                self.send_header("Content-Length", str(len(data)))
-                self.send_header("Cache-Control", "public, max-age=86400")
-                self.end_headers()
-                self.wfile.write(data)
-            else:
-                self.send_response(404)
-                self.end_headers()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(APPLE_TOUCH_ICON_PNG)))
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(APPLE_TOUCH_ICON_PNG)
 
         else:
             self.send_html("<h1>404 Not Found</h1>", 404)
@@ -4917,7 +4879,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     if args.debug:
         host = "127.0.0.1"
-    elif WEB_MODE:
+    elif os.environ.get("RAILWAY_ENVIRONMENT"):
         host = "0.0.0.0"
     else:
         host = "100.81.129.123"

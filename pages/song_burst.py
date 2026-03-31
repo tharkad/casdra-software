@@ -306,6 +306,7 @@ def build_song_burst_page():
     <div class="navbar"><a href="/">&#8249; Back</a></div>
     <div class="sb-hero">
         <h1>{app_name}</h1>
+        <p style="color:rgba(255,255,255,0.7);font-size:15px;margin-top:8px;font-style:italic;">You need to know the lyrics, AND the melody!</p>
     </div>
     <div style="display:flex;justify-content:space-between;padding:0 16px 8px;align-items:center;">
         <div id="rejoinWrap" style="display:none;">
