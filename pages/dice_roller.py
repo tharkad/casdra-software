@@ -78,6 +78,7 @@ def build_dice_page(premium=False, restore_state=None):
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
+button, a, input { outline: none; -webkit-tap-highlight-color: transparent; }
 body {
     background: var(--bg); color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
