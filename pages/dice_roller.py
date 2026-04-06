@@ -1069,6 +1069,7 @@ function updateCupDisplay() {
         document.getElementById('successBtn').classList.remove('on');
         document.getElementById('successBtn').textContent = 'Success';
         document.getElementById('favStar').classList.remove('fav-active');
+        document.getElementById('cupTags').innerHTML = '';
         if(!editMode) { activePresetIdx = -1; }
         return;
     }
