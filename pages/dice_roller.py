@@ -79,11 +79,10 @@ def build_dice_page(premium=False, restore_state=None):
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-    background: var(--bg); color: var(--text); min-height: 100vh;
+    background: var(--bg); color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent;
-    overscroll-behavior: none;
-    display: flex; flex-direction: column;
+    max-width: 500px; margin: 0 auto;
 }
 
 /* Header */
@@ -306,7 +305,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 
 /* === THE CUP === */
 .dr-cup {
-    position: fixed; bottom: 0; left: 0; right: 0;
     background-color: var(--felt-color, #1a5a2a);
     background-image:
         radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.06) 0%, transparent 60%),
@@ -316,7 +314,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     padding: 12px 16px 16px;
     padding-bottom: max(16px, env(safe-area-inset-bottom));
     display: flex; flex-direction: column;
-    z-index: 10;
     box-shadow: inset 0 2px 12px rgba(88,166,255,0.1), 0 -4px 20px rgba(0,0,0,0.5);
 }
 .dr-cup > * { position: relative; }
@@ -663,7 +660,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button onclick="setGroupRepeat(activeGroupIdx)">&times;N</button>
     </div>""" if premium else '') + """
 </div>
-<div id="cupSpacer"></div>
 
 <script>
 // Die visual config
@@ -1200,11 +1196,6 @@ function updateCupDisplay() {
         presets[activePresetIdx] = updated;
         savePresetsToStorage();
     }
-    // Size spacer to match fixed cup height
-    requestAnimationFrame(function() {
-        var cup = document.getElementById('cup');
-        document.getElementById('cupSpacer').style.height = cup.offsetHeight + 'px';
-    });
 }
 
 // Long press for options
