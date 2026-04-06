@@ -22,6 +22,7 @@ WEB_MODE = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("WEB_MOD
 # Import page modules (initialized after helpers are defined — see bottom of helpers section)
 import pages.song_burst as _song_burst
 import pages.song_burst_session as _session
+import pages.dice_roller as _dice_roller
 
 
 # ---------------------------------------------------------------------------
@@ -3243,7 +3244,11 @@ def build_web_home_page():
             <img src="/static/logo.svg" alt="Casdra Software LLC">
         </div>
         <div class="home-apps">
-            <a class="app-card" href="/chartburst">
+            <a class="app-card" href="/dice">
+                <h2>Dice Vault</h2>
+                <p>Roll dice for any game — RPG, board game, or just for fun</p>
+            </a>
+            <a class="app-card" href="/chartburst" style="margin-top:12px">
                 <h2>ChartBurst</h2>
                 <p>You need to know the lyrics, AND the melody!</p>
             </a>
@@ -4263,7 +4268,7 @@ class Handler(BaseHTTPRequestHandler):
             path = "/song-burst" + path[len("/chartburst"):]
 
         # In web mode, block internal routes
-        if WEB_MODE and not (path == "/" or path.startswith("/song-burst") or path == "/dice"
+        if WEB_MODE and not (path == "/" or path.startswith("/song-burst") or path.startswith("/dice")
                             or path.startswith("/static/") or path.startswith("/admin/")
                             or path.startswith("/manifest") or path.startswith("/apple-touch")
                             or path.startswith("/favicon")):
@@ -4284,7 +4289,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_html(build_admin_stats_page())
 
         elif path == "/dice":
-            self.send_html(build_dice_page())
+            self.send_html(_dice_roller.build_dice_page())
+
+        elif path == "/dice/history":
+            self.send_html(_dice_roller.build_dice_history_page())
 
         elif path == "/song-burst":
             self.send_html(build_song_burst_page())
