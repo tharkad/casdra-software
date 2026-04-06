@@ -2194,7 +2194,25 @@ function renderDistribution() {
     // Remove zero-probability entries
     var keys = Object.keys(dist).filter(function(k){return dist[k] > 0;}).map(Number).sort(function(a,b){return a-b;});
     if (keys.length === 0) { chart.innerHTML = ''; return; }
-    var trueMin = keys[0], trueMax = keys[keys.length-1];
+
+    // Calculate theoretical min/max from dice (not from sampled data)
+    var rollable = cupDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin'; });
+    var countMode = rollable.some(function(d){return d.countSuccess;});
+    var hasKeep = dropLowest || dropHighest || rollable.some(function(d){return d.keep;});
+    if (countMode) {
+        var trueMin = 0, trueMax = rollable.length;
+    } else if (hasKeep && rollable.length > 1) {
+        // With keep/drop: sort all dice mins/maxes
+        var allMins = rollable.map(function(d){ return d.type==='df'?-1:d.type==='coin'?0:(d.clampMin||1); }).sort(function(a,b){return a-b;});
+        var allMaxes = rollable.map(function(d){ return d.type==='df'?1:d.type==='coin'?1:(d.clampMax||getDieMax(d)); }).sort(function(a,b){return a-b;});
+        var dLo = dropLowest ? 1 : 0, dHi = dropHighest ? 1 : 0;
+        var trueMin = 0, trueMax = 0;
+        for (var ki = dLo; ki < allMins.length - dHi; ki++) trueMin += allMins[ki];
+        for (var ki = dLo; ki < allMaxes.length - dHi; ki++) trueMax += allMaxes[ki];
+        trueMin += modifier; trueMax += modifier;
+    } else {
+        var trueMin = keys[0], trueMax = keys[keys.length-1];
+    }
 
     // Bin if too many values (>80 bars won't fit)
     var maxBars = 80;
