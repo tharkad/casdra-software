@@ -10,10 +10,10 @@ PREMIUM_MODE_DEFAULT = False
 
 DICE_BUTTONS = [
     ("COIN", "&#9679;", "#d29922"),     # circle — first
-    ("d4", "&#9650;", "#7ee787"),       # triangle
-    ("d6", "&#9632;", "#58a6ff"),       # square
-    ("d8", "&#9670;", "#d2a8ff"),       # diamond
-    ("d10", "&#11039;", "#f0883e"),     # pentagon
+    ("d4", '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,2 22,21 2,21"/><line x1="12" y1="2" x2="12" y2="21"/><line x1="7" y1="11.5" x2="17" y2="11.5"/><polygon points="12,2 17,11.5 12,21 7,11.5" fill="currentColor" opacity="0.1"/></svg>', "#7ee787"),       # tetrahedron
+    ("d6", '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="5,8 12,4 19,8 19,19 12,23 5,19"/><line x1="5" y1="8" x2="12" y2="12"/><line x1="12" y1="12" x2="19" y2="8"/><line x1="12" y1="12" x2="12" y2="23"/><polygon points="5,8 12,4 19,8 12,12" fill="currentColor" opacity="0.15"/></svg>', "#58a6ff"),       # cube
+    ("d8", '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1 23,12 12,23 1,12"/><line x1="1" y1="12" x2="23" y2="12"/><line x1="12" y1="1" x2="6" y2="18"/><line x1="12" y1="1" x2="18" y2="18"/><polygon points="12,1 23,12 1,12" fill="currentColor" opacity="0.12"/></svg>', "#d2a8ff"),       # octahedron
+    ("d10", '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1 22,9 18,22 6,22 2,9"/><line x1="12" y1="1" x2="12" y2="22"/><line x1="2" y1="9" x2="18" y2="22"/><line x1="22" y1="9" x2="6" y2="22"/><polygon points="12,1 22,9 2,9" fill="currentColor" opacity="0.12"/></svg>', "#f0883e"),     # trapezohedron
     ("d12", '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1.5 22.5,8.1 18.5,20.4 5.5,20.4 1.5,8.1"/><polygon points="12,6.5 17.5,9.5 15.8,15.5 8.2,15.5 6.5,9.5"/><line x1="12" y1="1.5" x2="12" y2="6.5"/><line x1="22.5" y1="8.1" x2="17.5" y2="9.5"/><line x1="18.5" y1="20.4" x2="15.8" y2="15.5"/><line x1="5.5" y1="20.4" x2="8.2" y2="15.5"/><line x1="1.5" y1="8.1" x2="6.5" y2="9.5"/></svg>', "#ff7b72"),     # dodecahedron
     ("d20", '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1 22.4,6.5 22.4,17.5 12,23 1.6,17.5 1.6,6.5"/><line x1="12" y1="1" x2="12" y2="23"/><line x1="1.6" y1="6.5" x2="22.4" y2="17.5"/><line x1="22.4" y1="6.5" x2="1.6" y2="17.5"/><polygon points="12,1 22.4,6.5 12,12 1.6,6.5" fill="currentColor" opacity="0.15"/></svg>', "#ffa657"),      # icosahedron
     ("d100", "%", "#79c0ff"),           # percent
@@ -664,10 +664,10 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 <script>
 // Die visual config
 var DIE_SHAPES = {
-    d4:  {shape:'\\u25B2', color:'#7ee787'},
-    d6:  {shape:'\\u25A0', color:'#58a6ff'},
-    d8:  {shape:'\\u25C6', color:'#d2a8ff'},
-    d10: {shape:'\\u2B1F', color:'#f0883e'},
+    d4:  {shape:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,2 22,21 2,21"/><line x1="12" y1="2" x2="12" y2="21"/><line x1="7" y1="11.5" x2="17" y2="11.5"/><polygon points="12,2 17,11.5 12,21 7,11.5" fill="currentColor" opacity="0.1"/></svg>', color:'#7ee787', isSvg:true},
+    d6:  {shape:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="5,8 12,4 19,8 19,19 12,23 5,19"/><line x1="5" y1="8" x2="12" y2="12"/><line x1="12" y1="12" x2="19" y2="8"/><line x1="12" y1="12" x2="12" y2="23"/><polygon points="5,8 12,4 19,8 12,12" fill="currentColor" opacity="0.15"/></svg>', color:'#58a6ff', isSvg:true},
+    d8:  {shape:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1 23,12 12,23 1,12"/><line x1="1" y1="12" x2="23" y2="12"/><line x1="12" y1="1" x2="6" y2="18"/><line x1="12" y1="1" x2="18" y2="18"/><polygon points="12,1 23,12 1,12" fill="currentColor" opacity="0.12"/></svg>', color:'#d2a8ff', isSvg:true},
+    d10: {shape:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1 22,9 18,22 6,22 2,9"/><line x1="12" y1="1" x2="12" y2="22"/><line x1="2" y1="9" x2="18" y2="22"/><line x1="22" y1="9" x2="6" y2="22"/><polygon points="12,1 22,9 2,9" fill="currentColor" opacity="0.12"/></svg>', color:'#f0883e', isSvg:true},
     d12: {shape:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1.5 22.5,8.1 18.5,20.4 5.5,20.4 1.5,8.1"/><polygon points="12,6.5 17.5,9.5 15.8,15.5 8.2,15.5 6.5,9.5"/><line x1="12" y1="1.5" x2="12" y2="6.5"/><line x1="22.5" y1="8.1" x2="17.5" y2="9.5"/><line x1="18.5" y1="20.4" x2="15.8" y2="15.5"/><line x1="5.5" y1="20.4" x2="8.2" y2="15.5"/><line x1="1.5" y1="8.1" x2="6.5" y2="9.5"/></svg>', color:'#ff7b72', isSvg:true},
     d20: {shape:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1 22.4,6.5 22.4,17.5 12,23 1.6,17.5 1.6,6.5"/><line x1="12" y1="1" x2="12" y2="23"/><line x1="1.6" y1="6.5" x2="22.4" y2="17.5"/><line x1="22.4" y1="6.5" x2="1.6" y2="17.5"/><polygon points="12,1 22.4,6.5 12,12 1.6,6.5" fill="currentColor" opacity="0.15"/></svg>', color:'#ffa657', isSvg:true},
     d100:{shape:'%',       color:'#79c0ff'},
