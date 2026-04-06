@@ -300,7 +300,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 .dr-mod-btn:hover { border-color: #58a6ff; color: var(--text-bright); }
 .dr-mod-btn:active { transform: scale(0.95); }
-.dr-mod-btn.on { border-color: #ffa657; color: #fff; background: #ffa657; }
+.dr-mod-btn.on { border-color: #b37400; color: #fff; background: #ffa657; }
 .dr-mod-btn.dimmed { border-color: var(--border); color: var(--text-dim); pointer-events: none; }
 
 /* === THE CUP === */
