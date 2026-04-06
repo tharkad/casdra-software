@@ -1609,33 +1609,10 @@ function shareResult() {
     var text = 'I rolled ' + resultText + '! (' + formula + ')\\n' + breakdown + '\\n\\u2014 Dice Vault';
 
     if (isMobile) {
-        // Mobile: capture screenshot and share with image
-        var resultArea = document.getElementById('resultArea');
-        var shareBtn = document.getElementById('shareBtn');
-        shareBtn.style.visibility = 'hidden';
-        function loadH2C(cb) {
-            if (window.html2canvas) { cb(); return; }
-            var s = document.createElement('script');
-            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-            s.onload = cb; document.head.appendChild(s);
+        // Mobile: share text immediately (must be in user gesture context for iOS Safari)
+        if (navigator.share) {
+            navigator.share({text: text}).catch(function(){});
         }
-        loadH2C(function() {
-            html2canvas(resultArea, {backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg').trim(), scale: 2, logging: false}).then(function(canvas) {
-                shareBtn.style.visibility = '';
-                canvas.toBlob(function(blob) {
-                    var file = new File([blob], 'dice-vault-roll.png', {type: 'image/png'});
-                    var shareData = {text: text, files: [file]};
-                    try {
-                        if (navigator.canShare && navigator.canShare(shareData)) {
-                            navigator.share(shareData).catch(function(){});
-                            return;
-                        }
-                    } catch(e) {}
-                    // Fall back to text share
-                    navigator.share({text: text}).catch(function(){});
-                }, 'image/png');
-            });
-        });
     } else {
         // Desktop: text share or clipboard
         if (navigator.share) {
