@@ -15,7 +15,7 @@ DICE_BUTTONS = [
     ("d8", "&#9670;", "#d2a8ff"),       # diamond
     ("d10", "&#11039;", "#f0883e"),     # pentagon
     ("d12", "&#11042;", "#ff7b72"),     # hexagon
-    ("d20", '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="0.5"><polygon points="12,1 23,19 1,19" fill="currentColor" stroke="none"/><line x1="12" y1="1" x2="6" y2="19" stroke="rgba(0,0,0,0.3)" stroke-width="0.8"/><line x1="12" y1="1" x2="18" y2="19" stroke="rgba(0,0,0,0.3)" stroke-width="0.8"/><line x1="4" y1="13" x2="20" y2="13" stroke="rgba(0,0,0,0.3)" stroke-width="0.8"/></svg>', "#ffa657"),      # icosahedron
+    ("d20", '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1 22.4,6.5 22.4,17.5 12,23 1.6,17.5 1.6,6.5"/><line x1="12" y1="1" x2="12" y2="23"/><line x1="1.6" y1="6.5" x2="22.4" y2="17.5"/><line x1="22.4" y1="6.5" x2="1.6" y2="17.5"/><polygon points="12,1 22.4,6.5 12,12 1.6,6.5" fill="currentColor" opacity="0.15"/></svg>', "#ffa657"),      # icosahedron
     ("d100", "%", "#79c0ff"),           # percent
     ("DX", '<svg width="20" height="20" viewBox="0 0 20 20"><polygon points="10,1 17.7,4.5 19.1,12.6 14.3,18.9 5.7,18.9 0.9,12.6 2.3,4.5" fill="currentColor"/></svg>', "#d2a8ff"),  # heptagon
 ]
@@ -669,7 +669,7 @@ var DIE_SHAPES = {
     d8:  {shape:'\\u25C6', color:'#d2a8ff'},
     d10: {shape:'\\u2B1F', color:'#f0883e'},
     d12: {shape:'\\u2B22', color:'#ff7b72'},
-    d20: {shape:'<svg width="24" height="24" viewBox="0 0 24 24"><polygon points="12,1 23,19 1,19" fill="currentColor"/><line x1="12" y1="1" x2="6" y2="19" stroke="rgba(0,0,0,0.3)" stroke-width="0.8"/><line x1="12" y1="1" x2="18" y2="19" stroke="rgba(0,0,0,0.3)" stroke-width="0.8"/><line x1="4" y1="13" x2="20" y2="13" stroke="rgba(0,0,0,0.3)" stroke-width="0.8"/></svg>', color:'#ffa657', isSvg:true},
+    d20: {shape:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1 22.4,6.5 22.4,17.5 12,23 1.6,17.5 1.6,6.5"/><line x1="12" y1="1" x2="12" y2="23"/><line x1="1.6" y1="6.5" x2="22.4" y2="17.5"/><line x1="22.4" y1="6.5" x2="1.6" y2="17.5"/><polygon points="12,1 22.4,6.5 12,12 1.6,6.5" fill="currentColor" opacity="0.15"/></svg>', color:'#ffa657', isSvg:true},
     d100:{shape:'%',       color:'#79c0ff'},
     adv: {shape:'\\u25B2', color:'#7ee787'},
     dis: {shape:'\\u25BC', color:'#f85149'},
