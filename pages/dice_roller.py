@@ -14,7 +14,7 @@ DICE_BUTTONS = [
     ("d6", "&#9632;", "#58a6ff"),       # square
     ("d8", "&#9670;", "#d2a8ff"),       # diamond
     ("d10", "&#11039;", "#f0883e"),     # pentagon
-    ("d12", "&#11042;", "#ff7b72"),     # hexagon
+    ("d12", '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1.5 22.5,8.1 18.5,20.4 5.5,20.4 1.5,8.1"/><polygon points="12,6.5 17.5,9.5 15.8,15.5 8.2,15.5 6.5,9.5"/><line x1="12" y1="1.5" x2="12" y2="6.5"/><line x1="22.5" y1="8.1" x2="17.5" y2="9.5"/><line x1="18.5" y1="20.4" x2="15.8" y2="15.5"/><line x1="5.5" y1="20.4" x2="8.2" y2="15.5"/><line x1="1.5" y1="8.1" x2="6.5" y2="9.5"/></svg>', "#ff7b72"),     # dodecahedron
     ("d20", '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1 22.4,6.5 22.4,17.5 12,23 1.6,17.5 1.6,6.5"/><line x1="12" y1="1" x2="12" y2="23"/><line x1="1.6" y1="6.5" x2="22.4" y2="17.5"/><line x1="22.4" y1="6.5" x2="1.6" y2="17.5"/><polygon points="12,1 22.4,6.5 12,12 1.6,6.5" fill="currentColor" opacity="0.15"/></svg>', "#ffa657"),      # icosahedron
     ("d100", "%", "#79c0ff"),           # percent
     ("DX", '<svg width="20" height="20" viewBox="0 0 20 20"><polygon points="10,1 17.7,4.5 19.1,12.6 14.3,18.9 5.7,18.9 0.9,12.6 2.3,4.5" fill="currentColor"/></svg>', "#d2a8ff"),  # heptagon
@@ -668,7 +668,7 @@ var DIE_SHAPES = {
     d6:  {shape:'\\u25A0', color:'#58a6ff'},
     d8:  {shape:'\\u25C6', color:'#d2a8ff'},
     d10: {shape:'\\u2B1F', color:'#f0883e'},
-    d12: {shape:'\\u2B22', color:'#ff7b72'},
+    d12: {shape:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1.5 22.5,8.1 18.5,20.4 5.5,20.4 1.5,8.1"/><polygon points="12,6.5 17.5,9.5 15.8,15.5 8.2,15.5 6.5,9.5"/><line x1="12" y1="1.5" x2="12" y2="6.5"/><line x1="22.5" y1="8.1" x2="17.5" y2="9.5"/><line x1="18.5" y1="20.4" x2="15.8" y2="15.5"/><line x1="5.5" y1="20.4" x2="8.2" y2="15.5"/><line x1="1.5" y1="8.1" x2="6.5" y2="9.5"/></svg>', color:'#ff7b72', isSvg:true},
     d20: {shape:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><polygon points="12,1 22.4,6.5 22.4,17.5 12,23 1.6,17.5 1.6,6.5"/><line x1="12" y1="1" x2="12" y2="23"/><line x1="1.6" y1="6.5" x2="22.4" y2="17.5"/><line x1="22.4" y1="6.5" x2="1.6" y2="17.5"/><polygon points="12,1 22.4,6.5 12,12 1.6,6.5" fill="currentColor" opacity="0.15"/></svg>', color:'#ffa657', isSvg:true},
     d100:{shape:'%',       color:'#79c0ff'},
     adv: {shape:'\\u25B2', color:'#7ee787'},
