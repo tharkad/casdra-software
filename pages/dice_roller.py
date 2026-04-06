@@ -2322,6 +2322,7 @@ function liveParseFormula() {
 function syncFormulaFromCup() {
     if (document.activeElement === document.getElementById('formulaInput')) return;
     var counts = {};
+    var exploding = {};
     var specials = [];
     cupDice.forEach(function(d) {
         if (d.type==='adv') { specials.push('ADV'); return; }
@@ -2329,23 +2330,22 @@ function syncFormulaFromCup() {
         if (d.type==='coin') { specials.push('COIN'); return; }
         var k = d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
         counts[k] = (counts[k]||0)+1;
+        if (d.exploding) exploding[k] = true;
     });
     var parts = [];
-    for (var t in counts) parts.push(counts[t]>1?counts[t]+t:t);
+    for (var t in counts) {
+        var p = counts[t]>1?counts[t]+t:t;
+        if (exploding[t]) p += '!';
+        parts.push(p);
+    }
     parts = parts.concat(specials);
     if (modifier > 0) parts.push(''+modifier);
     else if (modifier < 0) parts.push(''+modifier);
     if (dropLowest && parts.length > 0) {
-        var first = parts[0];
-        if (first && !first.match(/^[+-]/) && !first.match(/^(ADV|DIS|COIN)$/)) parts[0] += 'dl';
+        parts[0] += 'dl';
     }
     if (dropHighest && parts.length > 0) {
-        var first = parts[0];
-        if (first && !first.match(/^[+-]/) && !first.match(/^(ADV|DIS|COIN)$/)) parts[0] += 'dh';
-    }
-    if (cupDice.some(function(d){return d.exploding;}) && parts.length > 0) {
-        var first = parts[0];
-        if (first && !first.match(/^[+-]/) && !first.match(/^(ADV|DIS|COIN)$/)) parts[0] += '!';
+        parts[0] += 'dh';
     }
     // Join parts, but don't add + before negative numbers
     var formula = '';
