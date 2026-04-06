@@ -550,6 +550,8 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button class="dr-header-btn" onclick="showBugReport()" title="Report Bug">&#x1F41B;</button>
         <button class="dr-header-btn" id="themeBtn" onclick="toggleThemePicker(event)" title="Theme">&#x1F3A8;</button>
         <a class="dr-header-btn dr-history-btn" href="/dice/history" title="History">&#x1F552;</a>
+        <button class="dr-header-btn off" onclick="alert('Sound — coming soon!')" title="Sound">&#x1F50A;</button>
+        <button class="dr-header-btn off" onclick="alert('Shake to roll — coming soon!')" title="Shake">&#x1F4F1;</button>
     </div>
 </div>
 
