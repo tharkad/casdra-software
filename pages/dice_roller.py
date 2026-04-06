@@ -1601,30 +1601,34 @@ function animateResult(finalValue) {
     }, 50);
 }
 
-var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 function shareResult() {
     var resultText = document.getElementById('result').textContent;
     var breakdown = document.getElementById('breakdown').textContent;
     var formula = document.getElementById('formulaInput').value || document.getElementById('cupSummary').textContent;
     var text = 'I rolled ' + resultText + '! (' + formula + ')\\n' + breakdown + '\\n\\u2014 Dice Vault';
+    var btn = document.getElementById('shareBtn');
 
-    if (isMobile) {
-        // Mobile: share text immediately (must be in user gesture context for iOS Safari)
-        if (navigator.share) {
-            navigator.share({text: text}).catch(function(){});
-        }
+    if (navigator.share) {
+        navigator.share({title: 'Dice Vault', text: text}).then(function() {
+            btn.innerHTML = '\\u2714';
+            setTimeout(function(){ resetShareBtn(); }, 1500);
+        }).catch(function(err) {
+            // User cancelled or error — show feedback anyway if not AbortError
+            if (err.name !== 'AbortError') {
+                alert('Share failed: ' + err.message);
+            }
+        });
+    } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() {
+            btn.innerHTML = '\\u2714';
+            setTimeout(function(){ resetShareBtn(); }, 1500);
+        }).catch(function(){ alert('Could not copy to clipboard'); });
     } else {
-        // Desktop: text share or clipboard
-        if (navigator.share) {
-            navigator.share({text: text}).catch(function(){});
-        } else {
-            navigator.clipboard.writeText(text).then(function() {
-                var btn = document.getElementById('shareBtn');
-                btn.innerHTML = '\\u2714';
-                setTimeout(function(){ btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>'; }, 1500);
-            }).catch(function(){});
-        }
+        alert(text);
     }
+}
+function resetShareBtn() {
+    document.getElementById('shareBtn').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
 }
 
 // History (localStorage only — rendered on /dice/history page)
