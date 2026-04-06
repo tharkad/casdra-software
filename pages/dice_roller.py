@@ -300,7 +300,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 .dr-mod-btn:hover { border-color: #58a6ff; color: var(--text-bright); }
 .dr-mod-btn:active { transform: scale(0.95); }
-.dr-mod-btn.on { border-color: #b37400; color: #fff; background: #ffa657; }
+.dr-mod-btn.on { border-color: #ffa657; color: #fff; background: #ffa657; }
 .dr-mod-btn.dimmed { border-color: var(--border); color: var(--text-dim); pointer-events: none; }
 
 /* === THE CUP === */
@@ -1161,8 +1161,10 @@ function updateCupDisplay() {
     var allExploding = n > 0 && activeGroup().children.every(function(d){return d.exploding;});
     document.getElementById('explodeBtn').classList.toggle('on', allExploding);
     document.getElementById('explodeBtn').classList.toggle('dimmed', n === 0);
-    var explodeSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5"/></svg>';
-    document.getElementById('explodeBtn').innerHTML = (n === 0 || allExploding) ? explodeSvg : '\\uD83D\\uDCA5';
+    var explodePts = '12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5';
+    var explodeSvgDimmed = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="'+explodePts+'"/></svg>';
+    var explodeSvgOn = '<svg width="18" height="18" viewBox="0 0 24 24" fill="white" stroke="#333" stroke-width="1.5" stroke-linejoin="round"><polygon points="'+explodePts+'"/></svg>';
+    document.getElementById('explodeBtn').innerHTML = n === 0 ? explodeSvgDimmed : allExploding ? explodeSvgOn : '\\uD83D\\uDCA5';
     // Min button state
     var minVal = 0;
     activeGroup().children.forEach(function(d){ if(d.clampMin > 1) minVal = d.clampMin; });
