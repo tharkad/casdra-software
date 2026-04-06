@@ -4306,6 +4306,18 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/dice/history":
             self.send_html(_dice_roller.build_dice_history_page())
 
+        elif path == "/dice/bugs.json":
+            import json as _json
+            conn = get_db()
+            try:
+                rows = conn.execute("SELECT id, created_at, reporter, description, status, notes FROM dice_bug_reports ORDER BY id DESC LIMIT 50").fetchall()
+                bugs = [dict(r) for r in rows]
+            except Exception:
+                bugs = []
+            conn.close()
+            self.send_json(bugs)
+            return
+
         elif path == "/song-burst":
             self.send_html(build_song_burst_page())
 
