@@ -2073,7 +2073,7 @@ function calcDistribution() {
     // Keep/drop enumeration — works for mixed dice too
     var enumTotal = 1;
     rollable.forEach(function(d) { enumTotal *= getDieMax(d); });
-    if (needKeep && rollable.length > 1 && enumTotal <= 50000) {
+    if (needKeep && rollable.length > 1 && enumTotal <= 1000000) {
         var sidesArr = rollable.map(function(d) { return getDieMax(d); });
         var n = rollable.length;
         var dLo = dropLowest ? 1 : 0;
@@ -2105,7 +2105,7 @@ function calcDistribution() {
         cupDice.forEach(function(d) {
             if (d.keep) { keepMode = d.keep; keepCount = d.keepCount || 1; }
         });
-        var trials = 50000;
+        var trials = 200000;
         var counts = {};
         for (var t = 0; t < trials; t++) {
             var rolls = rollable.map(function(d) { return Math.floor(Math.random() * getDieMax(d)) + 1; });
