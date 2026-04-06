@@ -246,6 +246,18 @@ def init_db():
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_views_path ON page_views(path)
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS dice_bug_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT DEFAULT (datetime('now', 'localtime')),
+            reporter TEXT NOT NULL,
+            description TEXT NOT NULL,
+            screenshot TEXT,
+            app_state TEXT NOT NULL,
+            status TEXT DEFAULT 'open',
+            notes TEXT DEFAULT ''
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -4602,12 +4614,28 @@ class Handler(BaseHTTPRequestHandler):
             self.path = "/song-burst" + self.path[len("/chartburst"):]
 
         # In web mode, block internal POST routes
-        if WEB_MODE and not self.path.startswith("/song-burst"):
+        if WEB_MODE and not (self.path.startswith("/song-burst") or self.path == "/dice/bug"):
             self.send_response(404)
             self.end_headers()
             return
 
         path = self.path
+
+        if path == "/dice/bug":
+            import json as _json
+            try:
+                data = _json.loads(body)
+                conn = get_db()
+                conn.execute(
+                    "INSERT INTO dice_bug_reports (reporter, description, screenshot, app_state) VALUES (?, ?, ?, ?)",
+                    (data.get("reporter", ""), data.get("description", ""), data.get("screenshot", ""), _json.dumps(data.get("state", {})))
+                )
+                conn.commit()
+                conn.close()
+                self.send_json({"ok": True})
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, 500)
+            return
 
         if path == "/restaurant-info/add-restaurant":
             name = p("name", "").strip()
