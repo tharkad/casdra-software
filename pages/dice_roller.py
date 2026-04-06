@@ -550,8 +550,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button class="dr-header-btn" onclick="showBugReport()" title="Report Bug">&#x1F41B;</button>
         <button class="dr-header-btn" id="themeBtn" onclick="toggleThemePicker(event)" title="Theme">&#x1F3A8;</button>
         <a class="dr-header-btn dr-history-btn" href="/dice/history" title="History">&#x1F552;</a>
-        <button class="dr-header-btn dr-shake-toggle on" id="shakeToggle" onclick="toggleShake()" title="Shake">&#x1F4F1;</button>
-        <button class="dr-header-btn dr-mute-btn on" id="muteBtn" onclick="toggleMute()" title="Sound">&#x1F50A;</button>
     </div>
 </div>
 
@@ -2536,10 +2534,8 @@ function updatePremiumBtn() {
         localStorage.setItem('dice_roller_v4','1');
     }
 
-    if(localStorage.getItem('dice_roller_muted')==='1') toggleMute();
-    if(localStorage.getItem('dice_roller_shake')==='0'){shakeEnabled=true;toggleShake();}
-    else startShakeListener();
-    if(!('DeviceMotionEvent' in window)) document.getElementById('shakeToggle').style.display='none';
+    isMuted = true;
+    shakeEnabled = false;
     loadHistory(); loadPresets();
     loadCupState();
     // In free mode, collapse multi-group to single group
