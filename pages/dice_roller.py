@@ -2240,10 +2240,6 @@ function renderDistribution() {
     var barW = Math.max(2, Math.min(8, Math.floor(260 / keys.length)));
     var minVal = trueMin, maxVal = trueMax;
     var midVal = keys[Math.floor(keys.length/2)];
-    // Find the peak value
-    var peakVal = keys[0], isFlat = true;
-    keys.forEach(function(k) { if(dist[k] > dist[peakVal]) { peakVal = k; isFlat = false; } else if(dist[k] < dist[peakVal]) isFlat = false; });
-    midVal = isFlat ? keys[Math.floor(keys.length/2)] : peakVal;
 
     var hasExploding = cupDice.some(function(d){return d.exploding;});
 
