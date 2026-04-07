@@ -47,10 +47,10 @@ def build_dice_page(premium=False, restore_state=None):
     --cup-border: #58a6ff; --btn-bg: #161b22; --felt-color: #1a5a2a;
 }
 [data-theme="light"] {
-    --bg: #faf7f2; --surface: #ffffff; --border: #d4c5a9; --border2: #e8dcc8;
+    --bg: #f0e6d4; --surface: #ffffff; --border: #c8b898; --border2: #ddd0b8;
     --text: #3d2b1f; --text-bright: #1c1208; --text-dim: #a09080; --text-muted: #7a6a58;
     --accent: #b8860b; --accent2: #8b0000;
-    --cup-border: #b8860b; --btn-bg: #f5f0e8; --felt-color: #6b2d2d;
+    --cup-border: #b8860b; --btn-bg: #ffffff; --felt-color: #6b2d2d;
 }
 [data-theme="midnight"] {
     --bg: #0a0e1a; --surface: #111827; --border: #1e2a4a; --border2: #162040;
@@ -2307,7 +2307,7 @@ function showProbability(total) {
     var pct = (pGte * 100).toFixed(1);
 
     var label = pGte > 0.5 ? 'common' : pGte > 0.2 ? 'decent' : pGte > 0.05 ? 'lucky' : 'rare';
-    var isLight = currentTheme === 'light';
+    var isLight = currentTheme.indexOf('light') === 0;
     var color = pGte > 0.5 ? (isLight ? '#1a7f37' : '#7ee787') : pGte > 0.2 ? (isLight ? '#b35900' : '#ffa657') : pGte > 0.05 ? (isLight ? '#a3400a' : '#f0883e') : (isLight ? '#cf222e' : '#f85149');
 
     var countMode = cupDice.some(function(d){return d.countSuccess;});
@@ -2554,7 +2554,7 @@ function parseFormulaStr(input) {
 // ===== Themes =====
 var THEMES = [
     {id:'dark',    name:'Dark',     free:true,  bg:'#0d1117', accent:'#58a6ff', surface:'#1a5a2a'},
-    {id:'light',   name:'Light',    free:true,  bg:'#faf7f2', accent:'#b8860b', surface:'#6b2d2d'},
+    {id:'light',   name:'Light',    free:true,  bg:'#f0e6d4', accent:'#b8860b', surface:'#6b2d2d'},
     {id:'midnight',name:'Midnight', free:false, bg:'#0a0e1a', accent:'#6366f1', surface:'#1a2850'},
     {id:'purple',  name:'Purple',   free:false, bg:'#13051e', accent:'#a855f7', surface:'#3a1858'},
     {id:'forest',  name:'Forest',   free:false, bg:'#0a1208', accent:'#22c55e', surface:'#1a4a20'},
