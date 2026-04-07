@@ -1720,24 +1720,46 @@ function savePresetsToStorage() { localStorage.setItem('dice_roller_presets',JSO
 function getCupSignature() {
     // Build a comparable string from current cup state
     var counts={};
-    cupDice.forEach(function(d){var k=d.type==='dx'?'d'+(d.sides||6):d.type;counts[k]=(counts[k]||0)+1;});
+    var expl=0, clMin=0, clMax=0, succ=0;
+    cupDice.forEach(function(d){
+        var k=d.type==='dx'?'d'+(d.sides||6):d.type;counts[k]=(counts[k]||0)+1;
+        if(d.exploding) expl++;
+        if(d.clampMin>1) clMin=d.clampMin;
+        if(d.clampMax) clMax=d.clampMax;
+        if(d.countSuccess) succ=d.countSuccess;
+    });
     var parts=[]; for(var t in counts) parts.push(counts[t]+t);
     parts.sort();
     if(modifier) parts.push('m'+modifier);
     if(dropLowest) parts.push('dl');
     if(dropHighest) parts.push('dh');
+    if(expl) parts.push('x'+expl);
+    if(clMin) parts.push('mn'+clMin);
+    if(clMax) parts.push('mx'+clMax);
+    if(succ) parts.push('s'+succ);
     return parts.join('|');
 }
 
 function getPresetSignature(p) {
     var counts={};
+    var expl=0, clMin=0, clMax=0, succ=0;
     var dice = p.children || p.dice || [];
-    dice.forEach(function(d){var k=d.type==='dx'?'d'+(d.sides||6):d.type;counts[k]=(counts[k]||0)+1;});
+    dice.forEach(function(d){
+        var k=d.type==='dx'?'d'+(d.sides||6):d.type;counts[k]=(counts[k]||0)+1;
+        if(d.exploding) expl++;
+        if(d.clampMin>1) clMin=d.clampMin;
+        if(d.clampMax) clMax=d.clampMax;
+        if(d.countSuccess) succ=d.countSuccess;
+    });
     var parts=[]; for(var t in counts) parts.push(counts[t]+t);
     parts.sort();
     if(p.modifier) parts.push('m'+p.modifier);
     if(p.dropLowest) parts.push('dl');
     if(p.dropHighest) parts.push('dh');
+    if(expl) parts.push('x'+expl);
+    if(clMin) parts.push('mn'+clMin);
+    if(clMax) parts.push('mx'+clMax);
+    if(succ) parts.push('s'+succ);
     return parts.join('|');
 }
 
