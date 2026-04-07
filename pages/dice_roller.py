@@ -17,7 +17,7 @@ DICE_BUTTONS = [
     ("d12", "&#11042;", "#ff6b8a"),     # hexagon
     ("d20", "&#9651;", "#e8c840"),      # triangle outline
     ("d100", "%", "#40d4e8"),           # percent
-    ("DX", '<svg width="20" height="20" viewBox="0 0 20 20"><polygon points="10,1 17.7,4.5 19.1,12.6 14.3,18.9 5.7,18.9 0.9,12.6 2.3,4.5" fill="currentColor"/></svg>', "#a480e0"),  # heptagon
+    ("DX", '<svg width="20" height="20" viewBox="0 0 20 20"><polygon points="10,1 17.7,4.5 19.1,12.6 14.3,18.9 5.7,18.9 0.9,12.6 2.3,4.5" fill="currentColor"/></svg>', "#b0b8c0"),  # heptagon
 ]
 
 
@@ -675,7 +675,7 @@ var DIE_SHAPES = {
     adv: {shape:'\\u25B2', color:'#50e890'},
     dis: {shape:'\\u25BC', color:'#f85149'},
     coin:{shape:'\\u25CF', color:'#d4a030'},
-    dx:  {shape:'', color:'#a480e0', dynamic:true},
+    dx:  {shape:'', color:'#b0b8c0', dynamic:true},
     df:  {shape:'F',      color:'#c0c8d0'},
 };
 
