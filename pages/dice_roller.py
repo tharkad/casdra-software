@@ -1593,7 +1593,7 @@ function rollDice() {
             var borderStyle = 'border-color:'+r.dieColor;
             breakdownParts.push('<span class="dr-die-result" style="'+borderStyle+';'+style+'">'+label+'</span>');
         });
-        if (countMode) breakdownParts.push('= '+total+' successes');
+        if (countMode) breakdownParts.push('= '+total+(total===1?' success':' successes'));
     }
     total += modifier;
     if (modifier>0) { expression+='+'+modifier; breakdownParts.push('<span class="dr-die-result" style="border-color:#7ee787">+'+modifier+'</span>'); }
@@ -2345,7 +2345,7 @@ function showProbability(total) {
     var color = pGte > 0.5 ? (isLight ? '#1a7f37' : '#7ee787') : pGte > 0.2 ? (isLight ? '#b35900' : '#ffa657') : pGte > 0.05 ? (isLight ? '#a3400a' : '#f0883e') : (isLight ? '#cf222e' : '#f85149');
 
     var countMode = cupDice.some(function(d){return d.countSuccess;});
-    var suffix = countMode ? '+ successes' : ' or better';
+    var suffix = countMode ? (total===1?'+ success':'+ successes') : ' or better';
     document.getElementById('prob').innerHTML = '<span style="color:'+color+'">'+pct+'%</span> chance of '+total+suffix+' <span style="color:'+color+'">('+label+')</span>';
     highlightDistValue(total);
 }
