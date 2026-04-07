@@ -2375,53 +2375,92 @@ function liveParseFormula() {
     formulaTyping = false;
 }
 
-function syncFormulaFromCup() {
-    if (document.activeElement === document.getElementById('formulaInput')) return;
-    var counts = {};
-    var exploding = {};
-    var specials = [];
-    cupDice.forEach(function(d) {
+function buildGroupFormula(g) {
+    // Build formula for a single group — reusable for free + premium
+    var dice = g.children || [];
+    if (dice.length === 0 && !g.modifier) return '';
+
+    // Count dice by type, track per-type exploding
+    var counts = {}, explCount = {}, explTotal = 0, specials = [];
+    dice.forEach(function(d) {
         if (d.type==='adv') { specials.push('ADV'); return; }
         if (d.type==='dis') { specials.push('DIS'); return; }
         if (d.type==='coin') { specials.push('COIN'); return; }
         var k = d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
         counts[k] = (counts[k]||0)+1;
-        if (d.exploding) exploding[k] = true;
+        if (d.exploding) { explCount[k] = (explCount[k]||0)+1; explTotal++; }
     });
-    // Build dice part
+
+    // Determine which modifiers are uniform (all dice) vs per-die
+    var allExploding = explTotal === dice.length && dice.length > 0;
+    var someExploding = explTotal > 0 && !allExploding;
+
+    // Build dice tokens
     var diceParts = [];
     for (var t in counts) {
-        diceParts.push(counts[t]>1?counts[t]+t:t);
+        var p = counts[t] > 1 ? counts[t] + t : t;
+        // Per-type exploding: only inline if not all dice explode
+        if (someExploding && explCount[t] === counts[t]) p += '!';
+        diceParts.push(p);
     }
     diceParts = diceParts.concat(specials);
-    if (modifier > 0) diceParts.push('+'+modifier);
-    else if (modifier < 0) diceParts.push(''+modifier);
+
+    // Modifier (+/-)
+    var mod = g.modifier || 0;
+    if (mod > 0) diceParts.push('+' + mod);
+    else if (mod < 0) diceParts.push('' + mod);
+
+    // Join dice
     var diceStr = '';
     diceParts.forEach(function(p, i) {
         if (i === 0) diceStr = p;
         else if (p.charAt(0) === '-' || p.charAt(0) === '+') diceStr += p;
         else diceStr += '+' + p;
     });
-    // Build modifiers suffix
+
+    // Group-level modifiers (applied uniformly to all dice)
     var mods = [];
-    var hasExpl = false;
-    for (var t in exploding) { if (exploding[t]) hasExpl = true; }
-    if (hasExpl) mods.push('!');
-    if (dropLowest) mods.push('DL');
-    if (dropHighest) mods.push('DH');
-    var succVal = 0, mnVal = 0, mxVal = 0;
-    cupDice.forEach(function(d) {
-        if (d.countSuccess) succVal = d.countSuccess;
-        if (d.clampMin > 1) mnVal = d.clampMin;
-        if (d.clampMax) mxVal = d.clampMax;
+    if (allExploding) mods.push('!');
+    if (g.dropLowest) mods.push('DL');
+    if (g.dropHighest) mods.push('DH');
+
+    // Check for uniform clamp/success across all dice
+    var mnVal = 0, mxVal = 0, succVal = 0;
+    var mnCount = 0, mxCount = 0, succCount = 0;
+    dice.forEach(function(d) {
+        if (d.clampMin > 1) { mnVal = d.clampMin; mnCount++; }
+        if (d.clampMax) { mxVal = d.clampMax; mxCount++; }
+        if (d.countSuccess) { succVal = d.countSuccess; succCount++; }
     });
-    if (mnVal) mods.push('min'+mnVal);
-    if (mxVal) mods.push('max'+mxVal);
-    if (succVal) mods.push('#\\u2265'+succVal);
-    // Combine: (dice) modifiers
-    var formula = diceStr;
-    if (mods.length > 0 && diceStr) formula = '(' + diceStr + ') ' + mods.join(' ');
-    document.getElementById('formulaInput').value = cupDice.length || modifier ? formula : '';
+    if (mnVal) mods.push('min' + mnVal);
+    if (mxVal) mods.push('max' + mxVal);
+    if (succVal) mods.push('#\\u2265' + succVal);
+
+    // Combine
+    if (mods.length > 0 && diceStr) return '(' + diceStr + ') ' + mods.join(' ');
+    return diceStr;
+}
+
+function syncFormulaFromCup() {
+    if (document.activeElement === document.getElementById('formulaInput')) return;
+
+    // Build per-group formulas
+    var groupFormulas = [];
+    cupGroups.forEach(function(g) {
+        var f = buildGroupFormula(g);
+        if (f) {
+            if (g.repeat > 1) f = g.repeat + '\\u00d7(' + f + ')';
+            groupFormulas.push(f);
+        }
+    });
+
+    // Combine with root operation
+    var formula = '';
+    if (rootOperation === 'max') formula = 'max(' + groupFormulas.join(', ') + ')';
+    else if (rootOperation === 'min') formula = 'min(' + groupFormulas.join(', ') + ')';
+    else formula = groupFormulas.join(' + ');
+
+    document.getElementById('formulaInput').value = formula;
 }
 
 function toggleFormulaHelp() {
