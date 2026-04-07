@@ -2376,68 +2376,79 @@ function liveParseFormula() {
 }
 
 function buildGroupFormula(g) {
-    // Build formula for a single group — reusable for free + premium
+    // Build formula for a single group using :attr,attr syntax
+    // Per-type attrs inline: 3d6:dl,!
+    // Group attrs after (): (2d6 + 3d12):dl,!
     var dice = g.children || [];
     if (dice.length === 0 && !g.modifier) return '';
 
-    // Count dice by type, track per-type exploding
-    var counts = {}, explCount = {}, explTotal = 0, specials = [];
+    // Count dice by type, track per-type modifiers
+    var types = []; // ordered list of unique type keys
+    var counts = {}, explCount = {}, specials = [];
     dice.forEach(function(d) {
         if (d.type==='adv') { specials.push('ADV'); return; }
         if (d.type==='dis') { specials.push('DIS'); return; }
         if (d.type==='coin') { specials.push('COIN'); return; }
         var k = d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
+        if (!counts[k]) types.push(k);
         counts[k] = (counts[k]||0)+1;
-        if (d.exploding) { explCount[k] = (explCount[k]||0)+1; explTotal++; }
+        if (d.exploding) explCount[k] = (explCount[k]||0)+1;
     });
 
-    // Determine which modifiers are uniform (all dice) vs per-die
-    var allExploding = explTotal === dice.length && dice.length > 0;
+    // Check which modifiers are uniform across ALL dice vs per-type
+    var totalDice = dice.length - specials.length;
+    var explTotal = 0; for (var t in explCount) explTotal += explCount[t];
+    var allExploding = explTotal === totalDice && totalDice > 0;
     var someExploding = explTotal > 0 && !allExploding;
 
-    // Build dice tokens
+    // Collect uniform clamp/success values
+    var mnVal = 0, mxVal = 0, succVal = 0;
+    dice.forEach(function(d) {
+        if (d.clampMin > 1) mnVal = d.clampMin;
+        if (d.clampMax) mxVal = d.clampMax;
+        if (d.countSuccess) succVal = d.countSuccess;
+    });
+
+    // Build per-type dice tokens with inline :attrs where needed
     var diceParts = [];
-    for (var t in counts) {
+    types.forEach(function(t) {
         var p = counts[t] > 1 ? counts[t] + t : t;
-        // Per-type exploding: only inline if not all dice explode
-        if (someExploding && explCount[t] === counts[t]) p += '!';
+        // Per-type attrs (only if not all dice share the modifier)
+        var attrs = [];
+        if (someExploding && explCount[t] === counts[t]) attrs.push('!');
+        if (attrs.length) p += ':' + attrs.join(',');
         diceParts.push(p);
-    }
+    });
     diceParts = diceParts.concat(specials);
 
-    // Modifier (+/-)
+    // Flat modifier (+/-)
     var mod = g.modifier || 0;
     if (mod > 0) diceParts.push('+' + mod);
     else if (mod < 0) diceParts.push('' + mod);
 
-    // Join dice
+    // Join dice expression
     var diceStr = '';
     diceParts.forEach(function(p, i) {
         if (i === 0) diceStr = p;
-        else if (p.charAt(0) === '-' || p.charAt(0) === '+') diceStr += p;
-        else diceStr += '+' + p;
+        else if (p.charAt(0) === '-' || p.charAt(0) === '+') diceStr += ' ' + p;
+        else diceStr += ' + ' + p;
     });
 
-    // Group-level modifiers (applied uniformly to all dice)
-    var mods = [];
-    if (allExploding) mods.push('!');
-    if (g.dropLowest) mods.push('DL');
-    if (g.dropHighest) mods.push('DH');
+    // Group-level attrs (uniform across all dice)
+    var groupAttrs = [];
+    if (allExploding) groupAttrs.push('!');
+    if (g.dropLowest) groupAttrs.push('dl');
+    if (g.dropHighest) groupAttrs.push('dh');
+    if (mnVal) groupAttrs.push('min=' + mnVal);
+    if (mxVal) groupAttrs.push('max=' + mxVal);
+    if (succVal) groupAttrs.push('#>=' + succVal);
 
-    // Check for uniform clamp/success across all dice
-    var mnVal = 0, mxVal = 0, succVal = 0;
-    var mnCount = 0, mxCount = 0, succCount = 0;
-    dice.forEach(function(d) {
-        if (d.clampMin > 1) { mnVal = d.clampMin; mnCount++; }
-        if (d.clampMax) { mxVal = d.clampMax; mxCount++; }
-        if (d.countSuccess) { succVal = d.countSuccess; succCount++; }
-    });
-    if (mnVal) mods.push('min' + mnVal);
-    if (mxVal) mods.push('max' + mxVal);
-    if (succVal) mods.push('#\\u2265' + succVal);
-
-    // Combine
-    if (mods.length > 0 && diceStr) return '(' + diceStr + ') ' + mods.join(' ');
+    // Combine: dice:groupAttrs or (dice):groupAttrs
+    if (groupAttrs.length > 0 && diceStr) {
+        var needParens = diceParts.length > 1 || mod;
+        var expr = needParens ? '(' + diceStr + ')' : diceStr;
+        return expr + ':' + groupAttrs.join(',');
+    }
     return diceStr;
 }
 
