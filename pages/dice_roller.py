@@ -1572,7 +1572,7 @@ function animateResult(finalValue) {
     el.classList.add('dr-rolling');
     var lo=0, hi=0;
     cupDice.forEach(function(d) {
-        if(d.type==='adv'||d.type==='dis'){lo=1;hi=20;}
+        if(d.type==='adv'||d.type==='dis'){lo+=1;hi+=20;}
         else if(d.type==='coin'){lo+=0;hi+=1;}
         else if(d.type==='df'){lo+=-1;hi+=1;}
         else{var s=d.type==='dx'?(d.sides||6):(dieRanges[d.type]||6);lo+=1;hi+=s;}
