@@ -481,7 +481,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-history-empty { text-align: center; color: #30363d; padding: 40px; font-size: 15px; }
 
 /* Probability display */
-.dr-prob { font-size: 14px; color: var(--text-dim); margin-top: 4px; min-height: 16px; }
+.dr-prob { font-size: 14px; color: var(--text-muted); margin-top: 4px; min-height: 16px; font-weight: 600; }
 .dr-prob span { color: #58a6ff; font-weight: 600; }
 
 /* Distribution mini chart */
