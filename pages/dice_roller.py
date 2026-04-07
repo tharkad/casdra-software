@@ -2410,6 +2410,16 @@ function syncFormulaFromCup() {
         else if (p.charAt(0) === '-') formula += p;
         else formula += '+' + p;
     });
+    // Append success/min/max as suffixes
+    var succVal = 0, mnVal = 0, mxVal = 0;
+    cupDice.forEach(function(d) {
+        if (d.countSuccess) succVal = d.countSuccess;
+        if (d.clampMin > 1) mnVal = d.clampMin;
+        if (d.clampMax) mxVal = d.clampMax;
+    });
+    if (mnVal) formula += ' min'+mnVal;
+    if (mxVal) formula += ' max'+mxVal;
+    if (succVal) formula += ' #\\u2265'+succVal;
     document.getElementById('formulaInput').value = cupDice.length || modifier ? formula : '';
 }
 
