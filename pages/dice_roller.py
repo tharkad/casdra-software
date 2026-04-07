@@ -2421,7 +2421,6 @@ function syncFormulaFromCup() {
     // Combine: (dice) modifiers
     var formula = diceStr;
     if (mods.length > 0 && diceStr) formula = '(' + diceStr + ') ' + mods.join(' ');
-    if (succVal) formula += ' #\\u2265'+succVal;
     document.getElementById('formulaInput').value = cupDice.length || modifier ? formula : '';
 }
 
