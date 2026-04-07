@@ -2388,37 +2388,39 @@ function syncFormulaFromCup() {
         counts[k] = (counts[k]||0)+1;
         if (d.exploding) exploding[k] = true;
     });
-    var parts = [];
+    // Build dice part
+    var diceParts = [];
     for (var t in counts) {
-        var p = counts[t]>1?counts[t]+t:t;
-        if (exploding[t]) p += '!';
-        parts.push(p);
+        diceParts.push(counts[t]>1?counts[t]+t:t);
     }
-    parts = parts.concat(specials);
-    if (modifier > 0) parts.push(''+modifier);
-    else if (modifier < 0) parts.push(''+modifier);
-    if (dropLowest && parts.length > 0) {
-        parts[0] += 'dl';
-    }
-    if (dropHighest && parts.length > 0) {
-        parts[0] += 'dh';
-    }
-    // Join parts, but don't add + before negative numbers
-    var formula = '';
-    parts.forEach(function(p, i) {
-        if (i === 0) formula = p;
-        else if (p.charAt(0) === '-') formula += p;
-        else formula += '+' + p;
+    diceParts = diceParts.concat(specials);
+    if (modifier > 0) diceParts.push('+'+modifier);
+    else if (modifier < 0) diceParts.push(''+modifier);
+    var diceStr = '';
+    diceParts.forEach(function(p, i) {
+        if (i === 0) diceStr = p;
+        else if (p.charAt(0) === '-' || p.charAt(0) === '+') diceStr += p;
+        else diceStr += '+' + p;
     });
-    // Append success/min/max as suffixes
+    // Build modifiers suffix
+    var mods = [];
+    var hasExpl = false;
+    for (var t in exploding) { if (exploding[t]) hasExpl = true; }
+    if (hasExpl) mods.push('!');
+    if (dropLowest) mods.push('DL');
+    if (dropHighest) mods.push('DH');
     var succVal = 0, mnVal = 0, mxVal = 0;
     cupDice.forEach(function(d) {
         if (d.countSuccess) succVal = d.countSuccess;
         if (d.clampMin > 1) mnVal = d.clampMin;
         if (d.clampMax) mxVal = d.clampMax;
     });
-    if (mnVal) formula += ' min'+mnVal;
-    if (mxVal) formula += ' max'+mxVal;
+    if (mnVal) mods.push('min'+mnVal);
+    if (mxVal) mods.push('max'+mxVal);
+    if (succVal) mods.push('#\\u2265'+succVal);
+    // Combine: (dice) modifiers
+    var formula = diceStr;
+    if (mods.length > 0 && diceStr) formula = '(' + diceStr + ') ' + mods.join(' ');
     if (succVal) formula += ' #\\u2265'+succVal;
     document.getElementById('formulaInput').value = cupDice.length || modifier ? formula : '';
 }
