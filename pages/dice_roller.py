@@ -1567,18 +1567,46 @@ function rollDice() {
     showProbability(total);
 }
 
+function getTheoreticalRange() {
+    // Single source of truth for min/max — used by chart labels + animation
+    var rollable = cupDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin' || d.type === 'adv' || d.type === 'dis'; });
+    if (rollable.length === 0) return {lo: 1, hi: 20};
+    var countMode = rollable.some(function(d){return d.countSuccess;});
+    if (countMode) return {lo: 0, hi: rollable.length};
+    var hasKeep = dropLowest || dropHighest || rollable.some(function(d){return d.keep;});
+    var allMins = rollable.map(function(d){
+        if (d.type==='df') return -1;
+        if (d.type==='coin') return 0;
+        if (d.type==='adv'||d.type==='dis') return 1;
+        return d.clampMin || 1;
+    });
+    var allMaxes = rollable.map(function(d){
+        if (d.type==='df') return 1;
+        if (d.type==='coin') return 1;
+        if (d.type==='adv'||d.type==='dis') return 20;
+        return d.clampMax || getDieMax(d);
+    });
+    if (hasKeep && rollable.length > 1) {
+        allMins.sort(function(a,b){return a-b;});
+        allMaxes.sort(function(a,b){return a-b;});
+        var dLo = dropLowest ? 1 : 0, dHi = dropHighest ? 1 : 0;
+        var lo = 0, hi = 0;
+        for (var i = dLo; i < allMins.length - dHi; i++) lo += allMins[i];
+        for (var i = dLo; i < allMaxes.length - dHi; i++) hi += allMaxes[i];
+    } else {
+        var lo = allMins.reduce(function(a,b){return a+b;}, 0);
+        var hi = allMaxes.reduce(function(a,b){return a+b;}, 0);
+    }
+    lo += modifier; hi += modifier;
+    if (hi <= lo) { lo = 0; hi = 20; }
+    return {lo: lo, hi: hi};
+}
+
 function animateResult(finalValue) {
     var el = document.getElementById('result');
     el.classList.add('dr-rolling');
-    var lo=0, hi=0;
-    cupDice.forEach(function(d) {
-        if(d.type==='adv'||d.type==='dis'){lo+=1;hi+=20;}
-        else if(d.type==='coin'){lo+=0;hi+=1;}
-        else if(d.type==='df'){lo+=-1;hi+=1;}
-        else{var s=d.type==='dx'?(d.sides||6):(dieRanges[d.type]||6);lo+=1;hi+=s;}
-    });
-    lo+=modifier; hi+=modifier;
-    if(hi<=lo){lo=1;hi=Math.max(20,typeof finalValue==='number'?finalValue:20);}
+    var range = getTheoreticalRange();
+    var lo = range.lo, hi = range.hi;
     var frames = 0;
     var iv = setInterval(function() {
         el.textContent = typeof finalValue==='number' ? (Math.floor(Math.random()*(hi-lo+1))+lo) : finalValue;
@@ -2209,24 +2237,9 @@ function renderDistribution() {
     var keys = Object.keys(dist).filter(function(k){return dist[k] > 0;}).map(Number).sort(function(a,b){return a-b;});
     if (keys.length === 0) { chart.innerHTML = ''; return; }
 
-    // Calculate theoretical min/max from dice (not from sampled data)
-    var rollable = cupDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin'; });
-    var countMode = rollable.some(function(d){return d.countSuccess;});
-    var hasKeep = dropLowest || dropHighest || rollable.some(function(d){return d.keep;});
-    if (countMode) {
-        var trueMin = 0, trueMax = rollable.length;
-    } else if (hasKeep && rollable.length > 1) {
-        // With keep/drop: sort all dice mins/maxes
-        var allMins = rollable.map(function(d){ return d.type==='df'?-1:d.type==='coin'?0:(d.clampMin||1); }).sort(function(a,b){return a-b;});
-        var allMaxes = rollable.map(function(d){ return d.type==='df'?1:d.type==='coin'?1:(d.clampMax||getDieMax(d)); }).sort(function(a,b){return a-b;});
-        var dLo = dropLowest ? 1 : 0, dHi = dropHighest ? 1 : 0;
-        var trueMin = 0, trueMax = 0;
-        for (var ki = dLo; ki < allMins.length - dHi; ki++) trueMin += allMins[ki];
-        for (var ki = dLo; ki < allMaxes.length - dHi; ki++) trueMax += allMaxes[ki];
-        trueMin += modifier; trueMax += modifier;
-    } else {
-        var trueMin = keys[0], trueMax = keys[keys.length-1];
-    }
+    // Calculate theoretical min/max from dice
+    var range = getTheoreticalRange();
+    var trueMin = range.lo, trueMax = range.hi;
 
     // Bin if too many values (>80 bars won't fit)
     var maxBars = 80;
