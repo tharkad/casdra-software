@@ -1596,8 +1596,8 @@ function rollDice() {
         if (countMode) breakdownParts.push('= '+total+' successes');
     }
     total += modifier;
-    if (modifier>0) { expression+='+'+modifier; breakdownParts.push('+'+modifier); }
-    else if (modifier<0) { expression+=modifier; breakdownParts.push(modifier); }
+    if (modifier>0) { expression+='+'+modifier; breakdownParts.push('<span class="dr-die-result" style="border-color:#7ee787">+'+modifier+'</span>'); }
+    else if (modifier<0) { expression+=modifier; breakdownParts.push('<span class="dr-die-result" style="border-color:#f85149">'+modifier+'</span>'); }
     if (!countMode) breakdownParts.push('= '+total);
     animateResult(total);
     document.getElementById('breakdown').innerHTML = breakdownParts.join(' ');
