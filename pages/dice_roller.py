@@ -9,15 +9,15 @@ Premium mode: formula bar, multi-group, unlimited presets, game packs.
 PREMIUM_MODE_DEFAULT = False
 
 DICE_BUTTONS = [
-    ("COIN", "&#9679;", "#d29922"),     # circle — first
-    ("d4", "&#9650;", "#7ee787"),       # triangle
+    ("COIN", "&#9679;", "#d4a030"),     # circle — first
+    ("d4", "&#9650;", "#3dd68c"),       # triangle
     ("d6", "&#9632;", "#58a6ff"),       # square
-    ("d8", "&#9670;", "#d2a8ff"),       # diamond
-    ("d10", "&#11039;", "#f0883e"),     # pentagon
-    ("d12", "&#11042;", "#ff7b72"),     # hexagon
-    ("d20", "&#9651;", "#ffa657"),      # triangle outline
-    ("d100", "%", "#79c0ff"),           # percent
-    ("DX", '<svg width="20" height="20" viewBox="0 0 20 20"><polygon points="10,1 17.7,4.5 19.1,12.6 14.3,18.9 5.7,18.9 0.9,12.6 2.3,4.5" fill="currentColor"/></svg>', "#d2a8ff"),  # heptagon
+    ("d8", "&#9670;", "#bc8cff"),       # diamond
+    ("d10", "&#11039;", "#ff9640"),     # pentagon
+    ("d12", "&#11042;", "#ff6b8a"),     # hexagon
+    ("d20", "&#9651;", "#e8c840"),      # triangle outline
+    ("d100", "%", "#40d4e8"),           # percent
+    ("DX", '<svg width="20" height="20" viewBox="0 0 20 20"><polygon points="10,1 17.7,4.5 19.1,12.6 14.3,18.9 5.7,18.9 0.9,12.6 2.3,4.5" fill="currentColor"/></svg>', "#a480e0"),  # heptagon
 ]
 
 
@@ -665,18 +665,18 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 <script>
 // Die visual config
 var DIE_SHAPES = {
-    d4:  {shape:'\\u25B2', color:'#7ee787'},
+    d4:  {shape:'\\u25B2', color:'#3dd68c'},
     d6:  {shape:'\\u25A0', color:'#58a6ff'},
-    d8:  {shape:'\\u25C6', color:'#d2a8ff'},
-    d10: {shape:'\\u2B1F', color:'#f0883e'},
-    d12: {shape:'\\u2B22', color:'#ff7b72'},
-    d20: {shape:'\\u25B3', color:'#ffa657'},
-    d100:{shape:'%',       color:'#79c0ff'},
-    adv: {shape:'\\u25B2', color:'#7ee787'},
+    d8:  {shape:'\\u25C6', color:'#bc8cff'},
+    d10: {shape:'\\u2B1F', color:'#ff9640'},
+    d12: {shape:'\\u2B22', color:'#ff6b8a'},
+    d20: {shape:'\\u25B3', color:'#e8c840'},
+    d100:{shape:'%',       color:'#40d4e8'},
+    adv: {shape:'\\u25B2', color:'#50e890'},
     dis: {shape:'\\u25BC', color:'#f85149'},
-    coin:{shape:'\\u25CF', color:'#d29922'},
-    dx:  {shape:'', color:'#d2a8ff', dynamic:true},
-    df:  {shape:'F',      color:'#c9d1d9'},
+    coin:{shape:'\\u25CF', color:'#d4a030'},
+    dx:  {shape:'', color:'#a480e0', dynamic:true},
+    df:  {shape:'F',      color:'#c0c8d0'},
 };
 
 function nGonSVG(n, size, color) {
