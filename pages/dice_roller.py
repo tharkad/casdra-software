@@ -1108,38 +1108,8 @@ function updateCupDisplay() {
         html = renderGroupDice(cupGroups[0], 0);
     }
     staging.innerHTML = html;
-    // Summary
-    var counts = {};
-    cupDice.forEach(function(d) {
-        var k = d.type==='dx' ? 'd'+(d.sides||6) : d.type==='df' ? 'dF' : d.type;
-        counts[k] = (counts[k]||0)+1;
-    });
-    // Check if all dice of each type are exploding
-    var explodingTypes = {};
-    cupDice.forEach(function(d) {
-        var k = d.type==='dx' ? 'd'+(d.sides||6) : d.type==='df' ? 'dF' : d.type;
-        if (explodingTypes[k] === undefined) explodingTypes[k] = true;
-        if (!d.exploding) explodingTypes[k] = false;
-    });
-    var parts = [];
-    for (var t in counts) {
-        var label = counts[t]>1 ? counts[t]+t : t;
-        if (explodingTypes[t]) label += '!';
-        parts.push(label);
-    }
-    if (modifier !== 0) parts.push(''+modifier);
-    var sumText = '';
-    parts.forEach(function(p,i) {
-        if(i===0) sumText=p;
-        else if(p.charAt(0)==='-') sumText+=' - '+p.substring(1);
-        else sumText+=' + '+p;
-    });
-    if (dropLowest || dropHighest) {
-        sumText = '(' + sumText + ')';
-        if (dropLowest) sumText += ' DL';
-        if (dropHighest) sumText += ' DH';
-    }
-    summary.textContent = sumText;
+    // Summary — use buildGroupFormula for consistency
+    summary.textContent = buildGroupFormula(activeGroup());
     document.getElementById('rollBtn').classList.toggle('dimmed', totalDice === 0);
     document.getElementById('favStar').classList.toggle('dimmed', totalDice === 0);
     if (totalDice === 0) document.getElementById('favStar').style.color = '';
@@ -1559,17 +1529,8 @@ function rollDice() {
             results.forEach(function(r,i) { if(kept[i]) total += r.value; });
         }
 
-        // Build expression
-        var counts = {};
-        cupDice.forEach(function(d) { var k=d.type==='dx'?'d'+d.sides:(d.type==='df'?'dF':d.type); counts[k]=(counts[k]||0)+1; });
-        var ep = []; for(var t in counts) ep.push(counts[t]>1?counts[t]+t:t);
-        expression = ep.join('+');
-        if (keepMode === 'kh' && !dropLowest) expression += 'kh'+keepCount;
-        else if (keepMode === 'kl') expression += 'kl'+keepCount;
-        if (dropLowest) expression += ' (DL)';
-        if (dropHighest) expression += ' (DH)';
-        if (cupDice.some(function(d){return d.exploding;})) expression += '!';
-        if (countMode) expression += '#>='+countThreshold;
+        // Build expression — use buildGroupFormula for consistency
+        expression = buildGroupFormula(activeGroup());
 
         // Build breakdown (sorted by die type)
         sortedResults.forEach(function(r, i) {
@@ -1840,16 +1801,7 @@ function updateFavState() {
 function renderPresets() {
     var el=document.getElementById('presets'),html='';
     presets.forEach(function(p,i) {
-        var dice=p.children||p.dice||[];
-        var counts={}; dice.forEach(function(d){var k=d.type==='dx'?'d'+(d.sides||6):d.type;counts[k]=(counts[k]||0)+1;});
-        var parts=[]; for(var t in counts) parts.push(counts[t]>1?counts[t]+t:t);
-        if(p.modifier>0) parts.push('+'+p.modifier); else if(p.modifier<0) parts.push(''+p.modifier);
-        var expr = parts.join('+');
-        if(p.dropLowest || p.dropHighest) {
-            expr = '(' + expr + ')';
-            if(p.dropLowest) expr += ' DL';
-            if(p.dropHighest) expr += ' DH';
-        }
+        var expr = buildGroupFormula(p);
         var cls = 'dr-preset-chip';
         if(i === activePresetIdx) cls += ' active';
         if(editMode && i !== activePresetIdx) cls += ' dimmed';
