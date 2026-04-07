@@ -264,7 +264,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     min-height: 20px;
 }
 .dr-die-result {
-    display: inline-block; background: var(--surface); border: 1px solid var(--border);
+    display: inline-block; background: var(--surface); border: 2px solid var(--border);
     border-radius: 4px; padding: 1px 5px; margin: 0 1px;
     font-weight: 600; color: var(--text-bright); font-size: 15px;
 }
@@ -1500,11 +1500,29 @@ function rollDice() {
             return;
         }
 
-        // Roll all dice
-        cupDice.forEach(function(d) {
+        // Roll all dice — store color and original index for sorting
+        cupDice.forEach(function(d, idx) {
             var roll = rollSingleDie(d);
-            results.push({type:d.type, sides:d.sides, value:roll.value, chain:roll.chain, clamped:roll.clamped, exploding:d.exploding, reroll:d.reroll});
+            var info = DIE_SHAPES[d.type] || DIE_SHAPES.dx || {color:'#8b949e'};
+            var dieColor = d.color || info.color;
+            results.push({type:d.type, sides:d.sides, value:roll.value, chain:roll.chain, clamped:roll.clamped, exploding:d.exploding, reroll:d.reroll, dieColor:dieColor, origIdx:idx});
         });
+
+        // Sort results by die type to group them (matching formula order)
+        var typeOrder = {};
+        var orderIdx = 0;
+        cupDice.forEach(function(d) {
+            var k = d.type==='dx'?'d'+(d.sides||6):d.type;
+            if (!(k in typeOrder)) { typeOrder[k] = orderIdx++; }
+        });
+        var sortMap = results.map(function(r,i){return i;});
+        sortMap.sort(function(a,b) {
+            var ka = results[a].type==='dx'?'d'+(results[a].sides||6):results[a].type;
+            var kb = results[b].type==='dx'?'d'+(results[b].sides||6):results[b].type;
+            return (typeOrder[ka]||0) - (typeOrder[kb]||0);
+        });
+        var sortedResults = sortMap.map(function(i){return results[i];});
+        var sortedKept = []; // will fill after keep/drop
 
         // Keep/Drop — supports DL+DH simultaneously
         var kept = [];
@@ -1525,6 +1543,8 @@ function rollDice() {
             }
         }
         results.forEach(function(r,i){ kept.push(!dropSet[i]); });
+        // Map kept to sorted order
+        sortedKept = sortMap.map(function(i){return kept[i];});
 
         // Count successes mode
         var countMode = false, countThreshold = 0;
@@ -1551,27 +1571,27 @@ function rollDice() {
         if (cupDice.some(function(d){return d.exploding;})) expression += '!';
         if (countMode) expression += '#>='+countThreshold;
 
-        // Build breakdown
-        results.forEach(function(r, i) {
+        // Build breakdown (sorted by die type)
+        sortedResults.forEach(function(r, i) {
             var label;
             if (r.type==='df') {
                 label = r.value>0?'+'+r.value:r.value===0?'0':''+r.value;
             } else if (r.chain) {
-                // Exploding chain: show 6+6+4=16
                 label = r.chain.join('+')+' = '+r.value;
             } else if (r.clamped !== null && r.clamped !== undefined) {
                 label = r.clamped+'\\u2192'+r.value;
             } else {
                 label = ''+r.value;
             }
-            var style = kept[i] ? '' : 'opacity:0.3;text-decoration:line-through';
+            var style = sortedKept[i] ? '' : 'opacity:0.3;text-decoration:line-through';
             if (r.chain) style += (style?';':'') + 'color:#f0883e';
             if (r.clamped !== null && r.clamped !== undefined) style += (style?';':'') + 'color:#d29922';
-            if (countMode && kept[i]) {
+            if (countMode && sortedKept[i]) {
                 var hit = r.value >= countThreshold;
                 style = hit ? 'color:#7ee787;font-weight:800' : 'opacity:0.5';
             }
-            breakdownParts.push('<span class="dr-die-result" style="'+style+'">'+label+'</span>');
+            var borderStyle = 'border-color:'+r.dieColor;
+            breakdownParts.push('<span class="dr-die-result" style="'+borderStyle+';'+style+'">'+label+'</span>');
         });
         if (countMode) breakdownParts.push('= '+total+' successes');
     }
