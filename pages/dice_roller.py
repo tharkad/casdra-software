@@ -2381,8 +2381,7 @@ function buildGroupFormula(g) {
     dice.forEach(function(d) {
         if (d.type==='adv') { specials.push('ADV'); return; }
         if (d.type==='dis') { specials.push('DIS'); return; }
-        if (d.type==='coin') { specials.push('COIN'); return; }
-        var k = d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
+        var k = d.type==='coin'?'COIN':d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
         if (!counts[k]) types.push(k);
         counts[k] = (counts[k]||0)+1;
         if (d.exploding) explCount[k] = (explCount[k]||0)+1;
