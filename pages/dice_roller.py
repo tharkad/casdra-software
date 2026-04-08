@@ -5,6 +5,8 @@ Free mode: tap-based single group, no formula bar, 5 preset limit.
 Premium mode: formula bar, multi-group, unlimited presets, game packs.
 """
 
+import json
+
 # Premium mode flag — set via URL param ?premium=1 for dev, or IAP in production
 PREMIUM_MODE_DEFAULT = False
 
@@ -320,7 +322,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-cup > * { position: relative; }
 .dr-cup::before {
     content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
-    width: 40px; height: 4px; border-radius: 2px; background: #30363d;
+    width: 40px; height: 4px; border-radius: 2px; background: var(--border);
 }
 .dr-cup-summary {
     font-size: 15px; color: #e6edf3; font-weight: 600; text-align: center;
@@ -702,12 +704,13 @@ function getDieShape(d) {
 
 
 // Inline input modal (replaces OS prompt)
+function esc(s) { var d=document.createElement('div');d.textContent=s;return d.innerHTML; }
 function showInlineInput(title, defaultVal, callback) {
     var overlay = document.createElement('div');
     overlay.className = 'dr-modal-overlay';
     overlay.innerHTML = '<div class="dr-modal">' +
-        '<div class="dr-modal-title">' + title + '</div>' +
-        '<input type="text" id="drModalInput" value="' + (defaultVal||'') + '" autocomplete="off">' +
+        '<div class="dr-modal-title">' + esc(title) + '</div>' +
+        '<input type="text" id="drModalInput" value="' + esc(defaultVal||'') + '" autocomplete="off">' +
         '<div class="dr-modal-btns">' +
         '<button class="dr-modal-cancel" onclick="closeModal()">Cancel</button>' +
         '<button class="dr-modal-ok" onclick="submitModal()">OK</button>' +
@@ -735,7 +738,7 @@ function showConfirm(msg, onYes) {
     var overlay = document.createElement('div');
     overlay.className = 'dr-modal-overlay';
     overlay.innerHTML = '<div class="dr-modal">' +
-        '<div class="dr-modal-title">'+msg+'</div>' +
+        '<div class="dr-modal-title">'+esc(msg)+'</div>' +
         '<div class="dr-modal-btns">' +
         '<button class="dr-modal-cancel" id="drConfirmNo">Cancel</button>' +
         '<button class="dr-modal-ok" id="drConfirmYes" style="background:#f85149">Remove</button>' +
@@ -903,7 +906,7 @@ function toggleMin() {
             var curMax = 0;
             g.children.forEach(function(d){ if(d.clampMax) curMax = d.clampMax; });
             if (curMax && mn >= curMax) {
-                showInlineInput('Min must be less than Max (' + curMax + ')', '', function(){}); return;
+                showConfirm('Min must be less than Max (' + curMax + ')', function(){}); return;
             }
             g.children.forEach(function(d){ d.clampMin = mn; });
             updateCupDisplay();
@@ -926,7 +929,7 @@ function toggleMax() {
             var curMin = 0;
             g.children.forEach(function(d){ if(d.clampMin > 1) curMin = d.clampMin; });
             if (curMin && mx <= curMin) {
-                showInlineInput('Max must be greater than Min (' + curMin + ')', '', function(){}); return;
+                showConfirm('Max must be greater than Min (' + curMin + ')', function(){}); return;
             }
             g.children.forEach(function(d){ d.clampMax = mx; });
             updateCupDisplay();
@@ -1522,6 +1525,8 @@ function rollDice() {
             }
         }
         results.forEach(function(r,i){ kept.push(!dropSet[i]); });
+        // Guard: if all dice dropped, keep them all instead
+        if (kept.every(function(k){return !k;})) { kept = kept.map(function(){return true;}); }
         // Map kept to sorted order
         sortedKept = sortMap.map(function(i){return kept[i];});
 
@@ -1606,16 +1611,16 @@ function getTheoreticalRange() {
         if (d.type==='adv'||d.type==='dis') return 20;
         return d.clampMax || getDieMax(d);
     });
+    var lo = 0, hi = 0;
     if (hasKeep && rollable.length > 1) {
         allMins.sort(function(a,b){return a-b;});
         allMaxes.sort(function(a,b){return a-b;});
         var dLo = dropLowest ? 1 : 0, dHi = dropHighest ? 1 : 0;
-        var lo = 0, hi = 0;
         for (var i = dLo; i < allMins.length - dHi; i++) lo += allMins[i];
         for (var i = dLo; i < allMaxes.length - dHi; i++) hi += allMaxes[i];
     } else {
-        var lo = allMins.reduce(function(a,b){return a+b;}, 0);
-        var hi = allMaxes.reduce(function(a,b){return a+b;}, 0);
+        lo = allMins.reduce(function(a,b){return a+b;}, 0);
+        hi = allMaxes.reduce(function(a,b){return a+b;}, 0);
     }
     lo += modifier; hi += modifier;
     if (hi <= lo) { lo = 0; hi = 20; }
@@ -1798,7 +1803,6 @@ function updateFavState() {
     // Preset label in cup
     var label = document.getElementById('cupPresetLabel');
     label.classList.toggle('editing', editMode && activePresetIdx >= 0);
-    label.classList.remove('editing');
     if(activePresetIdx >= 0) {
         var name = presets[activePresetIdx].name;
         if(editMode) {
@@ -2681,7 +2685,7 @@ function updatePremiumBtn() {
     loadTheme();
 
     // Restore from bug report if ?restore=N
-    var RESTORE_STATE = """ + (restore_state if restore_state else 'null') + """;
+    var RESTORE_STATE = """ + (json.dumps(json.loads(restore_state)) if restore_state else 'null') + """;
     if (RESTORE_STATE) {
         try {
             var s = typeof RESTORE_STATE === 'string' ? JSON.parse(RESTORE_STATE) : RESTORE_STATE;
@@ -2875,6 +2879,7 @@ function formatTimeAgo(ts) {
     if(diff<86400) return Math.floor(diff/3600)+'h ago';
     return Math.floor(diff/86400)+'d ago';
 }
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function render() {
     var list=document.getElementById('historyList');
     var history=[];
@@ -2882,8 +2887,8 @@ function render() {
     if(!history.length){list.innerHTML='<div class="dr-history-empty">No rolls yet</div>';return;}
     var html='';
     history.forEach(function(e){
-        var favLabel = e.favName ? '<div style="font-size:10px;color:#ffa657;font-weight:600;">'+e.favName+'</div>' : '';
-        html+='<div class="dr-history-entry"><span class="dr-history-total">'+e.total+'</span><span class="dr-history-expr">'+favLabel+e.expression+'</span><span class="dr-history-time">'+formatTimeAgo(e.timestamp)+'</span></div>';
+        var favLabel = e.favName ? '<div style="font-size:10px;color:#ffa657;font-weight:600;">'+esc(e.favName)+'</div>' : '';
+        html+='<div class="dr-history-entry"><span class="dr-history-total">'+esc(''+e.total)+'</span><span class="dr-history-expr">'+favLabel+esc(e.expression)+'</span><span class="dr-history-time">'+formatTimeAgo(e.timestamp)+'</span></div>';
     });
     list.innerHTML=html;
 }
@@ -2958,8 +2963,9 @@ def build_dice_bug_detail_page(report):
         status_opts += f'<option value="{s}"{sel}>{s}</option>'
 
     screenshot_html = ""
-    if report.get("screenshot"):
-        screenshot_html = f'<img src="{report["screenshot"]}" style="width:100%;border-radius:8px;border:1px solid #21262d;margin-bottom:16px">'
+    if report.get("screenshot") and report["screenshot"].startswith("data:image/"):
+        import html as _html
+        screenshot_html = f'<img src="{_html.escape(report["screenshot"])}" style="width:100%;border-radius:8px;border:1px solid #21262d;margin-bottom:16px">'
 
     state_json = report.get("app_state", "{}")
     try:
