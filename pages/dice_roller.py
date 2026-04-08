@@ -1581,7 +1581,18 @@ function getTheoreticalRange() {
     var rollable = cupDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin' || d.type === 'adv' || d.type === 'dis'; });
     if (rollable.length === 0) return {lo: 1, hi: 20};
     var countMode = rollable.some(function(d){return d.countSuccess;});
-    if (countMode) return {lo: 0, hi: rollable.length};
+    if (countMode) {
+        var threshold = 0;
+        rollable.forEach(function(d){ if(d.countSuccess) threshold = d.countSuccess; });
+        var guaranteedSuccesses = 0, guaranteedFailures = 0;
+        rollable.forEach(function(d){
+            var dMin = d.clampMin || 1;
+            var dMax = d.clampMax || getDieMax(d);
+            if (dMin >= threshold) guaranteedSuccesses++;
+            if (dMax < threshold) guaranteedFailures++;
+        });
+        return {lo: guaranteedSuccesses, hi: rollable.length - guaranteedFailures};
+    }
     var hasKeep = dropLowest || dropHighest || rollable.some(function(d){return d.keep;});
     var allMins = rollable.map(function(d){
         if (d.type==='df') return -1;
