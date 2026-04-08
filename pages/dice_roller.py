@@ -39,6 +39,8 @@ def build_dice_page(premium=False, restore_state=None):
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dice Vault">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="theme-color" content="#0d1117">
 <title>Dice Vault</title>
 <style>
@@ -47,54 +49,52 @@ def build_dice_page(premium=False, restore_state=None):
     --text: #c9d1d9; --text-bright: #e6edf3; --text-dim: #484f58; --text-muted: #8b949e;
     --accent: #58a6ff; --accent2: #f0883e;
     --cup-border: #58a6ff; --btn-bg: #161b22; --felt-color: #1a5a2a;
-    --sec-header: #0d1117; --sec-presets: #131920; --sec-result: #0d1117;
-    --sec-formula: #131920; --sec-dice: #0d1117; --sec-border: #1b2028;
+    --grad-top: #161b24; --grad-bot: #080b10;
 }
 [data-theme="light"] {
     --bg: #f0e6d4; --surface: #ffffff; --border: #c8b898; --border2: #ddd0b8;
     --text: #3d2b1f; --text-bright: #1c1208; --text-dim: #a09080; --text-muted: #7a6a58;
     --accent: #b8860b; --accent2: #8b0000;
     --cup-border: #b8860b; --btn-bg: #ffffff; --felt-color: #6b2d2d;
-    --sec-header: #e8dcc8; --sec-presets: #f0e6d4; --sec-result: #ece0cc;
-    --sec-formula: #f0e6d4; --sec-dice: #ece0cc; --sec-border: #d8c8a8;
+    --grad-top: #f8f0e0; --grad-bot: #e4d8c0;
 }
 [data-theme="midnight"] {
     --bg: #0a0e1a; --surface: #111827; --border: #1e2a4a; --border2: #162040;
     --text: #a5b4cf; --text-bright: #d1ddf0; --text-dim: #4a5578; --text-muted: #6b7da0;
     --accent: #6366f1; --accent2: #f59e0b;
     --cup-border: #6366f1; --btn-bg: #111827; --felt-color: #1a2850;
-    --sec-header: #080c16; --sec-presets: #0e1322; --sec-result: #080c16;
-    --sec-formula: #0e1322; --sec-dice: #080c16; --sec-border: #141c30;
+    --grad-top: #0e1428; --grad-bot: #060810;
 }
 [data-theme="purple"] {
     --bg: #13051e; --surface: #1e0a30; --border: #3b1d5e; --border2: #2a1345;
     --text: #c4a8e0; --text-bright: #e8d5f5; --text-dim: #5a3d78; --text-muted: #8a6aad;
     --accent: #a855f7; --accent2: #ec4899;
     --cup-border: #a855f7; --btn-bg: #1e0a30; --felt-color: #3a1858;
-    --sec-header: #10031a; --sec-presets: #180828; --sec-result: #10031a;
-    --sec-formula: #180828; --sec-dice: #10031a; --sec-border: #2a1345;
+    --grad-top: #1a0828; --grad-bot: #0a0312;
 }
 [data-theme="forest"] {
     --bg: #0a1208; --surface: #12201a; --border: #1e3a28; --border2: #162d20;
     --text: #a8c4a0; --text-bright: #d5e8d0; --text-dim: #3d5a38; --text-muted: #6a8a60;
     --accent: #22c55e; --accent2: #eab308;
     --cup-border: #22c55e; --btn-bg: #12201a; --felt-color: #1a4a20;
-    --sec-header: #081006; --sec-presets: #0e1a10; --sec-result: #081006;
-    --sec-formula: #0e1a10; --sec-dice: #081006; --sec-border: #162d20;
+    --grad-top: #0e1a10; --grad-bot: #060a05;
 }
 [data-theme="blood"] {
     --bg: #120808; --surface: #1e0e0e; --border: #3a1818; --border2: #2d1212;
     --text: #c4a0a0; --text-bright: #e8d0d0; --text-dim: #5a3838; --text-muted: #8a6060;
     --accent: #ef4444; --accent2: #f59e0b;
     --cup-border: #ef4444; --btn-bg: #1e0e0e; --felt-color: #5a1818;
-    --sec-header: #100606; --sec-presets: #180c0c; --sec-result: #100606;
-    --sec-formula: #180c0c; --sec-dice: #100606; --sec-border: #2d1212;
+    --grad-top: #1a0c0c; --grad-bot: #0a0404;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 button, a, input { outline: none; -webkit-tap-highlight-color: transparent; }
+html {
+    background: linear-gradient(180deg, var(--grad-top) 0%, var(--bg) 30%, var(--bg) 70%, var(--grad-bot) 100%);
+    background-attachment: fixed; min-height: 100vh;
+}
 body {
-    background: var(--bg); color: var(--text);
+    color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent;
     max-width: 500px; margin: 0 auto;
@@ -103,8 +103,7 @@ body {
 /* Header */
 .dr-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 16px; background: var(--sec-header);
-    border-bottom: 1px solid var(--sec-border); flex-shrink: 0;
+    padding: 12px 16px; border-bottom: 1px solid var(--border2); flex-shrink: 0;
 }
 .dr-header h1 { font-size: 18px; font-weight: 700; color: var(--text-bright); }
 a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight: 600; }
@@ -125,7 +124,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-presets {
     display: flex; gap: 6px; padding: 8px 16px; overflow-x: auto;
     -webkit-overflow-scrolling: touch; flex-shrink: 0;
-    background: var(--sec-presets); border-bottom: 1px solid var(--sec-border);
+    border-bottom: 1px solid var(--border2);
 }
 .dr-preset-chip {
     flex-shrink: 0; background: var(--btn-bg); border: 1px solid var(--border);
@@ -259,7 +258,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 /* Star button active — handled in .dr-save-preset.fav-active above */
 
 /* Result */
-.dr-result-area { text-align: center; padding: 20px 16px 12px; flex-shrink: 0; position: relative; background: var(--sec-result); border-bottom: 1px solid var(--sec-border); }
+.dr-result-area { text-align: center; padding: 20px 16px 12px; flex-shrink: 0; position: relative; border-bottom: 1px solid var(--border2); }
 .dr-share-btn {
     position: absolute; top: 16px; right: 16px;
     background: var(--btn-bg); border: 1px solid var(--border); border-radius: 8px;
@@ -289,7 +288,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     display: flex; flex-wrap: wrap; justify-content: center;
     gap: 8px; padding: 8px 16px;
     max-width: 500px; margin: 0 auto; width: 100%; flex-shrink: 0;
-    background: var(--sec-dice);
 }
 .dr-die-btn {
     background: var(--btn-bg); border: 1px solid var(--border);
@@ -304,7 +302,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-die-label { font-size: 14px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
 
 /* Modifier rows */
-.dr-mod-rows { padding: 4px 16px 8px; flex-shrink: 0; background: var(--sec-dice); border-bottom: 1px solid var(--sec-border); }
+.dr-mod-rows { padding: 4px 16px 8px; flex-shrink: 0; }
 .dr-mod-row {
     display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
 }
@@ -525,7 +523,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-formula {
     display: flex; gap: 8px; padding: 4px 16px 8px;
     max-width: 500px; margin: 0 auto; width: 100%; flex-shrink: 0;
-    background: var(--sec-formula);
 }
 .dr-formula-input {
     flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
