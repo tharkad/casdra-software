@@ -2545,7 +2545,7 @@ function showReplacePicker() {
     var html = '';
     presets.forEach(function(p, i) {
         var expr = buildGroupFormula(p);
-        html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:4px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer" onclick="replacePreset(' + i + ',this)">' +
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:4px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer" onclick="replacePreset(' + i + ')">' +
             '<span style="flex:1;font-size:14px;font-weight:600;color:var(--text-bright)">' + esc(p.name) + '</span>' +
             '<span style="font-size:11px;color:var(--text-dim)">' + esc(expr) + '</span>' +
             '<span style="color:var(--text-dim);font-size:16px">\\u21BB</span></div>';
@@ -2554,10 +2554,10 @@ function showReplacePicker() {
     list.style.display = 'block';
 }
 
-function replacePreset(idx, el) {
+function replacePreset(idx) {
     // Close the dialog
-    var backdrop = el.closest('div[style*="position:fixed"]');
-    backdrop.remove();
+    var backdrops = document.querySelectorAll('div[style*="position:fixed"]');
+    backdrops.forEach(function(b){ b.remove(); });
     // Prompt for name, then replace
     showInlineInput('Name for new preset:', '', function(name) {
         if (!name) return;
