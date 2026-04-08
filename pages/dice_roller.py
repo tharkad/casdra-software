@@ -47,36 +47,48 @@ def build_dice_page(premium=False, restore_state=None):
     --text: #c9d1d9; --text-bright: #e6edf3; --text-dim: #484f58; --text-muted: #8b949e;
     --accent: #58a6ff; --accent2: #f0883e;
     --cup-border: #58a6ff; --btn-bg: #161b22; --felt-color: #1a5a2a;
+    --sec-header: #0d1117; --sec-presets: #131920; --sec-result: #0d1117;
+    --sec-formula: #131920; --sec-dice: #0d1117; --sec-border: #1b2028;
 }
 [data-theme="light"] {
     --bg: #f0e6d4; --surface: #ffffff; --border: #c8b898; --border2: #ddd0b8;
     --text: #3d2b1f; --text-bright: #1c1208; --text-dim: #a09080; --text-muted: #7a6a58;
     --accent: #b8860b; --accent2: #8b0000;
     --cup-border: #b8860b; --btn-bg: #ffffff; --felt-color: #6b2d2d;
+    --sec-header: #e8dcc8; --sec-presets: #f0e6d4; --sec-result: #ece0cc;
+    --sec-formula: #f0e6d4; --sec-dice: #ece0cc; --sec-border: #d8c8a8;
 }
 [data-theme="midnight"] {
     --bg: #0a0e1a; --surface: #111827; --border: #1e2a4a; --border2: #162040;
     --text: #a5b4cf; --text-bright: #d1ddf0; --text-dim: #4a5578; --text-muted: #6b7da0;
     --accent: #6366f1; --accent2: #f59e0b;
     --cup-border: #6366f1; --btn-bg: #111827; --felt-color: #1a2850;
+    --sec-header: #080c16; --sec-presets: #0e1322; --sec-result: #080c16;
+    --sec-formula: #0e1322; --sec-dice: #080c16; --sec-border: #141c30;
 }
 [data-theme="purple"] {
     --bg: #13051e; --surface: #1e0a30; --border: #3b1d5e; --border2: #2a1345;
     --text: #c4a8e0; --text-bright: #e8d5f5; --text-dim: #5a3d78; --text-muted: #8a6aad;
     --accent: #a855f7; --accent2: #ec4899;
     --cup-border: #a855f7; --btn-bg: #1e0a30; --felt-color: #3a1858;
+    --sec-header: #10031a; --sec-presets: #180828; --sec-result: #10031a;
+    --sec-formula: #180828; --sec-dice: #10031a; --sec-border: #2a1345;
 }
 [data-theme="forest"] {
     --bg: #0a1208; --surface: #12201a; --border: #1e3a28; --border2: #162d20;
     --text: #a8c4a0; --text-bright: #d5e8d0; --text-dim: #3d5a38; --text-muted: #6a8a60;
     --accent: #22c55e; --accent2: #eab308;
     --cup-border: #22c55e; --btn-bg: #12201a; --felt-color: #1a4a20;
+    --sec-header: #081006; --sec-presets: #0e1a10; --sec-result: #081006;
+    --sec-formula: #0e1a10; --sec-dice: #081006; --sec-border: #162d20;
 }
 [data-theme="blood"] {
     --bg: #120808; --surface: #1e0e0e; --border: #3a1818; --border2: #2d1212;
     --text: #c4a0a0; --text-bright: #e8d0d0; --text-dim: #5a3838; --text-muted: #8a6060;
     --accent: #ef4444; --accent2: #f59e0b;
     --cup-border: #ef4444; --btn-bg: #1e0e0e; --felt-color: #5a1818;
+    --sec-header: #100606; --sec-presets: #180c0c; --sec-result: #100606;
+    --sec-formula: #180c0c; --sec-dice: #100606; --sec-border: #2d1212;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -91,8 +103,8 @@ body {
 /* Header */
 .dr-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 16px; background: var(--bg);
-    border-bottom: 1px solid #21262d; flex-shrink: 0;
+    padding: 12px 16px; background: var(--sec-header);
+    border-bottom: 1px solid var(--sec-border); flex-shrink: 0;
 }
 .dr-header h1 { font-size: 18px; font-weight: 700; color: var(--text-bright); }
 a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight: 600; }
@@ -113,6 +125,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-presets {
     display: flex; gap: 6px; padding: 8px 16px; overflow-x: auto;
     -webkit-overflow-scrolling: touch; flex-shrink: 0;
+    background: var(--sec-presets); border-bottom: 1px solid var(--sec-border);
 }
 .dr-preset-chip {
     flex-shrink: 0; background: var(--btn-bg); border: 1px solid var(--border);
@@ -246,7 +259,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 /* Star button active — handled in .dr-save-preset.fav-active above */
 
 /* Result */
-.dr-result-area { text-align: center; padding: 20px 16px 12px; flex-shrink: 0; position: relative; }
+.dr-result-area { text-align: center; padding: 20px 16px 12px; flex-shrink: 0; position: relative; background: var(--sec-result); border-bottom: 1px solid var(--sec-border); }
 .dr-share-btn {
     position: absolute; top: 16px; right: 16px;
     background: var(--btn-bg); border: 1px solid var(--border); border-radius: 8px;
@@ -276,6 +289,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     display: flex; flex-wrap: wrap; justify-content: center;
     gap: 8px; padding: 8px 16px;
     max-width: 500px; margin: 0 auto; width: 100%; flex-shrink: 0;
+    background: var(--sec-dice);
 }
 .dr-die-btn {
     background: var(--btn-bg); border: 1px solid var(--border);
@@ -290,7 +304,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-die-label { font-size: 14px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
 
 /* Modifier rows */
-.dr-mod-rows { padding: 4px 16px 8px; flex-shrink: 0; }
+.dr-mod-rows { padding: 4px 16px 8px; flex-shrink: 0; background: var(--sec-dice); border-bottom: 1px solid var(--sec-border); }
 .dr-mod-row {
     display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
 }
@@ -511,6 +525,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-formula {
     display: flex; gap: 8px; padding: 4px 16px 8px;
     max-width: 500px; margin: 0 auto; width: 100%; flex-shrink: 0;
+    background: var(--sec-formula);
 }
 .dr-formula-input {
     flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
@@ -2505,11 +2520,29 @@ function showReplacePresetDialog() {
     backdrop.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:999;display:flex;align-items:center;justify-content:center';
     backdrop.onclick = function(e){ if(e.target===backdrop) backdrop.remove(); };
     var modal = document.createElement('div');
-    modal.style.cssText = 'background:var(--surface);border:2px solid var(--accent);border-radius:16px;padding:24px;max-width:340px;width:90%;text-align:center';
-    var html = '<div style="font-size:16px;font-weight:700;color:var(--text-bright);margin-bottom:4px">Preset Limit Reached</div>' +
-        '<div style="color:var(--text-muted);font-size:13px;margin-bottom:16px">Free mode allows ' + MAX_FREE_PRESETS + ' presets. Replace one?</div>';
-    // List existing presets as replaceable options
-    html += '<div style="text-align:left">';
+    modal.style.cssText = 'background:var(--surface);border:2px solid #ffa657;border-radius:16px;padding:24px;max-width:340px;width:90%;text-align:center';
+    var html = '<div style="font-size:28px;margin-bottom:8px">\\u2728</div>' +
+        '<div style="font-size:20px;font-weight:800;color:var(--text-bright);margin-bottom:4px">Go Premium</div>' +
+        '<div style="color:var(--text-muted);font-size:13px;margin-bottom:12px">Unlock unlimited presets and more</div>' +
+        '<div style="text-align:left;color:var(--text);font-size:13px;line-height:1.7;margin-bottom:16px">' +
+        '\\u2705 Unlimited presets<br>' +
+        '\\u2705 Editable formula bar<br>' +
+        '\\u2705 Multi-group dice<br>' +
+        '\\u2705 Premium themes<br>' +
+        '\\u2705 No ads</div>' +
+        '<button onclick="this.closest(\\x27div[style]\\x27).parentElement.remove()" style="background:#ffa657;color:#000;border:none;border-radius:10px;padding:12px 32px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;width:100%">Coming Soon</button>' +
+        '<div id="replaceList" style="display:none;text-align:left;margin-top:12px"></div>' +
+        '<button onclick="showReplacePicker()" style="margin-top:10px;background:none;border:1px solid var(--border);border-radius:10px;padding:8px 20px;font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;font-family:inherit;width:100%">Replace an existing preset</button>' +
+        '<button onclick="this.closest(\\x27div[style]\\x27).parentElement.remove()" style="margin-top:6px;background:none;border:none;color:var(--text-dim);font-size:13px;cursor:pointer;font-family:inherit">Cancel</button>';
+    modal.innerHTML = html;
+    backdrop.appendChild(modal);
+    document.body.appendChild(backdrop);
+}
+
+function showReplacePicker() {
+    var list = document.getElementById('replaceList');
+    if (list.style.display !== 'none') { list.style.display = 'none'; return; }
+    var html = '';
     presets.forEach(function(p, i) {
         var expr = buildGroupFormula(p);
         html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:4px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer" onclick="replacePreset(' + i + ',this)">' +
@@ -2517,12 +2550,8 @@ function showReplacePresetDialog() {
             '<span style="font-size:11px;color:var(--text-dim)">' + esc(expr) + '</span>' +
             '<span style="color:var(--text-dim);font-size:16px">\\u21BB</span></div>';
     });
-    html += '</div>';
-    html += '<button onclick="this.closest(\\x27div[style]\\x27).parentElement.remove();showPremiumUpsell()" style="margin-top:12px;background:#ffa657;color:#000;border:none;border-radius:10px;padding:10px 24px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;width:100%">Unlock Unlimited Presets</button>';
-    html += '<button onclick="this.closest(\\x27div[style]\\x27).parentElement.remove()" style="margin-top:6px;background:none;border:none;color:var(--text-dim);font-size:13px;cursor:pointer;font-family:inherit">Cancel</button>';
-    modal.innerHTML = html;
-    backdrop.appendChild(modal);
-    document.body.appendChild(backdrop);
+    list.innerHTML = html;
+    list.style.display = 'block';
 }
 
 function replacePreset(idx, el) {
