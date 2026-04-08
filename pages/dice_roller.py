@@ -279,7 +279,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 .dr-die-result {
     display: inline-block; background: var(--surface); border: 2px solid var(--border);
-    border-radius: 4px; padding: 1px 5px; margin: 0 1px;
+    border-radius: 4px; padding: 1px 5px; margin: 2px 1px;
     font-weight: 600; color: var(--text-bright); font-size: 15px;
 }
 
