@@ -2555,9 +2555,9 @@ function showReplacePicker() {
 }
 
 function replacePreset(idx) {
-    // Close the dialog
-    var backdrops = document.querySelectorAll('div[style*="position:fixed"]');
-    backdrops.forEach(function(b){ b.remove(); });
+    // Close the dialog — find backdrop by z-index since browsers normalize style attributes
+    var backdrops = document.querySelectorAll('div[style*="z-index"]');
+    backdrops.forEach(function(b){ if(b.style.position==='fixed') b.remove(); });
     // Prompt for name, then replace
     showInlineInput('Name for new preset:', '', function(name) {
         if (!name) return;
