@@ -2396,8 +2396,8 @@ function buildGroupFormula(g) {
     var diceStr = '';
     diceParts.forEach(function(p, i) {
         if (i === 0) diceStr = p;
-        else if (p.charAt(0) === '-' || p.charAt(0) === '+') diceStr += ' ' + p;
-        else diceStr += ' + ' + p;
+        else if (p.charAt(0) === '-' || p.charAt(0) === '+') diceStr += p;
+        else diceStr += '+' + p;
     });
 
     // Group-level attrs (uniform across all dice)
