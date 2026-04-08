@@ -1343,7 +1343,8 @@ function rollOneDie(sides) { return Math.floor(Math.random()*sides)+1; }
 
 function rollSingleDie(d) {
     var sides = d.type==='dx' ? (d.sides||6) : (dieRanges[d.type]||6);
-    if (d.type==='df') return {value: Math.floor(Math.random()*3)-1, chain: null};
+    if (d.type==='coin') return {value: Math.random()<0.5 ? 1 : 0, chain: null, clamped: null};
+    if (d.type==='df') return {value: Math.floor(Math.random()*3)-1, chain: null, clamped: null};
 
     var val = rollOneDie(sides);
     var chain = null;
