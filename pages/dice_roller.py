@@ -797,10 +797,19 @@ var activePopup = null;
 
 function addToCup(type) {
     var g = activeGroup();
-    var inherit = g.children.length > 0 && g.children.every(function(d){return d.exploding;});
+    var existing = g.children;
     function makeDie(t, extras) {
         var d = {type:t, id:Date.now()+(extras||0)};
-        if (inherit) d.exploding = true;
+        // Inherit group-wide modifiers from existing dice
+        if (existing.length > 0) {
+            if (existing.every(function(e){return e.exploding;})) d.exploding = true;
+            var mn = 0; existing.forEach(function(e){ if(e.clampMin>1) mn=e.clampMin; });
+            if (mn && existing.every(function(e){return e.clampMin===mn;})) d.clampMin = mn;
+            var mx = 0; existing.forEach(function(e){ if(e.clampMax) mx=e.clampMax; });
+            if (mx && existing.every(function(e){return e.clampMax===mx;})) d.clampMax = mx;
+            var sc = 0; existing.forEach(function(e){ if(e.countSuccess) sc=e.countSuccess; });
+            if (sc && existing.every(function(e){return e.countSuccess===sc;})) d.countSuccess = sc;
+        }
         return d;
     }
     if (type === 'dfate') { cupDice.push(makeDie('df')); }
