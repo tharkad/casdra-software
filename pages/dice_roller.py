@@ -2125,7 +2125,7 @@ function calcDistribution() {
     // Keep/drop enumeration — works for mixed dice too
     var enumTotal = 1;
     rollable.forEach(function(d) { enumTotal *= getDieMax(d); });
-    if (needKeep && rollable.length > 1 && enumTotal <= 1000000 && !hasExploding) {
+    if (needKeep && rollable.length > 1 && enumTotal <= 1000000 && !hasExploding && !hasCoin && !rollable.some(function(d){return d.type==='df';})) {
         var sidesArr = rollable.map(function(d) { return getDieMax(d); });
         var n = rollable.length;
         var dLo = dropLowest ? 1 : 0;
@@ -2161,6 +2161,8 @@ function calcDistribution() {
         var counts = {};
         for (var t = 0; t < trials; t++) {
             var rolls = rollable.map(function(d) {
+                if (d.type === 'coin') return Math.random() < 0.5 ? 1 : 0;
+                if (d.type === 'df') return Math.floor(Math.random() * 3) - 1;
                 var sides = getDieMax(d);
                 var val = Math.floor(Math.random() * sides) + 1;
                 if (d.exploding) {
