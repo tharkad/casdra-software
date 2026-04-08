@@ -1897,7 +1897,7 @@ function toggleFavorite() {
         // Save as new favorite — must have dice
         if(cupDice.length===0) return;
         if(!PREMIUM && presets.length >= MAX_FREE_PRESETS) {
-            showPremiumUpsell();
+            showReplacePresetDialog();
             return;
         }
         showInlineInput('Favorite name:', '', function(name) {
@@ -2498,6 +2498,49 @@ function showPremiumUpsell() {
         '<button onclick="this.closest(\\x27div[style]\\x27).parentElement.remove()" style="margin-top:8px;background:none;border:none;color:var(--text-dim);font-size:13px;cursor:pointer;font-family:inherit">Not now</button>';
     backdrop.appendChild(modal);
     document.body.appendChild(backdrop);
+}
+
+function showReplacePresetDialog() {
+    var backdrop = document.createElement('div');
+    backdrop.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:999;display:flex;align-items:center;justify-content:center';
+    backdrop.onclick = function(e){ if(e.target===backdrop) backdrop.remove(); };
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:var(--surface);border:2px solid var(--accent);border-radius:16px;padding:24px;max-width:340px;width:90%;text-align:center';
+    var html = '<div style="font-size:16px;font-weight:700;color:var(--text-bright);margin-bottom:4px">Preset Limit Reached</div>' +
+        '<div style="color:var(--text-muted);font-size:13px;margin-bottom:16px">Free mode allows ' + MAX_FREE_PRESETS + ' presets. Replace one?</div>';
+    // List existing presets as replaceable options
+    html += '<div style="text-align:left">';
+    presets.forEach(function(p, i) {
+        var expr = buildGroupFormula(p);
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:4px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer" onclick="replacePreset(' + i + ',this)">' +
+            '<span style="flex:1;font-size:14px;font-weight:600;color:var(--text-bright)">' + esc(p.name) + '</span>' +
+            '<span style="font-size:11px;color:var(--text-dim)">' + esc(expr) + '</span>' +
+            '<span style="color:var(--text-dim);font-size:16px">\\u21BB</span></div>';
+    });
+    html += '</div>';
+    html += '<button onclick="this.closest(\\x27div[style]\\x27).parentElement.remove();showPremiumUpsell()" style="margin-top:12px;background:#ffa657;color:#000;border:none;border-radius:10px;padding:10px 24px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;width:100%">Unlock Unlimited Presets</button>';
+    html += '<button onclick="this.closest(\\x27div[style]\\x27).parentElement.remove()" style="margin-top:6px;background:none;border:none;color:var(--text-dim);font-size:13px;cursor:pointer;font-family:inherit">Cancel</button>';
+    modal.innerHTML = html;
+    backdrop.appendChild(modal);
+    document.body.appendChild(backdrop);
+}
+
+function replacePreset(idx, el) {
+    // Close the dialog
+    var backdrop = el.closest('div[style*="position:fixed"]');
+    backdrop.remove();
+    // Prompt for name, then replace
+    showInlineInput('Name for new preset:', '', function(name) {
+        if (!name) return;
+        var preset = JSON.parse(JSON.stringify(cupGroup));
+        preset.name = name;
+        preset.dice = preset.children;
+        presets[idx] = preset;
+        savePresetsToStorage();
+        activePresetIdx = idx;
+        renderPresets();
+        updateFavState();
+    });
 }
 
 // ===== Formula Parser =====
