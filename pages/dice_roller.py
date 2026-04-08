@@ -2066,11 +2066,13 @@ function calcDistribution() {
             var sides = getDieMax(d);
             var sd = {};
             if (d.exploding) {
+                // Model explosion depths until remaining probability < 0.01%
+                var maxDepth = Math.min(10, Math.ceil(4 / Math.log10(sides)));
                 for (var v=1; v<sides; v++) sd[v] = 1.0/sides;
                 var pChain = 1.0/sides;
-                for (var depth=1; depth<=3; depth++) {
+                for (var depth=1; depth<=maxDepth; depth++) {
                     for (var v=1; v<sides; v++) sd[sides*depth+v] = (sd[sides*depth+v]||0) + pChain/sides;
-                    if (depth===3) sd[sides*(depth+1)] = (sd[sides*(depth+1)]||0) + pChain/sides;
+                    if (depth===maxDepth) sd[sides*(depth+1)] = (sd[sides*(depth+1)]||0) + pChain/sides;
                     pChain /= sides;
                 }
             } else if (d.type === 'coin') {
