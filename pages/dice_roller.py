@@ -1471,8 +1471,8 @@ function rollDice() {
     }
     var results = [], total = 0, expression = '', breakdownParts = [];
     {
-        var hasCoin = cupDice.some(function(d){return d.type==='coin';});
-        if (hasCoin) {
+        var allCoins = cupDice.every(function(d){return d.type==='coin';});
+        if (allCoins && cupDice.length > 0) {
             var coinVal = Math.random()<0.5 ? 1 : 0;
             var coinLabel = coinVal ? 'HEADS (1)' : 'TAILS (0)';
             animateResult(coinLabel);
