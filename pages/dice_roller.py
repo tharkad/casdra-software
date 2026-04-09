@@ -1184,7 +1184,7 @@ function updateCupDisplay() {
     if (dropHighest) tags.push('Drop Highest');
     var cupTagsEl = document.getElementById('cupTags');
     cupTagsEl.innerHTML = tags.map(function(t){ return '<span class="dr-cup-tag">'+t+'</span>'; }).join('');
-    debouncedRenderDist();
+    renderDistribution();
     syncFormulaFromCup();
     updateFavState();
     // In edit mode, auto-save changes to the active preset
@@ -2267,19 +2267,6 @@ function binomial(n, k) {
     var c = 1;
     for (var i = 0; i < k; i++) { c = c * (n - i) / (i + 1); }
     return c;
-}
-
-var _distTimer = null;
-var _distRendered = false;
-function debouncedRenderDist() {
-    clearTimeout(_distTimer);
-    if (!_distRendered && cupDice.length > 0) {
-        _distRendered = true;
-        renderDistribution();
-    } else {
-        if (cupDice.length === 0) _distRendered = false;
-        _distTimer = setTimeout(renderDistribution, 300);
-    }
 }
 
 function renderDistribution() {
