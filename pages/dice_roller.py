@@ -2270,9 +2270,16 @@ function binomial(n, k) {
 }
 
 var _distTimer = null;
+var _distRendered = false;
 function debouncedRenderDist() {
     clearTimeout(_distTimer);
-    _distTimer = setTimeout(renderDistribution, 300);
+    if (!_distRendered && cupDice.length > 0) {
+        _distRendered = true;
+        renderDistribution();
+    } else {
+        if (cupDice.length === 0) _distRendered = false;
+        _distTimer = setTimeout(renderDistribution, 300);
+    }
 }
 
 function renderDistribution() {
