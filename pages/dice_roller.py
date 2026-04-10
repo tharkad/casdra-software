@@ -220,36 +220,47 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-theme-swatch .swatch-dot { width: 14px; height: 14px; border-radius: 50%; }
 
 /* Multi-group (premium) */
+.dr-group-flow {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;
+}
 .dr-group-section {
-    background: #161b2288; border: 1px solid var(--border); border-radius: 12px;
-    padding: 8px; margin: 4px 0; position: relative; cursor: pointer;
-    transition: all 0.15s;
+    border: 2px solid var(--border); border-radius: 12px;
+    padding: 12px; margin: 4px; position: relative; cursor: pointer;
+    transition: all 0.15s; z-index: 1;
+    display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;
 }
-.dr-group-section.active { border-color: #58a6ff; background: #58a6ff11; }
-.dr-group-section .dr-group-label {
-    font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px;
-    text-align: center; margin-bottom: 4px;
+/* Transparent click blocker — prevents dice interaction in inactive groups */
+.dr-group-section::after {
+    content: ''; position: absolute; inset: -2px;
+    border-radius: 12px; z-index: 3; pointer-events: auto;
 }
-.dr-group-section.active .dr-group-label { color: #58a6ff; }
+.dr-group-section.active::after { display: none; }
+/* Nested groups pop above parent's dim overlay */
+.dr-group-section .dr-group-section { z-index: 5; }
+.dr-group-section.active { border-color: #ffa657; box-shadow: 0 0 0 2px #ffa657, 0 0 4px rgba(255,166,87,0.6); }
+.dr-group-section.active .dr-cup-tag { background: rgba(0,0,0,0.3); color: #fff; border-color: rgba(0,0,0,0.2); }
 .dr-group-section .dr-group-dice {
-    display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; min-height: 36px;
+    display: flex; flex-wrap: wrap; gap: 4px; justify-content: center;
     align-items: center;
 }
-.dr-group-section .dr-group-empty { color: #30363d; font-size: 14px; }
+.dr-group-section .dr-group-empty { color: var(--text-dim); font-size: 12px; font-style: italic; padding: 4px 8px; }
 .dr-group-op {
-    text-align: center; padding: 2px 0; font-size: 15px; font-weight: 700;
-    color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid var(--border); background: var(--btn-bg);
+    font-size: 13px; font-weight: 800; color: var(--text-muted); cursor: pointer;
 }
-.dr-group-op:hover { color: #58a6ff; }
-.dr-group-controls {
-    display: flex; gap: 6px; justify-content: center; padding: 6px 0;
+.dr-group-op:hover { border-color: var(--accent); color: var(--accent); }
+.dr-add-group {
+    position: absolute; right: 8px; bottom: 0;
 }
-.dr-group-controls button {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-    color: var(--text-muted); padding: 6px 12px; font-size: 13px; font-weight: 600;
+.dr-add-group.below { position: static; text-align: right; margin-top: 4px; }
+.dr-add-group button {
+    background: var(--btn-bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text-muted); padding: 5px 10px; font-size: 11px; font-weight: 600;
     cursor: pointer; font-family: inherit;
 }
-.dr-group-controls button:hover { border-color: #58a6ff; color: #58a6ff; }
+.dr-add-group button:hover { border-color: var(--accent); color: var(--accent); }
 .dr-group-repeat {
     text-align: center; font-size: 14px; color: #f0883e; font-weight: 600;
     margin-bottom: 2px;
@@ -289,6 +300,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     gap: 8px; padding: 8px 16px;
     max-width: 500px; margin: 0 auto; width: 100%; flex-shrink: 0;
 }
+.dr-dice-grid.disabled, .dr-mod-rows.disabled { opacity: 0.3; pointer-events: none; }
 .dr-die-btn {
     background: var(--btn-bg); border: 1px solid var(--border);
     border-radius: 14px; padding: 12px 6px 8px; width: 72px;
@@ -336,10 +348,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
     width: 40px; height: 4px; border-radius: 2px; background: var(--border);
 }
-.dr-cup-summary {
-    font-size: 15px; color: #e6edf3; font-weight: 600; text-align: center;
-    min-height: 18px; margin-top: 8px;
-}
+.dr-cup-summary { display: none; }
 .dr-cup-staging {
     display: flex; flex-wrap: wrap; gap: 8px;
     justify-content: center; align-content: center;
@@ -365,10 +374,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     background: var(--accent); border-radius: 10px; padding: 0 5px;
     line-height: 20px; min-width: 20px; text-align: center;
 }
-.dr-cup-die-explode {
-    position: absolute; top: -8px; left: -8px;
-    font-size: 20px; line-height: 1;
-}
 .dr-cup-die-badge {
     position: absolute; bottom: -5px; left: -5px;
     font-size: 9px; font-weight: 800; line-height: 1;
@@ -392,6 +397,13 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     font-size: 11px; font-weight: 800; color: #ffa657;
     background: #ffa65718; border: 1px solid #ffa65744;
     border-radius: 6px; padding: 2px 8px; letter-spacing: 0.5px;
+}
+.dr-group-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; color: #ffa657;
+    background: #ffa65722; border: 2px solid #ffa657;
+    border-radius: 8px; padding: 3px 8px; letter-spacing: 0.5px;
+    min-width: 20px; line-height: 1; white-space: nowrap;
 }
 .dr-cup-bottom {
     display: flex; gap: 6px; align-items: stretch; justify-content: center;
@@ -507,7 +519,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-dist-bars {
     display: flex; align-items: flex-end; gap: 1px; height: 52px;
 }
-.dr-dist-wrap { text-align: center; }
+.dr-dist-wrap { text-align: center; position: relative; }
 .dr-dist-labels {
     display: flex; justify-content: space-between; padding: 3px 0 0;
     font-size: 15px; color: #c9d1d9; font-weight: 700;
@@ -524,10 +536,19 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     display: flex; gap: 8px; padding: 4px 16px 8px;
     max-width: 500px; margin: 0 auto; width: 100%; flex-shrink: 0;
 }
+.dr-formula-wrap {
+    flex: 1; position: relative; background: var(--surface); border-radius: 10px;
+}
 .dr-formula-input {
-    flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
     color: var(--text-bright); padding: 8px 12px; font-size: 16px; font-family: 'SF Mono', ui-monospace, monospace;
     outline: none;
+}
+.dr-formula-overlay {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 8px 12px; font-size: 16px; font-family: 'SF Mono', ui-monospace, monospace;
+    color: var(--text-bright); pointer-events: none;
+    display: none; word-wrap: break-word; min-height: 100%;
 }
 .dr-formula-input:focus { border-color: #58a6ff; }
 .dr-formula-input::placeholder { color: #30363d; }
@@ -561,7 +582,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     <a class="dr-back" href="/">&larr;</a>
     <h1>Dice Vault</h1>
     <div class="dr-header-right">
-        <button class="dr-header-btn" id="premiumToggle" onclick="showPremiumUpsell()" title="Go Premium" style="font-size:11px;font-weight:700;letter-spacing:0.5px">FREE</button>
+        <button class="dr-header-btn" id="premiumToggle" onclick="togglePremium()" title="Toggle Premium" style="font-size:11px;font-weight:700;letter-spacing:0.5px">FREE</button>
         <button class="dr-header-btn" onclick="showBugReport()" title="Report Bug">&#x1F41B;</button>
         <button class="dr-header-btn" id="themeBtn" onclick="toggleThemePicker(event)" title="Theme">&#x1F3A8;</button>
         <a class="dr-header-btn dr-history-btn" href="/dice/history" title="History">&#x1F552;</a>
@@ -592,8 +613,11 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 """ + ("""
 <div class="dr-formula">
     <button class="dr-formula-help" onclick="toggleFormulaHelp()">?</button>
-    <input class="dr-formula-input" id="formulaInput" type="text" placeholder="3d6+2d8+5" autocomplete="off" autocapitalize="off" spellcheck="false"
-           oninput="liveParseFormula()" onkeydown="if(event.key==='Enter'){event.preventDefault();rollDice();}">
+    <div class="dr-formula-wrap">
+        <input class="dr-formula-input" id="formulaInput" type="text" placeholder="3d6+2d8+5" autocomplete="off" autocapitalize="off" spellcheck="false"
+               oninput="liveParseFormula()" onkeydown="if(event.key==='Enter'){event.preventDefault();rollDice();}">
+        <div class="dr-formula-overlay" id="formulaOverlay"></div>
+    </div>
 </div>
 <div class="dr-formula-popup" id="formulaHelp" style="display:none">
     <div class="dr-formula-popup-title">Formula Syntax</div>
@@ -611,8 +635,11 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 """ if premium else """
 <div class="dr-formula">
     <button class="dr-formula-help" onclick="showFormulaUpsell()">?</button>
+    <div class="dr-formula-wrap">
     <input class="dr-formula-input" id="formulaInput" type="text" placeholder="3d6+2d8+5" readonly
            onclick="showFormulaUpsell()" style="cursor:pointer">
+    <div class="dr-formula-overlay" id="formulaOverlay"></div>
+    </div>
 </div>
 <div class="dr-formula-popup" id="formulaHelp" style="display:none">
     <div class="dr-formula-popup-title">Formula Syntax</div>
@@ -656,12 +683,12 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     </div>
 </div>
 
-<div class="dr-cup" id="cup">
+<div class="dr-cup" id="cup" onclick="deselectGroups(event)">
     <div class="dr-cup-preset-label" id="cupPresetLabel"></div>
     <div id="editBanner" style="display:none"></div>
-    <div class="dr-dist-wrap"><div class="dr-dist" id="distChart"></div></div>
+    <div class="dr-dist-wrap"><div class="dr-dist" id="distChart"></div><div id="addGroupSlot"></div></div>
     <div class="dr-cup-summary" id="cupSummary"></div>
-    <div class="dr-cup-staging" id="cupStaging">
+    <div class="dr-cup-staging" id="cupStaging" onclick="deselectGroups(event)">
         <span class="dr-cup-empty">Add dice to the cup</span>
     </div>
     <div class="dr-cup-tags" id="cupTags"></div>
@@ -669,11 +696,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button class="dr-cup-btn dr-save-preset" id="favStar" onclick="toggleFavorite()">&#9734;</button>
         <button class="dr-cup-btn dr-roll-btn dimmed" id="rollBtn" onclick="rollDice()">ROLL</button>
         <button class="dr-cup-btn dr-clear-cup" onclick="clearCup()" title="Empty cup">&#x1F5D1;</button>
-    </div>""" + ("""
-    <div class="dr-group-controls" id="groupControls">
-        <button onclick="addGroup()">+ Group</button>
-        <button onclick="setGroupRepeat(activeGroupIdx)">&times;N</button>
-    </div>""" if premium else '') + """
+    </div>
 </div>
 
 <script>
@@ -775,7 +798,7 @@ function makeGroup(label) {
         children: [],
         modifiers: {keep:null, clamp:null},
         modifier: 0, dropLowest: false, dropHighest: false,
-        repeat: 1, label: label||'', color: '', id: Date.now()
+        repeat: 1, label: label||'', color: '', id: Date.now()+Math.floor(Math.random()*1000)
     };
 }
 
@@ -784,8 +807,40 @@ var cupGroups = [makeGroup('')];  // array of groups
 var rootOperation = 'sum';        // how groups combine: sum | max | min
 var activeGroupIdx = 0;           // which group is selected for dice input
 
+// Does this group contain any sub-groups (making it a container)?
+function isContainer(g) {
+    return !!(g && g.children && g.children.some(function(c){return c.type==='group';}));
+}
+// Collect all dice (recursive) from a group's children
+function allDescendantDice(g) {
+    var dice = [];
+    if (!g || !g.children) return dice;
+    g.children.forEach(function(c) {
+        if (c.type === 'group') dice = dice.concat(allDescendantDice(c));
+        else dice.push(c);
+    });
+    return dice;
+}
+// Flatten group tree to get ordered list of all groups (including nested)
+function flatGroups() {
+    var list = [];
+    function walk(g) {
+        list.push(g);
+        if (g.children) g.children.forEach(function(c){ if(c.type==='group') walk(c); });
+    }
+    cupGroups.forEach(walk);
+    return list;
+}
+function flatGroupIndex(id) {
+    var list = flatGroups();
+    for (var i=0; i<list.length; i++) { if(list[i].id === id) return i; }
+    return 0;
+}
 // The "active group" is what dice buttons add to
-function activeGroup() { return cupGroups[activeGroupIdx] || cupGroups[0]; }
+function activeGroup() {
+    var list = flatGroups();
+    return list[activeGroupIdx] || cupGroups[0];
+}
 
 // Legacy accessors — point to the active group
 Object.defineProperty(window, 'cupGroup', {
@@ -812,20 +867,9 @@ var activePopup = null;
 
 function addToCup(type) {
     var g = activeGroup();
-    var existing = g.children;
+    if (isContainer(g)) return; // Container groups can't receive dice directly
     function makeDie(t, extras) {
-        var d = {type:t, id:Date.now()+(extras||0)};
-        // Inherit group-wide modifiers from existing dice
-        if (existing.length > 0) {
-            if (existing.every(function(e){return e.exploding;})) d.exploding = true;
-            var mn = 0; existing.forEach(function(e){ if(e.clampMin>1) mn=e.clampMin; });
-            if (mn && existing.every(function(e){return e.clampMin===mn;})) d.clampMin = mn;
-            var mx = 0; existing.forEach(function(e){ if(e.clampMax) mx=e.clampMax; });
-            if (mx && existing.every(function(e){return e.clampMax===mx;})) d.clampMax = mx;
-            var sc = 0; existing.forEach(function(e){ if(e.countSuccess) sc=e.countSuccess; });
-            if (sc && existing.every(function(e){return e.countSuccess===sc;})) d.countSuccess = sc;
-        }
-        return d;
+        return {type:t, id:Date.now()+(extras||0)};
     }
     if (type === 'dfate') { cupDice.push(makeDie('df')); }
     else if (type === 'dx') { showInlineInput('How many sides?','6',function(v){if(v&&parseInt(v)>1){var d=makeDie('dx');d.sides=parseInt(v);cupDice.push(d);updateCupDisplay();}}); return; }
@@ -833,7 +877,27 @@ function addToCup(type) {
     updateCupDisplay();
 }
 
-function removeFromCup(idx) { cupDice.splice(idx,1); closePopup(); updateCupDisplay(); }
+function removeFromCup(idx) {
+    cupDice.splice(idx,1); closePopup();
+    // Auto-remove empty group if there are other groups
+    if (PREMIUM && flatGroups().length > 1) {
+        var ag = activeGroup();
+        if (ag.children.length === 0 && ag.modifier === 0) {
+            // Remove from root or from parent
+            var removed = false;
+            cupGroups = cupGroups.filter(function(g){
+                if (g === ag) { removed = true; return false; }
+                // Also check children of root groups
+                g.children = g.children.filter(function(c){ if(c===ag){removed=true;return false;} return true; });
+                return true;
+            });
+            if (cupGroups.length === 0) cupGroups = [makeGroup('')];
+            var allFlat = flatGroups();
+            if (activeGroupIdx >= allFlat.length) activeGroupIdx = Math.max(0, allFlat.length - 1);
+        }
+    }
+    updateCupDisplay();
+}
 function adjustMod(n) { modifier += n; updateCupDisplay(); }
 function clearCup() {
     if(editMode) { undoEditMode(); }
@@ -849,8 +913,37 @@ function clearCup() {
 // ===== Multi-Group Management (Premium) =====
 function addGroup() {
     if(!PREMIUM) return;
-    cupGroups.push(makeGroup('Group '+(cupGroups.length+1)));
-    activeGroupIdx = cupGroups.length - 1;
+    var allGroups = flatGroups();
+    var newG = makeGroup('');
+    if (allGroups.length <= 1 || activeGroupIdx < 0) {
+        // Add as sibling at root level
+        cupGroups.push(newG);
+    } else {
+        // Add sub-group inside selected group
+        var parent = activeGroup();
+        // If parent has dice, wrap them into a sub-group first
+        var existingDice = parent.children.filter(function(c){return c.type!=='group';});
+        if (existingDice.length > 0) {
+            var wrapG = makeGroup('');
+            wrapG.children = existingDice;
+            wrapG.modifier = parent.modifier;
+            wrapG.dropLowest = parent.dropLowest;
+            wrapG.dropHighest = parent.dropHighest;
+            // Replace parent's children: remove dice, add wrapped group + new group
+            parent.children = [wrapG, newG];
+            parent.modifier = 0;
+            parent.dropLowest = false;
+            parent.dropHighest = false;
+        } else {
+            parent.children.push(newG);
+        }
+    }
+    activeGroupIdx = flatGroupIndex(newG.id);
+    updateCupDisplay();
+}
+function deselectGroups(e) {
+    // Groups stop propagation, so any click reaching here is a felt click
+    activeGroupIdx = -1;
     updateCupDisplay();
 }
 function removeGroup(idx) {
@@ -861,23 +954,19 @@ function removeGroup(idx) {
 }
 function selectGroup(idx) {
     activeGroupIdx = idx;
-    // Update DL/DH buttons to reflect this group
     document.getElementById('dropBtn').classList.toggle('on', activeGroup().dropLowest);
     document.getElementById('dropHBtn').classList.toggle('on', activeGroup().dropHighest);
     updateCupDisplay();
 }
 function toggleExploding() {
-    if (cupDice.length === 0) return;
     var g = activeGroup();
-    var allExploding = g.children.every(function(d){ return d.exploding; });
-    g.children.forEach(function(d){ d.exploding = !allExploding; });
-    document.getElementById('explodeBtn').classList.toggle('on', !allExploding);
+    if (allDescendantDice(g).length === 0) return;
+    g.exploding = !g.exploding;
+    document.getElementById('explodeBtn').classList.toggle('on', !!g.exploding);
     updateCupDisplay();
 }
 function cycleRootOp() {
-    var ops = ['sum','max','min'];
-    var idx = ops.indexOf(rootOperation);
-    rootOperation = ops[(idx+1) % ops.length];
+    rootOperation = rootOperation === 'sum' ? 'minus' : 'sum';
     updateCupDisplay();
 }
 function setGroupRepeat(gIdx) {
@@ -887,7 +976,7 @@ function setGroupRepeat(gIdx) {
     });
 }
 function toggleDropLowest() {
-    var n = cupDice.length;
+    var n = allDescendantDice(activeGroup()).length;
     if (n < 2) return;
     if (!dropLowest && dropHighest && n < 3) return; // can't enable both with < 3
     dropLowest = !dropLowest;
@@ -895,7 +984,7 @@ function toggleDropLowest() {
     updateCupDisplay();
 }
 function toggleDropHighest() {
-    var n = cupDice.length;
+    var n = allDescendantDice(activeGroup()).length;
     if (n < 2) return;
     if (!dropHighest && dropLowest && n < 3) return; // can't enable both with < 3
     dropHighest = !dropHighest;
@@ -903,64 +992,55 @@ function toggleDropHighest() {
     updateCupDisplay();
 }
 function toggleMin() {
-    if (cupDice.length === 0) return;
     var g = activeGroup();
-    var hasMin = g.children.some(function(d){ return d.clampMin > 1; });
-    if (hasMin) {
-        g.children.forEach(function(d){ delete d.clampMin; });
+    if (allDescendantDice(g).length === 0) return;
+    if (g.clampMin && g.clampMin > 1) {
+        delete g.clampMin;
         updateCupDisplay();
     } else {
         showInlineInput('Minimum die value?', '', function(val) {
             if (!val) return;
             var mn = parseInt(val);
             if (!mn || mn < 1) return;
-            // Check against existing max
-            var curMax = 0;
-            g.children.forEach(function(d){ if(d.clampMax) curMax = d.clampMax; });
-            if (curMax && mn >= curMax) {
-                showConfirm('Min must be less than Max (' + curMax + ')', function(){}); return;
+            if (g.clampMax && mn >= g.clampMax) {
+                showConfirm('Min must be less than Max (' + g.clampMax + ')', function(){}); return;
             }
-            g.children.forEach(function(d){ d.clampMin = mn; });
+            g.clampMin = mn;
             updateCupDisplay();
         });
     }
 }
 function toggleMax() {
-    if (cupDice.length === 0) return;
     var g = activeGroup();
-    var hasMax = g.children.some(function(d){ return d.clampMax; });
-    if (hasMax) {
-        g.children.forEach(function(d){ delete d.clampMax; });
+    if (allDescendantDice(g).length === 0) return;
+    if (g.clampMax) {
+        delete g.clampMax;
         updateCupDisplay();
     } else {
         showInlineInput('Maximum die value?', '', function(val) {
             if (!val) return;
             var mx = parseInt(val);
             if (!mx || mx < 1) return;
-            // Check against existing min
-            var curMin = 0;
-            g.children.forEach(function(d){ if(d.clampMin > 1) curMin = d.clampMin; });
-            if (curMin && mx <= curMin) {
-                showConfirm('Max must be greater than Min (' + curMin + ')', function(){}); return;
+            if (g.clampMin && g.clampMin > 1 && mx <= g.clampMin) {
+                showConfirm('Max must be greater than Min (' + g.clampMin + ')', function(){}); return;
             }
-            g.children.forEach(function(d){ d.clampMax = mx; });
+            g.clampMax = mx;
             updateCupDisplay();
         });
     }
 }
 function toggleSuccess() {
-    if (cupDice.length === 0) return;
     var g = activeGroup();
-    var hasSuccess = g.children.some(function(d){ return d.countSuccess; });
-    if (hasSuccess) {
-        g.children.forEach(function(d){ delete d.countSuccess; });
+    if (allDescendantDice(g).length === 0) return;
+    if (g.countSuccess) {
+        delete g.countSuccess;
         updateCupDisplay();
     } else {
         showInlineInput('Count successes: die \\u2265 ?', '', function(val) {
             if (!val) return;
             var threshold = parseInt(val);
             if (!threshold || threshold < 1) return;
-            g.children.forEach(function(d){ d.countSuccess = threshold; });
+            g.countSuccess = threshold;
             updateCupDisplay();
         });
     }
@@ -1034,8 +1114,6 @@ function renderGroupDice(g, gIdx) {
         var dieColor = d.color || info.color;
         var bg = '#0a0a0a';
         var border = dieColor;
-        var explodeTag = d.exploding ? '<span class="dr-cup-die-explode">💥</span>' : '';
-        var explodeStyle = d.exploding ? 'box-shadow:0 0 8px '+dieColor+'66;' : '';
         var countTag = grp.count > 1 ? '<span class="dr-cup-die-count">'+grp.count+'\\u00d7</span>' : '';
         var badges = [];
         if (d.clampMin && d.clampMin > 1) badges.push('\\u2265'+d.clampMin);
@@ -1044,17 +1122,17 @@ function renderGroupDice(g, gIdx) {
         var badgeTag = badges.length ? '<span class="dr-cup-die-badge">'+badges.join(' ')+'</span>' : '';
         var longPressAttr = PREMIUM ? 'oncontextmenu="event.preventDefault();selectGroup('+gIdx+');showDieOptions('+i+',event)" '+
                 'ontouchstart="startLongPress('+i+',event,'+gIdx+')" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()"' : '';
-        html += '<div class="dr-cup-die" style="background:'+bg+';border:2px solid '+border+';color:'+dieColor+';'+explodeStyle+'" '+
-                'onclick="selectGroup('+gIdx+');removeFromCup('+i+')" '+
+        html += '<div class="dr-cup-die" style="background:'+bg+';border:2px solid '+border+';color:'+dieColor+';" '+
+                'onclick="event.stopPropagation();selectGroup('+gIdx+');removeFromCup('+i+')" '+
                 longPressAttr+'>'+
-                countTag+getDieShape(d)+explodeTag+badgeTag+
+                countTag+getDieShape(d)+badgeTag+
                 '<span class="dr-cup-die-label">'+label+'</span></div>';
     });
     if (g.modifier !== 0) {
         var mc = g.modifier > 0 ? '#7ee787' : '#f85149';
         var ml = g.modifier > 0 ? '+'+g.modifier : ''+g.modifier;
         html += '<div class="dr-cup-mod" style="background:#0a0a0a;border:2px solid '+mc+';color:'+mc+'" '+
-                'onclick="selectGroup('+gIdx+');modifier=0;updateCupDisplay()">'+ml+'</div>';
+                'onclick="event.stopPropagation();selectGroup('+gIdx+');modifier=0;updateCupDisplay()">'+ml+'</div>';
     }
     return html;
 }
@@ -1072,7 +1150,7 @@ function updateCupDisplay() {
         staging.innerHTML = '<span class="dr-cup-empty">Add dice to the cup</span>';
         summary.textContent = '';
         document.getElementById('distChart').innerHTML = '';
-        document.getElementById('distChart').parentElement.style.display = 'none';
+        if (!PREMIUM) document.getElementById('distChart').parentElement.style.display = 'none';
         document.getElementById('formulaInput').value = '';
         document.getElementById('prob').innerHTML = '';
         document.getElementById('rollBtn').classList.add('dimmed');
@@ -1095,49 +1173,96 @@ function updateCupDisplay() {
         document.getElementById('successBtn').textContent = 'Success';
         document.getElementById('favStar').classList.remove('fav-active');
         document.getElementById('cupTags').innerHTML = '';
+        document.getElementById('addGroupSlot').innerHTML = PREMIUM ?
+            '<div class="dr-add-group"><button onclick="event.stopPropagation();addGroup()">+ Group</button></div>' : '';
         if(!editMode) { activePresetIdx = -1; }
         return;
     }
     document.getElementById('distChart').parentElement.style.display = '';
 
     var html = '';
-    if (PREMIUM && cupGroups.length > 1) {
-        // Multi-group rendering
-        cupGroups.forEach(function(g, gi) {
-            if (gi > 0) {
-                var opLabel = rootOperation === 'max' ? 'MAX' : rootOperation === 'min' ? 'MIN' : '+';
-                html += '<div class="dr-group-op" onclick="cycleRootOp()" title="Click to change">'+opLabel+'</div>';
-            }
-            var active = gi === activeGroupIdx ? ' active' : '';
-            var repeatLabel = g.repeat > 1 ? '<div class="dr-group-repeat">'+g.repeat+'\\u00d7</div>' : '';
-            html += '<div class="dr-group-section'+active+'" onclick="selectGroup('+gi+')">';
-            html += repeatLabel;
-            html += '<div class="dr-group-label">'+(g.label || 'Group '+(gi+1))+'</div>';
-            html += '<div class="dr-group-dice">';
-            if (g.children.length === 0 && g.modifier === 0) {
-                html += '<span class="dr-group-empty">tap dice to add</span>';
-            } else {
-                html += renderGroupDice(g, gi);
-            }
-            html += '</div></div>';
-        });
-        // Controls
-        html += '<div class="dr-group-controls">';
-        html += '<button onclick="addGroup()">+ Group</button>';
-        if(cupGroups.length > 1) html += '<button onclick="removeGroup(activeGroupIdx)">- Group</button>';
-        html += '<button onclick="setGroupRepeat(activeGroupIdx)">\\u00d7N</button>';
-        html += '</div>';
+    var allGroups = flatGroups();
+    var showGroups = PREMIUM && allGroups.length > 1;
+
+    if (showGroups) {
+        // Multi-group rendering — inline flow layout
+        function renderGroupTree(groups, depth, parentOp) {
+            var out = '<div class="dr-group-flow">';
+            groups.forEach(function(g, gi) {
+                if (gi > 0) {
+                    var opLabel = parentOp === 'minus' ? '\\u2212' : '+';
+                    out += '<div class="dr-group-op" onclick="event.stopPropagation();cycleRootOp()" title="Click to change">'+opLabel+'</div>';
+                }
+                var flatIdx = flatGroupIndex(g.id);
+                var isActive = flatIdx === activeGroupIdx;
+                var bgAlpha = Math.min(0.6, 0.15 + depth * 0.12);
+                var cls = 'dr-group-section' + (isActive ? ' active' : '');
+                out += '<div class="'+cls+'" style="background:rgba(0,0,0,'+bgAlpha.toFixed(2)+')" onclick="event.stopPropagation();selectGroup('+flatIdx+')">';
+                var diceOnly = g.children.filter(function(c){return c.type!=='group';});
+                var subGroups = g.children.filter(function(c){return c.type==='group';});
+                if (diceOnly.length > 0 || g.modifier !== 0) {
+                    out += renderGroupDice({children:diceOnly, modifier:g.modifier, dropLowest:g.dropLowest, dropHighest:g.dropHighest}, flatIdx);
+                }
+                if (subGroups.length > 0) {
+                    out += renderGroupTree(subGroups, depth+1, g.operation || 'sum');
+                }
+                if (diceOnly.length === 0 && subGroups.length === 0 && g.modifier === 0) {
+                    out += '<span class="dr-group-empty">empty</span>';
+                }
+                // Modifier tags — strictly group-level, do not inherit from or propagate to children
+                var tags = '';
+                if (g.dropLowest) tags += '<span class="dr-group-badge">DL</span>';
+                if (g.dropHighest) tags += '<span class="dr-group-badge">DH</span>';
+                if (g.exploding) tags += '<span class="dr-group-badge">!</span>';
+                if (g.clampMin && g.clampMin > 1) tags += '<span class="dr-group-badge">\\u2265'+g.clampMin+'</span>';
+                if (g.clampMax) tags += '<span class="dr-group-badge">\\u2264'+g.clampMax+'</span>';
+                if (g.countSuccess) tags += '<span class="dr-group-badge">#\\u2265'+g.countSuccess+'</span>';
+                // Container group modifier tag (dice groups render modifier inline via renderGroupDice)
+                if (isContainer(g) && g.modifier) {
+                    var ml = g.modifier > 0 ? '+'+g.modifier : ''+g.modifier;
+                    tags += '<span class="dr-group-badge">'+ml+'</span>';
+                }
+                if (tags) out += tags;
+                out += '</div>';
+            });
+            out += '</div>';
+            return out;
+        }
+        html = renderGroupTree(cupGroups, 0, rootOperation);
     } else {
         // Single group — same as before
         html = renderGroupDice(cupGroups[0], 0);
     }
     staging.innerHTML = html;
-    // Summary — use buildGroupFormula for consistency
-    summary.textContent = buildGroupFormula(activeGroup());
+    // + Group button in the chart area (premium only)
+    if (PREMIUM) {
+        var chart = document.getElementById('distChart');
+        var chartWide = chart && chart.offsetWidth > 200;
+        var cls = chartWide ? 'dr-add-group below' : 'dr-add-group';
+        document.getElementById('addGroupSlot').innerHTML = '<div class="'+cls+'"><button onclick="event.stopPropagation();addGroup()">+ Group</button></div>';
+    } else {
+        document.getElementById('addGroupSlot').innerHTML = '';
+    }
+    // Summary
+    if (showGroups) {
+        // Show full multi-group formula in summary
+        var parts = cupGroups.map(function(g){ return buildGroupFormula(g) || '()'; });
+        var opStr = rootOperation === 'minus' ? ' \\u2212 ' : ' + ';
+        summary.textContent = parts.join(opStr);
+    } else {
+        summary.textContent = buildGroupFormula(activeGroup());
+    }
     document.getElementById('rollBtn').classList.toggle('dimmed', totalDice === 0);
     document.getElementById('favStar').classList.toggle('dimmed', totalDice === 0);
     if (totalDice === 0) document.getElementById('favStar').style.color = '';
-    var n = activeGroup().children.length;
+    // In multi-group mode with no group selected, disable all buttons
+    var noGroupSelected = showGroups && activeGroupIdx < 0;
+    // Container groups (those with sub-groups) can't receive dice directly
+    var activeIsContainer = !noGroupSelected && isContainer(activeGroup());
+    document.querySelector('.dr-dice-grid').classList.toggle('disabled', noGroupSelected || activeIsContainer);
+    document.querySelector('.dr-mod-rows').classList.toggle('disabled', noGroupSelected);
+    // For modifier threshold calc, count all descendant dice of the active group
+    var n = noGroupSelected ? 0 : allDescendantDice(activeGroup()).length;
     // DL or DH alone needs >= 2 dice; both together needs >= 3
     var dlDisable = n < 2;
     var dhDisable = n < 2;
@@ -1152,38 +1277,40 @@ function updateCupDisplay() {
     if (n < 2) { dropLowest = false; dropHighest = false;
         document.getElementById('dropBtn').classList.remove('on');
         document.getElementById('dropHBtn').classList.remove('on'); }
-    // Explode button state
-    var allExploding = n > 0 && activeGroup().children.every(function(d){return d.exploding;});
-    document.getElementById('explodeBtn').classList.toggle('on', allExploding);
+    // Explode button state — read from group-level property
+    var ag = activeGroup();
+    var isExploding = !!(ag && ag.exploding);
+    document.getElementById('explodeBtn').classList.toggle('on', isExploding);
     document.getElementById('explodeBtn').classList.toggle('dimmed', n === 0);
     var explodePts = '12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5';
     var explodeSvgDimmed = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="'+explodePts+'"/></svg>';
     var explodeSvgOn = '<svg width="18" height="18" viewBox="0 0 24 24" fill="white" stroke="#333" stroke-width="1.5" stroke-linejoin="round"><polygon points="'+explodePts+'"/></svg>';
-    document.getElementById('explodeBtn').innerHTML = n === 0 ? explodeSvgDimmed : allExploding ? explodeSvgOn : '\\uD83D\\uDCA5';
+    document.getElementById('explodeBtn').innerHTML = n === 0 ? explodeSvgDimmed : isExploding ? explodeSvgOn : '\\uD83D\\uDCA5';
     // Min button state
-    var minVal = 0;
-    activeGroup().children.forEach(function(d){ if(d.clampMin > 1) minVal = d.clampMin; });
+    var minVal = (ag && ag.clampMin && ag.clampMin > 1) ? ag.clampMin : 0;
     document.getElementById('minBtn').classList.toggle('on', minVal > 0);
     document.getElementById('minBtn').classList.toggle('dimmed', n === 0);
     document.getElementById('minBtn').textContent = minVal > 0 ? 'Min=' + minVal : 'Min';
     // Max button state
-    var maxVal = 0;
-    activeGroup().children.forEach(function(d){ if(d.clampMax) maxVal = d.clampMax; });
+    var maxVal = (ag && ag.clampMax) ? ag.clampMax : 0;
     document.getElementById('maxBtn').classList.toggle('on', maxVal > 0);
     document.getElementById('maxBtn').classList.toggle('dimmed', n === 0);
     document.getElementById('maxBtn').textContent = maxVal > 0 ? 'Max=' + maxVal : 'Max';
     // Success button state
-    var successVal = 0;
-    activeGroup().children.forEach(function(d){ if(d.countSuccess) successVal = d.countSuccess; });
+    var successVal = (ag && ag.countSuccess) ? ag.countSuccess : 0;
     document.getElementById('successBtn').classList.toggle('on', successVal > 0);
     document.getElementById('successBtn').classList.toggle('dimmed', n === 0);
     document.getElementById('successBtn').textContent = successVal > 0 ? 'Success \\u2265 ' + successVal : 'Success';
-    // Cup tags strip
-    var tags = [];
-    if (dropLowest) tags.push('Drop Lowest');
-    if (dropHighest) tags.push('Drop Highest');
+    // Cup tags strip — only in single-group mode (multi-group shows tags inside each group)
     var cupTagsEl = document.getElementById('cupTags');
-    cupTagsEl.innerHTML = tags.map(function(t){ return '<span class="dr-cup-tag">'+t+'</span>'; }).join('');
+    if (showGroups) {
+        cupTagsEl.innerHTML = '';
+    } else {
+        var tags = [];
+        if (dropLowest) tags.push('Drop Lowest');
+        if (dropHighest) tags.push('Drop Highest');
+        cupTagsEl.innerHTML = tags.map(function(t){ return '<span class="dr-cup-tag">'+t+'</span>'; }).join('');
+    }
     renderDistribution();
     syncFormulaFromCup();
     updateFavState();
@@ -1353,7 +1480,9 @@ var dieRanges = {d4:4,d6:6,d8:8,d10:10,d12:12,d20:20,d100:100};
 
 function rollOneDie(sides) { return Math.floor(Math.random()*sides)+1; }
 
-function rollSingleDie(d) {
+function rollSingleDie(d, ctx) {
+    // ctx: optional {exploding, clampMin, clampMax} inherited from the die's group
+    ctx = ctx || {};
     var sides = d.type==='dx' ? (d.sides||6) : (dieRanges[d.type]||6);
     if (d.type==='coin') return {value: Math.random()<0.5 ? 1 : 0, chain: null, clamped: null};
     if (d.type==='df') return {value: Math.floor(Math.random()*3)-1, chain: null, clamped: null};
@@ -1361,8 +1490,9 @@ function rollSingleDie(d) {
     var val = rollOneDie(sides);
     var chain = null;
 
-    // Exploding: if max, roll again and add (cap at 10 explosions)
-    if (d.exploding) {
+    // Exploding: die-own OR group-level
+    var exploding = d.exploding || ctx.exploding;
+    if (exploding) {
         chain = [val];
         var explodeVal = val;
         while (explodeVal === sides && chain.length < 11) {
@@ -1373,28 +1503,35 @@ function rollSingleDie(d) {
         if (chain.length === 1) chain = null; // no explosion happened
     }
 
-    // Reroll: if val <= reroll threshold, reroll once
+    // Reroll: per-die only
     if (d.reroll && val <= d.reroll) {
         val = rollOneDie(sides);
         chain = null;
     }
 
-    // Clamp
+    // Clamp: die-own wins, else group-level
+    var clampMin = (d.clampMin && d.clampMin > 1) ? d.clampMin : ctx.clampMin;
+    var clampMax = d.clampMax || ctx.clampMax;
     var clamped = null;
-    if (d.clampMin && val < d.clampMin) { clamped = val; val = d.clampMin; }
-    if (d.clampMax && val > d.clampMax) { clamped = clamped !== null ? clamped : val; val = d.clampMax; }
+    if (clampMin && val < clampMin) { clamped = val; val = clampMin; }
+    if (clampMax && val > clampMax) { clamped = clamped !== null ? clamped : val; val = clampMax; }
 
     return {value: val, chain: chain, clamped: clamped};
 }
 
-function rollSingleGroup(g) {
-    // Roll one group, return {total, breakdown (html string)}
+function rollSingleGroup(g, parentCtx) {
+    // Roll one group recursively. Modifiers inherit from parentCtx with override.
+    // Returns {total, breakdown}
+    parentCtx = parentCtx || {};
+    var ctx = mergeGroupCtx(g, parentCtx);
     var results = [], total = 0, bParts = [];
-    g.children.forEach(function(d) {
-        var roll = rollSingleDie(d);
-        results.push({type:d.type, sides:d.sides, value:roll.value, chain:roll.chain, clamped:roll.clamped, exploding:d.exploding});
+    var directDice = g.children.filter(function(c){return c.type!=='group';});
+    var subGroups = g.children.filter(function(c){return c.type==='group';});
+    directDice.forEach(function(d) {
+        var roll = rollSingleDie(d, ctx);
+        results.push({type:d.type, sides:d.sides, value:roll.value, chain:roll.chain, clamped:roll.clamped, exploding:d.exploding||ctx.exploding});
     });
-    // Keep/Drop logic — supports DL+DH simultaneously
+    // Keep/Drop logic on direct dice only — supports DL+DH simultaneously
     var kept = [];
     var dropSet = {};
     if (results.length > 1) {
@@ -1402,10 +1539,10 @@ function rollSingleGroup(g) {
         sorted.sort(function(a,b){return a.val-b.val;});
         // Per-die keep overrides
         var hasPerDieKeep = false;
-        g.children.forEach(function(d){if(d.keep) hasPerDieKeep=true;});
+        directDice.forEach(function(d){if(d.keep) hasPerDieKeep=true;});
         if (hasPerDieKeep) {
             var keepMode, keepCount;
-            g.children.forEach(function(d){if(d.keep){keepMode=d.keep;keepCount=d.keepCount||1;}});
+            directDice.forEach(function(d){if(d.keep){keepMode=d.keep;keepCount=d.keepCount||1;}});
             if(keepMode==='kh') { for(var i=0;i<sorted.length-keepCount;i++) dropSet[sorted[i].idx]=true; }
             else { for(var i=keepCount;i<sorted.length;i++) dropSet[sorted[i].idx]=true; }
         } else {
@@ -1414,11 +1551,18 @@ function rollSingleGroup(g) {
         }
     }
     results.forEach(function(r,i){ kept.push(!dropSet[i]); });
-    // Count successes
-    var countMode=false, countTh=0;
-    g.children.forEach(function(d){if(d.countSuccess){countMode=true;countTh=d.countSuccess;}});
+    // Count successes — use effective ctx (inherits)
+    var countTh = ctx.countSuccess || 0;
+    var countMode = countTh > 0;
     if(countMode){var s=0;results.forEach(function(r,i){if(kept[i]&&r.value>=countTh)s++;});total=s;}
     else{results.forEach(function(r,i){if(kept[i])total+=r.value;});}
+    // Recurse into sub-groups and add their totals (sum)
+    var subBreakdowns = [];
+    subGroups.forEach(function(sg) {
+        var sr = rollSingleGroup(sg, ctx);
+        total += sr.total;
+        subBreakdowns.push('('+sr.breakdown+')');
+    });
     total += g.modifier||0;
     // Breakdown
     results.forEach(function(r,i){
@@ -1431,14 +1575,15 @@ function rollSingleGroup(g) {
         if(countMode&&kept[i]){style=r.value>=countTh?'color:#7ee787;font-weight:800':'opacity:0.5';}
         bParts.push('<span class="dr-die-result" style="'+style+'">'+label+'</span>');
     });
+    // Append sub-group breakdowns after direct dice
+    subBreakdowns.forEach(function(sb){ bParts.push(sb); });
     if(g.modifier>0) bParts.push('+'+g.modifier);
     else if(g.modifier<0) bParts.push(''+g.modifier);
     return {total:total, breakdown:bParts.join(' ')};
 }
 
 function rollDice() {
-    var totalDice = 0;
-    cupGroups.forEach(function(g) { totalDice += g.children.length; });
+    var totalDice = getAllDice().length;
     if (totalDice === 0) { document.getElementById('result').textContent = 'Add dice'; return; }
     playSound(); if (navigator.vibrate) navigator.vibrate(50);
 
@@ -1496,11 +1641,13 @@ function rollDice() {
         }
 
         // Roll all dice — store color and original index for sorting
+        var _ag = activeGroup();
+        var _ctx = {exploding: _ag.exploding, clampMin: _ag.clampMin, clampMax: _ag.clampMax};
         cupDice.forEach(function(d, idx) {
-            var roll = rollSingleDie(d);
+            var roll = rollSingleDie(d, _ctx);
             var info = DIE_SHAPES[d.type] || DIE_SHAPES.dx || {color:'#8b949e'};
             var dieColor = d.color || info.color;
-            results.push({type:d.type, sides:d.sides, value:roll.value, chain:roll.chain, clamped:roll.clamped, exploding:d.exploding, reroll:d.reroll, dieColor:dieColor, origIdx:idx});
+            results.push({type:d.type, sides:d.sides, value:roll.value, chain:roll.chain, clamped:roll.clamped, exploding:d.exploding||_ag.exploding, reroll:d.reroll, dieColor:dieColor, origIdx:idx});
         });
 
         // Sort results by die type to group them (matching formula order)
@@ -1543,9 +1690,9 @@ function rollDice() {
         // Map kept to sorted order
         sortedKept = sortMap.map(function(i){return kept[i];});
 
-        // Count successes mode
-        var countMode = false, countThreshold = 0;
-        cupDice.forEach(function(d) { if(d.countSuccess) { countMode = true; countThreshold = d.countSuccess; } });
+        // Count successes mode — read group-level
+        var countThreshold = (_ag && _ag.countSuccess) || 0;
+        var countMode = countThreshold > 0;
 
         // Calculate total
         if (countMode) {
@@ -1595,8 +1742,10 @@ function rollDice() {
 }
 
 function getTheoreticalRange() {
-    // Single source of truth for min/max — used by chart labels + animation
-    var rollable = cupDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin' || d.type === 'adv' || d.type === 'dis'; });
+    // Single source of truth for min/max — uses ALL dice across ALL groups
+    // with group-level modifiers merged in via effective-die view
+    var allDice = getEffectiveDice();
+    var rollable = allDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin' || d.type === 'adv' || d.type === 'dis'; });
     if (rollable.length === 0) return {lo: 1, hi: 20};
     var countMode = rollable.some(function(d){return d.countSuccess;});
     if (countMode) {
@@ -1747,47 +1896,38 @@ function savePresetsToStorage() { localStorage.setItem('dice_roller_presets',JSO
 
 function getCupSignature() {
     // Build a comparable string from current cup state
+    var g = activeGroup();
     var counts={};
-    var expl=0, clMin=0, clMax=0, succ=0;
     cupDice.forEach(function(d){
         var k=d.type==='dx'?'d'+(d.sides||6):d.type;counts[k]=(counts[k]||0)+1;
-        if(d.exploding) expl++;
-        if(d.clampMin>1) clMin=d.clampMin;
-        if(d.clampMax) clMax=d.clampMax;
-        if(d.countSuccess) succ=d.countSuccess;
     });
     var parts=[]; for(var t in counts) parts.push(counts[t]+t);
     parts.sort();
     if(modifier) parts.push('m'+modifier);
     if(dropLowest) parts.push('dl');
     if(dropHighest) parts.push('dh');
-    if(expl) parts.push('x'+expl);
-    if(clMin) parts.push('mn'+clMin);
-    if(clMax) parts.push('mx'+clMax);
-    if(succ) parts.push('s'+succ);
+    if(g && g.exploding) parts.push('x');
+    if(g && g.clampMin > 1) parts.push('mn'+g.clampMin);
+    if(g && g.clampMax) parts.push('mx'+g.clampMax);
+    if(g && g.countSuccess) parts.push('s'+g.countSuccess);
     return parts.join('|');
 }
 
 function getPresetSignature(p) {
     var counts={};
-    var expl=0, clMin=0, clMax=0, succ=0;
     var dice = p.children || p.dice || [];
     dice.forEach(function(d){
         var k=d.type==='dx'?'d'+(d.sides||6):d.type;counts[k]=(counts[k]||0)+1;
-        if(d.exploding) expl++;
-        if(d.clampMin>1) clMin=d.clampMin;
-        if(d.clampMax) clMax=d.clampMax;
-        if(d.countSuccess) succ=d.countSuccess;
     });
     var parts=[]; for(var t in counts) parts.push(counts[t]+t);
     parts.sort();
     if(p.modifier) parts.push('m'+p.modifier);
     if(p.dropLowest) parts.push('dl');
     if(p.dropHighest) parts.push('dh');
-    if(expl) parts.push('x'+expl);
-    if(clMin) parts.push('mn'+clMin);
-    if(clMax) parts.push('mx'+clMax);
-    if(succ) parts.push('s'+succ);
+    if(p.exploding) parts.push('x');
+    if(p.clampMin > 1) parts.push('mn'+p.clampMin);
+    if(p.clampMax) parts.push('mx'+p.clampMax);
+    if(p.countSuccess) parts.push('s'+p.countSuccess);
     return parts.join('|');
 }
 
@@ -2003,14 +2143,58 @@ function getDieMax(d) {
     return dieRanges[d.type] || 6;
 }
 
+function getAllDice() {
+    // Collect all dice from all groups (flat)
+    var all = [];
+    function walk(g) {
+        g.children.forEach(function(c) {
+            if (c.type === 'group') walk(c);
+            else all.push(c);
+        });
+    }
+    cupGroups.forEach(walk);
+    return all;
+}
+// Merge this group's own modifiers over an inherited parent context. Nested groups
+// override ancestor modifiers for the same key (a child's own non-empty value wins).
+function mergeGroupCtx(g, parentCtx) {
+    parentCtx = parentCtx || {};
+    return {
+        exploding: g.exploding || parentCtx.exploding || false,
+        clampMin: (g.clampMin && g.clampMin > 1) ? g.clampMin : (parentCtx.clampMin || 0),
+        clampMax: g.clampMax || parentCtx.clampMax || 0,
+        countSuccess: g.countSuccess || parentCtx.countSuccess || 0
+    };
+}
+// Collect all dice with modifiers inherited from the full ancestor chain. Deeper
+// groups override ancestor values; per-die modifiers take precedence over both.
+function getEffectiveDice() {
+    var all = [];
+    function walk(g, parentCtx) {
+        var ctx = mergeGroupCtx(g, parentCtx);
+        g.children.forEach(function(c) {
+            if (c.type === 'group') { walk(c, ctx); return; }
+            var eff = {};
+            for (var k in c) eff[k] = c[k];
+            if (ctx.exploding && !eff.exploding) eff.exploding = true;
+            if (ctx.clampMin && !(eff.clampMin > 1)) eff.clampMin = ctx.clampMin;
+            if (ctx.clampMax && !eff.clampMax) eff.clampMax = ctx.clampMax;
+            if (ctx.countSuccess && !eff.countSuccess) eff.countSuccess = ctx.countSuccess;
+            all.push(eff);
+        });
+    }
+    cupGroups.forEach(function(g){ walk(g, {}); });
+    return all;
+}
 function calcDistribution() {
-    if (cupDice.length === 0) return null;
-    var rollable = cupDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin'; });
+    var allDice = getEffectiveDice();
+    if (allDice.length === 0) return null;
+    var rollable = allDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin'; });
     if (rollable.length === 0) return null;
 
-    // Check for count successes mode
+    // Check for count successes mode (from any effective die)
     var countSuccess = 0;
-    cupDice.forEach(function(d) { if (d.countSuccess) countSuccess = d.countSuccess; });
+    rollable.forEach(function(d) { if (d.countSuccess) countSuccess = d.countSuccess; });
 
     if (countSuccess > 0) {
         // Per-die success probability (handles mixed dice + clamp)
@@ -2304,7 +2488,7 @@ function renderDistribution() {
     var minVal = trueMin, maxVal = trueMax;
     var midVal = keys[Math.floor(keys.length/2)];
 
-    var hasExploding = cupDice.some(function(d){return d.exploding;});
+    var hasExploding = getEffectiveDice().some(function(d){return d.exploding;});
 
     var html = '<div class="dr-dist-bars">';
     keys.forEach(function(k) {
@@ -2351,7 +2535,7 @@ function showProbability(total) {
     var isLight = currentTheme.indexOf('light') === 0;
     var color = pGte > 0.5 ? (isLight ? '#1a7f37' : '#7ee787') : pGte > 0.2 ? (isLight ? '#b35900' : '#ffa657') : pGte > 0.05 ? (isLight ? '#a3400a' : '#f0883e') : (isLight ? '#cf222e' : '#f85149');
 
-    var countMode = cupDice.some(function(d){return d.countSuccess;});
+    var countMode = cupGroups.some(function(g){return g.countSuccess;});
     var suffix = countMode ? (total===1?'+ success':'+ successes') : ' or better';
     document.getElementById('prob').innerHTML = '<span style="color:'+color+'">'+pct+'%</span> chance of '+total+suffix+' <span style="color:'+color+'">('+label+')</span>';
     highlightDistValue(total);
@@ -2386,8 +2570,23 @@ function buildGroupFormula(g) {
     // Build formula for a single group using :attr,attr syntax
     // Per-type attrs inline: 3d6:dl,!
     // Group attrs after (): (2d6 + 3d12):dl,!
-    var dice = g.children || [];
-    if (dice.length === 0 && !g.modifier) return '';
+    var allChildren = g.children || [];
+    if (allChildren.length === 0 && !g.modifier) return '';
+
+    // Separate dice from sub-groups
+    var dice = allChildren.filter(function(c){return c.type!=='group';});
+    var subGroups = allChildren.filter(function(c){return c.type==='group';});
+
+    // If this group is purely a container for sub-groups, recursively build
+    if (dice.length === 0 && subGroups.length > 0) {
+        var subFormulas = subGroups.map(function(sg) {
+            var sf = buildGroupFormula(sg) || '()';
+            if (sf.charAt(0) !== '(') sf = '(' + sf + ')';
+            return sf;
+        });
+        var op = g.operation === 'minus' ? ' \\u2212 ' : ' + ';
+        return subFormulas.join(op);
+    }
 
     // Count dice by type, track per-type modifiers
     var types = []; // ordered list of unique type keys
@@ -2398,22 +2597,19 @@ function buildGroupFormula(g) {
         var k = d.type==='coin'?'COIN':d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
         if (!counts[k]) types.push(k);
         counts[k] = (counts[k]||0)+1;
-        if (d.exploding) explCount[k] = (explCount[k]||0)+1;
+        if (d.exploding) explCount[k] = (explCount[k]||0)+1; // per-die exploding (rare)
     });
 
-    // Check which modifiers are uniform across ALL dice vs per-type
+    // Group-level modifiers
     var totalDice = dice.length - specials.length;
+    var allExploding = !!g.exploding && totalDice > 0;
     var explTotal = 0; for (var t in explCount) explTotal += explCount[t];
-    var allExploding = explTotal === totalDice && totalDice > 0;
-    var someExploding = explTotal > 0 && !allExploding;
+    var someExploding = !allExploding && explTotal > 0;
 
-    // Collect uniform clamp/success values
-    var mnVal = 0, mxVal = 0, succVal = 0;
-    dice.forEach(function(d) {
-        if (d.clampMin > 1) mnVal = d.clampMin;
-        if (d.clampMax) mxVal = d.clampMax;
-        if (d.countSuccess) succVal = d.countSuccess;
-    });
+    // Group-level clamp/success values
+    var mnVal = (g.clampMin && g.clampMin > 1) ? g.clampMin : 0;
+    var mxVal = g.clampMax || 0;
+    var succVal = g.countSuccess || 0;
 
     // Build per-type dice tokens with inline :attrs where needed
     var diceParts = [];
@@ -2463,9 +2659,14 @@ function syncFormulaFromCup() {
 
     // Build per-group formulas
     var groupFormulas = [];
+    var multiGroup = cupGroups.length > 1;
     cupGroups.forEach(function(g) {
         var f = buildGroupFormula(g);
-        if (f) {
+        if (f === '' && multiGroup) f = '()';
+        if (f || g.modifier) {
+            if (!f) f = '';
+            // In multi-group mode, always wrap each group in ()
+            if (multiGroup) f = '(' + f + ')';
             if (g.repeat > 1) f = g.repeat + '\\u00d7(' + f + ')';
             groupFormulas.push(f);
         }
@@ -2477,7 +2678,41 @@ function syncFormulaFromCup() {
     else if (rootOperation === 'min') formula = 'min(' + groupFormulas.join(', ') + ')';
     else formula = groupFormulas.join(' + ');
 
-    document.getElementById('formulaInput').value = formula;
+    var inp = document.getElementById('formulaInput');
+    inp.value = formula;
+    // In multi-group mode, render styled formula with selected group highlighted
+    var overlay = document.getElementById('formulaOverlay');
+    if (multiGroup && overlay) {
+        var htmlParts = [];
+        var opStr = rootOperation === 'minus' ? ' \\u2212 ' : ' + ';
+        cupGroups.forEach(function(g, gi) {
+            if (gi > 0) htmlParts.push('<span style="color:var(--text-dim)">'+esc(opStr)+'</span>');
+            var f = buildGroupFormula(g) || '';
+            f = '(' + f + ')';
+            var isActive = flatGroupIndex(g.id) === activeGroupIdx;
+            if (isActive) {
+                htmlParts.push('<span style="background:#ffa657;color:#000;border-radius:4px;padding:0 4px;font-weight:700">'+esc(f)+'</span>');
+            } else {
+                htmlParts.push(esc(f));
+            }
+        });
+        overlay.innerHTML = htmlParts.join('');
+        overlay.style.display = 'block';
+        inp.style.color = 'transparent';
+        inp.style.background = 'transparent';
+        // Size the input to match overlay height
+        requestAnimationFrame(function() {
+            if (overlay.offsetHeight > inp.offsetHeight) {
+                inp.style.height = overlay.offsetHeight + 'px';
+            }
+        });
+    } else if (overlay) {
+        overlay.innerHTML = '';
+        overlay.style.display = 'none';
+        inp.style.color = '';
+        inp.style.background = '';
+        inp.style.height = '';
+    }
 }
 
 function toggleFormulaHelp() {
@@ -2582,9 +2817,13 @@ function parseFormula() {
 }
 
 function parseFormulaStr(input) {
+    var g = activeGroup();
     cupDice = [];
     modifier = 0;
     dropLowest = false;
+    // Reset group-level modifiers — parseFormula rebuilds them from scratch
+    g.exploding = false;
+    delete g.clampMin; delete g.clampMax; delete g.countSuccess;
 
     // Split on + and - (keeping the sign)
     var tokens = input.replace(/\\s/g, '').match(/[+-]?[^+-]+/g);
@@ -2627,6 +2866,8 @@ function parseFormulaStr(input) {
 
             if (/dl|d1|-l/i.test(mods)) { dropLowest = true; }
             if (/dh|-h/i.test(mods)) { dropHighest = true; }
+            if (exploding) g.exploding = true;
+            if (countSuccess) g.countSuccess = countSuccess;
 
             var dieType = 'd' + sides;
             if (!dieRanges[dieType]) dieType = 'dx';
@@ -2634,10 +2875,8 @@ function parseFormulaStr(input) {
             for (var i = 0; i < count; i++) {
                 var die = {type: dieType, id: Date.now() + i};
                 if (dieType === 'dx') die.sides = sides;
-                if (exploding) die.exploding = true;
                 if (reroll) die.reroll = reroll;
                 if (keepMode) { die.keep = keepMode; die.keepCount = keepCount; }
-                if (countSuccess) die.countSuccess = countSuccess;
                 cupDice.push(die);
             }
         } else {
