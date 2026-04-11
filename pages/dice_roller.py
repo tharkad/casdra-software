@@ -224,10 +224,11 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;
 }
 .dr-group-section {
-    border: 2px solid var(--border); border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.25); border-radius: 12px;
     padding: 12px; margin: 4px; position: relative; cursor: pointer;
     transition: all 0.15s; z-index: 1;
     display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;
+    flex: 0 0 auto; min-width: max-content;
 }
 /* Transparent click blocker — prevents dice interaction in inactive groups */
 .dr-group-section::after {
@@ -424,10 +425,21 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 .dr-group-badge {
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 800; color: #ffa657;
+    align-self: center;
+    font-size: 13px; font-weight: 800; color: #ffa657;
     background: #ffa65722; border: 2px solid #ffa657;
-    border-radius: 8px; padding: 3px 8px; letter-spacing: 0.5px;
-    min-width: 20px; line-height: 1; white-space: nowrap;
+    border-radius: 6px; padding: 1px 4px; letter-spacing: 0;
+    line-height: 1; white-space: nowrap;
+    flex: 0 0 auto;
+}
+.dr-group-badge svg { width: 12px; height: 12px; }
+.dr-cup-badges {
+    display: grid;
+    grid-template-rows: repeat(2, auto);
+    grid-auto-flow: column;
+    gap: 3px 4px;
+    align-self: center;
+    flex: 0 0 auto;
 }
 .dr-cup-bottom {
     display: flex; gap: 6px; align-items: stretch; justify-content: center;
@@ -548,9 +560,10 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     display: flex; justify-content: space-between; padding: 3px 0 0;
     font-size: 15px; color: #c9d1d9; font-weight: 700;
     font-family: ui-monospace, monospace;
+    gap: 8px;
 }
 .dr-dist-bar {
-    flex: 0 0 auto; max-width: 8px; min-width: 1px;
+    flex: 0 0 8px; width: 8px;
     border-radius: 2px 2px 0 0; transition: height 0.2s; filter: brightness(0.75);
 }
 .dr-dist-bar.highlight { filter: brightness(1); box-shadow: 0 0 6px 3px rgba(255,255,255,0.5), 0 0 14px 5px rgba(255,255,255,0.2); z-index: 1; position: relative; }
@@ -721,9 +734,9 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     </div>
     <div class="dr-cup-tags" id="cupTags"></div>
     <div class="dr-cup-bottom">
-        <button class="dr-cup-btn dr-save-preset" id="favStar" onclick="toggleFavorite()">&#9734;</button>
-        <button class="dr-cup-btn dr-roll-btn dimmed" id="rollBtn" onclick="rollDice()">ROLL</button>
-        <button class="dr-cup-btn dr-clear-cup" onclick="clearCup()" title="Empty cup">&#x1F5D1;</button>
+        <button class="dr-cup-btn dr-save-preset" id="favStar" onclick="event.stopPropagation();toggleFavorite()">&#9734;</button>
+        <button class="dr-cup-btn dr-roll-btn dimmed" id="rollBtn" onclick="event.stopPropagation();rollDice()">ROLL</button>
+        <button class="dr-cup-btn dr-clear-cup" onclick="event.stopPropagation();clearCup()" title="Empty cup">&#x1F5D1;</button>
     </div>
 </div>
 
@@ -892,8 +905,22 @@ Object.defineProperty(window, 'dropHighest', {
 });
 
 var activePopup = null;
+// Per-die selection: when set, modifier actions (explode/min/max/success)
+// target this specific die instead of the active group. Set by long-pressing
+// a die; cleared on deselect / roll (see tryAutoRejoin).
+var selectedDieId = null;
 
+// Exit history view (if in it) before any mutation. Must be defined early.
+function exitHistoryView() {
+    if (typeof historyViewIdx !== 'undefined' && historyViewIdx > -1 && typeof restoreLiveState === 'function') {
+        restoreLiveState();
+    }
+}
 function addToCup(type) {
+    exitHistoryView();
+    // Adding dice clears any single-die selection
+    tryAutoRejoin();
+    selectedDieId = null;
     var g = activeGroup();
     if (isContainer(g)) return; // Container groups can't receive dice directly
     function makeDie(t, extras) {
@@ -906,19 +933,39 @@ function addToCup(type) {
 }
 
 function removeFromCup(idx) {
+    exitHistoryView();
+    // Note: the "click the selected die to deselect instead of remove"
+    // gesture is now handled in handleDieClick, before selectGroup gets
+    // a chance to clear the selection. removeFromCup is strictly a data
+    // mutation.
     cupDice.splice(idx,1); closePopup();
-    // Auto-remove empty group if there are other groups
+    // Auto-remove empty group if there are other groups. Walks the tree
+    // recursively so deeply-nested empty groups also get cleaned up, and
+    // empty container groups (which lose their last dice-holding sub-group)
+    // bubble up and are removed too.
     if (PREMIUM && flatGroups().length > 1) {
         var ag = activeGroup();
-        if (ag.children.length === 0 && ag.modifier === 0) {
-            // Remove from root or from parent
-            var removed = false;
-            cupGroups = cupGroups.filter(function(g){
-                if (g === ag) { removed = true; return false; }
-                // Also check children of root groups
-                g.children = g.children.filter(function(c){ if(c===ag){removed=true;return false;} return true; });
+        function pruneEmpty(groups, target) {
+            // Remove target from groups[] if present; also recurse into each
+            // group's children and recursively prune. After pruning children,
+            // if a group is now completely empty (no children, no modifiers),
+            // we let its parent remove it on the way up.
+            return groups.filter(function(g) {
+                if (g === target) return false;
+                if (g.children && g.children.length) {
+                    g.children = pruneEmpty(g.children, target);
+                    // Also remove any sub-group that's become empty
+                    g.children = g.children.filter(function(c) {
+                        if (c.type !== 'group') return true;
+                        if (c.children && c.children.length > 0) return true;
+                        return false;
+                    });
+                }
                 return true;
             });
+        }
+        if (ag.children.length === 0) {
+            cupGroups = pruneEmpty(cupGroups, ag);
             if (cupGroups.length === 0) cupGroups = [makeGroup('')];
             var allFlat = flatGroups();
             if (activeGroupIdx >= allFlat.length) activeGroupIdx = Math.max(0, allFlat.length - 1);
@@ -926,11 +973,13 @@ function removeFromCup(idx) {
     }
     updateCupDisplay();
 }
-function adjustMod(n) { modifier += n; updateCupDisplay(); }
+function adjustMod(n) { exitHistoryView(); modifier += n; updateCupDisplay(); }
 function clearCup() {
+    exitHistoryView();
     if(editMode) { undoEditMode(); }
     cupDice = []; modifier = 0; dropLowest = false; dropHighest = false;
     cupGroups = [makeGroup('')]; activeGroupIdx = 0; rootOperation = 'sum';
+    selectedDieId = null;
     activePresetIdx = -1; editMode = false; editOriginal = null;
     document.getElementById('dropBtn').classList.remove('on');
     document.getElementById('dropHBtn').classList.remove('on');
@@ -941,6 +990,7 @@ function clearCup() {
 // ===== Multi-Group Management (Premium) =====
 function addGroup() {
     if(!PREMIUM) return;
+    exitHistoryView();
     var allGroups = flatGroups();
     var newG = makeGroup('');
     if (allGroups.length <= 1 || activeGroupIdx < 0) {
@@ -949,44 +999,79 @@ function addGroup() {
     } else {
         // Add sub-group inside selected group
         var parent = activeGroup();
-        // If parent has dice, wrap them into a sub-group first
+        // If parent has dice, wrap them into a sub-group first. ALL modifiers
+        // move onto the wrapping group so the newly-empty container starts clean.
         var existingDice = parent.children.filter(function(c){return c.type!=='group';});
         if (existingDice.length > 0) {
             var wrapG = makeGroup('');
             wrapG.children = existingDice;
-            wrapG.modifier = parent.modifier;
-            wrapG.dropLowest = parent.dropLowest;
-            wrapG.dropHighest = parent.dropHighest;
+            wrapG.modifier = parent.modifier || 0;
+            wrapG.dropLowest = parent.dropLowest || 0;
+            wrapG.dropHighest = parent.dropHighest || 0;
+            if (parent.exploding) wrapG.exploding = true;
+            if (parent.clampMin && parent.clampMin > 1) wrapG.clampMin = parent.clampMin;
+            if (parent.clampMax) wrapG.clampMax = parent.clampMax;
+            if (parent.countSuccess) wrapG.countSuccess = parent.countSuccess;
             // Replace parent's children: remove dice, add wrapped group + new group
             parent.children = [wrapG, newG];
             parent.modifier = 0;
-            parent.dropLowest = false;
-            parent.dropHighest = false;
+            parent.dropLowest = 0;
+            parent.dropHighest = 0;
+            parent.exploding = false;
+            delete parent.clampMin;
+            delete parent.clampMax;
+            delete parent.countSuccess;
         } else {
             parent.children.push(newG);
         }
     }
     activeGroupIdx = flatGroupIndex(newG.id);
+    selectedDieId = null;
     updateCupDisplay();
 }
 function deselectGroups(e) {
     // Groups stop propagation, so any click reaching here is a felt click
+    exitHistoryView();
     activeGroupIdx = -1;
+    selectedDieId = null;
+    tryAutoRejoin();
     updateCupDisplay();
 }
 function removeGroup(idx) {
     if(cupGroups.length <= 1) return;
     cupGroups.splice(idx, 1);
-    if(activeGroupIdx >= cupGroups.length) activeGroupIdx = cupGroups.length - 1;
+    // Recompute activeGroupIdx against the new flat ordering; clear any
+    // die selection (the die may have belonged to the removed subtree).
+    var flatLen = flatGroups().length;
+    if (activeGroupIdx >= flatLen) activeGroupIdx = Math.max(0, flatLen - 1);
+    selectedDieId = null;
     updateCupDisplay();
 }
 function selectGroup(idx) {
+    exitHistoryView();
+    // Selecting any group clears any single-die selection — focus moves from
+    // the die to the group (or to a different group). The one exception
+    // ("click selected die to toggle off without removing") is handled in
+    // handleDieClick BEFORE calling selectGroup.
+    tryAutoRejoin();
+    selectedDieId = null;
     activeGroupIdx = idx;
     document.getElementById('dropBtn').classList.toggle('on', activeGroup().dropLowest);
     document.getElementById('dropHBtn').classList.toggle('on', activeGroup().dropHighest);
     updateCupDisplay();
 }
 function toggleExploding() {
+    exitHistoryView();
+    // If a single die is selected, toggle it on that die
+    if (selectedDieId != null) {
+        var r = findDieById(selectedDieId);
+        if (r) {
+            r.die.exploding = !r.die.exploding;
+            document.getElementById('explodeBtn').classList.toggle('on', !!r.die.exploding);
+            updateCupDisplay();
+            return;
+        }
+    }
     var g = activeGroup();
     if (allDescendantDice(g).length === 0) return;
     g.exploding = !g.exploding;
@@ -994,6 +1079,7 @@ function toggleExploding() {
     updateCupDisplay();
 }
 function cycleRootOp() {
+    exitHistoryView();
     rootOperation = rootOperation === 'sum' ? 'minus' : 'sum';
     updateCupDisplay();
 }
@@ -1004,62 +1090,86 @@ function setGroupRepeat(gIdx) {
     });
 }
 function toggleDropLowest() {
-    var n = allDescendantDice(activeGroup()).length;
-    if (n < 2) return;
-    if (!dropLowest && dropHighest && n < 3) return; // can't enable both with < 3
-    dropLowest = !dropLowest;
-    document.getElementById('dropBtn').classList.toggle('on', dropLowest);
-    updateCupDisplay();
-}
-function toggleDropHighest() {
-    var n = allDescendantDice(activeGroup()).length;
-    if (n < 2) return;
-    if (!dropHighest && dropLowest && n < 3) return; // can't enable both with < 3
-    dropHighest = !dropHighest;
-    document.getElementById('dropHBtn').classList.toggle('on', dropHighest);
-    updateCupDisplay();
-}
-function toggleMin() {
+    exitHistoryView();
     var g = activeGroup();
     if (allDescendantDice(g).length === 0) return;
-    if (g.clampMin && g.clampMin > 1) {
-        delete g.clampMin;
+    if (g.dropLowest) { g.dropLowest = 0; updateCupDisplay(); return; }
+    showInlineInput('Drop how many lowest?', '1', function(val) {
+        var c = parseInt(val);
+        if (!c || c < 1) return;
+        activeGroup().dropLowest = c;
+        updateCupDisplay();
+    });
+}
+function toggleDropHighest() {
+    exitHistoryView();
+    var g = activeGroup();
+    if (allDescendantDice(g).length === 0) return;
+    if (g.dropHighest) { g.dropHighest = 0; updateCupDisplay(); return; }
+    showInlineInput('Drop how many highest?', '1', function(val) {
+        var c = parseInt(val);
+        if (!c || c < 1) return;
+        activeGroup().dropHighest = c;
+        updateCupDisplay();
+    });
+}
+// Returns the target object for modifier toggles: the selected die if any,
+// else the active group. Both have clampMin/clampMax/countSuccess fields.
+function modTarget() {
+    if (selectedDieId != null) {
+        var r = findDieById(selectedDieId);
+        if (r) return r.die;
+    }
+    return activeGroup();
+}
+function toggleMin() {
+    exitHistoryView();
+    var t = modTarget();
+    // Only gate on dice count when targeting a group
+    if (!t || (selectedDieId == null && allDescendantDice(t).length === 0)) return;
+    if (t.clampMin && t.clampMin > 1) {
+        delete t.clampMin;
         updateCupDisplay();
     } else {
         showInlineInput('Minimum die value?', '', function(val) {
             if (!val) return;
             var mn = parseInt(val);
             if (!mn || mn < 1) return;
-            if (g.clampMax && mn >= g.clampMax) {
-                showConfirm('Min must be less than Max (' + g.clampMax + ')', function(){}); return;
+            if (t.clampMax && mn >= t.clampMax) {
+                showConfirm('Min must be less than Max (' + t.clampMax + ')', function(){}); return;
             }
-            g.clampMin = mn;
+            t.clampMin = mn;
             updateCupDisplay();
         });
     }
 }
 function toggleMax() {
-    var g = activeGroup();
-    if (allDescendantDice(g).length === 0) return;
-    if (g.clampMax) {
-        delete g.clampMax;
+    exitHistoryView();
+    var t = modTarget();
+    if (!t || (selectedDieId == null && allDescendantDice(t).length === 0)) return;
+    if (t.clampMax) {
+        delete t.clampMax;
         updateCupDisplay();
     } else {
         showInlineInput('Maximum die value?', '', function(val) {
             if (!val) return;
             var mx = parseInt(val);
             if (!mx || mx < 1) return;
-            if (g.clampMin && g.clampMin > 1 && mx <= g.clampMin) {
-                showConfirm('Max must be greater than Min (' + g.clampMin + ')', function(){}); return;
+            if (t.clampMin && t.clampMin > 1 && mx <= t.clampMin) {
+                showConfirm('Max must be greater than Min (' + t.clampMin + ')', function(){}); return;
             }
-            g.clampMax = mx;
+            t.clampMax = mx;
             updateCupDisplay();
         });
     }
 }
 function toggleSuccess() {
+    exitHistoryView();
+    // countSuccess is group-only: it transforms the group total from sum to
+    // count-of-successes. Per-die semantics would be muddled, and the roll
+    // engine (rollSingleGroup) reads ctx.countSuccess at the group level.
     var g = activeGroup();
-    if (allDescendantDice(g).length === 0) return;
+    if (!g || allDescendantDice(g).length === 0) return;
     if (g.countSuccess) {
         delete g.countSuccess;
         updateCupDisplay();
@@ -1074,12 +1184,15 @@ function toggleSuccess() {
     }
 }
 function promptMod(sign) {
+    exitHistoryView();
     showInlineInput(sign > 0 ? 'Add modifier:' : 'Subtract modifier:', '', function(val) {
         if (val && parseInt(val)) { modifier += sign * Math.abs(parseInt(val)); updateCupDisplay(); }
     });
 }
 
 function saveCupState() {
+    // Don't overwrite the user's live cup while they're viewing a historical snapshot
+    if (typeof historyViewIdx !== 'undefined' && historyViewIdx > -1) return;
     localStorage.setItem('dice_roller_cup', JSON.stringify({
         groups: cupGroups, rootOperation: rootOperation, activeGroupIdx: activeGroupIdx
     }));
@@ -1110,15 +1223,66 @@ function loadCupState() {
             var g = cupGroups[0];
             g.children = s.children || s.dice || [];
             g.modifier = s.modifier || 0;
-            g.dropLowest = !!s.dropLowest;
-            g.dropHighest = !!s.dropHighest;
+            g.dropLowest = (typeof s.dropLowest === 'number') ? s.dropLowest : (s.dropLowest ? 1 : 0);
+            g.dropHighest = (typeof s.dropHighest === 'number') ? s.dropHighest : (s.dropHighest ? 1 : 0);
             g.operation = s.operation || 'sum';
             g.repeat = s.repeat || 1;
         }
+        // Back-compat: convert any boolean DL/DH flags to counts across all groups
+        function migrateFlags(g) {
+            if (g.dropLowest === true) g.dropLowest = 1;
+            if (g.dropLowest === false) g.dropLowest = 0;
+            if (g.dropHighest === true) g.dropHighest = 1;
+            if (g.dropHighest === false) g.dropHighest = 0;
+            (g.children || []).forEach(function(c){ if (c.type === 'group') migrateFlags(c); });
+        }
+        cupGroups.forEach(migrateFlags);
     } catch(e) {}
 }
 function dieKey(d) {
-    return (d.type||'')+'|'+(d.sides||'')+'|'+(d.exploding?'!':'')+'|'+(d.color||'')+'|'+(d.label||'');
+    // Keep the selected die separate from its siblings and keep any die with
+    // its own per-die modifiers separate too, so they render independently.
+    var sel = (d.id === selectedDieId) ? '*' + d.id : '';
+    return [
+        d.type||'', d.sides||'',
+        d.exploding?'!':'',
+        d.clampMin>1?'mn'+d.clampMin:'',
+        d.clampMax?'mx'+d.clampMax:'',
+        d.countSuccess?'cs'+d.countSuccess:'',
+        d.reroll?'rr'+d.reroll:'',
+        d.color||'', d.label||'', sel
+    ].join('|');
+}
+// Does this die have per-die modifiers (things that would be displayed on it)?
+function hasPerDieMods(d) {
+    return !!(d.exploding || (d.clampMin && d.clampMin > 1) || d.clampMax || d.countSuccess || d.reroll);
+}
+// Walk all dice in cupGroups and find the one with this id; return {die, group}
+function findDieById(id) {
+    function walk(g) {
+        for (var i = 0; i < g.children.length; i++) {
+            var c = g.children[i];
+            if (c.type === 'group') {
+                var r = walk(c);
+                if (r) return r;
+            } else if (c.id === id) {
+                return {die: c, group: g};
+            }
+        }
+        return null;
+    }
+    for (var i = 0; i < cupGroups.length; i++) {
+        var r = walk(cupGroups[i]);
+        if (r) return r;
+    }
+    return null;
+}
+// If a die is no longer special (no per-die mods), forget its selection so
+// it will visually merge back with its siblings on next render.
+function tryAutoRejoin() {
+    if (selectedDieId == null) return;
+    var r = findDieById(selectedDieId);
+    if (!r || !hasPerDieMods(r.die)) selectedDieId = null;
 }
 
 function renderGroupDice(g, gIdx) {
@@ -1140,27 +1304,32 @@ function renderGroupDice(g, gIdx) {
         var info = DIE_SHAPES[d.type] || DIE_SHAPES.dx;
         var label = d.label || (d.type === 'dx' ? 'd'+d.sides : d.type);
         var dieColor = d.color || info.color;
-        var bg = '#0a0a0a';
-        var border = dieColor;
+        var isSelected = d.id === selectedDieId;
+        // Selected die: fill with accent color, symbol overlayed on top
+        var bg = isSelected ? '#ffa657' : '#0a0a0a';
+        var border = isSelected ? '#ffa657' : dieColor;
+        var fgColor = isSelected ? '#0a0a0a' : dieColor;
         var countTag = grp.count > 1 ? '<span class="dr-cup-die-count">'+grp.count+'\\u00d7</span>' : '';
         var badges = [];
+        if (d.exploding) badges.push('<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round" style="vertical-align:-1px"><polygon points="12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5"/></svg>');
         if (d.clampMin && d.clampMin > 1) badges.push('\\u2265'+d.clampMin);
         if (d.clampMax) badges.push('\\u2264'+d.clampMax);
         if (d.countSuccess) badges.push('#\\u2265'+d.countSuccess);
         var badgeTag = badges.length ? '<span class="dr-cup-die-badge">'+badges.join(' ')+'</span>' : '';
-        var longPressAttr = PREMIUM ? 'oncontextmenu="event.preventDefault();selectGroup('+gIdx+');showDieOptions('+i+',event)" '+
-                'ontouchstart="startLongPress('+i+',event,'+gIdx+')" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()"' : '';
-        html += '<div class="dr-cup-die" style="background:'+bg+';border:2px solid '+border+';color:'+dieColor+';" '+
-                'onclick="event.stopPropagation();selectGroup('+gIdx+');removeFromCup('+i+')" '+
-                longPressAttr+'>'+
+        var pressAttr = PREMIUM ? 'ontouchstart="startLongPress('+i+',event,'+gIdx+')" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()" '+
+                'onmousedown="startLongPress('+i+',event,'+gIdx+')" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" '+
+                'oncontextmenu="event.preventDefault();suppressNextDieClick=true;selectSingleDie('+i+','+gIdx+')"' : '';
+        html += '<div class="dr-cup-die" style="background:'+bg+';border:2px solid '+border+';color:'+fgColor+';" '+
+                'onclick="handleDieClick('+gIdx+','+i+',event)" '+
+                pressAttr+'>'+
                 countTag+getDieShape(d)+badgeTag+
                 '<span class="dr-cup-die-label">'+label+'</span></div>';
     });
     if (g.modifier !== 0) {
         var mc = g.modifier > 0 ? '#7ee787' : '#f85149';
         var ml = g.modifier > 0 ? '+'+g.modifier : ''+g.modifier;
-        html += '<div class="dr-cup-mod" style="background:#0a0a0a;border:2px solid '+mc+';color:'+mc+'" '+
-                'onclick="event.stopPropagation();selectGroup('+gIdx+');modifier=0;updateCupDisplay()">'+ml+'</div>';
+        html += '<span class="dr-group-badge" style="color:'+mc+';border-color:'+mc+';background:'+mc+'22" '+
+                'onclick="event.stopPropagation();selectGroup('+gIdx+');modifier=0;updateCupDisplay()">'+ml+'</span>';
     }
     return html;
 }
@@ -1178,6 +1347,9 @@ function updateCupDisplay() {
         staging.innerHTML = '<span class="dr-cup-empty">Add dice to the cup</span>';
         summary.textContent = '';
         document.getElementById('distChart').innerHTML = '';
+        // Hide the empty chart box — keep the wrap container visible in premium
+        // for the + Group button
+        document.getElementById('distChart').style.display = 'none';
         if (!PREMIUM) document.getElementById('distChart').parentElement.style.display = 'none';
         document.getElementById('formulaInput').value = '';
         document.getElementById('prob').innerHTML = '';
@@ -1201,12 +1373,18 @@ function updateCupDisplay() {
         document.getElementById('successBtn').textContent = 'Success';
         document.getElementById('favStar').classList.remove('fav-active');
         document.getElementById('cupTags').innerHTML = '';
-        document.getElementById('addGroupSlot').innerHTML = PREMIUM ?
-            '<div class="dr-add-group"><button onclick="event.stopPropagation();addGroup()">+ Group</button></div>' : '';
-        if(!editMode) { activePresetIdx = -1; }
+        document.getElementById('addGroupSlot').innerHTML = '';
+        // Clear active preset indicator — an empty cup has no active favorite
+        if(!editMode) {
+            activePresetIdx = -1;
+            var labelEl = document.getElementById('cupPresetLabel');
+            if (labelEl) { labelEl.textContent = ''; labelEl.classList.remove('editing'); }
+            if (typeof renderPresets === 'function') renderPresets();
+        }
         return;
     }
     document.getElementById('distChart').parentElement.style.display = '';
+    document.getElementById('distChart').style.display = '';
 
     var html = '';
     var allGroups = flatGroups();
@@ -1222,7 +1400,9 @@ function updateCupDisplay() {
                     out += '<div class="dr-group-op" onclick="event.stopPropagation();cycleRootOp()" title="Click to change">'+opLabel+'</div>';
                 }
                 var flatIdx = flatGroupIndex(g.id);
-                var isActive = flatIdx === activeGroupIdx;
+                // Group highlight suppresses when a die is selected — focus has
+                // moved to that die, not the group.
+                var isActive = flatIdx === activeGroupIdx && selectedDieId == null;
                 var bgAlpha = Math.min(0.6, 0.15 + depth * 0.12);
                 var cls = 'dr-group-section' + (isActive ? ' active' : '');
                 out += '<div class="'+cls+'" style="background:rgba(0,0,0,'+bgAlpha.toFixed(2)+')" onclick="event.stopPropagation();selectGroup('+flatIdx+')">';
@@ -1240,9 +1420,9 @@ function updateCupDisplay() {
                 // Modifier tags — strictly group-level, do not inherit from or propagate to children
                 var tags = '';
                 var explodePts = '12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5';
-                var explodeSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><polygon points="'+explodePts+'"/></svg>';
-                if (g.dropLowest) tags += '<span class="dr-group-badge">DL</span>';
-                if (g.dropHighest) tags += '<span class="dr-group-badge">DH</span>';
+                var explodeSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><polygon points="'+explodePts+'"/></svg>';
+                if (g.dropLowest) tags += '<span class="dr-group-badge">DL=' + g.dropLowest + '</span>';
+                if (g.dropHighest) tags += '<span class="dr-group-badge">DH=' + g.dropHighest + '</span>';
                 if (g.exploding) tags += '<span class="dr-group-badge">'+explodeSvg+'</span>';
                 if (g.clampMin && g.clampMin > 1) tags += '<span class="dr-group-badge">\\u2265'+g.clampMin+'</span>';
                 if (g.clampMax) tags += '<span class="dr-group-badge">\\u2264'+g.clampMax+'</span>';
@@ -1252,7 +1432,7 @@ function updateCupDisplay() {
                     var ml = g.modifier > 0 ? '+'+g.modifier : ''+g.modifier;
                     tags += '<span class="dr-group-badge">'+ml+'</span>';
                 }
-                if (tags) out += tags;
+                if (tags) out += '<div class="dr-cup-badges">'+tags+'</div>';
                 out += '</div>';
             });
             out += '</div>';
@@ -1260,8 +1440,19 @@ function updateCupDisplay() {
         }
         html = renderGroupTree(cupGroups, 0, rootOperation);
     } else {
-        // Single group — same as before
-        html = renderGroupDice(cupGroups[0], 0);
+        // Single group — render the dice, then append a stacked column of modifier badges
+        var g0 = cupGroups[0];
+        html = renderGroupDice(g0, 0);
+        var badgeHtml = '';
+        var explodePts = '12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5';
+        var explodeSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><polygon points="'+explodePts+'"/></svg>';
+        if (g0.dropLowest) badgeHtml += '<span class="dr-group-badge">DL=' + g0.dropLowest + '</span>';
+        if (g0.dropHighest) badgeHtml += '<span class="dr-group-badge">DH=' + g0.dropHighest + '</span>';
+        if (g0.exploding) badgeHtml += '<span class="dr-group-badge">'+explodeSvg+'</span>';
+        if (g0.clampMin && g0.clampMin > 1) badgeHtml += '<span class="dr-group-badge">\\u2265'+g0.clampMin+'</span>';
+        if (g0.clampMax) badgeHtml += '<span class="dr-group-badge">\\u2264'+g0.clampMax+'</span>';
+        if (g0.countSuccess) badgeHtml += '<span class="dr-group-badge">#\\u2265'+g0.countSuccess+'</span>';
+        if (badgeHtml) html += '<div class="dr-cup-badges">'+badgeHtml+'</div>';
     }
     staging.innerHTML = html;
     // + Group button in the chart area (premium only)
@@ -1293,29 +1484,31 @@ function updateCupDisplay() {
     document.querySelector('.dr-mod-rows').classList.toggle('disabled', noGroupSelected);
     // For modifier threshold calc, count all descendant dice of the active group
     var n = noGroupSelected ? 0 : allDescendantDice(activeGroup()).length;
-    // DL or DH alone needs >= 2 dice; both together needs >= 3
-    var dlDisable = n < 2;
-    var dhDisable = n < 2;
-    if (!noGroupSelected) {
-        if (dropLowest && dropHighest && n < 3) {
-            // Can't have both with < 3 dice — turn off the one just toggled (keep the other)
-            dropHighest = false; document.getElementById('dropHBtn').classList.remove('on');
-        }
-        if (dropLowest) dhDisable = n < 3;
-        if (dropHighest) dlDisable = n < 3;
-    }
+    // DL/DH buttons: need at least 1 die; counts can exceed dice (all get dropped)
+    var dlDisable = n < 1;
+    var dhDisable = n < 1;
     document.getElementById('dropBtn').classList.toggle('dimmed', dlDisable);
     document.getElementById('dropHBtn').classList.toggle('dimmed', dhDisable);
     // Reflect selected group's DL/DH on button .on state; clear when nothing selected
     document.getElementById('dropBtn').classList.toggle('on', !noGroupSelected && !!dropLowest);
     document.getElementById('dropHBtn').classList.toggle('on', !noGroupSelected && !!dropHighest);
-    if (!noGroupSelected && n < 2) { dropLowest = false; dropHighest = false;
-        document.getElementById('dropBtn').classList.remove('on');
-        document.getElementById('dropHBtn').classList.remove('on'); }
-    // Explode button state — read from the SELECTED group only (not the fallback).
-    // When nothing is selected, all modifier buttons should look unset.
+    // Button text shows the count (DL2 / DH3) when > 1
+    var dlc = (typeof dropLowest === 'number') ? dropLowest : (dropLowest ? 1 : 0);
+    var dhc = (typeof dropHighest === 'number') ? dropHighest : (dropHighest ? 1 : 0);
+    var dropBtnEl = document.getElementById('dropBtn');
+    var dropHBtnEl = document.getElementById('dropHBtn');
+    if (dropBtnEl) dropBtnEl.textContent = dlc > 0 ? 'DL=' + dlc : 'DL';
+    if (dropHBtnEl) dropHBtnEl.textContent = dhc > 0 ? 'DH=' + dhc : 'DH';
+    // Explode/min/max buttons reflect the SELECTED die if one is selected,
+    // else the active group. Success/DL/DH stay group-level (no per-die meaning).
     var ag = noGroupSelected ? null : activeGroup();
-    var isExploding = !!(ag && ag.exploding);
+    var selDie = null;
+    if (selectedDieId != null) {
+        var sdRef = findDieById(selectedDieId);
+        if (sdRef) selDie = sdRef.die;
+    }
+    var modSrc = selDie || ag;
+    var isExploding = !!(modSrc && modSrc.exploding);
     document.getElementById('explodeBtn').classList.toggle('on', isExploding);
     document.getElementById('explodeBtn').classList.toggle('dimmed', n === 0);
     var explodePts = '12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5';
@@ -1323,12 +1516,12 @@ function updateCupDisplay() {
     var explodeSvgOn = '<svg width="18" height="18" viewBox="0 0 24 24" fill="white" stroke="#333" stroke-width="1.5" stroke-linejoin="round"><polygon points="'+explodePts+'"/></svg>';
     document.getElementById('explodeBtn').innerHTML = n === 0 ? explodeSvgDimmed : isExploding ? explodeSvgOn : '\\uD83D\\uDCA5';
     // Min button state
-    var minVal = (ag && ag.clampMin && ag.clampMin > 1) ? ag.clampMin : 0;
+    var minVal = (modSrc && modSrc.clampMin && modSrc.clampMin > 1) ? modSrc.clampMin : 0;
     document.getElementById('minBtn').classList.toggle('on', minVal > 0);
     document.getElementById('minBtn').classList.toggle('dimmed', n === 0);
     document.getElementById('minBtn').textContent = minVal > 0 ? 'Min=' + minVal : 'Min';
     // Max button state
-    var maxVal = (ag && ag.clampMax) ? ag.clampMax : 0;
+    var maxVal = (modSrc && modSrc.clampMax) ? modSrc.clampMax : 0;
     document.getElementById('maxBtn').classList.toggle('on', maxVal > 0);
     document.getElementById('maxBtn').classList.toggle('dimmed', n === 0);
     document.getElementById('maxBtn').textContent = maxVal > 0 ? 'Max=' + maxVal : 'Max';
@@ -1337,16 +1530,8 @@ function updateCupDisplay() {
     document.getElementById('successBtn').classList.toggle('on', successVal > 0);
     document.getElementById('successBtn').classList.toggle('dimmed', n === 0);
     document.getElementById('successBtn').textContent = successVal > 0 ? 'Success \\u2265 ' + successVal : 'Success';
-    // Cup tags strip — only in single-group mode (multi-group shows tags inside each group)
-    var cupTagsEl = document.getElementById('cupTags');
-    if (showGroups) {
-        cupTagsEl.innerHTML = '';
-    } else {
-        var tags = [];
-        if (dropLowest) tags.push('Drop Lowest');
-        if (dropHighest) tags.push('Drop Highest');
-        cupTagsEl.innerHTML = tags.map(function(t){ return '<span class="dr-cup-tag">'+t+'</span>'; }).join('');
-    }
+    // Cup tags strip — deprecated, badges are rendered inline with the cup dice now
+    document.getElementById('cupTags').innerHTML = '';
     renderDistribution();
     syncFormulaFromCup();
     updateFavState();
@@ -1362,10 +1547,56 @@ function updateCupDisplay() {
 
 // Long press for options
 var lpTimer = null;
-function startLongPress(idx, e) {
-    lpTimer = setTimeout(function() { showDieOptions(idx, e); }, 500);
+// Suppress the synthetic click that touchend produces right after a
+// long-press fires or an oncontextmenu fires (otherwise the die's
+// onclick→removeFromCup would undo the selection immediately).
+var suppressNextDieClick = false;
+function startLongPress(idx, e, gIdx) {
+    // Clear any pending timer so a touchstart→mousedown double-fire on mobile
+    // doesn't schedule two timers.
+    if (lpTimer) clearTimeout(lpTimer);
+    lpTimer = setTimeout(function() {
+        lpTimer = null;
+        suppressNextDieClick = true;
+        selectSingleDie(idx, gIdx);
+    }, 400);
 }
 function cancelLongPress() { clearTimeout(lpTimer); }
+function handleDieClick(gIdx, idx, ev) {
+    ev.stopPropagation();
+    if (suppressNextDieClick) { suppressNextDieClick = false; return; }
+    // Deselect-on-same-die: if this click lands on the currently-selected
+    // die, toggle the selection off and leave the die in place. Must run
+    // before selectGroup (which unconditionally clears selectedDieId).
+    var list = flatGroups();
+    var g = list[gIdx];
+    if (g && g.children && g.children[idx] &&
+        selectedDieId != null && g.children[idx].id === selectedDieId) {
+        selectedDieId = null;
+        activeGroupIdx = gIdx;
+        updateCupDisplay();
+        return;
+    }
+    selectGroup(gIdx);
+    removeFromCup(idx);
+}
+// Mark the die at children[idx] of the given flat group as the "selected"
+// die. dieKey will render it separately from its siblings (visual split)
+// and modifier buttons will target it. No data duplication — the array
+// just gains a selection marker via selectedDieId.
+function selectSingleDie(idx, gIdx) {
+    var list = flatGroups();
+    // Fully validate gIdx — the old "|| activeGroup()" fallback would write
+    // activeGroupIdx to an out-of-range value if gIdx was invalid.
+    if (gIdx < 0 || gIdx >= list.length) return;
+    var g = list[gIdx];
+    if (!g || !g.children || idx < 0 || idx >= g.children.length) return;
+    var d = g.children[idx];
+    if (d.type === 'group') return;
+    selectedDieId = d.id;
+    activeGroupIdx = gIdx;
+    updateCupDisplay();
+}
 
 var optionsDieIdx = -1;
 var COLORS = ['#58a6ff','#7ee787','#f0883e','#f85149','#d2a8ff','#d29922','#ff7b72','#79c0ff'];
@@ -1565,12 +1796,14 @@ function rollSingleGroup(g, parentCtx) {
     var subGroups = g.children.filter(function(c){return c.type==='group';});
     directDice.forEach(function(d) {
         var roll = rollSingleDie(d, ctx);
-        results.push({type:d.type, sides:d.sides, value:roll.value, chain:roll.chain, clamped:roll.clamped, exploding:d.exploding||ctx.exploding});
+        var info = DIE_SHAPES[d.type] || DIE_SHAPES.dx;
+        var dieColor = d.color || info.color || '#58a6ff';
+        results.push({type:d.type, sides:d.sides, value:roll.value, chain:roll.chain, clamped:roll.clamped, exploding:d.exploding||ctx.exploding, dieColor:dieColor});
     });
-    // Keep/Drop logic on direct dice only — supports DL+DH simultaneously
+    // Keep/Drop logic on direct dice only — supports DL+DH simultaneously with counts
     var kept = [];
     var dropSet = {};
-    if (results.length > 1) {
+    if (results.length > 0) {
         var sorted = results.map(function(r,i){return{val:r.value,idx:i};});
         sorted.sort(function(a,b){return a.val-b.val;});
         // Per-die keep overrides
@@ -1582,8 +1815,10 @@ function rollSingleGroup(g, parentCtx) {
             if(keepMode==='kh') { for(var i=0;i<sorted.length-keepCount;i++) dropSet[sorted[i].idx]=true; }
             else { for(var i=keepCount;i<sorted.length;i++) dropSet[sorted[i].idx]=true; }
         } else {
-            if(g.dropLowest) dropSet[sorted[0].idx] = true;
-            if(g.dropHighest) dropSet[sorted[sorted.length-1].idx] = true;
+            var dlCount = (typeof g.dropLowest === 'number') ? g.dropLowest : (g.dropLowest ? 1 : 0);
+            var dhCount = (typeof g.dropHighest === 'number') ? g.dropHighest : (g.dropHighest ? 1 : 0);
+            for (var di = 0; di < dlCount && di < sorted.length; di++) dropSet[sorted[di].idx] = true;
+            for (var di = 0; di < dhCount && di < sorted.length; di++) dropSet[sorted[sorted.length-1-di].idx] = true;
         }
     }
     results.forEach(function(r,i){ kept.push(!dropSet[i]); });
@@ -1605,10 +1840,13 @@ function rollSingleGroup(g, parentCtx) {
         var label=r.chain?r.chain.join('+')+' = '+r.value:''+r.value;
         if(r.clamped!==null&&r.clamped!==undefined) label=r.clamped+'\\u2192'+r.value;
         if(r.type==='df') label=r.value>0?'+'+r.value:r.value===0?'0':''+r.value;
-        var style=kept[i]?'':'opacity:0.3;text-decoration:line-through';
-        if(r.chain)style+=(style?';':'')+'color:#f0883e';
-        if(r.clamped!==null&&r.clamped!==undefined)style+=(style?';':'')+'color:#d29922';
-        if(countMode&&kept[i]){style=r.value>=countTh?'color:#7ee787;font-weight:800':'opacity:0.5';}
+        // Border matches the die's own color; chain/clamped/count-mode styles
+        // still override the text color below.
+        var style='border-color:'+r.dieColor;
+        if(!kept[i]) style+=';opacity:0.3;text-decoration:line-through';
+        if(r.chain)style+=';color:#f0883e';
+        if(r.clamped!==null&&r.clamped!==undefined)style+=';color:#d29922';
+        if(countMode&&kept[i]){style='border-color:'+r.dieColor+';'+(r.value>=countTh?'color:#7ee787;font-weight:800':'opacity:0.5');}
         bParts.push('<span class="dr-die-result" style="'+style+'">'+label+'</span>');
     });
     // Append sub-group breakdowns after direct dice (each already wrapped in its own container)
@@ -1621,6 +1859,12 @@ function rollSingleGroup(g, parentCtx) {
 }
 
 function rollDice() {
+    // NOTE: intentionally does NOT exit history view. Rolling while viewing
+    // a past roll re-rolls that roll's formula, and the historical state
+    // becomes the new live cup (saved via saveToHistory below).
+    // Auto-rejoin any selected die that ended up with no per-die modifiers
+    // so it merges back with its siblings visually.
+    tryAutoRejoin();
     var totalDice = getAllDice().length;
     if (totalDice === 0) { document.getElementById('result').textContent = 'Add dice'; return; }
     playSound(); if (navigator.vibrate) navigator.vibrate(50);
@@ -1638,7 +1882,7 @@ function rollDice() {
             for (var ri = 0; ri < (g.repeat || 1); ri++) {
                 if (ri > 0) result = rollSingleGroup(g);
                 groupResults.push(result);
-                allBreakdown.push(result.breakdown + ' = ' + result.total);
+                allBreakdown.push(result.breakdown);
             }
         });
 
@@ -1662,7 +1906,7 @@ function rollDice() {
             var e=p.join('+'); if(g.repeat>1) e=g.repeat+'\\u00d7('+e+')';
             return e;
         }).join(rootOperation==='sum'?' + ':' '+rootOperation+' ');
-        saveToHistory({expression:expr, total:finalTotal, breakdown:document.getElementById('breakdown').textContent, timestamp:Date.now()});
+        saveToHistory({expression:expr, total:finalTotal, breakdown:document.getElementById('breakdown').textContent, breakdownHtml:document.getElementById('breakdown').innerHTML, timestamp:Date.now()});
         showProbability(finalTotal);
         return;
     }
@@ -1705,10 +1949,10 @@ function rollDice() {
         var sortedResults = sortMap.map(function(i){return results[i];});
         var sortedKept = []; // will fill after keep/drop
 
-        // Keep/Drop — supports DL+DH simultaneously
+        // Keep/Drop — supports DL+DH simultaneously with counts
         var kept = [];
         var dropSet = {};
-        if (results.length > 1) {
+        if (results.length > 0) {
             var sorted = results.map(function(r,i){return{val:r.value,idx:i};});
             sorted.sort(function(a,b){return a.val-b.val;});
             var hasPerDieKeep = false;
@@ -1719,13 +1963,13 @@ function rollDice() {
                 if(keepMode==='kh'){for(var ki=0;ki<sorted.length-keepCount;ki++) dropSet[sorted[ki].idx]=true;}
                 else{for(var ki=keepCount;ki<sorted.length;ki++) dropSet[sorted[ki].idx]=true;}
             } else {
-                if(dropLowest) dropSet[sorted[0].idx]=true;
-                if(dropHighest) dropSet[sorted[sorted.length-1].idx]=true;
+                var dlc = (typeof dropLowest === 'number') ? dropLowest : (dropLowest ? 1 : 0);
+                var dhc = (typeof dropHighest === 'number') ? dropHighest : (dropHighest ? 1 : 0);
+                for(var ki=0;ki<dlc&&ki<sorted.length;ki++) dropSet[sorted[ki].idx]=true;
+                for(var ki=0;ki<dhc&&ki<sorted.length;ki++) dropSet[sorted[sorted.length-1-ki].idx]=true;
             }
         }
         results.forEach(function(r,i){ kept.push(!dropSet[i]); });
-        // Guard: if all dice dropped, keep them all instead
-        if (kept.every(function(k){return !k;})) { kept = kept.map(function(){return true;}); }
         // Map kept to sorted order
         sortedKept = sortMap.map(function(i){return kept[i];});
 
@@ -1767,25 +2011,42 @@ function rollDice() {
             var borderStyle = 'border-color:'+r.dieColor;
             breakdownParts.push('<span class="dr-die-result" style="'+borderStyle+';'+style+'">'+label+'</span>');
         });
-        if (countMode) breakdownParts.push('= '+total+(total===1?' success':' successes'));
+        if (countMode) breakdownParts.push('<span style="color:var(--text-dim);font-size:13px">('+(total===1?'success':'successes')+')</span>');
     }
     total += modifier;
     if (modifier>0) { expression+='+'+modifier; breakdownParts.push('<span class="dr-die-result" style="border-color:#7ee787">+'+modifier+'</span>'); }
     else if (modifier<0) { expression+=modifier; breakdownParts.push('<span class="dr-die-result" style="border-color:#f85149">'+modifier+'</span>'); }
-    if (!countMode) breakdownParts.push('= '+total);
     animateResult(total);
     document.getElementById('breakdown').innerHTML = breakdownParts.join(' ');
     saveLastRoll(String(total), breakdownParts.join(' '));
-    saveToHistory({expression:expression,total:total,breakdown:breakdownParts.join(' ').replace(/<[^>]*>/g,''),timestamp:Date.now()});
+    saveToHistory({expression:expression,total:total,breakdown:breakdownParts.join(' ').replace(/<[^>]*>/g,''),breakdownHtml:breakdownParts.join(' '),timestamp:Date.now()});
     showProbability(total);
 }
 
 function getTheoreticalRange() {
-    // Single source of truth for min/max — uses ALL dice across ALL groups
-    // with group-level modifiers merged in via effective-die view
-    var allDice = getEffectiveDice();
+    // Combine per-root-group ranges (each group applies its own DL/DH/mod).
+    var totalLo = 0, totalHi = 0, anyDice = false;
+    cupGroups.forEach(function(g, gi) {
+        var rg = rootGroupRange(g);
+        if (rg) {
+            anyDice = true;
+            if (gi === 0 || rootOperation !== 'minus') {
+                totalLo += rg.lo; totalHi += rg.hi;
+            } else {
+                // Subtract: new lo = old lo - rg.hi, new hi = old hi - rg.lo
+                totalLo -= rg.hi; totalHi -= rg.lo;
+            }
+        }
+    });
+    if (!anyDice) return {lo: 1, hi: 20};
+    if (totalHi <= totalLo) { totalLo = 0; totalHi = 20; }
+    return {lo: totalLo, hi: totalHi};
+}
+function rootGroupRange(rootG) {
+    var allDice = effectiveDiceForGroup(rootG);
     var rollable = allDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin' || d.type === 'adv' || d.type === 'dis'; });
-    if (rollable.length === 0) return {lo: 1, hi: 20};
+    if (rollable.length === 0) return null;
+    var gMod = rootG.modifier || 0;
     var countMode = rollable.some(function(d){return d.countSuccess;});
     if (countMode) {
         var threshold = 0;
@@ -1797,9 +2058,11 @@ function getTheoreticalRange() {
             if (dMin >= threshold) guaranteedSuccesses++;
             if (dMax < threshold) guaranteedFailures++;
         });
-        return {lo: guaranteedSuccesses, hi: rollable.length - guaranteedFailures};
+        return {lo: guaranteedSuccesses + gMod, hi: rollable.length - guaranteedFailures + gMod};
     }
-    var hasKeep = dropLowest || dropHighest || rollable.some(function(d){return d.keep;});
+    var gDropLo = (typeof rootG.dropLowest === 'number' ? rootG.dropLowest : (rootG.dropLowest ? 1 : 0));
+    var gDropHi = (typeof rootG.dropHighest === 'number' ? rootG.dropHighest : (rootG.dropHighest ? 1 : 0));
+    var hasKeep = gDropLo || gDropHi || rollable.some(function(d){return d.keep;});
     var allMins = rollable.map(function(d){
         if (d.type==='df') return -1;
         if (d.type==='coin') return 0;
@@ -1813,19 +2076,18 @@ function getTheoreticalRange() {
         return d.clampMax || getDieMax(d);
     });
     var lo = 0, hi = 0;
-    if (hasKeep && rollable.length > 1) {
+    if (hasKeep && rollable.length > 0) {
         allMins.sort(function(a,b){return a-b;});
         allMaxes.sort(function(a,b){return a-b;});
-        var dLo = dropLowest ? 1 : 0, dHi = dropHighest ? 1 : 0;
+        var dLo = Math.min(rollable.length, gDropLo);
+        var dHi = Math.min(rollable.length - dLo, gDropHi);
         for (var i = dLo; i < allMins.length - dHi; i++) lo += allMins[i];
         for (var i = dLo; i < allMaxes.length - dHi; i++) hi += allMaxes[i];
     } else {
         lo = allMins.reduce(function(a,b){return a+b;}, 0);
         hi = allMaxes.reduce(function(a,b){return a+b;}, 0);
     }
-    lo += modifier; hi += modifier;
-    if (hi <= lo) { lo = 0; hi = 20; }
-    return {lo: lo, hi: hi};
+    return {lo: lo + gMod, hi: hi + gMod};
 }
 
 function animateResult(finalValue) {
@@ -1874,15 +2136,26 @@ function resetShareBtn() {
 
 // History (localStorage only — rendered on /dice/history page)
 var rollHistory = [];
-var historyViewIdx = 0; // 0 = newest/live; increases = older
+// -1 = live mode (current user cup). 0+ = viewing a historical snapshot.
+var historyViewIdx = -1;
 function loadHistory() { try{rollHistory=JSON.parse(localStorage.getItem('dice_roller_history')||'[]');}catch(e){rollHistory=[];} }
 function saveToHistory(entry) {
     if(activePresetIdx >= 0 && presets[activePresetIdx]) entry.favName = presets[activePresetIdx].name;
+    // Snapshot the full cup state so history navigation can restore it fully
+    entry.snapshot = JSON.parse(JSON.stringify({
+        cupGroups: cupGroups,
+        rootOperation: rootOperation,
+        activeGroupIdx: activeGroupIdx
+    }));
+    // Preserve the rich breakdown HTML (grouped containers, colored dice borders)
+    var bEl = document.getElementById('breakdown');
+    if (bEl) entry.breakdownHtml = bEl.innerHTML;
     loadHistory();
     rollHistory.unshift(entry);
     if(rollHistory.length>30) rollHistory=rollHistory.slice(0,30);
     localStorage.setItem('dice_roller_history',JSON.stringify(rollHistory));
-    historyViewIdx = 0; // new roll puts us at the newest
+    historyViewIdx = -1; // this new roll becomes live
+    saveCupState(); // persist the rolled cup state (important if we rolled from history view)
     updateHistoryNav();
 }
 function updateHistoryNav() {
@@ -1890,27 +2163,76 @@ function updateHistoryNav() {
     var prev = document.getElementById('histPrevBtn');
     var next = document.getElementById('histNextBtn');
     if (!prev || !next) return;
-    prev.disabled = historyViewIdx >= rollHistory.length - 1;
-    next.disabled = historyViewIdx <= 0;
+    // Prev (older): disabled if already at the oldest OR if live has no older rolls.
+    // From live, prev needs >=2 entries to show something different.
+    if (historyViewIdx === -1) {
+        prev.disabled = rollHistory.length < 2;
+    } else {
+        prev.disabled = historyViewIdx >= rollHistory.length - 1;
+    }
+    next.disabled = historyViewIdx === -1;
+}
+function restoreLiveState() {
+    // Exit history view and return to whatever the user's live cup is.
+    if (historyViewIdx === -1) return false;
+    historyViewIdx = -1;
+    loadCupState(); // reloads the live cup from localStorage (untouched while viewing)
+    updateCupDisplay();
+    restoreLastRoll(); // restores the most recent result text/breakdown
+    updateHistoryNav();
+    return true;
 }
 function navigateHistory(delta) {
     // delta: +1 = older (back in time), -1 = newer (forward toward live)
     loadHistory();
     if (rollHistory.length === 0) return;
-    var target = historyViewIdx + delta;
-    if (target < 0) target = 0;
+    var target;
+    if (historyViewIdx === -1 && delta > 0) {
+        // From live, "back" should show the PREVIOUS roll (skip idx 0 which is
+        // the roll we just made = same as live). If there's only 1 entry, show it.
+        target = rollHistory.length >= 2 ? 1 : 0;
+    } else if (historyViewIdx === 1 && delta < 0) {
+        // From idx 1, "forward" skips idx 0 (identical to live) and returns to live
+        target = -1;
+    } else {
+        target = historyViewIdx + delta;
+    }
+    if (target < -1) target = -1;
     if (target > rollHistory.length - 1) target = rollHistory.length - 1;
     if (target === historyViewIdx) return;
+
+    if (target === -1) {
+        restoreLiveState();
+        return;
+    }
+
+    // Entering or moving within history view: load the snapshot into cupGroups
     historyViewIdx = target;
-    var e = rollHistory[historyViewIdx];
+    var e = rollHistory[target];
+    if (e && e.snapshot) {
+        cupGroups = JSON.parse(JSON.stringify(e.snapshot.cupGroups));
+        rootOperation = e.snapshot.rootOperation || 'sum';
+        activeGroupIdx = (typeof e.snapshot.activeGroupIdx === 'number') ? e.snapshot.activeGroupIdx : 0;
+        updateCupDisplay(); // re-renders cup, formula bar, chart (localStorage write is suppressed)
+    }
+    // Set the result + breakdown from the entry
     if (e) {
         document.getElementById('result').textContent = e.total;
-        document.getElementById('breakdown').innerHTML = e.breakdown || '';
+        var bEl = document.getElementById('breakdown');
+        bEl.innerHTML = e.breakdownHtml || e.breakdown || '';
+        // Highlight the chart bar that matches this roll's total
+        var n = parseInt(e.total);
+        if (!isNaN(n)) {
+            highlightDistValue(n);
+            showProbabilityText(n);
+        }
     }
     updateHistoryNav();
 }
+// Shared: update the #prob text without touching the chart rendering
+function showProbabilityText(total) { showProbability(total); }
 function handleResultClick() {
-    // Clicking the result rolls the dice (or re-rolls from current cup)
+    // Clicking the result rolls the dice — restoreLiveState happens inside rollDice
     rollDice();
 }
 
@@ -1974,8 +2296,8 @@ function getCupSignature() {
     var parts=[]; for(var t in counts) parts.push(counts[t]+t);
     parts.sort();
     if(modifier) parts.push('m'+modifier);
-    if(dropLowest) parts.push('dl');
-    if(dropHighest) parts.push('dh');
+    if(dropLowest) parts.push('dl' + (dropLowest > 1 ? dropLowest : ''));
+    if(dropHighest) parts.push('dh' + (dropHighest > 1 ? dropHighest : ''));
     if(g && g.exploding) parts.push('x');
     if(g && g.clampMin > 1) parts.push('mn'+g.clampMin);
     if(g && g.clampMax) parts.push('mx'+g.clampMax);
@@ -1992,8 +2314,8 @@ function getPresetSignature(p) {
     var parts=[]; for(var t in counts) parts.push(counts[t]+t);
     parts.sort();
     if(p.modifier) parts.push('m'+p.modifier);
-    if(p.dropLowest) parts.push('dl');
-    if(p.dropHighest) parts.push('dh');
+    if(p.dropLowest) parts.push('dl' + (p.dropLowest > 1 ? p.dropLowest : ''));
+    if(p.dropHighest) parts.push('dh' + (p.dropHighest > 1 ? p.dropHighest : ''));
     if(p.exploding) parts.push('x');
     if(p.clampMin > 1) parts.push('mn'+p.clampMin);
     if(p.clampMax) parts.push('mx'+p.clampMax);
@@ -2091,16 +2413,27 @@ function renderPresets() {
 function loadPreset(i) {
     if(editMode) return;
     var p=presets[i];
-    // Load from group or legacy format
-    cupGroup.children = JSON.parse(JSON.stringify(p.children || p.dice || []));
-    cupGroup.modifier = p.modifier || 0;
-    cupGroup.dropLowest = !!p.dropLowest;
-    cupGroup.dropHighest = !!p.dropHighest;
-    cupGroup.operation = p.operation || 'sum';
-    cupGroup.modifiers = p.modifiers || {keep:null, clamp:null};
-    cupGroup.repeat = p.repeat || 1;
-    document.getElementById('dropBtn').classList.toggle('on', cupGroup.dropLowest);
-    document.getElementById('dropHBtn').classList.toggle('on', cupGroup.dropHighest);
+    // A favorite is a complete cup snapshot, so fully replace cupGroups
+    // rather than mutating the active group in place — otherwise any extra
+    // root groups or nested groups from the prior cup would linger.
+    var g = makeGroup('');
+    g.children = JSON.parse(JSON.stringify(p.children || p.dice || []));
+    g.modifier = p.modifier || 0;
+    g.dropLowest = (typeof p.dropLowest === 'number') ? p.dropLowest : (p.dropLowest ? 1 : 0);
+    g.dropHighest = (typeof p.dropHighest === 'number') ? p.dropHighest : (p.dropHighest ? 1 : 0);
+    g.operation = p.operation || 'sum';
+    g.modifiers = p.modifiers || {keep:null, clamp:null};
+    g.repeat = p.repeat || 1;
+    g.exploding = !!p.exploding;
+    if (p.clampMin && p.clampMin > 1) g.clampMin = p.clampMin;
+    if (p.clampMax) g.clampMax = p.clampMax;
+    if (p.countSuccess) g.countSuccess = p.countSuccess;
+    cupGroups = [g];
+    activeGroupIdx = 0;
+    selectedDieId = null;
+    rootOperation = 'sum';
+    document.getElementById('dropBtn').classList.toggle('on', !!g.dropLowest);
+    document.getElementById('dropHBtn').classList.toggle('on', !!g.dropHighest);
     activePresetIdx = i;
     updateCupDisplay();
 }
@@ -2256,11 +2589,75 @@ function getEffectiveDice() {
     cupGroups.forEach(function(g){ walk(g, {}); });
     return all;
 }
+// Collect effective dice for a single root group (walking its sub-groups with
+// ancestor-merged modifiers). Used by calcDistribution to compute per-group distributions.
+function effectiveDiceForGroup(rootG) {
+    var dice = [];
+    function walk(g, parentCtx) {
+        var ctx = mergeGroupCtx(g, parentCtx);
+        g.children.forEach(function(c) {
+            if (c.type === 'group') { walk(c, ctx); return; }
+            var eff = {};
+            for (var k in c) eff[k] = c[k];
+            if (ctx.exploding && !eff.exploding) eff.exploding = true;
+            if (ctx.clampMin && !(eff.clampMin > 1)) eff.clampMin = ctx.clampMin;
+            if (ctx.clampMax && !eff.clampMax) eff.clampMax = ctx.clampMax;
+            if (ctx.countSuccess && !eff.countSuccess) eff.countSuccess = ctx.countSuccess;
+            dice.push(eff);
+        });
+    }
+    walk(rootG, {});
+    return dice;
+}
+// Convolve two distributions (sum).
+function convolveDist(a, b) {
+    var r = {};
+    for (var k1 in a) for (var k2 in b) {
+        var s = parseInt(k1) + parseInt(k2);
+        r[s] = (r[s] || 0) + a[k1] * b[k2];
+    }
+    return r;
+}
+// Negate a distribution (for subtraction).
+function negateDist(d) {
+    var r = {};
+    for (var k in d) r[-parseInt(k)] = d[k];
+    return r;
+}
 function calcDistribution() {
-    var allDice = getEffectiveDice();
+    // Multi-root-group: compute per group and combine via rootOperation
+    if (cupGroups.length > 1) {
+        var dists = [];
+        for (var ri = 0; ri < cupGroups.length; ri++) {
+            var d = calcRootGroupDist(cupGroups[ri]);
+            if (d) dists.push(d);
+        }
+        if (dists.length === 0) return null;
+        if (dists.length === 1) return dists[0];
+        var combined;
+        if (rootOperation === 'minus') {
+            combined = dists[0];
+            for (var i = 1; i < dists.length; i++) combined = convolveDist(combined, negateDist(dists[i]));
+        } else {
+            // sum (default)
+            combined = dists[0];
+            for (var i = 1; i < dists.length; i++) combined = convolveDist(combined, dists[i]);
+        }
+        return combined;
+    }
+    return calcRootGroupDist(cupGroups[0]);
+}
+function calcRootGroupDist(rootG) {
+    // Uses the root group's own dropLowest/dropHighest/modifier and its descendant
+    // dice (with inherited modifiers merged).
+    var allDice = effectiveDiceForGroup(rootG);
     if (allDice.length === 0) return null;
     var rollable = allDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin'; });
     if (rollable.length === 0) return null;
+    var gDropLo = (typeof rootG.dropLowest === 'number' ? rootG.dropLowest : (rootG.dropLowest ? 1 : 0));
+    var gDropHi = (typeof rootG.dropHighest === 'number' ? rootG.dropHighest : (rootG.dropHighest ? 1 : 0));
+    var gModifier = rootG.modifier || 0;
+    var gDirectDice = (rootG.children || []).filter(function(c){return c.type!=='group';});
 
     // Check for count successes mode (from any effective die)
     var countSuccess = 0;
@@ -2307,8 +2704,8 @@ function calcDistribution() {
     }
 
     // Determine if keep/drop is needed
-    var needKeep = dropLowest || dropHighest;
-    cupDice.forEach(function(d) { if (d.keep) needKeep = true; });
+    var needKeep = gDropLo || gDropHi;
+    gDirectDice.forEach(function(d) { if (d.keep) needKeep = true; });
 
     // Mixed dice with possible exploding — build per-die distributions and convolve
     var hasExploding = rollable.some(function(d) { return d.exploding; });
@@ -2359,9 +2756,9 @@ function calcDistribution() {
         }
         var dist = singleDieDist(rollable[0]);
         for (var i=1; i<rollable.length; i++) dist = convolve(dist, singleDieDist(rollable[i]));
-        if (modifier !== 0) {
+        if (gModifier !== 0) {
             var shifted = {};
-            for (var k in dist) shifted[parseInt(k)+modifier] = dist[k];
+            for (var k in dist) shifted[parseInt(k)+gModifier] = dist[k];
             dist = shifted;
         }
         return dist;
@@ -2381,9 +2778,9 @@ function calcDistribution() {
             }
             dist = newDist;
         }
-        if (modifier !== 0) {
+        if (gModifier !== 0) {
             var shifted = {};
-            for (var k in dist) shifted[parseInt(k) + modifier] = dist[k];
+            for (var k in dist) shifted[parseInt(k) + gModifier] = dist[k];
             dist = shifted;
         }
         return dist;
@@ -2395,23 +2792,34 @@ function calcDistribution() {
     var enumTotal = 1;
     rollable.forEach(function(d) { enumTotal *= getDieMax(d); });
     if (needKeep && rollable.length > 1 && enumTotal <= 1000000 && !hasExploding && !hasCoin && !rollable.some(function(d){return d.type==='df';})) {
-        var sidesArr = rollable.map(function(d) { return getDieMax(d); });
+        var diceSpecs = rollable.map(function(d) {
+            return {sides: getDieMax(d), clampMin: d.clampMin || 0, clampMax: d.clampMax || 0};
+        });
         var n = rollable.length;
-        var dLo = dropLowest ? 1 : 0;
-        var dHi = dropHighest ? 1 : 0;
-        var keepCount = n - dLo - dHi;
-        var keepMode = (dLo && dHi) ? 'mid' : dLo ? 'kh' : 'kl';
+        var dLo = Math.min(n, gDropLo);
+        var dHi = Math.min(n - dLo, gDropHi);
 
-        // Check for explicit keep from dice properties
-        cupDice.forEach(function(d) {
-            if (d.keep) { keepMode = d.keep; keepCount = d.keepCount || 1; }
+        // Per-die keep overrides (khN/klN) translate to drop counts
+        gDirectDice.forEach(function(d) {
+            if (d.keep) {
+                var keepCount = d.keepCount || 1;
+                if (d.keep === 'kh') { dLo = n - keepCount; dHi = 0; }
+                else { dLo = 0; dHi = n - keepCount; }
+            }
         });
 
-        var dist = calcKeepDist(sidesArr, keepCount, keepMode);
+        // If everything is dropped, the distribution is a point mass at the modifier
+        if (dLo + dHi >= n) {
+            var dist = {};
+            dist[gModifier] = 1;
+            return dist;
+        }
 
-        if (modifier !== 0) {
+        var dist = calcKeepDist(diceSpecs, dLo, dHi);
+
+        if (gModifier !== 0) {
             var shifted = {};
-            for (var k in dist) shifted[parseInt(k) + modifier] = dist[k];
+            for (var k in dist) shifted[parseInt(k) + gModifier] = dist[k];
             dist = shifted;
         }
         return dist;
@@ -2419,12 +2827,14 @@ function calcDistribution() {
 
     // Monte Carlo fallback for keep/drop when enumeration too expensive
     if (needKeep && rollable.length > 1) {
-        var dLo = dropLowest ? 1 : 0;
-        var dHi = dropHighest ? 1 : 0;
-        var keepCount = rollable.length - dLo - dHi;
-        var keepMode = (dLo && dHi) ? 'mid' : dLo ? 'kh' : 'kl';
-        cupDice.forEach(function(d) {
-            if (d.keep) { keepMode = d.keep; keepCount = d.keepCount || 1; }
+        var dLo = Math.min(rollable.length, gDropLo);
+        var dHi = Math.min(rollable.length - dLo, gDropHi);
+        gDirectDice.forEach(function(d) {
+            if (d.keep) {
+                var kc = d.keepCount || 1;
+                if (d.keep === 'kh') { dLo = rollable.length - kc; dHi = 0; }
+                else { dLo = 0; dHi = rollable.length - kc; }
+            }
         });
         var trials = 200000;
         var counts = {};
@@ -2447,11 +2857,8 @@ function calcDistribution() {
                 return val;
             });
             rolls.sort(function(a,b){return a-b;});
-            var kept;
-            if (keepMode === 'kh') kept = rolls.slice(rolls.length - keepCount);
-            else if (keepMode === 'kl') kept = rolls.slice(0, keepCount);
-            else kept = rolls.slice(dLo, rolls.length - dHi);
-            var sum = kept.reduce(function(a,b){return a+b;}, 0) + (modifier || 0);
+            var kept = rolls.slice(dLo, rolls.length - dHi);
+            var sum = kept.reduce(function(a,b){return a+b;}, 0) + gModifier;
             counts[sum] = (counts[sum] || 0) + 1;
         }
         var dist = {};
@@ -2476,33 +2883,44 @@ function calcDistribution() {
         dist = newDist;
     }
 
-    if (modifier !== 0) {
+    if (gModifier !== 0) {
         var shifted = {};
-        for (var k in dist) shifted[parseInt(k) + modifier] = dist[k];
+        for (var k in dist) shifted[parseInt(k) + gModifier] = dist[k];
         dist = shifted;
     }
 
     return dist;
 }
 
-function calcKeepDist(sidesArr, keepCount, keepMode) {
-    // Exact enumeration: iterate all outcomes for mixed dice, sort, keep top/bottom K
+function calcKeepDist(diceSpecs, dropLo, dropHi) {
+    // diceSpecs: either an array of numbers (sides, legacy) or array of
+    // {sides, clampMin, clampMax}. Enumerates all outcomes, clamps each face
+    // per die, sorts, drops dropLo lowest and dropHi highest, sums the rest.
+    var specs = diceSpecs.map(function(d) {
+        if (typeof d === 'number') return {sides: d, clampMin: 0, clampMax: 0};
+        return {sides: d.sides, clampMin: d.clampMin > 1 ? d.clampMin : 0, clampMax: d.clampMax || 0};
+    });
     var dist = {};
     var total = 1;
-    sidesArr.forEach(function(s) { total *= s; });
+    specs.forEach(function(s) { total *= s.sides; });
+
+    dropLo = Math.min(dropLo || 0, specs.length);
+    dropHi = Math.min(dropHi || 0, specs.length - dropLo);
 
     function enumerate(dice, dieIdx) {
-        if (dieIdx === sidesArr.length) {
+        if (dieIdx === specs.length) {
             var sorted = dice.slice().sort(function(a,b){return a-b;});
             var sum = 0;
-            var lo = keepMode==='kh' ? sorted.length - keepCount : keepMode==='mid' ? 1 : 0;
-            var hi = keepMode==='kl' ? keepCount : keepMode==='mid' ? sorted.length-1 : sorted.length;
-            for (var i = lo; i < hi; i++) sum += sorted[i];
+            for (var i = dropLo; i < sorted.length - dropHi; i++) sum += sorted[i];
             dist[sum] = (dist[sum] || 0) + 1;
             return;
         }
-        for (var face = 1; face <= sidesArr[dieIdx]; face++) {
-            dice.push(face);
+        var s = specs[dieIdx];
+        for (var face = 1; face <= s.sides; face++) {
+            var v = face;
+            if (s.clampMin && v < s.clampMin) v = s.clampMin;
+            if (s.clampMax && v > s.clampMax) v = s.clampMax;
+            dice.push(v);
             enumerate(dice, dieIdx + 1);
             dice.pop();
         }
@@ -2536,8 +2954,9 @@ function renderDistribution() {
     var range = getTheoreticalRange();
     var trueMin = range.lo, trueMax = range.hi;
 
-    // Bin if too many values (>80 bars won't fit)
-    var maxBars = 80;
+    // Bin if too many values so bars stay at the "normal" 8px width.
+    // Each bar then represents ceil(keys.length / maxBars) consecutive outcomes.
+    var maxBars = 32;
     if (keys.length > maxBars) {
         var binned = {};
         var binSize = Math.ceil(keys.length / maxBars);
@@ -2554,27 +2973,29 @@ function renderDistribution() {
     var maxProb = 0;
     keys.forEach(function(k) { if (dist[k] > maxProb) maxProb = dist[k]; });
 
-    var barW = Math.max(2, Math.min(8, Math.floor(260 / keys.length)));
     var minVal = trueMin, maxVal = trueMax;
     var midVal = keys[Math.floor(keys.length/2)];
 
     var hasExploding = getEffectiveDice().some(function(d){return d.exploding;});
 
+    // Bars stretch via flex:1 in CSS — no explicit width needed.
     var html = '<div class="dr-dist-bars">';
     keys.forEach(function(k) {
         var h = Math.max(3, Math.round((dist[k] / maxProb) * 52));
         var pct = dist[k] / maxProb;
         var hue = Math.round(pct * 120);
         var barColor = 'hsl('+hue+',85%,50%)';
-        html += '<div class="dr-dist-bar" data-val="'+k+'" style="height:'+h+'px;width:'+barW+'px;background:'+barColor+';--bar-color:'+barColor+'" title="'+k+': '+(dist[k]*100).toFixed(1)+'%"></div>';
+        html += '<div class="dr-dist-bar" data-val="'+k+'" style="height:'+h+'px;background:'+barColor+';--bar-color:'+barColor+'" title="'+k+': '+(dist[k]*100).toFixed(1)+'%"></div>';
     });
     html += '</div>';
+    // Spacing handled via CSS gap on the labels container
+    var NB = '';
     if (keys.length === 1) {
         html += '<div class="dr-dist-labels"><span></span><span>'+minVal+'</span><span></span></div>';
     } else {
         var maxLabel = hasExploding ? '\\u221e' : maxVal;
         var midLabel = keys.length > 2 ? midVal : '';
-        html += '<div class="dr-dist-labels"><span>'+minVal+'</span><span>'+midLabel+'</span><span>'+maxLabel+'</span></div>';
+        html += '<div class="dr-dist-labels"><span>'+minVal+NB+'</span><span>'+(midLabel !== '' ? NB+midLabel+NB : '')+'</span><span>'+NB+maxLabel+'</span></div>';
     }
     chart.innerHTML = html;
 }
@@ -2614,6 +3035,7 @@ function showProbability(total) {
 var formulaTyping = false; // true when user is typing in formula box
 
 function liveParseFormula() {
+    exitHistoryView();
     var input = document.getElementById('formulaInput').value.trim();
     formulaTyping = true;
     if (!input) {
@@ -2660,10 +3082,10 @@ function buildGroupFormula(g) {
         // Group-level modifiers on this container
         var cAttrs = [];
         if (g.exploding) cAttrs.push('!');
-        if (g.dropLowest) cAttrs.push('dl');
-        if (g.dropHighest) cAttrs.push('dh');
-        if (g.clampMin && g.clampMin > 1) cAttrs.push('min=' + g.clampMin);
-        if (g.clampMax) cAttrs.push('max=' + g.clampMax);
+        if (g.dropLowest) cAttrs.push('dl' + (g.dropLowest > 1 ? g.dropLowest : ''));
+        if (g.dropHighest) cAttrs.push('dh' + (g.dropHighest > 1 ? g.dropHighest : ''));
+        if (g.clampMin && g.clampMin > 1) cAttrs.push('min' + g.clampMin);
+        if (g.clampMax) cAttrs.push('max' + g.clampMax);
         if (g.countSuccess) cAttrs.push('#>=' + g.countSuccess);
         if (g.modifier > 0) inner += '+' + g.modifier;
         else if (g.modifier < 0) inner += '' + g.modifier;
@@ -2671,38 +3093,45 @@ function buildGroupFormula(g) {
         return inner;
     }
 
-    // Count dice by type, track per-type modifiers
-    var types = []; // ordered list of unique type keys
-    var counts = {}, explCount = {}, specials = [];
+    // Separate dice with per-die modifiers from plain dice. Plain dice are
+    // aggregated by type (3d6); each modified die emits its own token (d6:min3).
+    var plainDice = [], modifiedDice = [], specials = [];
     dice.forEach(function(d) {
         if (d.type==='adv') { specials.push('ADV'); return; }
         if (d.type==='dis') { specials.push('DIS'); return; }
+        if (hasPerDieMods(d)) modifiedDice.push(d);
+        else plainDice.push(d);
+    });
+    var types = []; // ordered list of plain type keys
+    var counts = {};
+    plainDice.forEach(function(d) {
         var k = d.type==='coin'?'COIN':d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
         if (!counts[k]) types.push(k);
         counts[k] = (counts[k]||0)+1;
-        if (d.exploding) explCount[k] = (explCount[k]||0)+1; // per-die exploding (rare)
     });
 
-    // Group-level modifiers
-    var totalDice = dice.length - specials.length;
-    var allExploding = !!g.exploding && totalDice > 0;
-    var explTotal = 0; for (var t in explCount) explTotal += explCount[t];
-    var someExploding = !allExploding && explTotal > 0;
-
     // Group-level clamp/success values
+    var totalDice = dice.length - specials.length;
     var mnVal = (g.clampMin && g.clampMin > 1) ? g.clampMin : 0;
     var mxVal = g.clampMax || 0;
     var succVal = g.countSuccess || 0;
 
-    // Build per-type dice tokens with inline :attrs where needed
+    // Build per-type dice tokens for plain dice
     var diceParts = [];
     types.forEach(function(t) {
         var p = counts[t] > 1 ? counts[t] + t : t;
-        // Per-type attrs (only if not all dice share the modifier)
-        var attrs = [];
-        if (someExploding && explCount[t] === counts[t]) attrs.push('!');
-        if (attrs.length) p += ':' + attrs.join(',');
         diceParts.push(p);
+    });
+    // Build per-die tokens for modified dice (one each)
+    modifiedDice.forEach(function(d) {
+        var k = d.type==='coin'?'COIN':d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
+        var attrs = [];
+        if (d.exploding) attrs.push('!');
+        if (d.clampMin && d.clampMin > 1) attrs.push('min' + d.clampMin);
+        if (d.clampMax) attrs.push('max' + d.clampMax);
+        if (d.countSuccess) attrs.push('#>=' + d.countSuccess);
+        if (d.reroll) attrs.push('r' + d.reroll);
+        diceParts.push(k + ':' + attrs.join(','));
     });
     diceParts = diceParts.concat(specials);
 
@@ -2719,13 +3148,13 @@ function buildGroupFormula(g) {
         else diceStr += '+' + p;
     });
 
-    // Group-level attrs (uniform across all dice)
+    // Group-level attrs
     var groupAttrs = [];
-    if (allExploding) groupAttrs.push('!');
-    if (g.dropLowest) groupAttrs.push('dl');
-    if (g.dropHighest) groupAttrs.push('dh');
-    if (mnVal) groupAttrs.push('min=' + mnVal);
-    if (mxVal) groupAttrs.push('max=' + mxVal);
+    if (g.exploding) groupAttrs.push('!');
+    if (g.dropLowest) groupAttrs.push('dl' + (g.dropLowest > 1 ? g.dropLowest : ''));
+    if (g.dropHighest) groupAttrs.push('dh' + (g.dropHighest > 1 ? g.dropHighest : ''));
+    if (mnVal) groupAttrs.push('min' + mnVal);
+    if (mxVal) groupAttrs.push('max' + mxVal);
     if (succVal) groupAttrs.push('#>=' + succVal);
 
     // Combine: dice:groupAttrs or (dice):groupAttrs
@@ -2926,7 +3355,8 @@ function parseFormulaStr(input) {
     var g = activeGroup();
     cupDice = [];
     modifier = 0;
-    dropLowest = false;
+    dropLowest = 0;
+    dropHighest = 0;
     // Reset group-level modifiers — parseFormula rebuilds them from scratch
     g.exploding = false;
     delete g.clampMin; delete g.clampMax; delete g.countSuccess;
@@ -2948,8 +3378,8 @@ function parseFormulaStr(input) {
         }
 
         // Full dice pattern: NdX with optional modifiers
-        // Supports: 4d6dl, 3d20kh1, 4d6!, 6d6#>=5, 4d6r1
-        var diceMatch = token.match(/^(\\d+)?d(\\d+)([-d][lh]|d1|kh\\d*|kl\\d*|!|r\\d+|#>=?\\d+)*$/i);
+        // Supports: 4d6dl, 4d6dl2, 3d20kh1, 4d6!, 6d6#>=5, 4d6r1, 4d6min2, 4d6max5
+        var diceMatch = token.match(/^(\\d+)?d(\\d+)([-d][lh]\\d*|d1|kh\\d*|kl\\d*|!|r\\d+|#>=?\\d+|min=?\\d+|max=?\\d+)*$/i);
         if (diceMatch) {
             var count = parseInt(diceMatch[1]) || 1;
             var sides = parseInt(diceMatch[2]);
@@ -2970,10 +3400,17 @@ function parseFormulaStr(input) {
                 if (countMatch[1] === '>') countSuccess += 1; // #>4 means >=5
             }
 
-            if (/dl|d1|-l/i.test(mods)) { dropLowest = true; }
-            if (/dh|-h/i.test(mods)) { dropHighest = true; }
+            var dlMatch = mods.match(/dl(\\d*)/i);
+            var dhMatch = mods.match(/dh(\\d*)/i);
+            if (dlMatch || /d1|-l/i.test(mods)) { dropLowest = dlMatch && dlMatch[1] ? parseInt(dlMatch[1]) : 1; }
+            if (dhMatch || /-h/i.test(mods)) { dropHighest = dhMatch && dhMatch[1] ? parseInt(dhMatch[1]) : 1; }
             if (exploding) g.exploding = true;
             if (countSuccess) g.countSuccess = countSuccess;
+            // Group-level min/max modifiers — support both "min2" and legacy "min=2"
+            var minMatch = mods.match(/min=?(\\d+)/i);
+            var maxMatch = mods.match(/max=?(\\d+)/i);
+            if (minMatch) g.clampMin = parseInt(minMatch[1]);
+            if (maxMatch) g.clampMax = parseInt(maxMatch[1]);
 
             var dieType = 'd' + sides;
             if (!dieRanges[dieType]) dieType = 'dx';
