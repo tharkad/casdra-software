@@ -1852,8 +1852,15 @@ function rollSingleGroup(g, parentCtx) {
         if(countMode&&kept[i]){style='border-color:'+r.dieColor+';'+(r.value>=countTh?'color:#7ee787;font-weight:800':'opacity:0.5');}
         bParts.push('<span class="dr-die-result" style="'+style+'">'+label+'</span>');
     });
-    // Append sub-group breakdowns after direct dice (each already wrapped in its own container)
-    subBreakdowns.forEach(function(sb){ bParts.push(sb); });
+    // Append sub-group breakdowns after direct dice (each already wrapped in
+    // its own container). Insert a "+" operator between each sub-group and
+    // the previous breakdown part — sub-groups nested inside a parent are
+    // always summed (see total += sr.total above), so the sign is always +.
+    var plusOp = '<span style="color:#484f58;font-weight:700;font-size:16px">+</span>';
+    subBreakdowns.forEach(function(sb){
+        if (bParts.length > 0) bParts.push(plusOp);
+        bParts.push(sb);
+    });
     if(g.modifier>0) bParts.push('<span class="dr-die-result" style="border-color:#7ee787">+'+g.modifier+'</span>');
     else if(g.modifier<0) bParts.push('<span class="dr-die-result" style="border-color:#f85149">'+g.modifier+'</span>');
     // Wrap this group's entire breakdown in a bordered container so nested groups are visually distinct
