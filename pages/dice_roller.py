@@ -228,7 +228,10 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     padding: 12px; margin: 4px; position: relative; cursor: pointer;
     transition: all 0.15s; z-index: 1;
     display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;
-    flex: 0 0 auto; min-width: max-content;
+    /* flex-shrink=1 + min-width=0 lets the group squeeze below its intrinsic
+       content width so its inner dice can wrap; max-width=100% caps it at
+       the parent so nothing ever overflows the cup. */
+    flex: 0 1 auto; min-width: 0; max-width: 100%; box-sizing: border-box;
 }
 /* Transparent click blocker — prevents dice interaction in inactive groups */
 .dr-group-section::after {
