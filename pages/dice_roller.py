@@ -302,8 +302,8 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-result:active { transform: scale(0.92); }
 .dr-result.dr-rolling { color: #f0883e; }
 .dr-tap-hint {
-    font-size: 12px; color: var(--text-dim); margin-top: 2px;
-    transition: opacity 0.5s; opacity: 1;
+    font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 2px;
+    transition: opacity 0.5s; opacity: 1; text-align: center;
 }
 .dr-tap-hint.hidden { opacity: 0; pointer-events: none; }
 .dr-breakdown {
