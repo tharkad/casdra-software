@@ -328,11 +328,11 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     display: flex; flex-shrink: 0; cursor: pointer; position: relative;
     align-items: center; flex-direction: row;
     /* Fixed height so the down-caret doesn't push layout */
-    height: 32px; width: 52px;
+    height: 36px; width: 56px;
 }
 .dr-lock-btn {
     background: none; border: 1px solid #ffa657; border-radius: 50%;
-    color: #ffa657; width: 32px; height: 32px;
+    color: #ffa657; width: 36px; height: 36px;
     cursor: pointer; display: inline-flex; align-items: center;
     justify-content: center; flex-shrink: 0; transition: all 0.2s;
     position: relative; z-index: 1;
@@ -343,17 +343,17 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     user-select: none; position: absolute;
     /* Anchor at circle center, then orbit outward. The rotation carries
        the glyph around the circle edge so it always points outward. */
-    left: 16px; top: 16px;
+    left: 18px; top: 18px;
     transform-origin: 0 0;
     transition: transform 0.35s ease-in-out;
 }
 /* Locked: caret to the right, vertically centered with circle */
 .dr-lock-wrap.locked .dr-lock-caret {
-    transform: rotate(0deg) translate(19px, -15px);
+    transform: rotate(0deg) translate(20px, -15px);
 }
 /* Unlocked: caret below, horizontally centered with circle */
 .dr-lock-wrap:not(.locked) .dr-lock-caret {
-    transform: rotate(90deg) translate(19px, -15px);
+    transform: rotate(90deg) translate(20px, -15px);
 }
 /* Dice grid */
 .dr-dice-grid {
@@ -702,7 +702,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 <div class="dr-formula">
     <div class="dr-lock-wrap" id="lockWrap" onclick="toggleLock()">
         <button class="dr-lock-btn" id="lockBtn" title="Lock/unlock cup">
-            <svg id="lockIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0"/></svg>
+            <svg id="lockIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0V3"/></svg>
         </button>
         <span class="dr-lock-caret" id="lockCaret">&#x203A;</span>
     </div>
@@ -2305,7 +2305,7 @@ function toggleLock() {
     // Closed lock: shackle closed. Open lock: shackle lifted.
     document.getElementById('lockIcon').innerHTML = cupLocked
         ? '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'
-        : '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0"/>';
+        : '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0V3"/>';
     // Caret glyph stays the same — CSS rotation orbits it from right to bottom
 
     localStorage.setItem('dice_roller_locked', cupLocked ? '1' : '0');
