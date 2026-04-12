@@ -322,6 +322,16 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     background: rgba(0,0,0,0.42);
 }
 
+/* Lock toggle */
+.dr-lock-row { text-align: center; padding: 2px 0; }
+.dr-lock-btn {
+    background: none; border: 1px solid var(--border); border-radius: 8px;
+    padding: 4px 12px; cursor: pointer; color: var(--text-dim);
+    font-size: 16px; transition: all 0.2s; display: inline-flex;
+    align-items: center; gap: 4px; font-family: inherit; font-weight: 600;
+}
+.dr-lock-btn:hover { border-color: var(--text-muted); color: var(--text-muted); }
+.dr-lock-btn.locked { border-color: #ffa657; color: #ffa657; background: #ffa65712; }
 /* Dice grid */
 .dr-dice-grid {
     display: flex; flex-wrap: wrap; justify-content: center;
@@ -717,7 +727,12 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 </div>
 """) + """
 
-<div class="dr-dice-grid">
+<div class="dr-lock-row">
+    <button class="dr-lock-btn" id="lockBtn" onclick="toggleLock()" title="Lock/unlock cup">
+        <svg id="lockIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </button>
+</div>
+<div class="dr-dice-grid" id="diceGrid">
 """ + buttons_html + """
 </div>
 
@@ -2235,6 +2250,45 @@ function navigateHistory(delta) {
     }
     updateHistoryNav();
 }
+// ===== Lock / Unlock =====
+var cupLocked = false;
+function toggleLock() {
+    cupLocked = !cupLocked;
+    var lockBtn = document.getElementById('lockBtn');
+    var diceGrid = document.getElementById('diceGrid');
+    var modRows = document.querySelector('.dr-mod-rows');
+    var staging = document.getElementById('cupStaging');
+    var presetRow = document.getElementById('presets');
+
+    // Hide dice buttons + modifier rows
+    diceGrid.style.display = cupLocked ? 'none' : '';
+    modRows.style.display = cupLocked ? 'none' : '';
+
+    // Lock the cup: no clicking dice, no felt clicks, no preset loading
+    staging.style.pointerEvents = cupLocked ? 'none' : '';
+    if (presetRow) presetRow.style.pointerEvents = cupLocked ? 'none' : '';
+
+    // Lock the fav star + clear button (roll stays active)
+    document.getElementById('favStar').style.pointerEvents = cupLocked ? 'none' : '';
+    document.querySelector('.dr-clear-cup').style.pointerEvents = cupLocked ? 'none' : '';
+
+    // Update button appearance
+    lockBtn.classList.toggle('locked', cupLocked);
+    // Swap between open and closed lock SVG
+    document.getElementById('lockIcon').innerHTML = cupLocked
+        ? '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'
+        : '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
+    // Closed lock has the shackle closed (no gap)
+    document.getElementById('lockIcon').innerHTML = cupLocked
+        ? '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5v4"/>'
+        : '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
+
+    localStorage.setItem('dice_roller_locked', cupLocked ? '1' : '0');
+}
+function restoreLockState() {
+    if (localStorage.getItem('dice_roller_locked') === '1') toggleLock();
+}
+
 // Shared: update the #prob text without touching the chart rendering
 function showProbabilityText(total) { showProbability(total); }
 function handleResultClick() {
@@ -3631,6 +3685,7 @@ function updatePremiumBtn() {
     document.getElementById('dropHBtn').classList.toggle('on', dropHighest);
     updatePremiumBtn();
     loadTheme();
+    restoreLockState();
 
     // Restore from bug report if ?restore=N
     var RESTORE_STATE = """ + (json.dumps(json.loads(restore_state)) if restore_state else 'null') + """;
