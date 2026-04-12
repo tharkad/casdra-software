@@ -98,6 +98,7 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent;
     max-width: 500px; margin: 0 auto;
+    min-height: 100vh; display: flex; flex-direction: column;
 }
 
 /* Header */
@@ -419,6 +420,8 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     padding-bottom: max(16px, env(safe-area-inset-bottom));
     display: flex; flex-direction: column;
     box-shadow: inset 0 2px 12px rgba(88,166,255,0.1), 0 -4px 20px rgba(0,0,0,0.5);
+    /* Felt extends to the bottom of the viewport */
+    flex: 1 0 auto; min-height: 0;
 }
 .dr-cup > * { position: relative; }
 .dr-cup::before {
@@ -736,12 +739,18 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 </div>
 """ if premium else """
 <div class="dr-formula">
-    <button class="dr-formula-help" onclick="showFormulaUpsell()">?</button>
+    <div class="dr-lock-wrap" id="lockWrap" onclick="toggleLock()">
+        <button class="dr-lock-btn" id="lockBtn" title="Lock/unlock cup">
+            <svg id="lockIcon" width="22" height="22" viewBox="0 -5 24 29" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V1a5 5 0 0 1 10 0"/></svg>
+        </button>
+        <span class="dr-lock-caret" id="lockCaret">&#x203A;</span>
+    </div>
     <div class="dr-formula-wrap">
     <input class="dr-formula-input" id="formulaInput" type="text" placeholder="3d6+2d8+5" readonly
-           onclick="showFormulaUpsell()" style="cursor:pointer">
+           style="pointer-events:none;cursor:default">
     <div class="dr-formula-overlay" id="formulaOverlay"></div>
     </div>
+    <button class="dr-formula-help" onclick="showFormulaUpsell()">?</button>
 </div>
 <div class="dr-formula-popup" id="formulaHelp" style="display:none">
     <div class="dr-formula-popup-title">Formula Syntax</div>
