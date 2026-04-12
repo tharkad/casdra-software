@@ -2103,6 +2103,10 @@ function rollDice() {
     total += modifier;
     if (modifier>0) { expression+='+'+modifier; breakdownParts.push('<span class="dr-die-result" style="border-color:#7ee787">+'+modifier+'</span>'); }
     else if (modifier<0) { expression+=modifier; breakdownParts.push('<span class="dr-die-result" style="border-color:#f85149">'+modifier+'</span>'); }
+    // Floor/Cap: clamp the group total (single-group legacy path)
+    var _agFC = activeGroup();
+    if (_agFC && _agFC.floor && total < _agFC.floor) total = _agFC.floor;
+    if (_agFC && _agFC.cap && total > _agFC.cap) total = _agFC.cap;
     animateResult(total);
     document.getElementById('breakdown').innerHTML = breakdownParts.join(' ');
     saveLastRoll(String(total), breakdownParts.join(' '));
