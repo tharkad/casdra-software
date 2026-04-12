@@ -338,6 +338,13 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     position: relative; z-index: 1;
 }
 .dr-lock-btn:hover { background: #ffa65722; }
+/* When cup is locked, block ALL interaction in staging + cup body,
+   but keep the bottom bar (fav/roll/trash) active. !important
+   overrides the pointer-events:auto on .dr-group-section::after. */
+.dr-cup.cup-locked .dr-cup-staging,
+.dr-cup.cup-locked .dr-cup-staging * { pointer-events: none !important; }
+.dr-cup.cup-locked .dr-dist-wrap,
+.dr-cup.cup-locked .dr-cup-summary { pointer-events: none !important; }
 .dr-lock-caret {
     color: #ffa657; font-size: 28px; font-weight: 900; line-height: 1;
     user-select: none; position: absolute;
@@ -2291,9 +2298,10 @@ function toggleLock() {
     diceGrid.style.display = cupLocked ? 'none' : '';
     modRows.style.display = cupLocked ? 'none' : '';
 
-    // Lock the cup content area: no clicking dice, no felt clicks, no
-    // preset loading. Fav star, roll, and trash buttons stay active.
-    staging.style.pointerEvents = cupLocked ? 'none' : '';
+    // Lock the cup content area via CSS class (uses !important to override
+    // pointer-events:auto on .dr-group-section::after and other children).
+    // Fav star, roll, and trash in .dr-cup-bottom stay active.
+    document.getElementById('cup').classList.toggle('cup-locked', cupLocked);
     if (presetRow) presetRow.style.pointerEvents = cupLocked ? 'none' : '';
 
     // Update wrap class (controls caret position) and lock icon
