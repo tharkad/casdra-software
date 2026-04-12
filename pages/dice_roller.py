@@ -345,6 +345,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-cup.cup-locked .dr-cup-staging * { pointer-events: none !important; }
 .dr-cup.cup-locked .dr-dist-wrap,
 .dr-cup.cup-locked .dr-cup-summary { pointer-events: none !important; }
+.dr-cup.cup-locked .dr-add-group { display: none !important; }
 .dr-lock-caret {
     color: #ffa657; font-size: 28px; font-weight: 900; line-height: 1;
     user-select: none; position: absolute;
@@ -983,6 +984,7 @@ function exitHistoryView() {
     }
 }
 function addToCup(type) {
+    if (cupLocked) return;
     exitHistoryView();
     // Adding dice clears any single-die selection
     tryAutoRejoin();
@@ -999,6 +1001,7 @@ function addToCup(type) {
 }
 
 function removeFromCup(idx) {
+    if (cupLocked) return;
     exitHistoryView();
     // Note: the "click the selected die to deselect instead of remove"
     // gesture is now handled in handleDieClick, before selectGroup gets
@@ -1055,7 +1058,7 @@ function clearCup() {
 
 // ===== Multi-Group Management (Premium) =====
 function addGroup() {
-    if(!PREMIUM) return;
+    if(!PREMIUM || cupLocked) return;
     exitHistoryView();
     var allGroups = flatGroups();
     var newG = makeGroup('');
@@ -1100,6 +1103,7 @@ function addGroup() {
     updateCupDisplay();
 }
 function deselectGroups(e) {
+    if (cupLocked) return;
     // Groups stop propagation, so any click reaching here is a felt click
     exitHistoryView();
     activeGroupIdx = -1;
@@ -1118,6 +1122,7 @@ function removeGroup(idx) {
     updateCupDisplay();
 }
 function selectGroup(idx) {
+    if (cupLocked) return;
     exitHistoryView();
     // Selecting any group clears any single-die selection — focus moves from
     // the die to the group (or to a different group). The one exception
@@ -1690,6 +1695,7 @@ function startLongPress(idx, e, gIdx) {
 function cancelLongPress() { clearTimeout(lpTimer); }
 function handleDieClick(gIdx, idx, ev) {
     ev.stopPropagation();
+    if (cupLocked) return;
     if (suppressNextDieClick) { suppressNextDieClick = false; return; }
     // Deselect-on-same-die: if this click lands on the currently-selected
     // die, toggle the selection off and leave the die in place. Must run
@@ -1711,6 +1717,7 @@ function handleDieClick(gIdx, idx, ev) {
 // and modifier buttons will target it. No data duplication — the array
 // just gains a selection marker via selectedDieId.
 function selectSingleDie(idx, gIdx) {
+    if (cupLocked) return;
     var list = flatGroups();
     // Fully validate gIdx — the old "|| activeGroup()" fallback would write
     // activeGroupIdx to an out-of-range value if gIdx was invalid.
