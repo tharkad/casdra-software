@@ -2291,13 +2291,10 @@ function toggleLock() {
     diceGrid.style.display = cupLocked ? 'none' : '';
     modRows.style.display = cupLocked ? 'none' : '';
 
-    // Lock the cup: no clicking dice, no felt clicks, no preset loading
+    // Lock the cup content area: no clicking dice, no felt clicks, no
+    // preset loading. Fav star, roll, and trash buttons stay active.
     staging.style.pointerEvents = cupLocked ? 'none' : '';
     if (presetRow) presetRow.style.pointerEvents = cupLocked ? 'none' : '';
-
-    // Lock the fav star + clear button (roll stays active)
-    document.getElementById('favStar').style.pointerEvents = cupLocked ? 'none' : '';
-    document.querySelector('.dr-clear-cup').style.pointerEvents = cupLocked ? 'none' : '';
 
     // Update wrap class (controls caret position) and lock icon
     var lockWrap = document.getElementById('lockWrap');
