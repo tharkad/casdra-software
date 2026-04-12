@@ -322,13 +322,12 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     background: rgba(0,0,0,0.42);
 }
 
-/* Lock toggle */
-.dr-lock-row { text-align: center; padding: 2px 0; }
+/* Lock toggle — sits in the formula row */
 .dr-lock-btn {
-    background: none; border: 1px solid var(--border); border-radius: 8px;
-    padding: 4px 12px; cursor: pointer; color: var(--text-dim);
-    font-size: 16px; transition: all 0.2s; display: inline-flex;
-    align-items: center; gap: 4px; font-family: inherit; font-weight: 600;
+    background: none; border: 1px solid var(--border); border-radius: 50%;
+    color: var(--text-dim); width: 32px; height: 32px;
+    cursor: pointer; display: inline-flex; align-items: center;
+    justify-content: center; flex-shrink: 0; transition: all 0.2s;
 }
 .dr-lock-btn:hover { border-color: var(--text-muted); color: var(--text-muted); }
 .dr-lock-btn.locked { border-color: #ffa657; color: #ffa657; background: #ffa65712; }
@@ -677,12 +676,15 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 
 """ + ("""
 <div class="dr-formula">
-    <button class="dr-formula-help" onclick="toggleFormulaHelp()">?</button>
+    <button class="dr-lock-btn" id="lockBtn" onclick="toggleLock()" title="Lock/unlock cup">
+        <svg id="lockIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </button>
     <div class="dr-formula-wrap">
         <input class="dr-formula-input" id="formulaInput" type="text" placeholder="3d6+2d8+5" autocomplete="off" autocapitalize="off" spellcheck="false"
                oninput="liveParseFormula()" onkeydown="if(event.key==='Enter'){event.preventDefault();rollDice();}">
         <div class="dr-formula-overlay" id="formulaOverlay"></div>
     </div>
+    <button class="dr-formula-help" onclick="toggleFormulaHelp()">?</button>
 </div>
 <div class="dr-formula-popup" id="formulaHelp" style="display:none">
     <div class="dr-formula-popup-title">Formula Syntax</div>
@@ -727,11 +729,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 </div>
 """) + """
 
-<div class="dr-lock-row">
-    <button class="dr-lock-btn" id="lockBtn" onclick="toggleLock()" title="Lock/unlock cup">
-        <svg id="lockIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-    </button>
-</div>
 <div class="dr-dice-grid" id="diceGrid">
 """ + buttons_html + """
 </div>
@@ -1262,8 +1259,10 @@ function promptMod(sign) {
 function saveCupState() {
     // Don't overwrite the user's live cup while they're viewing a historical snapshot
     if (typeof historyViewIdx !== 'undefined' && historyViewIdx > -1) return;
+    // Don't persist selection state — on reload, nothing should be selected.
+    // Save the cup contents + operation, but not which group/die was active.
     localStorage.setItem('dice_roller_cup', JSON.stringify({
-        groups: cupGroups, rootOperation: rootOperation, activeGroupIdx: activeGroupIdx
+        groups: cupGroups, rootOperation: rootOperation
     }));
 }
 function saveLastRoll(resultText, breakdownHtml) {
@@ -1286,7 +1285,8 @@ function loadCupState() {
             // Multi-group format
             cupGroups = s.groups;
             rootOperation = s.rootOperation || 'sum';
-            activeGroupIdx = Math.min(s.activeGroupIdx || 0, cupGroups.length - 1);
+            activeGroupIdx = 0;
+            selectedDieId = null;
         } else if (s.dice || s.children) {
             // Legacy single-group format — migrate
             var g = cupGroups[0];
