@@ -551,12 +551,15 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 
 /* Distribution mini chart */
 .dr-dist {
-    display: inline-flex; flex-direction: column;
+    display: flex; flex-direction: column;
     background: #0a0a0a; border-radius: 8px; margin: 4px auto;
     padding: 8px 8px 4px; max-width: 100%; overflow: hidden;
+    /* Fixed width so the chart doesn't jump when binning changes
+       the bar count. Bars are centered within. */
+    width: 100%; box-sizing: border-box;
 }
 .dr-dist-bars {
-    display: flex; align-items: flex-end; gap: 1px; height: 52px;
+    display: flex; align-items: flex-end; justify-content: center; gap: 1px; height: 52px;
 }
 .dr-dist-wrap { text-align: center; position: relative; }
 .dr-dist-labels {
@@ -566,7 +569,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     gap: 8px;
 }
 .dr-dist-bar {
-    flex: 0 0 8px; width: 8px;
+    flex: 1 1 0; min-width: 2px; max-width: 14px;
     border-radius: 2px 2px 0 0; transition: height 0.2s; filter: brightness(0.75);
 }
 .dr-dist-bar.highlight { filter: brightness(1); box-shadow: 0 0 6px 3px rgba(255,255,255,0.5), 0 0 14px 5px rgba(255,255,255,0.2); z-index: 1; position: relative; }
@@ -2989,7 +2992,7 @@ function renderDistribution() {
 
     // Bin if too many values so bars stay at the "normal" 8px width.
     // Each bar then represents ceil(keys.length / maxBars) consecutive outcomes.
-    var maxBars = 32;
+    var maxBars = 50;
     if (keys.length > maxBars) {
         var binned = {};
         var binSize = Math.ceil(keys.length / maxBars);
