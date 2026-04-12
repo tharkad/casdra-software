@@ -728,9 +728,9 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     </div>
     <div class="dr-mod-boxes">
         <div class="dr-mod-box">
-            <button class="dr-mod-btn dimmed" id="dropHBtn" onclick="toggleDropHighest()" title="Drop highest">DH</button>
+            <button class="dr-mod-btn dimmed" id="dropHBtn" onclick="toggleDropHighest()" title="Drop highest">Drop High</button>
             <button class="dr-mod-btn dimmed" id="capBtn" onclick="toggleCap()" title="Cap group total">Cap</button>
-            <button class="dr-mod-btn dimmed" id="dropBtn" onclick="toggleDropLowest()" title="Drop lowest">DL</button>
+            <button class="dr-mod-btn dimmed" id="dropBtn" onclick="toggleDropLowest()" title="Drop lowest">Drop Low</button>
             <button class="dr-mod-btn dimmed" id="floorBtn" onclick="toggleFloor()" title="Floor group total">Floor</button>
         </div>
         <div class="dr-mod-box">
@@ -1562,8 +1562,8 @@ function updateCupDisplay() {
     var dhc = (typeof dropHighest === 'number') ? dropHighest : (dropHighest ? 1 : 0);
     var dropBtnEl = document.getElementById('dropBtn');
     var dropHBtnEl = document.getElementById('dropHBtn');
-    if (dropBtnEl) dropBtnEl.textContent = dlc > 0 ? 'DL=' + dlc : 'DL';
-    if (dropHBtnEl) dropHBtnEl.textContent = dhc > 0 ? 'DH=' + dhc : 'DH';
+    if (dropBtnEl) dropBtnEl.textContent = dlc > 0 ? 'Drop Low=' + dlc : 'Drop Low';
+    if (dropHBtnEl) dropHBtnEl.textContent = dhc > 0 ? 'Drop High=' + dhc : 'Drop High';
     // Floor/Cap buttons — group-only, dimmed when die selected
     var agTmp = noGroupSelected ? null : activeGroup();
     var floorVal = (agTmp && agTmp.floor) ? agTmp.floor : 0;
