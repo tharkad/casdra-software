@@ -1949,169 +1949,71 @@ function rollDice() {
     // NOTE: intentionally does NOT exit history view. Rolling while viewing
     // a past roll re-rolls that roll's formula, and the historical state
     // becomes the new live cup (saved via saveToHistory below).
-    // Auto-rejoin any selected die that ended up with no per-die modifiers
-    // so it merges back with its siblings visually.
     tryAutoRejoin();
     var totalDice = getAllDice().length;
     if (totalDice === 0) { document.getElementById('result').textContent = 'Add dice'; return; }
     playSound(); if (navigator.vibrate) navigator.vibrate(50);
 
-    // Multi-group: evaluate each group, combine
-    if (PREMIUM && cupGroups.length > 1) {
-        var groupResults = [];
-        var allBreakdown = [];
-        cupGroups.forEach(function(g, gi) {
-            // Temporarily set active group for rollSingleGroup
-            var saved = activeGroupIdx; activeGroupIdx = gi;
-            var result = rollSingleGroup(g);
-            activeGroupIdx = saved;
-
-            for (var ri = 0; ri < (g.repeat || 1); ri++) {
-                if (ri > 0) result = rollSingleGroup(g);
-                groupResults.push(result);
-                allBreakdown.push(result.breakdown);
-            }
-        });
-
-        var finalTotal;
-        var totals = groupResults.map(function(r){return r.total;});
-        if (rootOperation === 'max') finalTotal = Math.max.apply(null, totals);
-        else if (rootOperation === 'min') finalTotal = Math.min.apply(null, totals);
-        else if (rootOperation === 'minus') finalTotal = totals.reduce(function(a,b){return a-b;});
-        else finalTotal = totals.reduce(function(a,b){return a+b;}, 0);
-
-        var opLabel = rootOperation === 'max' ? ' (highest)' : rootOperation === 'min' ? ' (lowest)' : '';
-        animateResult(finalTotal);
-        var joinOp = rootOperation === 'minus' ? '\\u2212' : rootOperation === 'sum' ? '+' : rootOperation.toUpperCase();
-        document.getElementById('breakdown').innerHTML =
-            allBreakdown.join(' <span style="color:#484f58;font-weight:700;font-size:16px">'+joinOp+'</span> ') + opLabel;
-        saveLastRoll(String(finalTotal), document.getElementById('breakdown').innerHTML);
-        var expr = cupGroups.map(function(g){
-            var c={}; g.children.forEach(function(d){var k=d.type==='dx'?'d'+(d.sides||6):d.type;c[k]=(c[k]||0)+1;});
-            var p=[]; for(var t in c) p.push(c[t]>1?c[t]+t:t);
-            if(g.modifier>0) p.push('+'+g.modifier); else if(g.modifier<0) p.push(''+g.modifier);
-            var e=p.join('+'); if(g.repeat>1) e=g.repeat+'\\u00d7('+e+')';
-            return e;
-        }).join(rootOperation==='sum'?' + ':' '+rootOperation+' ');
-        saveToHistory({expression:expr, total:finalTotal, breakdown:document.getElementById('breakdown').textContent, breakdownHtml:document.getElementById('breakdown').innerHTML, timestamp:Date.now()});
-        showProbability(finalTotal);
+    // Special case: all coins → simple heads/tails display
+    var allDiceArr = getAllDice();
+    if (allDiceArr.length > 0 && allDiceArr.every(function(d){return d.type==='coin';})) {
+        var coinVal = Math.random()<0.5 ? 1 : 0;
+        var coinLabel = coinVal ? 'HEADS (1)' : 'TAILS (0)';
+        animateResult(coinLabel);
+        saveLastRoll(coinLabel, coinLabel);
+        saveToHistory({expression:'COIN',total:coinVal,breakdown:coinLabel,timestamp:Date.now()});
+        showProbability(coinVal);
         return;
     }
-    var results = [], total = 0, expression = '', breakdownParts = [];
-    {
-        var allCoins = cupDice.every(function(d){return d.type==='coin';});
-        if (allCoins && cupDice.length > 0) {
-            var coinVal = Math.random()<0.5 ? 1 : 0;
-            var coinLabel = coinVal ? 'HEADS (1)' : 'TAILS (0)';
-            animateResult(coinLabel);
-            saveLastRoll(coinLabel, coinLabel);
-            saveToHistory({expression:'COIN',total:coinVal,breakdown:coinLabel,timestamp:Date.now()});
-            showProbability(coinVal);
-            return;
+
+    // Roll every root group through rollSingleGroup — one code path for
+    // single-group and multi-group cups. This ensures floor/cap, nested
+    // sub-groups, per-die modifiers, and all other group-level features
+    // are applied consistently.
+    var groupResults = [];
+    var allBreakdown = [];
+    cupGroups.forEach(function(g) {
+        for (var ri = 0; ri < (g.repeat || 1); ri++) {
+            var result = rollSingleGroup(g);
+            groupResults.push(result);
+            allBreakdown.push(result.breakdown);
         }
+    });
 
-        // Roll all dice — store color and original index for sorting
-        var _ag = activeGroup();
-        var _ctx = {exploding: _ag.exploding, clampMin: _ag.clampMin, clampMax: _ag.clampMax};
-        cupDice.forEach(function(d, idx) {
-            var roll = rollSingleDie(d, _ctx);
-            var info = DIE_SHAPES[d.type] || DIE_SHAPES.dx || {color:'#8b949e'};
-            var dieColor = d.color || info.color;
-            results.push({type:d.type, sides:d.sides, value:roll.value, chain:roll.chain, clamped:roll.clamped, exploding:d.exploding||_ag.exploding, reroll:d.reroll, dieColor:dieColor, origIdx:idx});
-        });
+    // Combine totals across root groups
+    var totals = groupResults.map(function(r){return r.total;});
+    var finalTotal;
+    if (totals.length === 1) finalTotal = totals[0];
+    else if (rootOperation === 'max') finalTotal = Math.max.apply(null, totals);
+    else if (rootOperation === 'min') finalTotal = Math.min.apply(null, totals);
+    else if (rootOperation === 'minus') finalTotal = totals.reduce(function(a,b){return a-b;});
+    else finalTotal = totals.reduce(function(a,b){return a+b;}, 0);
 
-        // Sort results by die type to group them (matching formula order)
-        var typeOrder = {};
-        var orderIdx = 0;
-        cupDice.forEach(function(d) {
-            var k = d.type==='dx'?'d'+(d.sides||6):d.type;
-            if (!(k in typeOrder)) { typeOrder[k] = orderIdx++; }
-        });
-        var sortMap = results.map(function(r,i){return i;});
-        sortMap.sort(function(a,b) {
-            var ka = results[a].type==='dx'?'d'+(results[a].sides||6):results[a].type;
-            var kb = results[b].type==='dx'?'d'+(results[b].sides||6):results[b].type;
-            return (typeOrder[ka]||0) - (typeOrder[kb]||0);
-        });
-        var sortedResults = sortMap.map(function(i){return results[i];});
-        var sortedKept = []; // will fill after keep/drop
+    animateResult(finalTotal);
 
-        // Keep/Drop — supports DL+DH simultaneously with counts
-        var kept = [];
-        var dropSet = {};
-        if (results.length > 0) {
-            var sorted = results.map(function(r,i){return{val:r.value,idx:i};});
-            sorted.sort(function(a,b){return a.val-b.val;});
-            var hasPerDieKeep = false;
-            cupDice.forEach(function(d){if(d.keep) hasPerDieKeep=true;});
-            if (hasPerDieKeep) {
-                var keepMode, keepCount;
-                cupDice.forEach(function(d){if(d.keep){keepMode=d.keep;keepCount=d.keepCount||1;}});
-                if(keepMode==='kh'){for(var ki=0;ki<sorted.length-keepCount;ki++) dropSet[sorted[ki].idx]=true;}
-                else{for(var ki=keepCount;ki<sorted.length;ki++) dropSet[sorted[ki].idx]=true;}
-            } else {
-                var dlc = (typeof dropLowest === 'number') ? dropLowest : (dropLowest ? 1 : 0);
-                var dhc = (typeof dropHighest === 'number') ? dropHighest : (dropHighest ? 1 : 0);
-                for(var ki=0;ki<dlc&&ki<sorted.length;ki++) dropSet[sorted[ki].idx]=true;
-                for(var ki=0;ki<dhc&&ki<sorted.length;ki++) dropSet[sorted[sorted.length-1-ki].idx]=true;
-            }
-        }
-        results.forEach(function(r,i){ kept.push(!dropSet[i]); });
-        // Map kept to sorted order
-        sortedKept = sortMap.map(function(i){return kept[i];});
-
-        // Count successes mode — read group-level
-        var countThreshold = (_ag && _ag.countSuccess) || 0;
-        var countMode = countThreshold > 0;
-
-        // Calculate total
-        if (countMode) {
-            var successes = 0;
-            results.forEach(function(r,i) { if(kept[i] && r.value >= countThreshold) successes++; });
-            total = successes;
-        } else {
-            results.forEach(function(r,i) { if(kept[i]) total += r.value; });
-        }
-
-        // Build expression — use buildGroupFormula for consistency
-        expression = buildGroupFormula(activeGroup());
-
-        // Build breakdown (sorted by die type)
-        sortedResults.forEach(function(r, i) {
-            var label;
-            if (r.type==='df') {
-                label = r.value>0?'+'+r.value:r.value===0?'0':''+r.value;
-            } else if (r.chain) {
-                label = r.chain.join('+')+' = '+r.value;
-            } else if (r.clamped !== null && r.clamped !== undefined) {
-                label = r.clamped+'\\u2192'+r.value;
-            } else {
-                label = ''+r.value;
-            }
-            var style = sortedKept[i] ? '' : 'opacity:0.3;text-decoration:line-through';
-            if (r.chain) style += (style?';':'') + 'color:#f0883e';
-            if (r.clamped !== null && r.clamped !== undefined) style += (style?';':'') + 'color:#d29922';
-            if (countMode && sortedKept[i]) {
-                var hit = r.value >= countThreshold;
-                style = hit ? 'color:#7ee787;font-weight:800' : 'opacity:0.5';
-            }
-            var borderStyle = 'border-color:'+r.dieColor;
-            breakdownParts.push('<span class="dr-die-result" style="'+borderStyle+';'+style+'">'+label+'</span>');
-        });
-        if (countMode) breakdownParts.push('<span style="color:var(--text-dim);font-size:13px">('+(total===1?'success':'successes')+')</span>');
+    // Build breakdown display
+    if (cupGroups.length > 1) {
+        var joinOp = rootOperation === 'minus' ? '\\u2212' : rootOperation === 'sum' ? '+' : rootOperation.toUpperCase();
+        var opLabel = rootOperation === 'max' ? ' (highest)' : rootOperation === 'min' ? ' (lowest)' : '';
+        document.getElementById('breakdown').innerHTML =
+            allBreakdown.join(' <span style="color:#484f58;font-weight:700;font-size:16px">'+joinOp+'</span> ') + opLabel;
+    } else {
+        document.getElementById('breakdown').innerHTML = allBreakdown[0] || '';
     }
-    total += modifier;
-    if (modifier>0) { expression+='+'+modifier; breakdownParts.push('<span class="dr-die-result" style="border-color:#7ee787">+'+modifier+'</span>'); }
-    else if (modifier<0) { expression+=modifier; breakdownParts.push('<span class="dr-die-result" style="border-color:#f85149">'+modifier+'</span>'); }
-    // Floor/Cap: clamp the group total (single-group legacy path)
-    var _agFC = activeGroup();
-    if (_agFC && _agFC.floor && total < _agFC.floor) total = _agFC.floor;
-    if (_agFC && _agFC.cap && total > _agFC.cap) total = _agFC.cap;
-    animateResult(total);
-    document.getElementById('breakdown').innerHTML = breakdownParts.join(' ');
-    saveLastRoll(String(total), breakdownParts.join(' '));
-    saveToHistory({expression:expression,total:total,breakdown:breakdownParts.join(' ').replace(/<[^>]*>/g,''),breakdownHtml:breakdownParts.join(' '),timestamp:Date.now()});
-    showProbability(total);
+
+    // Build expression using buildGroupFormula (consistent with formula bar)
+    var expression;
+    if (cupGroups.length > 1) {
+        var parts = cupGroups.map(function(g){ return '(' + (buildGroupFormula(g) || '') + ')'; });
+        var opStr = rootOperation === 'minus' ? ' \\u2212 ' : rootOperation === 'sum' ? ' + ' : ' ' + rootOperation + ' ';
+        expression = parts.join(opStr);
+    } else {
+        expression = buildGroupFormula(cupGroups[0]) || '';
+    }
+
+    saveLastRoll(String(finalTotal), document.getElementById('breakdown').innerHTML);
+    saveToHistory({expression:expression, total:finalTotal, breakdown:document.getElementById('breakdown').textContent, breakdownHtml:document.getElementById('breakdown').innerHTML, timestamp:Date.now()});
+    showProbability(finalTotal);
 }
 
 function getTheoreticalRange() {
