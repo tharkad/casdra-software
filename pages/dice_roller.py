@@ -3126,47 +3126,42 @@ function buildGroupFormula(g) {
         return inner;
     }
 
-    // Separate dice with per-die modifiers from plain dice. Plain dice are
-    // aggregated by type (3d6); each modified die emits its own token (d6:min3).
-    var plainDice = [], modifiedDice = [], specials = [];
+    // Aggregate dice in insertion order of first unique formula-key, so the
+    // formula reads in the same order dice appear in the cup. Dice with the
+    // same type+sides+modifiers merge (3d6), while per-die-modified dice get
+    // their own token (d6:min3). This replaces the old plain/modified split
+    // which pushed all modified dice to the end of the formula.
+    var fgOrder = []; // ordered list of unique formula keys
+    var fgCount = {};
+    var fgInfo = {};  // key → {base, attrs}
+    var specials = [];
     dice.forEach(function(d) {
         if (d.type==='adv') { specials.push('ADV'); return; }
         if (d.type==='dis') { specials.push('DIS'); return; }
-        if (hasPerDieMods(d)) modifiedDice.push(d);
-        else plainDice.push(d);
-    });
-    var types = []; // ordered list of plain type keys
-    var counts = {};
-    plainDice.forEach(function(d) {
-        var k = d.type==='coin'?'COIN':d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
-        if (!counts[k]) types.push(k);
-        counts[k] = (counts[k]||0)+1;
-    });
-
-    // Group-level clamp/success values
-    var totalDice = dice.length - specials.length;
-    var mnVal = (g.clampMin && g.clampMin > 1) ? g.clampMin : 0;
-    var mxVal = g.clampMax || 0;
-    var succVal = g.countSuccess || 0;
-
-    // Build per-type dice tokens for plain dice
-    var diceParts = [];
-    types.forEach(function(t) {
-        var p = counts[t] > 1 ? counts[t] + t : t;
-        diceParts.push(p);
-    });
-    // Build per-die tokens for modified dice (one each)
-    modifiedDice.forEach(function(d) {
-        var k = d.type==='coin'?'COIN':d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
+        var base = d.type==='coin'?'COIN':d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
         var attrs = [];
         if (d.exploding) attrs.push('!');
         if (d.clampMin && d.clampMin > 1) attrs.push('min' + d.clampMin);
         if (d.clampMax) attrs.push('max' + d.clampMax);
         if (d.countSuccess) attrs.push('#>=' + d.countSuccess);
         if (d.reroll) attrs.push('r' + d.reroll);
-        diceParts.push(k + ':' + attrs.join(','));
+        var k = base + (attrs.length ? ':' + attrs.join(',') : '');
+        if (!fgCount[k]) { fgOrder.push(k); fgCount[k] = 0; fgInfo[k] = {base:base, attrs:attrs}; }
+        fgCount[k]++;
+    });
+    var diceParts = [];
+    fgOrder.forEach(function(k) {
+        var n = fgCount[k], info = fgInfo[k];
+        var token = (n > 1 ? n : '') + info.base;
+        if (info.attrs.length) token += ':' + info.attrs.join(',');
+        diceParts.push(token);
     });
     diceParts = diceParts.concat(specials);
+
+    // Group-level clamp/success values
+    var mnVal = (g.clampMin && g.clampMin > 1) ? g.clampMin : 0;
+    var mxVal = g.clampMax || 0;
+    var succVal = g.countSuccess || 0;
 
     // Flat modifier (+/-)
     var mod = g.modifier || 0;
