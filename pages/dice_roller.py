@@ -349,9 +349,11 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-mod-row + .dr-mod-row { margin-top: 6px; }
 .dr-mod-boxes {
     display: flex; justify-content: center; gap: 16px; margin-top: 6px;
+    max-width: 500px; margin-left: auto; margin-right: auto;
 }
 .dr-mod-box {
     display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+    flex: 1 1 0; min-width: 0;
 }
 .dr-mod-btn {
     background: var(--btn-bg); color: var(--text-muted); border: 1px solid var(--border);
