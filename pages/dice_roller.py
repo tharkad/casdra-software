@@ -2065,9 +2065,6 @@ function rollDice() {
     var totalDice = getAllDice().length;
     if (totalDice === 0) { document.getElementById('result').textContent = 'Add dice'; return; }
     playSound(); if (navigator.vibrate) navigator.vibrate(50);
-    // Hide the "tap to roll" hint after first roll
-    var hint = document.getElementById('tapHint');
-    if (hint && !hint.classList.contains('hidden')) hint.classList.add('hidden');
 
     // Special case: all coins → simple heads/tails display
     var allDiceArr = getAllDice();
