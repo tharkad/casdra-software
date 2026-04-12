@@ -994,6 +994,7 @@ var activePopup = null;
 // a die; cleared on deselect / roll (see tryAutoRejoin).
 var selectedDieId = null;
 
+var lastDxValue = '6'; // sticky default for the DX button prompt
 // Exit history view (if in it) before any mutation. Must be defined early.
 function exitHistoryView() {
     if (typeof historyViewIdx !== 'undefined' && historyViewIdx > -1 && typeof restoreLiveState === 'function') {
@@ -1013,21 +1014,22 @@ function addToCup(type) {
     }
     if (type === 'dfate') { cupDice.push(makeDie('df')); }
     else if (type === 'dx') {
-        showInlineInput('Sides or faces (e.g. 6 or 1,1,2,3,4):', '6', function(v) {
+        showInlineInput('Sides, faces, or Nx prefix (e.g. 6, 1,1,2,3, 3x8):', lastDxValue || '6', function(v) {
             if (!v) return;
-            if (v.indexOf(',') >= 0) {
-                // Custom faces: parse comma-separated values
-                var faces = v.split(',').map(function(s){return parseInt(s.trim());}).filter(function(n){return !isNaN(n);});
+            // Parse optional count prefix: "3x6" or "2x1,1,2,3"
+            var count = 1;
+            var val = v.trim();
+            var cMatch = val.match(/^(\d+)\s*[xX]\s*(.+)$/);
+            if (cMatch) { count = parseInt(cMatch[1]) || 1; val = cMatch[2].trim(); }
+            lastDxValue = v.trim(); // remember for next time
+            if (val.indexOf(',') >= 0) {
+                var faces = val.split(',').map(function(s){return parseInt(s.trim());}).filter(function(n){return !isNaN(n);});
                 if (faces.length < 2) return;
-                var d = makeDie('custom');
-                d.faces = faces;
-                cupDice.push(d);
+                for (var ci = 0; ci < count; ci++) { var d = makeDie('custom', ci); d.faces = faces.slice(); cupDice.push(d); }
             } else {
-                var sides = parseInt(v);
+                var sides = parseInt(val);
                 if (!sides || sides < 2) return;
-                var d = makeDie('dx');
-                d.sides = sides;
-                cupDice.push(d);
+                for (var ci = 0; ci < count; ci++) { var d = makeDie('dx', ci); d.sides = sides; cupDice.push(d); }
             }
             updateCupDisplay();
         });
