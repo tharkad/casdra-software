@@ -1976,11 +1976,23 @@ function rollSingleGroup(g, parentCtx) {
     var results = [], total = 0, bParts = [];
     var directDice = g.children.filter(function(c){return c.type!=='group';});
     var subGroups = g.children.filter(function(c){return c.type==='group';});
+    // Build a sort key for each die matching the cup's dieKey grouping, so
+    // the breakdown groups identical dice together in first-appearance order.
+    var dieOrder = {}, dieOrdIdx = 0;
     directDice.forEach(function(d) {
+        var fk = d.type==='custom' ? 'custom:'+d.faces.join(',') :
+                 d.type==='dx' ? 'dx:'+d.sides :
+                 d.type;
+        if (!(fk in dieOrder)) dieOrder[fk] = dieOrdIdx++;
+    });
+    directDice.forEach(function(d, i) {
         var roll = rollSingleDie(d, ctx);
         var info = DIE_SHAPES[d.type] || DIE_SHAPES.dx;
         var dieColor = d.color || info.color || '#58a6ff';
-        results.push({type:d.type, sides:d.sides, value:roll.value, chain:roll.chain, clamped:roll.clamped, exploding:d.exploding||ctx.exploding, dieColor:dieColor});
+        var fk = d.type==='custom' ? 'custom:'+d.faces.join(',') :
+                 d.type==='dx' ? 'dx:'+d.sides :
+                 d.type;
+        results.push({type:d.type, sides:d.sides, faces:d.faces, value:roll.value, chain:roll.chain, clamped:roll.clamped, exploding:d.exploding||ctx.exploding, dieColor:dieColor, origIdx:i, sortKey:dieOrder[fk]});
     });
     // Keep/Drop logic on direct dice only — supports DL+DH simultaneously with counts
     var kept = [];
@@ -2009,6 +2021,12 @@ function rollSingleGroup(g, parentCtx) {
     var countMode = countTh > 0;
     if(countMode){var s=0;results.forEach(function(r,i){if(kept[i]&&r.value>=countTh)s++;});total=s;}
     else{results.forEach(function(r,i){if(kept[i])total+=r.value;});}
+    // Sort results by first-unique-key order (matching cup grouping) for display.
+    // Total is already computed from unsorted order — this only affects breakdown.
+    var sortMap = results.map(function(r,i){return i;});
+    sortMap.sort(function(a,b){ return results[a].sortKey - results[b].sortKey || a - b; });
+    var sortedResults = sortMap.map(function(i){return results[i];});
+    var sortedKept = sortMap.map(function(i){return kept[i];});
     // Recurse into sub-groups and add their totals (sum)
     var subBreakdowns = [];
     subGroups.forEach(function(sg) {
@@ -2022,18 +2040,17 @@ function rollSingleGroup(g, parentCtx) {
     if (g.floor && total < g.floor) total = g.floor;
     if (g.cap && total > g.cap) total = g.cap;
     var wasClamped = (total !== preClampTotal);
-    // Breakdown
-    results.forEach(function(r,i){
+    // Breakdown — uses sortedResults so identical dice are grouped together
+    // (matching the cup's visual grouping and formula bar order).
+    sortedResults.forEach(function(r,i){
         var label=r.chain?r.chain.join('+')+' = '+r.value:''+r.value;
         if(r.clamped!==null&&r.clamped!==undefined) label=r.clamped+'\\u2192'+r.value;
         if(r.type==='df') label=r.value>0?'+'+r.value:r.value===0?'0':''+r.value;
-        // Border matches the die's own color; chain/clamped/count-mode styles
-        // still override the text color below.
         var style='border-color:'+r.dieColor;
-        if(!kept[i]) style+=';opacity:0.3;text-decoration:line-through';
+        if(!sortedKept[i]) style+=';opacity:0.3;text-decoration:line-through';
         if(r.chain)style+=';color:#f0883e';
         if(r.clamped!==null&&r.clamped!==undefined)style+=';color:#d29922';
-        if(countMode&&kept[i]){style='border-color:'+r.dieColor+';'+(r.value>=countTh?'color:#7ee787;font-weight:800':'opacity:0.5');}
+        if(countMode&&sortedKept[i]){style='border-color:'+r.dieColor+';'+(r.value>=countTh?'color:#7ee787;font-weight:800':'opacity:0.5');}
         bParts.push('<span class="dr-die-result" style="'+style+'">'+label+'</span>');
     });
     // Append sub-group breakdowns after direct dice (each already wrapped in
