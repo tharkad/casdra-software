@@ -338,11 +338,11 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 .dr-lock-btn:hover { background: #ffa65722; }
 .dr-lock-caret {
-    color: #ffa657; font-size: 14px; font-weight: 900; line-height: 1;
+    color: #ffa657; font-size: 28px; font-weight: 900; line-height: 1;
     transition: all 0.2s; user-select: none;
 }
-.dr-lock-wrap.locked .dr-lock-caret { margin-left: 2px; }
-.dr-lock-wrap:not(.locked) .dr-lock-caret { margin-top: -2px; }
+.dr-lock-wrap.locked .dr-lock-caret { margin-left: 1px; }
+.dr-lock-wrap:not(.locked) .dr-lock-caret { margin-top: -6px; }
 /* Dice grid */
 .dr-dice-grid {
     display: flex; flex-wrap: wrap; justify-content: center;
