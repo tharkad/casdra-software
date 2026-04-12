@@ -2449,27 +2449,36 @@ function renderPresets() {
 function loadPreset(i) {
     if(editMode) return;
     var p=presets[i];
-    // A favorite is a complete cup snapshot, so fully replace cupGroups
-    // rather than mutating the active group in place — otherwise any extra
-    // root groups or nested groups from the prior cup would linger.
-    var g = makeGroup('');
-    g.children = JSON.parse(JSON.stringify(p.children || p.dice || []));
-    g.modifier = p.modifier || 0;
-    g.dropLowest = (typeof p.dropLowest === 'number') ? p.dropLowest : (p.dropLowest ? 1 : 0);
-    g.dropHighest = (typeof p.dropHighest === 'number') ? p.dropHighest : (p.dropHighest ? 1 : 0);
-    g.operation = p.operation || 'sum';
-    g.modifiers = p.modifiers || {keep:null, clamp:null};
-    g.repeat = p.repeat || 1;
-    g.exploding = !!p.exploding;
-    if (p.clampMin && p.clampMin > 1) g.clampMin = p.clampMin;
-    if (p.clampMax) g.clampMax = p.clampMax;
-    if (p.countSuccess) g.countSuccess = p.countSuccess;
-    cupGroups = [g];
+    // Detect multi-root wrapper: children are all groups with type:'group'
+    var kids = p.children || p.dice || [];
+    var isMultiRoot = kids.length > 0 && kids.every(function(c){return c.type === 'group';})
+        && !p.dropLowest && !p.dropHighest && !p.exploding && !p.modifier;
+    if (isMultiRoot) {
+        // Multi-root preset: each child is a root group
+        cupGroups = JSON.parse(JSON.stringify(kids));
+        rootOperation = p.operation || 'sum';
+    } else {
+        // Single-root preset: rebuild from the preset's flat fields
+        var g = makeGroup('');
+        g.children = JSON.parse(JSON.stringify(kids));
+        g.modifier = p.modifier || 0;
+        g.dropLowest = (typeof p.dropLowest === 'number') ? p.dropLowest : (p.dropLowest ? 1 : 0);
+        g.dropHighest = (typeof p.dropHighest === 'number') ? p.dropHighest : (p.dropHighest ? 1 : 0);
+        g.operation = p.operation || 'sum';
+        g.modifiers = p.modifiers || {keep:null, clamp:null};
+        g.repeat = p.repeat || 1;
+        g.exploding = !!p.exploding;
+        if (p.clampMin && p.clampMin > 1) g.clampMin = p.clampMin;
+        if (p.clampMax) g.clampMax = p.clampMax;
+        if (p.countSuccess) g.countSuccess = p.countSuccess;
+        cupGroups = [g];
+        rootOperation = 'sum';
+    }
     activeGroupIdx = 0;
     selectedDieId = null;
-    rootOperation = 'sum';
-    document.getElementById('dropBtn').classList.toggle('on', !!g.dropLowest);
-    document.getElementById('dropHBtn').classList.toggle('on', !!g.dropHighest);
+    var ag = activeGroup();
+    document.getElementById('dropBtn').classList.toggle('on', !!(ag && ag.dropLowest));
+    document.getElementById('dropHBtn').classList.toggle('on', !!(ag && ag.dropHighest));
     activePresetIdx = i;
     updateCupDisplay();
 }
@@ -2493,7 +2502,24 @@ function toggleFavorite() {
         }
         showInlineInput('Favorite name:', '', function(name) {
             if(!name) return;
-            var preset = JSON.parse(JSON.stringify(cupGroup));
+            // Save the ENTIRE cup state, not just the active group — the old
+            // code used cupGroup (= activeGroup()) which dropped nested sub-
+            // groups and sibling root groups.
+            var preset;
+            if (cupGroups.length === 1) {
+                // Single root: deep-clone the root (captures full nested tree)
+                preset = JSON.parse(JSON.stringify(cupGroups[0]));
+            } else {
+                // Multi-root: wrap all roots into a container so the preset
+                // format stays "one group object". loadPreset will unwrap.
+                preset = JSON.parse(JSON.stringify(cupGroups[0]));
+                // Actually just clone the first root — multi-root favorites
+                // need a richer format. For now, save the whole tree by
+                // wrapping roots as children of a container group.
+                preset = makeGroup('');
+                preset.children = JSON.parse(JSON.stringify(cupGroups));
+                preset.operation = rootOperation;
+            }
             preset.name = name;
             // Keep backward compat: also store as 'dice' for old format readers
             preset.dice = preset.children;
