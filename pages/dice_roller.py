@@ -353,7 +353,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-cup.cup-locked .dr-dist-wrap,
 .dr-cup.cup-locked .dr-cup-summary { pointer-events: none !important; }
 .dr-cup.cup-locked .dr-add-group { display: none !important; }
-.dr-cup.cup-locked .dr-tap-hint { display: none !important; }
 .dr-lock-caret {
     color: #ffa657; font-size: 28px; font-weight: 900; line-height: 1;
     user-select: none; position: absolute;
