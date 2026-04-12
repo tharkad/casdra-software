@@ -340,12 +340,21 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-lock-btn:hover { background: #ffa65722; }
 .dr-lock-caret {
     color: #ffa657; font-size: 28px; font-weight: 900; line-height: 1;
-    transition: all 0.2s; user-select: none; position: absolute;
+    user-select: none; position: absolute;
+    /* Anchor at circle center, then orbit outward. The rotation carries
+       the glyph around the circle edge so it always points outward. */
+    left: 16px; top: 16px;
+    transform-origin: 0 0;
+    transition: transform 0.35s ease-in-out;
 }
-/* Locked: caret right of circle */
-.dr-lock-wrap.locked .dr-lock-caret { left: 33px; top: 50%; transform: translateY(-50%); }
-/* Unlocked: caret below circle, centered on the 32px button */
-.dr-lock-wrap:not(.locked) .dr-lock-caret { left: 16px; top: 24px; transform: translateX(-50%); }
+/* Locked: caret orbits to the right (0°) */
+.dr-lock-wrap.locked .dr-lock-caret {
+    transform: rotate(0deg) translate(19px, -14px);
+}
+/* Unlocked: caret orbits to the bottom (90°) */
+.dr-lock-wrap:not(.locked) .dr-lock-caret {
+    transform: rotate(90deg) translate(19px, -14px);
+}
 /* Dice grid */
 .dr-dice-grid {
     display: flex; flex-wrap: wrap; justify-content: center;
@@ -695,7 +704,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button class="dr-lock-btn" id="lockBtn" title="Lock/unlock cup">
             <svg id="lockIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </button>
-        <span class="dr-lock-caret" id="lockCaret">&#x2304;</span>
+        <span class="dr-lock-caret" id="lockCaret">&#x203A;</span>
     </div>
     <div class="dr-formula-wrap">
         <input class="dr-formula-input" id="formulaInput" type="text" placeholder="3d6+2d8+5" autocomplete="off" autocapitalize="off" spellcheck="false"
@@ -2297,8 +2306,7 @@ function toggleLock() {
     document.getElementById('lockIcon').innerHTML = cupLocked
         ? '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5v4"/>'
         : '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
-    // Caret: › when locked (pointing right), ˅ when unlocked (pointing down)
-    document.getElementById('lockCaret').innerHTML = cupLocked ? '\\u203A' : '\\u2304';
+    // Caret glyph stays the same — CSS rotation orbits it from right to bottom
 
     localStorage.setItem('dice_roller_locked', cupLocked ? '1' : '0');
 }
