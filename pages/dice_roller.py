@@ -2281,14 +2281,34 @@ function loadPresets() {
         presets=presets.filter(function(p){var d=p.children||p.dice; return d&&d.length>0;});
         // If user had presets but all were empty, don't overwrite with defaults
         if(presets.length === 0 && raw) { presets = []; savePresetsToStorage(); renderPresets(); return; }
+        // One-shot migration: replace the legacy dF-based Fate preset with
+        // 4d3-8, which is distributionally isomorphic (dx(3)-2 ≡ dF). Only
+        // rewrites a preset named "Fate" whose children are all dF — leaves
+        // user-authored dF-containing presets untouched.
+        var migrated = false;
+        presets.forEach(function(p){
+            var kids = p.children || p.dice || [];
+            if (p.name === 'Fate' && kids.length > 0 && kids.every(function(c){return c.type==='df';})) {
+                var n = kids.length;
+                var newKids = [];
+                for (var i = 0; i < n; i++) newKids.push({type:'dx', sides:3});
+                p.children = newKids;
+                p.dice = newKids.slice();
+                p.modifier = (p.modifier || 0) - 2*n;
+                migrated = true;
+            }
+        });
+        if (migrated) savePresetsToStorage();
     }
     if(!presets) {
-        // First time — set defaults
+        // First time — set defaults. The "Fate" preset is expressed as
+        // 4d3-8 (isomorphic to 4dF: dx(3)-2 ≡ dF) so we don't need a
+        // separate Fate die type.
         presets=[
             {name:'D&D Stat',children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}],dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}],modifier:0,dropLowest:true,dropHighest:false},
             {name:'Advantage',children:[{type:'d20'},{type:'d20'}],dice:[{type:'d20'},{type:'d20'}],modifier:0,dropLowest:true,dropHighest:false},
             {name:'Disadvantage',children:[{type:'d20'},{type:'d20'}],dice:[{type:'d20'},{type:'d20'}],modifier:0,dropLowest:false,dropHighest:true},
-            {name:'Fate',children:[{type:'df'},{type:'df'},{type:'df'},{type:'df'}],dice:[{type:'df'},{type:'df'},{type:'df'},{type:'df'}],modifier:0,dropLowest:false,dropHighest:false},
+            {name:'Fate',children:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}],dice:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}],modifier:-8,dropLowest:false,dropHighest:false},
         ];
         savePresetsToStorage();
     }
