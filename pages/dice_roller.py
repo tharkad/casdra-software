@@ -822,6 +822,7 @@ var DIE_SHAPES = {
     coin:{shape:'\\u25CF', color:'#d4a030'},
     dx:  {shape:'', color:'#b0b8c0', dynamic:true},
     df:  {shape:'F',      color:'#c0c8d0'},
+    custom:{shape:'\\u2731', color:'#e8a0e8'},
 };
 
 function nGonSVG(n, size, color) {
@@ -995,7 +996,27 @@ function addToCup(type) {
         return {type:t, id:Date.now()+(extras||0)};
     }
     if (type === 'dfate') { cupDice.push(makeDie('df')); }
-    else if (type === 'dx') { showInlineInput('How many sides?','6',function(v){if(v&&parseInt(v)>1){var d=makeDie('dx');d.sides=parseInt(v);cupDice.push(d);updateCupDisplay();}}); return; }
+    else if (type === 'dx') {
+        showInlineInput('Sides or faces (e.g. 6 or 1,1,2,3,4):', '6', function(v) {
+            if (!v) return;
+            if (v.indexOf(',') >= 0) {
+                // Custom faces: parse comma-separated values
+                var faces = v.split(',').map(function(s){return parseInt(s.trim());}).filter(function(n){return !isNaN(n);});
+                if (faces.length < 2) return;
+                var d = makeDie('custom');
+                d.faces = faces;
+                cupDice.push(d);
+            } else {
+                var sides = parseInt(v);
+                if (!sides || sides < 2) return;
+                var d = makeDie('dx');
+                d.sides = sides;
+                cupDice.push(d);
+            }
+            updateCupDisplay();
+        });
+        return;
+    }
     else { cupDice.push(makeDie(type)); }
     updateCupDisplay();
 }
@@ -1410,7 +1431,7 @@ function renderGroupDice(g, gIdx) {
     groups.forEach(function(grp) {
         var d = grp.die, i = grp.firstIdx;
         var info = DIE_SHAPES[d.type] || DIE_SHAPES.dx;
-        var label = d.label || (d.type === 'dx' ? 'd'+d.sides : d.type);
+        var label = d.label || (d.type === 'custom' ? 'd['+d.faces.length+']' : d.type === 'dx' ? 'd'+d.sides : d.type);
         var dieColor = d.color || info.color;
         var isSelected = d.id === selectedDieId;
         // Selected die: fill with accent color, symbol overlayed on top
@@ -1886,6 +1907,16 @@ function rollSingleDie(d, ctx) {
     var sides = d.type==='dx' ? (d.sides||6) : (dieRanges[d.type]||6);
     if (d.type==='coin') return {value: Math.random()<0.5 ? 1 : 0, chain: null, clamped: null};
     if (d.type==='df') return {value: Math.floor(Math.random()*3)-1, chain: null, clamped: null};
+    // Custom dice: pick a random face from the faces array
+    if (d.type==='custom' && d.faces && d.faces.length > 0) {
+        var val = d.faces[Math.floor(Math.random() * d.faces.length)];
+        var clamped = null;
+        var clampMin = (d.clampMin && d.clampMin > 1) ? d.clampMin : ctx.clampMin;
+        var clampMax = d.clampMax || ctx.clampMax;
+        if (clampMin && val < clampMin) { clamped = val; val = clampMin; }
+        if (clampMax && val > clampMax) { clamped = clamped !== null ? clamped : val; val = clampMax; }
+        return {value: val, chain: null, clamped: clamped};
+    }
 
     var val = rollOneDie(sides);
     var chain = null;
@@ -2102,7 +2133,7 @@ function getTheoreticalRange() {
 }
 function rootGroupRange(rootG) {
     var allDice = effectiveDiceForGroup(rootG);
-    var rollable = allDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin' || d.type === 'adv' || d.type === 'dis'; });
+    var rollable = allDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin' || d.type === 'adv' || d.type === 'dis' || d.type === 'custom'; });
     if (rollable.length === 0) return null;
     var gMod = rootG.modifier || 0;
     var countMode = rollable.some(function(d){return d.countSuccess;});
@@ -2125,12 +2156,14 @@ function rootGroupRange(rootG) {
         if (d.type==='df') return -1;
         if (d.type==='coin') return 0;
         if (d.type==='adv'||d.type==='dis') return 1;
+        if (d.type==='custom'&&d.faces) return Math.min.apply(null,d.faces);
         return d.clampMin || 1;
     });
     var allMaxes = rollable.map(function(d){
         if (d.type==='df') return 1;
         if (d.type==='coin') return 1;
         if (d.type==='adv'||d.type==='dis') return 20;
+        if (d.type==='custom'&&d.faces) return Math.max.apply(null,d.faces);
         return d.clampMax || getDieMax(d);
     });
     var lo = 0, hi = 0;
@@ -2791,7 +2824,7 @@ function calcRootGroupDist(rootG) {
     // dice (with inherited modifiers merged).
     var allDice = effectiveDiceForGroup(rootG);
     if (allDice.length === 0) return null;
-    var rollable = allDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin'; });
+    var rollable = allDice.filter(function(d) { return dieRanges[d.type] || d.type === 'dx' || d.type === 'df' || d.type === 'coin' || d.type === 'custom'; });
     if (rollable.length === 0) return null;
     var gDropLo = (typeof rootG.dropLowest === 'number' ? rootG.dropLowest : (rootG.dropLowest ? 1 : 0));
     var gDropHi = (typeof rootG.dropHighest === 'number' ? rootG.dropHighest : (rootG.dropHighest ? 1 : 0));
@@ -2850,8 +2883,9 @@ function calcRootGroupDist(rootG) {
     var hasExploding = rollable.some(function(d) { return d.exploding; });
     var hasCoin = rollable.some(function(d) { return d.type === 'coin'; });
     var hasClamp = rollable.some(function(d) { return (d.clampMin && d.clampMin > 1) || d.clampMax; });
+    var hasCustom = rollable.some(function(d) { return d.type === 'custom'; });
     var hasMixed = !rollable.every(function(d) { return getDieMax(d) === getDieMax(rollable[0]) && !!d.exploding === !!rollable[0].exploding; });
-    if ((hasExploding || hasMixed || hasCoin || hasClamp) && rollable.length <= 20 && !needKeep) {
+    if ((hasExploding || hasMixed || hasCoin || hasClamp || hasCustom) && rollable.length <= 20 && !needKeep) {
         function singleDieDist(d) {
             var sides = getDieMax(d);
             var sd = {};
@@ -2869,6 +2903,9 @@ function calcRootGroupDist(rootG) {
                 sd[0]=0.5; sd[1]=0.5;
             } else if (d.type === 'df') {
                 sd['-1']=1/3; sd['0']=1/3; sd['1']=1/3;
+            } else if (d.type === 'custom' && d.faces && d.faces.length > 0) {
+                var p = 1.0 / d.faces.length;
+                d.faces.forEach(function(f) { sd[f] = (sd[f]||0) + p; });
             } else {
                 for (var v=1; v<=sides; v++) sd[v] = 1.0/sides;
             }
@@ -3246,7 +3283,7 @@ function buildGroupFormula(g) {
     dice.forEach(function(d) {
         if (d.type==='adv') { specials.push('ADV'); return; }
         if (d.type==='dis') { specials.push('DIS'); return; }
-        var base = d.type==='coin'?'COIN':d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
+        var base = d.type==='custom'?'d['+d.faces.join(',')+']':d.type==='coin'?'COIN':d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
         var attrs = [];
         if (d.exploding) attrs.push('!');
         if (d.clampMin && d.clampMin > 1) attrs.push('min' + d.clampMin);
