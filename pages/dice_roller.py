@@ -326,23 +326,26 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 /* Lock button: always highlighted, with a caret indicator */
 .dr-lock-wrap {
     display: flex; flex-shrink: 0; cursor: pointer; position: relative;
-    align-items: center;
+    align-items: center; flex-direction: row;
+    /* Fixed height so the down-caret doesn't push layout */
+    height: 32px; width: 52px;
 }
-.dr-lock-wrap.locked { flex-direction: row; }
-.dr-lock-wrap:not(.locked) { flex-direction: column; }
 .dr-lock-btn {
     background: none; border: 1px solid #ffa657; border-radius: 50%;
     color: #ffa657; width: 32px; height: 32px;
     cursor: pointer; display: inline-flex; align-items: center;
     justify-content: center; flex-shrink: 0; transition: all 0.2s;
+    position: relative; z-index: 1;
 }
 .dr-lock-btn:hover { background: #ffa65722; }
 .dr-lock-caret {
     color: #ffa657; font-size: 28px; font-weight: 900; line-height: 1;
-    transition: all 0.2s; user-select: none;
+    transition: all 0.2s; user-select: none; position: absolute;
 }
-.dr-lock-wrap.locked .dr-lock-caret { margin-left: 1px; }
-.dr-lock-wrap:not(.locked) .dr-lock-caret { margin-top: -6px; }
+/* Locked: caret right of circle */
+.dr-lock-wrap.locked .dr-lock-caret { left: 33px; top: 50%; transform: translateY(-50%); }
+/* Unlocked: caret below circle, tucked close */
+.dr-lock-wrap:not(.locked) .dr-lock-caret { left: 50%; top: 26px; transform: translateX(-50%); }
 /* Dice grid */
 .dr-dice-grid {
     display: flex; flex-wrap: wrap; justify-content: center;
