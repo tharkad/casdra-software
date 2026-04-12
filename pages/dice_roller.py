@@ -1350,9 +1350,6 @@ function restoreLastRoll() {
         if (lr && lr.result) {
             document.getElementById('result').textContent = lr.result;
             document.getElementById('breakdown').innerHTML = lr.breakdown || '';
-            // Returning user has a previous roll — hide the tap hint
-            var hint = document.getElementById('tapHint');
-            if (hint) hint.classList.add('hidden');
         }
     } catch(e) {}
 }
