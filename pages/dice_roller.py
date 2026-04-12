@@ -702,7 +702,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 <div class="dr-formula">
     <div class="dr-lock-wrap" id="lockWrap" onclick="toggleLock()">
         <button class="dr-lock-btn" id="lockBtn" title="Lock/unlock cup">
-            <svg id="lockIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V4a5 5 0 0 1 10 0"/></svg>
+            <svg id="lockIcon" width="22" height="22" viewBox="0 -2 24 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V4a5 5 0 0 1 10 0"/></svg>
         </button>
         <span class="dr-lock-caret" id="lockCaret">&#x203A;</span>
     </div>
@@ -2306,7 +2306,9 @@ function toggleLock() {
     // Locked: shackle seated on body, both legs in.
     // Unlocked: left hinge stays connected (like a real padlock), shackle
     // slides up so the right leg clears the body. Big visible gap.
-    document.getElementById('lockIcon').innerHTML = cupLocked
+    var lockSvg = document.getElementById('lockIcon');
+    lockSvg.setAttribute('viewBox', '0 -2 24 26');
+    lockSvg.innerHTML = cupLocked
         ? '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'
         : '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V4a5 5 0 0 1 10 0"/>';
     // Caret glyph stays the same — CSS rotation orbits it from right to bottom
