@@ -2473,52 +2473,23 @@ function updateFavState() {
 
     // Preset label in cup
     var label = document.getElementById('cupPresetLabel');
-    label.classList.toggle('editing', editMode && activePresetIdx >= 0);
+    label.classList.remove('editing');
     if(activePresetIdx >= 0) {
         var name = presets[activePresetIdx].name;
-        if(editMode) {
-            label.onclick = null;
-            label.innerHTML = '<span class="dr-fav-name-edit" onclick="renamePreset()">' + name + '</span>' +
-                '<span class="dr-rename-hint">&larr; tap to rename</span>';
-        } else {
-            label.onclick = null;
-            label.innerHTML = name + ' <button class="dr-edit-btn" onclick="event.stopPropagation();startEditMode()" title="Edit">\\u270E</button>';
-        }
+        label.onclick = null;
+        label.innerHTML = name + ' <button class="dr-edit-btn" onclick="event.stopPropagation();renamePreset()" title="Rename">\\u270E</button>';
     } else {
         label.innerHTML = '';
         label.onclick = null;
     }
 
-    // Float buttons in cup corners during edit mode
-    var cup = document.getElementById('cup');
+    // Clean up any stale edit-mode float buttons (legacy)
     var existingUndo = document.getElementById('undoFloat');
     var existingDone = document.getElementById('doneFloat');
-    if(editMode) {
-        if(!existingUndo) {
-            var btn = document.createElement('button');
-            btn.id = 'undoFloat';
-            btn.className = 'dr-undo-float';
-            btn.textContent = 'Undo';
-            btn.onclick = undoEditMode;
-            cup.appendChild(btn);
-        }
-        if(!existingDone) {
-            var btn2 = document.createElement('button');
-            btn2.id = 'doneFloat';
-            btn2.className = 'dr-done-float';
-            btn2.textContent = 'Done';
-            btn2.onclick = saveEditMode;
-            cup.appendChild(btn2);
-        }
-    } else {
-        if(existingUndo) existingUndo.remove();
-        if(existingDone) existingDone.remove();
-    }
-
-    // Remove old banner
+    if(existingUndo) existingUndo.remove();
+    if(existingDone) existingDone.remove();
     document.getElementById('editBanner').style.display = 'none';
 
-    // Highlight active preset chip, dim others in edit mode
     renderPresets();
 }
 
@@ -2528,7 +2499,6 @@ function renderPresets() {
         var expr = buildGroupFormula(p);
         var cls = 'dr-preset-chip';
         if(i === activePresetIdx) cls += ' active';
-        if(editMode && i !== activePresetIdx) cls += ' dimmed';
         html+='<div class="'+cls+'" onclick="loadPreset('+i+')">' +
             '<div class="dr-preset-name">'+p.name+'</div>' +
             '<div class="dr-preset-expr">'+expr+'</div></div>';
