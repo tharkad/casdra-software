@@ -3167,9 +3167,23 @@ function buildGroupFormula(g) {
     if (mxVal) groupAttrs.push('max' + mxVal);
     if (succVal) groupAttrs.push('#>=' + succVal);
 
+    // Append any sub-groups — the mixed case (direct dice + sub-groups) needs
+    // them recursively rendered, otherwise buildGroupFormula would silently
+    // hide an entire nested subtree (caused bug #8: the cup showed
+    // "(2d20+2d6+d6:min2):dh" while actually holding 35 dice).
+    var subFormulasMixed = subGroups.map(function(sg){
+        var sf = buildGroupFormula(sg) || '()';
+        if (sf.charAt(0) !== '(') sf = '(' + sf + ')';
+        return sf;
+    });
+    if (subFormulasMixed.length > 0) {
+        var subJoined = subFormulasMixed.join('+');
+        diceStr = diceStr ? (diceStr + '+' + subJoined) : subJoined;
+    }
+
     // Combine: dice:groupAttrs or (dice):groupAttrs
     if (groupAttrs.length > 0 && diceStr) {
-        var needParens = diceParts.length > 1 || mod;
+        var needParens = diceParts.length > 1 || mod || subFormulasMixed.length > 0;
         var expr = needParens ? '(' + diceStr + ')' : diceStr;
         return expr + ':' + groupAttrs.join(',');
     }
