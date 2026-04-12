@@ -136,7 +136,12 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-preset-chip.active { border-color: #ffa657; background: #ffa65715; }
 .dr-preset-chip.dimmed { opacity: 0.3; pointer-events: none; }
 .dr-preset-name { font-size: 14px; font-weight: 600; color: var(--text-bright); }
-.dr-preset-expr { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+.dr-preset-expr {
+    font-size: 12px; color: var(--text-muted); margin-top: 1px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; text-overflow: ellipsis; word-break: break-all;
+    max-width: 120px; line-height: 1.3;
+}
 
 /* Active preset label in cup */
 .dr-cup-preset-label {
