@@ -1913,8 +1913,10 @@ function rollSingleGroup(g, parentCtx) {
     });
     total += g.modifier||0;
     // Floor/Cap: clamp the group total (not individual dice)
+    var preClampTotal = total;
     if (g.floor && total < g.floor) total = g.floor;
     if (g.cap && total > g.cap) total = g.cap;
+    var wasClamped = (total !== preClampTotal);
     // Breakdown
     results.forEach(function(r,i){
         var label=r.chain?r.chain.join('+')+' = '+r.value:''+r.value;
@@ -1940,6 +1942,13 @@ function rollSingleGroup(g, parentCtx) {
     });
     if(g.modifier>0) bParts.push('<span class="dr-die-result" style="border-color:#7ee787">+'+g.modifier+'</span>');
     else if(g.modifier<0) bParts.push('<span class="dr-die-result" style="border-color:#f85149">'+g.modifier+'</span>');
+    // Floor/Cap indicator: show the pre-clamp total with an arrow to the clamped value
+    if (wasClamped) {
+        var clampColor = total > preClampTotal ? '#d29922' : '#d29922';
+        var clampLabel = preClampTotal + '\\u2192' + total;
+        var clampIcon = total > preClampTotal ? '\\u2B61' : '\\u2B63'; // ⭡ up / ⭣ down
+        bParts.push('<span class="dr-die-result" style="border-color:'+clampColor+';color:'+clampColor+'">'+clampIcon+' '+clampLabel+'</span>');
+    }
     // Wrap this group's entire breakdown in a bordered container so nested groups are visually distinct
     var wrapped = '<span class="dr-breakdown-group">'+bParts.join(' ')+'</span>';
     return {total:total, breakdown:wrapped};
