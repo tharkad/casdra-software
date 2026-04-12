@@ -569,7 +569,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     gap: 8px;
 }
 .dr-dist-bar {
-    flex: 1 1 0; min-width: 2px; max-width: 14px;
+    flex: 1 1 0; min-width: 2px;
     border-radius: 2px 2px 0 0; transition: height 0.2s; filter: brightness(0.75);
 }
 .dr-dist-bar.highlight { filter: brightness(1); box-shadow: 0 0 6px 3px rgba(255,255,255,0.5), 0 0 14px 5px rgba(255,255,255,0.2); z-index: 1; position: relative; }
