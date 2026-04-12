@@ -723,6 +723,8 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     <div class="dr-mod-row">
         <button class="dr-mod-btn dimmed" id="dropBtn" onclick="toggleDropLowest()" title="Drop lowest">DL</button>
         <button class="dr-mod-btn dimmed" id="dropHBtn" onclick="toggleDropHighest()" title="Drop highest">DH</button>
+        <button class="dr-mod-btn dimmed" id="floorBtn" onclick="toggleFloor()" title="Floor group total">Floor</button>
+        <button class="dr-mod-btn dimmed" id="capBtn" onclick="toggleCap()" title="Cap group total">Cap</button>
         <button class="dr-mod-btn dr-mod-explode dimmed" id="explodeBtn" onclick="toggleExploding()" title="Exploding"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5"/></svg></button>
         <button class="dr-mod-btn dimmed" id="minBtn" onclick="toggleMin()" title="Minimum value">Min</button>
         <button class="dr-mod-btn dimmed" id="maxBtn" onclick="toggleMax()" title="Maximum value">Max</button>
@@ -844,7 +846,7 @@ function makeGroup(label) {
         type: 'group', operation: 'sum',
         children: [],
         modifiers: {keep:null, clamp:null},
-        modifier: 0, dropLowest: false, dropHighest: false,
+        modifier: 0, dropLowest: false, dropHighest: false, floor: 0, cap: 0,
         repeat: 1, label: label||'', color: '', id: Date.now()+Math.floor(Math.random()*1000)
     };
 }
@@ -1014,6 +1016,8 @@ function addGroup() {
             wrapG.modifier = parent.modifier || 0;
             wrapG.dropLowest = parent.dropLowest || 0;
             wrapG.dropHighest = parent.dropHighest || 0;
+            wrapG.floor = parent.floor || 0;
+            wrapG.cap = parent.cap || 0;
             if (parent.exploding) wrapG.exploding = true;
             if (parent.clampMin && parent.clampMin > 1) wrapG.clampMin = parent.clampMin;
             if (parent.clampMax) wrapG.clampMax = parent.clampMax;
@@ -1023,6 +1027,8 @@ function addGroup() {
             parent.modifier = 0;
             parent.dropLowest = 0;
             parent.dropHighest = 0;
+            parent.floor = 0;
+            parent.cap = 0;
             parent.exploding = false;
             delete parent.clampMin;
             delete parent.clampMax;
@@ -1116,6 +1122,36 @@ function toggleDropHighest() {
         var c = parseInt(val);
         if (!c || c < 1) return;
         activeGroup().dropHighest = c;
+        updateCupDisplay();
+    });
+}
+function toggleFloor() {
+    exitHistoryView();
+    var g = activeGroup();
+    if (allDescendantDice(g).length === 0) return;
+    if (g.floor) { g.floor = 0; updateCupDisplay(); return; }
+    showInlineInput('Floor group total at:', '', function(val) {
+        var v = parseInt(val);
+        if (v === undefined || v === null || isNaN(v)) return;
+        if (g.cap && v > g.cap) {
+            showConfirm('Floor must be \\u2264 Cap (' + g.cap + ')', function(){}); return;
+        }
+        activeGroup().floor = v;
+        updateCupDisplay();
+    });
+}
+function toggleCap() {
+    exitHistoryView();
+    var g = activeGroup();
+    if (allDescendantDice(g).length === 0) return;
+    if (g.cap) { g.cap = 0; updateCupDisplay(); return; }
+    showInlineInput('Cap group total at:', '', function(val) {
+        var v = parseInt(val);
+        if (v === undefined || v === null || isNaN(v)) return;
+        if (g.floor && v < g.floor) {
+            showConfirm('Cap must be \\u2265 Floor (' + g.floor + ')', function(){}); return;
+        }
+        activeGroup().cap = v;
         updateCupDisplay();
     });
 }
@@ -1362,6 +1398,8 @@ function updateCupDisplay() {
         document.getElementById('rollBtn').classList.add('dimmed');
         document.getElementById('dropBtn').classList.add('dimmed');
         document.getElementById('dropHBtn').classList.add('dimmed');
+        document.getElementById('floorBtn').classList.add('dimmed');
+        document.getElementById('capBtn').classList.add('dimmed');
         document.getElementById('explodeBtn').classList.add('dimmed');
         document.getElementById('minBtn').classList.add('dimmed');
         document.getElementById('maxBtn').classList.add('dimmed');
@@ -1370,6 +1408,10 @@ function updateCupDisplay() {
         document.getElementById('favStar').style.color = '';
         document.getElementById('dropBtn').classList.remove('on');
         document.getElementById('dropHBtn').classList.remove('on');
+        document.getElementById('floorBtn').classList.remove('on');
+        document.getElementById('capBtn').classList.remove('on');
+        document.getElementById('floorBtn').textContent = 'Floor';
+        document.getElementById('capBtn').textContent = 'Cap';
         document.getElementById('explodeBtn').classList.remove('on');
         document.getElementById('minBtn').classList.remove('on');
         document.getElementById('minBtn').textContent = 'Min';
@@ -1429,6 +1471,8 @@ function updateCupDisplay() {
                 var explodeSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><polygon points="'+explodePts+'"/></svg>';
                 if (g.dropLowest) tags += '<span class="dr-group-badge">DL=' + g.dropLowest + '</span>';
                 if (g.dropHighest) tags += '<span class="dr-group-badge">DH=' + g.dropHighest + '</span>';
+                if (g.floor) tags += '<span class="dr-group-badge">Floor=' + g.floor + '</span>';
+                if (g.cap) tags += '<span class="dr-group-badge">Cap=' + g.cap + '</span>';
                 if (g.exploding) tags += '<span class="dr-group-badge">'+explodeSvg+'</span>';
                 if (g.clampMin && g.clampMin > 1) tags += '<span class="dr-group-badge">\\u2265'+g.clampMin+'</span>';
                 if (g.clampMax) tags += '<span class="dr-group-badge">\\u2264'+g.clampMax+'</span>';
@@ -1454,6 +1498,8 @@ function updateCupDisplay() {
         var explodeSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><polygon points="'+explodePts+'"/></svg>';
         if (g0.dropLowest) badgeHtml += '<span class="dr-group-badge">DL=' + g0.dropLowest + '</span>';
         if (g0.dropHighest) badgeHtml += '<span class="dr-group-badge">DH=' + g0.dropHighest + '</span>';
+        if (g0.floor) badgeHtml += '<span class="dr-group-badge">Floor=' + g0.floor + '</span>';
+        if (g0.cap) badgeHtml += '<span class="dr-group-badge">Cap=' + g0.cap + '</span>';
         if (g0.exploding) badgeHtml += '<span class="dr-group-badge">'+explodeSvg+'</span>';
         if (g0.clampMin && g0.clampMin > 1) badgeHtml += '<span class="dr-group-badge">\\u2265'+g0.clampMin+'</span>';
         if (g0.clampMax) badgeHtml += '<span class="dr-group-badge">\\u2264'+g0.clampMax+'</span>';
@@ -1508,6 +1554,16 @@ function updateCupDisplay() {
     var dropHBtnEl = document.getElementById('dropHBtn');
     if (dropBtnEl) dropBtnEl.textContent = dlc > 0 ? 'DL=' + dlc : 'DL';
     if (dropHBtnEl) dropHBtnEl.textContent = dhc > 0 ? 'DH=' + dhc : 'DH';
+    // Floor/Cap buttons — group-only, dimmed when die selected
+    var agTmp = noGroupSelected ? null : activeGroup();
+    var floorVal = (agTmp && agTmp.floor) ? agTmp.floor : 0;
+    var capVal = (agTmp && agTmp.cap) ? agTmp.cap : 0;
+    document.getElementById('floorBtn').classList.toggle('dimmed', n === 0 || dieSel);
+    document.getElementById('capBtn').classList.toggle('dimmed', n === 0 || dieSel);
+    document.getElementById('floorBtn').classList.toggle('on', floorVal !== 0 && !dieSel);
+    document.getElementById('capBtn').classList.toggle('on', capVal !== 0 && !dieSel);
+    document.getElementById('floorBtn').textContent = floorVal ? 'Floor=' + floorVal : 'Floor';
+    document.getElementById('capBtn').textContent = capVal ? 'Cap=' + capVal : 'Cap';
     // Explode/min/max buttons reflect the SELECTED die if one is selected,
     // else the active group. Success/DL/DH stay group-level (no per-die meaning).
     var ag = noGroupSelected ? null : activeGroup();
@@ -1844,6 +1900,9 @@ function rollSingleGroup(g, parentCtx) {
         subBreakdowns.push(sr.breakdown);
     });
     total += g.modifier||0;
+    // Floor/Cap: clamp the group total (not individual dice)
+    if (g.floor && total < g.floor) total = g.floor;
+    if (g.cap && total > g.cap) total = g.cap;
     // Breakdown
     results.forEach(function(r,i){
         var label=r.chain?r.chain.join('+')+' = '+r.value:''+r.value;
@@ -2103,7 +2162,11 @@ function rootGroupRange(rootG) {
         lo = allMins.reduce(function(a,b){return a+b;}, 0);
         hi = allMaxes.reduce(function(a,b){return a+b;}, 0);
     }
-    return {lo: lo + gMod, hi: hi + gMod};
+    lo += gMod; hi += gMod;
+    // Floor/Cap clamp the theoretical range
+    if (rootG.floor) { lo = Math.max(lo, rootG.floor); hi = Math.max(hi, rootG.floor); }
+    if (rootG.cap) { lo = Math.min(lo, rootG.cap); hi = Math.min(hi, rootG.cap); }
+    return {lo: lo, hi: hi};
 }
 
 function animateResult(finalValue) {
@@ -2334,6 +2397,8 @@ function getCupSignature() {
     if(modifier) parts.push('m'+modifier);
     if(dropLowest) parts.push('dl' + (dropLowest > 1 ? dropLowest : ''));
     if(dropHighest) parts.push('dh' + (dropHighest > 1 ? dropHighest : ''));
+    if(g && g.floor) parts.push('fl' + g.floor);
+    if(g && g.cap) parts.push('cp' + g.cap);
     if(g && g.exploding) parts.push('x');
     if(g && g.clampMin > 1) parts.push('mn'+g.clampMin);
     if(g && g.clampMax) parts.push('mx'+g.clampMax);
@@ -2352,6 +2417,8 @@ function getPresetSignature(p) {
     if(p.modifier) parts.push('m'+p.modifier);
     if(p.dropLowest) parts.push('dl' + (p.dropLowest > 1 ? p.dropLowest : ''));
     if(p.dropHighest) parts.push('dh' + (p.dropHighest > 1 ? p.dropHighest : ''));
+    if(p.floor) parts.push('fl' + p.floor);
+    if(p.cap) parts.push('cp' + p.cap);
     if(p.exploding) parts.push('x');
     if(p.clampMin > 1) parts.push('mn'+p.clampMin);
     if(p.clampMax) parts.push('mx'+p.clampMax);
@@ -2452,7 +2519,7 @@ function loadPreset(i) {
     // Detect multi-root wrapper: children are all groups with type:'group'
     var kids = p.children || p.dice || [];
     var isMultiRoot = kids.length > 0 && kids.every(function(c){return c.type === 'group';})
-        && !p.dropLowest && !p.dropHighest && !p.exploding && !p.modifier;
+        && !p.dropLowest && !p.dropHighest && !p.exploding && !p.modifier && !p.floor && !p.cap;
     if (isMultiRoot) {
         // Multi-root preset: each child is a root group
         cupGroups = JSON.parse(JSON.stringify(kids));
@@ -2471,6 +2538,8 @@ function loadPreset(i) {
         if (p.clampMin && p.clampMin > 1) g.clampMin = p.clampMin;
         if (p.clampMax) g.clampMax = p.clampMax;
         if (p.countSuccess) g.countSuccess = p.countSuccess;
+        if (p.floor) g.floor = p.floor;
+        if (p.cap) g.cap = p.cap;
         cupGroups = [g];
         rootOperation = 'sum';
     }
@@ -2559,6 +2628,8 @@ function undoEditMode() {
         modifier = editOriginal.modifier || 0;
         dropLowest = !!editOriginal.dropLowest;
         dropHighest = !!editOriginal.dropHighest;
+        activeGroup().floor = editOriginal.floor || 0;
+        activeGroup().cap = editOriginal.cap || 0;
         document.getElementById('dropBtn').classList.toggle('on',dropLowest);
         document.getElementById('dropHBtn').classList.toggle('on',dropHighest);
         savePresetsToStorage();
@@ -2692,6 +2763,7 @@ function calcDistribution() {
         var dists = [];
         for (var ri = 0; ri < cupGroups.length; ri++) {
             var d = calcRootGroupDist(cupGroups[ri]);
+            if (d) d = applyFloorCapDist(d, cupGroups[ri]);
             if (d) dists.push(d);
         }
         if (dists.length === 0) return null;
@@ -2707,7 +2779,19 @@ function calcDistribution() {
         }
         return combined;
     }
-    return calcRootGroupDist(cupGroups[0]);
+    var singleDist = calcRootGroupDist(cupGroups[0]);
+    return singleDist ? applyFloorCapDist(singleDist, cupGroups[0]) : null;
+}
+function applyFloorCapDist(dist, g) {
+    if (!g || (!g.floor && !g.cap)) return dist;
+    var clamped = {};
+    for (var k in dist) {
+        var v = parseInt(k);
+        if (g.floor && v < g.floor) v = g.floor;
+        if (g.cap && v > g.cap) v = g.cap;
+        clamped[v] = (clamped[v] || 0) + dist[k];
+    }
+    return clamped;
 }
 function calcRootGroupDist(rootG) {
     // Uses the root group's own dropLowest/dropHighest/modifier and its descendant
@@ -3146,6 +3230,8 @@ function buildGroupFormula(g) {
         if (g.exploding) cAttrs.push('!');
         if (g.dropLowest) cAttrs.push('dl' + (g.dropLowest > 1 ? g.dropLowest : ''));
         if (g.dropHighest) cAttrs.push('dh' + (g.dropHighest > 1 ? g.dropHighest : ''));
+        if (g.floor) cAttrs.push('fl' + g.floor);
+        if (g.cap) cAttrs.push('cp' + g.cap);
         if (g.clampMin && g.clampMin > 1) cAttrs.push('min' + g.clampMin);
         if (g.clampMax) cAttrs.push('max' + g.clampMax);
         if (g.countSuccess) cAttrs.push('#>=' + g.countSuccess);
@@ -3210,6 +3296,8 @@ function buildGroupFormula(g) {
     if (g.exploding) groupAttrs.push('!');
     if (g.dropLowest) groupAttrs.push('dl' + (g.dropLowest > 1 ? g.dropLowest : ''));
     if (g.dropHighest) groupAttrs.push('dh' + (g.dropHighest > 1 ? g.dropHighest : ''));
+    if (g.floor) groupAttrs.push('fl' + g.floor);
+    if (g.cap) groupAttrs.push('cp' + g.cap);
     if (mnVal) groupAttrs.push('min' + mnVal);
     if (mxVal) groupAttrs.push('max' + mxVal);
     if (succVal) groupAttrs.push('#>=' + succVal);
@@ -3430,6 +3518,7 @@ function parseFormulaStr(input) {
     dropHighest = 0;
     // Reset group-level modifiers — parseFormula rebuilds them from scratch
     g.exploding = false;
+    g.floor = 0; g.cap = 0;
     delete g.clampMin; delete g.clampMax; delete g.countSuccess;
 
     // Split on + and - (keeping the sign)
@@ -3450,7 +3539,7 @@ function parseFormulaStr(input) {
 
         // Full dice pattern: NdX with optional modifiers
         // Supports: 4d6dl, 4d6dl2, 3d20kh1, 4d6!, 6d6#>=5, 4d6r1, 4d6min2, 4d6max5
-        var diceMatch = token.match(/^(\\d+)?d(\\d+)([-d][lh]\\d*|d1|kh\\d*|kl\\d*|!|r\\d+|#>=?\\d+|min=?\\d+|max=?\\d+)*$/i);
+        var diceMatch = token.match(/^(\\d+)?d(\\d+)([-d][lh]\\d*|d1|kh\\d*|kl\\d*|!|r\\d+|#>=?\\d+|min=?\\d+|max=?\\d+|fl\\d+|cp\\d+)*$/i);
         if (diceMatch) {
             var count = parseInt(diceMatch[1]) || 1;
             var sides = parseInt(diceMatch[2]);
@@ -3482,6 +3571,10 @@ function parseFormulaStr(input) {
             var maxMatch = mods.match(/max=?(\\d+)/i);
             if (minMatch) g.clampMin = parseInt(minMatch[1]);
             if (maxMatch) g.clampMax = parseInt(maxMatch[1]);
+            var flMatch = mods.match(/fl(\\d+)/i);
+            var cpMatch = mods.match(/cp(\\d+)/i);
+            if (flMatch) g.floor = parseInt(flMatch[1]);
+            if (cpMatch) g.cap = parseInt(cpMatch[1]);
 
             var dieType = 'd' + sides;
             if (!dieRanges[dieType]) dieType = 'dx';
@@ -3600,6 +3693,8 @@ function updatePremiumBtn() {
             merged.modifier += g.modifier;
             if (g.dropLowest) merged.dropLowest = true;
             if (g.dropHighest) merged.dropHighest = true;
+            if (g.floor) merged.floor = g.floor;
+            if (g.cap) merged.cap = g.cap;
         });
         cupGroups = [merged];
         activeGroupIdx = 0;
