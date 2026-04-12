@@ -344,8 +344,8 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 /* Locked: caret right of circle */
 .dr-lock-wrap.locked .dr-lock-caret { left: 33px; top: 50%; transform: translateY(-50%); }
-/* Unlocked: caret below circle, tucked close */
-.dr-lock-wrap:not(.locked) .dr-lock-caret { left: 50%; top: 26px; transform: translateX(-50%); }
+/* Unlocked: caret below circle, centered on the 32px button */
+.dr-lock-wrap:not(.locked) .dr-lock-caret { left: 16px; top: 24px; transform: translateX(-50%); }
 /* Dice grid */
 .dr-dice-grid {
     display: flex; flex-wrap: wrap; justify-content: center;
