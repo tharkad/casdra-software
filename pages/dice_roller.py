@@ -1706,15 +1706,17 @@ function updateCupDisplay() {
     document.getElementById('cupTags').innerHTML = '';
     renderDistribution();
     syncFormulaFromCup();
-    updateFavState();
-    // In edit mode, auto-save changes to the active preset
-    if(editMode && activePresetIdx >= 0) {
-        var updated = JSON.parse(JSON.stringify(cupGroup));
+    // Auto-save: when a preset is loaded and cup is unlocked, update the
+    // preset BEFORE updateFavState runs (which would otherwise clear
+    // activePresetIdx because the cup signature changed).
+    if(!cupLocked && activePresetIdx >= 0 && presets[activePresetIdx]) {
+        var updated = JSON.parse(JSON.stringify(cupGroups.length === 1 ? cupGroups[0] : {type:'group',children:cupGroups,operation:rootOperation}));
         updated.name = presets[activePresetIdx].name;
-        updated.dice = updated.children; // backward compat
+        updated.dice = updated.children;
         presets[activePresetIdx] = updated;
         savePresetsToStorage();
     }
+    updateFavState();
 }
 
 // Long press for options
@@ -2546,7 +2548,8 @@ function updateFavState() {
     if(activePresetIdx >= 0) {
         var name = presets[activePresetIdx].name;
         label.onclick = null;
-        label.innerHTML = name + ' <button class="dr-edit-btn" onclick="event.stopPropagation();renamePreset()" title="Rename">\\u270E</button>';
+        var editNote = !cupLocked ? '<div class="dr-tap-hint" style="margin-top:2px">changes will edit this favorite</div>' : '';
+        label.innerHTML = name + ' <button class="dr-edit-btn" onclick="event.stopPropagation();renamePreset()" title="Rename">\\u270E</button>' + editNote;
     } else {
         label.innerHTML = '';
         label.onclick = null;
