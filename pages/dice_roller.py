@@ -1490,11 +1490,14 @@ function updateCupDisplay() {
     // DL/DH buttons: need at least 1 die; counts can exceed dice (all get dropped)
     var dlDisable = n < 1;
     var dhDisable = n < 1;
-    document.getElementById('dropBtn').classList.toggle('dimmed', dlDisable);
-    document.getElementById('dropHBtn').classList.toggle('dimmed', dhDisable);
+    // DL/DH are group-level only — dim them when a single die is selected
+    // (per-die drop doesn't exist) so the user sees these are inactive.
+    var dieSel = selectedDieId != null;
+    document.getElementById('dropBtn').classList.toggle('dimmed', dlDisable || dieSel);
+    document.getElementById('dropHBtn').classList.toggle('dimmed', dhDisable || dieSel);
     // Reflect selected group's DL/DH on button .on state; clear when nothing selected
-    document.getElementById('dropBtn').classList.toggle('on', !noGroupSelected && !!dropLowest);
-    document.getElementById('dropHBtn').classList.toggle('on', !noGroupSelected && !!dropHighest);
+    document.getElementById('dropBtn').classList.toggle('on', !noGroupSelected && !dieSel && !!dropLowest);
+    document.getElementById('dropHBtn').classList.toggle('on', !noGroupSelected && !dieSel && !!dropHighest);
     // Button text shows the count (DL2 / DH3) when > 1
     var dlc = (typeof dropLowest === 'number') ? dropLowest : (dropLowest ? 1 : 0);
     var dhc = (typeof dropHighest === 'number') ? dropHighest : (dropHighest ? 1 : 0);
@@ -1530,8 +1533,8 @@ function updateCupDisplay() {
     document.getElementById('maxBtn').textContent = maxVal > 0 ? 'Max=' + maxVal : 'Max';
     // Success button state
     var successVal = (ag && ag.countSuccess) ? ag.countSuccess : 0;
-    document.getElementById('successBtn').classList.toggle('on', successVal > 0);
-    document.getElementById('successBtn').classList.toggle('dimmed', n === 0);
+    document.getElementById('successBtn').classList.toggle('on', successVal > 0 && !dieSel);
+    document.getElementById('successBtn').classList.toggle('dimmed', n === 0 || dieSel);
     document.getElementById('successBtn').textContent = successVal > 0 ? 'Success \\u2265 ' + successVal : 'Success';
     // Cup tags strip — deprecated, badges are rendered inline with the cup dice now
     document.getElementById('cupTags').innerHTML = '';
