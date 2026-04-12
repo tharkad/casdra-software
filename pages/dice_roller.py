@@ -323,14 +323,26 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 
 /* Lock toggle — sits in the formula row */
+/* Lock button: always highlighted, with a caret indicator */
+.dr-lock-wrap {
+    display: flex; flex-shrink: 0; cursor: pointer; position: relative;
+    align-items: center;
+}
+.dr-lock-wrap.locked { flex-direction: row; }
+.dr-lock-wrap:not(.locked) { flex-direction: column; }
 .dr-lock-btn {
-    background: none; border: 1px solid var(--border); border-radius: 50%;
-    color: var(--text-dim); width: 32px; height: 32px;
+    background: none; border: 1px solid #ffa657; border-radius: 50%;
+    color: #ffa657; width: 32px; height: 32px;
     cursor: pointer; display: inline-flex; align-items: center;
     justify-content: center; flex-shrink: 0; transition: all 0.2s;
 }
-.dr-lock-btn:hover { border-color: var(--text-muted); color: var(--text-muted); }
-.dr-lock-btn.locked { border-color: #ffa657; color: #ffa657; background: #ffa65712; }
+.dr-lock-btn:hover { background: #ffa65722; }
+.dr-lock-caret {
+    color: #ffa657; font-size: 14px; font-weight: 900; line-height: 1;
+    transition: all 0.2s; user-select: none;
+}
+.dr-lock-wrap.locked .dr-lock-caret { margin-left: 2px; }
+.dr-lock-wrap:not(.locked) .dr-lock-caret { margin-top: -2px; }
 /* Dice grid */
 .dr-dice-grid {
     display: flex; flex-wrap: wrap; justify-content: center;
@@ -676,12 +688,15 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 
 """ + ("""
 <div class="dr-formula">
-    <button class="dr-lock-btn" id="lockBtn" onclick="toggleLock()" title="Lock/unlock cup">
-        <svg id="lockIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-    </button>
+    <div class="dr-lock-wrap" id="lockWrap" onclick="toggleLock()">
+        <button class="dr-lock-btn" id="lockBtn" title="Lock/unlock cup">
+            <svg id="lockIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </button>
+        <span class="dr-lock-caret" id="lockCaret">&#x2304;</span>
+    </div>
     <div class="dr-formula-wrap">
         <input class="dr-formula-input" id="formulaInput" type="text" placeholder="3d6+2d8+5" autocomplete="off" autocapitalize="off" spellcheck="false"
-               oninput="liveParseFormula()" onkeydown="if(event.key==='Enter'){event.preventDefault();rollDice();}">
+               readonly style="pointer-events:none;cursor:default">
         <div class="dr-formula-overlay" id="formulaOverlay"></div>
     </div>
     <button class="dr-formula-help" onclick="toggleFormulaHelp()">?</button>
@@ -2272,16 +2287,15 @@ function toggleLock() {
     document.getElementById('favStar').style.pointerEvents = cupLocked ? 'none' : '';
     document.querySelector('.dr-clear-cup').style.pointerEvents = cupLocked ? 'none' : '';
 
-    // Update button appearance
-    lockBtn.classList.toggle('locked', cupLocked);
-    // Swap between open and closed lock SVG
-    document.getElementById('lockIcon').innerHTML = cupLocked
-        ? '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'
-        : '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
-    // Closed lock has the shackle closed (no gap)
+    // Update wrap class (controls caret position) and lock icon
+    var lockWrap = document.getElementById('lockWrap');
+    lockWrap.classList.toggle('locked', cupLocked);
+    // Closed lock: shackle closed. Open lock: shackle lifted.
     document.getElementById('lockIcon').innerHTML = cupLocked
         ? '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5v4"/>'
         : '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
+    // Caret: › when locked (pointing right), ˅ when unlocked (pointing down)
+    document.getElementById('lockCaret').innerHTML = cupLocked ? '\\u203A' : '\\u2304';
 
     localStorage.setItem('dice_roller_locked', cupLocked ? '1' : '0');
 }
