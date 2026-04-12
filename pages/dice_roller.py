@@ -297,9 +297,15 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-result {
     font-size: 52px; font-weight: 800; color: var(--text-bright);
     font-family: 'SF Mono', ui-monospace, monospace;
-    min-height: 64px; transition: color 0.3s;
+    min-height: 64px; transition: color 0.3s, transform 0.1s;
 }
+.dr-result:active { transform: scale(0.92); }
 .dr-result.dr-rolling { color: #f0883e; }
+.dr-tap-hint {
+    font-size: 12px; color: var(--text-dim); margin-top: 2px;
+    transition: opacity 0.5s; opacity: 1;
+}
+.dr-tap-hint.hidden { opacity: 0; pointer-events: none; }
 .dr-breakdown {
     font-size: 16px; color: var(--text-muted); margin-top: 4px;
     font-family: 'SF Mono', ui-monospace, monospace;
@@ -700,6 +706,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     <div class="dr-result" id="result" onclick="handleResultClick()">Add dice to the cup</div>
     <div class="dr-breakdown" id="breakdown"></div>
     <div class="dr-prob" id="prob"></div>
+    <div class="dr-tap-hint" id="tapHint">tap result to roll</div>
     <button class="dr-share-btn" id="shareBtn" onclick="shareResult()" style="display:none" title="Share">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
@@ -1343,6 +1350,9 @@ function restoreLastRoll() {
         if (lr && lr.result) {
             document.getElementById('result').textContent = lr.result;
             document.getElementById('breakdown').innerHTML = lr.breakdown || '';
+            // Returning user has a previous roll — hide the tap hint
+            var hint = document.getElementById('tapHint');
+            if (hint) hint.classList.add('hidden');
         }
     } catch(e) {}
 }
@@ -2058,6 +2068,9 @@ function rollDice() {
     var totalDice = getAllDice().length;
     if (totalDice === 0) { document.getElementById('result').textContent = 'Add dice'; return; }
     playSound(); if (navigator.vibrate) navigator.vibrate(50);
+    // Hide the "tap to roll" hint after first roll
+    var hint = document.getElementById('tapHint');
+    if (hint && !hint.classList.contains('hidden')) hint.classList.add('hidden');
 
     // Special case: all coins → simple heads/tails display
     var allDiceArr = getAllDice();
