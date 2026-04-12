@@ -2356,9 +2356,8 @@ function toggleLock() {
 
     // Lock the cup content area via CSS class (uses !important to override
     // pointer-events:auto on .dr-group-section::after and other children).
-    // Fav star, roll, and trash in .dr-cup-bottom stay active.
+    // Fav star, roll, trash, and preset chips stay active.
     document.getElementById('cup').classList.toggle('cup-locked', cupLocked);
-    if (presetRow) presetRow.style.pointerEvents = cupLocked ? 'none' : '';
 
     // Update wrap class (controls caret position) and lock icon
     var lockWrap = document.getElementById('lockWrap');
