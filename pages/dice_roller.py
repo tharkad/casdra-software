@@ -155,8 +155,8 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 .dr-pack-tab:hover { border-color: var(--text-muted); color: var(--text-muted); }
 .dr-pack-tab.active { background: #ffa657; color: #000; border-color: #ffa657; font-weight: 700; }
-.dr-pack-tab.add-pack { border-style: dashed; color: var(--text-dim); }
-.dr-pack-tab.add-pack:hover { border-color: #ffa657; color: #ffa657; }
+.dr-pack-tab.add-pack { border-style: dashed; color: #ffa657; }
+.dr-pack-tab.add-pack:hover { border-color: #ffa657; background: #ffa65712; }
 .dr-pack-upsell {
     text-align: center; margin-bottom: 6px;
     font-size: 11px; color: #ffa657; font-weight: 600;
@@ -2520,6 +2520,8 @@ function loadPresets() {
         };
         savePresetsToStorage();
     }
+    // Auto-add Formula De example pack for premium users on first encounter
+    if (PREMIUM) addFormulaDeExamplePack();
     rebuildPresetViews();
     renderPackTabs();
     renderPresets();
@@ -2642,7 +2644,7 @@ function renderPackTabs() {
     }
     var html = '<div class="dr-pack-tabs">';
     var allActive = presetData.activePack === null ? ' active' : '';
-    html += '<div class="dr-pack-tab' + allActive + '" onclick="selectPackTab(null)">All</div>';
+    html += '<div class="dr-pack-tab' + allActive + '" onclick="selectPackTab(null)">Favs</div>';
     presetData.packs.forEach(function(pk, i) {
         var active = presetData.activePack === pk.name ? ' active' : '';
         var eName = pk.name.replace(/'/g, "\\\\'");
