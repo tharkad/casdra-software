@@ -2322,7 +2322,15 @@ var rollHistory = [];
 var historyViewIdx = -1;
 function loadHistory() { try{rollHistory=JSON.parse(localStorage.getItem('dice_roller_history')||'[]');}catch(e){rollHistory=[];} }
 function saveToHistory(entry) {
-    if(activePresetIdx >= 0 && presets[activePresetIdx]) entry.favName = presets[activePresetIdx].name;
+    if(activePresetIdx >= 0 && presets[activePresetIdx]) {
+        var p = presets[activePresetIdx];
+        // Find which pack this preset belongs to (if any)
+        var packName = null;
+        presetData.packs.forEach(function(pk) {
+            if (pk.presets.indexOf(p) >= 0) packName = pk.name;
+        });
+        entry.favName = packName ? packName + ' : ' + p.name : p.name;
+    }
     // Snapshot the full cup state so history navigation can restore it fully
     entry.snapshot = JSON.parse(JSON.stringify({
         cupGroups: cupGroups,
@@ -2683,7 +2691,8 @@ function getCupSignature() {
     var g = activeGroup();
     var counts={};
     cupDice.forEach(function(d){
-        var k=d.type==='dx'?'d'+(d.sides||6):d.type;counts[k]=(counts[k]||0)+1;
+        var k=d.type==='custom'&&d.faces?'c['+d.faces.join(',')+']':d.type==='dx'?'d'+(d.sides||6):d.type;
+        counts[k]=(counts[k]||0)+1;
     });
     var parts=[]; for(var t in counts) parts.push(counts[t]+t);
     parts.sort();
@@ -2703,7 +2712,8 @@ function getPresetSignature(p) {
     var counts={};
     var dice = p.children || p.dice || [];
     dice.forEach(function(d){
-        var k=d.type==='dx'?'d'+(d.sides||6):d.type;counts[k]=(counts[k]||0)+1;
+        var k=d.type==='custom'&&d.faces?'c['+d.faces.join(',')+']':d.type==='dx'?'d'+(d.sides||6):d.type;
+        counts[k]=(counts[k]||0)+1;
     });
     var parts=[]; for(var t in counts) parts.push(counts[t]+t);
     parts.sort();
