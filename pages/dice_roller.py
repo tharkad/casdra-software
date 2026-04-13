@@ -141,6 +141,40 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     max-width: 120px;
 }
+/* Pack tabs */
+.dr-pack-tabs {
+    display: flex; gap: 4px; margin-bottom: 6px; overflow-x: auto;
+    padding-bottom: 2px; border-bottom: 1px solid var(--border);
+    -webkit-overflow-scrolling: touch;
+}
+.dr-pack-tab {
+    background: var(--btn-bg); color: var(--text-dim); border: 1px solid var(--border);
+    border-bottom: none; border-radius: 6px 6px 0 0; padding: 4px 12px;
+    font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+    flex-shrink: 0; font-family: inherit; transition: all 0.15s;
+}
+.dr-pack-tab:hover { border-color: var(--text-muted); color: var(--text-muted); }
+.dr-pack-tab.active { background: #ffa657; color: #000; border-color: #ffa657; font-weight: 700; }
+.dr-pack-tab.add-pack { border-style: dashed; color: var(--text-dim); }
+.dr-pack-tab.add-pack:hover { border-color: #ffa657; color: #ffa657; }
+.dr-pack-upsell {
+    text-align: center; margin-bottom: 6px;
+    font-size: 11px; color: #ffa657; font-weight: 600;
+    cursor: pointer; letter-spacing: 0.3px;
+}
+.dr-pack-upsell:hover { text-decoration: underline; }
+.dr-modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.dr-modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 20px; max-width: 300px; width: 90%;
+}
+.dr-modal-title {
+    font-size: 16px; font-weight: 700; color: var(--text-bright); margin-bottom: 12px;
+    text-align: center;
+}
 
 /* Active preset label in cup */
 .dr-cup-preset-label {
@@ -697,6 +731,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     </div>
 </div>
 
+<div id="packTabs"></div>
 <div class="dr-presets" id="presets"></div>
 <div class="dr-theme-picker" id="themePicker" style="display:none">
     <div class="dr-theme-picker-title">Theme</div>
@@ -1714,11 +1749,19 @@ function updateCupDisplay() {
     // preset BEFORE updateFavState runs (which would otherwise clear
     // activePresetIdx because the cup signature changed).
     if(!cupLocked && activePresetIdx >= 0 && presets[activePresetIdx]) {
+        var old = presets[activePresetIdx];
         var updated = JSON.parse(JSON.stringify(cupGroups.length === 1 ? cupGroups[0] : {type:'group',children:cupGroups,operation:rootOperation}));
-        updated.name = presets[activePresetIdx].name;
+        updated.name = old.name;
         updated.dice = updated.children;
-        presets[activePresetIdx] = updated;
+        // Replace in presetData (ungrouped or pack)
+        var ui = presetData.ungrouped.indexOf(old);
+        if (ui >= 0) presetData.ungrouped[ui] = updated;
+        presetData.packs.forEach(function(pk) {
+            var pi = pk.presets.indexOf(old);
+            if (pi >= 0) pk.presets[pi] = updated;
+        });
         savePresetsToStorage();
+        rebuildPresetViews();
     }
     updateFavState();
 }
@@ -2380,6 +2423,8 @@ function toggleLock() {
     // Hide dice buttons + modifier rows
     diceGrid.style.display = cupLocked ? 'none' : '';
     modRows.style.display = cupLocked ? 'none' : '';
+    var packTabs = document.getElementById('packTabs');
+    if (packTabs) packTabs.style.display = cupLocked ? 'none' : '';
 
     // Lock the cup content area via CSS class (uses !important to override
     // pointer-events:auto on .dr-group-section::after and other children).
@@ -2434,54 +2479,201 @@ function playSound() {
     } catch(e){}
 }
 
-// ===== Presets / Favorites =====
-var presets=[];
-var activePresetIdx = -1;  // which preset is loaded (-1 = none)
+// ===== Presets / Game Packs =====
+var presetData = {version:2, activePack:null, packs:[], ungrouped:[]};
+var presets = [];           // visible preset list (filtered by active pack)
+var allPresets = [];         // flat list of ALL presets across packs+ungrouped
+var activePresetIdx = -1;   // index into presets (visible list)
 var editMode = false;
-var editOriginal = null;   // snapshot for undo
+var editOriginal = null;
 
 function loadPresets() {
     var raw = localStorage.getItem('dice_roller_presets');
-    try{presets=JSON.parse(raw||'null');}catch(e){presets=null;}
-    if(presets && Array.isArray(presets)) {
-        // Remove any presets with no dice
-        presets=presets.filter(function(p){var d=p.children||p.dice; return d&&d.length>0;});
-        // If user had presets but all were empty, don't overwrite with defaults
-        if(presets.length === 0 && raw) { presets = []; savePresetsToStorage(); renderPresets(); return; }
-        // One-shot migration: replace the legacy dF-based Fate preset with
-        // 4d3-8, which is distributionally isomorphic (dx(3)-2 ≡ dF). Only
-        // rewrites a preset named "Fate" whose children are all dF — leaves
-        // user-authored dF-containing presets untouched.
-        var migrated = false;
-        presets.forEach(function(p){
+    var parsed = null;
+    try { parsed = JSON.parse(raw || 'null'); } catch(e) { parsed = null; }
+
+    if (parsed && parsed.version === 2) {
+        presetData = parsed;
+    } else if (parsed && Array.isArray(parsed)) {
+        // Old flat array → migrate to version 2
+        parsed = parsed.filter(function(p) { var d = p.children || p.dice; return d && d.length > 0; });
+        // Fate dF → d3 migration
+        parsed.forEach(function(p) {
             var kids = p.children || p.dice || [];
             if (p.name === 'Fate' && kids.length > 0 && kids.every(function(c){return c.type==='df';})) {
-                var n = kids.length;
-                var newKids = [];
-                for (var i = 0; i < n; i++) newKids.push({type:'dx', sides:3});
-                p.children = newKids;
-                p.dice = newKids.slice();
-                p.modifier = (p.modifier || 0) - 2*n;
-                migrated = true;
+                var n = kids.length; var nk = [];
+                for (var i = 0; i < n; i++) nk.push({type:'dx', sides:3});
+                p.children = nk; p.dice = nk.slice(); p.modifier = (p.modifier || 0) - 2*n;
             }
         });
-        if (migrated) savePresetsToStorage();
-    }
-    if(!presets) {
-        // First time — set defaults. The "Fate" preset is expressed as
-        // 4d3-8 (isomorphic to 4dF: dx(3)-2 ≡ dF) so we don't need a
-        // separate Fate die type.
-        presets=[
-            {name:'D&D Stat',children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}],dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}],modifier:0,dropLowest:true,dropHighest:false},
-            {name:'Advantage',children:[{type:'d20'},{type:'d20'}],dice:[{type:'d20'},{type:'d20'}],modifier:0,dropLowest:true,dropHighest:false},
-            {name:'Disadvantage',children:[{type:'d20'},{type:'d20'}],dice:[{type:'d20'},{type:'d20'}],modifier:0,dropLowest:false,dropHighest:true},
-            {name:'Fate',children:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}],dice:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}],modifier:-8,dropLowest:false,dropHighest:false},
-        ];
+        presetData = {version: 2, activePack: null, packs: [], ungrouped: parsed};
+        savePresetsToStorage();
+    } else {
+        presetData = {
+            version: 2, activePack: null, packs: [],
+            ungrouped: [
+                {name:'D&D Stat',children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}],dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}],modifier:0,dropLowest:true,dropHighest:false},
+                {name:'Advantage',children:[{type:'d20'},{type:'d20'}],dice:[{type:'d20'},{type:'d20'}],modifier:0,dropLowest:true,dropHighest:false},
+                {name:'Disadvantage',children:[{type:'d20'},{type:'d20'}],dice:[{type:'d20'},{type:'d20'}],modifier:0,dropLowest:false,dropHighest:true},
+                {name:'Fate',children:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}],dice:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}],modifier:-8,dropLowest:false,dropHighest:false},
+            ]
+        };
         savePresetsToStorage();
     }
+    rebuildPresetViews();
+    renderPackTabs();
     renderPresets();
 }
-function savePresetsToStorage() { localStorage.setItem('dice_roller_presets',JSON.stringify(presets)); }
+function savePresetsToStorage() { localStorage.setItem('dice_roller_presets', JSON.stringify(presetData)); }
+
+function rebuildPresetViews() {
+    allPresets = [];
+    presetData.ungrouped.forEach(function(p) { allPresets.push(p); });
+    presetData.packs.forEach(function(pack) {
+        pack.presets.forEach(function(p) { allPresets.push(p); });
+    });
+    presets = getVisiblePresets();
+}
+function getVisiblePresets() {
+    if (!PREMIUM) return presetData.ungrouped.slice();
+    if (presetData.activePack === null) return allPresets.slice();
+    var pack = presetData.packs.find(function(pk) { return pk.name === presetData.activePack; });
+    return pack ? pack.presets.slice() : allPresets.slice();
+}
+
+// ===== Pack Management =====
+function createPack(name) {
+    if (!PREMIUM) return;
+    name = (name || '').trim();
+    if (!name) return;
+    if (presetData.packs.some(function(pk) { return pk.name === name; })) return;
+    presetData.packs.push({name: name, presets: []});
+    presetData.activePack = name;
+    savePresetsToStorage(); rebuildPresetViews(); renderPackTabs(); renderPresets();
+}
+function deletePack(packIdx) {
+    if (packIdx < 0 || packIdx >= presetData.packs.length) return;
+    var pack = presetData.packs[packIdx];
+    pack.presets.forEach(function(p) { presetData.ungrouped.push(p); });
+    if (presetData.activePack === pack.name) presetData.activePack = null;
+    presetData.packs.splice(packIdx, 1);
+    savePresetsToStorage(); rebuildPresetViews(); renderPackTabs(); renderPresets();
+}
+function renamePack(packIdx) {
+    if (packIdx < 0 || packIdx >= presetData.packs.length) return;
+    var oldName = presetData.packs[packIdx].name;
+    showInlineInput('Rename pack:', oldName, function(newName) {
+        newName = (newName || '').trim();
+        if (!newName || newName === oldName) return;
+        if (presetData.packs.some(function(pk) { return pk.name === newName; })) return;
+        presetData.packs[packIdx].name = newName;
+        if (presetData.activePack === oldName) presetData.activePack = newName;
+        savePresetsToStorage(); renderPackTabs(); renderPresets();
+    });
+}
+function movePresetToPack(presetObj, targetPackName) {
+    var idx = presetData.ungrouped.indexOf(presetObj);
+    if (idx >= 0) presetData.ungrouped.splice(idx, 1);
+    presetData.packs.forEach(function(pk) {
+        var pi = pk.presets.indexOf(presetObj);
+        if (pi >= 0) pk.presets.splice(pi, 1);
+    });
+    if (targetPackName === null) { presetData.ungrouped.push(presetObj); }
+    else {
+        var target = presetData.packs.find(function(pk) { return pk.name === targetPackName; });
+        if (target) target.presets.push(presetObj);
+    }
+    savePresetsToStorage(); rebuildPresetViews(); renderPresets();
+}
+function showMoveToPackMenu(presetObj) {
+    var html = '<div style="display:flex;flex-direction:column;gap:6px;padding:8px">';
+    html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-bright);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="movePresetToPack(window._moveTarget,null);closeModal()">Ungrouped</button>';
+    presetData.packs.forEach(function(pk) {
+        html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-bright);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="movePresetToPack(window._moveTarget,&quot;'+pk.name.replace(/"/g,'&amp;quot;')+'&quot;);closeModal()">'+pk.name+'</button>';
+    });
+    html += '</div>';
+    window._moveTarget = presetObj;
+    showModal('Move to pack', html);
+}
+function showModal(title, bodyHtml) {
+    var overlay = document.createElement('div');
+    overlay.className = 'dr-modal-overlay';
+    overlay.onclick = function(e) { if (e.target === overlay) closeModal(); };
+    overlay.innerHTML = '<div class="dr-modal"><div class="dr-modal-title">' + title + '</div>' + bodyHtml + '</div>';
+    document.body.appendChild(overlay);
+    window._modalOverlay = overlay;
+}
+function closeModal() {
+    if (window._modalOverlay) { window._modalOverlay.remove(); window._modalOverlay = null; }
+}
+function selectPackTab(packName) {
+    presetData.activePack = packName;
+    savePresetsToStorage(); rebuildPresetViews();
+    activePresetIdx = -1;
+    renderPackTabs(); renderPresets();
+}
+function promptCreatePack() {
+    showInlineInput('Pack name:', '', function(name) { if (name) createPack(name); });
+}
+function showPackOptions(idx) {
+    var pack = presetData.packs[idx];
+    if (!pack) return;
+    var html = '<div style="display:flex;flex-direction:column;gap:6px;padding:8px">';
+    html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-bright);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="closeModal();renamePack('+idx+')">Rename</button>';
+    html += '<button style="background:var(--btn-bg);border:1px solid #f85149;border-radius:8px;padding:8px 16px;color:#f85149;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="closeModal();deletePack('+idx+')">Delete</button>';
+    html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-muted);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="closeModal()">Cancel</button>';
+    html += '</div>';
+    showModal(pack.name, html);
+}
+var packLpTimer = null;
+function startPackLongPress(idx, e) {
+    if (packLpTimer) clearTimeout(packLpTimer);
+    packLpTimer = setTimeout(function() { packLpTimer = null; showPackOptions(idx); }, 400);
+}
+function cancelPackLongPress() { if (packLpTimer) { clearTimeout(packLpTimer); packLpTimer = null; } }
+
+// ===== Pack Tab Rendering =====
+function renderPackTabs() {
+    var el = document.getElementById('packTabs');
+    if (!el) return;
+    if (!PREMIUM) {
+        el.innerHTML = '<div class="dr-pack-upsell" onclick="showPremiumUpsell()">Organize with Game Packs \\u203A</div>';
+        return;
+    }
+    var html = '<div class="dr-pack-tabs">';
+    var allActive = presetData.activePack === null ? ' active' : '';
+    html += '<div class="dr-pack-tab' + allActive + '" onclick="selectPackTab(null)">All</div>';
+    presetData.packs.forEach(function(pk, i) {
+        var active = presetData.activePack === pk.name ? ' active' : '';
+        var eName = pk.name.replace(/'/g, "\\\\'");
+        html += '<div class="dr-pack-tab' + active + '" onclick="selectPackTab(\\'' + eName + '\\')" ' +
+            'oncontextmenu="event.preventDefault();showPackOptions(' + i + ')" ' +
+            'onmousedown="startPackLongPress(' + i + ',event)" onmouseup="cancelPackLongPress()" onmouseleave="cancelPackLongPress()" ' +
+            'ontouchstart="startPackLongPress(' + i + ',event)" ontouchend="cancelPackLongPress()" ontouchmove="cancelPackLongPress()"' +
+            '>' + pk.name + '</div>';
+    });
+    html += '<div class="dr-pack-tab add-pack" onclick="promptCreatePack()">+ Pack</div>';
+    html += '</div>';
+    el.innerHTML = html;
+}
+
+// ===== Example Pack: Formula De =====
+function addFormulaDeExamplePack() {
+    if (presetData.packs.some(function(pk) { return pk.name === 'Formula De'; })) return;
+    presetData.packs.push({
+        name: 'Formula De',
+        presets: [
+            {name:'1st Gear', children:[{type:'custom',faces:[1,1,2,2]}], dice:[{type:'custom',faces:[1,1,2,2]}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'2nd Gear', children:[{type:'custom',faces:[2,2,3,3,4,4]}], dice:[{type:'custom',faces:[2,2,3,3,4,4]}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'3rd Gear', children:[{type:'custom',faces:[4,5,6,7,8]}], dice:[{type:'custom',faces:[4,5,6,7,8]}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'4th Gear', children:[{type:'custom',faces:[7,7,8,8,9,9,10,10,11,11,12]}], dice:[{type:'custom',faces:[7,7,8,8,9,9,10,10,11,11,12]}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'5th Gear', children:[{type:'custom',faces:[11,12,13,14,15,16,17,18,19,20]}], dice:[{type:'custom',faces:[11,12,13,14,15,16,17,18,19,20]}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'6th Gear', children:[{type:'custom',faces:[21,21,22,23,24,25,26,27,28,29,30]}], dice:[{type:'custom',faces:[21,21,22,23,24,25,26,27,28,29,30]}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    });
+    savePresetsToStorage();
+    rebuildPresetViews();
+}
 
 function getCupSignature() {
     // Build a comparable string from current cup state
@@ -2566,6 +2758,7 @@ function updateFavState() {
     if(existingDone) existingDone.remove();
     document.getElementById('editBanner').style.display = 'none';
 
+    renderPackTabs();
     renderPresets();
 }
 
@@ -2575,12 +2768,25 @@ function renderPresets() {
         var expr = buildGroupFormula(p);
         var cls = 'dr-preset-chip';
         if(i === activePresetIdx) cls += ' active';
-        html+='<div class="'+cls+'" onclick="loadPreset('+i+')">' +
+        var longPress = (PREMIUM && presetData.packs.length > 0) ?
+            'oncontextmenu="event.preventDefault();showMoveToPackMenu(presets['+i+'])" ' +
+            'onmousedown="startChipLongPress('+i+',event)" onmouseup="cancelChipLongPress()" onmouseleave="cancelChipLongPress()" ' +
+            'ontouchstart="startChipLongPress('+i+',event)" ontouchend="cancelChipLongPress()" ontouchmove="cancelChipLongPress()"' : '';
+        html+='<div class="'+cls+'" onclick="loadPreset('+i+')" '+longPress+'>' +
             '<div class="dr-preset-name">'+p.name+'</div>' +
             '<div class="dr-preset-expr">'+expr+'</div></div>';
     });
+    if (presets.length === 0 && PREMIUM && presetData.activePack !== null) {
+        html = '<div style="color:var(--text-dim);font-size:13px;font-style:italic;padding:8px 0;text-align:center">No favorites in this pack</div>';
+    }
     el.innerHTML=html;
 }
+var chipLpTimer = null;
+function startChipLongPress(idx, e) {
+    if (chipLpTimer) clearTimeout(chipLpTimer);
+    chipLpTimer = setTimeout(function() { chipLpTimer = null; showMoveToPackMenu(presets[idx]); }, 400);
+}
+function cancelChipLongPress() { if (chipLpTimer) { clearTimeout(chipLpTimer); chipLpTimer = null; } }
 
 function loadPreset(i) {
     if(editMode) return;
@@ -2624,47 +2830,50 @@ function loadPreset(i) {
 function toggleFavorite() {
     if(editMode) return;
     if(activePresetIdx >= 0) {
-        // Remove favorite — confirm first
-        showConfirm('Remove "'+presets[activePresetIdx].name+'"?', function() {
-            presets.splice(activePresetIdx, 1);
+        // Remove favorite — find in presetData and remove from correct location
+        var toRemove = presets[activePresetIdx];
+        showConfirm('Remove "'+toRemove.name+'"?', function() {
+            var ri = presetData.ungrouped.indexOf(toRemove);
+            if (ri >= 0) presetData.ungrouped.splice(ri, 1);
+            presetData.packs.forEach(function(pk) {
+                var pi = pk.presets.indexOf(toRemove);
+                if (pi >= 0) pk.presets.splice(pi, 1);
+            });
             activePresetIdx = -1;
             savePresetsToStorage();
+            rebuildPresetViews();
             updateFavState();
         });
     } else {
         // Save as new favorite — must have dice
         if(cupDice.length===0) return;
-        if(!PREMIUM && presets.length >= MAX_FREE_PRESETS) {
+        if(!PREMIUM && presetData.ungrouped.length >= MAX_FREE_PRESETS) {
             showReplacePresetDialog();
             return;
         }
         showInlineInput('Favorite name:', '', function(name) {
             if(!name) return;
-            // Save the ENTIRE cup state, not just the active group — the old
-            // code used cupGroup (= activeGroup()) which dropped nested sub-
-            // groups and sibling root groups.
             var preset;
             if (cupGroups.length === 1) {
-                // Single root: deep-clone the root (captures full nested tree)
                 preset = JSON.parse(JSON.stringify(cupGroups[0]));
             } else {
-                // Multi-root: wrap all roots into a container so the preset
-                // format stays "one group object". loadPreset will unwrap.
-                preset = JSON.parse(JSON.stringify(cupGroups[0]));
-                // Actually just clone the first root — multi-root favorites
-                // need a richer format. For now, save the whole tree by
-                // wrapping roots as children of a container group.
                 preset = makeGroup('');
                 preset.children = JSON.parse(JSON.stringify(cupGroups));
                 preset.operation = rootOperation;
             }
             preset.name = name;
-            // Keep backward compat: also store as 'dice' for old format readers
             preset.dice = preset.children;
-            presets.push(preset);
-            if(presets.length>20) presets=presets.slice(-20);
+            // Save to active pack or ungrouped
+            if (PREMIUM && presetData.activePack !== null) {
+                var targetPack = presetData.packs.find(function(pk) { return pk.name === presetData.activePack; });
+                if (targetPack) targetPack.presets.push(preset);
+                else presetData.ungrouped.push(preset);
+            } else {
+                presetData.ungrouped.push(preset);
+            }
             savePresetsToStorage();
-            activePresetIdx = presets.length - 1;
+            rebuildPresetViews();
+            activePresetIdx = presets.indexOf(preset);
             updateFavState();
         });
     }
