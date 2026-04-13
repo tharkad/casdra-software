@@ -105,6 +105,8 @@ body {
 .dr-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 12px 16px; border-bottom: 1px solid var(--border2); flex-shrink: 0;
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg, #0d1117);
 }
 .dr-header h1 { font-size: 18px; font-weight: 700; color: var(--text-bright); }
 a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight: 600; }
@@ -719,7 +721,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 </head>
 <body>
 <div class="dr-header">
-    <a class="dr-back" href="/">&larr;</a>
     <h1>Dice Vault</h1>
     <div class="dr-header-right">
         <button class="dr-header-btn" id="premiumToggle" onclick="togglePremium()" title="Toggle Premium" style="font-size:11px;font-weight:700;letter-spacing:0.5px">FREE</button>
