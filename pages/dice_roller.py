@@ -184,18 +184,18 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-pb-search {
     width: 100%; background: var(--surface); border: 1px solid var(--border);
     border-radius: 10px; color: var(--text-bright); padding: 10px 14px;
-    font-size: 15px; font-family: inherit; outline: none; margin: 0 16px 8px;
+    font-size: 15px; font-family: inherit; outline: none; margin: 0 24px 8px; width: calc(100% - 48px);
 }
 .dr-pb-search:focus { border-color: #58a6ff; }
 .dr-pb-search::placeholder { color: var(--text-dim); }
 .dr-pb-category {
     font-size: 13px; font-weight: 700; color: var(--text-muted);
     text-transform: uppercase; letter-spacing: 0.5px;
-    padding: 12px 16px 4px; margin-top: 4px;
+    padding: 12px 24px 4px; margin-top: 4px;
 }
 .dr-pb-card {
     display: flex; align-items: center; gap: 12px;
-    padding: 12px 16px; border-bottom: 1px solid var(--border2);
+    padding: 12px 24px; border-bottom: 1px solid var(--border2);
     cursor: default;
 }
 .dr-pb-card-info { flex: 1; min-width: 0; }
