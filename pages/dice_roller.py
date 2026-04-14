@@ -101,6 +101,7 @@ body {
     max-width: 500px; margin: 0 auto;
     min-height: 100vh; display: flex; flex-direction: column;
     overscroll-behavior: none;
+    touch-action: pan-y;
 }
 
 /* Header */
