@@ -231,74 +231,19 @@ def init_db():
         )
     """)
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS page_views (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT DEFAULT (datetime('now')),
-            path TEXT NOT NULL,
-            ip TEXT,
-            user_agent TEXT,
-            session_id TEXT
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_views_timestamp ON page_views(timestamp)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_views_path ON page_views(path)
-    """)
-    conn.execute("""
         CREATE TABLE IF NOT EXISTS dice_bug_reports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at TEXT DEFAULT (datetime('now', 'localtime')),
             reporter TEXT NOT NULL,
             description TEXT NOT NULL,
             screenshot TEXT,
-            app_state TEXT NOT NULL,
+            app_state TEXT NOT NULL DEFAULT '{}',
             status TEXT DEFAULT 'open',
             notes TEXT DEFAULT ''
         )
     """)
     conn.commit()
     conn.close()
-
-
-_last_cleanup = [0]
-
-def cleanup_old_sessions():
-    """End abandoned game sessions older than 2 hours. Runs at most once per 10 min."""
-    import time as _time
-    now = _time.time()
-    if now - _last_cleanup[0] < 600:
-        return
-    _last_cleanup[0] = now
-    try:
-        conn = get_db()
-        conn.execute("""
-            UPDATE game_sessions SET status = 'ended'
-            WHERE status != 'ended'
-            AND created_at < datetime('now', '-2 hours')
-        """)
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
-
-
-def log_page_view(path, ip=None, user_agent=None):
-    """Log a page view. Non-blocking — errors silently ignored."""
-    try:
-        conn = get_db()
-        # Hash IP for privacy
-        import hashlib
-        hashed_ip = hashlib.sha256((ip or "").encode()).hexdigest()[:12] if ip else None
-        conn.execute(
-            "INSERT INTO page_views (path, ip, user_agent) VALUES (?, ?, ?)",
-            (path, hashed_ip, (user_agent or "")[:200]),
-        )
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
 
 
 def _build_restaurant_dict(rest, items):
@@ -1494,10 +1439,9 @@ def html_page(title, body, extra_css="", extra_js=""):
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Casdra">
-    <meta name="theme-color" content="#2563EB">
+    <meta name="theme-color" content="#e91e8c">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <title>{title}</title>
     <style>
 {COMMON_CSS}
@@ -1545,6 +1489,10 @@ build_song_burst_page = _song_burst.build_song_burst_page
 build_song_burst_play_page = _song_burst.build_song_burst_play_page
 SONG_BURST_CATEGORIES = _song_burst.SONG_BURST_CATEGORIES
 get_category_info = _song_burst.get_category_info
+build_dice_page = _dice_roller.build_dice_page
+build_dice_history_page = _dice_roller.build_dice_history_page
+build_dice_bugs_page = _dice_roller.build_dice_bugs_page
+build_dice_bug_detail_page = _dice_roller.build_dice_bug_detail_page
 
 # ---------------------------------------------------------------------------
 # Page builders
@@ -3055,156 +3003,7 @@ def _git_version():
 _GIT_HASH, _GIT_DATE = _git_version()
 
 
-def build_admin_stats_page():
-    """Admin dashboard with usage statistics."""
-    conn = get_db()
-
-    # Total views
-    total = conn.execute("SELECT COUNT(*) FROM page_views").fetchone()[0]
-
-    # Views today
-    today = conn.execute(
-        "SELECT COUNT(*) FROM page_views WHERE timestamp >= date('now')"
-    ).fetchone()[0]
-
-    # Views this week
-    week = conn.execute(
-        "SELECT COUNT(*) FROM page_views WHERE timestamp >= date('now', '-7 days')"
-    ).fetchone()[0]
-
-    # Views this month
-    month = conn.execute(
-        "SELECT COUNT(*) FROM page_views WHERE timestamp >= date('now', '-30 days')"
-    ).fetchone()[0]
-
-    # Unique visitors (by hashed IP) this month
-    mau = conn.execute(
-        "SELECT COUNT(DISTINCT ip) FROM page_views WHERE timestamp >= date('now', '-30 days') AND ip IS NOT NULL"
-    ).fetchone()[0]
-
-    # Unique visitors today
-    dau = conn.execute(
-        "SELECT COUNT(DISTINCT ip) FROM page_views WHERE timestamp >= date('now') AND ip IS NOT NULL"
-    ).fetchone()[0]
-
-    # Top pages (last 30 days)
-    top_pages = conn.execute("""
-        SELECT path, COUNT(*) as hits FROM page_views
-        WHERE timestamp >= date('now', '-30 days')
-        GROUP BY path ORDER BY hits DESC LIMIT 15
-    """).fetchall()
-
-    # Hits by day (last 14 days)
-    daily = conn.execute("""
-        SELECT date(timestamp) as day, COUNT(*) as hits, COUNT(DISTINCT ip) as visitors
-        FROM page_views
-        WHERE timestamp >= date('now', '-14 days')
-        GROUP BY day ORDER BY day
-    """).fetchall()
-
-    # Hits by hour (today)
-    hourly = conn.execute("""
-        SELECT strftime('%H', timestamp) as hour, COUNT(*) as hits
-        FROM page_views
-        WHERE timestamp >= date('now')
-        GROUP BY hour ORDER BY hour
-    """).fetchall()
-
-    # Active game sessions
-    active_sessions = conn.execute(
-        "SELECT COUNT(*) FROM game_sessions WHERE status = 'active'"
-    ).fetchone()[0]
-
-    conn.close()
-
-    # Build page
-    css = """
-    body { background: #111; color: #e0e0e0; }
-    .navbar { background: transparent; border-bottom: 0.5px solid #333; }
-    .navbar a { color: #5cb8ff; }
-    .stats { padding: 16px; }
-    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-                 gap: 12px; margin-bottom: 20px; }
-    .stat-card { background: #1a1a1a; border-radius: 12px; padding: 16px; text-align: center; }
-    .stat-num { font-size: 28px; font-weight: 800; color: #5cb8ff; }
-    .stat-label { font-size: 12px; color: #888; margin-top: 4px; text-transform: uppercase;
-                  letter-spacing: 0.5px; }
-    .stat-section { background: #1a1a1a; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-    .stat-section h3 { font-size: 14px; font-weight: 700; color: #888; text-transform: uppercase;
-                       letter-spacing: 0.5px; margin-bottom: 12px; }
-    .stat-row { display: flex; justify-content: space-between; padding: 6px 0;
-                border-bottom: 1px solid #222; font-size: 14px; }
-    .stat-row:last-child { border-bottom: none; }
-    .stat-bar { height: 6px; background: #333; border-radius: 3px; margin-top: 4px; }
-    .stat-bar-fill { height: 100%; background: #5cb8ff; border-radius: 3px; }
-    """
-
-    # Stats cards
-    cards = f"""
-    <div class="stat-grid">
-        <div class="stat-card"><div class="stat-num">{dau}</div><div class="stat-label">Visitors Today</div></div>
-        <div class="stat-card"><div class="stat-num">{today}</div><div class="stat-label">Hits Today</div></div>
-        <div class="stat-card"><div class="stat-num">{mau}</div><div class="stat-label">Monthly Visitors</div></div>
-        <div class="stat-card"><div class="stat-num">{month:,}</div><div class="stat-label">Monthly Hits</div></div>
-        <div class="stat-card"><div class="stat-num">{week:,}</div><div class="stat-label">Weekly Hits</div></div>
-        <div class="stat-card"><div class="stat-num">{total:,}</div><div class="stat-label">All Time</div></div>
-        <div class="stat-card"><div class="stat-num">{active_sessions}</div><div class="stat-label">Active Games</div></div>
-    </div>"""
-
-    # Top pages
-    max_hits = top_pages[0][1] if top_pages else 1
-    pages_html = ""
-    for path, hits in top_pages:
-        pct = (hits / max_hits) * 100
-        pages_html += f"""
-        <div class="stat-row">
-            <span>{h(path)}</span><span style="color:#5cb8ff;font-weight:600;">{hits:,}</span>
-        </div>
-        <div class="stat-bar"><div class="stat-bar-fill" style="width:{pct}%;"></div></div>"""
-
-    # Daily chart
-    daily_html = ""
-    max_daily = max((d[1] for d in daily), default=1)
-    for day, hits, visitors in daily:
-        pct = (hits / max_daily) * 100
-        daily_html += f"""
-        <div class="stat-row">
-            <span>{day}</span>
-            <span><span style="color:#5cb8ff;">{hits}</span> hits · <span style="color:#f0a500;">{visitors}</span> visitors</span>
-        </div>
-        <div class="stat-bar"><div class="stat-bar-fill" style="width:{pct}%;"></div></div>"""
-
-    body = f"""
-    <div class="navbar"><a href="/">&#8249; Back</a></div>
-    <div class="stats">
-        <h2 style="font-size:24px;font-weight:800;margin-bottom:16px;">📊 Usage Stats</h2>
-        {cards}
-        <div class="stat-section">
-            <h3>Top Pages (30 days)</h3>
-            {pages_html}
-        </div>
-        <div class="stat-section">
-            <h3>Daily Activity (14 days)</h3>
-            {daily_html}
-        </div>
-    </div>"""
-
-    return html_page("Admin Stats", body, extra_css=css)
-
-
-def build_dice_page():
-    """Dice roller — skeleton app for spec-driven development."""
-    body = """
-    <div class="navbar">
-        <a href="/">&#8249; Back</a>
-        <span class="navbar-title">Dice Roller</span>
-    </div>
-    <div style="padding:60px 20px;text-align:center;">
-        <h1 style="font-size:28px;font-weight:700;">Dice Roller</h1>
-        <p style="color:#8e8e93;margin-top:12px;">Coming soon — build features via specs</p>
-    </div>
-    """
-    return html_page("Dice Roller", body)
+# Dice roller page moved to pages/dice_roller.py
 
 
 
@@ -3223,7 +3022,8 @@ def build_home_page():
         <a href="/music-gear">Music Gear <span class="chevron">&#8250;</span></a>
         <a href="/big-ideas">Big Ideas <span class="chevron">&#8250;</span></a>
         <a href="/song-burst">Song Burst <span class="chevron">&#8250;</span></a>
-        <a href="/dice">Dice Roller <span class="chevron">&#8250;</span></a>
+        <a href="/dice">Dice Vault <span class="chevron">&#8250;</span></a>
+        <a href="/dice/bugs">Dice Vault Bugs <span class="chevron">&#8250;</span></a>
     </div>
     <div style="text-align:center;padding:24px 16px;font-size:12px;color:#b0b0b0;">
         {h(_GIT_HASH)} &middot; {h(_GIT_DATE)}
@@ -3239,8 +3039,8 @@ def build_web_home_page():
     .navbar { display: none; }
     .home { display: flex; flex-direction: column; align-items: center; justify-content: center;
             min-height: 100vh; padding: 40px 20px; text-align: center; }
-    .home-logo { margin-bottom: 24px; }
-    .home-logo img { width: 280px; height: 64px; }
+    .home h1 { font-size: 42px; font-weight: 800; letter-spacing: -1px; color: #fff; }
+    .home p { font-size: 16px; color: #888; margin-top: 8px; }
     .home-apps { margin-top: 40px; }
     .app-card { display: block; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
                 border-radius: 16px; padding: 24px 32px; text-decoration: none; color: #fff;
@@ -3252,9 +3052,8 @@ def build_web_home_page():
     """
     body = """
     <div class="home">
-        <div class="home-logo">
-            <img src="/static/logo.svg" alt="Casdra Software LLC">
-        </div>
+        <h1>Casdra Software</h1>
+        <p>Building things we love</p>
         <div class="home-apps">
             <a class="app-card" href="/dice">
                 <h2>Dice Vault</h2>
@@ -4265,23 +4064,12 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         qs = dict(parse_qsl(parsed.query))
 
-        # Periodic cleanup
-        cleanup_old_sessions()
-
-        # Log page views (skip static/api/polling)
-        if not path.startswith("/static/") and not path.endswith("/state") and not path.endswith("/count") and not path.endswith("/players"):
-            import threading
-            threading.Thread(target=log_page_view, args=(
-                path, self.client_address[0], self.headers.get("User-Agent")
-            ), daemon=True).start()
-
         # In web mode, /chartburst → /song-burst (alias)
         if WEB_MODE and path.startswith("/chartburst"):
             path = "/song-burst" + path[len("/chartburst"):]
 
         # In web mode, block internal routes
         if WEB_MODE and not (path == "/" or path.startswith("/song-burst") or path.startswith("/dice")
-                            or path.startswith("/static/") or path.startswith("/admin/")
                             or path.startswith("/manifest") or path.startswith("/apple-touch")
                             or path.startswith("/favicon")):
             self.send_response(404)
@@ -4297,26 +4085,36 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/big-ideas":
             self.send_html(build_big_ideas_page())
 
-        elif path == "/admin/stats":
-            self.send_html(build_admin_stats_page())
-
         elif path == "/dice":
-            self.send_html(_dice_roller.build_dice_page())
+            premium = qs.get("premium") == "1"
+            restore_id = qs.get("restore")
+            restore_state = None
+            if restore_id:
+                conn = get_db()
+                row = conn.execute("SELECT app_state FROM dice_bug_reports WHERE id=?", (restore_id,)).fetchone()
+                conn.close()
+                if row:
+                    restore_state = row["app_state"]
+            self.send_html(build_dice_page(premium=premium, restore_state=restore_state))
 
         elif path == "/dice/history":
-            self.send_html(_dice_roller.build_dice_history_page())
+            self.send_html(build_dice_history_page())
 
-        elif path == "/dice/bugs.json":
-            import json as _json
+        elif path == "/dice/bugs":
             conn = get_db()
-            try:
-                rows = conn.execute("SELECT id, created_at, reporter, description, status, notes FROM dice_bug_reports ORDER BY id DESC LIMIT 50").fetchall()
-                bugs = [dict(r) for r in rows]
-            except Exception:
-                bugs = []
+            reports = conn.execute("SELECT id, created_at, reporter, description, status, notes FROM dice_bug_reports ORDER BY created_at DESC").fetchall()
             conn.close()
-            self.send_json(bugs)
-            return
+            self.send_html(build_dice_bugs_page([dict(r) for r in reports]))
+
+        elif path.startswith("/dice/bugs/"):
+            bug_id = path.split("/")[3]
+            conn = get_db()
+            report = conn.execute("SELECT * FROM dice_bug_reports WHERE id=?", (bug_id,)).fetchone()
+            conn.close()
+            if report:
+                self.send_html(build_dice_bug_detail_page(dict(report)))
+            else:
+                self.send_error(404, "Bug report not found")
 
         elif path == "/song-burst":
             self.send_html(build_song_burst_page())
@@ -4572,42 +4370,12 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(APPLE_TOUCH_ICON_PNG)
 
         elif path == "/favicon.ico":
-            svg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "favicon.svg")
-            if os.path.exists(svg_path):
-                with open(svg_path, "rb") as f:
-                    data = f.read()
-                self.send_response(200)
-                self.send_header("Content-Type", "image/svg+xml")
-                self.send_header("Content-Length", str(len(data)))
-                self.end_headers()
-                self.wfile.write(data)
-            else:
-                self.send_response(200)
-                self.send_header("Content-Type", "image/png")
-                self.send_header("Content-Length", str(len(APPLE_TOUCH_ICON_PNG)))
-                self.end_headers()
-                self.wfile.write(APPLE_TOUCH_ICON_PNG)
-
-        elif path.startswith("/static/"):
-            file_name = path[len("/static/"):]
-            file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", file_name)
-            if os.path.isfile(file_path) and ".." not in file_name:
-                with open(file_path, "rb") as f:
-                    data = f.read()
-                ct = "application/octet-stream"
-                if file_name.endswith(".svg"): ct = "image/svg+xml"
-                elif file_name.endswith(".css"): ct = "text/css"
-                elif file_name.endswith(".js"): ct = "application/javascript"
-                elif file_name.endswith(".png"): ct = "image/png"
-                self.send_response(200)
-                self.send_header("Content-Type", ct)
-                self.send_header("Content-Length", str(len(data)))
-                self.send_header("Cache-Control", "public, max-age=86400")
-                self.end_headers()
-                self.wfile.write(data)
-            else:
-                self.send_response(404)
-                self.end_headers()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(APPLE_TOUCH_ICON_PNG)))
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(APPLE_TOUCH_ICON_PNG)
 
         else:
             self.send_html("<h1>404 Not Found</h1>", 404)
@@ -4626,28 +4394,12 @@ class Handler(BaseHTTPRequestHandler):
             self.path = "/song-burst" + self.path[len("/chartburst"):]
 
         # In web mode, block internal POST routes
-        if WEB_MODE and not (self.path.startswith("/song-burst") or self.path == "/dice/bug"):
+        if WEB_MODE and not self.path.startswith("/song-burst"):
             self.send_response(404)
             self.end_headers()
             return
 
         path = self.path
-
-        if path == "/dice/bug":
-            import json as _json
-            try:
-                data = _json.loads(body)
-                conn = get_db()
-                conn.execute(
-                    "INSERT INTO dice_bug_reports (reporter, description, screenshot, app_state) VALUES (?, ?, ?, ?)",
-                    (data.get("reporter", ""), data.get("description", ""), data.get("screenshot", ""), _json.dumps(data.get("state", {})))
-                )
-                conn.commit()
-                conn.close()
-                self.send_json({"ok": True})
-            except Exception as e:
-                self.send_json({"ok": False, "error": str(e)}, 500)
-            return
 
         if path == "/restaurant-info/add-restaurant":
             name = p("name", "").strip()
@@ -5024,6 +4776,38 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"ok": True})
             else:
                 self.send_json({"ok": False, "error": "Invalid request"}, 400)
+
+        elif path == "/dice/bug":
+            try:
+                data = json.loads(body) if body.startswith("{") else {}
+            except (json.JSONDecodeError, ValueError):
+                data = {}
+            reporter = (data.get("reporter") or "").strip()
+            description = (data.get("description") or "").strip()
+            if reporter and description:
+                conn = get_db()
+                conn.execute(
+                    "INSERT INTO dice_bug_reports (reporter, description, screenshot, app_state) VALUES (?, ?, ?, ?)",
+                    (reporter, description, data.get("screenshot", ""), json.dumps(data.get("app_state", {})))
+                )
+                conn.commit()
+                conn.close()
+                self.send_json({"ok": True})
+            else:
+                self.send_json({"ok": False, "error": "Name and description required"}, 400)
+
+        elif path.startswith("/dice/bugs/") and path.endswith("/status"):
+            bug_id = path.split("/")[3]
+            try:
+                data = json.loads(body) if body.startswith("{") else {}
+            except (json.JSONDecodeError, ValueError):
+                data = {}
+            conn = get_db()
+            conn.execute("UPDATE dice_bug_reports SET status=?, notes=? WHERE id=?",
+                         (data.get("status", "open"), data.get("notes", ""), bug_id))
+            conn.commit()
+            conn.close()
+            self.send_json({"ok": True})
 
         elif path == "/song-burst/session/create":
             try:

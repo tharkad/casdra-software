@@ -150,21 +150,94 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     -webkit-overflow-scrolling: touch;
 }
 .dr-pack-tab {
-    background: var(--btn-bg); color: var(--text-dim); border: 1px solid var(--border);
+    background: var(--btn-bg); color: #ffa657; border: 1px solid var(--border);
     border-bottom: none; border-radius: 6px 6px 0 0; padding: 4px 12px;
     font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
     flex-shrink: 0; font-family: inherit; transition: all 0.15s;
 }
-.dr-pack-tab:hover { border-color: var(--text-muted); color: var(--text-muted); }
+.dr-pack-tab:hover { border-color: #ffa657; }
 .dr-pack-tab.active { background: #ffa657; color: #000; border-color: #ffa657; font-weight: 700; }
-.dr-pack-tab.add-pack { border-style: dashed; color: #ffa657; }
-.dr-pack-tab.add-pack:hover { border-color: #ffa657; background: #ffa65712; }
+.dr-pack-tab.add-pack { border-style: dashed; border-bottom: none; }
+.dr-pack-tab.add-pack:hover { background: #ffa65712; }
 .dr-pack-upsell {
     text-align: center; margin-bottom: 6px;
     font-size: 11px; color: #ffa657; font-weight: 600;
     cursor: pointer; letter-spacing: 0.3px;
 }
 .dr-pack-upsell:hover { text-decoration: underline; }
+/* Pack Browser */
+.dr-pack-browser {
+    display: none; position: fixed; inset: 0; background: var(--bg);
+    z-index: 1000; overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+.dr-pack-browser.open { display: block; }
+.dr-pb-header {
+    display: flex; align-items: center; gap: 12px; padding: 16px;
+    border-bottom: 1px solid var(--border); position: sticky; top: 0;
+    background: var(--bg); z-index: 1;
+}
+.dr-pb-back {
+    background: none; border: none; color: var(--text-bright); font-size: 24px;
+    cursor: pointer; padding: 0 4px; font-family: inherit;
+}
+.dr-pb-title { font-size: 20px; font-weight: 800; color: var(--text-bright); flex: 1; }
+.dr-pb-search {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text-bright); padding: 10px 14px;
+    font-size: 15px; font-family: inherit; outline: none; margin: 0 16px 8px;
+}
+.dr-pb-search:focus { border-color: #58a6ff; }
+.dr-pb-search::placeholder { color: var(--text-dim); }
+.dr-pb-category {
+    font-size: 13px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 12px 16px 4px; margin-top: 4px;
+}
+.dr-pb-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border-bottom: 1px solid var(--border2);
+    cursor: default;
+}
+.dr-pb-card-info { flex: 1; min-width: 0; }
+.dr-pb-card-name { font-size: 15px; font-weight: 700; color: var(--text-bright); }
+.dr-pb-card-desc {
+    font-size: 12px; color: var(--text-muted); margin-top: 2px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.dr-pb-card-meta { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+.dr-pb-btn {
+    flex-shrink: 0; border: none; border-radius: 8px; padding: 8px 16px;
+    font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+    transition: all 0.15s;
+}
+.dr-pb-btn.install { background: #238636; color: #fff; }
+.dr-pb-btn.install:hover { background: #2ea043; }
+.dr-pb-btn.installed { background: var(--btn-bg); color: var(--text-muted); border: 1px solid var(--border); }
+.dr-pb-btn.installed:hover { background: #da363450; color: #f85149; border-color: #f85149; }
+.dr-pb-empty {
+    text-align: center; color: var(--text-dim); padding: 40px 16px;
+    font-size: 14px;
+}
+/* Toast */
+.dr-toast {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 20px; color: var(--text-bright); font-size: 14px; font-weight: 600;
+    z-index: 1001; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    font-family: inherit;
+}
+.dr-toast.show { opacity: 1; }
+/* Symbol mode face chips */
+.dr-face-chips {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    padding: 8px 0; margin-top: 28px;
+}
+.dr-face-chip {
+    background: var(--surface); border: 2px solid var(--accent, #ffa657);
+    border-radius: 10px; padding: 8px 14px; font-size: 18px; font-weight: 700;
+    color: var(--text-bright); font-family: inherit;
+}
 .dr-modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.6);
     display: flex; align-items: center; justify-content: center; z-index: 1000;
@@ -690,7 +763,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     position: absolute; top: 0; left: 0; right: 0;
     padding: 8px 12px; font-size: 16px; font-family: 'SF Mono', ui-monospace, monospace;
     color: var(--text-bright); pointer-events: none;
-    display: none; word-wrap: break-word; min-height: 100%;
+    display: none; white-space: pre-wrap; word-break: keep-all; min-height: 100%;
 }
 .dr-formula-input:focus { border-color: #58a6ff; }
 .dr-formula-input::placeholder { color: #30363d; }
@@ -726,7 +799,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button class="dr-header-btn" id="premiumToggle" onclick="togglePremium()" title="Toggle Premium" style="font-size:11px;font-weight:700;letter-spacing:0.5px">FREE</button>
         <button class="dr-header-btn" onclick="showBugReport()" title="Report Bug">&#x1F41B;</button>
         <button class="dr-header-btn" id="themeBtn" onclick="toggleThemePicker(event)" title="Theme">&#x1F3A8;</button>
-        <a class="dr-header-btn dr-history-btn" href="/dice/history" title="History">&#x1F552;</a>
+        <a class="dr-header-btn dr-history-btn" href="/dice/history" title="History" id="historyLink">&#x1F552;</a>
         <button class="dr-header-btn off" onclick="alert('Sound — coming soon!')" title="Sound">&#x1F50A;</button>
         <button class="dr-header-btn off" onclick="alert('Shake to roll — coming soon!')" title="Shake" style="display:inline-flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="3" width="10" height="18" rx="2"/><line x1="4" y1="7" x2="2" y2="5"/><line x1="4" y1="12" x2="1" y2="12"/><line x1="4" y1="17" x2="2" y2="19"/><line x1="20" y1="7" x2="22" y2="5"/><line x1="20" y1="12" x2="23" y2="12"/><line x1="20" y1="17" x2="22" y2="19"/></svg></button>
     </div>
@@ -810,12 +883,15 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     <div class="dr-formula-row" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
         <strong style="color:#ffa657">Premium unlocks:</strong>
     </div>
-    <div class="dr-formula-row"><code>(4d6dl)+(2d8!)</code> Multi-group formulas</div>
-    <div class="dr-formula-row"><code>max(2d6, 2d8)</code> Best of groups</div>
-    <div class="dr-formula-row"><code>6&times;(4d6dl)</code> Repeat rolls</div>
-    <div class="dr-formula-row"><code>2d20kh1+STR</code> Named variables</div>
-    <div class="dr-formula-row"><code>d[1,1,2,3,4]</code> Custom dice faces</div>
+    <div class="dr-formula-row"><code>d{1,1,2,3,5}</code> Custom dice faces</div>
+    <div class="dr-formula-row"><code>(4d6dl)+(2d8!)</code> Multi-group rolls</div>
+    <div class="dr-formula-row">&#x1F3B2; Game Packs &mdash; Formula De &amp; more</div>
+    <div class="dr-formula-row">&#x1F50D; Game Pack browser</div>
+    <div class="dr-formula-row">&#x2B50; Unlimited presets</div>
+    <div class="dr-formula-row">&#x1F3A8; Premium themes</div>
+    <div class="dr-formula-row">&#x1F446; Tap-hold dice editing</div>
     <div style="text-align:center;margin-top:12px">
+        <button onclick="showGameList()" style="background:none;border:1px solid var(--border);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:#58a6ff;margin-bottom:8px;width:100%">See all supported games &#x203A;</button>
         <button onclick="showPremiumUpsell()" style="background:#ffa657;color:#000;border:none;border-radius:10px;padding:10px 24px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit">Unlock Premium</button>
     </div>
 </div>
@@ -865,6 +941,16 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     </div>
 </div>
 
+<div class="dr-toast" id="toast"></div>
+<div class="dr-pack-browser" id="packBrowser">
+    <div class="dr-pb-header">
+        <button class="dr-pb-back" onclick="closePackBrowser()">&larr;</button>
+        <div class="dr-pb-title">Game Packs</div>
+    </div>
+    <input class="dr-pb-search" id="pbSearch" type="text" placeholder="Search games..." oninput="renderPackBrowser()">
+    <div id="pbList"></div>
+</div>
+
 <script>
 // Die visual config
 var DIE_SHAPES = {
@@ -905,6 +991,16 @@ function getDieShape(d) {
 }
 
 
+// Toast notification
+var toastTimer = null;
+function showToast(msg) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { el.classList.remove('show'); }, 2000);
+}
+
 // Inline input modal (replaces OS prompt)
 function esc(s) { var d=document.createElement('div');d.textContent=s;return d.innerHTML; }
 function showInlineInput(title, defaultVal, callback) {
@@ -930,6 +1026,49 @@ function submitModal() {
     var cb = window._modalCallback;
     closeModal();
     if(cb) cb(val);
+}
+var _dxCount = 1;
+function showDxInput(defaultVal, callback) {
+    _dxCount = 1;
+    var overlay = document.createElement('div');
+    overlay.className = 'dr-modal-overlay';
+    overlay.innerHTML = '<div class="dr-modal">' +
+        '<div class="dr-modal-title">Custom Dice</div>' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
+            '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:36px">' +
+                '<button id="dxCountUp" class="dr-modal-cancel" style="width:36px;padding:2px 0;font-size:12px;line-height:1;border-radius:6px" onclick="changeDxCount(1)">\\u25B2</button>' +
+                '<span id="dxCountLabel" style="font-size:15px;font-weight:700;color:var(--text-bright)">1\\u00d7</span>' +
+                '<button id="dxCountDown" class="dr-modal-cancel" style="width:36px;padding:2px 0;font-size:12px;line-height:1;border-radius:6px;opacity:0.3;pointer-events:none" onclick="changeDxCount(-1)">\\u25BC</button>' +
+            '</div>' +
+            '<input type="text" id="drModalInput" value="' + esc(defaultVal||'') + '" autocomplete="off" style="flex:1" placeholder="7 or Heads,Tails">' +
+        '</div>' +
+        '<div style="color:var(--text-muted);font-size:13px;margin-bottom:10px;line-height:1.6">e.g. <code style="background:var(--bg);padding:2px 6px;border-radius:4px;color:var(--text-bright)">8</code> = d8, ' +
+            '<code style="background:var(--bg);padding:2px 6px;border-radius:4px;color:var(--text-bright)">1,1,2,3</code> = custom faces, ' +
+            '<code style="background:var(--bg);padding:2px 6px;border-radius:4px;color:var(--text-bright)">Heads, Tails</code> = word die</div>' +
+        '<div class="dr-modal-btns">' +
+        '<button class="dr-modal-cancel" onclick="closeModal()">Cancel</button>' +
+        '<button class="dr-modal-ok" onclick="submitDxModal()">OK</button>' +
+        '</div></div>';
+    document.body.appendChild(overlay);
+    var inp = document.getElementById('drModalInput');
+    inp.focus(); inp.select();
+    inp.onkeydown = function(e) { if(e.key==='Enter') submitDxModal(); if(e.key==='Escape') closeModal(); };
+    overlay.onclick = function(e) { if(e.target===overlay) closeModal(); };
+    window._modalCallback = callback;
+    window._modalOverlay = overlay;
+}
+function changeDxCount(delta) {
+    _dxCount = Math.max(1, _dxCount + delta);
+    document.getElementById('dxCountLabel').textContent = _dxCount + '\\u00d7';
+    var down = document.getElementById('dxCountDown');
+    down.style.opacity = _dxCount <= 1 ? '0.3' : '';
+    down.style.pointerEvents = _dxCount <= 1 ? 'none' : '';
+}
+function submitDxModal() {
+    var val = document.getElementById('drModalInput').value;
+    var cb = window._modalCallback;
+    closeModal();
+    if(cb) cb(_dxCount, val);
 }
 function closeModal() {
     if(window._modalOverlay) { window._modalOverlay.remove(); window._modalOverlay=null; }
@@ -1043,9 +1182,54 @@ function exitHistoryView() {
         restoreLiveState();
     }
 }
+
+// ===== Symbol Mode Detection =====
+function isSymbolDie(d) {
+    return d.type === 'custom' && d.faces && d.faces.some(function(f) { return typeof f === 'string'; });
+}
+function isSymbolMode() {
+    return getAllDice().some(isSymbolDie);
+}
+var FACE_SYMBOLS = {
+    // King of Tokyo
+    'claw':'<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle"><path d="M4 2C5 6 7 10 10 14c1 1.5.5 3 0 4-.5-1-3-5-6-10C3 6 3 4 4 2z"/><path d="M8 1C9 5 11 9 14 13c1 1.5.5 3 0 4-.5-1-3-5-6-10C7 5 7 3 8 1z"/><path d="M12 2C13 6 15 10 18 14c1 1.5.5 3 0 4-.5-1-3-5-6-10C11 6 11 4 12 2z"/><path d="M16 3C17 7 19 11 22 15c1 1.5.5 3 0 4-.5-1-3-5-6-10C15 7 15 5 16 3z"/></svg>', 'heart':'\\u2764\\uFE0F', 'bolt':'\\u26A1',
+    // Zombie Dice
+    'brain':'\\u{1F9E0}', 'shot':'\\u{1F4A5}', 'step':'\\u{1F463}',
+    // Slot Machine
+    'cherry':'\\u{1F352}', 'cherries':'\\u{1F352}', 'lemon':'\\u{1F34B}', 'bell':'\\u{1F514}',
+    '7':'<span style="color:#e33;font-weight:900;font-style:italic;font-size:1.1em;font-family:serif">7</span>',
+    'bar':'<svg width="22" height="18" viewBox="0 0 22 18" style="vertical-align:middle"><rect x="1" y="1" width="20" height="4" rx="1" fill="#c8a84e"/><rect x="1" y="7" width="20" height="4" rx="1" fill="#c8a84e"/><rect x="1" y="13" width="20" height="4" rx="1" fill="#c8a84e"/></svg>',
+    // Common
+    'sword':'\\u2694\\uFE0F', 'shield':'\\u{1F6E1}\\uFE0F', 'skull':'\\u{1F480}',
+    'star':'\\u2B50', 'fire':'\\u{1F525}', 'hit':'\\u{1F3AF}',
+    'miss':'\\u274C', 'blank':'<span style="opacity:0.15">\\u2014</span>',
+    'heads':'\\u{1FA99}', 'tails':'\\u{1FA99}',
+};
+function faceToDisplay(face) {
+    var sym = FACE_SYMBOLS[face.toLowerCase()];
+    if (sym) return '<span title="' + esc(face) + '">' + sym + '</span>';
+    return esc(face);
+}
+
 function addToCup(type) {
     if (cupLocked) return;
     exitHistoryView();
+    // Check selected die before clearing selection — used to preload DX input
+    var selDie = null;
+    if (type === 'dx') {
+        if (selectedDieId != null) {
+            var r = findDieById(selectedDieId);
+            if (r) selDie = r.die;
+        }
+        // Fallback: if no selection but cup has custom/dx dice, use the first one
+        if (!selDie) {
+            var allD = getAllDice();
+            for (var di = 0; di < allD.length; di++) {
+                if (allD[di].type === 'custom' && allD[di].faces) { selDie = allD[di]; break; }
+                if (allD[di].type === 'dx' && allD[di].sides) { selDie = allD[di]; break; }
+            }
+        }
+    }
     // Adding dice clears any single-die selection
     tryAutoRejoin();
     selectedDieId = null;
@@ -1054,21 +1238,43 @@ function addToCup(type) {
     function makeDie(t, extras) {
         return {type:t, id:Date.now()+(extras||0)};
     }
-    if (type === 'dfate') { cupDice.push(makeDie('df')); }
+    if (type === 'dfate') {
+        if (isSymbolMode()) { showToast('Clear cup to add standard dice'); return; }
+        cupDice.push(makeDie('df'));
+    }
     else if (type === 'dx') {
-        showInlineInput('Sides, faces, or Nx prefix (e.g. 6, 1,1,2,3, 3x8):', lastDxValue || '6', function(v) {
+        // Preload from selected die if it's a dx or custom die
+        var dxDefault = lastDxValue || '6';
+        if (selDie) {
+            if (selDie.type === 'custom' && selDie.faces) {
+                dxDefault = selDie.faces.join(', ');
+            } else if (selDie.type === 'dx' && selDie.sides) {
+                dxDefault = String(selDie.sides);
+            }
+        }
+        showDxInput(dxDefault, function(count, v) {
             if (!v) return;
-            // Parse optional count prefix: "3x6" or "2x1,1,2,3"
-            var count = 1;
             var val = v.trim();
-            var cMatch = val.match(/^(\d+)\s*[xX]\s*(.+)$/);
-            if (cMatch) { count = parseInt(cMatch[1]) || 1; val = cMatch[2].trim(); }
-            lastDxValue = v.trim(); // remember for next time
+            lastDxValue = val;
             if (val.indexOf(',') >= 0) {
-                var faces = val.split(',').map(function(s){return parseInt(s.trim());}).filter(function(n){return !isNaN(n);});
-                if (faces.length < 2) return;
-                for (var ci = 0; ci < count; ci++) { var d = makeDie('custom', ci); d.faces = faces.slice(); cupDice.push(d); }
+                // Comma-separated: check if any face is non-numeric → symbol die
+                var rawFaces = val.split(',').map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0; });
+                if (rawFaces.length < 2) return;
+                var hasWords = rawFaces.some(function(s){ return isNaN(Number(s)); });
+                if (hasWords) {
+                    if (getAllDice().length > 0 && !isSymbolMode()) {
+                        showToast('Clear cup to add symbol dice');
+                        return;
+                    }
+                    for (var ci = 0; ci < count; ci++) { var d = makeDie('custom', ci); d.faces = rawFaces.slice(); cupDice.push(d); }
+                } else {
+                    if (isSymbolMode()) { showToast('Clear cup to add numeric dice'); return; }
+                    var faces = rawFaces.map(function(s){ return parseInt(s); }).filter(function(n){ return !isNaN(n); });
+                    if (faces.length < 2) return;
+                    for (var ci = 0; ci < count; ci++) { var d = makeDie('custom', ci); d.faces = faces.slice(); cupDice.push(d); }
+                }
             } else {
+                if (isSymbolMode()) { showToast('Clear cup to add numeric dice'); return; }
                 var sides = parseInt(val);
                 if (!sides || sides < 2) return;
                 for (var ci = 0; ci < count; ci++) { var d = makeDie('dx', ci); d.sides = sides; cupDice.push(d); }
@@ -1077,7 +1283,11 @@ function addToCup(type) {
         });
         return;
     }
-    else { cupDice.push(makeDie(type)); }
+    else {
+        // Standard die (d4, d6, d8, etc.)
+        if (isSymbolMode()) { showToast('Clear cup to add standard dice'); return; }
+        cupDice.push(makeDie(type));
+    }
     updateCupDisplay();
 }
 
@@ -1744,7 +1954,35 @@ function updateCupDisplay() {
     document.getElementById('successBtn').textContent = successVal > 0 ? 'Success \\u2265 ' + successVal : 'Success';
     // Cup tags strip — deprecated, badges are rendered inline with the cup dice now
     document.getElementById('cupTags').innerHTML = '';
-    renderDistribution();
+
+    // Symbol mode OR lock mode: hide numeric-only UI elements
+    var symMode = isSymbolMode();
+    var hideModRows = symMode || cupLocked;
+    document.querySelector('.dr-mod-rows').style.display = hideModRows ? 'none' : '';
+    var addGroupBtn = document.querySelector('.dr-add-group');
+    if (addGroupBtn) addGroupBtn.style.display = (symMode || cupLocked) ? 'none' : '';
+    var diceGrid = document.getElementById('diceGrid');
+    if (diceGrid) {
+        diceGrid.style.display = cupLocked ? 'none' : '';
+        // Disable standard dice buttons in symbol mode, keep DX active
+        if (!cupLocked) {
+            diceGrid.querySelectorAll('.dr-die-btn').forEach(function(btn) {
+                var die = btn.getAttribute('data-die');
+                if (die !== 'dx') {
+                    btn.style.opacity = symMode ? '0.25' : '';
+                    btn.style.pointerEvents = symMode ? 'none' : '';
+                }
+            });
+        }
+    }
+
+    if (!symMode) {
+        document.getElementById('distChart').parentElement.style.display = '';
+        renderDistribution();
+    } else {
+        // Hide chart entirely in symbol mode
+        document.getElementById('distChart').parentElement.style.display = 'none';
+    }
     syncFormulaFromCup();
     // Auto-save: when a preset is loaded and cup is unlocked, update the
     // preset BEFORE updateFavState runs (which would otherwise clear
@@ -1980,6 +2218,8 @@ function rollSingleDie(d, ctx) {
     // Custom dice: pick a random face from the faces array
     if (d.type==='custom' && d.faces && d.faces.length > 0) {
         var val = d.faces[Math.floor(Math.random() * d.faces.length)];
+        // Skip clamping for symbol (string) faces
+        if (typeof val === 'string') return {value: val, chain: null, clamped: null};
         var clamped = null;
         var clampMin = (d.clampMin && d.clampMin > 1) ? d.clampMin : ctx.clampMin;
         var clampMax = d.clampMax || ctx.clampMax;
@@ -2149,6 +2389,33 @@ function rollDice() {
         return;
     }
 
+    // Symbol mode: roll each die and display face chips
+    if (isSymbolMode()) {
+        var faces = [];
+        allDiceArr.forEach(function(d) {
+            if (d.type === 'custom' && d.faces && d.faces.length > 0) {
+                faces.push(d.faces[Math.floor(Math.random() * d.faces.length)]);
+            }
+        });
+        // Build face chips HTML with symbol rendering
+        var chipsHtml = '<div class="dr-face-chips">';
+        faces.forEach(function(f) {
+            chipsHtml += '<span class="dr-face-chip">' + faceToDisplay(String(f)) + '</span>';
+        });
+        chipsHtml += '</div>';
+        // Display in result area
+        var resultEl = document.getElementById('result');
+        resultEl.innerHTML = chipsHtml;
+        document.getElementById('breakdown').innerHTML = '';
+        document.getElementById('prob').textContent = '';
+        document.getElementById('shareBtn').style.display = '';
+        // Save to history as symbol roll
+        var facesList = faces.map(function(f){ return String(f); });
+        saveLastRoll(facesList.join(', '), '');
+        saveToHistory({expression:'Symbol Roll', total:facesList.join(', '), breakdown:facesList.join(', '), breakdownHtml:chipsHtml, timestamp:Date.now(), symbolFaces:facesList});
+        return;
+    }
+
     // Roll every root group through rollSingleGroup — one code path for
     // single-group and multi-group cups. This ensures floor/cap, nested
     // sub-groups, per-die modifiers, and all other group-level features
@@ -2243,14 +2510,20 @@ function rootGroupRange(rootG) {
         if (d.type==='df') return -1;
         if (d.type==='coin') return 0;
         if (d.type==='adv'||d.type==='dis') return 1;
-        if (d.type==='custom'&&d.faces) return Math.min.apply(null,d.faces);
+        if (d.type==='custom'&&d.faces) {
+            var nums = d.faces.filter(function(f){return typeof f === 'number';});
+            return nums.length > 0 ? Math.min.apply(null, nums) : 0;
+        }
         return d.clampMin || 1;
     });
     var allMaxes = rollable.map(function(d){
         if (d.type==='df') return 1;
         if (d.type==='coin') return 1;
         if (d.type==='adv'||d.type==='dis') return 20;
-        if (d.type==='custom'&&d.faces) return Math.max.apply(null,d.faces);
+        if (d.type==='custom'&&d.faces) {
+            var nums = d.faces.filter(function(f){return typeof f === 'number';});
+            return nums.length > 0 ? Math.max.apply(null, nums) : 0;
+        }
         return d.clampMax || getDieMax(d);
     });
     var lo = 0, hi = 0;
@@ -2429,11 +2702,9 @@ function toggleLock() {
     var staging = document.getElementById('cupStaging');
     var presetRow = document.getElementById('presets');
 
-    // Hide dice buttons + modifier rows
+    // Hide dice buttons + modifier rows (pack tabs stay visible for switching presets)
     diceGrid.style.display = cupLocked ? 'none' : '';
     modRows.style.display = cupLocked ? 'none' : '';
-    var packTabs = document.getElementById('packTabs');
-    if (packTabs) packTabs.style.display = cupLocked ? 'none' : '';
 
     // Lock the cup content area via CSS class (uses !important to override
     // pointer-events:auto on .dr-group-section::after and other children).
@@ -2460,7 +2731,7 @@ function restoreLockState() {
     if (localStorage.getItem('dice_roller_locked') === '1') toggleLock();
 }
 
-// Shared: update the #prob text without touching the chart rendering
+/// Shared: update the #prob text without touching the chart rendering
 function showProbabilityText(total) { showProbability(total); }
 function handleResultClick() {
     // Clicking the result rolls the dice — restoreLiveState happens inside rollDice
@@ -2547,7 +2818,7 @@ function rebuildPresetViews() {
 }
 function getVisiblePresets() {
     if (!PREMIUM) return presetData.ungrouped.slice();
-    if (presetData.activePack === null) return allPresets.slice();
+    if (presetData.activePack === null) return presetData.ungrouped.slice();
     var pack = presetData.packs.find(function(pk) { return pk.name === presetData.activePack; });
     return pack ? pack.presets.slice() : allPresets.slice();
 }
@@ -2657,22 +2928,116 @@ function renderPackTabs() {
     presetData.packs.forEach(function(pk, i) {
         var active = presetData.activePack === pk.name ? ' active' : '';
         var eName = pk.name.replace(/'/g, "\\\\'");
-        html += '<div class="dr-pack-tab' + active + '" onclick="selectPackTab(\\'' + eName + '\\')" ' +
+        html += '<div class="dr-pack-tab' + active + '" data-pack-idx="' + i + '" onclick="selectPackTab(\\'' + eName + '\\')" ' +
             'oncontextmenu="event.preventDefault();showPackOptions(' + i + ')" ' +
-            'onmousedown="startPackLongPress(' + i + ',event)" onmouseup="cancelPackLongPress()" onmouseleave="cancelPackLongPress()" ' +
-            'ontouchstart="startPackLongPress(' + i + ',event)" ontouchend="cancelPackLongPress()" ontouchmove="cancelPackLongPress()"' +
+            'onmousedown="packDragStart(' + i + ',event)" onmouseup="packDragEnd(event)" onmouseleave="cancelPackLongPress()" ' +
+            'ontouchstart="packDragStart(' + i + ',event)" ontouchend="packDragEnd(event)" ontouchmove="packDragMove(event)"' +
             '>' + pk.name + '</div>';
     });
     html += '<div class="dr-pack-tab add-pack" onclick="promptCreatePack()">+ Pack</div>';
+    html += '<div class="dr-pack-tab add-pack" onclick="openPackBrowser()" style="border-color:#58a6ff;color:#58a6ff">Browse</div>';
     html += '</div>';
     el.innerHTML = html;
 }
 
-// ===== Example Pack: Formula De =====
-function addFormulaDeExamplePack() {
-    if (presetData.packs.some(function(pk) { return pk.name === 'Formula De'; })) return;
-    presetData.packs.push({
-        name: 'Formula De',
+// ===== Pack Tab Drag-to-Reorder =====
+var _packDrag = {active:false, idx:-1, startX:0, startY:0, ghost:null, threshold:10};
+function packDragStart(idx, e) {
+    var pt = e.touches ? e.touches[0] : e;
+    _packDrag = {active:false, idx:idx, startX:pt.clientX, startY:pt.clientY, ghost:null, threshold:10};
+    // Also start long-press timer for context menu
+    startPackLongPress(idx, e);
+}
+function packDragMove(e) {
+    if (_packDrag.idx < 0) return;
+    var pt = e.touches ? e.touches[0] : e;
+    var dx = pt.clientX - _packDrag.startX;
+    if (!_packDrag.active && Math.abs(dx) > _packDrag.threshold) {
+        // Enter drag mode — cancel long press
+        cancelPackLongPress();
+        _packDrag.active = true;
+        // Create ghost
+        var tabs = document.querySelectorAll('.dr-pack-tab[data-pack-idx]');
+        var srcTab = tabs[_packDrag.idx];
+        if (!srcTab) return;
+        var ghost = srcTab.cloneNode(true);
+        ghost.style.cssText = 'position:fixed;z-index:1002;pointer-events:none;opacity:0.8;transform:scale(1.05);';
+        var r = srcTab.getBoundingClientRect();
+        ghost.style.top = r.top + 'px';
+        ghost.style.left = r.left + 'px';
+        ghost.style.width = r.width + 'px';
+        document.body.appendChild(ghost);
+        _packDrag.ghost = ghost;
+        _packDrag.origLeft = r.left;
+        srcTab.style.opacity = '0.3';
+    }
+    if (_packDrag.active && _packDrag.ghost) {
+        e.preventDefault();
+        _packDrag.ghost.style.left = (_packDrag.origLeft + dx) + 'px';
+        // Highlight drop target
+        var tabs = document.querySelectorAll('.dr-pack-tab[data-pack-idx]');
+        tabs.forEach(function(tab, ti) {
+            var r = tab.getBoundingClientRect();
+            var mid = r.left + r.width / 2;
+            tab.style.borderLeft = (pt.clientX < mid && ti !== _packDrag.idx && (ti === _packDrag.idx + 1 || pt.clientX < r.right)) ? '3px solid #ffa657' : '';
+            tab.style.borderRight = (pt.clientX >= mid && ti !== _packDrag.idx && ti === tabs.length - 1) ? '3px solid #ffa657' : '';
+        });
+    }
+}
+function packDragEnd(e) {
+    cancelPackLongPress();
+    if (_packDrag.active) {
+        // Find drop position
+        var pt = e.changedTouches ? e.changedTouches[0] : e;
+        var tabs = document.querySelectorAll('.dr-pack-tab[data-pack-idx]');
+        var fromIdx = _packDrag.idx;
+        var toIdx = fromIdx;
+        tabs.forEach(function(tab, ti) {
+            var r = tab.getBoundingClientRect();
+            var mid = r.left + r.width / 2;
+            if (pt.clientX >= mid) toIdx = ti;
+            else if (pt.clientX < mid && ti < toIdx) toIdx = ti;
+        });
+        // Find actual insertion point
+        var dropIdx = fromIdx;
+        tabs.forEach(function(tab, ti) {
+            var r = tab.getBoundingClientRect();
+            if (pt.clientX > r.left + r.width / 2) dropIdx = ti + 1;
+        });
+        if (dropIdx > fromIdx) dropIdx--;
+        dropIdx = Math.max(0, Math.min(dropIdx, presetData.packs.length - 1));
+        // Reorder
+        if (dropIdx !== fromIdx) {
+            var pack = presetData.packs.splice(fromIdx, 1)[0];
+            presetData.packs.splice(dropIdx, 0, pack);
+            savePresetsToStorage();
+        }
+        // Cleanup
+        if (_packDrag.ghost) _packDrag.ghost.remove();
+        tabs.forEach(function(tab) { tab.style.opacity = ''; tab.style.borderLeft = ''; tab.style.borderRight = ''; });
+        renderPackTabs();
+        _packDrag = {active:false, idx:-1, startX:0, startY:0, ghost:null, threshold:10};
+        return;
+    }
+    _packDrag = {active:false, idx:-1, startX:0, startY:0, ghost:null, threshold:10};
+}
+// Mouse move/up listeners for desktop drag
+document.addEventListener('mousemove', function(e) {
+    if (_packDrag.idx >= 0 && !_packDrag.active) {
+        packDragMove(e);
+    } else if (_packDrag.active) {
+        packDragMove(e);
+    }
+});
+document.addEventListener('mouseup', function(e) {
+    if (_packDrag.idx >= 0) packDragEnd(e);
+});
+
+// ===== Game Pack Catalog =====
+var GAME_PACK_CATALOG = [
+    {
+        id: 'formula-de', name: 'Formula De', category: 'Board Games',
+        desc: 'Racing game with gear-specific dice — shift up for speed, down for control.',
         presets: [
             {name:'1st Gear', children:[{type:'custom',faces:[1,1,2,2]}], dice:[{type:'custom',faces:[1,1,2,2]}], modifier:0, dropLowest:0, dropHighest:0},
             {name:'2nd Gear', children:[{type:'custom',faces:[2,2,3,3,4,4]}], dice:[{type:'custom',faces:[2,2,3,3,4,4]}], modifier:0, dropLowest:0, dropHighest:0},
@@ -2681,9 +3046,310 @@ function addFormulaDeExamplePack() {
             {name:'5th Gear', children:[{type:'custom',faces:[11,12,13,14,15,16,17,18,19,20]}], dice:[{type:'custom',faces:[11,12,13,14,15,16,17,18,19,20]}], modifier:0, dropLowest:0, dropHighest:0},
             {name:'6th Gear', children:[{type:'custom',faces:[21,21,22,23,24,25,26,27,28,29,30]}], dice:[{type:'custom',faces:[21,21,22,23,24,25,26,27,28,29,30]}], modifier:0, dropLowest:0, dropHighest:0},
         ]
+    },
+    {
+        id: 'dnd-5e', name: 'D&D 5e', category: 'TTRPGs',
+        desc: 'The most popular RPG — advantage, stat rolls, damage, and saving throws.',
+        presets: [
+            {name:'Stat Roll', children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:true, dropHighest:false},
+            {name:'Advantage', children:[{type:'d20'},{type:'d20'}], dice:[{type:'d20'},{type:'d20'}], modifier:0, dropLowest:true, dropHighest:false},
+            {name:'Disadvantage', children:[{type:'d20'},{type:'d20'}], dice:[{type:'d20'},{type:'d20'}], modifier:0, dropLowest:false, dropHighest:true},
+            {name:'Attack d20', children:[{type:'d20'}], dice:[{type:'d20'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Fireball 8d6', children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Sneak 2d6', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Greatsword 2d6', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Healing Word d4', children:[{type:'d4'}], dice:[{type:'d4'}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'pathfinder-2e', name: 'Pathfinder 2e', category: 'TTRPGs',
+        desc: 'Three-action system with crit success/failure thresholds and MAP tracking.',
+        presets: [
+            {name:'Attack', children:[{type:'d20'}], dice:[{type:'d20'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'2nd Attack (MAP -5)', children:[{type:'d20'}], dice:[{type:'d20'}], modifier:-5, dropLowest:0, dropHighest:0},
+            {name:'3rd Attack (MAP -10)', children:[{type:'d20'}], dice:[{type:'d20'}], modifier:-10, dropLowest:0, dropHighest:0},
+            {name:'Damage d12', children:[{type:'d12'}], dice:[{type:'d12'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Damage 2d8', children:[{type:'d8'},{type:'d8'}], dice:[{type:'d8'},{type:'d8'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Hero Point d20', children:[{type:'d20'},{type:'d20'}], dice:[{type:'d20'},{type:'d20'}], modifier:0, dropLowest:true, dropHighest:false},
+            {name:'Flat Check d20', children:[{type:'d20'}], dice:[{type:'d20'}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'pbta', name: 'PbtA (Powered by the Apocalypse)', category: 'TTRPGs',
+        desc: 'Covers 100+ games: Apocalypse World, Dungeon World, Monster of the Week, Masks, and more. 2d6+stat, 10+=strong hit, 7-9=weak hit, 6-=miss.',
+        presets: [
+            {name:'Move (+0)', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Move (+1)', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:1, dropLowest:0, dropHighest:0},
+            {name:'Move (+2)', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:2, dropLowest:0, dropHighest:0},
+            {name:'Move (+3)', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:3, dropLowest:0, dropHighest:0},
+            {name:'Move (-1)', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:-1, dropLowest:0, dropHighest:0},
+            {name:'Move (-2)', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:-2, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'blades', name: 'Blades in the Dark', category: 'TTRPGs',
+        desc: 'FitD family: roll d6 pool, take highest. 6=full success, 4-5=partial, 1-3=bad outcome. Also covers Scum & Villainy, Band of Blades, etc.',
+        presets: [
+            {name:'Zero Dice (2d6 take low)', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:true},
+            {name:'1d6', children:[{type:'d6'}], dice:[{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'2d6 (take best)', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:0, dropLowest:true, dropHighest:0},
+            {name:'3d6 (take best)', children:[{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:2, dropHighest:0},
+            {name:'4d6 (take best)', children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:3, dropHighest:0},
+            {name:'Fortune 1d6', children:[{type:'d6'}], dice:[{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Resistance 1d6', children:[{type:'d6'}], dice:[{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'fate', name: 'FATE / Fudge', category: 'TTRPGs',
+        desc: '4 Fudge dice (+, -, blank) producing -4 to +4 plus skill. Covers FATE Core, Accelerated, Condensed, and all Fudge games.',
+        presets: [
+            {name:'4dF (+0)', children:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}], dice:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}], modifier:-8, dropLowest:0, dropHighest:0},
+            {name:'4dF (+1)', children:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}], dice:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}], modifier:-7, dropLowest:0, dropHighest:0},
+            {name:'4dF (+2)', children:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}], dice:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}], modifier:-6, dropLowest:0, dropHighest:0},
+            {name:'4dF (+3)', children:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}], dice:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}], modifier:-5, dropLowest:0, dropHighest:0},
+            {name:'4dF (+4)', children:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}], dice:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}], modifier:-4, dropLowest:0, dropHighest:0},
+            {name:'4dF (+5)', children:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}], dice:[{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3},{type:'dx',sides:3}], modifier:-3, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'dcc', name: 'Dungeon Crawl Classics', category: 'TTRPGs',
+        desc: 'The Dice Chain! Funky dice you probably lack: d3, d5, d7, d14, d16, d24, d30. Digital is the only practical way to play.',
+        presets: [
+            {name:'d3', children:[{type:'dx',sides:3}], dice:[{type:'dx',sides:3}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'d5', children:[{type:'dx',sides:5}], dice:[{type:'dx',sides:5}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'d7', children:[{type:'dx',sides:7}], dice:[{type:'dx',sides:7}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'d14', children:[{type:'dx',sides:14}], dice:[{type:'dx',sides:14}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'d16', children:[{type:'dx',sides:16}], dice:[{type:'dx',sides:16}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'d24', children:[{type:'dx',sides:24}], dice:[{type:'dx',sides:24}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'d30', children:[{type:'dx',sides:30}], dice:[{type:'dx',sides:30}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Funnel 3d6', children:[{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'call-of-cthulhu', name: 'Call of Cthulhu', category: 'TTRPGs',
+        desc: 'd100 roll-under with bonus/penalty dice. Pushed rolls and luck spending.',
+        presets: [
+            {name:'d100', children:[{type:'dx',sides:100}], dice:[{type:'dx',sides:100}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'d100 Bonus (2 tens)', children:[{type:'dx',sides:10},{type:'dx',sides:10},{type:'dx',sides:10}], dice:[{type:'dx',sides:10},{type:'dx',sides:10},{type:'dx',sides:10}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'d100 Penalty (2 tens)', children:[{type:'dx',sides:10},{type:'dx',sides:10},{type:'dx',sides:10}], dice:[{type:'dx',sides:10},{type:'dx',sides:10},{type:'dx',sides:10}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Damage 1d3', children:[{type:'dx',sides:3}], dice:[{type:'dx',sides:3}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Damage 1d6', children:[{type:'d6'}], dice:[{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Damage 1d8', children:[{type:'d8'}], dice:[{type:'d8'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Luck d100', children:[{type:'dx',sides:100}], dice:[{type:'dx',sides:100}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'savage-worlds', name: 'Savage Worlds', category: 'TTRPGs',
+        desc: 'Exploding dice with a Wild Die (d6). Trait dice step from d4 to d12. Raises on every +4 over target.',
+        presets: [
+            {name:'d4 + Wild d6', children:[{type:'d4'},{type:'d6'}], dice:[{type:'d4'},{type:'d6'}], modifier:0, dropLowest:true, dropHighest:0, exploding:true},
+            {name:'d6 + Wild d6', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:0, dropLowest:true, dropHighest:0, exploding:true},
+            {name:'d8 + Wild d6', children:[{type:'d8'},{type:'d6'}], dice:[{type:'d8'},{type:'d6'}], modifier:0, dropLowest:true, dropHighest:0, exploding:true},
+            {name:'d10 + Wild d6', children:[{type:'d10'},{type:'d6'}], dice:[{type:'d10'},{type:'d6'}], modifier:0, dropLowest:true, dropHighest:0, exploding:true},
+            {name:'d12 + Wild d6', children:[{type:'d12'},{type:'d6'}], dice:[{type:'d12'},{type:'d6'}], modifier:0, dropLowest:true, dropHighest:0, exploding:true},
+            {name:'Damage 2d6', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0, exploding:true},
+            {name:'Damage 3d6', children:[{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0, exploding:true},
+        ]
+    },
+    {
+        id: 'yahtzee', name: 'Yahtzee', category: 'Party Games',
+        desc: 'The classic dice game. Roll 5d6, keep what you like, reroll the rest up to 3 times.',
+        presets: [
+            {name:'5d6', children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'king-of-tokyo', name: 'King of Tokyo', category: 'Board Games',
+        desc: 'Yahtzee-style monster brawl. 6 custom dice with Claws, Hearts, Lightning, and numbers 1-3.',
+        presets: [
+            {name:'6 Power Dice', children:[{type:'custom',faces:[1,2,3,'Claw','Heart','Bolt']},{type:'custom',faces:[1,2,3,'Claw','Heart','Bolt']},{type:'custom',faces:[1,2,3,'Claw','Heart','Bolt']},{type:'custom',faces:[1,2,3,'Claw','Heart','Bolt']},{type:'custom',faces:[1,2,3,'Claw','Heart','Bolt']},{type:'custom',faces:[1,2,3,'Claw','Heart','Bolt']}], dice:[{type:'custom',faces:[1,2,3,'Claw','Heart','Bolt']},{type:'custom',faces:[1,2,3,'Claw','Heart','Bolt']},{type:'custom',faces:[1,2,3,'Claw','Heart','Bolt']},{type:'custom',faces:[1,2,3,'Claw','Heart','Bolt']},{type:'custom',faces:[1,2,3,'Claw','Heart','Bolt']},{type:'custom',faces:[1,2,3,'Claw','Heart','Bolt']}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'zombie-dice', name: 'Zombie Dice', category: 'Party Games',
+        desc: 'Push-your-luck with 3 dice colors. Green=easy brains, Yellow=medium, Red=dangerous. Shotguns end your turn.',
+        presets: [
+            {name:'Green Die', children:[{type:'custom',faces:['Brain','Brain','Brain','Step','Step','Shot']}], dice:[{type:'custom',faces:['Brain','Brain','Brain','Step','Step','Shot']}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Yellow Die', children:[{type:'custom',faces:['Brain','Brain','Step','Step','Shot','Shot']}], dice:[{type:'custom',faces:['Brain','Brain','Step','Step','Shot','Shot']}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Red Die', children:[{type:'custom',faces:['Brain','Step','Step','Shot','Shot','Shot']}], dice:[{type:'custom',faces:['Brain','Step','Step','Shot','Shot','Shot']}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'catan', name: 'Catan', category: 'Board Games',
+        desc: 'The classic resource game. Roll 2d6 for production — every settler knows the probability of 6 and 8.',
+        presets: [
+            {name:'Production 2d6', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Robber d6', children:[{type:'d6'}], dice:[{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'shadowrun', name: 'Shadowrun', category: 'TTRPGs',
+        desc: 'Roll pools of d6s, count 5s and 6s as hits. More than half 1s = glitch. Large pools (10-20+ dice).',
+        presets: [
+            {name:'Pool 4d6', children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0, countSuccess:5},
+            {name:'Pool 6d6', children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0, countSuccess:5},
+            {name:'Pool 8d6', children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0, countSuccess:5},
+            {name:'Pool 10d6', children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0, countSuccess:5},
+            {name:'Pool 12d6', children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0, countSuccess:5},
+            {name:'Initiative d6', children:[{type:'d6'}], dice:[{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'ironsworn', name: 'Ironsworn / Starforged', category: 'Solo RPGs',
+        desc: 'Action die (d6+stat) vs two Challenge dice (d10). Strong hit=beat both, weak hit=beat one, miss=beat neither.',
+        presets: [
+            {name:'Action d6', children:[{type:'d6'}], dice:[{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Challenge 2d10', children:[{type:'d10'},{type:'d10'}], dice:[{type:'d10'},{type:'d10'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'Oracle d100', children:[{type:'dx',sides:100}], dice:[{type:'dx',sides:100}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'farkle', name: 'Farkle', category: 'Party Games',
+        desc: 'Push-your-luck scoring. Roll 6d6, score 1s and 5s, three-of-a-kind, straights, and more.',
+        presets: [
+            {name:'6d6', children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'5d6', children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'4d6', children:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'3d6', children:[{type:'d6'},{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'2d6', children:[{type:'d6'},{type:'d6'}], dice:[{type:'d6'},{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+            {name:'1d6', children:[{type:'d6'}], dice:[{type:'d6'}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'wod', name: 'World of Darkness', category: 'TTRPGs',
+        desc: 'd10 pools — count 8+ as successes. Covers Vampire, Werewolf, Mage, Hunter, and all Chronicles of Darkness games.',
+        presets: [
+            {name:'Pool 3d10', children:[{type:'d10'},{type:'d10'},{type:'d10'}], dice:[{type:'d10'},{type:'d10'},{type:'d10'}], modifier:0, dropLowest:0, dropHighest:0, countSuccess:8},
+            {name:'Pool 5d10', children:[{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'}], dice:[{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'}], modifier:0, dropLowest:0, dropHighest:0, countSuccess:8},
+            {name:'Pool 7d10', children:[{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'}], dice:[{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'}], modifier:0, dropLowest:0, dropHighest:0, countSuccess:8},
+            {name:'Pool 10d10', children:[{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'}], dice:[{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'},{type:'d10'}], modifier:0, dropLowest:0, dropHighest:0, countSuccess:8},
+            {name:'Humanity d10', children:[{type:'d10'}], dice:[{type:'d10'}], modifier:0, dropLowest:0, dropHighest:0},
+        ]
+    },
+    {
+        id: 'slots', name: 'Slot Machine', category: 'Casino',
+        desc: 'Classic slot machine reels with weighted symbols. Pull the lever!',
+        presets: (function() {
+            var reel = ['Blank','Blank','Blank','Blank','Blank','Blank','Blank','Blank',
+                        'Cherry','Cherry','Cherry','Cherry','Cherry','Cherry','Cherry','Cherry','Cherry',
+                        'Lemon','Lemon','Lemon','Lemon','Lemon','Lemon','Lemon',
+                        'Bell','Bell','Bell',
+                        '7','7',
+                        'Bar'];
+            var d = {type:'custom',faces:reel};
+            return [
+                {name:'Mechanical', children:[d,d,d], dice:[d,d,d], modifier:0, dropLowest:0, dropHighest:0},
+            ];
+        })()
+    },
+];
+
+// ===== Pack Install/Uninstall =====
+function isPackInstalled(packId) {
+    var cat = GAME_PACK_CATALOG.find(function(c) { return c.id === packId; });
+    return cat && presetData.packs.some(function(pk) { return pk.name === cat.name; });
+}
+function installPack(packId) {
+    if (!PREMIUM) return;
+    var cat = GAME_PACK_CATALOG.find(function(c) { return c.id === packId; });
+    if (!cat) return;
+    if (presetData.packs.some(function(pk) { return pk.name === cat.name; })) return;
+    presetData.packs.push({name: cat.name, presets: JSON.parse(JSON.stringify(cat.presets))});
+    presetData.activePack = cat.name;
+    savePresetsToStorage(); rebuildPresetViews(); renderPackTabs(); renderPresets();
+    renderPackBrowser();
+}
+function uninstallPack(packId) {
+    var cat = GAME_PACK_CATALOG.find(function(c) { return c.id === packId; });
+    if (!cat) return;
+    var idx = -1;
+    presetData.packs.forEach(function(pk, i) { if (pk.name === cat.name) idx = i; });
+    if (idx < 0) return;
+    if (presetData.activePack === cat.name) presetData.activePack = null;
+    presetData.packs.splice(idx, 1);
+    savePresetsToStorage(); rebuildPresetViews(); renderPackTabs(); renderPresets();
+    renderPackBrowser();
+}
+
+// Migrate: if old Formula De was auto-added, keep it (already installed)
+function addFormulaDeExamplePack() {
+    if (presetData.packs.some(function(pk) { return pk.name === 'Formula De'; })) return;
+    installPack('formula-de');
+}
+
+// ===== Pack Browser =====
+var packBrowserReadOnly = false;
+function openPackBrowser() {
+    if (!PREMIUM) { showPremiumUpsell(); return; }
+    packBrowserReadOnly = false;
+    document.getElementById('packBrowser').classList.add('open');
+    document.getElementById('pbSearch').value = '';
+    renderPackBrowser();
+    document.getElementById('pbSearch').focus();
+}
+function showGameList() {
+    packBrowserReadOnly = true;
+    document.getElementById('packBrowser').classList.add('open');
+    document.getElementById('pbSearch').value = '';
+    renderPackBrowser();
+    document.getElementById('pbSearch').focus();
+}
+function closePackBrowser() {
+    document.getElementById('packBrowser').classList.remove('open');
+    packBrowserReadOnly = false;
+}
+function renderPackBrowser() {
+    var el = document.getElementById('pbList');
+    if (!el) return;
+    var q = (document.getElementById('pbSearch').value || '').toLowerCase().trim();
+    var filtered = GAME_PACK_CATALOG.filter(function(pack) {
+        if (!q) return true;
+        return pack.name.toLowerCase().indexOf(q) >= 0 ||
+               pack.desc.toLowerCase().indexOf(q) >= 0 ||
+               pack.category.toLowerCase().indexOf(q) >= 0;
     });
-    savePresetsToStorage();
-    rebuildPresetViews();
+    if (filtered.length === 0) {
+        el.innerHTML = '<div class="dr-pb-empty">No packs match your search</div>';
+        return;
+    }
+    // Group by category
+    var cats = {};
+    filtered.forEach(function(pack) {
+        if (!cats[pack.category]) cats[pack.category] = [];
+        cats[pack.category].push(pack);
+    });
+    var catOrder = ['TTRPGs', 'Solo RPGs', 'Board Games', 'Party Games', 'Casino'];
+    var html = '';
+    catOrder.forEach(function(cat) {
+        if (!cats[cat]) return;
+        html += '<div class="dr-pb-category">' + cat + '</div>';
+        cats[cat].forEach(function(pack) {
+            var installed = isPackInstalled(pack.id);
+            var btnCls, btnText, action;
+            if (packBrowserReadOnly) {
+                btnCls = 'dr-pb-btn installed';
+                btnText = '\\u2728 Premium';
+                action = 'closePackBrowser();showPremiumUpsell()';
+            } else if (installed) {
+                btnCls = 'dr-pb-btn installed';
+                btnText = 'Installed';
+                action = 'uninstallPack(\\'' + pack.id + '\\')';
+            } else {
+                btnCls = 'dr-pb-btn install';
+                btnText = 'Install';
+                action = 'installPack(\\'' + pack.id + '\\')';
+            }
+            html += '<div class="dr-pb-card">' +
+                '<div class="dr-pb-card-info">' +
+                    '<div class="dr-pb-card-name">' + pack.name + '</div>' +
+                    '<div class="dr-pb-card-desc">' + pack.desc + '</div>' +
+                    '<div class="dr-pb-card-meta">' + pack.presets.length + ' preset' + (pack.presets.length === 1 ? '' : 's') + '</div>' +
+                '</div>' +
+                '<button class="' + btnCls + '" onclick="' + action + '">' + btnText + '</button>' +
+                '</div>';
+        });
+    });
+    el.innerHTML = html;
 }
 
 function getCupSignature() {
@@ -3671,7 +4337,7 @@ function syncFormulaFromCup() {
                 inner = parts.join('<span style="color:var(--text-dim)"> + </span>');
             } else {
                 // Leaf group — dice only
-                inner = esc(buildGroupFormula(g) || '');
+                inner = esc(buildGroupFormula(g) || '').replace(/([+\-,])/g, '$1<wbr>');
             }
             var wrapped = '(' + inner + ')';
             if (isActive) {
@@ -3696,11 +4362,19 @@ function syncFormulaFromCup() {
             }
         });
     } else if (overlay) {
-        overlay.innerHTML = '';
-        overlay.style.display = 'none';
-        inp.style.color = '';
-        inp.style.background = '';
-        inp.style.height = '';
+        // Single group — still use overlay for wrapping long formulas
+        // Insert word-break opportunities after operators and commas
+        overlay.innerHTML = esc(formula).replace(/([+\-,])/g, '$1<wbr>');
+        overlay.style.display = 'block';
+        inp.style.color = 'transparent';
+        inp.style.background = 'transparent';
+        requestAnimationFrame(function() {
+            if (overlay.offsetHeight > inp.offsetHeight) {
+                inp.style.height = overlay.offsetHeight + 'px';
+            } else {
+                inp.style.height = '';
+            }
+        });
     }
 }
 
@@ -3724,15 +4398,15 @@ function showPremiumUpsell() {
         '<div style="font-size:20px;font-weight:800;color:var(--text-bright);margin-bottom:4px">Go Premium</div>' +
         '<div style="color:var(--text-muted);font-size:14px;margin-bottom:16px">One-time purchase \\u2014 $4.99</div>' +
         '<div style="text-align:left;color:var(--text);font-size:14px;line-height:1.8">' +
-        '\\u2705 Editable formula bar<br>' +
-        '\\u2705 Multi-group dice (sum, max, min)<br>' +
-        '\\u2705 Repeat rolls (6\\u00d74d6dl)<br>' +
-        '\\u2705 Named variables (STR, DEX)<br>' +
+        '\\u2705 Custom dice faces \\u2014 d{1,1,2,3,5}<br>' +
+        '\\u2705 Multi-group rolls \\u2014 (4d6dl)+(2d8!)<br>' +
+        '\\u2705 Game Packs \\u2014 Formula De included<br>' +
+        '\\u2705 Game Pack browser<br>' +
         '\\u2705 Unlimited presets<br>' +
-        '\\u2705 Game system packs<br>' +
         '\\u2705 Premium themes<br>' +
-        '\\u2705 No ads</div>' +
-        '<button onclick="this.closest(\\x27div[style]\\x27).parentElement.remove()" style="margin-top:16px;background:#ffa657;color:#000;border:none;border-radius:10px;padding:12px 32px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;width:100%">Coming Soon</button>' +
+        '\\u2705 Tap-hold dice editing</div>' +
+        '<button onclick="this.closest(\\x27div[style]\\x27).parentElement.remove();showGameList()" style="margin-top:12px;background:none;border:1px solid var(--border);border-radius:10px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:#58a6ff;width:100%">See all supported games \\u203A</button>' +
+        '<button onclick="this.closest(\\x27div[style]\\x27).parentElement.remove()" style="margin-top:12px;background:#ffa657;color:#000;border:none;border-radius:10px;padding:12px 32px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;width:100%">Coming Soon</button>' +
         '<button onclick="this.closest(\\x27div[style]\\x27).parentElement.remove()" style="margin-top:8px;background:none;border:none;color:var(--text-dim);font-size:13px;cursor:pointer;font-family:inherit">Not now</button>';
     backdrop.appendChild(modal);
     document.body.appendChild(backdrop);
@@ -3978,6 +4652,8 @@ function updatePremiumBtn() {
 
     isMuted = true;
     shakeEnabled = false;
+    // Save query string so history/bugs pages can link back correctly
+    if (window.location.search) localStorage.setItem('dice_roller_qs', window.location.search);
     loadHistory(); loadPresets();
     loadCupState();
     // In free mode, collapse multi-group to single group
@@ -4160,9 +4836,9 @@ a.dr-back { color:var(--accent); text-decoration:none; font-size:14px; font-weig
 .dr-history-clear { background:none; border:1px solid var(--border); border-radius:8px;
                     color:var(--text-dim); padding:6px 12px; font-size:12px; cursor:pointer; font-family:inherit; }
 .dr-history-clear:hover { color:#f85149; border-color:#f85149; }
-.dr-history-entry { display:flex; justify-content:space-between; align-items:center;
+.dr-history-entry { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;
                     padding:10px 14px; border-radius:10px; margin-bottom:6px;
-                    background:var(--btn-bg); border:1px solid var(--border2); }
+                    background:var(--btn-bg); border:1px solid var(--border2); gap:4px; }
 .dr-history-total { font-weight:700; color:var(--text-bright); font-size:18px;
                     font-family:'SF Mono',ui-monospace,monospace; min-width:45px; }
 .dr-history-expr { color:var(--text-muted); font-size:13px; flex:1; text-align:center; }
@@ -4177,7 +4853,7 @@ document.body.setAttribute('data-theme',t);
 document.querySelector('meta[name=theme-color]').content=getComputedStyle(document.body).getPropertyValue('--bg').trim();
 </script>
 <div class="dr-header">
-    <a class="dr-back" href="/dice">&larr; Back</a>
+    <a class="dr-back" href="/dice" id="backLink">&larr; Back</a>
     <h1>Roll History</h1>
     <div style="width:50px"></div>
 </div>
@@ -4197,6 +4873,19 @@ function formatTimeAgo(ts) {
     return Math.floor(diff/86400)+'d ago';
 }
 function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+var FACE_SYMBOLS = {
+    'claw':'<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px"><path d="M4 2C5 6 7 10 10 14c1 1.5.5 3 0 4-.5-1-3-5-6-10C3 6 3 4 4 2z"/><path d="M8 1C9 5 11 9 14 13c1 1.5.5 3 0 4-.5-1-3-5-6-10C7 5 7 3 8 1z"/><path d="M12 2C13 6 15 10 18 14c1 1.5.5 3 0 4-.5-1-3-5-6-10C11 6 11 4 12 2z"/><path d="M16 3C17 7 19 11 22 15c1 1.5.5 3 0 4-.5-1-3-5-6-10C15 7 15 5 16 3z"/></svg>',
+    'heart':'\\u2764\\uFE0F','bolt':'\\u26A1','brain':'\\u{1F9E0}','shot':'\\u{1F4A5}','step':'\\u{1F463}',
+    'cherry':'\\u{1F352}','cherries':'\\u{1F352}','lemon':'\\u{1F34B}','bell':'\\u{1F514}',
+    '7':'<span style="color:#e33;font-weight:900;font-style:italic;font-size:1.1em;font-family:serif">7</span>',
+    'bar':'<svg width="16" height="14" viewBox="0 0 22 18" style="vertical-align:-2px"><rect x="1" y="1" width="20" height="4" rx="1" fill="#c8a84e"/><rect x="1" y="7" width="20" height="4" rx="1" fill="#c8a84e"/><rect x="1" y="13" width="20" height="4" rx="1" fill="#c8a84e"/></svg>',
+    'sword':'\\u2694\\uFE0F','shield':'\\u{1F6E1}\\uFE0F','skull':'\\u{1F480}','star':'\\u2B50',
+    'fire':'\\u{1F525}','hit':'\\u{1F3AF}','miss':'\\u274C','blank':'<span style="opacity:0.15">\\u2014</span>',
+};
+function faceToDisplay(face) {
+    var sym = FACE_SYMBOLS[face.toLowerCase()];
+    return sym || esc(face);
+}
 function render() {
     var list=document.getElementById('historyList');
     var history=[];
@@ -4205,11 +4894,25 @@ function render() {
     var html='';
     history.forEach(function(e){
         var favLabel = e.favName ? '<div style="font-size:10px;color:#ffa657;font-weight:600;">'+esc(e.favName)+'</div>' : '';
-        html+='<div class="dr-history-entry"><span class="dr-history-total">'+esc(''+e.total)+'</span><span class="dr-history-expr">'+favLabel+esc(e.expression)+'</span><span class="dr-history-time">'+formatTimeAgo(e.timestamp)+'</span></div>';
+        var totalHtml;
+        if (e.symbolFaces && e.symbolFaces.length > 0) {
+            // Symbol roll: render face chips with emoji
+            totalHtml = '<span style="display:flex;flex-wrap:wrap;gap:4px">';
+            e.symbolFaces.forEach(function(f) {
+                totalHtml += '<span style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-size:14px">' + faceToDisplay(f) + '</span>';
+            });
+            totalHtml += '</span>';
+        } else {
+            totalHtml = '<span class="dr-history-total">'+esc(''+e.total)+'</span>';
+        }
+        html+='<div class="dr-history-entry">'+totalHtml+'<span class="dr-history-expr">'+favLabel+esc(e.expression)+'</span><span class="dr-history-time">'+formatTimeAgo(e.timestamp)+'</span></div>';
     });
     list.innerHTML=html;
 }
 function clearHistory(){localStorage.removeItem('dice_roller_history');render();}
+// Preserve premium query param on back link
+var qs = window.location.search || localStorage.getItem('dice_roller_qs') || '';
+if (qs) document.getElementById('backLink').href = '/dice' + qs;
 render();
 </script>
 </body>
