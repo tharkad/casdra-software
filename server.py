@@ -4306,20 +4306,14 @@ class Handler(BaseHTTPRequestHandler):
             room = conn.execute("SELECT * FROM dice_rooms WHERE code=? AND status='active'", (code,)).fetchone()
             conn.close()
             if not room:
-                self.send_response(404)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(b'{"error":"Room not found"}')
+                self.send_json({"error": "Room not found"}, 404)
                 return
             import json
             taken_colors = _get_room_taken_colors(code)
             members = _get_room_members(code)
             packs = _get_room_packs(code)
             data = json.dumps({"code": code, "takenColors": taken_colors, "members": members, "packs": packs})
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(data.encode())
+            self.send_json(data)
 
         elif path == "/dice/bugs":
             conn = get_db()
@@ -5006,18 +5000,12 @@ class Handler(BaseHTTPRequestHandler):
             name = (data.get("name") or "").strip()[:30]
             color = (data.get("color") or ROOM_COLORS[0]).strip()
             if not name:
-                self.send_response(400)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(b'{"error":"Name required"}')
+                self.send_json({"error": "Name required"}, 400)
                 return
             _room_cleanup()
             code = _generate_room_code()
             if not code:
-                self.send_response(500)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(b'{"error":"Could not generate room code"}')
+                self.send_json({"error": "Could not generate room code"}, 500)
                 return
             conn = get_db()
             conn.execute("INSERT INTO dice_rooms (code, host_name) VALUES (?, ?)", (code, name))
@@ -5025,10 +5013,7 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
             resp = json.dumps({"code": code, "name": name, "color": color})
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(resp.encode())
+            self.send_json(resp)
 
         elif path == "/dice/room/join":
             try:
@@ -5042,10 +5027,7 @@ class Handler(BaseHTTPRequestHandler):
             room = conn.execute("SELECT * FROM dice_rooms WHERE code=? AND status='active'", (code,)).fetchone()
             if not room:
                 conn.close()
-                self.send_response(404)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(b'{"error":"Room not found"}')
+                self.send_json({"error": "Room not found"}, 404)
                 return
             # Remove any existing member with same name, then re-add (rejoin case)
             conn.execute("DELETE FROM dice_room_members WHERE room_code=? AND name=?", (code, name))
@@ -5056,10 +5038,7 @@ class Handler(BaseHTTPRequestHandler):
             _room_touch(code)
             _room_broadcast(code, "join", {"name": name, "color": color})
             resp = json.dumps({"code": code, "name": name, "color": color, "host": room["host_name"], "packs": packs})
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(resp.encode())
+            self.send_json(resp)
 
         elif path == "/dice/room/roll":
             try:
@@ -5084,10 +5063,7 @@ class Handler(BaseHTTPRequestHandler):
                 "name": name, "color": color, "expression": expression,
                 "favName": fav_name, "resultData": data.get("resultData") or {}
             })
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(b'{"ok":true}')
+            self.send_json({"ok": True})
 
         elif path == "/dice/room/push-pack":
             try:
@@ -5101,10 +5077,7 @@ class Handler(BaseHTTPRequestHandler):
             room = conn.execute("SELECT host_name FROM dice_rooms WHERE code=? AND status='active'", (code,)).fetchone()
             if not room or room["host_name"] != name:
                 conn.close()
-                self.send_response(403)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(b'{"error":"Not the host"}')
+                self.send_json({"error": "Not the host"}, 403)
                 return
             # Check if already pushed
             exists = conn.execute("SELECT 1 FROM dice_room_packs WHERE room_code=? AND pack_id=?", (code, pack_id)).fetchone()
@@ -5113,10 +5086,7 @@ class Handler(BaseHTTPRequestHandler):
                 conn.commit()
             conn.close()
             _room_broadcast(code, "pack-push", {"packId": pack_id})
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(b'{"ok":true}')
+            self.send_json({"ok": True})
 
         elif path == "/dice/room/close":
             try:
@@ -5129,10 +5099,7 @@ class Handler(BaseHTTPRequestHandler):
             room = conn.execute("SELECT host_name FROM dice_rooms WHERE code=? AND status='active'", (code,)).fetchone()
             if not room or room["host_name"] != name:
                 conn.close()
-                self.send_response(403)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(b'{"error":"Not the host"}')
+                self.send_json({"error": "Not the host"}, 403)
                 return
             conn.execute("UPDATE dice_rooms SET status='closed' WHERE code=?", (code,))
             conn.execute("DELETE FROM dice_room_members WHERE room_code=?", (code,))
@@ -5142,10 +5109,7 @@ class Handler(BaseHTTPRequestHandler):
             # Clean up SSE streams
             with _room_streams_lock:
                 _room_streams.pop(code, None)
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(b'{"ok":true}')
+            self.send_json({"ok": True})
 
         elif path == "/dice/room/leave":
             try:
@@ -5159,10 +5123,7 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
             _room_broadcast(code, "leave", {"name": name})
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(b'{"ok":true}')
+            self.send_json({"ok": True})
 
         elif path == "/dice/room/color":
             try:
@@ -5177,10 +5138,7 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
             _room_broadcast(code, "color-change", {"name": name, "color": color})
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(b'{"ok":true}')
+            self.send_json({"ok": True})
 
         elif path == "/dice/bug":
             try:

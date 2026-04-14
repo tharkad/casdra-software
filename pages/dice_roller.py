@@ -4725,7 +4725,7 @@ function showRoomDialog() {
     var cpHtml = '';
     ROOM_COLORS.forEach(function(c) {
         var sel = c === savedColor ? ' selected' : '';
-        cpHtml += '<div class="dr-color-swatch'+sel+'" style="background:'+c+'" onclick="pickRoomColor(this,\\''+c+'\\')"></div>';
+        cpHtml += '<div class="dr-color-swatch'+sel+'" style="background:'+c+'" data-color="'+c+'" onclick="pickRoomColor(this,this.dataset.color)"></div>';
     });
     cpEl.innerHTML = cpHtml;
     window._roomPickedColor = savedColor;
@@ -4863,11 +4863,11 @@ function roomSharePack() {
     // Show pack picker from installed packs
     var html = '<div style="display:flex;flex-direction:column;gap:6px;padding:8px">';
     presetData.packs.forEach(function(pk) {
-        html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-bright);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="roomPushPack(\\''+esc(pk.name)+'\\')">'+esc(pk.name)+'</button>';
+        html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-bright);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" data-pack="'+esc(pk.name)+'" onclick="roomPushPack(this.dataset.pack)">'+esc(pk.name)+'</button>';
     });
     GAME_PACK_CATALOG.forEach(function(cat) {
         if (!presetData.packs.some(function(pk){return pk.name===cat.name;})) {
-            html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-dim);font-size:14px;cursor:pointer;font-family:inherit" onclick="installPack(\\''+cat.id+'\\');roomPushPack(\\''+esc(cat.name)+'\\')">'+esc(cat.name)+' (install & share)</button>';
+            html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-dim);font-size:14px;cursor:pointer;font-family:inherit" data-packid="'+cat.id+'" data-pack="'+esc(cat.name)+'" onclick="installPack(this.dataset.packid);roomPushPack(this.dataset.pack)">'+esc(cat.name)+' (install & share)</button>';
         }
     });
     html += '</div>';
