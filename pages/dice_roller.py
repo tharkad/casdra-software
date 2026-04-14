@@ -2973,6 +2973,9 @@ function showPackOptions(idx) {
     if (!pack) return;
     var html = '<div style="display:flex;flex-direction:column;gap:6px;padding:8px">';
     html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-bright);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="closeModal();renamePack('+idx+')">Rename</button>';
+    if (presetData.packs.length > 1) {
+        html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-bright);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="closeModal();showReorderPacks()">Reorder Packs</button>';
+    }
     html += '<button style="background:var(--btn-bg);border:1px solid #f85149;border-radius:8px;padding:8px 16px;color:#f85149;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="closeModal();deletePack('+idx+')">Delete</button>';
     html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-muted);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="closeModal()">Cancel</button>';
     html += '</div>';
@@ -3001,8 +3004,8 @@ function renderPackTabs() {
         var eName = pk.name.replace(/'/g, "\\\\'");
         html += '<div class="dr-pack-tab' + active + '" data-pack-idx="' + i + '" onclick="selectPackTab(\\'' + eName + '\\')" ' +
             'oncontextmenu="event.preventDefault();showPackOptions(' + i + ')" ' +
-            'onmousedown="packDragStart(' + i + ',event)" onmouseup="packDragEnd(event)" onmouseleave="cancelPackLongPress()" ' +
-            'ontouchstart="packDragStart(' + i + ',event)" ontouchend="packDragEnd(event)" ontouchmove="packDragMove(event)"' +
+            'onmousedown="startPackLongPress(' + i + ',event)" onmouseup="cancelPackLongPress()" onmouseleave="cancelPackLongPress()" ' +
+            'ontouchstart="startPackLongPress(' + i + ',event)" ontouchend="cancelPackLongPress()" ontouchmove="cancelPackLongPress()"' +
             '>' + pk.name + '</div>';
     });
     html += '<div class="dr-pack-tab add-pack" onclick="promptCreatePack()">+ Pack</div>';
@@ -3011,94 +3014,33 @@ function renderPackTabs() {
     el.innerHTML = html;
 }
 
-// ===== Pack Tab Drag-to-Reorder =====
-var _packDrag = {active:false, idx:-1, startX:0, startY:0, ghost:null, threshold:10};
-function packDragStart(idx, e) {
-    var pt = e.touches ? e.touches[0] : e;
-    _packDrag = {active:false, idx:idx, startX:pt.clientX, startY:pt.clientY, ghost:null, threshold:10};
-    // Also start long-press timer for context menu
-    startPackLongPress(idx, e);
+// ===== Pack Reorder Dialog =====
+function showReorderPacks() {
+    var html = '<div id="reorderList" style="display:flex;flex-direction:column;gap:4px;padding:8px">';
+    presetData.packs.forEach(function(pk, i) {
+        html += '<div class="dr-reorder-item" data-idx="'+i+'" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;cursor:grab;touch-action:none">' +
+            '<span style="color:var(--text-dim);font-size:16px">\\u2261</span>' +
+            '<span style="flex:1;color:var(--text-bright);font-size:14px;font-weight:600">'+esc(pk.name)+'</span>' +
+            '<span style="display:flex;flex-direction:column;gap:2px">' +
+                '<button onclick="event.stopPropagation();reorderPackMove('+i+',-1)" style="background:none;border:none;color:'+(i===0?'var(--text-dim)':'var(--text-bright)')+';font-size:14px;cursor:pointer;padding:0 4px;opacity:'+(i===0?'0.3':'1')+'">\\u25B2</button>' +
+                '<button onclick="event.stopPropagation();reorderPackMove('+i+',1)" style="background:none;border:none;color:'+(i===presetData.packs.length-1?'var(--text-dim)':'var(--text-bright)')+';font-size:14px;cursor:pointer;padding:0 4px;opacity:'+(i===presetData.packs.length-1?'0.3':'1')+'">\\u25BC</button>' +
+            '</span>' +
+        '</div>';
+    });
+    html += '</div>';
+    showModal('Reorder Packs', html);
 }
-function packDragMove(e) {
-    if (_packDrag.idx < 0) return;
-    var pt = e.touches ? e.touches[0] : e;
-    var dx = pt.clientX - _packDrag.startX;
-    if (!_packDrag.active && Math.abs(dx) > _packDrag.threshold) {
-        // Enter drag mode — cancel long press
-        cancelPackLongPress();
-        _packDrag.active = true;
-        // Create ghost
-        var tabs = document.querySelectorAll('.dr-pack-tab[data-pack-idx]');
-        var srcTab = tabs[_packDrag.idx];
-        if (!srcTab) return;
-        var ghost = srcTab.cloneNode(true);
-        ghost.style.cssText = 'position:fixed;z-index:1002;pointer-events:none;opacity:0.8;transform:scale(1.05);';
-        var r = srcTab.getBoundingClientRect();
-        ghost.style.top = r.top + 'px';
-        ghost.style.left = r.left + 'px';
-        ghost.style.width = r.width + 'px';
-        document.body.appendChild(ghost);
-        _packDrag.ghost = ghost;
-        _packDrag.origLeft = r.left;
-        srcTab.style.opacity = '0.3';
-    }
-    if (_packDrag.active && _packDrag.ghost) {
-        e.preventDefault();
-        _packDrag.ghost.style.left = (_packDrag.origLeft + dx) + 'px';
-        // Highlight drop target
-        var tabs = document.querySelectorAll('.dr-pack-tab[data-pack-idx]');
-        tabs.forEach(function(tab, ti) {
-            var r = tab.getBoundingClientRect();
-            var mid = r.left + r.width / 2;
-            tab.style.borderLeft = (pt.clientX < mid && ti !== _packDrag.idx && (ti === _packDrag.idx + 1 || pt.clientX < r.right)) ? '3px solid #ffa657' : '';
-            tab.style.borderRight = (pt.clientX >= mid && ti !== _packDrag.idx && ti === tabs.length - 1) ? '3px solid #ffa657' : '';
-        });
-    }
+function reorderPackMove(idx, dir) {
+    var newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= presetData.packs.length) return;
+    var pack = presetData.packs.splice(idx, 1)[0];
+    presetData.packs.splice(newIdx, 0, pack);
+    savePresetsToStorage();
+    renderPackTabs();
+    // Re-render the dialog
+    closeModal();
+    showReorderPacks();
 }
-function packDragEnd(e) {
-    cancelPackLongPress();
-    if (_packDrag.active) {
-        // Find drop position: which tab is the cursor closest to?
-        var pt = e.changedTouches ? e.changedTouches[0] : e;
-        var tabs = document.querySelectorAll('.dr-pack-tab[data-pack-idx]');
-        var fromIdx = _packDrag.idx;
-        var dropIdx = fromIdx;
-        // Find the slot the cursor is over
-        var insertBefore = tabs.length; // default: end
-        for (var ti = 0; ti < tabs.length; ti++) {
-            var r = tabs[ti].getBoundingClientRect();
-            if (pt.clientX < r.left + r.width / 2) { insertBefore = ti; break; }
-        }
-        // Convert insertion slot to final index after removing source
-        if (insertBefore <= fromIdx) dropIdx = insertBefore;
-        else dropIdx = insertBefore - 1;
-        dropIdx = Math.max(0, Math.min(dropIdx, presetData.packs.length - 1));
-        // Reorder
-        if (dropIdx !== fromIdx) {
-            var pack = presetData.packs.splice(fromIdx, 1)[0];
-            presetData.packs.splice(dropIdx, 0, pack);
-            savePresetsToStorage();
-        }
-        // Cleanup
-        if (_packDrag.ghost) _packDrag.ghost.remove();
-        tabs.forEach(function(tab) { tab.style.opacity = ''; tab.style.borderLeft = ''; tab.style.borderRight = ''; });
-        renderPackTabs();
-        _packDrag = {active:false, idx:-1, startX:0, startY:0, ghost:null, threshold:10};
-        return;
-    }
-    _packDrag = {active:false, idx:-1, startX:0, startY:0, ghost:null, threshold:10};
-}
-// Mouse move/up listeners for desktop drag
-document.addEventListener('mousemove', function(e) {
-    if (_packDrag.idx >= 0 && !_packDrag.active) {
-        packDragMove(e);
-    } else if (_packDrag.active) {
-        packDragMove(e);
-    }
-});
-document.addEventListener('mouseup', function(e) {
-    if (_packDrag.idx >= 0) packDragEnd(e);
-});
 
 // ===== Game Pack Catalog =====
 var GAME_PACK_CATALOG = [
