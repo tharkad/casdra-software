@@ -92,6 +92,7 @@ button, a, input { outline: none; -webkit-tap-highlight-color: transparent; }
 html {
     background: linear-gradient(180deg, var(--grad-top) 0%, var(--bg) 30%, var(--bg) 70%, var(--grad-bot) 100%);
     background-attachment: fixed; min-height: 100vh;
+    overscroll-behavior: none;
 }
 body {
     color: var(--text);
@@ -99,6 +100,7 @@ body {
     -webkit-tap-highlight-color: transparent;
     max-width: 500px; margin: 0 auto;
     min-height: 100vh; display: flex; flex-direction: column;
+    overscroll-behavior: none;
 }
 
 /* Header */
