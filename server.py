@@ -242,6 +242,48 @@ def init_db():
             notes TEXT DEFAULT ''
         )
     """)
+    # Dice Vault shared rooms
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS dice_rooms (
+            code TEXT PRIMARY KEY,
+            host_name TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            last_activity TEXT NOT NULL DEFAULT (datetime('now')),
+            status TEXT NOT NULL DEFAULT 'active'
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS dice_room_members (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            room_code TEXT NOT NULL,
+            name TEXT NOT NULL,
+            color TEXT NOT NULL,
+            last_seen TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (room_code) REFERENCES dice_rooms(code)
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS dice_room_rolls (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            room_code TEXT NOT NULL,
+            player_name TEXT NOT NULL,
+            player_color TEXT NOT NULL,
+            expression TEXT NOT NULL DEFAULT '',
+            fav_name TEXT NOT NULL DEFAULT '',
+            result_data TEXT NOT NULL DEFAULT '{}',
+            timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (room_code) REFERENCES dice_rooms(code)
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS dice_room_packs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            room_code TEXT NOT NULL,
+            pack_id TEXT NOT NULL,
+            pushed_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (room_code) REFERENCES dice_rooms(code)
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -1493,6 +1535,7 @@ build_dice_page = _dice_roller.build_dice_page
 build_dice_history_page = _dice_roller.build_dice_history_page
 build_dice_bugs_page = _dice_roller.build_dice_bugs_page
 build_dice_bug_detail_page = _dice_roller.build_dice_bug_detail_page
+build_room_log_page = _dice_roller.build_room_log_page
 
 # ---------------------------------------------------------------------------
 # Page builders
@@ -3005,6 +3048,101 @@ _GIT_HASH, _GIT_DATE = _git_version()
 
 # Dice roller page moved to pages/dice_roller.py
 
+# ===== Dice Vault Shared Rooms =====
+import random, string, threading, time as _time, queue
+
+# Active SSE connections: {room_code: [queue.Queue, ...]}
+_room_streams = {}
+_room_streams_lock = threading.Lock()
+
+ROOM_COLORS = ['#58a6ff', '#7ee787', '#f0883e', '#f85149', '#d2a8ff',
+               '#d29922', '#ff7b72', '#79c0ff', '#a5d6ff', '#ffa657',
+               '#3dd68c', '#bc8cff', '#ff9640', '#ff6b8a', '#e8c840', '#40d4e8']
+
+def _generate_room_code():
+    """Generate a random 4-letter room code, checking for uniqueness."""
+    conn = get_db()
+    for _ in range(100):
+        code = ''.join(random.choices(string.ascii_uppercase, k=4))
+        exists = conn.execute("SELECT 1 FROM dice_rooms WHERE code=? AND status='active'", (code,)).fetchone()
+        if not exists:
+            conn.close()
+            return code
+    conn.close()
+    return None
+
+def _room_broadcast(code, event_type, data):
+    """Send an SSE event to all connected clients in a room."""
+    import json
+    msg = f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
+    with _room_streams_lock:
+        queues = _room_streams.get(code, [])
+        for q in queues:
+            try:
+                q.put_nowait(msg)
+            except Exception:
+                pass
+
+def _room_touch(code):
+    """Update last_activity timestamp for a room."""
+    try:
+        conn = get_db()
+        conn.execute("UPDATE dice_rooms SET last_activity=datetime('now') WHERE code=?", (code,))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+def _room_cleanup():
+    """Purge rooms inactive for 24+ hours (keep rolls for 30 days)."""
+    try:
+        conn = get_db()
+        # Close stale rooms
+        conn.execute("""
+            UPDATE dice_rooms SET status='closed'
+            WHERE status='active' AND last_activity < datetime('now', '-24 hours')
+        """)
+        # Delete members of closed rooms
+        conn.execute("""
+            DELETE FROM dice_room_members WHERE room_code IN (
+                SELECT code FROM dice_rooms WHERE status='closed'
+            )
+        """)
+        # Delete packs of closed rooms
+        conn.execute("""
+            DELETE FROM dice_room_packs WHERE room_code IN (
+                SELECT code FROM dice_rooms WHERE status='closed'
+            )
+        """)
+        # Purge rolls older than 30 days
+        conn.execute("DELETE FROM dice_room_rolls WHERE timestamp < datetime('now', '-30 days')")
+        # Purge rooms older than 30 days entirely
+        conn.execute("DELETE FROM dice_rooms WHERE created_at < datetime('now', '-30 days')")
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+def _get_room_taken_colors(code):
+    """Get list of colors currently in use in a room."""
+    conn = get_db()
+    rows = conn.execute("SELECT color FROM dice_room_members WHERE room_code=?", (code,)).fetchall()
+    conn.close()
+    return [r['color'] for r in rows]
+
+def _get_room_members(code):
+    """Get list of current room members."""
+    conn = get_db()
+    rows = conn.execute("SELECT name, color FROM dice_room_members WHERE room_code=?", (code,)).fetchall()
+    conn.close()
+    return [{'name': r['name'], 'color': r['color']} for r in rows]
+
+def _get_room_packs(code):
+    """Get list of pack IDs pushed to room."""
+    conn = get_db()
+    rows = conn.execute("SELECT pack_id FROM dice_room_packs WHERE room_code=?", (code,)).fetchall()
+    conn.close()
+    return [r['pack_id'] for r in rows]
 
 
 # Song Burst pages moved to pages/song_burst.py
@@ -4100,6 +4238,89 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/dice/history":
             self.send_html(build_dice_history_page())
 
+        elif path.startswith("/dice/room/") and path.endswith("/stream"):
+            # SSE stream for a room
+            code = path.split("/")[3].upper()
+            conn = get_db()
+            room = conn.execute("SELECT * FROM dice_rooms WHERE code=? AND status='active'", (code,)).fetchone()
+            conn.close()
+            if not room:
+                self.send_error(404, "Room not found")
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            q = queue.Queue()
+            with _room_streams_lock:
+                if code not in _room_streams:
+                    _room_streams[code] = []
+                _room_streams[code].append(q)
+            try:
+                # Send initial state
+                import json
+                members = _get_room_members(code)
+                packs = _get_room_packs(code)
+                init_data = json.dumps({"members": members, "packs": packs})
+                self.wfile.write(f"event: init\ndata: {init_data}\n\n".encode())
+                self.wfile.flush()
+                while True:
+                    try:
+                        msg = q.get(timeout=30)
+                        self.wfile.write(msg.encode())
+                        self.wfile.flush()
+                    except queue.Empty:
+                        # Send keepalive
+                        self.wfile.write(": keepalive\n\n".encode())
+                        self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
+            finally:
+                with _room_streams_lock:
+                    if code in _room_streams and q in _room_streams[code]:
+                        _room_streams[code].remove(q)
+
+        elif path.startswith("/dice/room/") and path.endswith("/log"):
+            # Session log page
+            code = path.split("/")[3].upper()
+            conn = get_db()
+            room = conn.execute("SELECT * FROM dice_rooms WHERE code=?", (code,)).fetchone()
+            if not room:
+                conn.close()
+                self.send_error(404, "Room not found")
+                return
+            rolls = conn.execute(
+                "SELECT * FROM dice_room_rolls WHERE room_code=? ORDER BY timestamp ASC",
+                (code,)
+            ).fetchall()
+            members = conn.execute("SELECT DISTINCT player_name as name, player_color as color FROM dice_room_rolls WHERE room_code=?", (code,)).fetchall()
+            conn.close()
+            self.send_html(build_room_log_page(dict(room), [dict(r) for r in rolls], [dict(m) for m in members]))
+
+        elif path.startswith("/dice/room/") and path.endswith("/info"):
+            # Room info (for join dialog)
+            code = path.split("/")[3].upper()
+            conn = get_db()
+            room = conn.execute("SELECT * FROM dice_rooms WHERE code=? AND status='active'", (code,)).fetchone()
+            conn.close()
+            if not room:
+                self.send_response(404)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"Room not found"}')
+                return
+            import json
+            taken_colors = _get_room_taken_colors(code)
+            members = _get_room_members(code)
+            packs = _get_room_packs(code)
+            data = json.dumps({"code": code, "takenColors": taken_colors, "members": members, "packs": packs})
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(data.encode())
+
         elif path == "/dice/bugs":
             conn = get_db()
             reports = conn.execute("SELECT id, created_at, reporter, description, status, notes FROM dice_bug_reports ORDER BY created_at DESC").fetchall()
@@ -4776,6 +4997,190 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"ok": True})
             else:
                 self.send_json({"ok": False, "error": "Invalid request"}, 400)
+
+        elif path == "/dice/room/create":
+            try:
+                data = json.loads(body)
+            except (json.JSONDecodeError, ValueError):
+                data = {}
+            name = (data.get("name") or "").strip()[:30]
+            color = (data.get("color") or ROOM_COLORS[0]).strip()
+            if not name:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"Name required"}')
+                return
+            _room_cleanup()
+            code = _generate_room_code()
+            if not code:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"Could not generate room code"}')
+                return
+            conn = get_db()
+            conn.execute("INSERT INTO dice_rooms (code, host_name) VALUES (?, ?)", (code, name))
+            conn.execute("INSERT INTO dice_room_members (room_code, name, color) VALUES (?, ?, ?)", (code, name, color))
+            conn.commit()
+            conn.close()
+            resp = json.dumps({"code": code, "name": name, "color": color})
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(resp.encode())
+
+        elif path == "/dice/room/join":
+            try:
+                data = json.loads(body)
+            except (json.JSONDecodeError, ValueError):
+                data = {}
+            code = (data.get("code") or "").strip().upper()[:4]
+            name = (data.get("name") or "").strip()[:30]
+            color = (data.get("color") or ROOM_COLORS[0]).strip()
+            conn = get_db()
+            room = conn.execute("SELECT * FROM dice_rooms WHERE code=? AND status='active'", (code,)).fetchone()
+            if not room:
+                conn.close()
+                self.send_response(404)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"Room not found"}')
+                return
+            # Remove any existing member with same name, then re-add (rejoin case)
+            conn.execute("DELETE FROM dice_room_members WHERE room_code=? AND name=?", (code, name))
+            conn.execute("INSERT INTO dice_room_members (room_code, name, color) VALUES (?, ?, ?)", (code, name, color))
+            conn.commit()
+            packs = [r['pack_id'] for r in conn.execute("SELECT pack_id FROM dice_room_packs WHERE room_code=?", (code,)).fetchall()]
+            conn.close()
+            _room_touch(code)
+            _room_broadcast(code, "join", {"name": name, "color": color})
+            resp = json.dumps({"code": code, "name": name, "color": color, "host": room["host_name"], "packs": packs})
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(resp.encode())
+
+        elif path == "/dice/room/roll":
+            try:
+                data = json.loads(body)
+            except (json.JSONDecodeError, ValueError):
+                data = {}
+            code = (data.get("code") or "").strip().upper()
+            name = (data.get("name") or "").strip()
+            color = (data.get("color") or "").strip()
+            expression = (data.get("expression") or "").strip()
+            fav_name = (data.get("favName") or "").strip()
+            result_data = json.dumps(data.get("resultData") or {})
+            conn = get_db()
+            conn.execute(
+                "INSERT INTO dice_room_rolls (room_code, player_name, player_color, expression, fav_name, result_data) VALUES (?, ?, ?, ?, ?, ?)",
+                (code, name, color, expression, fav_name, result_data)
+            )
+            conn.commit()
+            conn.close()
+            _room_touch(code)
+            _room_broadcast(code, "roll", {
+                "name": name, "color": color, "expression": expression,
+                "favName": fav_name, "resultData": data.get("resultData") or {}
+            })
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok":true}')
+
+        elif path == "/dice/room/push-pack":
+            try:
+                data = json.loads(body)
+            except (json.JSONDecodeError, ValueError):
+                data = {}
+            code = (data.get("code") or "").strip().upper()
+            pack_id = (data.get("packId") or "").strip()
+            name = (data.get("name") or "").strip()
+            conn = get_db()
+            room = conn.execute("SELECT host_name FROM dice_rooms WHERE code=? AND status='active'", (code,)).fetchone()
+            if not room or room["host_name"] != name:
+                conn.close()
+                self.send_response(403)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"Not the host"}')
+                return
+            # Check if already pushed
+            exists = conn.execute("SELECT 1 FROM dice_room_packs WHERE room_code=? AND pack_id=?", (code, pack_id)).fetchone()
+            if not exists:
+                conn.execute("INSERT INTO dice_room_packs (room_code, pack_id) VALUES (?, ?)", (code, pack_id))
+                conn.commit()
+            conn.close()
+            _room_broadcast(code, "pack-push", {"packId": pack_id})
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok":true}')
+
+        elif path == "/dice/room/close":
+            try:
+                data = json.loads(body)
+            except (json.JSONDecodeError, ValueError):
+                data = {}
+            code = (data.get("code") or "").strip().upper()
+            name = (data.get("name") or "").strip()
+            conn = get_db()
+            room = conn.execute("SELECT host_name FROM dice_rooms WHERE code=? AND status='active'", (code,)).fetchone()
+            if not room or room["host_name"] != name:
+                conn.close()
+                self.send_response(403)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"Not the host"}')
+                return
+            conn.execute("UPDATE dice_rooms SET status='closed' WHERE code=?", (code,))
+            conn.execute("DELETE FROM dice_room_members WHERE room_code=?", (code,))
+            conn.commit()
+            conn.close()
+            _room_broadcast(code, "room-closed", {"code": code})
+            # Clean up SSE streams
+            with _room_streams_lock:
+                _room_streams.pop(code, None)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok":true}')
+
+        elif path == "/dice/room/leave":
+            try:
+                data = json.loads(body)
+            except (json.JSONDecodeError, ValueError):
+                data = {}
+            code = (data.get("code") or "").strip().upper()
+            name = (data.get("name") or "").strip()
+            conn = get_db()
+            conn.execute("DELETE FROM dice_room_members WHERE room_code=? AND name=?", (code, name))
+            conn.commit()
+            conn.close()
+            _room_broadcast(code, "leave", {"name": name})
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok":true}')
+
+        elif path == "/dice/room/color":
+            try:
+                data = json.loads(body)
+            except (json.JSONDecodeError, ValueError):
+                data = {}
+            code = (data.get("code") or "").strip().upper()
+            name = (data.get("name") or "").strip()
+            color = (data.get("color") or "").strip()
+            conn = get_db()
+            conn.execute("UPDATE dice_room_members SET color=? WHERE room_code=? AND name=?", (color, code, name))
+            conn.commit()
+            conn.close()
+            _room_broadcast(code, "color-change", {"name": name, "color": color})
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok":true}')
 
         elif path == "/dice/bug":
             try:

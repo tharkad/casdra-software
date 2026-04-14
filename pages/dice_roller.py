@@ -231,6 +231,42 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     font-family: inherit;
 }
 .dr-toast.show { opacity: 1; }
+/* Shared Room */
+.dr-room-feed {
+    border-top: 1px solid var(--border); padding: 8px 16px; max-height: 300px;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+.dr-room-feed-card {
+    display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border2);
+    animation: dr-feed-in 0.3s ease;
+}
+@keyframes dr-feed-in { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+.dr-room-feed-bar { width: 4px; border-radius: 2px; flex-shrink: 0; }
+.dr-room-feed-body { flex: 1; min-width: 0; }
+.dr-room-feed-name { font-size: 11px; font-weight: 700; }
+.dr-room-feed-expr { font-size: 12px; color: var(--text-muted); }
+.dr-room-feed-result { font-size: 15px; font-weight: 700; color: var(--text-bright); margin-top: 1px; }
+.dr-room-feed-time { font-size: 10px; color: var(--text-dim); white-space: nowrap; align-self: center; }
+.dr-room-host-bar {
+    display: flex; gap: 8px; padding: 6px 16px; border-top: 1px solid var(--border);
+    background: var(--surface);
+}
+.dr-room-host-btn {
+    background: var(--btn-bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text-muted); padding: 6px 12px; font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+}
+.dr-room-host-btn:hover { border-color: var(--accent); color: var(--accent); }
+.dr-room-dots { display: flex; gap: 4px; align-items: center; }
+.dr-room-dot { width: 8px; height: 8px; border-radius: 50%; }
+.dr-color-picker { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.dr-color-swatch {
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; transition: border-color 0.15s;
+}
+.dr-color-swatch:hover { border-color: var(--text-bright); }
+.dr-color-swatch.selected { border-color: #fff; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor; }
+.dr-color-swatch.taken { opacity: 0.2; pointer-events: none; }
 /* Symbol mode face chips */
 .dr-face-chips {
     display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
@@ -800,6 +836,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     <h1>Dice Vault</h1>
     <div class="dr-header-right">
         <button class="dr-header-btn" id="premiumToggle" onclick="togglePremium()" title="Toggle Premium" style="font-size:11px;font-weight:700;letter-spacing:0.5px">FREE</button>
+        <button class="dr-header-btn" onclick="showRoomDialog()" title="Room" id="roomBtn">&#x1F465;</button>
         <button class="dr-header-btn" onclick="showBugReport()" title="Report Bug">&#x1F41B;</button>
         <button class="dr-header-btn" id="themeBtn" onclick="toggleThemePicker(event)" title="Theme">&#x1F3A8;</button>
         <a class="dr-header-btn dr-history-btn" href="/dice/history" title="History" id="historyLink">&#x1F552;</a>
@@ -943,6 +980,15 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button class="dr-cup-btn dr-clear-cup" onclick="event.stopPropagation();clearCup()" title="Empty cup">&#x1F5D1;</button>
     </div>
 </div>
+
+<div id="roomHostBar" class="dr-room-host-bar" style="display:none">
+    <button class="dr-room-host-btn" onclick="roomSharePack()">Share Pack</button>
+    <button class="dr-room-host-btn" onclick="roomExportLog()">Export Log</button>
+    <button class="dr-room-host-btn" onclick="roomClose()" style="color:#f85149;border-color:#f85149">Close Room</button>
+    <div style="flex:1"></div>
+    <div class="dr-room-dots" id="roomDots"></div>
+</div>
+<div id="roomFeed" class="dr-room-feed" style="display:none"></div>
 
 <div class="dr-toast" id="toast"></div>
 <div class="dr-pack-browser" id="packBrowser">
@@ -2388,6 +2434,7 @@ function rollDice() {
         animateResult(coinLabel);
         saveLastRoll(coinLabel, coinLabel);
         saveToHistory({expression:'COIN',total:coinVal,breakdown:coinLabel,timestamp:Date.now()});
+        broadcastRoll('COIN', (activePresetIdx>=0&&presets[activePresetIdx])?presets[activePresetIdx].name:'', {total:coinVal, breakdown:coinLabel});
         showProbability(coinVal);
         return;
     }
@@ -2415,7 +2462,10 @@ function rollDice() {
         // Save to history as symbol roll
         var facesList = faces.map(function(f){ return String(f); });
         saveLastRoll(facesList.join(', '), '');
-        saveToHistory({expression:'Symbol Roll', total:facesList.join(', '), breakdown:facesList.join(', '), breakdownHtml:chipsHtml, timestamp:Date.now(), symbolFaces:facesList});
+        var symExpr = buildGroupFormula(cupGroups[0]) || 'Symbol Roll';
+        var symFavName = (activePresetIdx>=0&&presets[activePresetIdx])?presets[activePresetIdx].name:'';
+        saveToHistory({expression:symExpr, total:facesList.join(', '), breakdown:facesList.join(', '), breakdownHtml:chipsHtml, timestamp:Date.now(), symbolFaces:facesList});
+        broadcastRoll(symExpr, symFavName, {symbolFaces:facesList});
         return;
     }
 
@@ -2466,6 +2516,8 @@ function rollDice() {
 
     saveLastRoll(String(finalTotal), document.getElementById('breakdown').innerHTML);
     saveToHistory({expression:expression, total:finalTotal, breakdown:document.getElementById('breakdown').textContent, breakdownHtml:document.getElementById('breakdown').innerHTML, timestamp:Date.now()});
+    var numFavName = (activePresetIdx>=0&&presets[activePresetIdx])?presets[activePresetIdx].name:'';
+    broadcastRoll(expression, numFavName, {total:finalTotal, breakdown:document.getElementById('breakdown').textContent});
     showProbability(finalTotal);
 }
 
@@ -4641,6 +4693,290 @@ function updatePremiumBtn() {
     btn.classList.toggle('on', PREMIUM);
 }
 
+// ===== Shared Room =====
+var room = {code:null, name:null, color:null, isHost:false, sse:null, members:[], feedItems:[]};
+var ROOM_COLORS = ['#58a6ff','#7ee787','#f0883e','#f85149','#d2a8ff','#d29922','#ff7b72','#79c0ff',
+    '#a5d6ff','#ffa657','#3dd68c','#bc8cff','#ff9640','#ff6b8a','#e8c840','#40d4e8'];
+
+function showRoomDialog() {
+    // Check if already in a room
+    if (room.code) {
+        showConfirm('Leave room ' + room.code + '?', function() { roomLeave(); });
+        return;
+    }
+    var savedName = localStorage.getItem('dice_room_name') || '';
+    var savedColor = localStorage.getItem('dice_room_color') || ROOM_COLORS[0];
+    var overlay = document.createElement('div');
+    overlay.className = 'dr-modal-overlay';
+    overlay.innerHTML = '<div class="dr-modal" style="max-width:340px">' +
+        '<div class="dr-modal-title">Shared Room</div>' +
+        '<input type="text" id="drRoomName" placeholder="Your name" value="'+esc(savedName)+'" style="margin-bottom:8px" autocomplete="off">' +
+        '<div class="dr-color-picker" id="drRoomColors"></div>' +
+        '<input type="text" id="drRoomCode" placeholder="Room code (leave blank to create)" maxlength="4" style="margin-bottom:8px;text-transform:uppercase" autocomplete="off">' +
+        '<div class="dr-modal-btns">' +
+        '<button class="dr-modal-cancel" onclick="closeModal()">Cancel</button>' +
+        '<button class="dr-modal-ok" onclick="roomJoinOrCreate()">Join / Create</button>' +
+        '</div></div>';
+    document.body.appendChild(overlay);
+    overlay.onclick = function(e) { if(e.target===overlay) closeModal(); };
+    window._modalOverlay = overlay;
+    // Render color picker
+    var cpEl = document.getElementById('drRoomColors');
+    var cpHtml = '';
+    ROOM_COLORS.forEach(function(c) {
+        var sel = c === savedColor ? ' selected' : '';
+        cpHtml += '<div class="dr-color-swatch'+sel+'" style="background:'+c+'" onclick="pickRoomColor(this,\\''+c+'\\')"></div>';
+    });
+    cpEl.innerHTML = cpHtml;
+    window._roomPickedColor = savedColor;
+    document.getElementById('drRoomName').focus();
+    // Enter key
+    document.getElementById('drRoomCode').onkeydown = function(e) { if(e.key==='Enter') roomJoinOrCreate(); };
+    document.getElementById('drRoomName').onkeydown = function(e) { if(e.key==='Enter') document.getElementById('drRoomCode').focus(); };
+}
+function pickRoomColor(el, color) {
+    document.querySelectorAll('.dr-color-swatch').forEach(function(s) { s.classList.remove('selected'); });
+    el.classList.add('selected');
+    window._roomPickedColor = color;
+}
+function roomJoinOrCreate() {
+    var name = (document.getElementById('drRoomName').value || '').trim();
+    var code = (document.getElementById('drRoomCode').value || '').trim().toUpperCase();
+    var color = window._roomPickedColor || ROOM_COLORS[0];
+    if (!name) { showToast('Enter your name'); return; }
+    closeModal();
+    localStorage.setItem('dice_room_name', name);
+    localStorage.setItem('dice_room_color', color);
+    if (code) {
+        // Join existing room
+        fetch('/dice/room/join', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({code:code, name:name, color:color})
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.error) { showToast(data.error); return; }
+            room.code = data.code; room.name = name; room.color = color;
+            room.isHost = (data.host === name);
+            localStorage.setItem('dice_room_code', data.code);
+            // Install pushed packs
+            if (data.packs) data.packs.forEach(function(pid) { installPack(pid); });
+            roomConnect();
+            showToast('Joined room ' + data.code);
+        }).catch(function() { showToast('Could not join room'); });
+    } else {
+        // Create new room
+        if (!PREMIUM) { showPremiumUpsell(); return; }
+        fetch('/dice/room/create', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({name:name, color:color})
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.error) { showToast(data.error); return; }
+            room.code = data.code; room.name = name; room.color = color;
+            room.isHost = true;
+            localStorage.setItem('dice_room_code', data.code);
+            roomConnect();
+            showToast('Room ' + data.code + ' created! Share: ' + location.origin + '/dice?room=' + data.code);
+        }).catch(function() { showToast('Could not create room'); });
+    }
+}
+function roomConnect() {
+    if (room.sse) room.sse.close();
+    room.feedItems = [];
+    var feed = document.getElementById('roomFeed');
+    var hostBar = document.getElementById('roomHostBar');
+    feed.style.display = '';
+    feed.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:16px;font-size:13px">Connected to room ' + room.code + '</div>';
+    hostBar.style.display = room.isHost ? '' : 'none';
+    // Update room button
+    document.getElementById('roomBtn').style.color = '#7ee787';
+    document.getElementById('roomBtn').title = 'Room ' + room.code;
+    // SSE
+    room.sse = new EventSource('/dice/room/' + room.code + '/stream');
+    room.sse.addEventListener('init', function(e) {
+        var data = JSON.parse(e.data);
+        room.members = data.members || [];
+        renderRoomDots();
+    });
+    room.sse.addEventListener('roll', function(e) {
+        var data = JSON.parse(e.data);
+        addFeedItem(data);
+    });
+    room.sse.addEventListener('join', function(e) {
+        var data = JSON.parse(e.data);
+        room.members.push(data);
+        renderRoomDots();
+        showToast(data.name + ' joined');
+    });
+    room.sse.addEventListener('leave', function(e) {
+        var data = JSON.parse(e.data);
+        room.members = room.members.filter(function(m) { return m.name !== data.name; });
+        renderRoomDots();
+    });
+    room.sse.addEventListener('pack-push', function(e) {
+        var data = JSON.parse(e.data);
+        installPack(data.packId);
+        showToast('Game pack installed');
+    });
+    room.sse.addEventListener('room-closed', function(e) {
+        showToast('Room closed by host');
+        roomDisconnect();
+    });
+    room.sse.addEventListener('color-change', function(e) {
+        var data = JSON.parse(e.data);
+        room.members.forEach(function(m) { if(m.name===data.name) m.color=data.color; });
+        renderRoomDots();
+    });
+    room.sse.onerror = function() {
+        // Auto-reconnect is handled by EventSource
+    };
+}
+function roomDisconnect() {
+    if (room.sse) room.sse.close();
+    room.sse = null; room.code = null; room.isHost = false; room.members = [];
+    localStorage.removeItem('dice_room_code');
+    document.getElementById('roomFeed').style.display = 'none';
+    document.getElementById('roomHostBar').style.display = 'none';
+    document.getElementById('roomBtn').style.color = '';
+    document.getElementById('roomBtn').title = 'Room';
+}
+function roomLeave() {
+    if (!room.code) return;
+    fetch('/dice/room/leave', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({code:room.code, name:room.name})
+    }).catch(function(){});
+    roomDisconnect();
+    showToast('Left room');
+}
+function roomClose() {
+    if (!room.code || !room.isHost) return;
+    showConfirm('End session for everyone?', function() {
+        fetch('/dice/room/close', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({code:room.code, name:room.name})
+        }).catch(function(){});
+        roomDisconnect();
+        showToast('Room closed');
+    });
+}
+function roomSharePack() {
+    if (!room.code || !room.isHost) return;
+    // Show pack picker from installed packs
+    var html = '<div style="display:flex;flex-direction:column;gap:6px;padding:8px">';
+    presetData.packs.forEach(function(pk) {
+        html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-bright);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="roomPushPack(\\''+esc(pk.name)+'\\')">'+esc(pk.name)+'</button>';
+    });
+    GAME_PACK_CATALOG.forEach(function(cat) {
+        if (!presetData.packs.some(function(pk){return pk.name===cat.name;})) {
+            html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-dim);font-size:14px;cursor:pointer;font-family:inherit" onclick="installPack(\\''+cat.id+'\\');roomPushPack(\\''+esc(cat.name)+'\\')">'+esc(cat.name)+' (install & share)</button>';
+        }
+    });
+    html += '</div>';
+    showModal('Share Pack', html);
+}
+function roomPushPack(packName) {
+    closeModal();
+    var cat = GAME_PACK_CATALOG.find(function(c){return c.name===packName;});
+    if (!cat) return;
+    fetch('/dice/room/push-pack', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({code:room.code, name:room.name, packId:cat.id})
+    }).catch(function(){});
+    showToast('Shared ' + packName);
+}
+function roomExportLog() {
+    if (!room.code) return;
+    window.open('/dice/room/' + room.code + '/log', '_blank');
+}
+function addFeedItem(data) {
+    var feed = document.getElementById('roomFeed');
+    room.feedItems.unshift(data);
+    if (room.feedItems.length > 50) room.feedItems = room.feedItems.slice(0, 50);
+    renderFeed();
+}
+function renderFeed() {
+    var feed = document.getElementById('roomFeed');
+    if (!room.feedItems.length) {
+        feed.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:16px;font-size:13px">Waiting for rolls...</div>';
+        return;
+    }
+    var html = '';
+    room.feedItems.forEach(function(item) {
+        var rd = item.resultData || {};
+        var resultHtml = '';
+        if (rd.symbolFaces && rd.symbolFaces.length) {
+            rd.symbolFaces.forEach(function(f) { resultHtml += '<span style="margin-right:4px">' + faceToDisplay(String(f)) + '</span>'; });
+        } else if (rd.total !== undefined) {
+            resultHtml = esc(String(rd.total));
+        } else if (rd.breakdown) {
+            resultHtml = esc(rd.breakdown);
+        }
+        var favHtml = item.favName ? '<span style="color:#ffa657;font-size:10px;font-weight:600">'+esc(item.favName)+'</span> ' : '';
+        html += '<div class="dr-room-feed-card">' +
+            '<div class="dr-room-feed-bar" style="background:'+esc(item.color||'#58a6ff')+'"></div>' +
+            '<div class="dr-room-feed-body">' +
+                '<div class="dr-room-feed-name" style="color:'+esc(item.color||'#58a6ff')+'">'+esc(item.name||'')+'</div>' +
+                '<div class="dr-room-feed-expr">'+favHtml+esc(item.expression||'')+'</div>' +
+                '<div class="dr-room-feed-result">'+resultHtml+'</div>' +
+            '</div>' +
+            '<div class="dr-room-feed-time">just now</div>' +
+        '</div>';
+    });
+    feed.innerHTML = html;
+}
+function renderRoomDots() {
+    var el = document.getElementById('roomDots');
+    if (!el) return;
+    var html = '';
+    room.members.forEach(function(m) {
+        html += '<div class="dr-room-dot" style="background:'+esc(m.color)+'" title="'+esc(m.name)+'"></div>';
+    });
+    el.innerHTML = html;
+}
+function broadcastRoll(expression, favName, resultData) {
+    if (!room.code) return;
+    fetch('/dice/room/roll', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+            code: room.code, name: room.name, color: room.color,
+            expression: expression, favName: favName || '',
+            resultData: resultData
+        })
+    }).catch(function(){});
+}
+function showModal(title, bodyHtml) {
+    var overlay = document.createElement('div');
+    overlay.className = 'dr-modal-overlay';
+    overlay.innerHTML = '<div class="dr-modal"><div class="dr-modal-title">'+esc(title)+'</div>'+bodyHtml+'<div class="dr-modal-btns"><button class="dr-modal-cancel" onclick="closeModal()">Close</button></div></div>';
+    document.body.appendChild(overlay);
+    overlay.onclick = function(e) { if(e.target===overlay) closeModal(); };
+    window._modalOverlay = overlay;
+}
+function roomAutoRejoin() {
+    var savedCode = localStorage.getItem('dice_room_code');
+    var savedName = localStorage.getItem('dice_room_name');
+    var savedColor = localStorage.getItem('dice_room_color');
+    if (!savedCode || !savedName) return;
+    // Check if room is still alive
+    fetch('/dice/room/' + savedCode + '/info').then(function(r) {
+        if (!r.ok) { localStorage.removeItem('dice_room_code'); return; }
+        return r.json();
+    }).then(function(data) {
+        if (!data) return;
+        room.code = savedCode; room.name = savedName; room.color = savedColor || ROOM_COLORS[0];
+        // Rejoin
+        fetch('/dice/room/join', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({code:savedCode, name:savedName, color:room.color})
+        }).then(function(r) { return r.json(); }).then(function(jd) {
+            if (jd.error) { localStorage.removeItem('dice_room_code'); return; }
+            room.isHost = (jd.host === savedName);
+            if (jd.packs) jd.packs.forEach(function(pid) { installPack(pid); });
+            roomConnect();
+            showToast('Reconnected to room ' + savedCode);
+        });
+    }).catch(function() { localStorage.removeItem('dice_room_code'); });
+}
+
 // Init
 (function(){
     // v3 migration: reset to new defaults
@@ -4687,6 +5023,19 @@ function updatePremiumBtn() {
             updateCupDisplay();
             document.getElementById('result').textContent = 'State restored from bug #' + new URLSearchParams(window.location.search).get('restore');
         } catch(e) { console.error('Restore failed:', e); }
+    }
+
+    // Shared room: auto-rejoin or handle ?room=CODE
+    var urlRoom = new URLSearchParams(window.location.search).get('room');
+    if (urlRoom) {
+        // Shareable link — show join dialog with code pre-filled
+        setTimeout(function() {
+            showRoomDialog();
+            var codeInput = document.getElementById('drRoomCode');
+            if (codeInput) codeInput.value = urlRoom.toUpperCase();
+        }, 500);
+    } else {
+        roomAutoRejoin();
     }
 })();
 
@@ -5073,6 +5422,107 @@ function updateStatus() {{
     }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
         if(d.ok) {{ window.location.reload(); }}
     }});
+}}
+</script>
+</body>
+</html>"""
+
+
+def build_room_log_page(room, rolls, members):
+    """Read-only session log page for a shared room."""
+    import html as html_mod
+    import json
+    from datetime import datetime, timedelta
+
+    code = room.get('code', '?')
+    created = room.get('created_at', '')
+    status = room.get('status', 'closed')
+
+    # Calculate expiry
+    try:
+        created_dt = datetime.strptime(created, '%Y-%m-%d %H:%M:%S')
+        expires_dt = created_dt + timedelta(days=30)
+        days_left = max(0, (expires_dt - datetime.utcnow()).days)
+    except Exception:
+        days_left = 30
+
+    # Build member list
+    member_html = ""
+    for m in members:
+        c = html_mod.escape(m.get('color', '#58a6ff'))
+        n = html_mod.escape(m.get('name', ''))
+        member_html += f'<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px"><span style="width:10px;height:10px;border-radius:50%;background:{c};display:inline-block"></span>{n}</span>'
+
+    # Build roll list
+    rolls_html = ""
+    for r in rolls:
+        c = html_mod.escape(r.get('player_color', '#58a6ff'))
+        n = html_mod.escape(r.get('player_name', ''))
+        expr = html_mod.escape(r.get('expression', ''))
+        fav = html_mod.escape(r.get('fav_name', ''))
+        ts = r.get('timestamp', '')
+        try:
+            rd = json.loads(r.get('result_data', '{}'))
+        except Exception:
+            rd = {}
+        result_str = ''
+        if 'symbolFaces' in rd and rd['symbolFaces']:
+            result_str = ', '.join(str(f) for f in rd['symbolFaces'])
+        elif 'total' in rd:
+            result_str = str(rd['total'])
+        elif 'breakdown' in rd:
+            result_str = rd['breakdown']
+        result_str = html_mod.escape(result_str)
+        label = f'<span style="color:#ffa657;font-size:11px">{fav}</span> ' if fav else ''
+        rolls_html += f"""<div style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border2)">
+            <div style="width:4px;border-radius:2px;background:{c};flex-shrink:0"></div>
+            <div style="flex:1;min-width:0">
+                <div style="font-size:12px;color:{c};font-weight:600">{n}</div>
+                <div style="font-size:13px;color:var(--text-muted)">{label}{expr}</div>
+                <div style="font-size:15px;font-weight:700;color:var(--text-bright);margin-top:2px">{result_str}</div>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);white-space:nowrap">{ts}</div>
+        </div>"""
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0d1117">
+<title>Room {code} — Session Log</title>
+<style>
+:root {{
+    --bg: #0d1117; --surface: #161b22; --border: #30363d; --border2: #21262d;
+    --text: #c9d1d9; --text-bright: #e6edf3; --text-dim: #484f58; --text-muted: #8b949e;
+    --accent: #58a6ff;
+}}
+* {{ margin:0; padding:0; box-sizing:border-box; }}
+body {{ background:var(--bg); color:var(--text); min-height:100vh;
+       font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+       max-width:500px; margin:0 auto; padding:16px; }}
+</style>
+</head>
+<body>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <a href="/dice" style="color:var(--accent);text-decoration:none;font-size:14px;font-weight:600">&larr; Dice Vault</a>
+    <span style="font-size:11px;color:var(--text-dim)">Expires in {days_left} days</span>
+</div>
+<h1 style="font-size:22px;font-weight:800;color:var(--text-bright);margin-bottom:4px">Room {code}</h1>
+<div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Created {created} &middot; {len(rolls)} rolls &middot; {status}</div>
+<div style="margin-bottom:16px">{member_html}</div>
+<div style="margin-bottom:16px">
+    <button onclick="downloadLog()" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);padding:8px 16px;font-size:13px;cursor:pointer;font-family:inherit">Download Log</button>
+</div>
+<div>{rolls_html}</div>
+<script>
+function downloadLog() {{
+    var text = document.body.innerText;
+    var blob = new Blob([text], {{type: 'text/plain'}});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'dice-vault-room-{code}-log.txt';
+    a.click();
 }}
 </script>
 </body>
