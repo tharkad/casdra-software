@@ -2989,24 +2989,20 @@ function packDragMove(e) {
 function packDragEnd(e) {
     cancelPackLongPress();
     if (_packDrag.active) {
-        // Find drop position
+        // Find drop position: which tab is the cursor closest to?
         var pt = e.changedTouches ? e.changedTouches[0] : e;
         var tabs = document.querySelectorAll('.dr-pack-tab[data-pack-idx]');
         var fromIdx = _packDrag.idx;
-        var toIdx = fromIdx;
-        tabs.forEach(function(tab, ti) {
-            var r = tab.getBoundingClientRect();
-            var mid = r.left + r.width / 2;
-            if (pt.clientX >= mid) toIdx = ti;
-            else if (pt.clientX < mid && ti < toIdx) toIdx = ti;
-        });
-        // Find actual insertion point
         var dropIdx = fromIdx;
-        tabs.forEach(function(tab, ti) {
-            var r = tab.getBoundingClientRect();
-            if (pt.clientX > r.left + r.width / 2) dropIdx = ti + 1;
-        });
-        if (dropIdx > fromIdx) dropIdx--;
+        // Find the slot the cursor is over
+        var insertBefore = tabs.length; // default: end
+        for (var ti = 0; ti < tabs.length; ti++) {
+            var r = tabs[ti].getBoundingClientRect();
+            if (pt.clientX < r.left + r.width / 2) { insertBefore = ti; break; }
+        }
+        // Convert insertion slot to final index after removing source
+        if (insertBefore <= fromIdx) dropIdx = insertBefore;
+        else dropIdx = insertBefore - 1;
         dropIdx = Math.max(0, Math.min(dropIdx, presetData.packs.length - 1));
         // Reorder
         if (dropIdx !== fromIdx) {
