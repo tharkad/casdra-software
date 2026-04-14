@@ -1644,14 +1644,26 @@ function saveCupState() {
         groups: cupGroups, rootOperation: rootOperation
     }));
 }
-function saveLastRoll(resultText, breakdownHtml) {
-    localStorage.setItem('dice_roller_last_roll', JSON.stringify({result:resultText, breakdown:breakdownHtml}));
+function saveLastRoll(resultText, breakdownHtml, symbolFaces) {
+    var data = {result:resultText, breakdown:breakdownHtml};
+    if (symbolFaces) data.symbolFaces = symbolFaces;
+    localStorage.setItem('dice_roller_last_roll', JSON.stringify(data));
+}
+function renderSymbolResult(faces) {
+    var html = '<div class="dr-face-chips">';
+    faces.forEach(function(f) { html += '<span class="dr-face-chip">' + faceToDisplay(String(f)) + '</span>'; });
+    html += '</div>';
+    return html;
 }
 function restoreLastRoll() {
     try {
         var lr = JSON.parse(localStorage.getItem('dice_roller_last_roll'));
         if (lr && lr.result) {
-            document.getElementById('result').textContent = lr.result;
+            if (lr.symbolFaces && lr.symbolFaces.length) {
+                document.getElementById('result').innerHTML = renderSymbolResult(lr.symbolFaces);
+            } else {
+                document.getElementById('result').textContent = lr.result;
+            }
             document.getElementById('breakdown').innerHTML = lr.breakdown || '';
         }
     } catch(e) {}
@@ -2461,7 +2473,7 @@ function rollDice() {
         document.getElementById('shareBtn').style.display = '';
         // Save to history as symbol roll
         var facesList = faces.map(function(f){ return String(f); });
-        saveLastRoll(facesList.join(', '), '');
+        saveLastRoll(facesList.join(', '), '', facesList);
         var symExpr = buildGroupFormula(cupGroups[0]) || 'Symbol Roll';
         var symFavName = (activePresetIdx>=0&&presets[activePresetIdx])?presets[activePresetIdx].name:'';
         saveToHistory({expression:symExpr, total:facesList.join(', '), breakdown:facesList.join(', '), breakdownHtml:chipsHtml, timestamp:Date.now(), symbolFaces:facesList});
@@ -2735,9 +2747,13 @@ function navigateHistory(delta) {
     }
     // Set the result + breakdown from the entry
     if (e) {
-        document.getElementById('result').textContent = e.total;
-        var bEl = document.getElementById('breakdown');
-        bEl.innerHTML = e.breakdownHtml || e.breakdown || '';
+        if (e.symbolFaces && e.symbolFaces.length) {
+            document.getElementById('result').innerHTML = renderSymbolResult(e.symbolFaces);
+            document.getElementById('breakdown').innerHTML = '';
+        } else {
+            document.getElementById('result').textContent = e.total;
+            document.getElementById('breakdown').innerHTML = e.breakdownHtml || e.breakdown || '';
+        }
         // Highlight the chart bar that matches this roll's total
         var n = parseInt(e.total);
         if (!isNaN(n)) {
