@@ -168,7 +168,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 /* Pack Browser */
 .dr-pack-browser {
     display: none; position: fixed; inset: 0; background: var(--bg);
-    z-index: 1000; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    z-index: 1000; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
 }
 .dr-pack-browser.open { display: block; }
 .dr-pb-header {
