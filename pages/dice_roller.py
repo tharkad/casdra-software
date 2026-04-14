@@ -1196,7 +1196,7 @@ var FACE_SYMBOLS = {
     // King of Tokyo
     'claw':'<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle"><path d="M4 2C5 6 7 10 10 14c1 1.5.5 3 0 4-.5-1-3-5-6-10C3 6 3 4 4 2z"/><path d="M8 1C9 5 11 9 14 13c1 1.5.5 3 0 4-.5-1-3-5-6-10C7 5 7 3 8 1z"/><path d="M12 2C13 6 15 10 18 14c1 1.5.5 3 0 4-.5-1-3-5-6-10C11 6 11 4 12 2z"/><path d="M16 3C17 7 19 11 22 15c1 1.5.5 3 0 4-.5-1-3-5-6-10C15 7 15 5 16 3z"/></svg>', 'heart':'\\u2764\\uFE0F', 'bolt':'\\u26A1',
     // Zombie Dice
-    'brain':'\\u{1F9E0}', 'shot':'\\u{1F4A5}', 'step':'<span style="filter:brightness(1.8)">\\u{1F463}</span>',
+    'brain':'\\u{1F9E0}', 'shot':'\\u{1F4A5}', 'step':'<span style="filter:brightness(3)">\\u{1F463}</span>',
     // Slot Machine
     'cherry':'\\u{1F352}', 'cherries':'\\u{1F352}', 'lemon':'\\u{1F34B}', 'bell':'\\u{1F514}',
     '7':'<span style="color:#e33;font-weight:900;font-style:italic;font-size:1.1em;font-family:serif">7</span>',
@@ -4873,7 +4873,7 @@ function formatTimeAgo(ts) {
 function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 var FACE_SYMBOLS = {
     'claw':'<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px"><path d="M4 2C5 6 7 10 10 14c1 1.5.5 3 0 4-.5-1-3-5-6-10C3 6 3 4 4 2z"/><path d="M8 1C9 5 11 9 14 13c1 1.5.5 3 0 4-.5-1-3-5-6-10C7 5 7 3 8 1z"/><path d="M12 2C13 6 15 10 18 14c1 1.5.5 3 0 4-.5-1-3-5-6-10C11 6 11 4 12 2z"/><path d="M16 3C17 7 19 11 22 15c1 1.5.5 3 0 4-.5-1-3-5-6-10C15 7 15 5 16 3z"/></svg>',
-    'heart':'\\u2764\\uFE0F','bolt':'\\u26A1','brain':'\\u{1F9E0}','shot':'\\u{1F4A5}','step':'<span style="filter:brightness(1.8)">\\u{1F463}</span>',
+    'heart':'\\u2764\\uFE0F','bolt':'\\u26A1','brain':'\\u{1F9E0}','shot':'\\u{1F4A5}','step':'<span style="filter:brightness(3)">\\u{1F463}</span>',
     'cherry':'\\u{1F352}','cherries':'\\u{1F352}','lemon':'\\u{1F34B}','bell':'\\u{1F514}',
     '7':'<span style="color:#e33;font-weight:900;font-style:italic;font-size:1.1em;font-family:serif">7</span>',
     'bar':'<svg width="16" height="14" viewBox="0 0 22 18" style="vertical-align:-2px"><rect x="1" y="1" width="20" height="4" rx="1" fill="#c8a84e"/><rect x="1" y="7" width="20" height="4" rx="1" fill="#c8a84e"/><rect x="1" y="13" width="20" height="4" rx="1" fill="#c8a84e"/></svg>',
