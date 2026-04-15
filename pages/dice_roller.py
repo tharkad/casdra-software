@@ -231,7 +231,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     font-family: inherit;
 }
 .dr-toast.show { opacity: 1; }
-/* Shared Room */
+/* Game Room */
 .dr-room-feed {
     border-top: 1px solid var(--border); padding: 8px 16px; max-height: 300px;
     overflow-y: auto; -webkit-overflow-scrolling: touch;
@@ -4679,7 +4679,7 @@ function switchMode(pro) {
     window.location.reload();
 }
 
-// ===== Shared Room =====
+// ===== Game Room =====
 var room = {code:null, name:null, color:null, isHost:false, sse:null, members:[], feedItems:[]};
 var ROOM_COLORS = ['#58a6ff','#7ee787','#f0883e','#f85149','#d2a8ff','#d29922','#ff7b72','#79c0ff',
     '#a5d6ff','#ffa657','#3dd68c','#bc8cff','#ff9640','#ff6b8a','#e8c840','#40d4e8'];
@@ -4695,14 +4695,14 @@ function showRoomDialog() {
     var overlay = document.createElement('div');
     overlay.className = 'dr-modal-overlay';
     overlay.innerHTML = '<div class="dr-modal" style="max-width:340px">' +
-        '<div class="dr-modal-title">Shared Room</div>' +
+        '<div class="dr-modal-title">Game Room</div>' +
         '<input type="text" id="drRoomName" placeholder="Your name" value="'+esc(savedName)+'" style="margin-bottom:8px" autocomplete="off">' +
         '<div class="dr-color-picker" id="drRoomColors"></div>' +
         '<input type="text" id="drRoomCode" placeholder="Room code" maxlength="4" style="margin-bottom:4px;text-transform:uppercase;letter-spacing:4px;font-weight:700;text-align:center" autocomplete="off" oninput="updateRoomButtons()">' +
         '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Leave blank to start a new room</div>' +
         '<div class="dr-modal-btns">' +
         '<button class="dr-modal-cancel" onclick="closeModal()">Cancel</button>' +
-        '<button class="dr-modal-ok" id="roomCreateBtn" onclick="roomCreate()">Create</button>' +
+        (PREMIUM ? '<button class="dr-modal-ok" id="roomCreateBtn" onclick="roomCreate()">Create</button>' : '') +
         '<button class="dr-modal-ok" id="roomJoinBtn" onclick="roomJoin()" style="opacity:0.3;pointer-events:none">Join</button>' +
         '</div></div>';
     document.body.appendChild(overlay);
@@ -4738,15 +4738,15 @@ function updateRoomButtons() {
     var code = (document.getElementById('drRoomCode').value || '').replace(/[^a-zA-Z]/g, '');
     var createBtn = document.getElementById('roomCreateBtn');
     var joinBtn = document.getElementById('roomJoinBtn');
-    if (!createBtn || !joinBtn) return;
+    if (!joinBtn) return;
     if (code.length === 0) {
-        createBtn.style.opacity = ''; createBtn.style.pointerEvents = '';
+        if (createBtn) { createBtn.style.opacity = ''; createBtn.style.pointerEvents = ''; }
         joinBtn.style.opacity = '0.3'; joinBtn.style.pointerEvents = 'none';
     } else if (code.length === 4) {
-        createBtn.style.opacity = '0.3'; createBtn.style.pointerEvents = 'none';
+        if (createBtn) { createBtn.style.opacity = '0.3'; createBtn.style.pointerEvents = 'none'; }
         joinBtn.style.opacity = ''; joinBtn.style.pointerEvents = '';
     } else {
-        createBtn.style.opacity = '0.3'; createBtn.style.pointerEvents = 'none';
+        if (createBtn) { createBtn.style.opacity = '0.3'; createBtn.style.pointerEvents = 'none'; }
         joinBtn.style.opacity = '0.3'; joinBtn.style.pointerEvents = 'none';
     }
 }
