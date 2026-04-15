@@ -4670,7 +4670,8 @@ function showRoomDialog() {
         '<div class="dr-modal-title">Shared Room</div>' +
         '<input type="text" id="drRoomName" placeholder="Your name" value="'+esc(savedName)+'" style="margin-bottom:8px" autocomplete="off">' +
         '<div class="dr-color-picker" id="drRoomColors"></div>' +
-        '<input type="text" id="drRoomCode" placeholder="Room code (leave blank to create)" maxlength="4" style="margin-bottom:8px;text-transform:uppercase" autocomplete="off">' +
+        '<input type="text" id="drRoomCode" placeholder="Room code" maxlength="4" style="margin-bottom:4px;text-transform:uppercase" autocomplete="off">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Leave blank to start a new room</div>' +
         '<div class="dr-modal-btns">' +
         '<button class="dr-modal-cancel" onclick="closeModal()">Cancel</button>' +
         '<button class="dr-modal-ok" onclick="roomJoinOrCreate()">Join / Create</button>' +
