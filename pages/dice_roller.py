@@ -4876,13 +4876,13 @@ function roomClose() {
 function roomSharePack() {
     if (!room.code || !room.isHost) return;
     // Show pack picker from installed packs
-    var html = '<div style="display:flex;flex-direction:column;gap:6px;padding:8px">';
+    var html = '<div style="display:flex;flex-direction:column;gap:6px;max-height:70vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px">';
     presetData.packs.forEach(function(pk) {
-        html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-bright);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" data-pack="'+esc(pk.name)+'" onclick="roomPushPack(this.dataset.pack)">'+esc(pk.name)+'</button>';
+        html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-bright);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0" data-pack="'+esc(pk.name)+'" onclick="roomPushPack(this.dataset.pack)">'+esc(pk.name)+'</button>';
     });
     GAME_PACK_CATALOG.forEach(function(cat) {
         if (!presetData.packs.some(function(pk){return pk.name===cat.name;})) {
-            html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-dim);font-size:14px;cursor:pointer;font-family:inherit" data-packid="'+cat.id+'" data-pack="'+esc(cat.name)+'" onclick="installPack(this.dataset.packid);roomPushPack(this.dataset.pack)">'+esc(cat.name)+' (install & share)</button>';
+            html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-dim);font-size:14px;cursor:pointer;font-family:inherit;flex-shrink:0" data-packid="'+cat.id+'" data-pack="'+esc(cat.name)+'" onclick="installPack(this.dataset.packid);roomPushPack(this.dataset.pack)">'+esc(cat.name)+' (install & share)</button>';
         }
     });
     html += '</div>';
