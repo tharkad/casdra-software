@@ -4693,11 +4693,12 @@ function showRoomDialog() {
         '<div class="dr-modal-title">Shared Room</div>' +
         '<input type="text" id="drRoomName" placeholder="Your name" value="'+esc(savedName)+'" style="margin-bottom:8px" autocomplete="off">' +
         '<div class="dr-color-picker" id="drRoomColors"></div>' +
-        '<input type="text" id="drRoomCode" placeholder="Room code" maxlength="4" style="margin-bottom:4px;text-transform:uppercase" autocomplete="off">' +
+        '<input type="text" id="drRoomCode" placeholder="Room code" maxlength="4" style="margin-bottom:4px;text-transform:uppercase;letter-spacing:4px;font-weight:700;text-align:center" autocomplete="off" oninput="updateRoomButtons()">' +
         '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Leave blank to start a new room</div>' +
         '<div class="dr-modal-btns">' +
         '<button class="dr-modal-cancel" onclick="closeModal()">Cancel</button>' +
-        '<button class="dr-modal-ok" onclick="roomJoinOrCreate()">Join / Create</button>' +
+        '<button class="dr-modal-ok" id="roomCreateBtn" onclick="roomCreate()">Create</button>' +
+        '<button class="dr-modal-ok" id="roomJoinBtn" onclick="roomJoin()" style="opacity:0.3;pointer-events:none">Join</button>' +
         '</div></div>';
     document.body.appendChild(overlay);
     overlay.onclick = function(e) { if(e.target===overlay) closeModal(); };
@@ -4712,53 +4713,84 @@ function showRoomDialog() {
     cpEl.innerHTML = cpHtml;
     window._roomPickedColor = savedColor;
     document.getElementById('drRoomName').focus();
-    // Enter key
-    document.getElementById('drRoomCode').onkeydown = function(e) { if(e.key==='Enter') roomJoinOrCreate(); };
-    document.getElementById('drRoomName').onkeydown = function(e) { if(e.key==='Enter') document.getElementById('drRoomCode').focus(); };
+    // Letter-only filter on code input
+    var codeInput = document.getElementById('drRoomCode');
+    codeInput.addEventListener('input', function() {
+        this.value = this.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+        updateRoomButtons();
+    });
+    codeInput.onkeydown = function(e) {
+        if (e.key === 'Enter') {
+            var v = codeInput.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+            if (v.length === 4) roomJoin();
+            else if (v.length === 0) roomCreate();
+        }
+    };
+    document.getElementById('drRoomName').onkeydown = function(e) { if(e.key==='Enter') codeInput.focus(); };
+    updateRoomButtons();
+}
+function updateRoomButtons() {
+    var code = (document.getElementById('drRoomCode').value || '').replace(/[^a-zA-Z]/g, '');
+    var createBtn = document.getElementById('roomCreateBtn');
+    var joinBtn = document.getElementById('roomJoinBtn');
+    if (!createBtn || !joinBtn) return;
+    if (code.length === 0) {
+        createBtn.style.opacity = ''; createBtn.style.pointerEvents = '';
+        joinBtn.style.opacity = '0.3'; joinBtn.style.pointerEvents = 'none';
+    } else if (code.length === 4) {
+        createBtn.style.opacity = '0.3'; createBtn.style.pointerEvents = 'none';
+        joinBtn.style.opacity = ''; joinBtn.style.pointerEvents = '';
+    } else {
+        createBtn.style.opacity = '0.3'; createBtn.style.pointerEvents = 'none';
+        joinBtn.style.opacity = '0.3'; joinBtn.style.pointerEvents = 'none';
+    }
 }
 function pickRoomColor(el, color) {
     document.querySelectorAll('.dr-color-swatch').forEach(function(s) { s.classList.remove('selected'); });
     el.classList.add('selected');
     window._roomPickedColor = color;
 }
-function roomJoinOrCreate() {
+function roomCreate() {
     var name = (document.getElementById('drRoomName').value || '').trim();
-    var code = (document.getElementById('drRoomCode').value || '').trim().toUpperCase();
     var color = window._roomPickedColor || ROOM_COLORS[0];
     if (!name) { showToast('Enter your name'); return; }
     closeModal();
+    if (!PREMIUM) { showPremiumUpsell(); return; }
     localStorage.setItem('dice_room_name', name);
     localStorage.setItem('dice_room_color', color);
-    if (code) {
-        // Join existing room
-        fetch('/dice/room/join', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({code:code, name:name, color:color})
-        }).then(function(r) { return r.json(); }).then(function(data) {
-            if (data.error) { showToast(data.error); return; }
-            room.code = data.code; room.name = name; room.color = color;
-            room.isHost = (data.host === name);
-            localStorage.setItem('dice_room_code', data.code);
-            // Install pushed packs
-            if (data.packs) data.packs.forEach(function(pid) { installPack(pid); });
-            roomConnect();
-            showToast('Joined room ' + data.code);
-        }).catch(function() { showToast('Could not join room'); });
-    } else {
-        // Create new room
-        if (!PREMIUM) { showPremiumUpsell(); return; }
-        fetch('/dice/room/create', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({name:name, color:color})
-        }).then(function(r) { return r.json(); }).then(function(data) {
-            if (data.error) { showToast(data.error); return; }
-            room.code = data.code; room.name = name; room.color = color;
-            room.isHost = true;
-            localStorage.setItem('dice_room_code', data.code);
-            roomConnect();
-            showRoomCreatedDialog(data.code);
-        }).catch(function() { showToast('Could not create room'); });
-    }
+    fetch('/dice/room/create', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({name:name, color:color})
+    }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.error) { showToast(data.error); return; }
+        room.code = data.code; room.name = name; room.color = color;
+        room.isHost = true;
+        localStorage.setItem('dice_room_code', data.code);
+        roomConnect();
+        showRoomCreatedDialog(data.code);
+    }).catch(function() { showToast('Could not create room'); });
+}
+function roomJoin() {
+    var name = (document.getElementById('drRoomName').value || '').trim();
+    var code = (document.getElementById('drRoomCode').value || '').replace(/[^a-zA-Z]/g, '').toUpperCase();
+    var color = window._roomPickedColor || ROOM_COLORS[0];
+    if (!name) { showToast('Enter your name'); return; }
+    if (code.length !== 4) return;
+    closeModal();
+    localStorage.setItem('dice_room_name', name);
+    localStorage.setItem('dice_room_color', color);
+    fetch('/dice/room/join', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({code:code, name:name, color:color})
+    }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.error) { showToast(data.error); return; }
+        room.code = data.code; room.name = name; room.color = color;
+        room.isHost = (data.host === name);
+        localStorage.setItem('dice_room_code', data.code);
+        if (data.packs) data.packs.forEach(function(pid) { installPack(pid); });
+        roomConnect();
+        showToast('Joined room ' + data.code);
+    }).catch(function() { showToast('Could not join room'); });
 }
 function roomConnect() {
     if (room.sse) room.sse.close();
