@@ -4873,8 +4873,10 @@ function showRoomCreatedDialog(code) {
         '<div class="dr-modal-title">Room Created</div>' +
         '<div style="font-size:40px;font-weight:900;letter-spacing:10px;color:var(--text-bright);margin:12px 0;font-family:SF Mono,ui-monospace,monospace">' + esc(code) + '</div>' +
         '<div id="roomLinkText" style="font-size:12px;color:var(--text-muted);margin-bottom:16px;word-break:break-all">' + esc(link) + '</div>' +
-        '<button id="copyLinkBtn" style="background:#238636;color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;margin-bottom:8px">Copy Link</button>' +
-        '<button class="dr-modal-cancel" onclick="closeModal()" style="width:100%">Done</button>' +
+        '<div class="dr-modal-btns">' +
+        '<button class="dr-modal-cancel" id="cancelRoomBtn">Cancel</button>' +
+        '<button class="dr-modal-ok" id="copyLinkBtn">Copy Link</button>' +
+        '</div>' +
         '</div>';
     document.body.appendChild(overlay);
     overlay.onclick = function(e) { if (e.target === overlay) closeModal(); };
@@ -4882,9 +4884,19 @@ function showRoomCreatedDialog(code) {
     document.getElementById('copyLinkBtn').onclick = function() {
         navigator.clipboard.writeText(link).then(function() {
             document.getElementById('copyLinkBtn').textContent = 'Copied!';
-            document.getElementById('copyLinkBtn').style.background = '#7ee787';
-            document.getElementById('copyLinkBtn').style.color = '#000';
+            setTimeout(function() { closeModal(); }, 800);
         });
+    };
+    document.getElementById('cancelRoomBtn').onclick = function() {
+        closeModal();
+        // Close the room silently (no confirm dialog)
+        if (room.code && room.isHost) {
+            fetch('/dice/room/close', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({code:room.code, name:room.name})
+            }).catch(function(){});
+        }
+        roomDisconnect();
     };
 }
 function roomExportLog() {
