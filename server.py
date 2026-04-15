@@ -4608,8 +4608,8 @@ class Handler(BaseHTTPRequestHandler):
         if WEB_MODE and self.path.startswith("/chartburst"):
             self.path = "/song-burst" + self.path[len("/chartburst"):]
 
-        # In web mode, block internal POST routes
-        if WEB_MODE and not self.path.startswith("/song-burst"):
+        # In web mode, block internal POST routes (allow song-burst + dice)
+        if WEB_MODE and not (self.path.startswith("/song-burst") or self.path.startswith("/dice")):
             self.send_response(404)
             self.end_headers()
             return
