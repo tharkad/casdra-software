@@ -4653,7 +4653,7 @@ function togglePremium() {
 function updatePremiumBtn() {
     // No visible button during testing — mode shown in title
     var title = document.getElementById('appTitle');
-    if (title) title.textContent = PREMIUM ? 'Dice Vault' : 'Dice Vault (Free)';
+    // Title stays "Dice Vault" regardless of mode
 }
 var _titleLpTimer = null;
 function startTitleLongPress(e) {
