@@ -980,11 +980,15 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     </div>
 </div>
 
-<div id="roomHostBar" class="dr-room-host-bar" style="display:none">
-    <button class="dr-room-host-btn" onclick="roomCopyLink()">Copy Link</button>
-    <button class="dr-room-host-btn" onclick="roomSharePack()">Share Pack</button>
-    <button class="dr-room-host-btn" onclick="roomExportLog()">Export Log</button>
-    <button class="dr-room-host-btn" onclick="roomClose()" style="color:#f85149;border-color:#f85149">Close Room</button>
+<div id="roomBar" class="dr-room-host-bar" style="display:none">
+    <span id="roomCodeLabel" style="font-size:14px;font-weight:800;color:var(--text-bright);font-family:SF Mono,ui-monospace,monospace;letter-spacing:3px;margin-right:8px"></span>
+    <div id="roomHostControls" style="display:contents">
+        <button class="dr-room-host-btn" onclick="roomCopyLink()">Copy Link</button>
+        <button class="dr-room-host-btn" onclick="roomSharePack()">Share Pack</button>
+        <button class="dr-room-host-btn" onclick="roomExportLog()">Export Log</button>
+        <button class="dr-room-host-btn" onclick="roomClose()" style="color:#f85149;border-color:#f85149">Close Room</button>
+    </div>
+    <button id="roomLeaveBtn" class="dr-room-host-btn" onclick="roomLeave()" style="display:none">Leave</button>
     <div style="flex:1"></div>
     <div class="dr-room-dots" id="roomDots"></div>
 </div>
@@ -4797,10 +4801,13 @@ function roomConnect() {
     if (room.sse) room.sse.close();
     room.feedItems = [];
     var feed = document.getElementById('roomFeed');
-    var hostBar = document.getElementById('roomHostBar');
+    var roomBar = document.getElementById('roomBar');
     feed.style.display = '';
     feed.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:16px;font-size:13px">Connected to room ' + room.code + '</div>';
-    hostBar.style.display = room.isHost ? '' : 'none';
+    roomBar.style.display = '';
+    document.getElementById('roomCodeLabel').textContent = room.code;
+    document.getElementById('roomHostControls').style.display = room.isHost ? 'contents' : 'none';
+    document.getElementById('roomLeaveBtn').style.display = room.isHost ? 'none' : '';
     // Update room button
     document.getElementById('roomBtn').style.color = '#7ee787';
     document.getElementById('roomBtn').title = 'Room ' + room.code;
@@ -4849,7 +4856,7 @@ function roomDisconnect() {
     room.sse = null; room.code = null; room.isHost = false; room.members = [];
     localStorage.removeItem('dice_room_code');
     document.getElementById('roomFeed').style.display = 'none';
-    document.getElementById('roomHostBar').style.display = 'none';
+    document.getElementById('roomBar').style.display = 'none';
     document.getElementById('roomBtn').style.color = '';
     document.getElementById('roomBtn').title = 'Room';
 }
