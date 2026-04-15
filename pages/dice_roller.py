@@ -4850,9 +4850,15 @@ function roomConnect() {
     room.sse.onerror = function() {
         // Auto-reconnect is handled by EventSource
     };
+    // Update feed timestamps every 15s
+    if (room._feedTimer) clearInterval(room._feedTimer);
+    room._feedTimer = setInterval(function() {
+        if (room.feedItems.length > 0) renderFeed();
+    }, 15000);
 }
 function roomDisconnect() {
     if (room.sse) room.sse.close();
+    if (room._feedTimer) { clearInterval(room._feedTimer); room._feedTimer = null; }
     room.sse = null; room.code = null; room.isHost = false; room.members = [];
     localStorage.removeItem('dice_room_code');
     document.getElementById('roomFeed').style.display = 'none';
@@ -4954,10 +4960,19 @@ function roomExportLog() {
     window.open('/dice/room/' + room.code + '/log', '_blank');
 }
 function addFeedItem(data) {
-    var feed = document.getElementById('roomFeed');
+    data._ts = Date.now();
     room.feedItems.unshift(data);
     if (room.feedItems.length > 50) room.feedItems = room.feedItems.slice(0, 50);
     renderFeed();
+}
+function feedTimeAgo(ts) {
+    var s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 5) return 'just now';
+    if (s < 60) return s + 's';
+    var m = Math.floor(s / 60);
+    if (m < 60) return m + 'm';
+    var h = Math.floor(m / 60);
+    return h + 'h';
 }
 function renderFeed() {
     var feed = document.getElementById('roomFeed');
@@ -4984,7 +4999,7 @@ function renderFeed() {
                 '<div class="dr-room-feed-expr">'+favHtml+esc(item.expression||'')+'</div>' +
                 '<div class="dr-room-feed-result">'+resultHtml+'</div>' +
             '</div>' +
-            '<div class="dr-room-feed-time">just now</div>' +
+            '<div class="dr-room-feed-time">'+ feedTimeAgo(item._ts || Date.now()) +'</div>' +
         '</div>';
     });
     feed.innerHTML = html;
