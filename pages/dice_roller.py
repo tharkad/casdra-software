@@ -981,6 +981,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 </div>
 
 <div id="roomHostBar" class="dr-room-host-bar" style="display:none">
+    <button class="dr-room-host-btn" onclick="roomCopyLink()">Copy Link</button>
     <button class="dr-room-host-btn" onclick="roomSharePack()">Share Pack</button>
     <button class="dr-room-host-btn" onclick="roomExportLog()">Export Log</button>
     <button class="dr-room-host-btn" onclick="roomClose()" style="color:#f85149;border-color:#f85149">Close Room</button>
@@ -4930,6 +4931,11 @@ function showRoomCreatedDialog(code) {
         }
         roomDisconnect();
     };
+}
+function roomCopyLink() {
+    if (!room.code) return;
+    var link = location.origin + '/dice?room=' + room.code;
+    navigator.clipboard.writeText(link).then(function() { showToast('Link copied'); });
 }
 function roomExportLog() {
     if (!room.code) return;
