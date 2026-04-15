@@ -4892,6 +4892,8 @@ function roomPushPack(packName) {
     closeModal();
     var cat = GAME_PACK_CATALOG.find(function(c){return c.name===packName;});
     if (!cat) return;
+    installPack(cat.id);
+    selectPackTab(packName);
     fetch('/dice/room/push-pack', {
         method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({code:room.code, name:room.name, packId:cat.id})
