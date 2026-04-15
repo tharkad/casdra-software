@@ -4853,7 +4853,13 @@ function roomConnect() {
     // Update feed timestamps every 15s
     if (room._feedTimer) clearInterval(room._feedTimer);
     room._feedTimer = setInterval(function() {
-        if (room.feedItems.length > 0) renderFeed();
+        // Update only timestamps, not the whole feed
+        var timeEls = document.querySelectorAll('.dr-room-feed-time');
+        timeEls.forEach(function(el, i) {
+            if (i < room.feedItems.length && room.feedItems[i]._ts) {
+                el.textContent = feedTimeAgo(room.feedItems[i]._ts);
+            }
+        });
     }, 15000);
 }
 function roomDisconnect() {
