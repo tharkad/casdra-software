@@ -988,7 +988,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button class="dr-room-host-btn" onclick="roomExportLog()">Export Log</button>
         <button class="dr-room-host-btn" onclick="roomClose()" style="color:#f85149;border-color:#f85149">Close Room</button>
     </div>
-    <button id="roomLeaveBtn" class="dr-room-host-btn" onclick="roomLeave()" style="display:none">Leave</button>
+    <button id="roomLeaveBtn" class="dr-room-host-btn" onclick="confirmLeaveRoom()" style="display:none">Leave Room</button>
     <div style="flex:1"></div>
     <div class="dr-room-dots" id="roomDots"></div>
 </div>
@@ -4859,6 +4859,9 @@ function roomDisconnect() {
     document.getElementById('roomBar').style.display = 'none';
     document.getElementById('roomBtn').style.color = '';
     document.getElementById('roomBtn').title = 'Room';
+}
+function confirmLeaveRoom() {
+    showConfirm('Leave room ' + room.code + '?', roomLeave);
 }
 function roomLeave() {
     if (!room.code) return;
