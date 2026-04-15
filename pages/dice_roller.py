@@ -2986,6 +2986,9 @@ function showPackOptions(idx) {
     if (presetData.packs.length > 1) {
         html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-bright);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="closeModal();showReorderPacks()">Reorder Packs</button>';
     }
+    if (pack.presets && pack.presets.length > 0) {
+        html += '<button style="background:var(--btn-bg);border:1px solid #58a6ff;border-radius:8px;padding:8px 16px;color:#58a6ff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="closeModal();showSubmitPack('+idx+')">Submit to Community</button>';
+    }
     html += '<button style="background:var(--btn-bg);border:1px solid #f85149;border-radius:8px;padding:8px 16px;color:#f85149;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="closeModal();deletePack('+idx+')">Delete</button>';
     html += '<button style="background:var(--btn-bg);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text-muted);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="closeModal()">Cancel</button>';
     html += '</div>';
@@ -3025,6 +3028,44 @@ function renderPackTabs() {
 }
 
 // ===== Pack Reorder Dialog =====
+function showSubmitPack(idx) {
+    var pack = presetData.packs[idx];
+    if (!pack || !pack.presets || !pack.presets.length) return;
+    var savedHandle = localStorage.getItem('dice_community_handle') || '';
+    var presetList = pack.presets.map(function(p) { return esc(p.name || '?'); }).join(', ');
+    var overlay = document.createElement('div');
+    overlay.className = 'dr-modal-overlay';
+    overlay.innerHTML = '<div class="dr-modal" style="max-width:340px">' +
+        '<div class="dr-modal-title">Submit to Community</div>' +
+        '<input type="text" id="submitPackName" value="' + esc(pack.name) + '" placeholder="Pack name" style="margin-bottom:8px" autocomplete="off">' +
+        '<input type="text" id="submitPackHandle" value="' + esc(savedHandle) + '" placeholder="Your name or handle" style="margin-bottom:8px" autocomplete="off">' +
+        '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px"><strong>' + pack.presets.length + ' presets:</strong> ' + presetList + '</div>' +
+        '<div class="dr-modal-btns">' +
+        '<button class="dr-modal-cancel" onclick="closeModal()">Cancel</button>' +
+        '<button class="dr-modal-ok" id="submitPackBtn">Submit</button>' +
+        '</div></div>';
+    document.body.appendChild(overlay);
+    overlay.onclick = function(e) { if (e.target === overlay) closeModal(); };
+    window._modalOverlay = overlay;
+    document.getElementById('submitPackBtn').onclick = function() {
+        var name = document.getElementById('submitPackName').value.trim();
+        var handle = document.getElementById('submitPackHandle').value.trim();
+        if (!name || !handle) { showToast('Name and handle required'); return; }
+        localStorage.setItem('dice_community_handle', handle);
+        this.disabled = true;
+        this.textContent = 'Submitting...';
+        fetch('/dice/pack/submit', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: name, submitter: handle, presets: pack.presets})
+        }).then(function(r) { return r.json(); }).then(function(d) {
+            closeModal();
+            if (d.ok) showToast('Pack submitted for review!');
+            else showToast(d.error || 'Submit failed');
+        }).catch(function() { closeModal(); showToast('Network error'); });
+    };
+    document.getElementById('submitPackName').focus();
+}
+
 function showReorderPacks() {
     var html = '<div id="reorderList" style="display:flex;flex-direction:column;gap:4px;padding:8px">';
     presetData.packs.forEach(function(pk, i) {
@@ -3264,13 +3305,17 @@ var GAME_PACK_CATALOG = [
 ];
 
 // ===== Pack Install/Uninstall =====
+function _findPack(packId) {
+    return GAME_PACK_CATALOG.find(function(c) { return c.id === packId; })
+        || _communityPacks.find(function(c) { return c.id === packId; });
+}
 function isPackInstalled(packId) {
-    var cat = GAME_PACK_CATALOG.find(function(c) { return c.id === packId; });
+    var cat = _findPack(packId);
     return cat && presetData.packs.some(function(pk) { return pk.name === cat.name; });
 }
 function installPack(packId) {
     if (!PREMIUM) return;
-    var cat = GAME_PACK_CATALOG.find(function(c) { return c.id === packId; });
+    var cat = _findPack(packId);
     if (!cat) return;
     if (presetData.packs.some(function(pk) { return pk.name === cat.name; })) return;
     presetData.packs.push({name: cat.name, presets: JSON.parse(JSON.stringify(cat.presets))});
@@ -3279,7 +3324,7 @@ function installPack(packId) {
     renderPackBrowser();
 }
 function uninstallPack(packId) {
-    var cat = GAME_PACK_CATALOG.find(function(c) { return c.id === packId; });
+    var cat = _findPack(packId);
     if (!cat) return;
     var idx = -1;
     presetData.packs.forEach(function(pk, i) { if (pk.name === cat.name) idx = i; });
@@ -3301,6 +3346,7 @@ var packBrowserReadOnly = false;
 function openPackBrowser() {
     if (!PREMIUM) { showPremiumUpsell(); return; }
     packBrowserReadOnly = false;
+    _communityLoaded = false; // Refresh community packs
     document.getElementById('packBrowser').classList.add('open');
     document.getElementById('pbSearch').value = '';
     renderPackBrowser();
@@ -3317,14 +3363,29 @@ function closePackBrowser() {
     document.getElementById('packBrowser').classList.remove('open');
     packBrowserReadOnly = false;
 }
+var _communityPacks = [];
+var _communityLoaded = false;
+function loadCommunityPacks(cb) {
+    fetch('/dice/packs/community').then(function(r) { return r.json(); }).then(function(packs) {
+        _communityPacks = packs.map(function(p) {
+            p.desc = 'by ' + (p.submitter || 'anonymous');
+            return p;
+        });
+        _communityLoaded = true;
+        if (cb) cb();
+    }).catch(function() { _communityLoaded = true; if (cb) cb(); });
+}
 function renderPackBrowser() {
     var el = document.getElementById('pbList');
     if (!el) return;
+    // Load community packs on first render
+    if (!_communityLoaded) { loadCommunityPacks(renderPackBrowser); return; }
+    var allPacks = GAME_PACK_CATALOG.concat(_communityPacks);
     var q = (document.getElementById('pbSearch').value || '').toLowerCase().trim();
-    var filtered = GAME_PACK_CATALOG.filter(function(pack) {
+    var filtered = allPacks.filter(function(pack) {
         if (!q) return true;
         return pack.name.toLowerCase().indexOf(q) >= 0 ||
-               pack.desc.toLowerCase().indexOf(q) >= 0 ||
+               (pack.desc || '').toLowerCase().indexOf(q) >= 0 ||
                pack.category.toLowerCase().indexOf(q) >= 0;
     });
     if (filtered.length === 0) {
@@ -3337,7 +3398,7 @@ function renderPackBrowser() {
         if (!cats[pack.category]) cats[pack.category] = [];
         cats[pack.category].push(pack);
     });
-    var catOrder = ['TTRPGs', 'Solo RPGs', 'Board Games', 'Party Games', 'Casino'];
+    var catOrder = ['TTRPGs', 'Solo RPGs', 'Board Games', 'Party Games', 'Casino', 'Community'];
     var html = '';
     catOrder.forEach(function(cat) {
         if (!cats[cat]) return;

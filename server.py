@@ -284,6 +284,27 @@ def init_db():
             FOREIGN KEY (room_code) REFERENCES dice_rooms(code)
         )
     """)
+    # Community packs
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS dice_pack_submissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pack_name TEXT NOT NULL,
+            submitter TEXT NOT NULL,
+            presets TEXT NOT NULL,
+            submitted_at TEXT DEFAULT (datetime('now')),
+            status TEXT DEFAULT 'pending'
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS dice_community_packs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pack_id TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            submitter TEXT NOT NULL,
+            presets TEXT NOT NULL,
+            approved_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -4192,6 +4213,48 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
+    def _build_submissions_page(self, submissions):
+        import html as _h
+        rows = ""
+        for s in submissions:
+            sid = s["id"]
+            name = _h.escape(s["pack_name"])
+            submitter = _h.escape(s["submitter"])
+            status = _h.escape(s["status"])
+            ts = _h.escape(s.get("submitted_at", ""))
+            try:
+                presets = json.loads(s["presets"])
+                preset_names = ", ".join(p.get("name", "?") for p in presets)
+                preset_count = len(presets)
+            except Exception:
+                preset_names = "?"
+                preset_count = 0
+            color = "#7ee787" if status == "approved" else "#f85149" if status == "rejected" else "#ffa657"
+            actions = ""
+            if status == "pending":
+                actions = f"""<button onclick="fetch('/dice/packs/submissions/{sid}/approve',{{method:'POST'}}).then(()=>location.reload())" style="background:#238636;color:#fff;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-family:inherit;margin-right:4px">Approve</button>
+                <button onclick="fetch('/dice/packs/submissions/{sid}/reject',{{method:'POST'}}).then(()=>location.reload())" style="background:#da3633;color:#fff;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-family:inherit">Reject</button>"""
+            rows += f"""<div style="background:#161b22;border:1px solid #21262d;border-radius:10px;padding:12px 16px;margin-bottom:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                    <strong style="color:#e6edf3;font-size:16px">{name}</strong>
+                    <span style="color:{color};font-size:12px;font-weight:600">{status}</span>
+                </div>
+                <div style="color:#8b949e;font-size:13px">by {submitter} &middot; {preset_count} presets &middot; {ts}</div>
+                <div style="color:#484f58;font-size:12px;margin-top:4px">{_h.escape(preset_names)}</div>
+                <div style="margin-top:8px">{actions}</div>
+            </div>"""
+        return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Pack Submissions</title>
+        <style>*{{margin:0;padding:0;box-sizing:border-box}}body{{background:#0d1117;color:#c9d1d9;font-family:-apple-system,system-ui,sans-serif;max-width:500px;margin:0 auto;padding:16px}}</style>
+        </head><body>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <a href="/dice" style="color:#58a6ff;text-decoration:none;font-size:14px">&larr; Dice Vault</a>
+            <h1 style="font-size:18px;font-weight:700;color:#e6edf3">Pack Submissions</h1>
+            <div style="width:60px"></div>
+        </div>
+        {rows if rows else '<div style="text-align:center;color:#484f58;padding:40px">No submissions yet</div>'}
+        </body></html>"""
+
     def redirect(self, location):
         self.send_response(303)
         self.send_header("Location", location)
@@ -4260,7 +4323,6 @@ class Handler(BaseHTTPRequestHandler):
                 _room_streams[code].append(q)
             try:
                 # Send initial state
-                import json
                 members = _get_room_members(code)
                 packs = _get_room_packs(code)
                 init_data = json.dumps({"members": members, "packs": packs})
@@ -4308,12 +4370,31 @@ class Handler(BaseHTTPRequestHandler):
             if not room:
                 self.send_json({"error": "Room not found"}, 404)
                 return
-            import json
             taken_colors = _get_room_taken_colors(code)
             members = _get_room_members(code)
             packs = _get_room_packs(code)
             data = json.dumps({"code": code, "takenColors": taken_colors, "members": members, "packs": packs})
             self.send_json(data)
+
+        elif path == "/dice/packs/community":
+            conn = get_db()
+            rows = conn.execute("SELECT pack_id, name, submitter, presets FROM dice_community_packs ORDER BY approved_at DESC").fetchall()
+            conn.close()
+            packs = []
+            for r in rows:
+                presets = json.loads(r["presets"])
+                packs.append({"id": r["pack_id"], "name": r["name"], "submitter": r["submitter"], "presets": presets, "category": "Community"})
+            self.send_json(packs)
+
+        elif path == "/dice/packs/submissions":
+            if WEB_MODE:
+                self.send_error(404)
+                return
+            conn = get_db()
+            rows = conn.execute("SELECT * FROM dice_pack_submissions ORDER BY submitted_at DESC").fetchall()
+            conn.close()
+            html = self._build_submissions_page([dict(r) for r in rows])
+            self.send_html(html)
 
         elif path == "/dice/bugs":
             conn = get_db()
@@ -5138,6 +5219,56 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
             _room_broadcast(code, "color-change", {"name": name, "color": color})
+            self.send_json({"ok": True})
+
+        elif path == "/dice/pack/submit":
+            try:
+                data = json.loads(body)
+            except (json.JSONDecodeError, ValueError):
+                data = {}
+            pack_name = (data.get("name") or "").strip()[:60]
+            submitter = (data.get("submitter") or "").strip()[:30]
+            presets = data.get("presets")
+            if not pack_name or not submitter or not presets:
+                self.send_json({"error": "Name, submitter, and presets required"}, 400)
+                return
+            conn = get_db()
+            conn.execute(
+                "INSERT INTO dice_pack_submissions (pack_name, submitter, presets) VALUES (?, ?, ?)",
+                (pack_name, submitter, json.dumps(presets))
+            )
+            conn.commit()
+            conn.close()
+            self.send_json({"ok": True})
+
+        elif path.startswith("/dice/packs/submissions/") and path.endswith("/approve"):
+            sub_id = path.split("/")[4]
+            conn = get_db()
+            sub = conn.execute("SELECT * FROM dice_pack_submissions WHERE id=? AND status='pending'", (sub_id,)).fetchone()
+            if not sub:
+                conn.close()
+                self.send_json({"error": "Not found"}, 404)
+                return
+            pack_id = "community-" + sub["pack_name"].lower().replace(" ", "-").replace("'", "")[:40]
+            # Ensure unique pack_id
+            existing = conn.execute("SELECT 1 FROM dice_community_packs WHERE pack_id=?", (pack_id,)).fetchone()
+            if existing:
+                pack_id += "-" + str(sub["id"])
+            conn.execute(
+                "INSERT INTO dice_community_packs (pack_id, name, submitter, presets) VALUES (?, ?, ?, ?)",
+                (pack_id, sub["pack_name"], sub["submitter"], sub["presets"])
+            )
+            conn.execute("UPDATE dice_pack_submissions SET status='approved' WHERE id=?", (sub_id,))
+            conn.commit()
+            conn.close()
+            self.send_json({"ok": True, "packId": pack_id})
+
+        elif path.startswith("/dice/packs/submissions/") and path.endswith("/reject"):
+            sub_id = path.split("/")[4]
+            conn = get_db()
+            conn.execute("UPDATE dice_pack_submissions SET status='rejected' WHERE id=?", (sub_id,))
+            conn.commit()
+            conn.close()
             self.send_json({"ok": True})
 
         elif path == "/dice/bug":
