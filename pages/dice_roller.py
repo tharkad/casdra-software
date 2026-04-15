@@ -5138,7 +5138,12 @@ function doCapture(callback) {
     }).catch(function() { callback(null); });
 }
 
+var _bugScreenshot = null;
 function showBugReport() {
+    // Capture screenshot BEFORE showing dialog (so dialog doesn't cover the bug)
+    _bugScreenshot = null;
+    captureScreenshot(function(ss) { _bugScreenshot = ss; });
+
     var savedName = localStorage.getItem('dice_bug_reporter') || '';
     var overlay = document.createElement('div');
     overlay.className = 'dr-modal-overlay';
@@ -5146,6 +5151,7 @@ function showBugReport() {
         '<div class="dr-modal-title">Report a Bug</div>' +
         '<input type="text" id="bugName" value="'+savedName+'" placeholder="Your name" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text-bright);padding:10px 12px;font-size:16px;font-family:inherit;outline:none;margin-bottom:8px">' +
         '<textarea id="bugDesc" placeholder="Describe the bug..." rows="4" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text-bright);padding:10px 12px;font-size:16px;font-family:inherit;outline:none;resize:vertical;margin-bottom:8px"></textarea>' +
+        '<div id="bugScreenPreview" style="margin-bottom:8px;text-align:center;font-size:11px;color:var(--text-dim)">Capturing screenshot...</div>' +
         '<div id="bugStatus" style="font-size:13px;color:var(--text-muted);margin-bottom:8px"></div>' +
         '<div class="dr-modal-btns">' +
         '<button class="dr-modal-cancel" onclick="closeBugReport()">Cancel</button>' +
@@ -5154,6 +5160,21 @@ function showBugReport() {
     document.body.appendChild(overlay);
     overlay.onclick = function(e) { if(e.target===overlay) closeBugReport(); };
     window._bugOverlay = overlay;
+    // Show screenshot preview once captured
+    var checkSS = setInterval(function() {
+        if (_bugScreenshot !== null) {
+            clearInterval(checkSS);
+            var prev = document.getElementById('bugScreenPreview');
+            if (prev) {
+                if (_bugScreenshot) {
+                    prev.innerHTML = '<img src="'+_bugScreenshot+'" style="width:100%;border-radius:6px;border:1px solid var(--border)">';
+                } else {
+                    prev.textContent = 'Screenshot failed — bug will be submitted without one';
+                }
+            }
+        }
+    }, 200);
+    setTimeout(function() { clearInterval(checkSS); }, 5000); // give up after 5s
     document.getElementById('bugName').focus();
 }
 function closeBugReport() {
@@ -5165,14 +5186,14 @@ function submitBugReport() {
     if(!name || !desc) { document.getElementById('bugStatus').textContent = 'Name and description required'; return; }
     localStorage.setItem('dice_bug_reporter', name);
     document.getElementById('bugSubmitBtn').disabled = true;
-    document.getElementById('bugStatus').textContent = 'Capturing screenshot...';
+    document.getElementById('bugStatus').textContent = 'Submitting...';
 
-    captureScreenshot(function(screenshot) {
-        document.getElementById('bugStatus').textContent = 'Submitting...';
+    var screenshot = _bugScreenshot || '';
+    (function() {
         var payload = {
             reporter: name,
             description: desc,
-            screenshot: screenshot || '',
+            screenshot: screenshot,
             app_state: collectBugState()
         };
         fetch('/dice/bug', {
