@@ -3076,6 +3076,28 @@ import random, string, threading, time as _time, queue
 _room_streams = {}
 _room_streams_lock = threading.Lock()
 
+# Rate limiter: {action: {ip: [timestamps]}}
+_rate_limits = {}
+_rate_lock = threading.Lock()
+def _rate_check(ip, action, max_per_minute=10):
+    """Returns True if allowed, False if rate limited."""
+    now = _time.time()
+    with _rate_lock:
+        if action not in _rate_limits:
+            _rate_limits[action] = {}
+        bucket = _rate_limits[action]
+        if ip not in bucket:
+            bucket[ip] = []
+        # Clean old entries
+        bucket[ip] = [t for t in bucket[ip] if now - t < 60]
+        if len(bucket[ip]) >= max_per_minute:
+            return False
+        bucket[ip].append(now)
+        return True
+
+# Max concurrent SSE connections per IP
+_MAX_SSE_PER_IP = 5
+
 ROOM_COLORS = ['#58a6ff', '#7ee787', '#f0883e', '#f85149', '#d2a8ff',
                '#d29922', '#ff7b72', '#79c0ff', '#a5d6ff', '#ffa657',
                '#3dd68c', '#bc8cff', '#ff9640', '#ff6b8a', '#e8c840', '#40d4e8']
@@ -4320,6 +4342,9 @@ class Handler(BaseHTTPRequestHandler):
             with _room_streams_lock:
                 if code not in _room_streams:
                     _room_streams[code] = []
+                if len(_room_streams[code]) >= 20:
+                    self.send_error(503, "Room full")
+                    return
                 _room_streams[code].append(q)
             try:
                 # Send initial state
@@ -4678,6 +4703,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         content_length = int(self.headers.get("Content-Length", 0))
+        # Reject oversized payloads (max 1MB)
+        if content_length > 1_000_000:
+            self.send_json({"error": "Payload too large"}, 413)
+            return
         body = self.rfile.read(content_length).decode()
         params = parse_qs(body)
 
@@ -5074,6 +5103,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"ok": False, "error": "Invalid request"}, 400)
 
         elif path == "/dice/room/create":
+            if not _rate_check(self.client_address[0], 'room_create', 3):
+                self.send_json({"error": "Too many rooms created. Try again later."}, 429)
+                return
             try:
                 data = json.loads(body)
             except (json.JSONDecodeError, ValueError):
@@ -5122,17 +5154,26 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(resp)
 
         elif path == "/dice/room/roll":
+            if not _rate_check(self.client_address[0], 'room_roll', 30):
+                self.send_json({"error": "Slow down"}, 429)
+                return
             try:
                 data = json.loads(body)
             except (json.JSONDecodeError, ValueError):
                 data = {}
-            code = (data.get("code") or "").strip().upper()
-            name = (data.get("name") or "").strip()
-            color = (data.get("color") or "").strip()
-            expression = (data.get("expression") or "").strip()
-            fav_name = (data.get("favName") or "").strip()
-            result_data = json.dumps(data.get("resultData") or {})
+            code = (data.get("code") or "").strip().upper()[:4]
+            name = (data.get("name") or "").strip()[:30]
+            color = (data.get("color") or "").strip()[:10]
+            expression = (data.get("expression") or "").strip()[:200]
+            fav_name = (data.get("favName") or "").strip()[:60]
+            result_data = json.dumps(data.get("resultData") or {})[:4096]
+            # Verify room exists and is active
             conn = get_db()
+            room = conn.execute("SELECT 1 FROM dice_rooms WHERE code=? AND status='active'", (code,)).fetchone()
+            if not room:
+                conn.close()
+                self.send_json({"error": "Room not found"}, 404)
+                return
             conn.execute(
                 "INSERT INTO dice_room_rolls (room_code, player_name, player_color, expression, fav_name, result_data) VALUES (?, ?, ?, ?, ?, ?)",
                 (code, name, color, expression, fav_name, result_data)
@@ -5212,8 +5253,11 @@ class Handler(BaseHTTPRequestHandler):
             except (json.JSONDecodeError, ValueError):
                 data = {}
             code = (data.get("code") or "").strip().upper()
-            name = (data.get("name") or "").strip()
+            name = (data.get("name") or "").strip()[:30]
             color = (data.get("color") or "").strip()
+            if color not in ROOM_COLORS:
+                self.send_json({"error": "Invalid color"}, 400)
+                return
             conn = get_db()
             conn.execute("UPDATE dice_room_members SET color=? WHERE room_code=? AND name=?", (color, code, name))
             conn.commit()
@@ -5222,6 +5266,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"ok": True})
 
         elif path == "/dice/pack/submit":
+            if not _rate_check(self.client_address[0], 'pack_submit', 3):
+                self.send_json({"error": "Too many submissions. Try again later."}, 429)
+                return
             try:
                 data = json.loads(body)
             except (json.JSONDecodeError, ValueError):
@@ -5232,16 +5279,26 @@ class Handler(BaseHTTPRequestHandler):
             if not pack_name or not submitter or not presets:
                 self.send_json({"error": "Name, submitter, and presets required"}, 400)
                 return
+            if not isinstance(presets, list) or len(presets) > 50:
+                self.send_json({"error": "Invalid presets (max 50)"}, 400)
+                return
+            presets_json = json.dumps(presets)
+            if len(presets_json) > 65536:
+                self.send_json({"error": "Pack too large"}, 400)
+                return
             conn = get_db()
             conn.execute(
                 "INSERT INTO dice_pack_submissions (pack_name, submitter, presets) VALUES (?, ?, ?)",
-                (pack_name, submitter, json.dumps(presets))
+                (pack_name, submitter, presets_json)
             )
             conn.commit()
             conn.close()
             self.send_json({"ok": True})
 
         elif path.startswith("/dice/packs/submissions/") and path.endswith("/approve"):
+            if WEB_MODE:
+                self.send_json({"error": "Not available"}, 404)
+                return
             sub_id = path.split("/")[4]
             conn = get_db()
             sub = conn.execute("SELECT * FROM dice_pack_submissions WHERE id=? AND status='pending'", (sub_id,)).fetchone()
@@ -5264,6 +5321,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"ok": True, "packId": pack_id})
 
         elif path.startswith("/dice/packs/submissions/") and path.endswith("/reject"):
+            if WEB_MODE:
+                self.send_json({"error": "Not available"}, 404)
+                return
             sub_id = path.split("/")[4]
             conn = get_db()
             conn.execute("UPDATE dice_pack_submissions SET status='rejected' WHERE id=?", (sub_id,))
@@ -5272,17 +5332,22 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"ok": True})
 
         elif path == "/dice/bug":
+            if not _rate_check(self.client_address[0], 'bug_report', 5):
+                self.send_json({"error": "Too many reports. Try again later."}, 429)
+                return
             try:
                 data = json.loads(body) if body.startswith("{") else {}
             except (json.JSONDecodeError, ValueError):
                 data = {}
-            reporter = (data.get("reporter") or "").strip()
-            description = (data.get("description") or "").strip()
+            reporter = (data.get("reporter") or "").strip()[:100]
+            description = (data.get("description") or "").strip()[:2000]
+            screenshot = (data.get("screenshot") or "")[:500000]  # ~500KB max
+            app_state = json.dumps(data.get("app_state", {}))[:200000]  # ~200KB max
             if reporter and description:
                 conn = get_db()
                 conn.execute(
                     "INSERT INTO dice_bug_reports (reporter, description, screenshot, app_state) VALUES (?, ?, ?, ?)",
-                    (reporter, description, data.get("screenshot", ""), json.dumps(data.get("app_state", {})))
+                    (reporter, description, screenshot, app_state)
                 )
                 conn.commit()
                 conn.close()
