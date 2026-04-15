@@ -833,9 +833,8 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 </head>
 <body>
 <div class="dr-header">
-    <h1>Dice Vault</h1>
+    <h1 id="appTitle" ontouchstart="startTitleLongPress(event)" ontouchend="cancelTitleLongPress()" onmousedown="startTitleLongPress(event)" onmouseup="cancelTitleLongPress()" onmouseleave="cancelTitleLongPress()">Dice Vault</h1>
     <div class="dr-header-right">
-        <button class="dr-header-btn" id="premiumToggle" onclick="togglePremium()" title="Toggle Premium" style="font-size:11px;font-weight:700;letter-spacing:0.5px">FREE</button>
         <button class="dr-header-btn" onclick="showRoomDialog()" title="Room" id="roomBtn">&#x1F465;</button>
         <button class="dr-header-btn" onclick="showBugReport()" title="Report Bug">&#x1F41B;</button>
         <button class="dr-header-btn" id="themeBtn" onclick="toggleThemePicker(event)" title="Theme">&#x1F3A8;</button>
@@ -1140,7 +1139,13 @@ function showConfirm(msg, onYes) {
     document.getElementById('drConfirmYes').onclick = function() { closeModal(); onYes(); };
 }
 
-var PREMIUM = """ + ('true' if premium else 'false') + """;
+// Testing: default Pro. Override with ?premium=0 or localStorage.
+var PREMIUM = (function() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('premium') === '0') return false;
+    if (localStorage.getItem('dice_vault_mode') === 'free') return false;
+    return true;
+})();
 var MAX_FREE_PRESETS = 5;
 
 // ===== Multi-Group Data Model =====
@@ -4646,9 +4651,27 @@ function togglePremium() {
     window.location.href = url.toString();
 }
 function updatePremiumBtn() {
-    var btn = document.getElementById('premiumToggle');
-    btn.textContent = PREMIUM ? 'PRO' : 'FREE';
-    btn.classList.toggle('on', PREMIUM);
+    // No visible button during testing — mode shown in title
+    var title = document.getElementById('appTitle');
+    if (title) title.textContent = PREMIUM ? 'Dice Vault' : 'Dice Vault (Free)';
+}
+var _titleLpTimer = null;
+function startTitleLongPress(e) {
+    if (_titleLpTimer) clearTimeout(_titleLpTimer);
+    _titleLpTimer = setTimeout(function() {
+        _titleLpTimer = null;
+        var html = '<div style="display:flex;flex-direction:column;gap:6px;padding:8px">' +
+            '<button style="background:var(--btn-bg);border:1px solid '+(PREMIUM?'#ffa657':'var(--border)')+';border-radius:8px;padding:10px 16px;color:'+(PREMIUM?'#ffa657':'var(--text-bright)')+';font-size:14px;font-weight:700;cursor:pointer;font-family:inherit" onclick="closeModal();switchMode(true)">Pro Mode'+(PREMIUM?' \\u2714':'')+' </button>' +
+            '<button style="background:var(--btn-bg);border:1px solid '+(!PREMIUM?'#ffa657':'var(--border)')+';border-radius:8px;padding:10px 16px;color:'+(!PREMIUM?'#ffa657':'var(--text-bright)')+';font-size:14px;font-weight:700;cursor:pointer;font-family:inherit" onclick="closeModal();switchMode(false)">Free Mode'+(!PREMIUM?' \\u2714':'')+' </button>' +
+            '</div>';
+        showModal('Testing Mode', html);
+    }, 600);
+}
+function cancelTitleLongPress() { if (_titleLpTimer) { clearTimeout(_titleLpTimer); _titleLpTimer = null; } }
+function switchMode(pro) {
+    if (pro) { localStorage.removeItem('dice_vault_mode'); }
+    else { localStorage.setItem('dice_vault_mode', 'free'); }
+    window.location.reload();
 }
 
 // ===== Shared Room =====
