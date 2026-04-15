@@ -4756,7 +4756,7 @@ function roomJoinOrCreate() {
             room.isHost = true;
             localStorage.setItem('dice_room_code', data.code);
             roomConnect();
-            showToast('Room ' + data.code + ' created! Share: ' + location.origin + '/dice?room=' + data.code);
+            showRoomCreatedDialog(data.code);
         }).catch(function() { showToast('Could not create room'); });
     }
 }
@@ -4864,6 +4864,28 @@ function roomPushPack(packName) {
         body: JSON.stringify({code:room.code, name:room.name, packId:cat.id})
     }).catch(function(){});
     showToast('Shared ' + packName);
+}
+function showRoomCreatedDialog(code) {
+    var link = location.origin + '/dice?room=' + code;
+    var overlay = document.createElement('div');
+    overlay.className = 'dr-modal-overlay';
+    overlay.innerHTML = '<div class="dr-modal" style="text-align:center">' +
+        '<div class="dr-modal-title">Room Created</div>' +
+        '<div style="font-size:40px;font-weight:900;letter-spacing:10px;color:var(--text-bright);margin:12px 0;font-family:SF Mono,ui-monospace,monospace">' + esc(code) + '</div>' +
+        '<div id="roomLinkText" style="font-size:12px;color:var(--text-muted);margin-bottom:16px;word-break:break-all">' + esc(link) + '</div>' +
+        '<button id="copyLinkBtn" style="background:#238636;color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;margin-bottom:8px">Copy Link</button>' +
+        '<button class="dr-modal-cancel" onclick="closeModal()" style="width:100%">Done</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    overlay.onclick = function(e) { if (e.target === overlay) closeModal(); };
+    window._modalOverlay = overlay;
+    document.getElementById('copyLinkBtn').onclick = function() {
+        navigator.clipboard.writeText(link).then(function() {
+            document.getElementById('copyLinkBtn').textContent = 'Copied!';
+            document.getElementById('copyLinkBtn').style.background = '#7ee787';
+            document.getElementById('copyLinkBtn').style.color = '#000';
+        });
+    };
 }
 function roomExportLog() {
     if (!room.code) return;
