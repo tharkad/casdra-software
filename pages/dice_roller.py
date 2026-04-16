@@ -5389,19 +5389,27 @@ function submitBugReport() {
     document.getElementById('bugSubmitBtn').disabled = true;
     document.getElementById('bugStatus').textContent = 'Submitting...';
 
-    var screenshot = _bugScreenshot || '';
+    var screenshot = (typeof _bugScreenshot === 'string') ? _bugScreenshot : '';
     (function() {
+        var state = collectBugState();
+        // Trim history to last 5 entries to keep payload small
+        if (state.history) {
+            try { var h = JSON.parse(state.history); state.history = JSON.stringify(h.slice(0,5)); } catch(e){}
+        }
         var payload = {
             reporter: name,
             description: desc,
             screenshot: screenshot,
-            app_state: collectBugState()
+            app_state: state
         };
+        var controller = new AbortController();
+        var timeout = setTimeout(function(){ controller.abort(); }, 10000);
         fetch('/dice/bug', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        }).then(function(r) { return r.json(); }).then(function(d) {
+            body: JSON.stringify(payload),
+            signal: controller.signal
+        }).then(function(r) { clearTimeout(timeout); return r.json(); }).then(function(d) {
             if(d.ok) {
                 document.getElementById('bugStatus').innerHTML = '<span style="color:#7ee787">Bug reported! Thank you.</span>';
                 setTimeout(closeBugReport, 1500);
@@ -5410,7 +5418,8 @@ function submitBugReport() {
                 document.getElementById('bugSubmitBtn').disabled = false;
             }
         }).catch(function(e) {
-            document.getElementById('bugStatus').textContent = 'Network error';
+            clearTimeout(timeout);
+            document.getElementById('bugStatus').textContent = e.name === 'AbortError' ? 'Timed out — try again' : 'Network error';
             document.getElementById('bugSubmitBtn').disabled = false;
         });
     });
