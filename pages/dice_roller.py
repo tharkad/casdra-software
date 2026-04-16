@@ -1812,8 +1812,9 @@ function dieKey(d) {
     // Keep the selected die separate from its siblings and keep any die with
     // its own per-die modifiers separate too, so they render independently.
     var sel = (d.id === selectedDieId) ? '*' + d.id : '';
+    var facesKey = (d.type==='custom' && d.faces) ? d.faces.join(',') : '';
     return [
-        d.type||'', d.sides||'',
+        d.type||'', d.sides||'', facesKey,
         d.exploding?'!':'',
         d.clampMin>1?'mn'+d.clampMin:'',
         d.clampMax?'mx'+d.clampMax:'',
