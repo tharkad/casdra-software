@@ -1568,6 +1568,415 @@ build_dice_bugs_page = _dice_roller.build_dice_bugs_page
 build_dice_bug_detail_page = _dice_roller.build_dice_bug_detail_page
 build_room_log_page = _dice_roller.build_room_log_page
 
+
+def build_dice_guide_page():
+    return html_page("Dice Vault — Tester Guide", """
+<style>
+.dg { max-width: 720px; margin: 0 auto; padding: 16px 16px 60px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.dg h1 { font-size: 28px; margin: 0 0 4px; }
+.dg .sub { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+.dg h2 { font-size: 20px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.dg h3 { font-size: 16px; margin: 20px 0 8px; color: var(--accent); }
+.dg p, .dg li { line-height: 1.6; color: var(--text); }
+.dg ul { padding-left: 20px; }
+.dg li { margin-bottom: 6px; }
+.dg .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin: 12px 0; }
+.dg .card-title { font-weight: 600; font-size: 15px; color: var(--text-bright); margin-bottom: 6px; }
+.dg .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
+.dg .badge-free { background: #1a5a2a; color: #3dd68c; }
+.dg .badge-premium { background: #4a2070; color: #bc8cff; }
+.dg .tip { background: #1a2a1a; border: 1px solid #2a4a2a; border-radius: 10px; padding: 12px 14px; margin: 10px 0; font-size: 14px; }
+.dg .tip::before { content: "💡 "; }
+.dg .warn { background: #2a2a1a; border: 1px solid #4a4a2a; border-radius: 10px; padding: 12px 14px; margin: 10px 0; font-size: 14px; }
+.dg .warn::before { content: "⚠️ "; }
+.dg code { background: var(--bg); border: 1px solid var(--border2); border-radius: 4px; padding: 1px 6px; font-size: 13px; color: var(--accent); }
+.dg .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 16px 16px 20px; margin: 16px 0; }
+.dg .toc a { color: var(--accent); text-decoration: none; font-size: 14px; display: block; padding: 3px 0; }
+.dg .toc a:hover { text-decoration: underline; }
+.dg .links { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
+.dg .links a { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; color: var(--accent); text-decoration: none; font-size: 14px; font-weight: 500; }
+.dg .links a:hover { border-color: var(--accent); }
+.dg .step-num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: var(--accent); color: var(--bg); border-radius: 50%; font-size: 13px; font-weight: 700; margin-right: 8px; flex-shrink: 0; }
+.dg .step { display: flex; align-items: flex-start; margin: 10px 0; }
+.dg .step p { margin: 0; }
+.dg hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+</style>
+<div class="dg">
+<h1>🎲 Dice Vault — Tester Guide</h1>
+<p class="sub">Welcome to the Dice Vault beta! This guide covers every feature and how to report bugs. Thanks for helping make this app awesome.</p>
+
+<div class="links">
+    <a href="/dice">🎲 Open Dice Vault (Free)</a>
+    <a href="/dice?premium=1">⭐ Open Dice Vault (Premium)</a>
+    <a href="/dice/bugs">🐛 View Bug Reports</a>
+</div>
+
+<div class="toc">
+    <strong>Table of Contents</strong>
+    <a href="#basics">1. The Basics — Rolling Dice</a>
+    <a href="#cup">2. The Dice Cup</a>
+    <a href="#modifiers">3. Modifiers (Exploding, Drop, Keep, Floor, Cap, Success)</a>
+    <a href="#selection">4. Die Selection System</a>
+    <a href="#results">5. Roll Results &amp; Probability</a>
+    <a href="#presets">6. Presets &amp; Favorites</a>
+    <a href="#packs">7. Game Packs</a>
+    <a href="#formula">8. Formula Bar (Premium)</a>
+    <a href="#multigroup">9. Multi-Group Rolls (Premium)</a>
+    <a href="#custom">10. Custom Dice &amp; Faces</a>
+    <a href="#lock">11. Cup Lock</a>
+    <a href="#history">12. Roll History</a>
+    <a href="#themes">13. Themes &amp; Settings</a>
+    <a href="#share">14. Sharing Results</a>
+    <a href="#freeVpremium">15. Free vs Premium</a>
+    <a href="#bugs">16. How to Report Bugs</a>
+    <a href="#checklist">17. Tester Checklist</a>
+</div>
+
+<h2 id="basics">1. The Basics — Rolling Dice</h2>
+<p>Tap any die button (d4, d6, d8, d10, d12, d20, d100) to add it to your cup. Tap the big <strong>ROLL</strong> button (or shake your device) to roll everything in the cup.</p>
+<div class="card">
+    <div class="card-title">Die Types Available</div>
+    <ul>
+        <li><strong>COIN</strong> — Flips heads or tails</li>
+        <li><strong>d4, d6, d8, d10, d12, d20</strong> — Standard polyhedral dice</li>
+        <li><strong>d100</strong> — Percentile die (1-100)</li>
+        <li><strong>DX</strong> — Custom die — enter any number of sides (3-999)</li>
+    </ul>
+</div>
+<div class="tip">Tap a die button multiple times to add more of that die. Adding 3× d6 is just three taps on d6.</div>
+
+<h2 id="cup">2. The Dice Cup</h2>
+<p>The cup is the staging area in the center of the screen. It shows all the dice you've added with color-coded shapes and count badges (e.g. "3×" for three d6s).</p>
+<ul>
+    <li><strong>Remove dice</strong> — Tap a die in the cup to remove one, or long-press and choose "Remove"</li>
+    <li><strong>Clear cup</strong> — Tap the trash/clear button to empty the cup</li>
+    <li>The cup auto-saves between sessions — close the app and come back, your dice are still there</li>
+</ul>
+
+<h2 id="modifiers">3. Modifiers</h2>
+<p>Modifiers change how your dice are rolled or how results are calculated. Find them below the cup area.</p>
+
+<div class="card">
+    <div class="card-title">Exploding Dice (!)</div>
+    <p>When a die rolls its maximum value, it rerolls and the results stack. A d6 that rolls 6 → 4 gives you 10. Can chain infinitely!</p>
+</div>
+
+<div class="card">
+    <div class="card-title">Drop Lowest (dl) / Drop Highest (dh)</div>
+    <p>Remove the lowest (or highest) N dice from your results. Classic example: <code>4d6dl1</code> — roll 4d6, drop the lowest 1 for D&amp;D stat generation.</p>
+</div>
+
+<div class="card">
+    <div class="card-title">Keep Highest (kh)</div>
+    <p>Keep only the highest N dice. <code>2d20kh1</code> is D&amp;D advantage — roll two d20s, keep the better one.</p>
+</div>
+
+<div class="card">
+    <div class="card-title">Floor &amp; Cap</div>
+    <p><strong>Floor</strong> sets a minimum total for a group — the result can never be lower than this value. <strong>Cap</strong> sets a maximum — the result can never exceed it. Useful for bounded rolls.</p>
+</div>
+
+<div class="card">
+    <div class="card-title">Count Successes (#≥N)</div>
+    <p>Instead of summing dice, count how many meet or exceed a threshold. <code>6d6#≥5</code> counts how many of your 6d6 rolled 5 or higher. Essential for Shadowrun, World of Darkness, etc.</p>
+</div>
+
+<div class="card">
+    <div class="card-title">Flat Modifier (+/-)</div>
+    <p>Add or subtract a number from the total. <code>1d20+5</code> adds 5 to whatever the d20 shows.</p>
+</div>
+
+<h2 id="selection">4. Die Selection System</h2>
+<p><strong>Long-press</strong> (or right-click on desktop) any individual die in the cup to select it. Selected dice get a glowing highlight. Once selected, you can apply <strong>per-die modifiers</strong>:</p>
+<ul>
+    <li><strong>Min value</strong> — This specific die can never roll below X</li>
+    <li><strong>Max value</strong> — This specific die can never roll above X</li>
+    <li><strong>Per-die exploding</strong> — Only this die explodes on max</li>
+    <li><strong>Per-die reroll</strong> — Reroll this die if it shows a specific value</li>
+</ul>
+<div class="badge badge-premium">PREMIUM</div>
+<div class="tip">Tap elsewhere in the cup to deselect. Per-die modifiers show as small badges on the die.</div>
+
+<h2 id="results">5. Roll Results &amp; Probability</h2>
+<p>After rolling, you'll see:</p>
+<ul>
+    <li><strong>Big animated total</strong> at the top with a counting-up effect</li>
+    <li><strong>Detailed breakdown</strong> — every individual die result, exploding chains (e.g. "5+6+4 = 15"), dropped dice shown in strikethrough</li>
+    <li><strong>Probability mini-chart</strong> — shows the distribution of possible outcomes with your current roll highlighted</li>
+    <li><strong>Clamped values</strong> show arrows indicating Floor/Cap adjustments</li>
+    <li><strong>Success counts</strong> — green for successes, dim for failures</li>
+</ul>
+
+<h2 id="presets">6. Presets &amp; Favorites</h2>
+<p>Save cup configurations you use often so you can load them with one tap.</p>
+<div class="step"><span class="step-num">1</span><p>Set up your cup with the dice and modifiers you want</p></div>
+<div class="step"><span class="step-num">2</span><p>Tap the <strong>star ⭐</strong> button to save as a preset</p></div>
+<div class="step"><span class="step-num">3</span><p>Give it a name (e.g. "Fireball 8d6" or "Attack Roll")</p></div>
+<div class="step"><span class="step-num">4</span><p>Your presets appear as chips you can scroll horizontally — tap any to load</p></div>
+<ul>
+    <li>Free mode: up to 5 presets</li>
+    <li>Premium mode: unlimited presets</li>
+    <li>Tap the pencil icon to rename, or pin/unpin presets</li>
+</ul>
+
+<h2 id="packs">7. Game Packs</h2>
+<div class="badge badge-premium">PREMIUM</div>
+<p>Game Packs are pre-built collections of presets for specific games. Instead of manually setting up "4d6 drop lowest" for D&amp;D, just install the D&amp;D 5e pack and get a full set of ready-to-roll presets.</p>
+
+<h3>How to use Game Packs:</h3>
+<div class="step"><span class="step-num">1</span><p>Tap the <strong>pack browser</strong> button (or look for the catalog icon)</p></div>
+<div class="step"><span class="step-num">2</span><p>Browse or search the catalog — D&amp;D, Pathfinder, Shadowrun, King of Tokyo, Savage Worlds, and many more</p></div>
+<div class="step"><span class="step-num">3</span><p>Tap <strong>Install</strong> on any pack to add its presets to your collection</p></div>
+<div class="step"><span class="step-num">4</span><p>Switch between packs using the pack tabs at the top of your presets</p></div>
+
+<h3>Built-in Packs include:</h3>
+<ul>
+    <li><strong>D&amp;D 5e</strong> — Stat rolls, advantage, disadvantage, spell damage</li>
+    <li><strong>Pathfinder 2e</strong> — Multiple action penalties, skill checks</li>
+    <li><strong>PbtA</strong> — Covers Apocalypse World, Dungeon World, Monster of the Week, etc.</li>
+    <li><strong>Blades in the Dark / FitD</strong> — Action rolls, resistance rolls, fortune rolls</li>
+    <li><strong>Shadowrun</strong> — Large d6 pools with success counting</li>
+    <li><strong>World of Darkness</strong> — d10 pools, count 8+ as successes</li>
+    <li><strong>Savage Worlds</strong> — Exploding dice with Wild Die</li>
+    <li><strong>FATE/Fudge</strong> — 4dF Fudge dice</li>
+    <li><strong>Dungeon Crawl Classics</strong> — Unusual dice chain (d3, d5, d7, d14, d16, d24, d30)</li>
+    <li><strong>Call of Cthulhu</strong> — d100 roll-under, bonus/penalty dice</li>
+    <li><strong>Ironsworn/Starforged</strong> — Action die vs challenge dice</li>
+    <li><strong>King of Tokyo</strong> — Custom faces (Claws, Hearts, Lightning, 1/2/3)</li>
+    <li><strong>Zombie Dice</strong> — Push-your-luck with color-coded dice</li>
+    <li><strong>Formula De</strong> — Gear-specific racing dice</li>
+    <li><strong>Yahtzee</strong> — Classic 5d6</li>
+    <li><strong>Catan</strong> — 2d6 production rolls</li>
+    <li><strong>Farkle/Greed</strong> — 6d6 scoring</li>
+    <li><strong>Slot Machine</strong> — Weighted symbol reels (just for fun!)</li>
+</ul>
+<div class="tip">You can also create <strong>custom packs</strong> to organize your own presets — great for different characters or campaigns.</div>
+
+<h2 id="formula">8. Formula Bar (Premium)</h2>
+<div class="badge badge-premium">PREMIUM</div>
+<p>Power users can type dice notation directly into the formula bar instead of tapping buttons. Supports the full notation syntax:</p>
+<ul>
+    <li><code>3d6</code> — Roll three six-sided dice</li>
+    <li><code>1d20+5</code> — d20 plus 5 modifier</li>
+    <li><code>4d6dl1</code> — Roll 4d6, drop lowest 1</li>
+    <li><code>2d20kh1</code> — Advantage (roll 2d20, keep highest)</li>
+    <li><code>4d6!</code> — Exploding d6s</li>
+    <li><code>4d6r1</code> — Reroll 1s on d6</li>
+    <li><code>6d6#≥5</code> — Count successes (5 or higher)</li>
+    <li><code>4dF</code> — Fudge/FATE dice</li>
+    <li><code>d{1,1,2,3,5}</code> — Custom die with specific faces</li>
+    <li><code>(4d6dl1)+(2d8!)</code> — Multi-group with operations</li>
+</ul>
+
+<h2 id="multigroup">9. Multi-Group Rolls (Premium)</h2>
+<div class="badge badge-premium">PREMIUM</div>
+<p>Create multiple independent dice groups combined with operations:</p>
+<ul>
+    <li><strong>Sum (+)</strong> — Add groups together</li>
+    <li><strong>Minus (−)</strong> — Subtract one group from another</li>
+    <li><strong>Max</strong> — Take the highest group total</li>
+    <li><strong>Min</strong> — Take the lowest group total</li>
+</ul>
+<p>Each group has its own modifiers. Example: "(4d6 drop lowest) + (2d8 exploding) + 5"</p>
+
+<h2 id="custom">10. Custom Dice &amp; Custom Faces</h2>
+<p><strong>Custom sided die (DX):</strong> Tap the DX button and enter any number of sides (3-999). Need a d7? A d30? A d100? Done.</p>
+<p><strong>Custom face dice:</strong> Define dice with text or symbol faces instead of numbers. Example for King of Tokyo:</p>
+<ul>
+    <li>Create a die with faces: "Claw", "Heart", "Lightning", "1", "2", "3"</li>
+    <li>Results show as symbol chips instead of numbers</li>
+    <li>Game Packs pre-configure these for you</li>
+</ul>
+
+<h2 id="lock">11. Cup Lock 🔒</h2>
+<p>Tap the <strong>lock button</strong> (padlock icon) to lock your cup. When locked:</p>
+<ul>
+    <li>Dice buttons and modifier controls are hidden</li>
+    <li>You can still <strong>roll</strong> and <strong>switch presets</strong></li>
+    <li>Prevents accidental taps from messing up your carefully configured cup</li>
+    <li>The padlock icon shows open/closed state</li>
+</ul>
+<div class="tip">Great for game night — lock your cup after setup and just roll without worrying about bumping buttons.</div>
+
+<h2 id="history">12. Roll History</h2>
+<p>Use the <strong>back/forward arrows</strong> in the header to browse your last 30 rolls. Each history entry shows:</p>
+<ul>
+    <li>The expression that was rolled</li>
+    <li>The total result</li>
+    <li>Full breakdown of individual dice</li>
+    <li>Timestamp</li>
+</ul>
+<p>Tap any history entry to reload that roll's cup configuration and try it again.</p>
+
+<h2 id="themes">13. Themes &amp; Settings</h2>
+<h3>Themes</h3>
+<p>Tap the <strong>palette icon</strong> in the header to switch themes:</p>
+<ul>
+    <li><strong>Default</strong> — Dark mode (charcoal) <span class="badge badge-free">FREE</span></li>
+    <li><strong>Midnight</strong> — Deep indigo <span class="badge badge-free">FREE</span></li>
+    <li><strong>Light</strong> — Warm tan/brown <span class="badge badge-premium">PREMIUM</span></li>
+    <li><strong>Purple</strong> — Rich magenta <span class="badge badge-premium">PREMIUM</span></li>
+    <li><strong>Forest</strong> — Deep green <span class="badge badge-premium">PREMIUM</span></li>
+    <li><strong>Blood</strong> — Dark red <span class="badge badge-premium">PREMIUM</span></li>
+</ul>
+
+<h3>Sound &amp; Haptics</h3>
+<ul>
+    <li><strong>Sound toggle</strong> — Mute/unmute the dice roll sound (speaker icon in header)</li>
+    <li><strong>Haptic feedback</strong> — A short vibration on roll (on supported devices)</li>
+</ul>
+
+<h2 id="share">14. Sharing Results</h2>
+<p>After rolling, tap the <strong>Share</strong> button to share your result. It uses the native share sheet on your device (or copies to clipboard on desktop). The shared text includes the formula, result, and full breakdown.</p>
+
+<h2 id="freeVpremium">15. Free vs Premium</h2>
+<div class="card">
+    <table style="width:100%;font-size:14px;border-collapse:collapse">
+        <tr style="border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:8px 0">Feature</th>
+            <th style="text-align:center;padding:8px">Free</th>
+            <th style="text-align:center;padding:8px">Premium</th>
+        </tr>
+        <tr><td style="padding:6px 0">Standard dice (d4-d100)</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Custom sided die (DX)</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Exploding, drop, keep</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Floor &amp; Cap</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Count Successes</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Roll history</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Probability chart</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Cup lock</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Presets</td><td style="text-align:center">5 max</td><td style="text-align:center">Unlimited</td></tr>
+        <tr><td style="padding:6px 0">Game Packs</td><td style="text-align:center">Browse only</td><td style="text-align:center">✅ Install &amp; use</td></tr>
+        <tr><td style="padding:6px 0">Formula bar</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Multi-group rolls</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Per-die modifiers</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Extra themes</td><td style="text-align:center">2 themes</td><td style="text-align:center">6 themes</td></tr>
+        <tr><td style="padding:6px 0">Custom face dice</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
+    </table>
+</div>
+<div class="tip">To test Premium features, add <code>?premium=1</code> to the URL or use the "Open Premium" link above.</div>
+
+<h2 id="bugs">16. How to Report Bugs 🐛</h2>
+<p>Found something broken or weird? Here's how to report it:</p>
+
+<h3>In-App Bug Reporter (preferred!)</h3>
+<div class="step"><span class="step-num">1</span><p>Tap the <strong>bug icon 🐛</strong> in the header bar</p></div>
+<div class="step"><span class="step-num">2</span><p>Enter your <strong>name</strong> (saved for next time)</p></div>
+<div class="step"><span class="step-num">3</span><p>Describe the bug — what happened vs what you expected</p></div>
+<div class="step"><span class="step-num">4</span><p>Hit <strong>Submit</strong> — the app automatically captures a screenshot and your current app state (dice cup, settings, etc.)</p></div>
+
+<div class="card">
+    <div class="card-title">What gets captured automatically:</div>
+    <ul>
+        <li>Screenshot of the current screen</li>
+        <li>Your complete cup configuration (which dice, modifiers, etc.)</li>
+        <li>Current theme and settings</li>
+        <li>Last roll results</li>
+        <li>Browser/device info</li>
+    </ul>
+    <p style="font-size:13px;color:var(--text-muted);margin:8px 0 0">This means I can reproduce your exact state — super helpful for debugging!</p>
+</div>
+
+<h3>What makes a great bug report:</h3>
+<ul>
+    <li><strong>Steps to reproduce</strong> — "I added 4d6, turned on exploding, and rolled. The explosion showed 6+6+3 but the total said 9 instead of 15"</li>
+    <li><strong>Expected vs actual</strong> — "I expected X but got Y"</li>
+    <li><strong>Consistency</strong> — "Happens every time" vs "happened once"</li>
+    <li><strong>Device/browser</strong> — The auto-capture handles this, but mention it if filing manually</li>
+</ul>
+
+<h3>View all bug reports:</h3>
+<p>Visit <a href="/dice/bugs" style="color:var(--accent)">/dice/bugs</a> to see all submitted reports, their status (open/fixed/wontfix), and any notes.</p>
+
+<div class="warn">Please don't spam the bug reporter — there's a rate limit of 5 reports per short period.</div>
+
+<hr>
+
+<h2 id="checklist">17. Tester Checklist</h2>
+<p>Here are specific things to test. Try each one in <strong>both Free and Premium modes</strong>:</p>
+
+<div class="card">
+    <div class="card-title">🎯 Core Rolling</div>
+    <ul>
+        <li>Add each die type (d4 through d100) and roll — are results in the correct range?</li>
+        <li>Add multiple of the same die (e.g. 5d6) — do count badges show correctly?</li>
+        <li>Coin flip — does it show HEADS/TAILS?</li>
+        <li>DX custom die — try d3, d7, d30, d100</li>
+        <li>Roll with no dice in cup — should be prevented or show a message</li>
+    </ul>
+</div>
+
+<div class="card">
+    <div class="card-title">🔧 Modifiers</div>
+    <ul>
+        <li>Exploding dice — roll d6 with exploding many times, verify chains add up correctly</li>
+        <li>4d6 drop lowest — verify 3 dice are summed, lowest is shown in strikethrough</li>
+        <li>2d20 keep highest — verify only the higher d20 counts</li>
+        <li>Floor/Cap — set a floor of 10 on 2d6, verify results are never below 10</li>
+        <li>Success counting — 10d6 count ≥5, verify the count is correct</li>
+        <li>Flat modifiers — 1d20+5, verify the +5 is applied to the total</li>
+        <li>Combine multiple modifiers — exploding + drop lowest together</li>
+    </ul>
+</div>
+
+<div class="card">
+    <div class="card-title">💾 Presets &amp; Packs</div>
+    <ul>
+        <li>Save a preset — does it appear in the chips?</li>
+        <li>Load a preset — does the cup restore correctly?</li>
+        <li>Hit the 5-preset limit in Free mode — does it block the 6th?</li>
+        <li>Rename and delete presets</li>
+        <li>Install a Game Pack and use its presets</li>
+        <li>Uninstall a pack — are its presets removed?</li>
+        <li>Search the pack catalog</li>
+    </ul>
+</div>
+
+<div class="card">
+    <div class="card-title">📱 UI &amp; Interaction</div>
+    <ul>
+        <li>Cup lock — lock it, verify dice buttons hide, verify you can still roll</li>
+        <li>Theme switching — try each theme, check nothing looks broken</li>
+        <li>Sound toggle — mute/unmute, verify persistence after refresh</li>
+        <li>History navigation — back/forward arrows, verify results load correctly</li>
+        <li>Share button — does it copy/share the roll?</li>
+        <li>Probability chart — does it update when you change the cup?</li>
+        <li>Long-press a die for selection (Premium)</li>
+        <li>Formula bar — type a formula and roll (Premium)</li>
+    </ul>
+</div>
+
+<div class="card">
+    <div class="card-title">🐛 Edge Cases to Poke At</div>
+    <ul>
+        <li>Roll 100d6 — does it handle large pools?</li>
+        <li>Exploding dice with very high explosion chains — does it eventually stop?</li>
+        <li>Extremely long formulas in the formula bar</li>
+        <li>Rapidly tapping roll many times</li>
+        <li>Switching presets while results are animating</li>
+        <li>Using the app on a very small screen / landscape mode</li>
+        <li>Closing and reopening — does state persist correctly?</li>
+        <li>Custom dice with 1 side or very many sides</li>
+    </ul>
+</div>
+
+<div class="card">
+    <div class="card-title">🎮 Game Pack Spot Checks</div>
+    <ul>
+        <li><strong>D&amp;D 5e</strong> — Roll "4d6 drop lowest" and "advantage" presets, verify correct behavior</li>
+        <li><strong>FATE</strong> — Roll 4dF, verify results range from -4 to +4</li>
+        <li><strong>Shadowrun</strong> — Roll a big d6 pool with success counting, verify hit counts</li>
+        <li><strong>King of Tokyo</strong> — Verify custom face dice show symbol names, not numbers</li>
+        <li><strong>DCC</strong> — Verify unusual dice (d3, d5, d7, d14, d16, d24, d30) work correctly</li>
+    </ul>
+</div>
+
+<hr>
+<p style="text-align:center;color:var(--text-muted);font-size:13px;margin-top:24px">Thanks for testing! Every bug you find makes Dice Vault better. 🎲</p>
+</div>
+""")
+
+
 # ---------------------------------------------------------------------------
 # Page builders
 # ---------------------------------------------------------------------------
@@ -4435,6 +4844,9 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
             html = self._build_submissions_page([dict(r) for r in rows])
             self.send_html(html)
+
+        elif path == "/dice/guide":
+            self.send_html(build_dice_guide_page())
 
         elif path == "/dice/bugs":
             conn = get_db()
