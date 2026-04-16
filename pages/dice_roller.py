@@ -3489,8 +3489,10 @@ function findMatchingPreset() {
 }
 
 function updateFavState() {
-    var match = findMatchingPreset();
-    if(!editMode) activePresetIdx = match;
+    if (!window._presetJustLoaded) {
+        var match = findMatchingPreset();
+        if(!editMode) activePresetIdx = match;
+    }
 
     // Star
     var star = document.getElementById('favStar');
@@ -3581,13 +3583,16 @@ function loadPreset(i) {
         cupGroups = [g];
         rootOperation = 'sum';
     }
-    activeGroupIdx = 0;
+    activeGroupIdx = cupGroups.length > 1 ? -1 : 0;
     selectedDieId = null;
-    var ag = activeGroup();
+    var ag = cupGroups.length === 1 ? cupGroups[0] : null;
     document.getElementById('dropBtn').classList.toggle('on', !!(ag && ag.dropLowest));
     document.getElementById('dropHBtn').classList.toggle('on', !!(ag && ag.dropHighest));
     activePresetIdx = i;
+    window._presetJustLoaded = true;
     updateCupDisplay();
+    renderPresets();
+    window._presetJustLoaded = false;
 }
 
 function toggleFavorite() {
