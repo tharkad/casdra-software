@@ -5306,11 +5306,9 @@ function collectBugState() {
         cupGroups: cupGroups,
         activeGroupIdx: activeGroupIdx,
         rootOperation: rootOperation,
-        presets: presets,
         currentTheme: currentTheme,
         premium: PREMIUM,
         lastRoll: localStorage.getItem('dice_roller_last_roll'),
-        history: localStorage.getItem('dice_roller_history'),
         userAgent: navigator.userAgent,
         screen: {w: screen.width, h: screen.height, dpr: window.devicePixelRatio},
         url: window.location.href,
@@ -5391,16 +5389,11 @@ function submitBugReport() {
 
     var screenshot = (typeof _bugScreenshot === 'string') ? _bugScreenshot : '';
     (function() {
-        var state = collectBugState();
-        // Trim history to last 5 entries to keep payload small
-        if (state.history) {
-            try { var h = JSON.parse(state.history); state.history = JSON.stringify(h.slice(0,5)); } catch(e){}
-        }
         var payload = {
             reporter: name,
             description: desc,
             screenshot: screenshot,
-            app_state: state
+            app_state: collectBugState()
         };
         var controller = new AbortController();
         var timeout = setTimeout(function(){ controller.abort(); }, 10000);
