@@ -3627,6 +3627,7 @@ def build_home_page():
         <a href="/song-burst">Song Burst <span class="chevron">&#8250;</span></a>
         <a href="/dice">Dice Vault <span class="chevron">&#8250;</span></a>
         <a href="/dice/bugs">Dice Vault Bugs <span class="chevron">&#8250;</span></a>
+        <a href="/dice/packs/submissions?token={ADMIN_SECRET}">Pack Submissions <span class="chevron">&#8250;</span></a>
     </div>
     <div style="text-align:center;padding:24px 16px;font-size:12px;color:#b0b0b0;">
         {h(_GIT_HASH)} &middot; {h(_GIT_DATE)}
@@ -4662,6 +4663,28 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
+    _BLOCKED_WORDS = {
+        'fuck','shit','ass','bitch','cunt','dick','cock','pussy','nigger','nigga',
+        'faggot','fag','retard','whore','slut','rape','nazi','hitler','kill yourself',
+        'kys','porn','hentai','penis','vagina','anus','gore','torture','molest',
+        'pedophile','pedo','incest','bestiality','necrophilia',
+    }
+
+    @staticmethod
+    def _scan_pack_content(pack_name, submitter, presets):
+        """Scan pack content for offensive words. Returns list of flagged words."""
+        flagged = []
+        text_to_scan = (pack_name + " " + submitter).lower()
+        for p in presets:
+            text_to_scan += " " + (p.get("name", "") or "").lower()
+            for d in (p.get("children", []) or []) + (p.get("dice", []) or []):
+                if d.get("faces"):
+                    text_to_scan += " " + " ".join(str(f).lower() for f in d["faces"])
+        for word in Handler._BLOCKED_WORDS:
+            if word in text_to_scan:
+                flagged.append(word)
+        return flagged
+
     def _build_submissions_page(self, submissions):
         import html as _h
         rows = ""
@@ -4673,11 +4696,38 @@ class Handler(BaseHTTPRequestHandler):
             ts = _h.escape(s.get("submitted_at", ""))
             try:
                 presets = json.loads(s["presets"])
-                preset_names = ", ".join(p.get("name", "?") for p in presets)
                 preset_count = len(presets)
             except Exception:
-                preset_names = "?"
+                presets = []
                 preset_count = 0
+            # Content scan
+            flagged = self._scan_pack_content(s["pack_name"], s["submitter"], presets)
+            flag_html = ""
+            if flagged:
+                flag_html = f'<div style="background:#3d1212;border:1px solid #f85149;border-radius:6px;padding:6px 10px;margin-top:6px;font-size:12px;color:#f85149;font-weight:600">&#9888; Flagged: {_h.escape(", ".join(flagged))}</div>'
+            # Build preset detail rows
+            preset_detail = ""
+            for p in presets:
+                pname = _h.escape(p.get("name", "?"))
+                dice = p.get("children", []) or p.get("dice", []) or []
+                dice_strs = []
+                for d in dice:
+                    if d.get("faces"):
+                        faces_str = ",".join(str(f) for f in d["faces"])
+                        dice_strs.append(f'd[{_h.escape(faces_str[:80])}]')
+                    elif d.get("type") == "dx" and d.get("sides"):
+                        dice_strs.append(f'd{d["sides"]}')
+                    elif d.get("type"):
+                        dice_strs.append(d["type"])
+                formula = _h.escape(" + ".join(dice_strs) if dice_strs else "?")
+                mods = []
+                if p.get("modifier"): mods.append(f'+{p["modifier"]}')
+                if p.get("dropLowest"): mods.append("dl")
+                if p.get("dropHighest"): mods.append("dh")
+                if p.get("exploding"): mods.append("!")
+                if p.get("countSuccess"): mods.append(f'#>={p["countSuccess"]}')
+                mod_str = _h.escape(" ".join(mods)) if mods else ""
+                preset_detail += f'<div style="padding:3px 0;font-size:12px"><span style="color:#e6edf3;font-weight:600">{pname}</span> <span style="color:#484f58">{formula}</span> <span style="color:#ffa657">{mod_str}</span></div>'
             color = "#7ee787" if status == "approved" else "#f85149" if status == "rejected" else "#ffa657"
             actions = ""
             if status == "pending":
@@ -4689,7 +4739,8 @@ class Handler(BaseHTTPRequestHandler):
                     <span style="color:{color};font-size:12px;font-weight:600">{status}</span>
                 </div>
                 <div style="color:#8b949e;font-size:13px">by {submitter} &middot; {preset_count} presets &middot; {ts}</div>
-                <div style="color:#484f58;font-size:12px;margin-top:4px">{_h.escape(preset_names)}</div>
+                {flag_html}
+                <div style="margin-top:6px;border-top:1px solid #21262d;padding-top:6px">{preset_detail}</div>
                 <div style="margin-top:8px">{actions}</div>
             </div>"""
         return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -4721,7 +4772,7 @@ class Handler(BaseHTTPRequestHandler):
         # In web mode, block internal routes
         if WEB_MODE and not (path == "/" or path.startswith("/song-burst") or path.startswith("/dice")
                             or path.startswith("/manifest") or path.startswith("/apple-touch")
-                            or path.startswith("/favicon")):
+                            or path.startswith("/favicon") or path.startswith("/static")):
             self.send_response(404)
             self.end_headers()
             return
@@ -5119,6 +5170,20 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(APPLE_TOUCH_ICON_PNG)
+
+        elif path == "/static/html2canvas.min.js":
+            try:
+                js_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "html2canvas.min.js")
+                with open(js_path, "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/javascript")
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "public, max-age=86400")
+                self.end_headers()
+                self.wfile.write(data)
+            except FileNotFoundError:
+                self.send_error(404)
 
         elif path == "/favicon.ico":
             self.send_response(200)

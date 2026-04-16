@@ -5320,8 +5320,7 @@ function captureScreenshot(callback) {
     // html2canvas for screenshot - load from CDN on first use
     if (!window.html2canvas) {
         var s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s.crossOrigin = 'anonymous';
+        s.src = '/static/html2canvas.min.js';
         var done = false;
         s.onload = function() {
             if (done) return; done = true;
