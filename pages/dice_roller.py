@@ -2921,10 +2921,12 @@ function createPack(name) {
 function deletePack(packIdx) {
     if (packIdx < 0 || packIdx >= presetData.packs.length) return;
     var pack = presetData.packs[packIdx];
-    pack.presets.forEach(function(p) { presetData.ungrouped.push(p); });
-    if (presetData.activePack === pack.name) presetData.activePack = null;
-    presetData.packs.splice(packIdx, 1);
-    savePresetsToStorage(); rebuildPresetViews(); renderPackTabs(); renderPresets();
+    showConfirm('Delete "' + pack.name + '"? Presets will move to Favs.', function() {
+        pack.presets.forEach(function(p) { presetData.ungrouped.push(p); });
+        if (presetData.activePack === pack.name) presetData.activePack = null;
+        presetData.packs.splice(packIdx, 1);
+        savePresetsToStorage(); rebuildPresetViews(); renderPackTabs(); renderPresets();
+    });
 }
 function renamePack(packIdx) {
     if (packIdx < 0 || packIdx >= presetData.packs.length) return;
