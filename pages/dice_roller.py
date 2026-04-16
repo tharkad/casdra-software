@@ -1249,53 +1249,116 @@ function isSymbolDie(d) {
 function isSymbolMode() {
     return getAllDice().some(isSymbolDie);
 }
-var FACE_SYMBOLS = {
-    // King of Tokyo
-    'claw':'<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle"><path d="M4 2C5 6 7 10 10 14c1 1.5.5 3 0 4-.5-1-3-5-6-10C3 6 3 4 4 2z"/><path d="M8 1C9 5 11 9 14 13c1 1.5.5 3 0 4-.5-1-3-5-6-10C7 5 7 3 8 1z"/><path d="M12 2C13 6 15 10 18 14c1 1.5.5 3 0 4-.5-1-3-5-6-10C11 6 11 4 12 2z"/><path d="M16 3C17 7 19 11 22 15c1 1.5.5 3 0 4-.5-1-3-5-6-10C15 7 15 5 16 3z"/></svg>', 'heart':'\\u2764\\uFE0F', 'bolt':'\\u26A1',
-    // Zombie Dice
-    'brain':'\\u{1F9E0}', 'shot':'\\u{1F4A5}', 'step':'<span style="filter:brightness(3)">\\u{1F463}</span>',
-    // Slot Machine
-    'cherry':'\\u{1F352}', 'cherries':'\\u{1F352}', 'lemon':'\\u{1F34B}', 'bell':'\\u{1F514}',
+// Auto-emoji: 275+ keywords mapped to native OS emoji
+var EMOJI_MAP = {
+    // Animals
+    'dog':'\\u{1F415}','puppy':'\\u{1F436}','cat':'\\u{1F431}','kitten':'\\u{1F431}','mouse':'\\u{1F42D}','rat':'\\u{1F400}',
+    'hamster':'\\u{1F439}','rabbit':'\\u{1F430}','bunny':'\\u{1F430}','fox':'\\u{1F98A}','bear':'\\u{1F43B}',
+    'panda':'\\u{1F43C}','koala':'\\u{1F428}','tiger':'\\u{1F42F}','lion':'\\u{1F981}','cow':'\\u{1F404}','pig':'\\u{1F437}',
+    'frog':'\\u{1F438}','monkey':'\\u{1F435}','chicken':'\\u{1F414}','penguin':'\\u{1F427}','bird':'\\u{1F426}',
+    'eagle':'\\u{1F985}','duck':'\\u{1F986}','owl':'\\u{1F989}','bat':'\\u{1F987}','shark':'\\u{1F988}',
+    'whale':'\\u{1F40B}','dolphin':'\\u{1F42C}','fish':'\\u{1F41F}','octopus':'\\u{1F419}','snail':'\\u{1F40C}',
+    'butterfly':'\\u{1F98B}','bug':'\\u{1F41B}','ant':'\\u{1F41C}','bee':'\\u{1F41D}','beetle':'\\u{1FAB2}',
+    'spider':'\\u{1F577}\\uFE0F','scorpion':'\\u{1F982}','turtle':'\\u{1F422}','snake':'\\u{1F40D}','lizard':'\\u{1F98E}',
+    'dragon':'\\u{1F409}','dinosaur':'\\u{1F995}','trex':'\\u{1F996}','horse':'\\u{1F434}','unicorn':'\\u{1F984}',
+    'deer':'\\u{1F98C}','goat':'\\u{1F410}','sheep':'\\u{1F411}','lamb':'\\u{1F411}','camel':'\\u{1F42B}',
+    'elephant':'\\u{1F418}','rhino':'\\u{1F98F}','hippo':'\\u{1F99B}','gorilla':'\\u{1F98D}','wolf':'\\u{1F43A}',
+    'boar':'\\u{1F417}','crocodile':'\\u{1F40A}','crab':'\\u{1F980}','lobster':'\\u{1F99E}','shrimp':'\\u{1F990}',
+    'squid':'\\u{1F991}','parrot':'\\u{1F99C}','flamingo':'\\u{1F9A9}','peacock':'\\u{1F99A}','swan':'\\u{1F9A2}',
+    'dove':'\\u{1F54A}\\uFE0F','rooster':'\\u{1F413}',
+    // Food
+    'apple':'\\u{1F34E}','pear':'\\u{1F350}','lemon':'\\u{1F34B}','banana':'\\u{1F34C}',
+    'watermelon':'\\u{1F349}','grape':'\\u{1F347}','grapes':'\\u{1F347}','strawberry':'\\u{1F353}',
+    'cherry':'\\u{1F352}','cherries':'\\u{1F352}','peach':'\\u{1F351}','mango':'\\u{1F96D}','pineapple':'\\u{1F34D}',
+    'coconut':'\\u{1F965}','avocado':'\\u{1F951}','tomato':'\\u{1F345}','corn':'\\u{1F33D}','pepper':'\\u{1F336}\\uFE0F',
+    'mushroom':'\\u{1F344}','onion':'\\u{1F9C5}','garlic':'\\u{1F9C4}','potato':'\\u{1F954}','carrot':'\\u{1F955}',
+    'bread':'\\u{1F35E}','cheese':'\\u{1F9C0}','egg':'\\u{1F95A}','bacon':'\\u{1F953}','pizza':'\\u{1F355}',
+    'burger':'\\u{1F354}','hotdog':'\\u{1F32D}','taco':'\\u{1F32E}','sushi':'\\u{1F363}',
+    'cookie':'\\u{1F36A}','cake':'\\u{1F382}','pie':'\\u{1F967}','candy':'\\u{1F36C}','chocolate':'\\u{1F36B}',
+    'donut':'\\u{1F369}','icecream':'\\u{1F366}','popcorn':'\\u{1F37F}',
+    // Weather & Nature
+    'sun':'\\u2600\\uFE0F','moon':'\\u{1F319}','cloud':'\\u2601\\uFE0F','rain':'\\u{1F327}\\uFE0F',
+    'snow':'\\u2744\\uFE0F','snowflake':'\\u2744\\uFE0F','tornado':'\\u{1F32A}\\uFE0F',
+    'rainbow':'\\u{1F308}','wind':'\\u{1F4A8}','fog':'\\u{1F32B}\\uFE0F',
+    'flower':'\\u{1F338}','rose':'\\u{1F339}','sunflower':'\\u{1F33B}','tree':'\\u{1F333}','palm':'\\u{1F334}',
+    'cactus':'\\u{1F335}','leaf':'\\u{1F343}','clover':'\\u{1F340}','seed':'\\u{1F331}',
+    'mountain':'\\u26F0\\uFE0F','volcano':'\\u{1F30B}','wave':'\\u{1F30A}','ocean':'\\u{1F30A}',
+    // Astronomy
+    'full moon':'\\u{1F315}','crescent':'\\u{1F319}','star':'\\u2B50','stars':'\\u{1F320}',
+    'shooting star':'\\u{1F320}','comet':'\\u2604\\uFE0F','meteor':'\\u2604\\uFE0F',
+    'planet':'\\u{1FA90}','saturn':'\\u{1FA90}','earth':'\\u{1F30D}','globe':'\\u{1F30D}',
+    'mars':'\\u{1F534}','venus':'\\u{1F7E0}','jupiter':'\\u{1F7E4}','mercury':'\\u{1F7E1}',
+    'neptune':'\\u{1F535}','uranus':'\\u{1F7E2}',
+    'galaxy':'\\u{1F30C}','milky way':'\\u{1F30C}','nebula':'\\u{1F30C}',
+    'eclipse':'\\u{1F311}','orbit':'\\u{1F4AB}','constellation':'\\u2728',
+    'rocket':'\\u{1F680}','satellite':'\\u{1F6F0}\\uFE0F','telescope':'\\u{1F52D}',
+    'astronaut':'\\u{1F9D1}\\u200D\\u{1F680}','alien':'\\u{1F47D}','ufo':'\\u{1F6F8}',
+    'asteroid':'\\u{1FAA8}','black hole':'\\u{1F573}\\uFE0F','supernova':'\\u{1F4A5}',
+    'void':'\\u2B1B','nova':'\\u{1F4A5}','pulsar':'\\u{1F4AB}',
+    // Objects & RPG
+    'sword':'\\u2694\\uFE0F','shield':'\\u{1F6E1}\\uFE0F','bow':'\\u{1F3F9}','arrow':'\\u{1F3F9}',
+    'axe':'\\u{1FA93}','dagger':'\\u{1F5E1}\\uFE0F','hammer':'\\u{1F528}','wrench':'\\u{1F527}',
+    'gear':'\\u2699\\uFE0F','bomb':'\\u{1F4A3}','knife':'\\u{1F52A}',
+    'crystal':'\\u{1F52E}','orb':'\\u{1F52E}','wand':'\\u{1FA84}','broom':'\\u{1F9F9}',
+    'candle':'\\u{1F56F}\\uFE0F','lantern':'\\u{1F3EE}','torch':'\\u{1F526}',
+    'key':'\\u{1F511}','lock':'\\u{1F512}','compass':'\\u{1F9ED}','map':'\\u{1F5FA}\\uFE0F','scroll':'\\u{1F4DC}',
+    'book':'\\u{1F4D6}','hourglass':'\\u231B','clock':'\\u{1F550}','bell':'\\u{1F514}','horn':'\\u{1F4EF}',
+    'drum':'\\u{1F941}','guitar':'\\u{1F3B8}','dice':'\\u{1F3B2}','card':'\\u{1F0CF}',
+    'crown':'\\u{1F451}','ring':'\\u{1F48D}','gem':'\\u{1F48E}','diamond':'\\u{1F48E}','trophy':'\\u{1F3C6}',
+    'medal':'\\u{1F3C5}','flag':'\\u{1F6A9}','coin':'\\u{1FA99}','gold':'\\u{1FA99}','money':'\\u{1F4B0}','treasure':'\\u{1F4B0}',
+    'potion':'\\u{1F9EA}','pill':'\\u{1F48A}','bandage':'\\u{1FA79}',
+    'anchor':'\\u2693','trident':'\\u{1F531}',
+    // Characters
+    'skull':'\\u{1F480}','ghost':'\\u{1F47B}','robot':'\\u{1F916}','zombie':'\\u{1F9DF}',
+    'vampire':'\\u{1F9DB}','wizard':'\\u{1F9D9}','fairy':'\\u{1F9DA}','mermaid':'\\u{1F9DC}','elf':'\\u{1F9DD}',
+    'genie':'\\u{1F9DE}','troll':'\\u{1F9CC}','ninja':'\\u{1F977}',
+    'angel':'\\u{1F47C}','devil':'\\u{1F608}','demon':'\\u{1F47F}','clown':'\\u{1F921}','ogre':'\\u{1F479}',
+    // Symbols & Effects
+    'heart':'\\u2764\\uFE0F','love':'\\u2764\\uFE0F','broken heart':'\\u{1F494}',
+    'fire':'\\u{1F525}','flame':'\\u{1F525}','spark':'\\u2728','sparkle':'\\u2728','magic':'\\u2728',
+    'explosion':'\\u{1F4A5}','boom':'\\u{1F4A5}','crash':'\\u{1F4A5}','bang':'\\u{1F4A5}',
+    'lightning':'\\u26A1','bolt':'\\u26A1','zap':'\\u26A1','thunder':'\\u26A1',
+    'water':'\\u{1F4A7}','drop':'\\u{1F4A7}','blood':'\\u{1FA78}',
+    'poison':'\\u2620\\uFE0F','toxic':'\\u2620\\uFE0F','radiation':'\\u2622\\uFE0F',
+    'peace':'\\u262E\\uFE0F','infinity':'\\u267E\\uFE0F',
+    'check':'\\u2705','x':'\\u274C','warning':'\\u26A0\\uFE0F','stop':'\\u{1F6D1}',
+    'question':'\\u2753','exclamation':'\\u2757',
+    // Outcomes
+    'hit':'\\u{1F3AF}','miss':'\\u274C','critical':'\\u{1F4A5}','fumble':'\\u274C',
+    'success':'\\u2705','failure':'\\u274C','yes':'\\u2705','no':'\\u274C','maybe':'\\u{1F914}',
+    'win':'\\u{1F3C6}','lose':'\\u{1F4A9}','draw':'\\u{1F91D}',
+    'heal':'\\u{1F49A}','damage':'\\u{1F4A2}','block':'\\u{1F6E1}\\uFE0F','dodge':'\\u{1F4A8}',
+    // Directions
+    'up':'\\u2B06\\uFE0F','down':'\\u2B07\\uFE0F','left':'\\u2B05\\uFE0F','right':'\\u27A1\\uFE0F',
+    'north':'\\u2B06\\uFE0F','south':'\\u2B07\\uFE0F','east':'\\u27A1\\uFE0F','west':'\\u2B05\\uFE0F',
+    // Colors
+    'red':'\\u{1F534}','blue':'\\u{1F535}','green':'\\u{1F7E2}','yellow':'\\u{1F7E1}',
+    'orange':'\\u{1F7E0}','purple':'\\u{1F7E3}','brown':'\\u{1F7E4}','black':'\\u26AB',
+    'white':'\\u26AA','pink':'\\u{1F7E3}',
+    // Sports
+    'soccer':'\\u26BD','football':'\\u{1F3C8}','basketball':'\\u{1F3C0}','baseball':'\\u26BE',
+    'tennis':'\\u{1F3BE}','bowling':'\\u{1F3B3}','golf':'\\u26F3','boxing':'\\u{1F94A}',
+    'target':'\\u{1F3AF}',
+    // Transport
+    'car':'\\u{1F697}','truck':'\\u{1F69B}','bus':'\\u{1F68C}','train':'\\u{1F682}','plane':'\\u2708\\uFE0F',
+    'helicopter':'\\u{1F681}','ship':'\\u{1F6A2}','boat':'\\u26F5','bicycle':'\\u{1F6B2}',
+    // Buildings
+    'house':'\\u{1F3E0}','castle':'\\u{1F3F0}','church':'\\u26EA','tent':'\\u26FA',
+    // Misc
+    'heads':'\\u{1FA99}','tails':'\\u{1FA99}','eye':'\\u{1F441}\\uFE0F','hand':'\\u270B','fist':'\\u270A',
+    'thumbs up':'\\u{1F44D}','door':'\\u{1F6AA}','chest':'\\u{1F4E6}',
+};
+// Special overrides: custom rendering (SVG, styled text)
+var FACE_OVERRIDES = {
+    'claw':'<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle"><path d="M4 2C5 6 7 10 10 14c1 1.5.5 3 0 4-.5-1-3-5-6-10C3 6 3 4 4 2z"/><path d="M8 1C9 5 11 9 14 13c1 1.5.5 3 0 4-.5-1-3-5-6-10C7 5 7 3 8 1z"/><path d="M12 2C13 6 15 10 18 14c1 1.5.5 3 0 4-.5-1-3-5-6-10C11 6 11 4 12 2z"/><path d="M16 3C17 7 19 11 22 15c1 1.5.5 3 0 4-.5-1-3-5-6-10C15 7 15 5 16 3z"/></svg>',
+    'brain':'\\u{1F9E0}','shot':'\\u{1F4A5}',
+    'step':'<span style="filter:brightness(3)">\\u{1F463}</span>',
     '7':'<span style="color:#e33;font-weight:900;font-style:italic;font-size:1.1em;font-family:serif">7</span>',
     'bar':'<svg width="22" height="18" viewBox="0 0 22 18" style="vertical-align:middle"><rect x="1" y="1" width="20" height="4" rx="1" fill="#c8a84e"/><rect x="1" y="7" width="20" height="4" rx="1" fill="#c8a84e"/><rect x="1" y="13" width="20" height="4" rx="1" fill="#c8a84e"/></svg>',
-    // Astronomy
-    'sun':'\\u2600\\uFE0F', 'moon':'\\u{1F319}', 'full moon':'\\u{1F315}', 'crescent':'\\u{1F319}',
-    'star':'\\u2B50', 'stars':'\\u{1F320}', 'shooting star':'\\u{1F320}',
-    'comet':'\\u2604\\uFE0F', 'meteor':'\\u2604\\uFE0F',
-    'planet':'\\u{1FA90}', 'saturn':'\\u{1FA90}', 'earth':'\\u{1F30D}', 'globe':'\\u{1F30D}',
-    'mars':'\\u{1F534}', 'venus':'\\u{1F7E0}', 'jupiter':'\\u{1F7E4}', 'mercury':'\\u{1F7E1}',
-    'neptune':'\\u{1F535}', 'uranus':'\\u{1F7E2}',
-    'galaxy':'\\u{1F30C}', 'milky way':'\\u{1F30C}', 'nebula':'\\u{1F30C}',
-    'eclipse':'\\u{1F311}', 'orbit':'\\u{1F4AB}', 'constellation':'\\u2728',
-    'rocket':'\\u{1F680}', 'satellite':'\\u{1F6F0}\\uFE0F', 'telescope':'\\u{1F52D}',
-    'astronaut':'\\u{1F9D1}\\u200D\\u{1F680}', 'alien':'\\u{1F47D}', 'ufo':'\\u{1F6F8}',
-    'asteroid':'\\u{1FAA8}', 'black hole':'\\u{1F573}\\uFE0F', 'supernova':'\\u{1F4A5}',
-    'void':'\\u2B1B', 'nova':'\\u{1F4A5}', 'pulsar':'\\u{1F4AB}',
-    // Common
-    'sword':'\\u2694\\uFE0F', 'shield':'\\u{1F6E1}\\uFE0F', 'skull':'\\u{1F480}',
-    'fire':'\\u{1F525}', 'hit':'\\u{1F3AF}',
-    'miss':'\\u274C', 'blank':'<span style="opacity:0.15">\\u2014</span>',
-    'heads':'\\u{1FA99}', 'tails':'\\u{1FA99}',
-    // More common
-    'crown':'\\u{1F451}', 'gem':'\\u{1F48E}', 'diamond':'\\u{1F48E}',
-    'lightning':'\\u26A1', 'thunder':'\\u26A1', 'arrow':'\\u{1F3F9}', 'bow':'\\u{1F3F9}',
-    'axe':'\\u{1FA93}', 'dagger':'\\u{1F5E1}\\uFE0F', 'bomb':'\\u{1F4A3}',
-    'poison':'\\u2620\\uFE0F', 'potion':'\\u{1F9EA}', 'magic':'\\u2728', 'spell':'\\u2728',
-    'dragon':'\\u{1F409}', 'snake':'\\u{1F40D}', 'wolf':'\\u{1F43A}', 'eagle':'\\u{1F985}',
-    'eye':'\\u{1F441}\\uFE0F', 'hand':'\\u270B', 'fist':'\\u270A', 'thumbs up':'\\u{1F44D}',
-    'gold':'\\u{1FA99}', 'coin':'\\u{1FA99}', 'treasure':'\\u{1F4B0}', 'money':'\\u{1F4B0}',
-    'key':'\\u{1F511}', 'lock':'\\u{1F512}', 'door':'\\u{1F6AA}', 'chest':'\\u{1F4E6}',
-    'heal':'\\u{1F49A}', 'damage':'\\u{1F4A2}', 'block':'\\u{1F6E1}\\uFE0F', 'dodge':'\\u{1F4A8}',
-    'critical':'\\u{1F4A5}', 'fumble':'\\u274C', 'success':'\\u2705', 'failure':'\\u274C',
-    'yes':'\\u2705', 'no':'\\u274C', 'maybe':'\\u{1F914}',
-    'win':'\\u{1F3C6}', 'lose':'\\u{1F4A9}', 'draw':'\\u{1F91D}',
-    'up':'\\u2B06\\uFE0F', 'down':'\\u2B07\\uFE0F', 'left':'\\u2B05\\uFE0F', 'right':'\\u27A1\\uFE0F',
-    'north':'\\u2B06\\uFE0F', 'south':'\\u2B07\\uFE0F', 'east':'\\u27A1\\uFE0F', 'west':'\\u2B05\\uFE0F',
-    // Colors
-    'red':'\\u{1F534}', 'blue':'\\u{1F535}', 'green':'\\u{1F7E2}', 'yellow':'\\u{1F7E1}',
-    'orange':'\\u{1F7E0}', 'purple':'\\u{1F7E3}', 'brown':'\\u{1F7E4}', 'black':'\\u26AB',
-    'white':'\\u26AA', 'pink':'\\u{1F7E3}',
+    'blank':'<span style="opacity:0.15">\\u2014</span>',
 };
+// Combined lookup: overrides first, then auto-emoji
+var FACE_SYMBOLS = Object.assign({}, EMOJI_MAP, FACE_OVERRIDES);
 function faceToDisplay(face) {
     var sym = FACE_SYMBOLS[face.toLowerCase()];
     if (sym) return '<span title="' + esc(face) + '">' + sym + '</span>';
