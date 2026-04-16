@@ -1572,34 +1572,37 @@ build_room_log_page = _dice_roller.build_room_log_page
 def build_dice_guide_page():
     return html_page("Dice Vault — Tester Guide", """
 <style>
-.dg { max-width: 720px; margin: 0 auto; padding: 16px 16px 60px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-.dg h1 { font-size: 28px; margin: 0 0 4px; }
-.dg .sub { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
-.dg h2 { font-size: 20px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-.dg h3 { font-size: 16px; margin: 20px 0 8px; color: var(--accent); }
-.dg p, .dg li { line-height: 1.6; color: var(--text); }
+body { background: #0d1117 !important; color: #c9d1d9 !important; }
+.dg { max-width: 720px; margin: 0 auto; padding: 16px 16px 60px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #c9d1d9; }
+.dg h1 { font-size: 28px; margin: 0 0 4px; color: #e6edf3; }
+.dg .sub { color: #8b949e; font-size: 14px; margin-bottom: 24px; }
+.dg h2 { font-size: 20px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #30363d; color: #e6edf3; }
+.dg h3 { font-size: 16px; margin: 20px 0 8px; color: #58a6ff; }
+.dg p, .dg li { line-height: 1.6; color: #c9d1d9; }
 .dg ul { padding-left: 20px; }
 .dg li { margin-bottom: 6px; }
-.dg .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin: 12px 0; }
-.dg .card-title { font-weight: 600; font-size: 15px; color: var(--text-bright); margin-bottom: 6px; }
+.dg .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 16px; margin: 12px 0; }
+.dg .card-title { font-weight: 600; font-size: 15px; color: #e6edf3; margin-bottom: 6px; }
 .dg .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
 .dg .badge-free { background: #1a5a2a; color: #3dd68c; }
 .dg .badge-premium { background: #4a2070; color: #bc8cff; }
-.dg .tip { background: #1a2a1a; border: 1px solid #2a4a2a; border-radius: 10px; padding: 12px 14px; margin: 10px 0; font-size: 14px; }
+.dg .tip { background: #122117; border: 1px solid #1a4a2a; border-radius: 10px; padding: 12px 14px; margin: 10px 0; font-size: 14px; color: #c9d1d9; }
 .dg .tip::before { content: "💡 "; }
-.dg .warn { background: #2a2a1a; border: 1px solid #4a4a2a; border-radius: 10px; padding: 12px 14px; margin: 10px 0; font-size: 14px; }
+.dg .warn { background: #1e1a0e; border: 1px solid #4a3a1a; border-radius: 10px; padding: 12px 14px; margin: 10px 0; font-size: 14px; color: #c9d1d9; }
 .dg .warn::before { content: "⚠️ "; }
-.dg code { background: var(--bg); border: 1px solid var(--border2); border-radius: 4px; padding: 1px 6px; font-size: 13px; color: var(--accent); }
-.dg .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 16px 16px 20px; margin: 16px 0; }
-.dg .toc a { color: var(--accent); text-decoration: none; font-size: 14px; display: block; padding: 3px 0; }
+.dg code { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; padding: 1px 6px; font-size: 13px; color: #58a6ff; }
+.dg .toc { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 16px 16px 16px 20px; margin: 16px 0; }
+.dg .toc a { color: #58a6ff; text-decoration: none; font-size: 14px; display: block; padding: 3px 0; }
 .dg .toc a:hover { text-decoration: underline; }
 .dg .links { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
-.dg .links a { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; color: var(--accent); text-decoration: none; font-size: 14px; font-weight: 500; }
-.dg .links a:hover { border-color: var(--accent); }
-.dg .step-num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: var(--accent); color: var(--bg); border-radius: 50%; font-size: 13px; font-weight: 700; margin-right: 8px; flex-shrink: 0; }
+.dg .links a { display: inline-flex; align-items: center; gap: 6px; background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 10px 16px; color: #58a6ff; text-decoration: none; font-size: 14px; font-weight: 500; }
+.dg .links a:hover { border-color: #58a6ff; }
+.dg .step-num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: #58a6ff; color: #0d1117; border-radius: 50%; font-size: 13px; font-weight: 700; margin-right: 8px; flex-shrink: 0; }
 .dg .step { display: flex; align-items: flex-start; margin: 10px 0; }
 .dg .step p { margin: 0; }
-.dg hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.dg hr { border: none; border-top: 1px solid #30363d; margin: 32px 0; }
+.dg table { color: #c9d1d9; }
+.dg table th { color: #e6edf3; }
 </style>
 <div class="dg">
 <h1>🎲 Dice Vault — Tester Guide</h1>
@@ -1832,7 +1835,7 @@ def build_dice_guide_page():
 <h2 id="freeVpremium">15. Free vs Premium</h2>
 <div class="card">
     <table style="width:100%;font-size:14px;border-collapse:collapse">
-        <tr style="border-bottom:1px solid var(--border)">
+        <tr style="border-bottom:1px solid #30363d">
             <th style="text-align:left;padding:8px 0">Feature</th>
             <th style="text-align:center;padding:8px">Free</th>
             <th style="text-align:center;padding:8px">Premium</th>
