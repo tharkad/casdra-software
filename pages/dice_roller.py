@@ -2921,8 +2921,7 @@ function createPack(name) {
 function deletePack(packIdx) {
     if (packIdx < 0 || packIdx >= presetData.packs.length) return;
     var pack = presetData.packs[packIdx];
-    showConfirm('Delete "' + pack.name + '"? Presets will move to Favs.', function() {
-        pack.presets.forEach(function(p) { presetData.ungrouped.push(p); });
+    showConfirm('Delete "' + pack.name + '" and all its presets?', function() {
         if (presetData.activePack === pack.name) presetData.activePack = null;
         presetData.packs.splice(packIdx, 1);
         savePresetsToStorage(); rebuildPresetViews(); renderPackTabs(); renderPresets();
