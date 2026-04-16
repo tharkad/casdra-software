@@ -5317,24 +5317,26 @@ function collectBugState() {
 }
 
 function captureScreenshot(callback) {
-    var done = false;
-    var finish = function(result) { if (!done) { done = true; callback(result); } };
-    // Timeout: give up after 3 seconds
-    setTimeout(function() { finish(null); }, 3000);
+    // html2canvas for screenshot - load from CDN on first use
     if (!window.html2canvas) {
         var s = document.createElement('script');
         s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s.onload = function() { doCapture(finish); };
-        s.onerror = function() { finish(null); };
+        s.crossOrigin = 'anonymous';
+        var done = false;
+        s.onload = function() {
+            if (done) return; done = true;
+            html2canvas(document.body, {scale: 0.5, logging: false, useCORS: true}).then(function(c) {
+                callback(c.toDataURL('image/jpeg', 0.5));
+            }).catch(function() { callback(false); });
+        };
+        s.onerror = function() { if (!done) { done = true; callback(false); } };
+        setTimeout(function() { if (!done) { done = true; callback(false); } }, 5000);
         document.head.appendChild(s);
-    } else { doCapture(finish); }
-}
-function doCapture(callback) {
-    try {
-        html2canvas(document.body, {scale: 0.5, logging: false}).then(function(canvas) {
-            callback(canvas.toDataURL('image/png', 0.6));
-        }).catch(function() { callback(null); });
-    } catch(e) { callback(null); }
+    } else {
+        html2canvas(document.body, {scale: 0.5, logging: false, useCORS: true}).then(function(c) {
+            callback(c.toDataURL('image/jpeg', 0.5));
+        }).catch(function() { callback(false); });
+    }
 }
 
 var _bugScreenshot = null;
