@@ -18,6 +18,16 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "casdra.db")
 
 # Web mode: public-facing, hides internal apps, renames Song Burst → ChartBurst
 WEB_MODE = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("WEB_MODE"))
+ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "casdra-admin-local")
+
+def _check_admin(handler):
+    """Check if request has valid admin secret. Returns True if authorized."""
+    from urllib.parse import parse_qs, urlparse
+    qs = parse_qs(urlparse(handler.path).query)
+    token = qs.get("token", [None])[0]
+    if not token:
+        token = handler.headers.get("X-Admin-Token")
+    return token == ADMIN_SECRET
 
 # Import page modules (initialized after helpers are defined — see bottom of helpers section)
 import pages.song_burst as _song_burst
@@ -3331,9 +3341,14 @@ def build_big_ideas_page():
             color = "#2e86de"
         if "filed" in status.lower():
             color = "#2a9d8f"
+        if "complete" in status.lower():
+            color = "#2a9d8f"
 
         # Progress bar color based on percentage
-        if progress >= 70:
+        if progress >= 100:
+            bar_color = "#2a9d8f"
+            encouragement = "✅ Complete!"
+        elif progress >= 70:
             bar_color = "#2a9d8f"
             encouragement = "🔥 Almost there!"
         elif progress >= 40:
@@ -4254,8 +4269,8 @@ class Handler(BaseHTTPRequestHandler):
             color = "#7ee787" if status == "approved" else "#f85149" if status == "rejected" else "#ffa657"
             actions = ""
             if status == "pending":
-                actions = f"""<button onclick="fetch('/dice/packs/submissions/{sid}/approve',{{method:'POST'}}).then(()=>location.reload())" style="background:#238636;color:#fff;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-family:inherit;margin-right:4px">Approve</button>
-                <button onclick="fetch('/dice/packs/submissions/{sid}/reject',{{method:'POST'}}).then(()=>location.reload())" style="background:#da3633;color:#fff;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-family:inherit">Reject</button>"""
+                actions = f"""<button onclick="fetch('/dice/packs/submissions/{sid}/approve',{{method:'POST',headers:{{'X-Admin-Token':'{ADMIN_SECRET}'}}}}).then(()=>location.reload())" style="background:#238636;color:#fff;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-family:inherit;margin-right:4px">Approve</button>
+                <button onclick="fetch('/dice/packs/submissions/{sid}/reject',{{method:'POST',headers:{{'X-Admin-Token':'{ADMIN_SECRET}'}}}}).then(()=>location.reload())" style="background:#da3633;color:#fff;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-family:inherit">Reject</button>"""
             rows += f"""<div style="background:#161b22;border:1px solid #21262d;border-radius:10px;padding:12px 16px;margin-bottom:8px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
                     <strong style="color:#e6edf3;font-size:16px">{name}</strong>
@@ -4411,8 +4426,8 @@ class Handler(BaseHTTPRequestHandler):
                 packs.append({"id": r["pack_id"], "name": r["name"], "submitter": r["submitter"], "presets": presets, "category": "Community"})
             self.send_json(packs)
 
-        elif path == "/dice/packs/submissions":
-            if WEB_MODE:
+        elif path.startswith("/dice/packs/submissions") and not path.endswith("/approve") and not path.endswith("/reject"):
+            if not _check_admin(self):
                 self.send_error(404)
                 return
             conn = get_db()
@@ -5296,8 +5311,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"ok": True})
 
         elif path.startswith("/dice/packs/submissions/") and path.endswith("/approve"):
-            if WEB_MODE:
-                self.send_json({"error": "Not available"}, 404)
+            if not _check_admin(self):
+                self.send_json({"error": "Not authorized"}, 403)
                 return
             sub_id = path.split("/")[4]
             conn = get_db()
@@ -5321,8 +5336,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"ok": True, "packId": pack_id})
 
         elif path.startswith("/dice/packs/submissions/") and path.endswith("/reject"):
-            if WEB_MODE:
-                self.send_json({"error": "Not available"}, 404)
+            if not _check_admin(self):
+                self.send_json({"error": "Not authorized"}, 403)
                 return
             sub_id = path.split("/")[4]
             conn = get_db()
