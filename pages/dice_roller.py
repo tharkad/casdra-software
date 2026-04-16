@@ -5388,8 +5388,7 @@ function submitBugReport() {
     document.getElementById('bugStatus').textContent = 'Submitting...';
 
     var screenshot = (typeof _bugScreenshot === 'string') ? _bugScreenshot : '';
-    (function() {
-        var payload = {
+    var payload = {
             reporter: name,
             description: desc,
             screenshot: screenshot,
@@ -5415,7 +5414,6 @@ function submitBugReport() {
             document.getElementById('bugStatus').textContent = e.name === 'AbortError' ? 'Timed out — try again' : 'Network error';
             document.getElementById('bugSubmitBtn').disabled = false;
         });
-    });
 }
 </script>
 </body>
