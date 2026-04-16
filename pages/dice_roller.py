@@ -4442,19 +4442,27 @@ function syncFormulaFromCup() {
             }
         });
     } else if (overlay) {
-        // Single group — still use overlay for wrapping long formulas
-        // Insert word-break opportunities after operators and commas
-        overlay.innerHTML = esc(formula).replace(/([+\-,])/g, '$1<wbr>');
-        overlay.style.display = 'block';
-        inp.style.color = 'transparent';
-        inp.style.background = 'transparent';
-        requestAnimationFrame(function() {
-            if (overlay.offsetHeight > inp.offsetHeight) {
-                inp.style.height = overlay.offsetHeight + 'px';
-            } else {
-                inp.style.height = '';
-            }
-        });
+        if (!formula) {
+            // Empty cup — hide overlay, restore input
+            overlay.innerHTML = '';
+            overlay.style.display = 'none';
+            inp.style.color = '';
+            inp.style.background = '';
+            inp.style.height = '';
+        } else {
+            // Single group — use overlay for wrapping long formulas
+            overlay.innerHTML = esc(formula).replace(/([+\-,])/g, '$1<wbr>');
+            overlay.style.display = 'block';
+            inp.style.color = 'transparent';
+            inp.style.background = 'transparent';
+            requestAnimationFrame(function() {
+                if (overlay.offsetHeight > inp.offsetHeight) {
+                    inp.style.height = overlay.offsetHeight + 'px';
+                } else {
+                    inp.style.height = '';
+                }
+            });
+        }
     }
 }
 
