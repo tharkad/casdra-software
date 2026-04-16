@@ -5469,15 +5469,19 @@ body { background:var(--bg); color:var(--text); min-height:100vh;
 a.dr-back { color:var(--accent); text-decoration:none; font-size:14px; font-weight:600; }
 .dr-history-page { padding:16px; max-width:500px; margin:0 auto; }
 .dr-history-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-.dr-history-clear { background:none; border:1px solid var(--border); border-radius:8px;
-                    color:var(--text-dim); padding:6px 12px; font-size:12px; cursor:pointer; font-family:inherit; }
+.dr-history-btn { background:none; border:1px solid var(--border); border-radius:8px;
+                  padding:6px 12px; font-size:12px; cursor:pointer; font-family:inherit; font-weight:600; }
+.dr-history-clear { color:var(--text-bright); }
 .dr-history-clear:hover { color:#f85149; border-color:#f85149; }
-.dr-history-entry { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;
+.dr-history-export { color:var(--accent); }
+.dr-history-export:hover { border-color:var(--accent); }
+.dr-history-entry { display:flex; flex-direction:column;
                     padding:10px 14px; border-radius:10px; margin-bottom:6px;
-                    background:var(--btn-bg); border:1px solid var(--border2); gap:4px; }
+                    background:var(--btn-bg); border:1px solid var(--border2); gap:2px; }
+.dr-history-row { display:flex; justify-content:space-between; align-items:center; }
 .dr-history-total { font-weight:700; color:var(--text-bright); font-size:18px;
-                    font-family:'SF Mono',ui-monospace,monospace; min-width:45px; }
-.dr-history-expr { color:var(--text-muted); font-size:13px; flex:1; text-align:center; }
+                    font-family:'SF Mono',ui-monospace,monospace; }
+.dr-history-expr { color:var(--text-muted); font-size:13px; word-break:break-all; }
 .dr-history-time { color:var(--text-dim); font-size:11px; min-width:60px; text-align:right; }
 .dr-history-empty { text-align:center; color:var(--border); padding:40px; font-size:15px; }
 </style>
@@ -5495,8 +5499,8 @@ document.querySelector('meta[name=theme-color]').content=getComputedStyle(docume
 </div>
 <div class="dr-history-page">
     <div class="dr-history-header">
-        <div></div>
-        <button class="dr-history-clear" onclick="clearHistory()">Clear All</button>
+        <button class="dr-history-btn dr-history-export" onclick="exportHistory()">Export</button>
+        <button class="dr-history-btn dr-history-clear" onclick="clearHistory()">Clear All</button>
     </div>
     <div id="historyList"></div>
 </div>
@@ -5555,11 +5559,29 @@ function render() {
         } else {
             totalHtml = '<span class="dr-history-total">'+esc(''+e.total)+'</span>';
         }
-        html+='<div class="dr-history-entry">'+totalHtml+'<span class="dr-history-expr">'+favLabel+esc(e.expression)+'</span><span class="dr-history-time">'+formatTimeAgo(e.timestamp)+'</span></div>';
+        html+='<div class="dr-history-entry">' +
+            '<div class="dr-history-row">' + totalHtml + '<span class="dr-history-time">'+formatTimeAgo(e.timestamp)+'</span></div>' +
+            '<div class="dr-history-expr">'+favLabel+esc(e.expression)+'</div>' +
+            '</div>';
     });
     list.innerHTML=html;
 }
 function clearHistory(){localStorage.removeItem('dice_roller_history');render();}
+function exportHistory(){
+    var history=[];
+    try{history=JSON.parse(localStorage.getItem('dice_roller_history')||'[]');}catch(e){}
+    var lines = history.map(function(e){
+        var result = e.symbolFaces ? e.symbolFaces.join(', ') : e.total;
+        var fav = e.favName ? e.favName + ': ' : '';
+        return fav + e.expression + ' = ' + result;
+    });
+    var text = 'Dice Vault Roll History\\n' + new Date().toLocaleDateString() + '\\n\\n' + lines.join('\\n');
+    var blob = new Blob([text], {type:'text/plain'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'dice-vault-history.txt';
+    a.click();
+}
 // Preserve premium query param on back link
 var qs = window.location.search || localStorage.getItem('dice_roller_qs') || '';
 if (qs) document.getElementById('backLink').href = '/dice' + qs;
