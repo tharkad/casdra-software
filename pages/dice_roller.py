@@ -1291,6 +1291,10 @@ var FACE_SYMBOLS = {
     'win':'\\u{1F3C6}', 'lose':'\\u{1F4A9}', 'draw':'\\u{1F91D}',
     'up':'\\u2B06\\uFE0F', 'down':'\\u2B07\\uFE0F', 'left':'\\u2B05\\uFE0F', 'right':'\\u27A1\\uFE0F',
     'north':'\\u2B06\\uFE0F', 'south':'\\u2B07\\uFE0F', 'east':'\\u27A1\\uFE0F', 'west':'\\u2B05\\uFE0F',
+    // Colors
+    'red':'\\u{1F534}', 'blue':'\\u{1F535}', 'green':'\\u{1F7E2}', 'yellow':'\\u{1F7E1}',
+    'orange':'\\u{1F7E0}', 'purple':'\\u{1F7E3}', 'brown':'\\u{1F7E4}', 'black':'\\u26AB',
+    'white':'\\u26AA', 'pink':'\\u{1F7E3}',
 };
 function faceToDisplay(face) {
     var sym = FACE_SYMBOLS[face.toLowerCase()];
