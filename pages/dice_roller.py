@@ -5342,8 +5342,8 @@ function doCapture(callback) {
 var _bugScreenshot = null;
 function showBugReport() {
     // Capture screenshot BEFORE showing dialog (so dialog doesn't cover the bug)
-    _bugScreenshot = null;
-    captureScreenshot(function(ss) { _bugScreenshot = ss; });
+    _bugScreenshot = undefined;
+    captureScreenshot(function(ss) { _bugScreenshot = ss || false; });
 
     var savedName = localStorage.getItem('dice_bug_reporter') || '';
     var overlay = document.createElement('div');
@@ -5363,7 +5363,7 @@ function showBugReport() {
     window._bugOverlay = overlay;
     // Show screenshot preview once captured
     var checkSS = setInterval(function() {
-        if (_bugScreenshot !== null) {
+        if (_bugScreenshot !== undefined) {
             clearInterval(checkSS);
             var prev = document.getElementById('bugScreenPreview');
             if (prev) {
