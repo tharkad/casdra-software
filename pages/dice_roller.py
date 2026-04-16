@@ -1258,11 +1258,39 @@ var FACE_SYMBOLS = {
     'cherry':'\\u{1F352}', 'cherries':'\\u{1F352}', 'lemon':'\\u{1F34B}', 'bell':'\\u{1F514}',
     '7':'<span style="color:#e33;font-weight:900;font-style:italic;font-size:1.1em;font-family:serif">7</span>',
     'bar':'<svg width="22" height="18" viewBox="0 0 22 18" style="vertical-align:middle"><rect x="1" y="1" width="20" height="4" rx="1" fill="#c8a84e"/><rect x="1" y="7" width="20" height="4" rx="1" fill="#c8a84e"/><rect x="1" y="13" width="20" height="4" rx="1" fill="#c8a84e"/></svg>',
+    // Astronomy
+    'sun':'\\u2600\\uFE0F', 'moon':'\\u{1F319}', 'full moon':'\\u{1F315}', 'crescent':'\\u{1F319}',
+    'star':'\\u2B50', 'stars':'\\u{1F320}', 'shooting star':'\\u{1F320}',
+    'comet':'\\u2604\\uFE0F', 'meteor':'\\u2604\\uFE0F',
+    'planet':'\\u{1FA90}', 'saturn':'\\u{1FA90}', 'earth':'\\u{1F30D}', 'globe':'\\u{1F30D}',
+    'mars':'\\u{1F534}', 'venus':'\\u{1F7E0}', 'jupiter':'\\u{1F7E4}', 'mercury':'\\u{1F7E1}',
+    'neptune':'\\u{1F535}', 'uranus':'\\u{1F7E2}',
+    'galaxy':'\\u{1F30C}', 'milky way':'\\u{1F30C}', 'nebula':'\\u{1F30C}',
+    'eclipse':'\\u{1F311}', 'orbit':'\\u{1F4AB}', 'constellation':'\\u2728',
+    'rocket':'\\u{1F680}', 'satellite':'\\u{1F6F0}\\uFE0F', 'telescope':'\\u{1F52D}',
+    'astronaut':'\\u{1F9D1}\\u200D\\u{1F680}', 'alien':'\\u{1F47D}', 'ufo':'\\u{1F6F8}',
+    'asteroid':'\\u{1FAA8}', 'black hole':'\\u{1F573}\\uFE0F', 'supernova':'\\u{1F4A5}',
+    'void':'\\u2B1B', 'nova':'\\u{1F4A5}', 'pulsar':'\\u{1F4AB}',
     // Common
     'sword':'\\u2694\\uFE0F', 'shield':'\\u{1F6E1}\\uFE0F', 'skull':'\\u{1F480}',
-    'star':'\\u2B50', 'fire':'\\u{1F525}', 'hit':'\\u{1F3AF}',
+    'fire':'\\u{1F525}', 'hit':'\\u{1F3AF}',
     'miss':'\\u274C', 'blank':'<span style="opacity:0.15">\\u2014</span>',
     'heads':'\\u{1FA99}', 'tails':'\\u{1FA99}',
+    // More common
+    'crown':'\\u{1F451}', 'gem':'\\u{1F48E}', 'diamond':'\\u{1F48E}',
+    'lightning':'\\u26A1', 'thunder':'\\u26A1', 'arrow':'\\u{1F3F9}', 'bow':'\\u{1F3F9}',
+    'axe':'\\u{1FA93}', 'dagger':'\\u{1F5E1}\\uFE0F', 'bomb':'\\u{1F4A3}',
+    'poison':'\\u2620\\uFE0F', 'potion':'\\u{1F9EA}', 'magic':'\\u2728', 'spell':'\\u2728',
+    'dragon':'\\u{1F409}', 'snake':'\\u{1F40D}', 'wolf':'\\u{1F43A}', 'eagle':'\\u{1F985}',
+    'eye':'\\u{1F441}\\uFE0F', 'hand':'\\u270B', 'fist':'\\u270A', 'thumbs up':'\\u{1F44D}',
+    'gold':'\\u{1FA99}', 'coin':'\\u{1FA99}', 'treasure':'\\u{1F4B0}', 'money':'\\u{1F4B0}',
+    'key':'\\u{1F511}', 'lock':'\\u{1F512}', 'door':'\\u{1F6AA}', 'chest':'\\u{1F4E6}',
+    'heal':'\\u{1F49A}', 'damage':'\\u{1F4A2}', 'block':'\\u{1F6E1}\\uFE0F', 'dodge':'\\u{1F4A8}',
+    'critical':'\\u{1F4A5}', 'fumble':'\\u274C', 'success':'\\u2705', 'failure':'\\u274C',
+    'yes':'\\u2705', 'no':'\\u274C', 'maybe':'\\u{1F914}',
+    'win':'\\u{1F3C6}', 'lose':'\\u{1F4A9}', 'draw':'\\u{1F91D}',
+    'up':'\\u2B06\\uFE0F', 'down':'\\u2B07\\uFE0F', 'left':'\\u2B05\\uFE0F', 'right':'\\u27A1\\uFE0F',
+    'north':'\\u2B06\\uFE0F', 'south':'\\u2B07\\uFE0F', 'east':'\\u27A1\\uFE0F', 'west':'\\u2B05\\uFE0F',
 };
 function faceToDisplay(face) {
     var sym = FACE_SYMBOLS[face.toLowerCase()];
@@ -5414,8 +5442,22 @@ var FACE_SYMBOLS = {
     'cherry':'\\u{1F352}','cherries':'\\u{1F352}','lemon':'\\u{1F34B}','bell':'\\u{1F514}',
     '7':'<span style="color:#e33;font-weight:900;font-style:italic;font-size:1.1em;font-family:serif">7</span>',
     'bar':'<svg width="16" height="14" viewBox="0 0 22 18" style="vertical-align:-2px"><rect x="1" y="1" width="20" height="4" rx="1" fill="#c8a84e"/><rect x="1" y="7" width="20" height="4" rx="1" fill="#c8a84e"/><rect x="1" y="13" width="20" height="4" rx="1" fill="#c8a84e"/></svg>',
-    'sword':'\\u2694\\uFE0F','shield':'\\u{1F6E1}\\uFE0F','skull':'\\u{1F480}','star':'\\u2B50',
+    // Astronomy
+    'sun':'\\u2600\\uFE0F','moon':'\\u{1F319}','full moon':'\\u{1F315}','crescent':'\\u{1F319}',
+    'star':'\\u2B50','stars':'\\u{1F320}','shooting star':'\\u{1F320}',
+    'comet':'\\u2604\\uFE0F','meteor':'\\u2604\\uFE0F','planet':'\\u{1FA90}','saturn':'\\u{1FA90}',
+    'earth':'\\u{1F30D}','mars':'\\u{1F534}','galaxy':'\\u{1F30C}','eclipse':'\\u{1F311}',
+    'rocket':'\\u{1F680}','alien':'\\u{1F47D}','ufo':'\\u{1F6F8}','asteroid':'\\u{1FAA8}',
+    // Common
+    'sword':'\\u2694\\uFE0F','shield':'\\u{1F6E1}\\uFE0F','skull':'\\u{1F480}',
     'fire':'\\u{1F525}','hit':'\\u{1F3AF}','miss':'\\u274C','blank':'<span style="opacity:0.15">\\u2014</span>',
+    'crown':'\\u{1F451}','gem':'\\u{1F48E}','diamond':'\\u{1F48E}','lightning':'\\u26A1',
+    'dragon':'\\u{1F409}','wolf':'\\u{1F43A}','eagle':'\\u{1F985}',
+    'gold':'\\u{1FA99}','key':'\\u{1F511}','heal':'\\u{1F49A}','damage':'\\u{1F4A2}',
+    'critical':'\\u{1F4A5}','success':'\\u2705','failure':'\\u274C',
+    'yes':'\\u2705','no':'\\u274C','win':'\\u{1F3C6}',
+    'up':'\\u2B06\\uFE0F','down':'\\u2B07\\uFE0F','north':'\\u2B06\\uFE0F','south':'\\u2B07\\uFE0F',
+    'east':'\\u27A1\\uFE0F','west':'\\u2B05\\uFE0F',
 };
 function faceToDisplay(face) {
     var sym = FACE_SYMBOLS[face.toLowerCase()];
