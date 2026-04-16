@@ -5575,12 +5575,14 @@ function exportHistory(){
         var fav = e.favName ? e.favName + ': ' : '';
         return fav + e.expression + ' = ' + result;
     });
-    var text = 'Dice Vault Roll History\\n' + new Date().toLocaleDateString() + '\\n\\n' + lines.join('\\n');
-    var blob = new Blob([text], {type:'text/plain'});
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'dice-vault-history.txt';
-    a.click();
+    var text = 'Dice Vault Roll History\\n' + new Date().toLocaleDateString() + '\\n\\n' + lines.join('\\n') + '\\n\\n\\u2014 Dice Vault';
+    if (navigator.share) {
+        navigator.share({title:'Dice Vault History', text:text}).catch(function(){});
+    } else {
+        navigator.clipboard.writeText(text).then(function(){
+            alert('History copied to clipboard');
+        });
+    }
 }
 // Preserve premium query param on back link
 var qs = window.location.search || localStorage.getItem('dice_roller_qs') || '';
