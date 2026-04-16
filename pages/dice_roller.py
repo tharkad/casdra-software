@@ -1402,7 +1402,11 @@ function clearCup() {
     activePresetIdx = -1; editMode = false; editOriginal = null;
     document.getElementById('dropBtn').classList.remove('on');
     document.getElementById('dropHBtn').classList.remove('on');
-    document.getElementById('formulaInput').value = '';
+    var fInp = document.getElementById('formulaInput');
+    fInp.value = '';
+    fInp.style.color = ''; fInp.style.background = ''; fInp.style.height = '';
+    var fOvr = document.getElementById('formulaOverlay');
+    if (fOvr) { fOvr.innerHTML = ''; fOvr.style.display = 'none'; }
     updateCupDisplay();
 }
 
