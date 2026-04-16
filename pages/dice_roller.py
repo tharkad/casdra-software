@@ -1287,7 +1287,7 @@ var EMOJI_MAP = {
     'full moon':'\\u{1F315}','crescent':'\\u{1F319}','star':'\\u2B50','stars':'\\u{1F320}',
     'shooting star':'\\u{1F320}','comet':'\\u2604\\uFE0F','meteor':'\\u2604\\uFE0F',
     'planet':'\\u{1FA90}','saturn':'\\u{1FA90}','earth':'\\u{1F30D}','globe':'\\u{1F30D}',
-    'mars':'<span style="color:#e8563a;font-weight:900;font-size:1.1em">\\u2642\\uFE0F</span>','venus':'<span style="color:#e8a03a;font-weight:900;font-size:1.1em">\\u2640\\uFE0F</span>','jupiter':'\\u{1F7E4}','mercury':'\\u{1F7E1}',
+    'mars':'<svg width="22" height="22" viewBox="0 0 22 22" style="vertical-align:middle"><circle cx="11" cy="11" r="10" fill="#c1440e"/><circle cx="8" cy="9" r="3" fill="#a33a0c" opacity="0.5"/><circle cx="14" cy="13" r="2" fill="#a33a0c" opacity="0.4"/><circle cx="11" cy="6" r="1.5" fill="#d4a574" opacity="0.3"/></svg>','venus':'<span style="color:#e8a03a;font-weight:900;font-size:1.1em">\\u2640\\uFE0F</span>','jupiter':'\\u{1F7E4}','mercury':'\\u{1F7E1}',
     'neptune':'\\u{1F535}','uranus':'\\u{1F7E2}',
     'galaxy':'\\u{1F30C}','milky way':'\\u{1F30C}','nebula':'\\u{1F30C}',
     'eclipse':'\\u{1F311}','orbit':'\\u{1F4AB}','constellation':'\\u2728',
@@ -5513,7 +5513,7 @@ var FACE_SYMBOLS = {
     'sun':'\\u2600\\uFE0F','moon':'\\u{1F319}','full moon':'\\u{1F315}','crescent':'\\u{1F319}',
     'star':'\\u2B50','stars':'\\u{1F320}','shooting star':'\\u{1F320}',
     'comet':'\\u2604\\uFE0F','meteor':'\\u2604\\uFE0F','planet':'\\u{1FA90}','saturn':'\\u{1FA90}',
-    'earth':'\\u{1F30D}','mars':'<span style="color:#e8563a;font-weight:900;font-size:1.1em">\\u2642\\uFE0F</span>','galaxy':'\\u{1F30C}','eclipse':'\\u{1F311}',
+    'earth':'\\u{1F30D}','mars':'<svg width="22" height="22" viewBox="0 0 22 22" style="vertical-align:middle"><circle cx="11" cy="11" r="10" fill="#c1440e"/><circle cx="8" cy="9" r="3" fill="#a33a0c" opacity="0.5"/><circle cx="14" cy="13" r="2" fill="#a33a0c" opacity="0.4"/><circle cx="11" cy="6" r="1.5" fill="#d4a574" opacity="0.3"/></svg>','galaxy':'\\u{1F30C}','eclipse':'\\u{1F311}',
     'rocket':'\\u{1F680}','alien':'\\u{1F47D}','ufo':'\\u{1F6F8}','asteroid':'\\u{1FAA8}',
     // Common
     'sword':'\\u2694\\uFE0F','shield':'\\u{1F6E1}\\uFE0F','skull':'\\u{1F480}',
