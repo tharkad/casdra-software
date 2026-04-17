@@ -2895,8 +2895,19 @@ function toggleLock() {
     var presetRow = document.getElementById('presets');
 
     // Hide dice buttons + modifier rows (pack tabs stay visible for switching presets)
+    var symMode = isSymbolMode();
     diceGrid.style.display = cupLocked ? 'none' : '';
-    modRows.style.display = cupLocked ? 'none' : '';
+    modRows.style.display = (cupLocked || symMode) ? 'none' : '';
+    // Restore/apply symbol mode dimming on dice buttons when unlocking
+    if (!cupLocked) {
+        diceGrid.querySelectorAll('.dr-die-btn').forEach(function(btn) {
+            var die = btn.getAttribute('data-die');
+            if (die !== 'dx') {
+                btn.style.opacity = symMode ? '0.25' : '';
+                btn.style.pointerEvents = symMode ? 'none' : '';
+            }
+        });
+    }
 
     // Lock the cup content area via CSS class (uses !important to override
     // pointer-events:auto on .dr-group-section::after and other children).
@@ -6084,7 +6095,7 @@ code { background: #0d1117; border: 1px solid var(--border); border-radius: 4px;
         <li><strong>Free mode:</strong> up to 5 presets</li>
         <li><strong>Pro mode:</strong> unlimited presets, organized by Game Packs &#10024;</li>
     </ul>
-    <div class="dh-tip">Long-press a preset to delete it (in Pro, you can also reorder packs by dragging).</div>
+    <div class="dh-tip">Long-press a preset to move it between packs. Long-press a pack tab to rename, reorder, submit to community, or delete.</div>
 </div>
 
 <!-- ===== RESULTS ===== -->
