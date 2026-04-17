@@ -796,7 +796,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-formula-input {
     width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
     color: var(--text-bright); padding: 8px 12px; font-size: 16px; font-family: 'SF Mono', ui-monospace, monospace;
-    outline: none;
+    outline: none; overflow: hidden;
 }
 .dr-formula-overlay {
     position: absolute; top: 0; left: 0; right: 0;
@@ -4553,10 +4553,9 @@ function syncFormulaFromCup() {
         inp.style.color = 'transparent';
         inp.style.background = 'transparent';
         // Size the input to match overlay height
+        inp.style.height = '';
         requestAnimationFrame(function() {
-            if (overlay.offsetHeight > inp.offsetHeight) {
-                inp.style.height = overlay.offsetHeight + 'px';
-            }
+            inp.style.height = Math.max(overlay.offsetHeight, inp.scrollHeight) + 'px';
         });
     } else if (overlay) {
         if (!formula) {
@@ -4572,12 +4571,9 @@ function syncFormulaFromCup() {
             overlay.style.display = 'block';
             inp.style.color = 'transparent';
             inp.style.background = 'transparent';
+            inp.style.height = '';
             requestAnimationFrame(function() {
-                if (overlay.offsetHeight > inp.offsetHeight) {
-                    inp.style.height = overlay.offsetHeight + 'px';
-                } else {
-                    inp.style.height = '';
-                }
+                inp.style.height = Math.max(overlay.offsetHeight, inp.scrollHeight) + 'px';
             });
         }
     }
