@@ -792,6 +792,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 .dr-formula-wrap {
     flex: 1; position: relative; background: var(--surface); border-radius: 10px;
+    overflow: hidden;
 }
 .dr-formula-input {
     width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
@@ -4563,11 +4564,8 @@ function syncFormulaFromCup() {
         overlay.style.display = 'block';
         inp.style.color = 'transparent';
         inp.style.background = 'transparent';
-        // Size the input to match overlay height
-        inp.style.height = '';
-        requestAnimationFrame(function() {
-            inp.style.height = Math.max(overlay.offsetHeight, inp.scrollHeight) + 'px';
-        });
+        // Size the input to match overlay height (account for input border)
+        _syncFormulaHeight(inp, overlay);
     } else if (overlay) {
         if (!formula) {
             // Empty cup — hide overlay, restore input
@@ -4582,13 +4580,28 @@ function syncFormulaFromCup() {
             overlay.style.display = 'block';
             inp.style.color = 'transparent';
             inp.style.background = 'transparent';
-            inp.style.height = '';
-            requestAnimationFrame(function() {
-                inp.style.height = Math.max(overlay.offsetHeight, inp.scrollHeight) + 'px';
-            });
+            _syncFormulaHeight(inp, overlay);
         }
     }
 }
+// Shared height-sync: reset input height, then measure overlay and apply on next frame.
+// Accounts for the input's 1px border on top+bottom (2px total).
+function _syncFormulaHeight(inp, overlay) {
+    inp.style.height = '';
+    requestAnimationFrame(function() {
+        var borderCompensation = 2; // 1px top + 1px bottom border on input
+        var h = Math.max(overlay.offsetHeight + borderCompensation, inp.scrollHeight);
+        inp.style.height = h + 'px';
+    });
+}
+// Re-sync formula bar height on viewport resize (e.g. orientation change, window resize)
+window.addEventListener('resize', function() {
+    var overlay = document.getElementById('formulaOverlay');
+    var inp = document.getElementById('formulaInput');
+    if (overlay && inp && overlay.style.display === 'block') {
+        _syncFormulaHeight(inp, overlay);
+    }
+});
 
 function toggleFormulaHelp() {
     var el = document.getElementById('formulaHelp');
