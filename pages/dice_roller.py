@@ -835,6 +835,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 <div class="dr-header">
     <h1 id="appTitle" ontouchstart="startTitleLongPress(event)" ontouchend="cancelTitleLongPress()" onmousedown="startTitleLongPress(event)" onmouseup="cancelTitleLongPress()" onmouseleave="cancelTitleLongPress()">Dice Vault</h1>
     <div class="dr-header-right">
+        <a class="dr-header-btn" href="/dice/help" title="Help" style="text-decoration:none">&#x2753;</a>
         <button class="dr-header-btn" onclick="showRoomDialog()" title="Room" id="roomBtn">&#x1F465;</button>
         <button class="dr-header-btn" onclick="showBugReport()" title="Report Bug">&#x1F41B;</button>
         <button class="dr-header-btn" id="themeBtn" onclick="toggleThemePicker(event)" title="Theme">&#x1F3A8;</button>
@@ -1957,6 +1958,16 @@ function updateCupDisplay() {
             if (labelEl) { labelEl.textContent = ''; labelEl.classList.remove('editing'); }
             if (typeof renderPresets === 'function') renderPresets();
         }
+        // Restore dice grid and modifiers from symbol/lock mode
+        document.querySelector('.dr-mod-rows').style.display = cupLocked ? 'none' : '';
+        var dg = document.getElementById('diceGrid');
+        if (dg) {
+            dg.style.display = cupLocked ? 'none' : '';
+            dg.querySelectorAll('.dr-die-btn').forEach(function(btn) {
+                btn.style.opacity = ''; btn.style.pointerEvents = '';
+            });
+        }
+        syncFormulaFromCup();
         return;
     }
     document.getElementById('distChart').parentElement.style.display = '';
@@ -5853,5 +5864,438 @@ function downloadLog() {{
     a.click();
 }}
 </script>
+</body>
+</html>"""
+
+
+def build_dice_help_page():
+    """Fun, scannable help/manual page for Dice Vault."""
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0d1117">
+<title>Dice Vault — Help</title>
+<style>
+:root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d; --border2: #21262d;
+    --text: #c9d1d9; --text-bright: #e6edf3; --text-dim: #484f58; --text-muted: #8b949e;
+    --accent: #58a6ff; --accent2: #f0883e; --pro: #bc8cff; --pro-bg: #4a2070;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    background: linear-gradient(180deg, #161b24 0%, var(--bg) 30%, var(--bg) 70%, #080b10 100%);
+    color: var(--text); min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+.dh { max-width: 640px; margin: 0 auto; padding: 16px 16px 80px; }
+.dh-back { display: inline-flex; align-items: center; gap: 6px; color: var(--accent);
+    text-decoration: none; font-size: 14px; font-weight: 600; margin-bottom: 20px; }
+.dh-back:hover { text-decoration: underline; }
+.dh-hero { text-align: center; padding: 24px 0 32px; }
+.dh-hero h1 { font-size: 32px; font-weight: 800; color: var(--text-bright); margin-bottom: 6px; }
+.dh-hero p { color: var(--text-muted); font-size: 15px; line-height: 1.5; }
+.dh-toc { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 20px; margin-bottom: 32px; }
+.dh-toc h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim);
+    margin-bottom: 8px; }
+.dh-toc a { display: block; color: var(--accent); text-decoration: none; font-size: 14px;
+    padding: 4px 0; }
+.dh-toc a:hover { text-decoration: underline; }
+.dh-toc .pro-link { color: var(--pro); }
+.dh-section { margin-bottom: 40px; }
+.dh-section h2 { font-size: 22px; font-weight: 700; color: var(--text-bright);
+    margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border2); }
+.dh-section h3 { font-size: 16px; font-weight: 600; color: var(--accent2); margin: 16px 0 6px; }
+.dh-section p { line-height: 1.7; margin-bottom: 10px; font-size: 15px; }
+.dh-section ul { padding-left: 20px; margin-bottom: 12px; }
+.dh-section li { line-height: 1.6; margin-bottom: 4px; font-size: 14px; }
+b, strong { color: var(--text-bright); }
+code { background: #0d1117; border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px; font-size: 13px; color: var(--accent); }
+.dh-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; margin: 12px 0; }
+.dh-card-title { font-weight: 600; font-size: 15px; color: var(--text-bright); margin-bottom: 4px; }
+.dh-pro-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px;
+    border-radius: 10px; background: var(--pro-bg); color: var(--pro); margin-left: 6px;
+    vertical-align: middle; }
+.dh-free-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px;
+    border-radius: 10px; background: #1a5a2a; color: #3dd68c; margin-left: 6px;
+    vertical-align: middle; }
+.dh-example { background: #0d1117; border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 16px; margin: 10px 0; font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 14px; color: var(--text-bright); line-height: 1.6; }
+.dh-dice-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.dh-die { display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; border-radius: 10px; background: var(--surface);
+    border: 1px solid var(--border); font-size: 13px; font-weight: 700;
+    color: var(--text-bright); }
+.dh-tip { background: #122117; border: 1px solid #1a4a2a; border-radius: 10px;
+    padding: 12px 14px; margin: 10px 0; font-size: 14px; line-height: 1.5; }
+.dh-tip::before { content: "\\1F4A1 "; }
+.dh-cta { text-align: center; padding: 32px 16px; }
+.dh-cta a { display: inline-block; background: var(--accent); color: #0d1117; font-weight: 700;
+    font-size: 16px; padding: 14px 32px; border-radius: 12px; text-decoration: none;
+    transition: transform 0.1s; }
+.dh-cta a:active { transform: scale(0.96); }
+.dh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+@media (max-width: 400px) { .dh-grid { grid-template-columns: 1fr; } }
+.dh-grid-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px; text-align: center; }
+.dh-grid-item .emoji { font-size: 24px; margin-bottom: 4px; }
+.dh-grid-item .label { font-size: 13px; color: var(--text-muted); }
+.dh-divider { border: none; border-top: 1px solid var(--border2); margin: 40px 0; }
+</style>
+</head>
+<body>
+<div class="dh">
+
+<a href="/dice" class="dh-back">&larr; Back to Dice Vault</a>
+
+<div class="dh-hero">
+    <h1>&#127922; Dice Vault Help</h1>
+    <p>Everything you need to roll like a pro.<br>
+    From your first d20 to multi-group formulas and game rooms.</p>
+</div>
+
+<div class="dh-toc">
+    <h3>Quick Jump</h3>
+    <a href="#rolling">&#127922; Rolling Dice</a>
+    <a href="#cup">&#9749; The Dice Cup</a>
+    <a href="#modifiers">&#9889; Modifiers</a>
+    <a href="#dx">&#128302; DX &mdash; Custom &amp; Word Dice</a>
+    <a href="#presets">&#128190; Presets</a>
+    <a href="#results">&#127919; Results &amp; History</a>
+    <a href="#distribution">&#128200; Distribution Chart</a>
+    <a href="#lock">&#128274; Lock Mode</a>
+    <a href="#share">&#128228; Share</a>
+    <a href="#themes">&#127912; Themes</a>
+    <a href="#pro" class="pro-link">&#10024; Pro Features</a>
+    <a href="#formula" class="pro-link">&#10024; Multi-Group Formulas</a>
+    <a href="#selection" class="pro-link">&#10024; Per-Die Selection</a>
+    <a href="#packs" class="pro-link">&#10024; Game Packs</a>
+    <a href="#rooms" class="pro-link">&#10024; Game Rooms</a>
+    <a href="#symbols" class="pro-link">&#10024; Symbol Dice</a>
+    <a href="#whats-next">&#128640; What's Next</a>
+</div>
+
+<!-- ===== ROLLING ===== -->
+<div class="dh-section" id="rolling">
+    <h2>&#127922; Rolling Dice</h2>
+    <p>Tap any die button to toss it into the <strong>cup</strong>. Tap the
+    <strong>Roll</strong> button (or just shake your phone) and watch them fly.</p>
+    <p>All nine dice types are free, from the humble <strong>COIN</strong> flip to the mighty <strong>d100</strong>:</p>
+    <div class="dh-dice-row">
+        <div class="dh-die" style="color:#d4a030">COIN</div>
+        <div class="dh-die" style="color:#3dd68c">d4</div>
+        <div class="dh-die" style="color:#58a6ff">d6</div>
+        <div class="dh-die" style="color:#bc8cff">d8</div>
+        <div class="dh-die" style="color:#ff9640">d10</div>
+        <div class="dh-die" style="color:#ff6b8a">d12</div>
+        <div class="dh-die" style="color:#e8c840">d20</div>
+        <div class="dh-die" style="color:#40d4e8">d100</div>
+        <div class="dh-die" style="color:#b0b8c0">DX</div>
+    </div>
+    <p>Need <strong>3d6</strong>? Tap the d6 button three times. It's that simple.</p>
+    <div class="dh-tip">The <strong>DX</strong> button is special &mdash; it lets you create dice with any number of
+    sides, custom number faces, or even word/emoji faces. More on that below!</div>
+</div>
+
+<!-- ===== CUP ===== -->
+<div class="dh-section" id="cup">
+    <h2>&#9749; The Dice Cup</h2>
+    <p>The cup is your staging area &mdash; the felt-lined tray at the center of the screen. Every die you tap
+    appears here as a visual chip showing its type and color.</p>
+    <ul>
+        <li><strong>Tap a die in the cup</strong> to remove it</li>
+        <li><strong>Clear button</strong> empties the whole cup</li>
+        <li>The cup remembers what you had &mdash; come back later and it's still there</li>
+    </ul>
+    <p>Build whatever combo you need, then hit <strong>Roll</strong> and let fate decide.</p>
+</div>
+
+<!-- ===== MODIFIERS ===== -->
+<div class="dh-section" id="modifiers">
+    <h2>&#9889; Modifiers</h2>
+    <p>Below the cup you'll find the <strong>modifier row</strong> &mdash; powerful tweaks that change how your dice behave.</p>
+
+    <h3>+/- Modifier</h3>
+    <p>Add or subtract a flat number from the total. Rolling <code>2d6+3</code>? Tap the <strong>+</strong> until it shows 3.</p>
+
+    <h3>Drop Lowest / Drop Highest</h3>
+    <p>Classic D&amp;D stat roll: <code>4d6 drop lowest</code>. Toggle <strong>Drop Low</strong> and only the
+    best three dice count. <strong>Drop High</strong> does the opposite &mdash; perfect for disadvantage.</p>
+
+    <h3>Floor &amp; Cap</h3>
+    <p><strong>Floor</strong> sets a minimum for each individual die. <strong>Cap</strong> sets a maximum.
+    Roll a d20 with floor 5? No result below 5. Cap at 15? Nothing above it.</p>
+
+    <h3>Min &amp; Max</h3>
+    <p><strong>Min</strong> sets a floor on the <em>total</em> (not individual dice). <strong>Max</strong> caps
+    the total. Different from Floor/Cap, which work per-die.</p>
+
+    <h3>Exploding &#128165;</h3>
+    <p>When a die rolls its maximum value, it explodes &mdash; roll it again and add. And if <em>that</em> one
+    maxes out too? It keeps going. Savage Worlds players, this one's for you.</p>
+
+    <h3>Success Threshold &#127919;</h3>
+    <p>Count dice that meet or beat a threshold instead of summing. Set success to 5 with a pool of 10d6 and
+    you'll see "4 successes" instead of a total. World of Darkness, Shadowrun, you know the drill.</p>
+</div>
+
+<!-- ===== DX ===== -->
+<div class="dh-section" id="dx">
+    <h2>&#128302; DX &mdash; The Wildcard Die</h2>
+    <p>The <strong>DX</strong> button (the heptagon) is the most versatile die in the vault.
+    Tap it and you get a prompt with a <strong>count stepper</strong> and a text input. Here's what it can do:</p>
+
+    <div class="dh-card">
+        <div class="dh-card-title">&#127922; Any Number of Sides</div>
+        <p>Type a number like <code>13</code> and you get a d13. Want a d37? Go for it. d1000? Sure, why not.</p>
+    </div>
+
+    <div class="dh-card">
+        <div class="dh-card-title">&#127918; Custom Number Faces</div>
+        <p>Type comma-separated values like <code>1,1,2,3</code> and you get a die with exactly those faces.
+        Perfect for Formula De gear dice, weighted dice, or anything weird.</p>
+    </div>
+
+    <div class="dh-card">
+        <div class="dh-card-title">&#128171; Word &amp; Emoji Faces (Symbol Dice)</div>
+        <p>Type words or emoji separated by commas: <code>&#9876;,&#128737;,&#128163;,&#10024;</code>
+        or <code>Hit,Miss,Crit,Fumble</code>. The die shows symbols instead of numbers!</p>
+        <p>Symbol dice get their own special result display &mdash; no totals, just the symbols that came up.</p>
+    </div>
+
+    <div class="dh-card">
+        <div class="dh-card-title">&#128290; Count Stepper</div>
+        <p>Use the <strong>+</strong> and <strong>-</strong> buttons next to the input to add multiple identical
+        dice at once. Need 5 copies of your custom die? Dial it up to 5 and tap OK.</p>
+    </div>
+
+    <div class="dh-tip">If you have a DX or custom die selected in the cup (see Per-Die Selection below),
+    tapping DX will preload its value &mdash; making it easy to tweak and add variations.</div>
+</div>
+
+<!-- ===== PRESETS ===== -->
+<div class="dh-section" id="presets">
+    <h2>&#128190; Presets</h2>
+    <p>Found the perfect dice setup? <strong>Save it as a preset.</strong> Tap the <strong>save</strong> button,
+    give it a name, and it appears in the preset bar above the cup.</p>
+    <p>Tap a preset to instantly load that configuration &mdash; dice, modifiers, everything.</p>
+    <ul>
+        <li><strong>Free mode:</strong> up to 5 presets</li>
+        <li><strong>Pro mode:</strong> unlimited presets, organized by Game Packs &#10024;</li>
+    </ul>
+    <div class="dh-tip">Long-press a preset to delete it (in Pro, you can also reorder packs by dragging).</div>
+</div>
+
+<!-- ===== RESULTS ===== -->
+<div class="dh-section" id="results">
+    <h2>&#127919; Results &amp; History</h2>
+    <p>After rolling, the <strong>result area</strong> shows your total (or symbol faces) with a full breakdown
+    of each die. Dropped dice show as crossed out, exploding dice show their chain.</p>
+    <p>Every roll is saved to <strong>history</strong> &mdash; tap the &#128338; clock button in the header to
+    see your complete roll log with timestamps.</p>
+</div>
+
+<!-- ===== DISTRIBUTION ===== -->
+<div class="dh-section" id="distribution">
+    <h2>&#128200; Distribution Chart</h2>
+    <p>Curious about the probability? The <strong>distribution chart</strong> appears below your dice, showing
+    the full probability curve for your current configuration.</p>
+    <p>It updates live as you add dice and change modifiers. Great for understanding the odds &mdash; is
+    2d6+3 really better than 1d12+2? Now you can see it.</p>
+</div>
+
+<!-- ===== LOCK ===== -->
+<div class="dh-section" id="lock">
+    <h2>&#128274; Lock Mode</h2>
+    <p>Toggle the <strong>lock</strong> and your cup becomes read-only. You can still roll, but you can't
+    accidentally add or remove dice. Perfect for game night when you've got your setup dialed in
+    and don't want to fumble it mid-encounter.</p>
+    <p>When locked, the modifier row hides to give you a cleaner view focused purely on rolling.</p>
+</div>
+
+<!-- ===== SHARE ===== -->
+<div class="dh-section" id="share">
+    <h2>&#128228; Share Results</h2>
+    <p>After rolling, a <strong>share button</strong> appears next to your result. Tap it to copy
+    a text summary to your clipboard &mdash; paste it into Discord, iMessage, or wherever your group hangs out.</p>
+</div>
+
+<!-- ===== THEMES ===== -->
+<div class="dh-section" id="themes">
+    <h2>&#127912; Themes</h2>
+    <p>Tap the &#127912; palette button to switch themes. Free users get two:</p>
+    <div class="dh-grid">
+        <div class="dh-grid-item">
+            <div class="emoji">&#127761;</div>
+            <div class="label">Dark (default)</div>
+        </div>
+        <div class="dh-grid-item">
+            <div class="emoji">&#9728;&#65039;</div>
+            <div class="label">Light</div>
+        </div>
+    </div>
+    <p>Pro unlocks four more &#10024;:</p>
+    <div class="dh-grid">
+        <div class="dh-grid-item">
+            <div class="emoji">&#127747;</div>
+            <div class="label">Midnight</div>
+        </div>
+        <div class="dh-grid-item">
+            <div class="emoji">&#128156;</div>
+            <div class="label">Purple</div>
+        </div>
+        <div class="dh-grid-item">
+            <div class="emoji">&#127794;</div>
+            <div class="label">Forest</div>
+        </div>
+        <div class="dh-grid-item">
+            <div class="emoji">&#129529;</div>
+            <div class="label">Blood</div>
+        </div>
+    </div>
+</div>
+
+<hr class="dh-divider">
+
+<!-- ===== PRO FEATURES ===== -->
+<div class="dh-section" id="pro">
+    <h2>&#10024; Pro Features</h2>
+    <p>Everything above works in free mode. <strong>Pro</strong> unlocks the advanced tools that serious
+    players and GMs reach for. Here's what you get:</p>
+    <ul>
+        <li><strong>Multi-group formulas</strong> &mdash; combine dice groups with +, -, max, min operators</li>
+        <li><strong>Per-die selection</strong> &mdash; long-press to target modifiers at individual dice</li>
+        <li><strong>Unlimited presets</strong> organized by game packs</li>
+        <li><strong>18 built-in Game Packs</strong> + community packs</li>
+        <li><strong>Symbol dice</strong> with emoji/word faces</li>
+        <li><strong>Game Rooms</strong> &mdash; real-time multiplayer rolling</li>
+        <li><strong>6 themes</strong> instead of 2</li>
+        <li><strong>Pack reorder</strong> via drag and drop</li>
+    </ul>
+</div>
+
+<!-- ===== MULTI-GROUP ===== -->
+<div class="dh-section" id="formula">
+    <h2>&#10024; Multi-Group Formulas<span class="dh-pro-badge">PRO</span></h2>
+    <p>In Pro mode, you get a <strong>formula bar</strong> at the top where you can build complex expressions
+    with multiple dice groups connected by operators.</p>
+    <p>Tap the <strong>+ Group</strong> button to add another group. Each group gets its own dice and modifiers.
+    Then connect them:</p>
+    <div class="dh-example">
+        2d6+3 <strong>+</strong> 1d8 <strong>-</strong> 2<br>
+        4d6 drop low <strong>max</strong> 3d6 drop low<br>
+        1d20+5 <strong>+</strong> 2d6 (exploding)
+    </div>
+    <p>Operators: <code>+</code> <code>-</code> <code>max</code> <code>min</code></p>
+    <p>Tap the <strong>?</strong> button next to the formula bar for a quick syntax reference right in the app.</p>
+</div>
+
+<!-- ===== PER-DIE SELECTION ===== -->
+<div class="dh-section" id="selection">
+    <h2>&#10024; Per-Die Selection<span class="dh-pro-badge">PRO</span></h2>
+    <p><strong>Long-press</strong> any die in the cup to select it individually. Once selected, modifiers like
+    <strong>Exploding</strong>, <strong>Min</strong>, <strong>Max</strong>, and <strong>Success</strong> apply to
+    <em>that specific die</em> instead of the whole group.</p>
+    <p>This is huge for mixed pools &mdash; maybe your d20 attack roll explodes but your d6 damage dice don't.</p>
+</div>
+
+<!-- ===== GAME PACKS ===== -->
+<div class="dh-section" id="packs">
+    <h2>&#10024; Game Packs<span class="dh-pro-badge">PRO</span></h2>
+    <p>Game Packs are curated preset collections for specific games. Install a pack and get
+    instant access to every common roll for that system.</p>
+    <p><strong>18 built-in packs</strong> ship with the app:</p>
+    <div class="dh-grid">
+        <div class="dh-grid-item"><div class="emoji">&#9876;&#65039;</div><div class="label">D&amp;D 5e</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#128737;&#65039;</div><div class="label">Pathfinder 2e</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#128163;</div><div class="label">Blades in the Dark</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#127752;</div><div class="label">FATE / Fudge</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#128126;</div><div class="label">Call of Cthulhu</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#128165;</div><div class="label">Savage Worlds</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#128171;</div><div class="label">PbtA</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#9760;&#65039;</div><div class="label">DCC</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#127770;</div><div class="label">Ironsworn</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#128302;</div><div class="label">Shadowrun</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#129387;</div><div class="label">World of Darkness</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#127950;</div><div class="label">Formula De</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#127918;</div><div class="label">King of Tokyo</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#127922;</div><div class="label">Yahtzee</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#127760;</div><div class="label">Catan</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#129503;</div><div class="label">Zombie Dice</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#127922;</div><div class="label">Farkle</div></div>
+        <div class="dh-grid-item"><div class="emoji">&#127920;</div><div class="label">Slot Machine</div></div>
+    </div>
+    <p>Plus <strong>community packs</strong> &mdash; anyone can submit a pack for their favorite game.</p>
+    <div class="dh-tip">In a Game Room, you can push your installed pack to all players so everyone has the same presets instantly.</div>
+</div>
+
+<!-- ===== GAME ROOMS ===== -->
+<div class="dh-section" id="rooms">
+    <h2>&#10024; Game Rooms<span class="dh-pro-badge">PRO</span></h2>
+    <p>This is the big one. <strong>Game Rooms</strong> let you roll dice together in real time with your group &mdash;
+    no sign-up, no app install required.</p>
+
+    <div class="dh-card">
+        <div class="dh-card-title">&#128640; How It Works</div>
+        <ol style="padding-left:20px;margin-top:8px">
+            <li style="margin-bottom:6px">Tap the &#128101; <strong>Room</strong> button in the header</li>
+            <li style="margin-bottom:6px"><strong>Create</strong> a room &mdash; pick a name and color</li>
+            <li style="margin-bottom:6px">Share the <strong>4-letter room code</strong> with your group</li>
+            <li style="margin-bottom:6px">Everyone joins with the code and picks their color</li>
+            <li style="margin-bottom:6px">Every roll broadcasts instantly to all members via a live feed</li>
+        </ol>
+    </div>
+
+    <p>The <strong>live roll feed</strong> shows every player's rolls in real time with color-coded names.
+    You can see exactly what everyone rolled, when, and with what dice.</p>
+    <p>After the session, the room host can view a full <strong>session log</strong> with every roll, downloadable
+    as a text file. Rooms expire after 30 days.</p>
+    <div class="dh-tip">Push a Game Pack to your room so every player gets the same presets!</div>
+</div>
+
+<!-- ===== SYMBOL DICE ===== -->
+<div class="dh-section" id="symbols">
+    <h2>&#10024; Symbol Dice<span class="dh-pro-badge">PRO</span></h2>
+    <p>Symbol dice show <strong>words or emoji</strong> instead of numbers. Create them with the DX button
+    by entering comma-separated text:</p>
+    <div class="dh-example">
+        &#9876;&#65039;, &#128737;&#65039;, &#128163;, &#10024;, &#129300;, &#128128;<br>
+        Hit, Miss, Crit, Block, Dodge, Fumble
+    </div>
+    <p>When you roll symbol dice, the result area shows the symbols that came up instead of a numeric total.
+    Great for custom fate dice, action decks, oracle tables, or any game with non-numeric outcomes.</p>
+    <p>Symbol dice can't be mixed with numeric dice in the same cup &mdash; clear first to switch modes.</p>
+</div>
+
+<hr class="dh-divider">
+
+<!-- ===== WHAT'S NEXT ===== -->
+<div class="dh-section" id="whats-next">
+    <h2>&#128640; What's Next</h2>
+    <p>Dice Vault is actively evolving. Here's a taste of what's coming:</p>
+    <ul>
+        <li>&#128266; <strong>Sound effects</strong> &mdash; satisfying click-clack for every roll</li>
+        <li>&#128243; <strong>Shake to roll</strong> &mdash; shake your phone, skip the button</li>
+        <li>&#127911; <strong>More themes</strong> &mdash; because you can never have too many</li>
+        <li>&#128230; <strong>Import/Export</strong> &mdash; back up your presets and share with friends</li>
+    </ul>
+    <p style="margin-top:16px;color:var(--text-muted);font-size:14px">
+        Found a bug or have a feature request? Hit the &#128027; button in the app to report it.</p>
+</div>
+
+<div class="dh-cta">
+    <a href="/dice">&#127922; Start Rolling</a>
+</div>
+
+<div style="text-align:center;padding:16px;font-size:12px;color:var(--text-dim)">
+    Dice Vault by Casdra Software
+</div>
+
+</div>
 </body>
 </html>"""

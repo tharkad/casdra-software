@@ -1567,6 +1567,7 @@ build_dice_history_page = _dice_roller.build_dice_history_page
 build_dice_bugs_page = _dice_roller.build_dice_bugs_page
 build_dice_bug_detail_page = _dice_roller.build_dice_bug_detail_page
 build_room_log_page = _dice_roller.build_room_log_page
+build_dice_help_page = _dice_roller.build_dice_help_page
 
 
 def build_dice_guide_page():
@@ -3626,6 +3627,7 @@ def build_home_page():
         <a href="/big-ideas">Big Ideas <span class="chevron">&#8250;</span></a>
         <a href="/song-burst">Song Burst <span class="chevron">&#8250;</span></a>
         <a href="/dice">Dice Vault <span class="chevron">&#8250;</span></a>
+        <a href="/dice/help">Dice Vault Help <span class="chevron">&#8250;</span></a>
         <a href="/dice/bugs">Dice Vault Bugs <span class="chevron">&#8250;</span></a>
         <a href="/dice/packs/submissions?token={ADMIN_SECRET}">Pack Submissions <span class="chevron">&#8250;</span></a>
     </div>
@@ -4898,6 +4900,9 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
             html = self._build_submissions_page([dict(r) for r in rows])
             self.send_html(html)
+
+        elif path == "/dice/help":
+            self.send_html(build_dice_help_page())
 
         elif path == "/dice/guide":
             self.send_html(build_dice_guide_page())
