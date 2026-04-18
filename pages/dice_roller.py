@@ -6016,7 +6016,7 @@ code { background: #0d1117; border: 1px solid var(--border); border-radius: 4px;
 <div class="dh-toc">
     <h3>Quick Jump</h3>
     <a href="#rolling">&#127922; Rolling Dice</a>
-    <a href="#cup">&#127922; The Dice Cup</a>
+    <a href="#cup"><svg width="18" height="20" viewBox="0 0 64 72" style="vertical-align:-3px"><path d="M8 20C8 12 16 8 32 8C48 8 56 12 56 20L56 52C56 60 48 64 32 64C16 64 8 60 8 52Z" fill="#2a2a2a" stroke="#555" stroke-width="3"/><ellipse cx="32" cy="20" rx="24" ry="12" fill="#1a3a1a"/><ellipse cx="32" cy="20" rx="24" ry="12" fill="#3d8b3d" opacity="0.5"/></svg> The Dice Cup</a>
     <a href="#modifiers">&#9889; Modifiers</a>
     <a href="#dx">&#128302; DX &mdash; Custom &amp; Word Dice</a>
     <a href="#presets">&#128190; Presets</a>
@@ -6057,7 +6057,7 @@ code { background: #0d1117; border: 1px solid var(--border); border-radius: 4px;
 
 <!-- ===== CUP ===== -->
 <div class="dh-section" id="cup">
-    <h2>&#127922; The Dice Cup</h2>
+    <h2><svg width="18" height="20" viewBox="0 0 64 72" style="vertical-align:-3px"><path d="M8 20C8 12 16 8 32 8C48 8 56 12 56 20L56 52C56 60 48 64 32 64C16 64 8 60 8 52Z" fill="#2a2a2a" stroke="#555" stroke-width="3"/><ellipse cx="32" cy="20" rx="24" ry="12" fill="#1a3a1a"/><ellipse cx="32" cy="20" rx="24" ry="12" fill="#3d8b3d" opacity="0.5"/></svg> The Dice Cup</h2>
     <p>The cup is your staging area &mdash; the felt-lined tray at the center of the screen. Every die you tap
     appears here as a visual chip showing its type and color.</p>
     <ul>
