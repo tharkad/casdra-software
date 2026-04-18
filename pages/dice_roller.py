@@ -89,6 +89,17 @@ def build_dice_page(premium=False, restore_state=None):
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 button, a, input { outline: none; -webkit-tap-highlight-color: transparent; }
+@media (orientation: landscape) and (max-height: 500px) {
+    .dr-rotate-overlay { display: flex !important; }
+}
+.dr-rotate-overlay {
+    display: none; position: fixed; inset: 0; background: var(--bg);
+    z-index: 9999; align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px; color: var(--text-bright);
+    font-family: inherit;
+}
+.dr-rotate-overlay span { font-size: 48px; }
+.dr-rotate-overlay p { font-size: 16px; font-weight: 600; color: var(--text-muted); }
 html {
     background: linear-gradient(180deg, var(--grad-top) 0%, var(--bg) 30%, var(--bg) 70%, var(--grad-bot) 100%);
     background-attachment: fixed; min-height: 100vh;
@@ -856,6 +867,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 </style>
 </head>
 <body>
+<div class="dr-rotate-overlay"><span>&#x1F4F1;</span><p>Please rotate to portrait</p></div>
 <div class="dr-header">
     <h1 id="appTitle" ontouchstart="startTitleLongPress(event)" ontouchend="cancelTitleLongPress()" onmousedown="startTitleLongPress(event)" onmouseup="cancelTitleLongPress()" onmouseleave="cancelTitleLongPress()">Dice Vault</h1>
     <div class="dr-header-right">
