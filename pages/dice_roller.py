@@ -729,6 +729,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     flex: 1; overflow-y: auto; overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     display: flex; flex-direction: column;
+    background-color: var(--felt-color, #1a5a2a);
 }
 .dr-cup {
     flex: 1 0 0px;
