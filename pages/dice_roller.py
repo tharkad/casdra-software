@@ -589,34 +589,34 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 /* Dice grid */
 .dr-dice-grid {
     display: flex; flex-wrap: wrap; justify-content: center;
-    gap: 6px; padding: 8px 16px;
+    gap: 8px; padding: 8px 16px;
     max-width: 500px; margin: 0 auto; width: 100%; flex-shrink: 0;
 }
 .dr-dice-grid.disabled, .dr-mod-rows.disabled { opacity: 0.3; pointer-events: none; }
 .dr-die-btn {
     background: var(--btn-bg); border: 1px solid var(--border);
-    border-radius: 10px; padding: 6px 2px; width: 50px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    border-radius: 14px; padding: 12px 6px 8px; width: 72px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
     cursor: pointer; transition: all 0.15s; font-family: inherit;
-    -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
 }
 .dr-die-btn:hover { border-color: #58a6ff; box-shadow: 0 0 8px rgba(88,166,255,0.2); }
 .dr-die-btn:active { transform: scale(0.9); background: #1f2937; }
-.dr-die-shape { font-size: 18px; line-height: 1; }
+.dr-die-shape { font-size: 26px; line-height: 1; }
 .dr-die-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
 
 /* Modifier rows */
-.dr-mod-rows { padding: 4px 16px; flex-shrink: 0; }
-.dr-mod-rows::-webkit-scrollbar { display: none; }
+.dr-mod-rows { padding: 4px 16px 8px; flex-shrink: 0; }
 .dr-mod-row {
-    display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;
+    display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
 }
-.dr-mod-row + .dr-mod-row { margin-top: 4px; }
+.dr-mod-row + .dr-mod-row { margin-top: 6px; }
 .dr-mod-boxes {
-    display: contents;
+    display: flex; justify-content: center; gap: 16px; margin-top: 6px;
+    max-width: 500px; margin-left: auto; margin-right: auto;
 }
 .dr-mod-box {
-    display: contents;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
 }
 .dr-mod-btn {
     background: var(--btn-bg); color: var(--text-muted); border: 1px solid var(--border);
