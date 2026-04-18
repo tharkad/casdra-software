@@ -911,8 +911,10 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     <button class="dr-header-btn" onclick="showBugReport()" title="Report Bug" style="font-size:12px;margin-left:4px">&#x1F41B;</button>
     <div class="dr-header-right">
         <button class="dr-header-btn" onclick="showRoomDialog()" title="Room" id="roomBtn">&#x1F465;</button>
-        <button class="dr-header-btn off" id="soundBtn" onclick="toggleSound()" title="Sound">&#x1F50A;</button>
         <button class="dr-header-btn" id="themeBtn" onclick="toggleThemePicker(event)" title="Theme">&#x1F3A8;</button>
+        <a class="dr-header-btn dr-history-btn" href="/dice/history" title="History" id="historyLink">&#x1F552;</a>
+        <button class="dr-header-btn off" id="soundBtn" onclick="toggleSound()" title="Sound">&#x1F50A;</button>
+        <button class="dr-header-btn off" onclick="alert('Shake to roll — coming soon!')" title="Shake" style="display:inline-flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="3" width="10" height="18" rx="2"/><line x1="4" y1="7" x2="2" y2="5"/><line x1="4" y1="12" x2="1" y2="12"/><line x1="4" y1="17" x2="2" y2="19"/><line x1="20" y1="7" x2="22" y2="5"/><line x1="20" y1="12" x2="23" y2="12"/><line x1="20" y1="17" x2="22" y2="19"/></svg></button>
     </div>
 </div>
 
