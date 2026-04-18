@@ -138,7 +138,6 @@ body {
 .dr-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 12px 16px; border-bottom: 1px solid var(--border2); flex-shrink: 0;
-    position: sticky; top: 0; z-index: 100;
     background: var(--bg, #0d1117);
 }
 .dr-header h1 { font-size: 18px; font-weight: 700; color: var(--text-bright); }
@@ -156,6 +155,12 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     height: 2px; background: #f85149; transform: rotate(45deg);
 }
 
+/* Sticky tabs + presets */
+.dr-sticky-top {
+    position: sticky; top: 0; z-index: 99;
+    background: var(--bg);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
 /* Presets */
 .dr-presets {
     display: flex; gap: 6px; padding: 8px 16px; overflow-x: auto;
@@ -912,8 +917,10 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     </div>
 </div>
 
+<div class="dr-sticky-top" id="stickyTop">
 <div id="packTabs"></div>
 <div class="dr-presets" id="presets"></div>
+</div>
 <div class="dr-theme-picker" id="themePicker" style="display:none">
     <div class="dr-theme-picker-title">Theme</div>
     <div class="dr-theme-grid" id="themeGrid"></div>
