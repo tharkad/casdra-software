@@ -620,9 +620,9 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 .dr-mod-btn {
     background: var(--btn-bg); color: var(--text-muted); border: 1px solid var(--border);
-    border-radius: 14px; padding: 4px 10px; font-size: 11px; font-weight: 700;
+    border-radius: 10px; padding: 8px 12px; font-size: 14px; font-weight: 700;
     font-family: inherit; cursor: pointer; white-space: nowrap;
-    min-height: 28px; display: inline-flex; align-items: center; justify-content: center;
+    min-height: 40px; display: inline-flex; align-items: center; justify-content: center;
     flex-shrink: 0;
 }
 .dr-mod-btn:hover { border-color: #58a6ff; color: var(--text-bright); }
@@ -1031,14 +1031,20 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button class="dr-mod-btn" onclick="adjustMod(-1)">-1</button>
         <button class="dr-mod-btn" onclick="adjustMod(+1)">+1</button>
         <button class="dr-mod-btn" onclick="promptMod(1)">+X</button>
-        <button class="dr-mod-btn dimmed" id="dropBtn" onclick="toggleDropLowest()" title="Drop lowest">DL</button>
-        <button class="dr-mod-btn dimmed" id="dropHBtn" onclick="toggleDropHighest()" title="Drop highest">DH</button>
-        <button class="dr-mod-btn dimmed" id="floorBtn" onclick="toggleFloor()" title="Floor group total">Floor</button>
-        <button class="dr-mod-btn dimmed" id="capBtn" onclick="toggleCap()" title="Cap group total">Cap</button>
-        <button class="dr-mod-btn dimmed" id="maxBtn" onclick="toggleMax()" title="Maximum value">Max</button>
-        <button class="dr-mod-btn dimmed" id="minBtn" onclick="toggleMin()" title="Minimum value">Min</button>
-        <button class="dr-mod-btn dr-mod-explode dimmed" id="explodeBtn" onclick="toggleExploding()" title="Exploding"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5"/></svg></button>
-        <button class="dr-mod-btn dimmed" id="successBtn" onclick="toggleSuccess()" title="Count successes">#&gt;=</button>
+    </div>
+    <div class="dr-mod-boxes">
+        <div class="dr-mod-box">
+            <button class="dr-mod-btn dimmed" id="dropHBtn" onclick="toggleDropHighest()" title="Drop highest">Drop High</button>
+            <button class="dr-mod-btn dimmed" id="capBtn" onclick="toggleCap()" title="Cap group total">Cap</button>
+            <button class="dr-mod-btn dimmed" id="dropBtn" onclick="toggleDropLowest()" title="Drop lowest">Drop Low</button>
+            <button class="dr-mod-btn dimmed" id="floorBtn" onclick="toggleFloor()" title="Floor group total">Floor</button>
+        </div>
+        <div class="dr-mod-box">
+            <button class="dr-mod-btn dimmed" id="maxBtn" onclick="toggleMax()" title="Maximum value">Max</button>
+            <button class="dr-mod-btn dr-mod-explode dimmed" id="explodeBtn" onclick="toggleExploding()" title="Exploding"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5"/></svg></button>
+            <button class="dr-mod-btn dimmed" id="minBtn" onclick="toggleMin()" title="Minimum value">Min</button>
+            <button class="dr-mod-btn dimmed" id="successBtn" onclick="toggleSuccess()" title="Count successes">Success</button>
+        </div>
     </div>
 </div>
 
