@@ -906,6 +906,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 </head>
 <body>
 <div class="dr-rotate-overlay"><span>&#x1F4F1;</span><p>Please rotate to portrait</p></div>
+<div class="dr-sticky-top" id="stickyTop">
 <div class="dr-header">
     <h1 id="appTitle" onclick="showAboutSheet()" ontouchstart="startTitleLongPress(event)" ontouchend="cancelTitleLongPress()" onmousedown="startTitleLongPress(event)" onmouseup="cancelTitleLongPress()" onmouseleave="cancelTitleLongPress()">Dice Vault</h1>
     <button class="dr-header-btn" onclick="showBugReport()" title="Report Bug" style="font-size:12px;margin-left:4px">&#x1F41B;</button>
@@ -917,8 +918,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button class="dr-header-btn off" onclick="alert('Shake to roll — coming soon!')" title="Shake" style="display:inline-flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="3" width="10" height="18" rx="2"/><line x1="4" y1="7" x2="2" y2="5"/><line x1="4" y1="12" x2="1" y2="12"/><line x1="4" y1="17" x2="2" y2="19"/><line x1="20" y1="7" x2="22" y2="5"/><line x1="20" y1="12" x2="23" y2="12"/><line x1="20" y1="17" x2="22" y2="19"/></svg></button>
     </div>
 </div>
-
-<div class="dr-sticky-top" id="stickyTop">
 <div id="packTabs"></div>
 <div class="dr-presets" id="presets"></div>
 </div>
