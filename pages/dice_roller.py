@@ -889,10 +889,10 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 <div class="dr-rotate-overlay"><span>&#x1F4F1;</span><p>Please rotate to portrait</p></div>
 <div class="dr-header">
     <h1 id="appTitle" onclick="showAboutSheet()" ontouchstart="startTitleLongPress(event)" ontouchend="cancelTitleLongPress()" onmousedown="startTitleLongPress(event)" onmouseup="cancelTitleLongPress()" onmouseleave="cancelTitleLongPress()">Dice Vault</h1>
+    <button class="dr-header-btn" onclick="showBugReport()" title="Report Bug" style="font-size:12px;margin-left:4px">&#x1F41B;</button>
     <div class="dr-header-right">
         <a class="dr-header-btn" href="/dice/help" title="Help" style="text-decoration:none">&#x2753;</a>
         <button class="dr-header-btn" onclick="showRoomDialog()" title="Room" id="roomBtn">&#x1F465;</button>
-        <button class="dr-header-btn" onclick="showBugReport()" title="Report Bug">&#x1F41B;</button>
         <button class="dr-header-btn" id="themeBtn" onclick="toggleThemePicker(event)" title="Theme">&#x1F3A8;</button>
         <a class="dr-header-btn dr-history-btn" href="/dice/history" title="History" id="historyLink">&#x1F552;</a>
         <button class="dr-header-btn off" id="soundBtn" onclick="toggleSound()" title="Sound">&#x1F50A;</button>
