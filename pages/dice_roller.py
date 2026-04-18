@@ -6001,7 +6001,14 @@ code { background: #0d1117; border: 1px solid var(--border); border-radius: 4px;
 <a href="/dice" class="dh-back">&larr; Back to Dice Vault</a>
 
 <div class="dh-hero">
-    <h1>&#127922; Dice Vault Help</h1>
+    <div style="margin-bottom:12px"><svg width="64" height="72" viewBox="0 0 64 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 20 C8 12 16 8 32 8 C48 8 56 12 56 20 L56 52 C56 60 48 64 32 64 C16 64 8 60 8 52 Z" fill="#2a2a2a" stroke="#555" stroke-width="2"/>
+        <ellipse cx="32" cy="20" rx="24" ry="12" fill="#1a3a1a"/>
+        <ellipse cx="32" cy="20" rx="24" ry="12" fill="url(#felt)" opacity="0.7"/>
+        <ellipse cx="32" cy="20" rx="22" ry="10" fill="none" stroke="#2d5a2d" stroke-width="1" opacity="0.5"/>
+        <defs><radialGradient id="felt" cx="50%" cy="50%"><stop offset="0%" stop-color="#3d8b3d"/><stop offset="100%" stop-color="#1a4a1a"/></radialGradient></defs>
+    </svg></div>
+    <h1>Dice Vault Help</h1>
     <p>Everything you need to roll like a pro.<br>
     From your first d20 to multi-group formulas and game rooms.</p>
 </div>
@@ -6024,7 +6031,6 @@ code { background: #0d1117; border: 1px solid var(--border); border-radius: 4px;
     <a href="#packs" class="pro-link">&#10024; Game Packs</a>
     <a href="#rooms" class="pro-link">&#10024; Game Rooms</a>
     <a href="#symbols" class="pro-link">&#10024; Symbol Dice</a>
-    <a href="#whats-next">&#128640; What's Next</a>
 </div>
 
 <!-- ===== ROLLING ===== -->
@@ -6321,18 +6327,15 @@ code { background: #0d1117; border: 1px solid var(--border); border-radius: 4px;
 
 <hr class="dh-divider">
 
-<!-- ===== WHAT'S NEXT ===== -->
-<div class="dh-section" id="whats-next">
-    <h2>&#128640; What's Next</h2>
-    <p>Dice Vault is actively evolving. Here's a taste of what's coming:</p>
-    <ul>
-        <li>&#128266; <strong>Sound effects</strong> &mdash; satisfying click-clack for every roll</li>
-        <li>&#128243; <strong>Shake to roll</strong> &mdash; shake your phone, skip the button</li>
-        <li>&#127911; <strong>More themes</strong> &mdash; because you can never have too many</li>
-        <li>&#128230; <strong>Import/Export</strong> &mdash; back up your presets and share with friends</li>
-    </ul>
-    <p style="margin-top:16px;color:var(--text-muted);font-size:14px">
-        Found a bug or have a feature request? Hit the &#128027; button in the app to report it.</p>
+<!-- ===== COMMUNITY ===== -->
+<div class="dh-section" id="community">
+    <h2>&#128101; Join the Community</h2>
+    <p>Got questions, feedback, or want to share your custom packs?
+    Join the <strong>Casdra Software Discord</strong> &mdash; hang out with other players,
+    share game pack ideas, and get help from the community.</p>
+    <div style="text-align:center;margin-top:16px">
+        <a href="#" style="display:inline-block;background:#5865F2;color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:700;text-decoration:none;font-family:inherit">&#128172; Join Discord (Coming Soon)</a>
+    </div>
 </div>
 
 <div class="dh-cta">
