@@ -672,7 +672,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     background: var(--bg); border-radius: 4px; padding: 1px 3px;
     color: #d2a8ff; white-space: nowrap;
 }
-.dr-cup-empty { color: rgba(255,255,255,0.5); font-size: 18px; font-weight: 600; padding: 20px 0;
+.dr-cup-empty { color: rgba(255,255,255,0.3); font-size: 14px; font-weight: 600; padding: 16px 0;
     text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
 .dr-cup-mod {
     display: flex; align-items: center; justify-content: center;
@@ -733,7 +733,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 @media (hover: hover) { .dr-save-preset:hover { border-color: #ffa657; color: #ffbd7a; } }
 .dr-save-preset.fav-active { border-color: #ffa657; color: #fff; background: #ffa657; }
 .dr-save-preset.dimmed { border-color: var(--border); color: var(--border); pointer-events: none; }
-.dr-clear-cup {
+.dr-clear-cup { font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
     background: #0a0a0a; border: 1px solid var(--border); color: var(--text-dim); font-size: 16px;
 }
 .dr-clear-cup:hover { border-color: #f85149; color: #f85149; }
@@ -912,7 +912,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button class="dr-history-btn" id="histPrevBtn" onclick="navigateHistory(1)" title="Previous roll">&#9664;</button>
         <button class="dr-history-btn" id="histNextBtn" onclick="navigateHistory(-1)" title="Next roll">&#9654;</button>
     </div>
-    <div class="dr-result" id="result" onclick="handleResultClick()">Add dice to the cup</div>
+    <div class="dr-result" id="result" onclick="handleResultClick()">Add dice</div>
     <div class="dr-breakdown" id="breakdown"></div>
     <div class="dr-prob" id="prob"></div>
     <div class="dr-tap-hint" id="tapHint">tap result to roll</div>
@@ -1026,13 +1026,13 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     <div class="dr-tap-hint" id="cupHint">tap dice to remove from cup</div>
     <div class="dr-cup-summary" id="cupSummary"></div>
     <div class="dr-cup-staging" id="cupStaging" onclick="deselectGroups(event)">
-        <span class="dr-cup-empty">Add dice to the cup</span>
+        <span class="dr-cup-empty">Add dice</span>
     </div>
     <div class="dr-cup-tags" id="cupTags"></div>
     <div class="dr-cup-bottom">
         <button class="dr-cup-btn dr-save-preset" id="favStar" onclick="event.stopPropagation();toggleFavorite()">&#9734;</button>
         <button class="dr-cup-btn dr-roll-btn dimmed" id="rollBtn" onclick="event.stopPropagation();rollDice()">ROLL</button>
-        <button class="dr-cup-btn dr-clear-cup" onclick="event.stopPropagation();clearCup()" title="Empty cup">&#x1F5D1;</button>
+        <button class="dr-cup-btn dr-clear-cup" id="clearBtn" onclick="event.stopPropagation();clearCup()" title="Empty cup">Empty</button>
     </div>
 </div>
 
@@ -1970,7 +1970,7 @@ function updateCupDisplay() {
     cupGroups.forEach(function(g) { totalDice += g.children.length; totalMod += Math.abs(g.modifier); });
 
     if (totalDice === 0 && totalMod === 0) {
-        staging.innerHTML = '<span class="dr-cup-empty">Add dice to the cup</span>';
+        staging.innerHTML = '<span class="dr-cup-empty">Add dice</span>';
         summary.textContent = '';
         document.getElementById('distChart').innerHTML = '';
         // Hide the empty chart box — keep the wrap container visible in premium
@@ -1980,6 +1980,7 @@ function updateCupDisplay() {
         document.getElementById('formulaInput').value = '';
         document.getElementById('prob').innerHTML = '';
         document.getElementById('rollBtn').classList.add('dimmed');
+        document.getElementById('clearBtn').classList.add('dimmed');
         document.getElementById('dropBtn').classList.add('dimmed');
         document.getElementById('dropHBtn').classList.add('dimmed');
         document.getElementById('floorBtn').classList.add('dimmed');
@@ -2120,6 +2121,7 @@ function updateCupDisplay() {
         summary.textContent = buildGroupFormula(activeGroup());
     }
     document.getElementById('rollBtn').classList.toggle('dimmed', totalDice === 0);
+    document.getElementById('clearBtn').classList.toggle('dimmed', totalDice === 0);
     document.getElementById('favStar').classList.toggle('dimmed', totalDice === 0);
     if (totalDice === 0) document.getElementById('favStar').style.color = '';
     // In multi-group mode with no group selected, disable all buttons
