@@ -646,13 +646,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     /* Felt extends to the bottom of the viewport */
     flex: 1 0 auto; min-height: 0;
 }
-/* Felt extends infinitely downward so scrolling never reveals dark bg */
-.dr-cup::after {
-    content: ''; position: absolute; left: 0; right: 0;
-    bottom: -2000px; height: 2000px;
-    background-color: var(--felt-color, #1a5a2a);
-    z-index: -1;
-}
 .dr-cup::before {
     content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
     width: 40px; height: 4px; border-radius: 2px; background: var(--border);
@@ -735,6 +728,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     flex: 1; overflow-y: auto; overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     display: flex; flex-direction: column;
+    overscroll-behavior: contain;
 }
 .dr-cup {
     flex: 1 0 0px;
@@ -743,7 +737,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     flex-shrink: 0;
     display: flex; gap: 6px; align-items: stretch; justify-content: center;
     padding: 8px 16px; padding-bottom: max(8px, env(safe-area-inset-bottom));
-    background: var(--bg, #0d1117); border-top: 1px solid var(--border2);
+    background: var(--felt-color, #1a5a2a); border-top: none;
 }
 .dr-cup-btn {
     border-radius: 10px; font-family: inherit; cursor: pointer;
