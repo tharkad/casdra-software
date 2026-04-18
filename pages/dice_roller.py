@@ -107,6 +107,7 @@ button, a, input { outline: none; -webkit-tap-highlight-color: transparent; }
     padding:24px 24px 40px; animation:dr-sheet-up 0.25s ease;
 }
 @keyframes dr-sheet-up { from { transform:translateY(100%); } to { transform:translateY(0); } }
+@keyframes dr-sheet-down { from { transform:translateY(0); } to { transform:translateY(100%); } }
 .dr-about-sheet h2 { font-size:22px; font-weight:800; color:var(--text-bright); margin:12px 0 4px; }
 .dr-about-version { font-size:12px; color:var(--text-dim); margin-bottom:16px; }
 .dr-about-link {
@@ -5122,7 +5123,7 @@ function showAboutSheet() {
     if (_titleLpFired) { _titleLpFired = false; return; }
     var backdrop = document.createElement('div');
     backdrop.className = 'dr-about-backdrop';
-    backdrop.onclick = function(e) { if (e.target === backdrop) backdrop.remove(); };
+    backdrop.onclick = function(e) { if (e.target === backdrop) dismissAboutSheet(backdrop); };
     backdrop.innerHTML = '<div class="dr-about-sheet">' +
         '<div style="text-align:center">' +
             '<svg width="180" height="42" viewBox="0 0 280 64" xmlns="http://www.w3.org/2000/svg">' +
@@ -5137,12 +5138,21 @@ function showAboutSheet() {
         '<h2>Dice Vault</h2>' +
         '<div class="dr-about-version">v1.0 &middot; by Casdra Software LLC</div>' +
         '<a class="dr-about-link" href="/dice/help"><span class="icon">\\u{1F4D6}</span><span class="label">Help &amp; Manual</span><span class="chevron">\\u203A</span></a>' +
-        '<a class="dr-about-link" href="#" onclick="event.preventDefault();this.closest(\\'.dr-about-backdrop\\').remove();showToast(\\'Discord coming soon\\')"><span class="icon">\\u{1F4AC}</span><span class="label">Join Discord</span><span class="chevron">\\u203A</span></a>' +
-        '<a class="dr-about-link" href="#" onclick="event.preventDefault();this.closest(\\'.dr-about-backdrop\\').remove();showToast(\\'App Store coming soon\\')"><span class="icon">\\u2B50</span><span class="label">Rate on App Store</span><span class="chevron">\\u203A</span></a>' +
-        '<a class="dr-about-link" href="#" onclick="event.preventDefault();this.closest(\\'.dr-about-backdrop\\').remove();showToast(\\'Coming soon\\')"><span class="icon">\\u{1F512}</span><span class="label">Privacy Policy</span><span class="chevron">\\u203A</span></a>' +
+        '<a class="dr-about-link" href="#" onclick="event.preventDefault();dismissAboutSheet(this.closest(\\'.dr-about-backdrop\\'));showToast(\\'Discord coming soon\\')"><span class="icon">\\u{1F4AC}</span><span class="label">Join Discord</span><span class="chevron">\\u203A</span></a>' +
+        '<a class="dr-about-link" href="#" onclick="event.preventDefault();dismissAboutSheet(this.closest(\\'.dr-about-backdrop\\'));showToast(\\'App Store coming soon\\')"><span class="icon">\\u2B50</span><span class="label">Rate on App Store</span><span class="chevron">\\u203A</span></a>' +
+        '<a class="dr-about-link" href="#" onclick="event.preventDefault();dismissAboutSheet(this.closest(\\'.dr-about-backdrop\\'));showToast(\\'Coming soon\\')"><span class="icon">\\u{1F512}</span><span class="label">Privacy Policy</span><span class="chevron">\\u203A</span></a>' +
         '<a class="dr-about-link" href="https://casdra.com" target="_blank"><span class="icon">\\u{1F310}</span><span class="label">casdra.com</span><span class="chevron">\\u203A</span></a>' +
         '</div>';
     document.body.appendChild(backdrop);
+}
+function dismissAboutSheet(backdrop) {
+    var sheet = backdrop.querySelector('.dr-about-sheet');
+    if (sheet) {
+        sheet.style.animation = 'dr-sheet-down 0.2s ease forwards';
+        setTimeout(function() { backdrop.remove(); }, 200);
+    } else {
+        backdrop.remove();
+    }
 }
 function switchMode(pro) {
     if (pro) { localStorage.removeItem('dice_vault_mode'); }
