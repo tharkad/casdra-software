@@ -479,10 +479,10 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 /* Star button active — handled in .dr-save-preset.fav-active above */
 
 /* Result */
-.dr-result-area { text-align: center; padding: 20px 16px 12px; flex-shrink: 0; position: relative; border-bottom: 1px solid var(--border2); }
+.dr-result-area { text-align: center; padding: 10px 16px 6px; flex-shrink: 0; position: relative; border-bottom: 1px solid var(--border2); }
 .dr-result { cursor: pointer; }
 .dr-history-nav {
-    position: absolute; top: 16px; left: 16px;
+    position: absolute; top: 8px; left: 16px;
     display: flex; gap: 4px;
 }
 .dr-history-btn {
@@ -493,16 +493,16 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-history-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .dr-history-btn:disabled { opacity: 0.3; cursor: default; }
 .dr-share-btn {
-    position: absolute; top: 16px; right: 16px;
+    position: absolute; top: 8px; right: 16px;
     background: var(--btn-bg); border: 1px solid var(--border); border-radius: 8px;
     color: var(--text-muted); padding: 6px 8px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
 }
 .dr-share-btn:hover { border-color: #58a6ff; color: #58a6ff; }
 .dr-result {
-    font-size: 52px; font-weight: 800; color: var(--text-bright);
+    font-size: 48px; font-weight: 800; color: var(--text-bright);
     font-family: 'SF Mono', ui-monospace, monospace;
-    min-height: 64px; transition: color 0.3s, transform 0.1s;
+    min-height: 52px; transition: color 0.3s, transform 0.1s;
 }
 .dr-result:active { transform: scale(0.92); }
 .dr-result.dr-rolling { color: #f0883e; }
@@ -578,42 +578,43 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 /* Dice grid */
 .dr-dice-grid {
-    display: flex; flex-wrap: wrap; justify-content: center;
-    gap: 8px; padding: 8px 16px;
+    display: flex; flex-wrap: nowrap; justify-content: center;
+    gap: 4px; padding: 6px 8px;
     max-width: 500px; margin: 0 auto; width: 100%; flex-shrink: 0;
 }
 .dr-dice-grid.disabled, .dr-mod-rows.disabled { opacity: 0.3; pointer-events: none; }
 .dr-die-btn {
     background: var(--btn-bg); border: 1px solid var(--border);
-    border-radius: 14px; padding: 12px 6px 8px; width: 72px;
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    border-radius: 50%; padding: 0; width: 38px; height: 38px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
     cursor: pointer; transition: all 0.15s; font-family: inherit;
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: transparent; flex-shrink: 0;
 }
 .dr-die-btn:hover { border-color: #58a6ff; box-shadow: 0 0 8px rgba(88,166,255,0.2); }
 .dr-die-btn:active { transform: scale(0.9); background: #1f2937; }
-.dr-die-shape { font-size: 26px; line-height: 1; }
-.dr-die-label { font-size: 14px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+.dr-die-shape { font-size: 16px; line-height: 1; display: none; }
+.dr-die-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
 
-/* Modifier rows */
-.dr-mod-rows { padding: 4px 16px 8px; flex-shrink: 0; }
+/* Modifier rows — single scrollable strip */
+.dr-mod-rows { padding: 2px 0 4px; flex-shrink: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.dr-mod-rows::-webkit-scrollbar { display: none; }
 .dr-mod-row {
-    display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
+    display: flex; gap: 4px; justify-content: flex-start; flex-wrap: nowrap;
+    padding: 0 12px;
 }
-.dr-mod-row + .dr-mod-row { margin-top: 6px; }
+.dr-mod-row + .dr-mod-row { margin-top: 0; }
 .dr-mod-boxes {
-    display: flex; justify-content: center; gap: 16px; margin-top: 6px;
-    max-width: 500px; margin-left: auto; margin-right: auto;
+    display: contents;
 }
 .dr-mod-box {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
-    flex: 1 1 0; min-width: 0;
+    display: contents;
 }
 .dr-mod-btn {
     background: var(--btn-bg); color: var(--text-muted); border: 1px solid var(--border);
-    border-radius: 10px; padding: 8px 12px; font-size: 14px; font-weight: 700;
+    border-radius: 14px; padding: 4px 10px; font-size: 11px; font-weight: 700;
     font-family: inherit; cursor: pointer; white-space: nowrap;
-    min-height: 40px; display: inline-flex; align-items: center; justify-content: center;
+    min-height: 28px; display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
 }
 .dr-mod-btn:hover { border-color: #58a6ff; color: var(--text-bright); }
 .dr-mod-btn:active { transform: scale(0.95); }
@@ -629,8 +630,9 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     border-top: 3px solid var(--cup-border);
     border-radius: 24px 24px 0 0;
     padding: 12px 16px 16px;
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding-bottom: 64px;
     display: flex; flex-direction: column;
+    position: relative;
     box-shadow: inset 0 2px 12px rgba(88,166,255,0.1), 0 -4px 20px rgba(0,0,0,0.5);
     /* Felt extends to the bottom of the viewport */
     flex: 1 0 auto; min-height: 0;
@@ -711,6 +713,14 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-cup-bottom {
     display: flex; gap: 6px; align-items: stretch; justify-content: center;
     padding-top: 8px; flex-shrink: 0; flex-wrap: wrap;
+}
+/* Fixed bottom action bar */
+.dr-bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 150;
+    display: flex; gap: 6px; align-items: stretch; justify-content: center;
+    padding: 8px 16px; padding-bottom: max(8px, env(safe-area-inset-bottom));
+    background: var(--bg, #0d1117); border-top: 1px solid var(--border2);
+    max-width: 500px; margin: 0 auto;
 }
 .dr-cup-btn {
     border-radius: 10px; font-family: inherit; cursor: pointer;
@@ -825,7 +835,10 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-dist-bars {
     display: flex; align-items: flex-end; justify-content: center; gap: 1px; height: 52px;
 }
-.dr-dist-wrap { text-align: center; position: relative; }
+.dr-dist-wrap { text-align: center; position: relative; display: none; }
+.dr-dist-wrap.visible { display: block; }
+.dr-dist-toggle { background: none; border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); padding: 2px 6px; cursor: pointer; font-size: 14px; line-height: 1; position: absolute; right: 16px; top: 8px; z-index: 5; }
+.dr-dist-toggle.on { border-color: var(--accent); color: var(--accent); }
 .dr-dist-labels {
     display: flex; justify-content: space-between; padding: 3px 0 0;
     font-size: 15px; color: #c9d1d9; font-weight: 700;
@@ -840,7 +853,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 
 /* Formula input */
 .dr-formula {
-    display: flex; gap: 8px; padding: 4px 16px 8px;
+    display: flex; gap: 6px; padding: 2px 12px 4px;
     max-width: 500px; margin: 0 auto; width: 100%; flex-shrink: 0;
 }
 .dr-formula-wrap {
@@ -1002,38 +1015,33 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button class="dr-mod-btn" onclick="adjustMod(-1)">-1</button>
         <button class="dr-mod-btn" onclick="adjustMod(+1)">+1</button>
         <button class="dr-mod-btn" onclick="promptMod(1)">+X</button>
-    </div>
-    <div class="dr-mod-boxes">
-        <div class="dr-mod-box">
-            <button class="dr-mod-btn dimmed" id="dropHBtn" onclick="toggleDropHighest()" title="Drop highest">Drop High</button>
-            <button class="dr-mod-btn dimmed" id="capBtn" onclick="toggleCap()" title="Cap group total">Cap</button>
-            <button class="dr-mod-btn dimmed" id="dropBtn" onclick="toggleDropLowest()" title="Drop lowest">Drop Low</button>
-            <button class="dr-mod-btn dimmed" id="floorBtn" onclick="toggleFloor()" title="Floor group total">Floor</button>
-        </div>
-        <div class="dr-mod-box">
-            <button class="dr-mod-btn dimmed" id="maxBtn" onclick="toggleMax()" title="Maximum value">Max</button>
-            <button class="dr-mod-btn dr-mod-explode dimmed" id="explodeBtn" onclick="toggleExploding()" title="Exploding"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5"/></svg></button>
-            <button class="dr-mod-btn dimmed" id="minBtn" onclick="toggleMin()" title="Minimum value">Min</button>
-            <button class="dr-mod-btn dimmed" id="successBtn" onclick="toggleSuccess()" title="Count successes">Success</button>
-        </div>
+        <button class="dr-mod-btn dimmed" id="dropBtn" onclick="toggleDropLowest()" title="Drop lowest">DL</button>
+        <button class="dr-mod-btn dimmed" id="dropHBtn" onclick="toggleDropHighest()" title="Drop highest">DH</button>
+        <button class="dr-mod-btn dimmed" id="floorBtn" onclick="toggleFloor()" title="Floor group total">Floor</button>
+        <button class="dr-mod-btn dimmed" id="capBtn" onclick="toggleCap()" title="Cap group total">Cap</button>
+        <button class="dr-mod-btn dimmed" id="maxBtn" onclick="toggleMax()" title="Maximum value">Max</button>
+        <button class="dr-mod-btn dimmed" id="minBtn" onclick="toggleMin()" title="Minimum value">Min</button>
+        <button class="dr-mod-btn dr-mod-explode dimmed" id="explodeBtn" onclick="toggleExploding()" title="Exploding"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5"/></svg></button>
+        <button class="dr-mod-btn dimmed" id="successBtn" onclick="toggleSuccess()" title="Count successes">#&gt;=</button>
     </div>
 </div>
 
 <div class="dr-cup" id="cup" onclick="deselectGroups(event)">
     <div class="dr-cup-preset-label" id="cupPresetLabel"></div>
     <div id="editBanner" style="display:none"></div>
-    <div class="dr-dist-wrap"><div class="dr-dist" id="distChart"></div><div id="addGroupSlot"></div></div>
+    <button class="dr-dist-toggle" id="distToggle" onclick="event.stopPropagation();toggleDistChart()">&#x1F4CA;</button>
+    <div class="dr-dist-wrap" id="distWrap"><div class="dr-dist" id="distChart"></div><div id="addGroupSlot"></div></div>
     <div class="dr-tap-hint" id="cupHint">tap dice to remove from cup</div>
     <div class="dr-cup-summary" id="cupSummary"></div>
     <div class="dr-cup-staging" id="cupStaging" onclick="deselectGroups(event)">
         <span class="dr-cup-empty">Add dice</span>
     </div>
     <div class="dr-cup-tags" id="cupTags"></div>
-    <div class="dr-cup-bottom">
-        <button class="dr-cup-btn dr-save-preset" id="favStar" onclick="event.stopPropagation();toggleFavorite()">&#9734;</button>
-        <button class="dr-cup-btn dr-roll-btn dimmed" id="rollBtn" onclick="event.stopPropagation();rollDice()">ROLL</button>
-        <button class="dr-cup-btn dr-clear-cup" id="clearBtn" onclick="event.stopPropagation();clearCup()" title="Empty cup">Empty</button>
-    </div>
+</div>
+<div class="dr-bottom-bar">
+    <button class="dr-cup-btn dr-save-preset" id="favStar" onclick="toggleFavorite()">&#9734;</button>
+    <button class="dr-cup-btn dr-roll-btn dimmed" id="rollBtn" onclick="rollDice()">ROLL</button>
+    <button class="dr-cup-btn dr-clear-cup" id="clearBtn" onclick="clearCup()" title="Empty cup">Empty</button>
 </div>
 
 <div id="roomBar" class="dr-room-host-bar" style="display:none">
@@ -1976,7 +1984,7 @@ function updateCupDisplay() {
         // Hide the empty chart box — keep the wrap container visible in premium
         // for the + Group button
         document.getElementById('distChart').style.display = 'none';
-        if (!PREMIUM) document.getElementById('distChart').parentElement.style.display = 'none';
+        /* dist-wrap visibility is now user-toggled via distToggle */
         document.getElementById('formulaInput').value = '';
         document.getElementById('prob').innerHTML = '';
         document.getElementById('rollBtn').classList.add('dimmed');
@@ -1997,13 +2005,15 @@ function updateCupDisplay() {
         document.getElementById('capBtn').classList.remove('on');
         document.getElementById('floorBtn').textContent = 'Floor';
         document.getElementById('capBtn').textContent = 'Cap';
+        document.getElementById('dropBtn').textContent = 'DL';
+        document.getElementById('dropHBtn').textContent = 'DH';
         document.getElementById('explodeBtn').classList.remove('on');
         document.getElementById('minBtn').classList.remove('on');
         document.getElementById('minBtn').textContent = 'Min';
         document.getElementById('maxBtn').classList.remove('on');
         document.getElementById('maxBtn').textContent = 'Max';
         document.getElementById('successBtn').classList.remove('on');
-        document.getElementById('successBtn').textContent = 'Success';
+        document.getElementById('successBtn').textContent = '#\u2265';
         document.getElementById('favStar').classList.remove('fav-active');
         document.getElementById('cupTags').innerHTML = '';
         document.getElementById('addGroupSlot').innerHTML = '';
@@ -2026,7 +2036,6 @@ function updateCupDisplay() {
         syncFormulaFromCup();
         return;
     }
-    document.getElementById('distChart').parentElement.style.display = '';
     document.getElementById('distChart').style.display = '';
 
     var html = '';
@@ -2148,8 +2157,8 @@ function updateCupDisplay() {
     var dhc = (typeof dropHighest === 'number') ? dropHighest : (dropHighest ? 1 : 0);
     var dropBtnEl = document.getElementById('dropBtn');
     var dropHBtnEl = document.getElementById('dropHBtn');
-    if (dropBtnEl) dropBtnEl.textContent = dlc > 0 ? 'Drop Low=' + dlc : 'Drop Low';
-    if (dropHBtnEl) dropHBtnEl.textContent = dhc > 0 ? 'Drop High=' + dhc : 'Drop High';
+    if (dropBtnEl) dropBtnEl.textContent = dlc > 0 ? 'DL=' + dlc : 'DL';
+    if (dropHBtnEl) dropHBtnEl.textContent = dhc > 0 ? 'DH=' + dhc : 'DH';
     // Floor/Cap buttons — group-only, dimmed when die selected
     var agTmp = noGroupSelected ? null : activeGroup();
     var floorVal = (agTmp && agTmp.floor) ? agTmp.floor : 0;
@@ -2190,7 +2199,7 @@ function updateCupDisplay() {
     var successVal = (ag && ag.countSuccess) ? ag.countSuccess : 0;
     document.getElementById('successBtn').classList.toggle('on', successVal > 0 && !dieSel);
     document.getElementById('successBtn').classList.toggle('dimmed', n === 0 || dieSel);
-    document.getElementById('successBtn').textContent = successVal > 0 ? 'Success \\u2265 ' + successVal : 'Success';
+    document.getElementById('successBtn').textContent = successVal > 0 ? '#\\u2265' + successVal : '#\\u2265';
     // Cup tags strip — deprecated, badges are rendered inline with the cup dice now
     document.getElementById('cupTags').innerHTML = '';
 
@@ -2216,11 +2225,7 @@ function updateCupDisplay() {
     }
 
     if (!symMode) {
-        document.getElementById('distChart').parentElement.style.display = '';
         renderDistribution();
-    } else {
-        // Hide chart entirely in symbol mode
-        document.getElementById('distChart').parentElement.style.display = 'none';
     }
     syncFormulaFromCup();
     // Auto-save: when a preset is loaded and cup is unlocked, update the
@@ -4841,6 +4846,23 @@ window.addEventListener('resize', function() {
         _syncFormulaHeight(inp, overlay);
     }
 });
+
+function toggleDistChart() {
+    var wrap = document.getElementById('distWrap');
+    var btn = document.getElementById('distToggle');
+    var show = !wrap.classList.contains('visible');
+    wrap.classList.toggle('visible', show);
+    btn.classList.toggle('on', show);
+    try { localStorage.setItem('dv_dist_visible', show ? '1' : '0'); } catch(e){}
+}
+(function(){
+    try {
+        if (localStorage.getItem('dv_dist_visible') === '1') {
+            document.getElementById('distWrap').classList.add('visible');
+            document.getElementById('distToggle').classList.add('on');
+        }
+    } catch(e){}
+})();
 
 function toggleFormulaHelp() {
     var el = document.getElementById('formulaHelp');
