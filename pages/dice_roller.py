@@ -5590,8 +5590,24 @@ function render() {
     var history=[];
     try{history=JSON.parse(localStorage.getItem('dice_roller_history')||'[]');}catch(e){}
     if(!history.length){list.innerHTML='<div class="dr-history-empty">No rolls yet</div>';return;}
-    var html='';
-    history.forEach(function(e){
+    // Render in chunks for fast first paint
+    list.innerHTML = '';
+    var idx = 0;
+    function renderChunk() {
+        var end = Math.min(idx + 5, history.length);
+        var frag = document.createDocumentFragment();
+        for (; idx < end; idx++) { var e = history[idx]; frag.appendChild(buildEntry(e)); }
+        list.appendChild(frag);
+        if (idx < history.length) requestAnimationFrame(renderChunk);
+    }
+    renderChunk();
+}
+function buildEntry(e) {
+    var div = document.createElement('div');
+    div.className = 'dr-history-entry';
+    var favLabel = e.favName ? '<div style="font-size:10px;color:#ffa657;font-weight:600;">'+esc(e.favName)+'</div>' : '';
+    var totalHtml;
+    (function(){
         var favLabel = e.favName ? '<div style="font-size:10px;color:#ffa657;font-weight:600;">'+esc(e.favName)+'</div>' : '';
         var totalHtml;
         if (e.symbolFaces && e.symbolFaces.length > 0) {
@@ -5608,13 +5624,12 @@ function render() {
         if (e.breakdownHtml && !e.symbolFaces) {
             breakdownRow = '<div class="dr-history-breakdown">' + e.breakdownHtml + '</div>';
         }
-        html+='<div class="dr-history-entry">' +
-            '<div class="dr-history-row">' + totalHtml + '<span class="dr-history-time">'+formatTimeAgo(e.timestamp)+'</span></div>' +
-            breakdownRow +
-            '<div class="dr-history-expr">'+favLabel+esc(e.expression)+'</div>' +
-            '</div>';
-    });
-    list.innerHTML=html;
+    })();
+    div.innerHTML =
+        '<div class="dr-history-row">' + totalHtml + '<span class="dr-history-time">'+formatTimeAgo(e.timestamp)+'</span></div>' +
+        breakdownRow +
+        '<div class="dr-history-expr">'+favLabel+esc(e.expression)+'</div>';
+    return div;
 }
 function clearHistory(){localStorage.removeItem('dice_roller_history');render();}
 function exportHistory(){
