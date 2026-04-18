@@ -5517,6 +5517,18 @@ a.dr-back { color:var(--accent); text-decoration:none; font-size:14px; font-weig
 .dr-history-expr { color:var(--text-muted); font-size:13px; word-break:break-all; }
 .dr-history-time { color:var(--text-dim); font-size:11px; min-width:60px; text-align:right; }
 .dr-history-empty { text-align:center; color:var(--border); padding:40px; font-size:15px; }
+.dr-history-breakdown { display:flex; flex-wrap:wrap; gap:2px; margin:4px 0; }
+.dr-die-result {
+    display:inline-block; background:var(--surface); border:2px solid var(--border);
+    border-radius:4px; padding:1px 5px; margin:1px;
+    font-weight:600; color:var(--text-bright); font-size:13px;
+    font-family:'SF Mono',ui-monospace,monospace;
+}
+.dr-breakdown-group {
+    display:inline-flex; flex-wrap:wrap; align-items:center; gap:2px;
+    padding:2px 4px; margin:1px; border:1px solid var(--border); border-radius:6px;
+    background:rgba(0,0,0,0.18);
+}
 </style>
 </head>
 <body>
@@ -5592,8 +5604,13 @@ function render() {
         } else {
             totalHtml = '<span class="dr-history-total">'+esc(''+e.total)+'</span>';
         }
+        var breakdownRow = '';
+        if (e.breakdownHtml && !e.symbolFaces) {
+            breakdownRow = '<div class="dr-history-breakdown">' + e.breakdownHtml + '</div>';
+        }
         html+='<div class="dr-history-entry">' +
             '<div class="dr-history-row">' + totalHtml + '<span class="dr-history-time">'+formatTimeAgo(e.timestamp)+'</span></div>' +
+            breakdownRow +
             '<div class="dr-history-expr">'+favLabel+esc(e.expression)+'</div>' +
             '</div>';
     });
