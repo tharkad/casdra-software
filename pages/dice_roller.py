@@ -588,31 +588,30 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 /* Dice grid */
 .dr-dice-grid {
-    display: flex; flex-wrap: nowrap; justify-content: center;
-    gap: 4px; padding: 6px 8px;
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 6px; padding: 8px 16px;
     max-width: 500px; margin: 0 auto; width: 100%; flex-shrink: 0;
 }
 .dr-dice-grid.disabled, .dr-mod-rows.disabled { opacity: 0.3; pointer-events: none; }
 .dr-die-btn {
     background: var(--btn-bg); border: 1px solid var(--border);
-    border-radius: 50%; padding: 0; width: 38px; height: 38px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+    border-radius: 10px; padding: 6px 2px; width: 50px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
     cursor: pointer; transition: all 0.15s; font-family: inherit;
     -webkit-tap-highlight-color: transparent; flex-shrink: 0;
 }
 .dr-die-btn:hover { border-color: #58a6ff; box-shadow: 0 0 8px rgba(88,166,255,0.2); }
 .dr-die-btn:active { transform: scale(0.9); background: #1f2937; }
-.dr-die-shape { font-size: 16px; line-height: 1; display: none; }
-.dr-die-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+.dr-die-shape { font-size: 18px; line-height: 1; }
+.dr-die-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
 
-/* Modifier rows — single scrollable strip */
-.dr-mod-rows { padding: 2px 0 4px; flex-shrink: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+/* Modifier rows */
+.dr-mod-rows { padding: 4px 16px; flex-shrink: 0; }
 .dr-mod-rows::-webkit-scrollbar { display: none; }
 .dr-mod-row {
-    display: flex; gap: 4px; justify-content: flex-start; flex-wrap: nowrap;
-    padding: 0 12px;
+    display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;
 }
-.dr-mod-row + .dr-mod-row { margin-top: 0; }
+.dr-mod-row + .dr-mod-row { margin-top: 4px; }
 .dr-mod-boxes {
     display: contents;
 }
