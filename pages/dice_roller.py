@@ -129,9 +129,11 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent;
     max-width: 500px; margin: 0 auto;
-    min-height: 100vh; display: flex; flex-direction: column;
+    height: 100dvh; height: -webkit-fill-available;
+    display: flex; flex-direction: column;
     overscroll-behavior: none;
     touch-action: pan-y;
+    overflow: hidden;
 }
 
 /* Header */
@@ -159,7 +161,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 
 /* Sticky tabs + presets */
 .dr-sticky-top {
-    position: sticky; top: 0; z-index: 99;
+    flex-shrink: 0; z-index: 99;
     background: var(--bg);
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
@@ -637,7 +639,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     border-top: 3px solid var(--cup-border);
     border-radius: 24px 24px 0 0;
     padding: 12px 16px 16px;
-    padding-bottom: 64px;
+    padding-bottom: 8px;
     display: flex; flex-direction: column;
     position: relative;
     box-shadow: inset 0 2px 12px rgba(88,166,255,0.1), 0 -4px 20px rgba(0,0,0,0.5);
@@ -722,12 +724,15 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     padding-top: 8px; flex-shrink: 0; flex-wrap: wrap;
 }
 /* Fixed bottom action bar */
+.dr-scroll-area {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}
 .dr-bottom-bar {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 150;
+    flex-shrink: 0;
     display: flex; gap: 6px; align-items: stretch; justify-content: center;
     padding: 8px 16px; padding-bottom: max(8px, env(safe-area-inset-bottom));
     background: var(--bg, #0d1117); border-top: 1px solid var(--border2);
-    max-width: 500px; margin: 0 auto;
 }
 .dr-cup-btn {
     border-radius: 10px; font-family: inherit; cursor: pointer;
@@ -921,6 +926,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 <div id="packTabs"></div>
 <div class="dr-presets" id="presets"></div>
 </div>
+<div class="dr-scroll-area">
 <div class="dr-theme-picker" id="themePicker" style="display:none">
     <div class="dr-theme-picker-title">Theme</div>
     <div class="dr-theme-grid" id="themeGrid"></div>
@@ -1043,6 +1049,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     </div>
     <div class="dr-cup-tags" id="cupTags"></div>
 </div>
+</div><!-- end dr-scroll-area -->
 <div class="dr-bottom-bar">
     <button class="dr-cup-btn dr-save-preset" id="favStar" onclick="toggleFavorite()">&#9734;</button>
     <button class="dr-cup-btn dr-roll-btn dimmed" id="rollBtn" onclick="rollDice()">ROLL</button>
