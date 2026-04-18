@@ -646,7 +646,13 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     /* Felt extends to the bottom of the viewport */
     flex: 1 0 auto; min-height: 0;
 }
-/* removed: .dr-cup > * { position: relative; } — was causing z-index stacking issues */
+/* Felt extends infinitely downward so scrolling never reveals dark bg */
+.dr-cup::after {
+    content: ''; position: absolute; left: 0; right: 0;
+    bottom: -2000px; height: 2000px;
+    background-color: var(--felt-color, #1a5a2a);
+    z-index: -1;
+}
 .dr-cup::before {
     content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
     width: 40px; height: 4px; border-radius: 2px; background: var(--border);
@@ -729,7 +735,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     flex: 1; overflow-y: auto; overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     display: flex; flex-direction: column;
-    background-color: var(--felt-color, #1a5a2a);
 }
 .dr-cup {
     flex: 1 0 0px;
