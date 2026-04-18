@@ -100,6 +100,24 @@ button, a, input { outline: none; -webkit-tap-highlight-color: transparent; }
 }
 .dr-rotate-overlay span { font-size: 48px; }
 .dr-rotate-overlay p { font-size: 16px; font-weight: 600; color: var(--text-muted); }
+/* About sheet */
+.dr-about-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1001; display:flex; align-items:flex-end; justify-content:center; }
+.dr-about-sheet {
+    background:var(--surface); border-radius:20px 20px 0 0; width:100%; max-width:500px;
+    padding:24px 24px 40px; animation:dr-sheet-up 0.25s ease;
+}
+@keyframes dr-sheet-up { from { transform:translateY(100%); } to { transform:translateY(0); } }
+.dr-about-sheet h2 { font-size:22px; font-weight:800; color:var(--text-bright); margin:12px 0 4px; }
+.dr-about-version { font-size:12px; color:var(--text-dim); margin-bottom:16px; }
+.dr-about-link {
+    display:flex; align-items:center; gap:12px; padding:12px 0;
+    border-bottom:1px solid var(--border2); color:var(--text-bright);
+    text-decoration:none; font-size:15px; font-weight:600;
+}
+.dr-about-link:last-child { border-bottom:none; }
+.dr-about-link span.icon { font-size:20px; width:28px; text-align:center; }
+.dr-about-link span.label { flex:1; }
+.dr-about-link span.chevron { color:var(--text-dim); font-size:18px; }
 html {
     background: linear-gradient(180deg, var(--grad-top) 0%, var(--bg) 30%, var(--bg) 70%, var(--grad-bot) 100%);
     background-attachment: fixed; min-height: 100vh;
@@ -869,7 +887,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 <body>
 <div class="dr-rotate-overlay"><span>&#x1F4F1;</span><p>Please rotate to portrait</p></div>
 <div class="dr-header">
-    <h1 id="appTitle" ontouchstart="startTitleLongPress(event)" ontouchend="cancelTitleLongPress()" onmousedown="startTitleLongPress(event)" onmouseup="cancelTitleLongPress()" onmouseleave="cancelTitleLongPress()">Dice Vault</h1>
+    <h1 id="appTitle" onclick="showAboutSheet()" ontouchstart="startTitleLongPress(event)" ontouchend="cancelTitleLongPress()" onmousedown="startTitleLongPress(event)" onmouseup="cancelTitleLongPress()" onmouseleave="cancelTitleLongPress()">Dice Vault</h1>
     <div class="dr-header-right">
         <a class="dr-header-btn" href="/dice/help" title="Help" style="text-decoration:none">&#x2753;</a>
         <button class="dr-header-btn" onclick="showRoomDialog()" title="Room" id="roomBtn">&#x1F465;</button>
@@ -5085,10 +5103,13 @@ function updatePremiumBtn() {
     // Title stays "Dice Vault" regardless of mode
 }
 var _titleLpTimer = null;
+var _titleLpFired = false;
 function startTitleLongPress(e) {
+    _titleLpFired = false;
     if (_titleLpTimer) clearTimeout(_titleLpTimer);
     _titleLpTimer = setTimeout(function() {
         _titleLpTimer = null;
+        _titleLpFired = true;
         var html = '<div style="display:flex;flex-direction:column;gap:6px;padding:8px">' +
             '<button style="background:var(--btn-bg);border:1px solid '+(PREMIUM?'#ffa657':'var(--border)')+';border-radius:8px;padding:10px 16px;color:'+(PREMIUM?'#ffa657':'var(--text-bright)')+';font-size:14px;font-weight:700;cursor:pointer;font-family:inherit" onclick="closeModal();switchMode(true)">Pro Mode'+(PREMIUM?' \\u2714':'')+' </button>' +
             '<button style="background:var(--btn-bg);border:1px solid '+(!PREMIUM?'#ffa657':'var(--border)')+';border-radius:8px;padding:10px 16px;color:'+(!PREMIUM?'#ffa657':'var(--text-bright)')+';font-size:14px;font-weight:700;cursor:pointer;font-family:inherit" onclick="closeModal();switchMode(false)">Free Mode'+(!PREMIUM?' \\u2714':'')+' </button>' +
@@ -5097,6 +5118,32 @@ function startTitleLongPress(e) {
     }, 600);
 }
 function cancelTitleLongPress() { if (_titleLpTimer) { clearTimeout(_titleLpTimer); _titleLpTimer = null; } }
+function showAboutSheet() {
+    if (_titleLpFired) { _titleLpFired = false; return; }
+    var backdrop = document.createElement('div');
+    backdrop.className = 'dr-about-backdrop';
+    backdrop.onclick = function(e) { if (e.target === backdrop) backdrop.remove(); };
+    backdrop.innerHTML = '<div class="dr-about-sheet">' +
+        '<div style="text-align:center">' +
+            '<svg width="180" height="42" viewBox="0 0 280 64" xmlns="http://www.w3.org/2000/svg">' +
+                '<defs><linearGradient id="abg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#60A5FA"/><stop offset="100%" stop-color="#2563EB"/></linearGradient></defs>' +
+                '<rect width="280" height="64" rx="14" fill="#0F172A"/>' +
+                '<path d="M50 18A20 20 0 1 0 50 46L44 46A14 14 0 1 1 44 18Z" fill="url(#abg)"/>' +
+                '<line x1="76" y1="16" x2="76" y2="48" stroke="#1E3A5F" stroke-width="1.5"/>' +
+                '<text x="178" y="37" text-anchor="middle" font-family=\\'system-ui\\' font-size="26" font-weight="700" font-style="italic" letter-spacing="6" fill="#FFF">CASDRA</text>' +
+                '<text x="178" y="52" text-anchor="middle" font-family=\\'system-ui\\' font-size="10" font-weight="500" letter-spacing="3.5" fill="#60A5FA">SOFTWARE LLC</text>' +
+            '</svg>' +
+        '</div>' +
+        '<h2>Dice Vault</h2>' +
+        '<div class="dr-about-version">v1.0 &middot; by Casdra Software LLC</div>' +
+        '<a class="dr-about-link" href="/dice/help"><span class="icon">\\u{1F4D6}</span><span class="label">Help &amp; Manual</span><span class="chevron">\\u203A</span></a>' +
+        '<a class="dr-about-link" href="#" onclick="event.preventDefault();this.closest(\\'.dr-about-backdrop\\').remove();showToast(\\'Discord coming soon\\')"><span class="icon">\\u{1F4AC}</span><span class="label">Join Discord</span><span class="chevron">\\u203A</span></a>' +
+        '<a class="dr-about-link" href="#" onclick="event.preventDefault();this.closest(\\'.dr-about-backdrop\\').remove();showToast(\\'App Store coming soon\\')"><span class="icon">\\u2B50</span><span class="label">Rate on App Store</span><span class="chevron">\\u203A</span></a>' +
+        '<a class="dr-about-link" href="#" onclick="event.preventDefault();this.closest(\\'.dr-about-backdrop\\').remove();showToast(\\'Coming soon\\')"><span class="icon">\\u{1F512}</span><span class="label">Privacy Policy</span><span class="chevron">\\u203A</span></a>' +
+        '<a class="dr-about-link" href="https://casdra.com" target="_blank"><span class="icon">\\u{1F310}</span><span class="label">casdra.com</span><span class="chevron">\\u203A</span></a>' +
+        '</div>';
+    document.body.appendChild(backdrop);
+}
 function switchMode(pro) {
     if (pro) { localStorage.removeItem('dice_vault_mode'); }
     else { localStorage.setItem('dice_vault_mode', 'free'); }
