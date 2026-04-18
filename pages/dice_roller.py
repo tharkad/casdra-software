@@ -731,7 +731,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     display: flex; flex-direction: column;
 }
 .dr-cup {
-    flex: 1;
+    flex: 1 0 0px;
 }
 .dr-bottom-bar {
     flex-shrink: 0;
