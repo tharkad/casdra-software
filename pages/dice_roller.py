@@ -6016,7 +6016,7 @@ code { background: #0d1117; border: 1px solid var(--border); border-radius: 4px;
 <div class="dh-toc">
     <h3>Quick Jump</h3>
     <a href="#rolling">&#127922; Rolling Dice</a>
-    <a href="#cup">&#9749; The Dice Cup</a>
+    <a href="#cup">&#127922; The Dice Cup</a>
     <a href="#modifiers">&#9889; Modifiers</a>
     <a href="#dx">&#128302; DX &mdash; Custom &amp; Word Dice</a>
     <a href="#presets">&#128190; Presets</a>
@@ -6057,7 +6057,7 @@ code { background: #0d1117; border: 1px solid var(--border); border-radius: 4px;
 
 <!-- ===== CUP ===== -->
 <div class="dh-section" id="cup">
-    <h2>&#9749; The Dice Cup</h2>
+    <h2>&#127922; The Dice Cup</h2>
     <p>The cup is your staging area &mdash; the felt-lined tray at the center of the screen. Every die you tap
     appears here as a visual chip showing its type and color.</p>
     <ul>
