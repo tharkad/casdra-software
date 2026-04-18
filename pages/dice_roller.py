@@ -120,16 +120,17 @@ button, a, input { outline: none; -webkit-tap-highlight-color: transparent; }
 .dr-about-link span.label { flex:1; }
 .dr-about-link span.chevron { color:var(--text-dim); font-size:18px; }
 html {
-    background: linear-gradient(180deg, var(--grad-top) 0%, var(--bg) 30%, var(--bg) 70%, var(--grad-bot) 100%);
-    background-attachment: fixed; min-height: 100vh;
+    background: var(--bg);
+    height: 100vh; height: 100dvh;
     overscroll-behavior: none;
+    overflow: hidden;
 }
 body {
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent;
     max-width: 500px; margin: 0 auto;
-    height: 100dvh; height: -webkit-fill-available;
+    height: 100vh; height: 100dvh;
     display: flex; flex-direction: column;
     overscroll-behavior: none;
     touch-action: pan-y;
