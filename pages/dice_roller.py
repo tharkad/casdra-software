@@ -731,13 +731,14 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     overscroll-behavior: contain;
 }
 .dr-cup {
-    flex: 1 0 0px;
+    flex: 1 0 auto;
+    min-height: 100%;
 }
 .dr-bottom-bar {
     flex-shrink: 0;
     display: flex; gap: 6px; align-items: stretch; justify-content: center;
     padding: 8px 16px; padding-bottom: max(8px, env(safe-area-inset-bottom));
-    background: var(--felt-color, #1a5a2a); border-top: none;
+    background: var(--bg, #0d1117); border-top: 1px solid var(--border2);
 }
 .dr-cup-btn {
     border-radius: 10px; font-family: inherit; cursor: pointer;
