@@ -472,7 +472,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 .dr-group-op:hover { border-color: var(--accent); color: var(--accent); }
 .dr-add-group {
-    position: absolute; right: 8px; bottom: 0;
 }
 .dr-add-group.below { position: static; text-align: right; margin-top: 4px; }
 .dr-add-group button {
@@ -519,6 +518,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-tap-hint {
     font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 2px;
     transition: opacity 0.5s; opacity: 1; text-align: center;
+    position: relative; z-index: 2; clear: both;
 }
 .dr-tap-hint.hidden { opacity: 0; pointer-events: none; }
 .dr-breakdown {
@@ -1045,8 +1045,11 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 <div class="dr-cup" id="cup" onclick="deselectGroups(event)">
     <div class="dr-cup-preset-label" id="cupPresetLabel"></div>
     <div id="editBanner" style="display:none"></div>
-    <div class="dr-dist-wrap" id="distWrap"><div class="dr-dist" id="distChart"></div><div id="addGroupSlot"></div></div>
-    <div class="dr-tap-hint" id="cupHint">tap dice to remove from cup</div>
+    <div class="dr-dist-wrap" id="distWrap"><div class="dr-dist" id="distChart"></div></div>
+    <div style="display:flex;align-items:center;justify-content:center;position:relative;margin:2px 0">
+        <div class="dr-tap-hint" id="cupHint" style="margin:0;flex:1;text-align:center">tap dice to remove from cup</div>
+        <div id="addGroupSlot" style="position:absolute;right:8px"></div>
+    </div>
     <div class="dr-cup-summary" id="cupSummary"></div>
     <div class="dr-cup-staging" id="cupStaging" onclick="deselectGroups(event)">
         <span class="dr-cup-empty">Add dice</span>
@@ -2241,7 +2244,10 @@ function updateCupDisplay() {
     }
 
     if (!symMode) {
+        document.getElementById('distWrap').style.display = '';
         renderDistribution();
+    } else {
+        document.getElementById('distWrap').style.display = 'none';
     }
     syncFormulaFromCup();
     // Auto-save: when a preset is loaded and cup is unlocked, update the
