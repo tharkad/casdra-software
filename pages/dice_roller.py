@@ -5607,24 +5607,19 @@ function buildEntry(e) {
     div.className = 'dr-history-entry';
     var favLabel = e.favName ? '<div style="font-size:10px;color:#ffa657;font-weight:600;">'+esc(e.favName)+'</div>' : '';
     var totalHtml;
-    (function(){
-        var favLabel = e.favName ? '<div style="font-size:10px;color:#ffa657;font-weight:600;">'+esc(e.favName)+'</div>' : '';
-        var totalHtml;
-        if (e.symbolFaces && e.symbolFaces.length > 0) {
-            // Symbol roll: render face chips with emoji
-            totalHtml = '<span style="display:flex;flex-wrap:wrap;gap:4px">';
-            e.symbolFaces.forEach(function(f) {
-                totalHtml += '<span style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-size:14px">' + faceToDisplay(f) + '</span>';
-            });
-            totalHtml += '</span>';
-        } else {
-            totalHtml = '<span class="dr-history-total">'+esc(''+e.total)+'</span>';
-        }
-        var breakdownRow = '';
-        if (e.breakdownHtml && !e.symbolFaces) {
-            breakdownRow = '<div class="dr-history-breakdown">' + e.breakdownHtml + '</div>';
-        }
-    })();
+    if (e.symbolFaces && e.symbolFaces.length > 0) {
+        totalHtml = '<span style="display:flex;flex-wrap:wrap;gap:4px">';
+        e.symbolFaces.forEach(function(f) {
+            totalHtml += '<span style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-size:14px">' + faceToDisplay(f) + '</span>';
+        });
+        totalHtml += '</span>';
+    } else {
+        totalHtml = '<span class="dr-history-total">'+esc(''+e.total)+'</span>';
+    }
+    var breakdownRow = '';
+    if (e.breakdownHtml && !e.symbolFaces) {
+        breakdownRow = '<div class="dr-history-breakdown">' + e.breakdownHtml + '</div>';
+    }
     div.innerHTML =
         '<div class="dr-history-row">' + totalHtml + '<span class="dr-history-time">'+formatTimeAgo(e.timestamp)+'</span></div>' +
         breakdownRow +
