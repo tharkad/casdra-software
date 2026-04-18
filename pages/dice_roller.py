@@ -352,6 +352,29 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-modal-ok { background: var(--accent); color: #fff; }
 .dr-modal-cancel { background: var(--border2); color: var(--text-muted); }
 
+/* Sound picker */
+.dr-sound-picker { list-style: none; padding: 0; margin: 0 0 8px; }
+.dr-sound-picker li {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border-radius: 8px; cursor: pointer; margin-bottom: 4px;
+    border: 1px solid transparent; transition: background 0.15s;
+}
+.dr-sound-picker li:hover { background: var(--bg); }
+.dr-sound-picker li.active { border-color: var(--accent); background: var(--accent)11; }
+.dr-sound-picker li .dr-sp-name {
+    flex: 1; font-size: 15px; font-weight: 600; color: var(--text-bright);
+}
+.dr-sound-picker li .dr-sp-desc {
+    flex: 2; font-size: 12px; color: var(--text-muted);
+}
+.dr-sound-picker li .dr-sp-preview {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-muted); font-size: 16px; width: 32px; height: 32px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.dr-sound-picker li .dr-sp-preview:hover { color: var(--accent); border-color: var(--accent); }
+
 /* Theme picker */
 .dr-theme-picker {
     background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
@@ -841,7 +864,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button class="dr-header-btn" onclick="showBugReport()" title="Report Bug">&#x1F41B;</button>
         <button class="dr-header-btn" id="themeBtn" onclick="toggleThemePicker(event)" title="Theme">&#x1F3A8;</button>
         <a class="dr-header-btn dr-history-btn" href="/dice/history" title="History" id="historyLink">&#x1F552;</a>
-        <button class="dr-header-btn off" onclick="alert('Sound — coming soon!')" title="Sound">&#x1F50A;</button>
+        <button class="dr-header-btn off" id="soundBtn" onclick="toggleSound()" title="Sound">&#x1F50A;</button>
         <button class="dr-header-btn off" onclick="alert('Shake to roll — coming soon!')" title="Shake" style="display:inline-flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="3" width="10" height="18" rx="2"/><line x1="4" y1="7" x2="2" y2="5"/><line x1="4" y1="12" x2="1" y2="12"/><line x1="4" y1="17" x2="2" y2="19"/><line x1="20" y1="7" x2="22" y2="5"/><line x1="20" y1="12" x2="23" y2="12"/><line x1="20" y1="17" x2="22" y2="19"/></svg></button>
     </div>
 </div>
@@ -2942,25 +2965,208 @@ function handleResultClick() {
     rollDice();
 }
 
-// Sound
-var isMuted=false, audioCtx=null;
-function toggleMute() {
-    isMuted=!isMuted;
-    document.getElementById('muteBtn').classList.toggle('on',!isMuted);
-    document.getElementById('muteBtn').innerHTML=isMuted?'🔇':'🔊';
-    localStorage.setItem('dice_roller_muted',isMuted?'1':'0');
+// Sound system
+var audioCtx = null;
+var soundEnabled = false;
+var soundType = 'classic';
+var soundLongPressTimer = null;
+var SOUND_TYPES = [
+    {id:'classic', name:'Classic', desc:'Wooden dice clacking on a table'},
+    {id:'casino', name:'Casino', desc:'Dice shaking in a leather cup'},
+    {id:'thunder', name:'Thunder', desc:'Dramatic low rumble'},
+    {id:'arcade', name:'Arcade', desc:'Retro ascending tones'},
+    {id:'subtle', name:'Subtle', desc:'Soft gentle pop'}
+];
+
+function ensureAudioCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
 }
-function playSound() {
-    if(isMuted) return;
+
+function playSoundType(type) {
+    var ctx = ensureAudioCtx();
+    var t = ctx.currentTime;
     try {
-        if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-        var buf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.12,audioCtx.sampleRate);
-        var data=buf.getChannelData(0);
-        for(var i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*Math.exp(-i/(audioCtx.sampleRate*0.025));
-        var src=audioCtx.createBufferSource(); src.buffer=buf;
-        var f=audioCtx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=900; f.Q.value=1.2;
-        src.connect(f); f.connect(audioCtx.destination); src.start();
-    } catch(e){}
+        if (type === 'classic') {
+            // Multiple short noise bursts — wooden dice clacks
+            var count = 4 + Math.floor(Math.random() * 3); // 4-6 clacks
+            for (var c = 0; c < count; c++) {
+                var offset = c * 0.055 + Math.random() * 0.02;
+                var dur = 0.025;
+                var buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+                var d = buf.getChannelData(0);
+                for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.008));
+                var src = ctx.createBufferSource(); src.buffer = buf;
+                var flt = ctx.createBiquadFilter(); flt.type = 'bandpass'; flt.frequency.value = 800 + Math.random() * 600; flt.Q.value = 1.5;
+                var gain = ctx.createGain(); gain.gain.value = 0.3 + Math.random() * 0.2;
+                src.connect(flt); flt.connect(gain); gain.connect(ctx.destination);
+                src.start(t + offset);
+            }
+        } else if (type === 'casino') {
+            // Filtered noise with resonance — shaker sound
+            var dur2 = 0.35;
+            var buf2 = ctx.createBuffer(1, ctx.sampleRate * dur2, ctx.sampleRate);
+            var d2 = buf2.getChannelData(0);
+            for (var i2 = 0; i2 < d2.length; i2++) {
+                var env = Math.exp(-i2 / (ctx.sampleRate * 0.12));
+                var rattle = Math.sin(i2 * 0.15) * 0.5 + 0.5;
+                d2[i2] = (Math.random() * 2 - 1) * env * rattle;
+            }
+            var src2 = ctx.createBufferSource(); src2.buffer = buf2;
+            var flt2 = ctx.createBiquadFilter(); flt2.type = 'bandpass'; flt2.frequency.value = 1200; flt2.Q.value = 2.5;
+            var gain2 = ctx.createGain(); gain2.gain.value = 0.35;
+            src2.connect(flt2); flt2.connect(gain2); gain2.connect(ctx.destination);
+            src2.start(t);
+        } else if (type === 'thunder') {
+            // Low frequency sweep + noise burst
+            var osc = ctx.createOscillator(); osc.type = 'sine';
+            osc.frequency.setValueAtTime(80, t);
+            osc.frequency.exponentialRampToValueAtTime(30, t + 0.4);
+            var oscGain = ctx.createGain();
+            oscGain.gain.setValueAtTime(0.4, t);
+            oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+            osc.connect(oscGain); oscGain.connect(ctx.destination);
+            osc.start(t); osc.stop(t + 0.4);
+            // Noise burst layered on top
+            var dur3 = 0.25;
+            var buf3 = ctx.createBuffer(1, ctx.sampleRate * dur3, ctx.sampleRate);
+            var d3 = buf3.getChannelData(0);
+            for (var i3 = 0; i3 < d3.length; i3++) d3[i3] = (Math.random() * 2 - 1) * Math.exp(-i3 / (ctx.sampleRate * 0.06));
+            var src3 = ctx.createBufferSource(); src3.buffer = buf3;
+            var flt3 = ctx.createBiquadFilter(); flt3.type = 'lowpass'; flt3.frequency.value = 400; flt3.Q.value = 1.0;
+            var gain3 = ctx.createGain(); gain3.gain.value = 0.25;
+            src3.connect(flt3); flt3.connect(gain3); gain3.connect(ctx.destination);
+            src3.start(t);
+        } else if (type === 'arcade') {
+            // Ascending square wave tones — retro game feel
+            var notes = [440, 554, 659, 880];
+            for (var n = 0; n < notes.length; n++) {
+                var osc2 = ctx.createOscillator(); osc2.type = 'square';
+                osc2.frequency.value = notes[n];
+                var oscG = ctx.createGain();
+                oscG.gain.setValueAtTime(0.12, t + n * 0.05);
+                oscG.gain.exponentialRampToValueAtTime(0.001, t + n * 0.05 + 0.06);
+                osc2.connect(oscG); oscG.connect(ctx.destination);
+                osc2.start(t + n * 0.05); osc2.stop(t + n * 0.05 + 0.06);
+            }
+        } else if (type === 'subtle') {
+            // Single soft filtered noise pop
+            var dur4 = 0.1;
+            var buf4 = ctx.createBuffer(1, ctx.sampleRate * dur4, ctx.sampleRate);
+            var d4 = buf4.getChannelData(0);
+            for (var i4 = 0; i4 < d4.length; i4++) d4[i4] = (Math.random() * 2 - 1) * Math.exp(-i4 / (ctx.sampleRate * 0.015));
+            var src4 = ctx.createBufferSource(); src4.buffer = buf4;
+            var flt4 = ctx.createBiquadFilter(); flt4.type = 'bandpass'; flt4.frequency.value = 600; flt4.Q.value = 0.8;
+            var gain4 = ctx.createGain(); gain4.gain.value = 0.15;
+            src4.connect(flt4); flt4.connect(gain4); gain4.connect(ctx.destination);
+            src4.start(t);
+        }
+    } catch(e) { console.warn('Sound error:', e); }
+}
+
+function playSound() {
+    if (!soundEnabled) return;
+    playSoundType(soundType);
+}
+
+function toggleSound() {
+    soundEnabled = !soundEnabled;
+    localStorage.setItem('dice_roller_sound', soundEnabled ? '1' : '0');
+    var btn = document.getElementById('soundBtn');
+    btn.classList.toggle('on', soundEnabled);
+    btn.classList.toggle('off', !soundEnabled);
+    if (soundEnabled) playSoundType(soundType);
+}
+
+function initSoundBtn() {
+    var btn = document.getElementById('soundBtn');
+    // Long-press to open picker
+    btn.addEventListener('touchstart', function(e) {
+        soundLongPressTimer = setTimeout(function() {
+            soundLongPressTimer = 'fired';
+            showSoundPicker();
+        }, 500);
+    }, {passive: true});
+    btn.addEventListener('touchend', function(e) {
+        if (soundLongPressTimer === 'fired') { e.preventDefault(); }
+        else { clearTimeout(soundLongPressTimer); }
+        soundLongPressTimer = null;
+    });
+    btn.addEventListener('touchmove', function() {
+        if (soundLongPressTimer && soundLongPressTimer !== 'fired') clearTimeout(soundLongPressTimer);
+    }, {passive: true});
+    // Mouse long-press
+    btn.addEventListener('mousedown', function(e) {
+        soundLongPressTimer = setTimeout(function() {
+            soundLongPressTimer = 'fired';
+            showSoundPicker();
+        }, 500);
+    });
+    btn.addEventListener('mouseup', function(e) {
+        if (soundLongPressTimer === 'fired') { e.preventDefault(); e.stopPropagation(); }
+        else { clearTimeout(soundLongPressTimer); }
+        soundLongPressTimer = null;
+    });
+    btn.addEventListener('mouseleave', function() {
+        if (soundLongPressTimer && soundLongPressTimer !== 'fired') clearTimeout(soundLongPressTimer);
+    });
+}
+
+function showSoundPicker() {
+    var overlay = document.createElement('div');
+    overlay.className = 'dr-modal-overlay';
+    var html = '<div class="dr-modal" style="max-width:340px">' +
+        '<div class="dr-modal-title">Roll Sound</div>' +
+        '<ul class="dr-sound-picker">';
+    for (var s = 0; s < SOUND_TYPES.length; s++) {
+        var st = SOUND_TYPES[s];
+        var active = st.id === soundType ? ' active' : '';
+        html += '<li class="' + active + '" data-sound="' + st.id + '" onclick="selectSound(\\x27' + st.id + '\\x27)">' +
+            '<span class="dr-sp-name">' + st.name + '</span>' +
+            '<span class="dr-sp-desc">' + st.desc + '</span>' +
+            '<button class="dr-sp-preview" onclick="event.stopPropagation();previewSound(\\x27' + st.id + '\\x27)" title="Preview">&#x25B6;</button>' +
+            '</li>';
+    }
+    html += '</ul>' +
+        '<div class="dr-modal-btns"><button class="dr-modal-cancel" onclick="closeSoundPicker()">Close</button></div>' +
+        '</div>';
+    overlay.innerHTML = html;
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) closeSoundPicker(); });
+    document.body.appendChild(overlay);
+}
+
+function closeSoundPicker() {
+    var o = document.querySelector('.dr-modal-overlay');
+    if (o && o.querySelector('.dr-sound-picker')) o.remove();
+}
+
+function selectSound(id) {
+    soundType = id;
+    localStorage.setItem('dice_roller_sound_type', id);
+    // Also enable sound if it was off
+    if (!soundEnabled) {
+        soundEnabled = true;
+        localStorage.setItem('dice_roller_sound', '1');
+        var btn = document.getElementById('soundBtn');
+        btn.classList.add('on');
+        btn.classList.remove('off');
+    }
+    closeSoundPicker();
+    playSoundType(id);
+}
+
+function previewSound(id) {
+    playSoundType(id);
+}
+
+function initSound() {
+    soundEnabled = localStorage.getItem('dice_roller_sound') === '1';
+    soundType = localStorage.getItem('dice_roller_sound_type') || 'classic';
+    var btn = document.getElementById('soundBtn');
+    btn.classList.toggle('on', soundEnabled);
+    btn.classList.toggle('off', !soundEnabled);
+    initSoundBtn();
 }
 
 // ===== Presets / Game Packs =====
@@ -5278,7 +5484,7 @@ function roomAutoRejoin() {
         localStorage.setItem('dice_roller_v4','1');
     }
 
-    isMuted = true;
+    initSound();
     shakeEnabled = false;
     // Save query string so history/bugs pages can link back correctly
     if (window.location.search) localStorage.setItem('dice_roller_qs', window.location.search);
