@@ -1045,7 +1045,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 <div class="dr-bottom-bar">
     <button class="dr-cup-btn dr-save-preset" id="favStar" onclick="toggleFavorite()">&#9734;</button>
     <button class="dr-cup-btn dr-roll-btn dimmed" id="rollBtn" onclick="rollDice()">ROLL</button>
-    <button class="dr-cup-btn dr-clear-cup" id="clearBtn" onclick="clearCup()" title="Empty cup">Empty</button>
+    <button class="dr-cup-btn dr-clear-cup dimmed" id="clearBtn" onclick="clearCup()" title="Empty cup">Empty</button>
 </div>
 
 <div id="roomBar" class="dr-room-host-bar" style="display:none">
