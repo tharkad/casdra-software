@@ -441,8 +441,8 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 .dr-group-section {
     border: 2px solid rgba(255,255,255,0.25); border-radius: 12px;
-    padding: 12px; margin: 4px; position: relative; cursor: pointer;
-    transition: all 0.15s; z-index: 1;
+    padding: 12px; margin: 4px; cursor: pointer;
+    transition: all 0.15s;
     display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;
     /* flex-shrink=1 + min-width=0 lets the group squeeze below its intrinsic
        content width so its inner dice can wrap; max-width=100% caps it at
@@ -646,7 +646,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     /* Felt extends to the bottom of the viewport */
     flex: 1 0 auto; min-height: 0;
 }
-.dr-cup > * { position: relative; }
+/* removed: .dr-cup > * { position: relative; } — was causing z-index stacking issues */
 .dr-cup::before {
     content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
     width: 40px; height: 4px; border-radius: 2px; background: var(--border);
@@ -654,8 +654,9 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-cup-summary { display: none; }
 .dr-cup-staging {
     display: flex; flex-wrap: wrap; gap: 8px;
-    justify-content: center; align-content: center;
+    justify-content: center; align-content: flex-start;
     padding: 8px 0; min-height: 50px;
+    overflow: visible;
 }
 .dr-cup-die {
     width: 57px; height: 57px; border-radius: 13px;
