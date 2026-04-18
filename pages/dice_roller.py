@@ -835,8 +835,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-dist-bars {
     display: flex; align-items: flex-end; justify-content: center; gap: 1px; height: 52px;
 }
-.dr-dist-wrap { text-align: center; position: relative; display: none; }
-.dr-dist-wrap.visible { display: block; }
+.dr-dist-wrap { text-align: center; position: relative; }
 .dr-dist-toggle { background: none; border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); padding: 2px 6px; cursor: pointer; font-size: 14px; line-height: 1; position: absolute; right: 16px; top: 8px; z-index: 5; }
 .dr-dist-toggle.on { border-color: var(--accent); color: var(--accent); }
 .dr-dist-labels {
@@ -1029,7 +1028,6 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 <div class="dr-cup" id="cup" onclick="deselectGroups(event)">
     <div class="dr-cup-preset-label" id="cupPresetLabel"></div>
     <div id="editBanner" style="display:none"></div>
-    <button class="dr-dist-toggle" id="distToggle" onclick="event.stopPropagation();toggleDistChart()">&#x1F4CA;</button>
     <div class="dr-dist-wrap" id="distWrap"><div class="dr-dist" id="distChart"></div><div id="addGroupSlot"></div></div>
     <div class="dr-tap-hint" id="cupHint">tap dice to remove from cup</div>
     <div class="dr-cup-summary" id="cupSummary"></div>
