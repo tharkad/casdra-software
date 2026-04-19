@@ -587,25 +587,28 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     transform: rotate(90deg) translate(24px, -15px);
 }
 /* Dice grid */
+/* Combined dice + modifier layout */
+.dr-controls-area { display: flex; gap: 8px; padding: 6px 12px; flex-shrink: 0; align-items: flex-start; }
+.dr-controls-section { flex: 1; }
+.dr-controls-label { font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; text-align: center; }
 .dr-dice-grid {
-    display: flex; flex-wrap: wrap; justify-content: center;
-    gap: 8px; padding: 8px 16px;
-    max-width: 500px; margin: 0 auto; width: 100%; flex-shrink: 0;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
 }
 .dr-dice-grid.disabled, .dr-mod-rows.disabled { opacity: 0.3; pointer-events: none; }
 .dr-die-btn {
     background: var(--btn-bg); border: 1px solid var(--border);
-    border-radius: 12px; padding: 10px 4px 6px; width: 58px;
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    border-radius: 10px; padding: 6px 2px 4px; width: 100%;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
     cursor: pointer; transition: all 0.15s; font-family: inherit;
     -webkit-tap-highlight-color: transparent;
 }
 .dr-die-btn:hover { border-color: #58a6ff; box-shadow: 0 0 8px rgba(88,166,255,0.2); }
 .dr-die-btn:active { transform: scale(0.9); background: #1f2937; }
-.dr-die-shape { font-size: 21px; line-height: 1; }
-.dr-die-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+.dr-die-shape { font-size: 16px; line-height: 1; }
+.dr-die-label { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+.dr-die-mods-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 
-/* Modifier rows */
+/* Group modifier rows (centered below) */
 .dr-mod-rows { padding: 4px 16px 8px; flex-shrink: 0; }
 .dr-mod-row {
     display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
@@ -1022,11 +1025,25 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 </div>
 """) + """
 
-<div class="dr-dice-grid" id="diceGrid">
+<div class="dr-controls-area">
+    <div class="dr-controls-section">
+        <div class="dr-controls-label">Add Dice</div>
+        <div class="dr-dice-grid" id="diceGrid">
 """ + buttons_html + """
+        </div>
+    </div>
+    <div class="dr-controls-section">
+        <div class="dr-controls-label">Die Modifiers</div>
+        <div class="dr-die-mods-grid">
+            <button class="dr-mod-btn dimmed" id="maxBtn" onclick="toggleMax()" title="Maximum value">Max</button>
+            <button class="dr-mod-btn dimmed" id="minBtn" onclick="toggleMin()" title="Minimum value">Min</button>
+            <button class="dr-mod-btn dr-mod-explode dimmed" id="explodeBtn" onclick="toggleExploding()" title="Exploding"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5"/></svg></button>
+            <button class="dr-mod-btn dimmed" id="successBtn" onclick="toggleSuccess()" title="Count successes">Success</button>
+        </div>
+    </div>
 </div>
-
 <div class="dr-mod-rows">
+    <div class="dr-controls-label">Group Modifiers</div>
     <div class="dr-mod-row">
         <button class="dr-mod-btn" onclick="promptMod(-1)">-X</button>
         <button class="dr-mod-btn" onclick="adjustMod(-1)">-1</button>
@@ -1035,16 +1052,12 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     </div>
     <div class="dr-mod-boxes">
         <div class="dr-mod-box">
-            <button class="dr-mod-btn dimmed" id="dropHBtn" onclick="toggleDropHighest()" title="Drop highest">Drop High</button>
-            <button class="dr-mod-btn dimmed" id="capBtn" onclick="toggleCap()" title="Cap group total">Cap</button>
-            <button class="dr-mod-btn dimmed" id="dropBtn" onclick="toggleDropLowest()" title="Drop lowest">Drop Low</button>
-            <button class="dr-mod-btn dimmed" id="floorBtn" onclick="toggleFloor()" title="Floor group total">Floor</button>
+            <button class="dr-mod-btn dimmed" id="dropHBtn" onclick="toggleDropHighest()" title="Drop highest">DH</button>
+            <button class="dr-mod-btn dimmed" id="dropBtn" onclick="toggleDropLowest()" title="Drop lowest">DL</button>
         </div>
         <div class="dr-mod-box">
-            <button class="dr-mod-btn dimmed" id="maxBtn" onclick="toggleMax()" title="Maximum value">Max</button>
-            <button class="dr-mod-btn dr-mod-explode dimmed" id="explodeBtn" onclick="toggleExploding()" title="Exploding"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5"/></svg></button>
-            <button class="dr-mod-btn dimmed" id="minBtn" onclick="toggleMin()" title="Minimum value">Min</button>
-            <button class="dr-mod-btn dimmed" id="successBtn" onclick="toggleSuccess()" title="Count successes">Success</button>
+            <button class="dr-mod-btn dimmed" id="capBtn" onclick="toggleCap()" title="Cap group total">Cap</button>
+            <button class="dr-mod-btn dimmed" id="floorBtn" onclick="toggleFloor()" title="Floor group total">Floor</button>
         </div>
     </div>
 </div>
