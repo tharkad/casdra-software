@@ -2244,7 +2244,9 @@ function updateCupDisplay() {
     var hideModRows = symMode || cupLocked;
     document.querySelector('.dr-mod-rows').style.display = hideModRows ? 'none' : '';
     var controlsArea = document.querySelector('.dr-controls-area');
-    if (controlsArea) controlsArea.style.display = (cupLocked || symMode) ? 'none' : '';
+    if (controlsArea) controlsArea.style.display = cupLocked ? 'none' : '';
+    var dieMods = document.querySelector('.dr-die-mods-grid');
+    if (dieMods) dieMods.parentElement.style.display = symMode ? 'none' : '';
     var addGroupBtn = document.querySelector('.dr-add-group');
     if (addGroupBtn) addGroupBtn.style.display = (symMode || cupLocked) ? 'none' : '';
     var diceGrid = document.getElementById('diceGrid');
@@ -3000,7 +3002,9 @@ function toggleLock() {
     // Hide dice buttons + modifier rows (pack tabs stay visible for switching presets)
     var symMode = isSymbolMode();
     var controlsArea = document.querySelector('.dr-controls-area');
-    if (controlsArea) controlsArea.style.display = (cupLocked || symMode) ? 'none' : '';
+    if (controlsArea) controlsArea.style.display = cupLocked ? 'none' : '';
+    var dieMods = document.querySelector('.dr-die-mods-grid');
+    if (dieMods) dieMods.parentElement.style.display = symMode ? 'none' : '';
     diceGrid.style.display = cupLocked ? 'none' : '';
     modRows.style.display = (cupLocked || symMode) ? 'none' : '';
     // Restore/apply symbol mode dimming on dice buttons when unlocking
