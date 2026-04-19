@@ -735,7 +735,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     overscroll-behavior: contain;
 }
 .dr-cup {
-    flex: 0 0 auto;
+    flex: 1 0 auto;
 }
 .dr-bottom-bar {
     flex-shrink: 0;
