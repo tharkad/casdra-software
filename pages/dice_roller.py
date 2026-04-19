@@ -5641,7 +5641,7 @@ function renderFeed() {
             '<div class="dr-room-feed-bar" style="background:'+esc(item.color||'#58a6ff')+'"></div>' +
             '<div class="dr-room-feed-body">' +
                 '<div class="dr-room-feed-name" style="color:'+esc(item.color||'#58a6ff')+'">'+esc(item.name||'')+'</div>' +
-                '<div class="dr-room-feed-expr">'+favHtml+esc(item.expression||'')+'</div>' +
+                '<div class="dr-room-feed-expr">'+favHtml+(item.expression||'')+'</div>' +
                 '<div class="dr-room-feed-result">'+resultHtml+'</div>' +
             '</div>' +
             '<div class="dr-room-feed-time">'+ feedTimeAgo(item._ts || Date.now()) +'</div>' +
@@ -5948,7 +5948,8 @@ function exportHistory() {
     var lines = history.map(function(e) {
         var result = e.symbolFaces ? e.symbolFaces.join(', ') : e.total;
         var fav = e.favName ? e.favName + ': ' : '';
-        return fav + e.expression + ' = ' + result;
+        var expr = e.expression.replace(/<[^>]*>/g, '');
+        return fav + expr + ' = ' + result;
     });
     var text = 'Dice Vault Roll History\\n' + new Date().toLocaleDateString() + '\\n\\n' + lines.join('\\n') + '\\n\\n\\u2014 Dice Vault';
     if (navigator.share) {
@@ -6144,7 +6145,8 @@ function exportHistory(){
     var lines = history.map(function(e){
         var result = e.symbolFaces ? e.symbolFaces.join(', ') : e.total;
         var fav = e.favName ? e.favName + ': ' : '';
-        return fav + e.expression + ' = ' + result;
+        var expr = e.expression.replace(/<[^>]*>/g, '');
+        return fav + expr + ' = ' + result;
     });
     var text = 'Dice Vault Roll History\\n' + new Date().toLocaleDateString() + '\\n\\n' + lines.join('\\n') + '\\n\\n\\u2014 Dice Vault';
     if (navigator.share) {
