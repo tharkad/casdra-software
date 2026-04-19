@@ -591,7 +591,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-controls-area { display: flex; gap: 16px; padding: 6px 12px; flex-shrink: 0; align-items: flex-start; }
 .dr-controls-section:first-child { flex: 3; }
 .dr-controls-section:last-child { flex: 2; }
-.dr-controls-label { font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; text-align: center; }
+.dr-controls-label { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; text-align: center; }
 .dr-dice-grid {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
 }
