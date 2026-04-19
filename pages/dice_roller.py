@@ -1543,11 +1543,23 @@ var FACE_OVERRIDES = {
 var FACE_SYMBOLS = Object.assign({}, EMOJI_MAP, FACE_OVERRIDES);
 function faceToDisplay(face) {
     var sym = FACE_SYMBOLS[face.toLowerCase()];
-    if (sym) return '<span title="' + esc(face) + '">' + sym + '</span>';
-    return esc(face);
+    if (!sym) return esc(face);
+    // SVG/HTML symbols get a wrapper; plain emoji returned directly
+    if (sym.indexOf('<') >= 0) return '<span title="' + esc(face) + '">' + sym + '</span>';
+    return sym;
+}
+function faceToText(face) {
+    // Plain text version — emoji for known faces, original text for unknown, no HTML
+    var sym = FACE_SYMBOLS[face.toLowerCase()];
+    if (!sym) return face;
+    if (sym.indexOf('<') >= 0) return face; // SVG faces fall back to word
+    return sym;
 }
 function faceListToDisplay(faces) {
     return faces.map(function(f) { return faceToDisplay(String(f)); }).join(',');
+}
+function faceListToText(faces) {
+    return faces.map(function(f) { return faceToText(String(f)); }).join(',');
 }
 
 function addToCup(type) {
@@ -5948,7 +5960,7 @@ function exportHistory() {
     var lines = history.map(function(e) {
         var result = e.symbolFaces ? e.symbolFaces.join(', ') : e.total;
         var fav = e.favName ? e.favName + ': ' : '';
-        var expr = e.expression.replace(/<[^>]*>/g, '');
+        var expr = e.expression.replace(/<span title="([^"]*)">[^<]*(?:<[^>]*>[^<]*)*<\/span>/g, '$1').replace(/<[^>]*>/g, '');
         return fav + expr + ' = ' + result;
     });
     var text = 'Dice Vault Roll History\\n' + new Date().toLocaleDateString() + '\\n\\n' + lines.join('\\n') + '\\n\\n\\u2014 Dice Vault';
@@ -6145,7 +6157,7 @@ function exportHistory(){
     var lines = history.map(function(e){
         var result = e.symbolFaces ? e.symbolFaces.join(', ') : e.total;
         var fav = e.favName ? e.favName + ': ' : '';
-        var expr = e.expression.replace(/<[^>]*>/g, '');
+        var expr = e.expression.replace(/<span title="([^"]*)">[^<]*(?:<[^>]*>[^<]*)*<\/span>/g, '$1').replace(/<[^>]*>/g, '');
         return fav + expr + ' = ' + result;
     });
     var text = 'Dice Vault Roll History\\n' + new Date().toLocaleDateString() + '\\n\\n' + lines.join('\\n') + '\\n\\n\\u2014 Dice Vault';
