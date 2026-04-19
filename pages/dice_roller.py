@@ -11,23 +11,23 @@ import json
 PREMIUM_MODE_DEFAULT = False
 
 DICE_BUTTONS = [
-    ("COIN", "&#9679;", "#d4a030"),     # circle — first
-    ("d4", "&#9650;", "#3dd68c"),       # triangle
-    ("d6", "&#9632;", "#58a6ff"),       # square
-    ("d8", "&#9670;", "#bc8cff"),       # diamond
-    ("d10", "&#11039;", "#ff9640"),     # pentagon
-    ("d12", "&#11042;", "#ff6b8a"),     # hexagon
-    ("d20", "&#9651;", "#e8c840"),      # triangle outline
-    ("d100", "%", "#40d4e8"),           # percent
-    ("DX", '<svg width="20" height="20" viewBox="0 0 20 20"><polygon points="10,1 17.7,4.5 19.1,12.6 14.3,18.9 5.7,18.9 0.9,12.6 2.3,4.5" fill="currentColor"/></svg>', "#b0b8c0"),  # heptagon
+    ("COIN", "&#9679;", "#d4a030", "Flip a coin \u2014 heads or tails"),
+    ("d4", "&#9650;", "#3dd68c", "4-sided die (1-4)"),
+    ("d6", "&#9632;", "#58a6ff", "6-sided die (1-6)"),
+    ("d8", "&#9670;", "#bc8cff", "8-sided die (1-8)"),
+    ("d10", "&#11039;", "#ff9640", "10-sided die (1-10)"),
+    ("d12", "&#11042;", "#ff6b8a", "12-sided die (1-12)"),
+    ("d20", "&#9651;", "#e8c840", "20-sided die (1-20)"),
+    ("d100", "%", "#40d4e8", "Percentile die (1-100)"),
+    ("DX", '<svg width="20" height="20" viewBox="0 0 20 20"><polygon points="10,1 17.7,4.5 19.1,12.6 14.3,18.9 5.7,18.9 0.9,12.6 2.3,4.5" fill="currentColor"/></svg>', "#b0b8c0", "Custom die \u2014 set any number of sides or word faces"),
 ]
 
 
 def build_dice_page(premium=False, restore_state=None):
     buttons_html = ""
-    for die_id, shape, color in DICE_BUTTONS:
+    for die_id, shape, color, tip in DICE_BUTTONS:
         key = die_id.lower()
-        buttons_html += f"""<button class="dr-die-btn" data-die="{key}" onclick="addToCup('{key}')">
+        buttons_html += f"""<button class="dr-die-btn" data-die="{key}" data-tip="{tip}" onclick="addToCup('{key}')" onmousedown="startBtnTip(this,event)" onmouseup="cancelBtnTip()" onmouseleave="cancelBtnTip()" ontouchstart="startBtnTip(this,event)" ontouchend="endBtnTip(event)" ontouchmove="cancelBtnTip()">
             <span class="dr-die-shape" style="color:{color}">{shape}</span>
             <span class="dr-die-label">{die_id}</span>
         </button>\n"""
@@ -916,9 +916,22 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-formula-row code { background: var(--bg); padding: 2px 6px; border-radius: 4px;
     color: var(--text-bright); font-size: 13px; font-family: 'SF Mono', monospace;
     display: inline-block; width: 140px; flex-shrink: 0; margin-right: 8px; }
+.dr-tooltip {
+    position: fixed; z-index: 2000; display: none;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; font-size: 13px; color: var(--text-bright); font-weight: 600;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4); max-width: 200px; text-align: center;
+    opacity: 0; transition: opacity 0.15s; pointer-events: none;
+}
+.dr-tooltip.visible { display: block; opacity: 1; }
+.dr-tooltip::after {
+    content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    border: 6px solid transparent; border-top-color: var(--border);
+}
 </style>
 </head>
 <body>
+<div class="dr-tooltip" id="btnTooltip"></div>
 <div class="dr-rotate-overlay"><span>&#x1F4F1;</span><p>Please rotate to portrait</p></div>
 <div class="dr-sticky-top" id="stickyTop">
 <div class="dr-header">
@@ -1037,24 +1050,24 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     <div class="dr-controls-section">
         <div class="dr-controls-label">Die Modifiers</div>
         <div class="dr-die-mods-grid">
-            <button class="dr-mod-btn dimmed" id="maxBtn" onclick="toggleMax()" title="Maximum value">Max</button>
-            <button class="dr-mod-btn dimmed" id="minBtn" onclick="toggleMin()" title="Minimum value">Min</button>
-            <button class="dr-mod-btn dr-mod-explode dimmed" id="explodeBtn" onclick="toggleExploding()" title="Exploding"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5"/></svg></button>
-            <button class="dr-mod-btn dimmed" id="successBtn" onclick="toggleSuccess()" title="Count successes">Success</button>
+            <button class="dr-mod-btn dimmed" id="maxBtn" onclick="toggleMax()" title="Maximum value" data-tip="Set maximum value per die" onmousedown="startBtnTip(this,event)" onmouseup="cancelBtnTip()" onmouseleave="cancelBtnTip()" ontouchstart="startBtnTip(this,event)" ontouchend="endBtnTip(event)" ontouchmove="cancelBtnTip()">Max</button>
+            <button class="dr-mod-btn dimmed" id="minBtn" onclick="toggleMin()" title="Minimum value" data-tip="Set minimum value per die" onmousedown="startBtnTip(this,event)" onmouseup="cancelBtnTip()" onmouseleave="cancelBtnTip()" ontouchstart="startBtnTip(this,event)" ontouchend="endBtnTip(event)" ontouchmove="cancelBtnTip()">Min</button>
+            <button class="dr-mod-btn dr-mod-explode dimmed" id="explodeBtn" onclick="toggleExploding()" title="Exploding" data-tip="Exploding dice \u2014 max roll = reroll and add" onmousedown="startBtnTip(this,event)" onmouseup="cancelBtnTip()" onmouseleave="cancelBtnTip()" ontouchstart="startBtnTip(this,event)" ontouchend="endBtnTip(event)" ontouchmove="cancelBtnTip()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="12,0.5 13.5,7.5 17,2 15,8.5 21,4.5 16,9.5 23.5,10 16,11.5 22,16 15.5,13 18,20 13,13.5 12,23.5 11,13.5 6,20 9,13 2,16 8,11.5 0.5,10 8,9.5 3,4.5 9,8.5 7,2 10.5,7.5"/></svg></button>
+            <button class="dr-mod-btn dimmed" id="successBtn" onclick="toggleSuccess()" title="Count successes" data-tip="Count dice meeting a threshold" onmousedown="startBtnTip(this,event)" onmouseup="cancelBtnTip()" onmouseleave="cancelBtnTip()" ontouchstart="startBtnTip(this,event)" ontouchend="endBtnTip(event)" ontouchmove="cancelBtnTip()">Success</button>
         </div>
     </div>
 </div>
 <div class="dr-mod-rows">
     <div class="dr-controls-label">Group Modifiers</div>
     <div class="dr-mod-row">
-        <button class="dr-mod-btn" onclick="promptMod(-1)">-X</button>
-        <button class="dr-mod-btn" onclick="adjustMod(-1)">-1</button>
-        <button class="dr-mod-btn" onclick="adjustMod(+1)">+1</button>
-        <button class="dr-mod-btn" onclick="promptMod(1)">+X</button>
-        <button class="dr-mod-btn dimmed" id="dropHBtn" onclick="toggleDropHighest()" title="Drop highest">DH</button>
-        <button class="dr-mod-btn dimmed" id="dropBtn" onclick="toggleDropLowest()" title="Drop lowest">DL</button>
-        <button class="dr-mod-btn dimmed" id="capBtn" onclick="toggleCap()" title="Cap group total">Cap</button>
-        <button class="dr-mod-btn dimmed" id="floorBtn" onclick="toggleFloor()" title="Floor group total">Floor</button>
+        <button class="dr-mod-btn" onclick="promptMod(-1)" data-tip="Subtract a custom amount" onmousedown="startBtnTip(this,event)" onmouseup="cancelBtnTip()" onmouseleave="cancelBtnTip()" ontouchstart="startBtnTip(this,event)" ontouchend="endBtnTip(event)" ontouchmove="cancelBtnTip()">-X</button>
+        <button class="dr-mod-btn" onclick="adjustMod(-1)" data-tip="Subtract 1 from the roll" onmousedown="startBtnTip(this,event)" onmouseup="cancelBtnTip()" onmouseleave="cancelBtnTip()" ontouchstart="startBtnTip(this,event)" ontouchend="endBtnTip(event)" ontouchmove="cancelBtnTip()">-1</button>
+        <button class="dr-mod-btn" onclick="adjustMod(+1)" data-tip="Add 1 to the roll" onmousedown="startBtnTip(this,event)" onmouseup="cancelBtnTip()" onmouseleave="cancelBtnTip()" ontouchstart="startBtnTip(this,event)" ontouchend="endBtnTip(event)" ontouchmove="cancelBtnTip()">+1</button>
+        <button class="dr-mod-btn" onclick="promptMod(1)" data-tip="Add a custom amount" onmousedown="startBtnTip(this,event)" onmouseup="cancelBtnTip()" onmouseleave="cancelBtnTip()" ontouchstart="startBtnTip(this,event)" ontouchend="endBtnTip(event)" ontouchmove="cancelBtnTip()">+X</button>
+        <button class="dr-mod-btn dimmed" id="dropHBtn" onclick="toggleDropHighest()" title="Drop highest" data-tip="Drop the highest die result" onmousedown="startBtnTip(this,event)" onmouseup="cancelBtnTip()" onmouseleave="cancelBtnTip()" ontouchstart="startBtnTip(this,event)" ontouchend="endBtnTip(event)" ontouchmove="cancelBtnTip()">DH</button>
+        <button class="dr-mod-btn dimmed" id="dropBtn" onclick="toggleDropLowest()" title="Drop lowest" data-tip="Drop the lowest die result" onmousedown="startBtnTip(this,event)" onmouseup="cancelBtnTip()" onmouseleave="cancelBtnTip()" ontouchstart="startBtnTip(this,event)" ontouchend="endBtnTip(event)" ontouchmove="cancelBtnTip()">DL</button>
+        <button class="dr-mod-btn dimmed" id="capBtn" onclick="toggleCap()" title="Cap group total" data-tip="Cap the group total at a maximum" onmousedown="startBtnTip(this,event)" onmouseup="cancelBtnTip()" onmouseleave="cancelBtnTip()" ontouchstart="startBtnTip(this,event)" ontouchend="endBtnTip(event)" ontouchmove="cancelBtnTip()">Cap</button>
+        <button class="dr-mod-btn dimmed" id="floorBtn" onclick="toggleFloor()" title="Floor group total" data-tip="Set a minimum for the group total" onmousedown="startBtnTip(this,event)" onmouseup="cancelBtnTip()" onmouseleave="cancelBtnTip()" ontouchstart="startBtnTip(this,event)" ontouchend="endBtnTip(event)" ontouchmove="cancelBtnTip()">Floor</button>
     </div>
 </div>
 
@@ -1104,6 +1117,38 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 </div>
 
 <script>
+// Tooltip system for long-press on buttons
+var _tipTimer = null;
+var _tipShown = false;
+function startBtnTip(el, e) {
+    _tipShown = false;
+    var tip = el.getAttribute('data-tip');
+    if (!tip) return;
+    _tipTimer = setTimeout(function() {
+        _tipShown = true;
+        var tooltip = document.getElementById('btnTooltip');
+        tooltip.textContent = tip;
+        tooltip.className = 'dr-tooltip visible';
+        var pt = e.touches ? e.touches[0] : e;
+        var x = pt.clientX;
+        var y = pt.clientY;
+        tooltip.style.left = Math.max(8, Math.min(x - tooltip.offsetWidth/2, window.innerWidth - tooltip.offsetWidth - 8)) + 'px';
+        tooltip.style.top = (y - tooltip.offsetHeight - 16) + 'px';
+    }, 400);
+}
+function cancelBtnTip() {
+    if (_tipTimer) { clearTimeout(_tipTimer); _tipTimer = null; }
+    var tooltip = document.getElementById('btnTooltip');
+    if (tooltip) tooltip.className = 'dr-tooltip';
+}
+function endBtnTip(e) {
+    cancelBtnTip();
+    if (_tipShown) {
+        e.preventDefault();
+        _tipShown = false;
+    }
+}
+
 // Die visual config
 var DIE_SHAPES = {
     d4:  {shape:'\\u25B2', color:'#3dd68c'},
