@@ -89,6 +89,7 @@ def build_dice_page(premium=False, restore_state=None):
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 button, a, input { outline: none; -webkit-tap-highlight-color: transparent; }
+* { -webkit-user-select: none; user-select: none; }
 @media (orientation: landscape) and (max-height: 500px) {
     .dr-rotate-overlay { display: flex !important; }
 }
@@ -612,7 +613,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 /* Group modifier rows (centered below) */
 .dr-mod-rows { padding: 4px 16px 8px; flex-shrink: 0; }
 .dr-mod-row {
-    display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
+    display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;
 }
 .dr-mod-row + .dr-mod-row { margin-top: 6px; }
 .dr-mod-boxes {
@@ -624,9 +625,10 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 .dr-mod-btn {
     background: var(--btn-bg); color: var(--text-muted); border: 1px solid var(--border);
-    border-radius: 10px; padding: 8px 12px; font-size: 14px; font-weight: 700;
+    border-radius: 8px; padding: 6px 8px; font-size: 12px; font-weight: 700;
     font-family: inherit; cursor: pointer; white-space: nowrap;
-    min-height: 40px; display: inline-flex; align-items: center; justify-content: center;
+    min-height: 34px; display: inline-flex; align-items: center; justify-content: center;
+    flex: 1 1 0; min-width: 0;
     flex-shrink: 0;
 }
 .dr-mod-btn:hover { border-color: #58a6ff; color: var(--text-bright); }
@@ -1133,7 +1135,7 @@ function startBtnTip(el, e) {
         var x = pt.clientX;
         var y = pt.clientY;
         tooltip.style.left = Math.max(8, Math.min(x - tooltip.offsetWidth/2, window.innerWidth - tooltip.offsetWidth - 8)) + 'px';
-        tooltip.style.top = (y - tooltip.offsetHeight - 16) + 'px';
+        tooltip.style.top = (y - tooltip.offsetHeight - 50) + 'px';
     }, 400);
 }
 function cancelBtnTip() {
