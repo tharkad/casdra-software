@@ -3813,14 +3813,14 @@ function openPackBrowser() {
     document.getElementById('packBrowser').classList.add('open');
     document.getElementById('pbSearch').value = '';
     renderPackBrowser();
-    document.getElementById('pbSearch').focus();
+    // Don't auto-focus search on mobile — shows keyboard immediately
 }
 function showGameList() {
     packBrowserReadOnly = true;
     document.getElementById('packBrowser').classList.add('open');
     document.getElementById('pbSearch').value = '';
     renderPackBrowser();
-    document.getElementById('pbSearch').focus();
+    // Don't auto-focus search on mobile — shows keyboard immediately
 }
 function closePackBrowser() {
     document.getElementById('packBrowser').classList.remove('open');
