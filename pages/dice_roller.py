@@ -595,14 +595,14 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-dice-grid.disabled, .dr-mod-rows.disabled { opacity: 0.3; pointer-events: none; }
 .dr-die-btn {
     background: var(--btn-bg); border: 1px solid var(--border);
-    border-radius: 14px; padding: 12px 6px 8px; width: 72px;
+    border-radius: 12px; padding: 10px 4px 6px; width: 58px;
     display: flex; flex-direction: column; align-items: center; gap: 3px;
     cursor: pointer; transition: all 0.15s; font-family: inherit;
     -webkit-tap-highlight-color: transparent;
 }
 .dr-die-btn:hover { border-color: #58a6ff; box-shadow: 0 0 8px rgba(88,166,255,0.2); }
 .dr-die-btn:active { transform: scale(0.9); background: #1f2937; }
-.dr-die-shape { font-size: 26px; line-height: 1; }
+.dr-die-shape { font-size: 21px; line-height: 1; }
 .dr-die-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
 
 /* Modifier rows */
