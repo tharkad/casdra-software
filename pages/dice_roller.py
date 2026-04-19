@@ -841,6 +841,30 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-history-expr { color: var(--text-muted); font-size: 15px; flex: 1; text-align: center; }
 .dr-history-time { color: var(--text-dim); font-size: 13px; min-width: 60px; text-align: right; }
 .dr-history-empty { text-align: center; color: #30363d; padding: 40px; font-size: 15px; }
+.dr-history-row { display:flex; justify-content:space-between; align-items:center; }
+.dr-history-breakdown { display:flex; flex-wrap:wrap; gap:2px; margin:4px 0; }
+/* History overlay */
+.dr-history-overlay {
+    display: none; position: fixed; inset: 0; background: var(--bg);
+    z-index: 1000; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
+    flex-direction: column;
+}
+.dr-history-overlay.open { display: flex; }
+.dr-history-overlay .dr-history-btn { background:none; border:1px solid var(--border); border-radius:8px;
+    padding:6px 12px; font-size:12px; cursor:pointer; font-family:inherit; font-weight:600; }
+.dr-history-overlay .dr-history-clear { color:var(--text-bright); }
+.dr-history-overlay .dr-history-clear:hover { color:#f85149; border-color:#f85149; }
+.dr-history-overlay .dr-history-export { color:var(--accent); }
+.dr-history-overlay .dr-history-export:hover { border-color:var(--accent); }
+.dr-history-overlay .dr-history-entry {
+    display:flex; flex-direction:column;
+    padding:10px 14px; border-radius:10px; margin-bottom:6px;
+    background:var(--btn-bg); border:1px solid var(--border2); gap:2px;
+}
+.dr-history-overlay .dr-history-total { font-weight:700; color:var(--text-bright); font-size:18px;
+    font-family:'SF Mono',ui-monospace,monospace; }
+.dr-history-overlay .dr-history-expr { color:var(--text-muted); font-size:13px; word-break:break-all; }
+.dr-history-overlay .dr-history-time { color:var(--text-dim); font-size:11px; min-width:60px; text-align:right; }
 
 /* Probability display */
 .dr-prob { font-size: 14px; color: var(--text-muted); margin-top: 4px; min-height: 16px; font-weight: 600; }
@@ -943,7 +967,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <a class="dr-header-btn" href="/dice/help" title="Help" style="text-decoration:none">&#x2753;</a>
         <button class="dr-header-btn" onclick="showRoomDialog()" title="Room" id="roomBtn">&#x1F465;</button>
         <button class="dr-header-btn" id="themeBtn" onclick="toggleThemePicker(event)" title="Theme">&#x1F3A8;</button>
-        <a class="dr-header-btn dr-history-btn" href="/dice/history" title="History" id="historyLink">&#x1F552;</a>
+        <button class="dr-header-btn dr-history-btn" onclick="openHistoryOverlay()" title="History" id="historyLink">&#x1F552;</button>
         <button class="dr-header-btn off" id="soundBtn" onclick="toggleSound()" title="Sound">&#x1F50A;</button>
         <button class="dr-header-btn off" onclick="alert('Shake to roll — coming soon!')" title="Shake" style="display:inline-flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="3" width="10" height="18" rx="2"/><line x1="4" y1="7" x2="2" y2="5"/><line x1="4" y1="12" x2="1" y2="12"/><line x1="4" y1="17" x2="2" y2="19"/><line x1="20" y1="7" x2="22" y2="5"/><line x1="20" y1="12" x2="23" y2="12"/><line x1="20" y1="17" x2="22" y2="19"/></svg></button>
     </div>
@@ -1116,6 +1140,18 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
     </div>
     <input class="dr-pb-search" id="pbSearch" type="text" placeholder="Search games..." oninput="renderPackBrowser()">
     <div id="pbList"></div>
+</div>
+
+<div class="dr-history-overlay" id="historyOverlay">
+    <div class="dr-pb-header">
+        <button class="dr-pb-back" onclick="closeHistoryOverlay()">&larr;</button>
+        <div class="dr-pb-title">Roll History</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:8px 24px">
+        <button class="dr-history-btn dr-history-export" onclick="exportHistory()">Export</button>
+        <button class="dr-history-btn dr-history-clear" onclick="clearHistory()">Clear All</button>
+    </div>
+    <div id="historyOverlayList" style="padding:0 16px;overflow-y:auto;flex:1"></div>
 </div>
 
 <script>
@@ -5841,6 +5877,84 @@ function submitBugReport() {
             document.getElementById('bugStatus').textContent = e.name === 'AbortError' ? 'Timed out — try again' : 'Network error';
             document.getElementById('bugSubmitBtn').disabled = false;
         });
+}
+
+// --- History Overlay ---
+function formatTimeAgo(ts) {
+    var diff=(Date.now()-ts)/1000;
+    if(diff<60) return 'just now';
+    if(diff<3600) return Math.floor(diff/60)+'m ago';
+    if(diff<86400) return Math.floor(diff/3600)+'h ago';
+    return Math.floor(diff/86400)+'d ago';
+}
+function openHistoryOverlay() {
+    var overlay = document.getElementById('historyOverlay');
+    overlay.classList.add('open');
+    renderHistoryOverlay();
+}
+function closeHistoryOverlay() {
+    document.getElementById('historyOverlay').classList.remove('open');
+}
+function renderHistoryOverlay() {
+    var list = document.getElementById('historyOverlayList');
+    var history = [];
+    try { history = JSON.parse(localStorage.getItem('dice_roller_history') || '[]'); } catch(e) {}
+    if (!history.length) { list.innerHTML = '<div class="dr-history-empty">No rolls yet</div>'; return; }
+    list.innerHTML = '';
+    var idx = 0;
+    function renderChunk() {
+        var end = Math.min(idx + 5, history.length);
+        var frag = document.createDocumentFragment();
+        for (; idx < end; idx++) { frag.appendChild(buildHistoryEntry(history[idx])); }
+        list.appendChild(frag);
+        if (idx < history.length) requestAnimationFrame(renderChunk);
+    }
+    renderChunk();
+}
+function buildHistoryEntry(e) {
+    var div = document.createElement('div');
+    div.className = 'dr-history-entry';
+    var favLabel = e.favName ? '<div style="font-size:10px;color:#ffa657;font-weight:600;">' + esc(e.favName) + '</div>' : '';
+    var totalHtml;
+    if (e.symbolFaces && e.symbolFaces.length > 0) {
+        totalHtml = '<span style="display:flex;flex-wrap:wrap;gap:4px">';
+        e.symbolFaces.forEach(function(f) {
+            totalHtml += '<span style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-size:14px">' + faceToDisplay(f) + '</span>';
+        });
+        totalHtml += '</span>';
+    } else {
+        totalHtml = '<span class="dr-history-total">' + esc('' + e.total) + '</span>';
+    }
+    var breakdownRow = '';
+    if (e.breakdownHtml && !e.symbolFaces) {
+        breakdownRow = '<div class="dr-history-breakdown">' + e.breakdownHtml + '</div>';
+    }
+    div.innerHTML =
+        '<div class="dr-history-row">' + totalHtml + '<span class="dr-history-time">' + formatTimeAgo(e.timestamp) + '</span></div>' +
+        breakdownRow +
+        '<div class="dr-history-expr">' + favLabel + esc(e.expression) + '</div>';
+    return div;
+}
+function clearHistory() {
+    localStorage.removeItem('dice_roller_history');
+    renderHistoryOverlay();
+}
+function exportHistory() {
+    var history = [];
+    try { history = JSON.parse(localStorage.getItem('dice_roller_history') || '[]'); } catch(e) {}
+    var lines = history.map(function(e) {
+        var result = e.symbolFaces ? e.symbolFaces.join(', ') : e.total;
+        var fav = e.favName ? e.favName + ': ' : '';
+        return fav + e.expression + ' = ' + result;
+    });
+    var text = 'Dice Vault Roll History\\n' + new Date().toLocaleDateString() + '\\n\\n' + lines.join('\\n') + '\\n\\n\\u2014 Dice Vault';
+    if (navigator.share) {
+        navigator.share({title:'Dice Vault History', text:text}).catch(function(){});
+    } else {
+        navigator.clipboard.writeText(text).then(function(){
+            showToast('History copied to clipboard');
+        });
+    }
 }
 </script>
 </body>
