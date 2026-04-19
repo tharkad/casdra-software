@@ -767,7 +767,7 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 .dr-save-preset.fav-active { border-color: #ffa657; color: #fff; background: #ffa657; }
 .dr-save-preset.dimmed { border-color: var(--border); color: var(--border); pointer-events: none; }
 .dr-clear-cup { font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
-    background: #0a0a0a; border: 1px solid var(--border); color: var(--text-bright);
+    background: #0a0a0a; border: 1px solid var(--text-bright); color: var(--text-bright);
 }
 .dr-clear-cup:hover { border-color: #f85149; color: #f85149; }
 
