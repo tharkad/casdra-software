@@ -1546,6 +1546,9 @@ function faceToDisplay(face) {
     if (sym) return '<span title="' + esc(face) + '">' + sym + '</span>';
     return esc(face);
 }
+function faceListToDisplay(faces) {
+    return faces.map(function(f) { return faceToDisplay(String(f)); }).join(',');
+}
 
 function addToCup(type) {
     if (cupLocked) return;
@@ -4798,7 +4801,7 @@ function buildGroupFormula(g) {
     dice.forEach(function(d) {
         if (d.type==='adv') { specials.push('ADV'); return; }
         if (d.type==='dis') { specials.push('DIS'); return; }
-        var base = d.type==='custom'?'d['+d.faces.join(',')+']':d.type==='coin'?'COIN':d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
+        var base = d.type==='custom'?'d['+faceListToDisplay(d.faces)+']':d.type==='coin'?'COIN':d.type==='dx'?'d'+(d.sides||6):(d.type==='df'?'dF':d.type);
         var attrs = [];
         if (d.exploding) attrs.push('!');
         if (d.clampMin && d.clampMin > 1) attrs.push('min' + d.clampMin);
@@ -4921,7 +4924,7 @@ function syncFormulaFromCup() {
                 inner = parts.join('<span style="color:var(--text-dim)"> + </span>');
             } else {
                 // Leaf group — dice only
-                inner = esc(buildGroupFormula(g) || '').replace(/([+\-,])/g, '$1<wbr>');
+                inner = (buildGroupFormula(g) || '').replace(/([+\-,])/g, '$1<wbr>');
             }
             var wrapped = '(' + inner + ')';
             if (isActive) {
@@ -4951,7 +4954,7 @@ function syncFormulaFromCup() {
             inp.style.height = '';
         } else {
             // Single group — use overlay for wrapping long formulas
-            overlay.innerHTML = esc(formula).replace(/([+\-,])/g, '$1<wbr>');
+            overlay.innerHTML = formula.replace(/([+\-,])/g, '$1<wbr>');
             overlay.style.display = 'block';
             inp.style.color = 'transparent';
             inp.style.background = 'transparent';
