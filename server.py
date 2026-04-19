@@ -4789,7 +4789,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_html(build_big_ideas_page())
 
         elif path == "/dice":
-            premium = qs.get("premium") == "1"
+            premium = qs.get("premium") != "0"  # Default to pro during testing
             restore_id = qs.get("restore")
             restore_state = None
             if restore_id:
