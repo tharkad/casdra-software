@@ -5935,7 +5935,7 @@ function buildHistoryEntry(e) {
     div.innerHTML =
         '<div class="dr-history-row">' + totalHtml + '<span class="dr-history-time">' + formatTimeAgo(e.timestamp) + '</span></div>' +
         breakdownRow +
-        '<div class="dr-history-expr">' + favLabel + esc(e.expression) + '</div>';
+        '<div class="dr-history-expr">' + favLabel + e.expression + '</div>';
     return div;
 }
 function clearHistory() {
@@ -6134,7 +6134,7 @@ function buildEntry(e) {
     div.innerHTML =
         '<div class="dr-history-row">' + totalHtml + '<span class="dr-history-time">'+formatTimeAgo(e.timestamp)+'</span></div>' +
         breakdownRow +
-        '<div class="dr-history-expr">'+favLabel+esc(e.expression)+'</div>';
+        '<div class="dr-history-expr">'+favLabel+e.expression+'</div>';
     return div;
 }
 function clearHistory(){localStorage.removeItem('dice_roller_history');render();}
