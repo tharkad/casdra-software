@@ -588,8 +588,9 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
 }
 /* Dice grid */
 /* Combined dice + modifier layout */
-.dr-controls-area { display: flex; gap: 8px; padding: 6px 12px; flex-shrink: 0; align-items: flex-start; }
-.dr-controls-section { flex: 1; }
+.dr-controls-area { display: flex; gap: 16px; padding: 6px 12px; flex-shrink: 0; align-items: flex-start; }
+.dr-controls-section:first-child { flex: 3; }
+.dr-controls-section:last-child { flex: 2; }
 .dr-controls-label { font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; text-align: center; }
 .dr-dice-grid {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
@@ -1049,16 +1050,10 @@ a.dr-back { color: #58a6ff; text-decoration: none; font-size: 16px; font-weight:
         <button class="dr-mod-btn" onclick="adjustMod(-1)">-1</button>
         <button class="dr-mod-btn" onclick="adjustMod(+1)">+1</button>
         <button class="dr-mod-btn" onclick="promptMod(1)">+X</button>
-    </div>
-    <div class="dr-mod-boxes">
-        <div class="dr-mod-box">
-            <button class="dr-mod-btn dimmed" id="dropHBtn" onclick="toggleDropHighest()" title="Drop highest">DH</button>
-            <button class="dr-mod-btn dimmed" id="dropBtn" onclick="toggleDropLowest()" title="Drop lowest">DL</button>
-        </div>
-        <div class="dr-mod-box">
-            <button class="dr-mod-btn dimmed" id="capBtn" onclick="toggleCap()" title="Cap group total">Cap</button>
-            <button class="dr-mod-btn dimmed" id="floorBtn" onclick="toggleFloor()" title="Floor group total">Floor</button>
-        </div>
+        <button class="dr-mod-btn dimmed" id="dropHBtn" onclick="toggleDropHighest()" title="Drop highest">DH</button>
+        <button class="dr-mod-btn dimmed" id="dropBtn" onclick="toggleDropLowest()" title="Drop lowest">DL</button>
+        <button class="dr-mod-btn dimmed" id="capBtn" onclick="toggleCap()" title="Cap group total">Cap</button>
+        <button class="dr-mod-btn dimmed" id="floorBtn" onclick="toggleFloor()" title="Floor group total">Floor</button>
     </div>
 </div>
 
@@ -2065,6 +2060,8 @@ function updateCupDisplay() {
         }
         // Restore dice grid and modifiers from symbol/lock mode
         document.querySelector('.dr-mod-rows').style.display = cupLocked ? 'none' : '';
+        var ca = document.querySelector('.dr-controls-area');
+        if (ca) ca.style.display = cupLocked ? 'none' : '';
         var dg = document.getElementById('diceGrid');
         if (dg) {
             dg.style.display = cupLocked ? 'none' : '';
@@ -2246,6 +2243,8 @@ function updateCupDisplay() {
     var symMode = isSymbolMode();
     var hideModRows = symMode || cupLocked;
     document.querySelector('.dr-mod-rows').style.display = hideModRows ? 'none' : '';
+    var controlsArea = document.querySelector('.dr-controls-area');
+    if (controlsArea) controlsArea.style.display = (cupLocked || symMode) ? 'none' : '';
     var addGroupBtn = document.querySelector('.dr-add-group');
     if (addGroupBtn) addGroupBtn.style.display = (symMode || cupLocked) ? 'none' : '';
     var diceGrid = document.getElementById('diceGrid');
@@ -3000,6 +2999,8 @@ function toggleLock() {
 
     // Hide dice buttons + modifier rows (pack tabs stay visible for switching presets)
     var symMode = isSymbolMode();
+    var controlsArea = document.querySelector('.dr-controls-area');
+    if (controlsArea) controlsArea.style.display = (cupLocked || symMode) ? 'none' : '';
     diceGrid.style.display = cupLocked ? 'none' : '';
     modRows.style.display = (cupLocked || symMode) ? 'none' : '';
     // Restore/apply symbol mode dimming on dice buttons when unlocking
