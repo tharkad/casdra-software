@@ -3836,6 +3836,11 @@ def build_dicevault_product_page():
         </div>
     </div>
 
+    <!-- Differentiator -->
+    <div class="dv-callout" style="max-width:640px;margin:0 auto">
+        <p><strong>Most rollers just roll. Dice Vault shows you all the possible outcomes.</strong></p>
+    </div>
+
     <!-- Screenshots -->
     <div class="dv-screenshots">
         <div class="dv-screenshots-inner">
