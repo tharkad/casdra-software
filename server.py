@@ -4109,6 +4109,167 @@ def build_dicevault_product_page():
     return html_page("Dice Vault &mdash; Roll any dice. See your odds.", body, extra_css=css)
 
 
+def _dicevault_legal_css():
+    return r"""
+    body { background: #0d1117; color: #e6edf3; }
+    .navbar { display: none; }
+    * { box-sizing: border-box; }
+    .dv-legal { max-width: 720px; margin: 0 auto; padding: 40px 20px 60px; }
+    .dv-legal h1 { font-size: 32px; font-weight: 800; color: #fff; margin: 0 0 8px; }
+    .dv-legal .updated { font-size: 13px; color: #484f58; margin-bottom: 32px; }
+    .dv-legal h2 { font-size: 20px; font-weight: 700; color: #fff; margin: 32px 0 8px; }
+    .dv-legal p { font-size: 15px; color: #8b949e; line-height: 1.7; margin: 0 0 12px; }
+    .dv-legal ul { padding-left: 20px; margin: 0 0 12px; }
+    .dv-legal li { font-size: 15px; color: #8b949e; line-height: 1.7; margin-bottom: 4px; }
+    .dv-legal a { color: #58a6ff; text-decoration: none; }
+    .dv-legal a:hover { text-decoration: underline; }
+    .dv-legal .back { display: inline-block; margin-bottom: 24px; font-size: 14px; color: #58a6ff; text-decoration: none; }
+    """
+
+
+def build_dicevault_privacy_page():
+    css = _dicevault_legal_css()
+    body = r"""
+    <div class="dv-legal">
+        <a class="back" href="/dicevault">&larr; Dice Vault</a>
+        <h1>Privacy Policy</h1>
+        <p class="updated">Last updated: May 3, 2026</p>
+
+        <p>Dice Vault is made by Casdra Software LLC. This policy explains what data the app
+        collects, how it's used, and your choices.</p>
+
+        <h2>The short version</h2>
+        <p>Dice Vault does not track you. There are no analytics, no advertising SDKs, no user accounts,
+        and no third-party data sharing. Most data stays on your device. The small amount that
+        reaches our server is only what you explicitly send.</p>
+
+        <h2>Data stored on your device</h2>
+        <p>The following is stored locally via your browser or app storage. It never leaves your device
+        unless you use one of the server features below.</p>
+        <ul>
+            <li>Dice cup configuration and roll history</li>
+            <li>Saved favorites and game packs</li>
+            <li>Theme, sound, and display preferences</li>
+            <li>Player name (if you set one)</li>
+        </ul>
+        <p>You can clear all local data at any time through your browser or by deleting the app.</p>
+
+        <h2>Data sent to our server</h2>
+        <p>These features are optional. If you don't use them, no data is sent.</p>
+
+        <p><strong>Game Rooms.</strong> When you create or join a shared room, your chosen display name,
+        color, and dice roll results are sent to our server and shared with other players in the room.
+        Room data is temporary and not retained after the session ends.</p>
+
+        <p><strong>Bug Reports.</strong> If you submit a bug report, your name, description, a screenshot
+        of the app, and the current app configuration are sent to our server to help us fix the issue.
+        Bug reports are retained for debugging purposes.</p>
+
+        <p><strong>Community Packs.</strong> If you submit a community dice pack, your display name and
+        the pack contents are sent to our server. Approved packs become publicly available to other users.</p>
+
+        <h2>Rate limiting</h2>
+        <p>Your IP address is used temporarily in server memory to prevent abuse (rate limiting).
+        IP addresses are not stored in our database and are discarded within 60 seconds.</p>
+
+        <h2>Advertising</h2>
+        <p>The free version of Dice Vault may display banner ads. If ads are present, the ad provider
+        may collect data according to their own privacy policy. Upgrading to Pro removes all ads.</p>
+
+        <h2>No analytics or tracking</h2>
+        <p>Dice Vault does not use Google Analytics, Firebase, or any other analytics or tracking service.
+        We do not collect device identifiers, usage patterns, or behavioral data.</p>
+
+        <h2>No user accounts</h2>
+        <p>Dice Vault does not require registration or login. There are no user accounts, passwords,
+        or email addresses collected.</p>
+
+        <h2>Children</h2>
+        <p>Dice Vault does not knowingly collect personal information from children under 13.
+        The app does not require any personal information to use.</p>
+
+        <h2>Data security</h2>
+        <p>All communication between the app and our server uses HTTPS encryption.
+        Server data is stored in a SQLite database on our hosted infrastructure.</p>
+
+        <h2>Changes to this policy</h2>
+        <p>We may update this policy from time to time. The "last updated" date at the top will reflect
+        any changes. Continued use of the app after changes constitutes acceptance.</p>
+
+        <h2>Contact</h2>
+        <p>Questions about this policy? Email <a href="mailto:privacy@casdra.com">privacy@casdra.com</a>.</p>
+
+        <p style="margin-top:32px;color:#484f58;font-size:13px">&copy; 2026 Casdra Software LLC</p>
+    </div>
+    """
+    return html_page("Privacy Policy &mdash; Dice Vault", body, extra_css=css)
+
+
+def build_dicevault_terms_page():
+    css = _dicevault_legal_css()
+    body = r"""
+    <div class="dv-legal">
+        <a class="back" href="/dicevault">&larr; Dice Vault</a>
+        <h1>Terms of Service</h1>
+        <p class="updated">Last updated: May 3, 2026</p>
+
+        <p>These terms govern your use of Dice Vault, a dice rolling application made by
+        Casdra Software LLC ("we", "us", "our").</p>
+
+        <h2>Using Dice Vault</h2>
+        <p>Dice Vault is provided "as is" without warranty of any kind. You may use the app for
+        personal, non-commercial purposes. We reserve the right to modify, suspend, or discontinue
+        the service at any time.</p>
+
+        <h2>Free and Pro tiers</h2>
+        <p>Dice Vault is free to download and use. A one-time Pro upgrade is available as an in-app
+        purchase. Pro is a permanent unlock &mdash; no subscription, no recurring charges. Refunds
+        are handled through Apple or Google's standard refund process.</p>
+
+        <h2>Game Rooms</h2>
+        <p>Shared Game Rooms are temporary sessions. We do not guarantee room availability or
+        persistence. Room data may be cleared at any time. You are responsible for the display name
+        you choose &mdash; do not impersonate others or use offensive names.</p>
+
+        <h2>Community Packs</h2>
+        <p>By submitting a community dice pack, you grant Casdra Software LLC a non-exclusive,
+        royalty-free license to distribute the pack to other users. We may review, approve, reject,
+        or remove submitted packs at our discretion. Do not submit packs containing offensive,
+        infringing, or inappropriate content.</p>
+
+        <h2>Acceptable use</h2>
+        <p>You agree not to:</p>
+        <ul>
+            <li>Abuse rate limits or attempt to disrupt the service</li>
+            <li>Submit offensive or harmful content through bug reports, rooms, or packs</li>
+            <li>Reverse-engineer, decompile, or modify the app beyond normal use</li>
+            <li>Use the app for any unlawful purpose</li>
+        </ul>
+
+        <h2>Intellectual property</h2>
+        <p>Dice Vault, its design, and its code are the property of Casdra Software LLC.
+        Game system names referenced in Game Packs (e.g., D&amp;D, Pathfinder) are trademarks
+        of their respective owners. Dice Vault is not affiliated with or endorsed by any
+        game publisher.</p>
+
+        <h2>Limitation of liability</h2>
+        <p>To the maximum extent permitted by law, Casdra Software LLC is not liable for any
+        indirect, incidental, or consequential damages arising from your use of Dice Vault.
+        Our total liability is limited to the amount you paid for the app.</p>
+
+        <h2>Changes to these terms</h2>
+        <p>We may update these terms from time to time. The "last updated" date at the top will
+        reflect any changes. Continued use of the app after changes constitutes acceptance.</p>
+
+        <h2>Contact</h2>
+        <p>Questions about these terms? Email <a href="mailto:legal@casdra.com">legal@casdra.com</a>.</p>
+
+        <p style="margin-top:32px;color:#484f58;font-size:13px">&copy; 2026 Casdra Software LLC</p>
+    </div>
+    """
+    return html_page("Terms of Service &mdash; Dice Vault", body, extra_css=css)
+
+
 def build_hello_page():
     body = """
     <div class="navbar"><a href="/">&#8249; Back</a></div>
@@ -5227,6 +5388,12 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/dicevault":
             self.send_html(build_dicevault_product_page())
+
+        elif path == "/dicevault/privacy":
+            self.send_html(build_dicevault_privacy_page())
+
+        elif path == "/dicevault/terms":
+            self.send_html(build_dicevault_terms_page())
 
         elif path == "/hello":
             self.send_html(build_hello_page())
