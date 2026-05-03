@@ -4021,8 +4021,8 @@ def build_dicevault_product_page():
         </div>
 
         <div class="dv-callout">
-            <p><strong>Game Rooms are built for the whole table.</strong>
-            Only the host needs Pro &mdash; everyone else joins free.
+            <p><strong>Game Rooms are built for the whole table.</strong></p>
+            <p>Only the host needs Pro &mdash; everyone else joins free.
             One paying player brings the entire group in.</p>
         </div>
     </div>
