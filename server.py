@@ -5622,6 +5622,20 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(APPLE_TOUCH_ICON_PNG)
 
+        elif path == "/static/dicevault-icon.png":
+            try:
+                img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "dicevault-icon.png")
+                with open(img_path, "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "public, max-age=86400")
+                self.end_headers()
+                self.wfile.write(data)
+            except FileNotFoundError:
+                self.send_error(404)
+
         elif path == "/static/html2canvas.min.js":
             try:
                 js_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "html2canvas.min.js")
