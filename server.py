@@ -3661,7 +3661,7 @@ def build_web_home_page():
         <h1>Casdra Software</h1>
         <p>Building things we love</p>
         <div class="home-apps">
-            <a class="app-card" href="/dice">
+            <a class="app-card" href="/dicevault">
                 <h2>Dice Vault</h2>
                 <p>Roll dice for any game — RPG, board game, or just for fun</p>
             </a>
@@ -3673,6 +3673,440 @@ def build_web_home_page():
     </div>
     """
     return html_page("Casdra Software", body, extra_css=css)
+
+
+def build_dicevault_product_page():
+    """Product / marketing page for Dice Vault."""
+    css = r"""
+    body { background: #0d1117; color: #e6edf3; }
+    .navbar { display: none; }
+    * { box-sizing: border-box; }
+
+    /* ── Hero ─────────────────────────────────────────── */
+    .dv-hero {
+        text-align: center; padding: 60px 20px 40px;
+        background: linear-gradient(180deg, #161b22 0%, #0d1117 100%);
+    }
+    .dv-hero-icon {
+        width: 140px; height: 140px; border-radius: 32px;
+        margin: 0 auto 24px; overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 60px rgba(88,166,255,0.15);
+    }
+    .dv-hero-icon img { width: 100%; height: 100%; display: block; }
+    .dv-hero h1 { font-size: 44px; font-weight: 800; letter-spacing: -1px; color: #fff; margin: 0; }
+    .dv-hero .tagline { font-size: 18px; color: #8b949e; margin-top: 8px; }
+    .dv-hero .status { margin-top: 16px; font-size: 14px; color: #8b949e; }
+
+    /* ── Store Buttons ────────────────────────────────── */
+    .dv-stores { display: flex; gap: 12px; justify-content: center; margin-top: 24px; flex-wrap: wrap; }
+    .dv-store-btn {
+        display: inline-flex; align-items: center; gap: 10px;
+        background: #fff; color: #000; text-decoration: none;
+        border-radius: 12px; padding: 12px 24px;
+        font-weight: 600; font-size: 15px; transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .dv-store-btn:hover { transform: scale(1.03); box-shadow: 0 4px 20px rgba(255,255,255,0.15); }
+    .dv-store-btn:active { transform: scale(0.97); }
+    .dv-store-btn .store-icon { font-size: 28px; }
+    .dv-store-btn .store-label { text-align: left; line-height: 1.2; }
+    .dv-store-btn .store-label small { font-size: 10px; font-weight: 400; display: block; color: #666; }
+
+    /* ── Screenshot Grid ──────────────────────────────── */
+    .dv-screenshots { padding: 40px 40px; }
+    @media (max-width: 500px) { .dv-screenshots { padding: 40px 20px; } }
+    .dv-screenshots-inner {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    }
+    @media (max-width: 700px) { .dv-screenshots-inner { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { .dv-screenshots-inner { grid-template-columns: 1fr; } }
+    .dv-screenshot {
+        border-radius: 20px; border: 2px solid #30363d; overflow: hidden;
+        background: #161b22;
+    }
+    .dv-screenshot .phone-frame {
+        width: 100%; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; padding: 32px 20px; text-align: center;
+    }
+    .dv-screenshot .ss-icon { font-size: 48px; margin-bottom: 12px; }
+    .dv-screenshot .ss-title { font-size: 15px; font-weight: 700; color: #fff; }
+    .dv-screenshot .ss-desc { font-size: 12px; color: #8b949e; margin-top: 6px; line-height: 1.4; }
+
+    /* ── Section Layout ───────────────────────────────── */
+    .dv-section { max-width: 960px; margin: 0 auto; padding: 48px 20px; }
+    .dv-section h2 {
+        font-size: 28px; font-weight: 800; color: #fff; margin: 0 0 12px;
+        letter-spacing: -0.5px;
+    }
+    .dv-section p { font-size: 15px; color: #8b949e; line-height: 1.7; margin: 0 0 16px; }
+    .dv-section-alt { background: #161b22; }
+
+    /* ── Feature Grid ─────────────────────────────────── */
+    .dv-features { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+    @media (max-width: 500px) { .dv-features { grid-template-columns: 1fr; } }
+    .dv-feat {
+        background: #161b22; border: 1px solid #30363d; border-radius: 14px;
+        padding: 20px; transition: border-color 0.2s;
+    }
+    .dv-section-alt .dv-feat { background: #0d1117; }
+    .dv-feat:hover { border-color: #d4a030; }
+    .dv-feat .feat-icon { font-size: 28px; margin-bottom: 8px; }
+    .dv-feat h3 { font-size: 15px; font-weight: 700; color: #fff; margin: 0 0 4px; }
+    .dv-feat p { font-size: 13px; color: #8b949e; margin: 0; line-height: 1.5; }
+    /* ── Inline chart replica ─────────────────────────── */
+    .dv-mini-chart { display: flex; align-items: flex-end; gap: 3px; height: 52px; margin-bottom: 10px; }
+    .dv-mini-bar { flex: 1; border-radius: 2px 2px 0 0; min-width: 4px; }
+    .dv-mini-bar.highlight { filter: brightness(1); box-shadow: 0 0 6px 2px rgba(255,255,255,0.4); }
+    .dv-mini-labels { display: flex; justify-content: space-between; font-size: 10px; color: #8b949e;
+                      margin-top: 2px; margin-bottom: 6px; }
+
+    .dv-feat .pro-tag {
+        display: inline-block; background: #d4a030; color: #000; font-size: 10px;
+        font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 6px;
+        vertical-align: middle; text-transform: uppercase;
+    }
+
+    /* ── Game Packs ───────────────────────────────────── */
+    .dv-packs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .dv-pack-chip {
+        background: #21262d; border: 1px solid #30363d; border-radius: 20px;
+        padding: 6px 14px; font-size: 13px; color: #c9d1d9; white-space: nowrap;
+    }
+
+    /* ── Pricing ──────────────────────────────────────── */
+    .dv-pricing { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; max-width: 640px; margin-left: auto; margin-right: auto; }
+    @media (max-width: 500px) { .dv-pricing { grid-template-columns: 1fr; } }
+    .dv-price-card {
+        border: 1px solid #30363d; border-radius: 16px; padding: 24px; text-align: center;
+        background: #161b22; position: relative;
+    }
+    .dv-price-card.featured {
+        border-color: #d4a030; background: linear-gradient(180deg, #161b22, #0d1117);
+        box-shadow: 0 0 24px rgba(212,160,48,0.15);
+    }
+    .dv-price-card .badge {
+        position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+        background: #d4a030; color: #000; font-size: 11px; font-weight: 700;
+        padding: 3px 12px; border-radius: 10px; text-transform: uppercase;
+    }
+    .dv-price-card h3 { font-size: 20px; font-weight: 700; color: #fff; margin: 0 0 4px; }
+    .dv-price-card .price { font-size: 32px; font-weight: 800; color: #fff; margin: 8px 0 4px; }
+    .dv-price-card .price-sub { font-size: 13px; font-weight: 700; color: #c9d1d9; margin-bottom: 8px; }
+    .dv-price-card ul {
+        list-style: none; padding: 0; margin: 16px 0 0; text-align: left;
+        font-size: 13px; color: #c9d1d9;
+    }
+    .dv-price-card ul li { padding: 4px 0; }
+    .dv-price-card ul li::before { content: '\2713 '; color: #3dd68c; font-weight: 700; }
+    .dv-price-card.featured ul li::before { color: #d4a030; }
+
+    /* ── Differentiator callout ────────────────────────── */
+    .dv-callout {
+        background: linear-gradient(135deg, rgba(88,166,255,0.08), rgba(188,140,255,0.08));
+        border: 1px solid rgba(88,166,255,0.2); border-radius: 14px;
+        padding: 24px; margin-top: 24px; text-align: center;
+    }
+    .dv-callout p { color: #c9d1d9; margin: 0; }
+    .dv-callout strong { color: #fff; }
+
+    /* ── Footer ───────────────────────────────────────── */
+    .dv-footer {
+        text-align: center; padding: 40px 20px; border-top: 1px solid #21262d;
+        font-size: 13px; color: #484f58;
+    }
+    .dv-footer a { color: #58a6ff; text-decoration: none; }
+    .dv-footer a:hover { text-decoration: underline; }
+    """
+
+    body = r"""
+    <!-- Hero -->
+    <div class="dv-hero">
+        <div class="dv-hero-icon"><img src="/static/dicevault-icon.png" alt="Dice Vault"></div>
+        <h1>Dice Vault</h1>
+        <p class="tagline">Roll any dice. See your odds. Play any game.</p>
+        <p class="status">Coming soon to iOS &amp; Android</p>
+        <div class="dv-stores">
+            <a class="dv-store-btn" href="#" onclick="event.preventDefault()">
+                <span class="store-icon">&#63743;</span>
+                <span class="store-label"><small>Download on the</small>App Store</span>
+            </a>
+            <a class="dv-store-btn" href="#" onclick="event.preventDefault()">
+                <span class="store-icon">&#9654;</span>
+                <span class="store-label"><small>Get it on</small>Google Play</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Screenshots -->
+    <div class="dv-screenshots">
+        <div class="dv-screenshots-inner">
+            <div class="dv-screenshot">
+                <div class="phone-frame" style="background:linear-gradient(180deg,#1a1a2e,#0d1117)">
+                    <div class="dv-mini-chart" style="width:80%;margin:0 auto 12px">
+                        <div class="dv-mini-bar" style="height:9px;background:hsl(20,85%,50%)"></div>
+                        <div class="dv-mini-bar" style="height:17px;background:hsl(40,85%,50%)"></div>
+                        <div class="dv-mini-bar" style="height:26px;background:hsl(60,85%,50%)"></div>
+                        <div class="dv-mini-bar" style="height:35px;background:hsl(80,85%,50%)"></div>
+                        <div class="dv-mini-bar" style="height:43px;background:hsl(100,85%,50%)"></div>
+                        <div class="dv-mini-bar highlight" style="height:52px;background:hsl(120,85%,50%)"></div>
+                        <div class="dv-mini-bar" style="height:43px;background:hsl(100,85%,50%)"></div>
+                        <div class="dv-mini-bar" style="height:35px;background:hsl(80,85%,50%)"></div>
+                        <div class="dv-mini-bar" style="height:26px;background:hsl(60,85%,50%)"></div>
+                        <div class="dv-mini-bar" style="height:17px;background:hsl(40,85%,50%)"></div>
+                        <div class="dv-mini-bar" style="height:9px;background:hsl(20,85%,50%)"></div>
+                    </div>
+                    <div class="dv-mini-labels" style="width:80%;margin:0 auto 8px"><span>2</span><span>7</span><span>12</span></div>
+                    <div class="ss-title">Live Probability</div>
+                    <div class="ss-desc">Distribution chart updates as you build your dice pool. See your odds before you roll.</div>
+                </div>
+            </div>
+            <div class="dv-screenshot">
+                <div class="phone-frame" style="background:linear-gradient(180deg,#1a2e1a,#0d1117)">
+                    <div class="ss-icon">&#127922;</div>
+                    <div class="ss-title">Visual Dice Cup</div>
+                    <div class="ss-desc">Felt-texture cup with geometric die shapes. d4 through d100, coins, and custom faces.</div>
+                </div>
+            </div>
+            <div class="dv-screenshot">
+                <div class="phone-frame" style="background:linear-gradient(180deg,#2e1a2e,#0d1117)">
+                    <div class="ss-icon">&#128218;</div>
+                    <div class="ss-title">18 Game Packs</div>
+                    <div class="ss-desc">D&amp;D, Pathfinder, Savage Worlds, Blades in the Dark, Strat-O-Matic, and more.</div>
+                </div>
+            </div>
+            <div class="dv-screenshot">
+                <div class="phone-frame" style="background:linear-gradient(180deg,#2e2a1a,#0d1117)">
+                    <div class="ss-icon">&#128101;</div>
+                    <div class="ss-title">Game Rooms</div>
+                    <div class="ss-desc">Real-time multiplayer. Share a room code &mdash; your whole table joins free.</div>
+                </div>
+            </div>
+            <div class="dv-screenshot">
+                <div class="phone-frame" style="background:linear-gradient(180deg,#1a2e2e,#0d1117)">
+                    <div class="ss-icon">&#9878;</div>
+                    <div class="ss-title">Multi-Group Formulas</div>
+                    <div class="ss-desc">4d6 drop lowest + 1d8. Compound rolls with operators.</div>
+                </div>
+            </div>
+            <div class="dv-screenshot">
+                <div class="phone-frame" style="background:linear-gradient(180deg,#2e1a1a,#0d1117)">
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:12px">
+                        <span style="font-size:22px;background:#21262d;border-radius:6px;padding:4px;text-align:center">&#128128;</span>
+                        <span style="font-size:22px;background:#21262d;border-radius:6px;padding:4px;text-align:center">&#127939;</span>
+                        <span style="font-size:22px;background:#21262d;border-radius:6px;padding:4px;text-align:center">&#128165;</span>
+                        <span style="font-size:22px;background:#21262d;border-radius:6px;padding:4px;text-align:center">&#9876;&#65039;</span>
+                        <span style="font-size:22px;background:#21262d;border-radius:6px;padding:4px;text-align:center">&#128737;</span>
+                        <span style="font-size:22px;background:#21262d;border-radius:6px;padding:4px;text-align:center">&#10024;</span>
+                    </div>
+                    <div class="ss-title">Custom Dice</div>
+                    <div class="ss-desc">Any number of sides &mdash; d7, d13, d30. Or use words and emoji as faces for games like Zombie Dice and King of Tokyo.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Features (Free) -->
+    <div class="dv-section">
+        <h2>Roll any dice. Know your odds.</h2>
+        <p>Dice Vault combines rolling with live probability analysis. Build your pool,
+        see the distribution, roll, and watch your result light up on the chart.</p>
+        <div class="dv-features">
+            <div class="dv-feat">
+                <div class="feat-icon">&#127922;</div>
+                <h3>9 Dice Types</h3>
+                <p>d4, d6, d8, d10, d12, d20, d100, coins, and advantage/disadvantage. Every standard die in tabletop gaming.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="dv-mini-chart">
+                    <div class="dv-mini-bar" style="height:9px;background:hsl(20,85%,50%)"></div>
+                    <div class="dv-mini-bar" style="height:17px;background:hsl(40,85%,50%)"></div>
+                    <div class="dv-mini-bar" style="height:26px;background:hsl(60,85%,50%)"></div>
+                    <div class="dv-mini-bar" style="height:35px;background:hsl(80,85%,50%)"></div>
+                    <div class="dv-mini-bar" style="height:43px;background:hsl(100,85%,50%)"></div>
+                    <div class="dv-mini-bar highlight" style="height:52px;background:hsl(120,85%,50%)"></div>
+                    <div class="dv-mini-bar" style="height:43px;background:hsl(100,85%,50%)"></div>
+                    <div class="dv-mini-bar" style="height:35px;background:hsl(80,85%,50%)"></div>
+                    <div class="dv-mini-bar" style="height:26px;background:hsl(60,85%,50%)"></div>
+                    <div class="dv-mini-bar" style="height:17px;background:hsl(40,85%,50%)"></div>
+                    <div class="dv-mini-bar" style="height:9px;background:hsl(20,85%,50%)"></div>
+                </div>
+                <div class="dv-mini-labels"><span>2</span><span>7</span><span>12</span></div>
+                <h3>Live Distribution Chart</h3>
+                <p>See the exact probability curve for your dice pool. Your roll highlights on the chart with "25% &mdash; decent" text.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#10024;</div>
+                <h3>Full Modifier Suite</h3>
+                <p>Drop lowest/highest, exploding dice with full chain display, min/max clamps, floor/cap totals, count successes.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#128274;</div>
+                <h3>Lock &amp; Roll</h3>
+                <p>Lock your cup to freeze the configuration. Tap and roll. No accidental changes mid-session.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#11088;</div>
+                <h3>Favorites</h3>
+                <p>Save any roll as a one-tap favorite. 5 slots in free, unlimited in Pro.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#128247;</div>
+                <h3>Share Roll Cards</h3>
+                <p>Share your roll as a styled image card. Show off that natural 20 in your group chat.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#128336;</div>
+                <h3>Roll History</h3>
+                <p>Browse previous rolls with full breakdowns. Swipe through your session history.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#127912;</div>
+                <h3>2 Themes</h3>
+                <p>Dark and Parchment (Light) included free. 4 additional themes in Pro.</p>
+            </div>
+        </div>
+
+        <div class="dv-callout">
+            <p><strong>Count Successes</strong> is a rare feature among dice apps.
+            Set a threshold, roll your pool, and get a success count &mdash; essential
+            for World of Darkness, Shadowrun, and other dice pool systems.</p>
+        </div>
+    </div>
+
+    <!-- Pro Features -->
+    <div class="dv-section dv-section-alt">
+        <h2>Pro: for GMs and power users</h2>
+        <p>Everything above works for free. Pro unlocks the advanced tools
+        that multi-system players and game masters reach for.</p>
+        <div class="dv-features">
+            <div class="dv-feat">
+                <div class="feat-icon">&#9878;</div>
+                <h3>Multi-Group Formulas <span class="pro-tag">Pro</span></h3>
+                <p>Combine dice groups with +, &minus;, or | (display). Build compound rolls like 4d6dl + 1d8 or Column | Play results.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#128077;</div>
+                <h3>Per-Die Selection <span class="pro-tag">Pro</span></h3>
+                <p>Long-press any die to target modifiers at individual dice. Set one d6 to explode while another stays normal.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#128218;</div>
+                <h3>18 Game Packs <span class="pro-tag">Pro</span></h3>
+                <p>Pre-built presets for D&amp;D, Pathfinder, Fate, Savage Worlds, Blades, DCC, Strat-O-Matic, and 11 more.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#128101;</div>
+                <h3>Game Rooms <span class="pro-tag">Pro</span></h3>
+                <p>Real-time multiplayer rolling. Create a room, share the code, and everyone rolls into the same live feed. Only the host needs Pro &mdash; your whole table joins free.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#127920;</div>
+                <h3>Pack Organization <span class="pro-tag">Pro</span></h3>
+                <p>Create your own packs, drag to reorder, and organize favorites by game. Keep your collection tidy.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#127912;</div>
+                <h3>All 6 Themes <span class="pro-tag">Pro</span></h3>
+                <p>Midnight, Purple, Forest, and Blood join Dark and Parchment. Match your table's aesthetic.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#9734;</div>
+                <h3>Unlimited Favorites <span class="pro-tag">Pro</span></h3>
+                <p>No preset limit. Organize your favorites into game-specific packs with drag-and-drop reorder.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#127760;</div>
+                <h3>Community Packs <span class="pro-tag">Pro</span></h3>
+                <p>Submit your own game packs for other players to discover. Access packs built by the community.</p>
+            </div>
+        </div>
+
+        <div class="dv-callout">
+            <p><strong>Game Rooms are built for the whole table.</strong>
+            Only the host needs Pro &mdash; everyone else joins free.
+            One paying player brings the entire group in.</p>
+        </div>
+    </div>
+
+    <!-- Game Packs List -->
+    <div class="dv-section">
+        <h2>18 built-in Game Packs</h2>
+        <p>Each pack loads the correct dice with the right modifiers for your system.
+        No manual setup. Just pick your game and roll.</p>
+        <div class="dv-packs">
+            <span class="dv-pack-chip">D&amp;D 5e</span>
+            <span class="dv-pack-chip">Pathfinder 2e</span>
+            <span class="dv-pack-chip">Call of Cthulhu</span>
+            <span class="dv-pack-chip">Blades in the Dark</span>
+            <span class="dv-pack-chip">FATE / Fudge</span>
+            <span class="dv-pack-chip">Dungeon Crawl Classics</span>
+            <span class="dv-pack-chip">Savage Worlds</span>
+            <span class="dv-pack-chip">World of Darkness</span>
+            <span class="dv-pack-chip">Shadowrun</span>
+            <span class="dv-pack-chip">Ironsworn / Starforged</span>
+            <span class="dv-pack-chip">PbtA</span>
+            <span class="dv-pack-chip">Formula De</span>
+            <span class="dv-pack-chip">King of Tokyo</span>
+            <span class="dv-pack-chip">Catan</span>
+            <span class="dv-pack-chip">Yahtzee</span>
+            <span class="dv-pack-chip">Zombie Dice</span>
+            <span class="dv-pack-chip">Farkle</span>
+            <span class="dv-pack-chip">Strat-O-Matic</span>
+        </div>
+    </div>
+
+    <!-- Pricing -->
+    <div class="dv-section dv-section-alt">
+        <h2>One-time purchase. No subscription. Ever.</h2>
+        <p>Dice Vault is fully functional for free. Pro unlocks the power tools and removes ads &mdash;
+        pay once, keep forever.</p>
+        <div class="dv-pricing">
+            <div class="dv-price-card">
+                <h3>Free</h3>
+                <div class="price">$0</div>
+                <ul>
+                    <li>All 9 dice types + coins + custom dice</li>
+                    <li>All modifiers (DL, DH, explode, min, max, floor, cap, success)</li>
+                    <li>Distribution chart &amp; probability</li>
+                    <li>Roll history</li>
+                    <li>5 saved favorites</li>
+                    <li>2 themes</li>
+                    <li>Share roll cards</li>
+                    <li>Join Game Rooms</li>
+                    <li>Lock mode</li>
+                </ul>
+            </div>
+            <div class="dv-price-card featured">
+                <h3>Pro</h3>
+                <div class="price">$2.99</div>
+                <div class="price-sub">one-time &mdash; No Subscription Ever</div>
+                <ul>
+                    <li>Everything in Free</li>
+                    <li>No ads</li>
+                    <li>Multi-group formulas</li>
+                    <li>Per-die selection</li>
+                    <li>Unlimited favorites</li>
+                    <li>18 Game Packs</li>
+                    <li>Create Game Rooms (multiplayer)</li>
+                    <li>All 6 themes</li>
+                    <li>Community packs</li>
+                    <li>Pack reorder &amp; organization</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="dv-footer">
+        <p style="margin-bottom:8px"><a href="/">Casdra Software</a></p>
+        <p>&copy; 2026 Casdra Software LLC. All rights reserved.</p>
+        <p style="margin-top:8px">
+            <a href="/dice/help">Help</a> &nbsp;&middot;&nbsp;
+            <a href="/dicevault/privacy">Privacy Policy</a> &nbsp;&middot;&nbsp;
+            <a href="/dicevault/terms">Terms of Service</a>
+        </p>
+    </div>
+    """
+    return html_page("Dice Vault &mdash; Roll any dice. See your odds.", body, extra_css=css)
 
 
 def build_hello_page():
@@ -4772,8 +5206,16 @@ class Handler(BaseHTTPRequestHandler):
         if WEB_MODE and path.startswith("/chartburst"):
             path = "/song-burst" + path[len("/chartburst"):]
 
+        # In web mode, redirect /dice to /dicevault product page
+        if WEB_MODE and path == "/dice":
+            self.send_response(302)
+            self.send_header("Location", "/dicevault")
+            self.end_headers()
+            return
+
         # In web mode, block internal routes
         if WEB_MODE and not (path == "/" or path.startswith("/song-burst") or path.startswith("/dice")
+                            or path.startswith("/dicevault")
                             or path.startswith("/manifest") or path.startswith("/apple-touch")
                             or path.startswith("/favicon") or path.startswith("/static")):
             self.send_response(404)
@@ -4782,6 +5224,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/":
             self.send_html(build_home_page())
+
+        elif path == "/dicevault":
+            self.send_html(build_dicevault_product_page())
 
         elif path == "/hello":
             self.send_html(build_hello_page())
