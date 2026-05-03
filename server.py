@@ -3721,10 +3721,10 @@ def build_dicevault_product_page():
     @media (max-width: 500px) { .dv-screenshots-inner { grid-template-columns: 1fr; } }
     .dv-screenshot {
         border-radius: 20px; border: 2px solid #30363d; overflow: hidden;
-        background: #161b22;
+        background: #161b22; display: flex;
     }
     .dv-screenshot .phone-frame {
-        width: 100%; display: flex; flex-direction: column;
+        width: 100%; flex: 1; display: flex; flex-direction: column;
         align-items: center; justify-content: center; padding: 32px 20px; text-align: center;
     }
     .dv-screenshot .ss-icon { font-size: 48px; margin-bottom: 12px; }
