@@ -1762,7 +1762,6 @@ body { background: #0d1117 !important; color: #c9d1d9 !important; }
 <p>Create multiple independent dice groups combined with operations:</p>
 <ul>
     <li><strong>Sum (+)</strong> — Add groups together</li>
-    <li><strong>Minus (−)</strong> — Subtract one group from another</li>
     <li><strong>Display (|)</strong> — Show groups side by side without combining (e.g. Strat-O-Matic Column | Play)</li>
 </ul>
 <p>Each group has its own modifiers. Example: "(4d6 drop lowest) + (1d8 exploding)"</p>
@@ -3962,7 +3961,7 @@ def build_dicevault_product_page():
             <div class="dv-feat">
                 <div class="feat-icon">&#9878;</div>
                 <h3>Multi-Group Formulas <span class="pro-tag">Pro</span></h3>
-                <p>Combine dice groups with +, &minus;, or | (display). Build compound rolls like 4d6dl + 1d8 or Column | Play results.</p>
+                <p>Combine dice groups with + or | (display). Build compound rolls like 4d6dl + 1d8 or Column | Play results.</p>
             </div>
             <div class="dv-feat">
                 <div class="feat-icon">&#128077;</div>
