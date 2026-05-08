@@ -3849,8 +3849,7 @@ def build_dicevault_product_page():
                 <div class="phone-frame" style="background:#0d1117">
                     <div class="ss-title">Live Probability</div>
                     <div class="ss-desc">See the distribution for your exact dice pool. Your roll lights up on the chart.</div>
-                    <img class="ss-img" src="/static/hero-prob-chart.png" alt="3d6 distribution chart">
-                    <img class="ss-img" src="/static/hero-prob-top.png" alt="Roll result with probability" style="margin-top:4px">
+                    <img class="ss-img" src="/static/hero-probability.png" alt="Roll result with probability chart">
                 </div>
             </div>
             <div class="dv-screenshot">
