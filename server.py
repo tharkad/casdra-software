@@ -1624,14 +1624,14 @@ body { background: #0d1117 !important; color: #c9d1d9 !important; }
     <a href="#results">5. Roll Results &amp; Probability</a>
     <a href="#presets">6. Presets &amp; Favorites</a>
     <a href="#packs">7. Game Packs</a>
-    <a href="#formula">8. Formula Bar (Premium)</a>
-    <a href="#multigroup">9. Multi-Group Rolls (Premium)</a>
-    <a href="#custom">10. Custom Dice &amp; Faces</a>
+    <a href="#multigroup">8. Multi-Group Rolls (Pro)</a>
+    <a href="#custom">9. Custom Dice &amp; Faces</a>
+    <a href="#rooms">10. Game Rooms</a>
     <a href="#lock">11. Cup Lock</a>
     <a href="#history">12. Roll History</a>
     <a href="#themes">13. Themes &amp; Settings</a>
     <a href="#share">14. Sharing Results</a>
-    <a href="#freeVpremium">15. Free vs Premium</a>
+    <a href="#freeVpremium">15. Free vs Pro</a>
     <a href="#bugs">16. How to Report Bugs</a>
     <a href="#checklist">17. Tester Checklist</a>
 </div>
@@ -1698,7 +1698,7 @@ body { background: #0d1117 !important; color: #c9d1d9 !important; }
     <li><strong>Per-die exploding</strong> — Only this die explodes on max</li>
     <li><strong>Per-die reroll</strong> — Reroll this die if it shows a specific value</li>
 </ul>
-<div class="badge badge-premium">PREMIUM</div>
+<div class="badge badge-premium">PRO</div>
 <div class="tip">Tap elsewhere in the cup to deselect. Per-die modifiers show as small badges on the die.</div>
 
 <h2 id="results">5. Roll Results &amp; Probability</h2>
@@ -1724,7 +1724,7 @@ body { background: #0d1117 !important; color: #c9d1d9 !important; }
 </ul>
 
 <h2 id="packs">7. Game Packs</h2>
-<div class="badge badge-premium">PREMIUM</div>
+<div class="badge badge-premium">PRO</div>
 <p>Game Packs are pre-built collections of presets for specific games. Instead of manually setting up "4d6 drop lowest" for D&amp;D, just install the D&amp;D 5e pack and get a full set of ready-to-roll presets.</p>
 
 <h3>How to use Game Packs:</h3>
@@ -1752,38 +1752,23 @@ body { background: #0d1117 !important; color: #c9d1d9 !important; }
     <li><strong>Yahtzee</strong> — Classic 5d6</li>
     <li><strong>Catan</strong> — 2d6 production rolls</li>
     <li><strong>Farkle/Greed</strong> — 6d6 scoring</li>
+    <li><strong>Strat-O-Matic</strong> — Column + Play mixed rolls for baseball simulation</li>
     <li><strong>Slot Machine</strong> — Weighted symbol reels (just for fun!)</li>
 </ul>
 <div class="tip">You can also create <strong>custom packs</strong> to organize your own presets — great for different characters or campaigns.</div>
 
-<h2 id="formula">8. Formula Bar (Premium)</h2>
-<div class="badge badge-premium">PREMIUM</div>
-<p>Power users can type dice notation directly into the formula bar instead of tapping buttons. Supports the full notation syntax:</p>
-<ul>
-    <li><code>3d6</code> — Roll three six-sided dice</li>
-    <li><code>1d20+5</code> — d20 plus 5 modifier</li>
-    <li><code>4d6dl1</code> — Roll 4d6, drop lowest 1</li>
-    <li><code>2d20kh1</code> — Advantage (roll 2d20, keep highest)</li>
-    <li><code>4d6!</code> — Exploding d6s</li>
-    <li><code>4d6r1</code> — Reroll 1s on d6</li>
-    <li><code>6d6#≥5</code> — Count successes (5 or higher)</li>
-    <li><code>4dF</code> — Fudge/FATE dice</li>
-    <li><code>d{1,1,2,3,5}</code> — Custom die with specific faces</li>
-    <li><code>(4d6dl1)+(2d8!)</code> — Multi-group with operations</li>
-</ul>
-
-<h2 id="multigroup">9. Multi-Group Rolls (Premium)</h2>
-<div class="badge badge-premium">PREMIUM</div>
+<h2 id="multigroup">8. Multi-Group Rolls (Pro)</h2>
+<div class="badge badge-premium">PRO</div>
 <p>Create multiple independent dice groups combined with operations:</p>
 <ul>
     <li><strong>Sum (+)</strong> — Add groups together</li>
     <li><strong>Minus (−)</strong> — Subtract one group from another</li>
-    <li><strong>Max</strong> — Take the highest group total</li>
-    <li><strong>Min</strong> — Take the lowest group total</li>
+    <li><strong>Display (|)</strong> — Show groups side by side without combining (e.g. Strat-O-Matic Column | Play)</li>
 </ul>
-<p>Each group has its own modifiers. Example: "(4d6 drop lowest) + (2d8 exploding) + 5"</p>
+<p>Each group has its own modifiers. Example: "(4d6 drop lowest) + (1d8 exploding)"</p>
+<p>Display mode allows mixing numeric and symbol dice in the same roll &mdash; one group can show a sum while another shows emoji faces.</p>
 
-<h2 id="custom">10. Custom Dice &amp; Custom Faces</h2>
+<h2 id="custom">9. Custom Dice &amp; Custom Faces</h2>
 <p><strong>Custom sided die (DX):</strong> Tap the DX button and enter any number of sides (3-999). Need a d7? A d30? A d100? Done.</p>
 <p><strong>Custom face dice:</strong> Define dice with text or symbol faces instead of numbers. Example for King of Tokyo:</p>
 <ul>
@@ -1791,6 +1776,16 @@ body { background: #0d1117 !important; color: #c9d1d9 !important; }
     <li>Results show as symbol chips instead of numbers</li>
     <li>Game Packs pre-configure these for you</li>
 </ul>
+
+<h2 id="rooms">10. Game Rooms</h2>
+<p>Roll together in real time. One player creates a room, others join with a 4-letter code.</p>
+<ul>
+    <li><strong>Create a room</strong> — Pro only. Tap the room button, enter your name, and get a shareable code.</li>
+    <li><strong>Join a room</strong> — Free or Pro. Enter the 4-letter code to join. Everyone sees every roll live.</li>
+    <li><strong>Player colors</strong> — Pick a color dot so your rolls are easy to spot in the feed.</li>
+    <li><strong>Push packs</strong> — The host can push a Game Pack to all players in the room.</li>
+</ul>
+<div class="tip">Only the host needs Pro. Everyone else joins free &mdash; great for game night.</div>
 
 <h2 id="lock">11. Cup Lock 🔒</h2>
 <p>Tap the <strong>lock button</strong> (padlock icon) to lock your cup. When locked:</p>
@@ -1816,12 +1811,12 @@ body { background: #0d1117 !important; color: #c9d1d9 !important; }
 <h3>Themes</h3>
 <p>Tap the <strong>palette icon</strong> in the header to switch themes:</p>
 <ul>
-    <li><strong>Default</strong> — Dark mode (charcoal) <span class="badge badge-free">FREE</span></li>
-    <li><strong>Midnight</strong> — Deep indigo <span class="badge badge-free">FREE</span></li>
-    <li><strong>Light</strong> — Warm tan/brown <span class="badge badge-premium">PREMIUM</span></li>
-    <li><strong>Purple</strong> — Rich magenta <span class="badge badge-premium">PREMIUM</span></li>
-    <li><strong>Forest</strong> — Deep green <span class="badge badge-premium">PREMIUM</span></li>
-    <li><strong>Blood</strong> — Dark red <span class="badge badge-premium">PREMIUM</span></li>
+    <li><strong>Dark</strong> — Charcoal (default) <span class="badge badge-free">FREE</span></li>
+    <li><strong>Light</strong> — Warm parchment <span class="badge badge-free">FREE</span></li>
+    <li><strong>Midnight</strong> — Deep indigo <span class="badge badge-premium">PRO</span></li>
+    <li><strong>Purple</strong> — Rich magenta <span class="badge badge-premium">PRO</span></li>
+    <li><strong>Forest</strong> — Deep green <span class="badge badge-premium">PRO</span></li>
+    <li><strong>Blood</strong> — Dark red <span class="badge badge-premium">PRO</span></li>
 </ul>
 
 <h3>Sound &amp; Haptics</h3>
@@ -1842,20 +1837,20 @@ body { background: #0d1117 !important; color: #c9d1d9 !important; }
             <th style="text-align:center;padding:8px">Premium</th>
         </tr>
         <tr><td style="padding:6px 0">Standard dice (d4-d100)</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
-        <tr><td style="padding:6px 0">Custom sided die (DX)</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
-        <tr><td style="padding:6px 0">Exploding, drop, keep</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
-        <tr><td style="padding:6px 0">Floor &amp; Cap</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
-        <tr><td style="padding:6px 0">Count Successes</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Custom dice (DX, word/emoji faces)</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">All modifiers (explode, DL, DH, min, max, floor, cap, success)</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
         <tr><td style="padding:6px 0">Roll history</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
         <tr><td style="padding:6px 0">Probability chart</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
-        <tr><td style="padding:6px 0">Cup lock</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Cup lock &amp; share</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Join Game Rooms</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
         <tr><td style="padding:6px 0">Presets</td><td style="text-align:center">5 max</td><td style="text-align:center">Unlimited</td></tr>
-        <tr><td style="padding:6px 0">Game Packs</td><td style="text-align:center">Browse only</td><td style="text-align:center">✅ Install &amp; use</td></tr>
-        <tr><td style="padding:6px 0">Formula bar</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Themes</td><td style="text-align:center">2 (Dark, Light)</td><td style="text-align:center">All 6</td></tr>
+        <tr><td style="padding:6px 0">Create Game Rooms</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
         <tr><td style="padding:6px 0">Multi-group rolls</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
-        <tr><td style="padding:6px 0">Per-die modifiers</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
-        <tr><td style="padding:6px 0">Extra themes</td><td style="text-align:center">2 themes</td><td style="text-align:center">6 themes</td></tr>
-        <tr><td style="padding:6px 0">Custom face dice</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Per-die selection</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">18 Game Packs</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">Community packs</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
+        <tr><td style="padding:6px 0">No ads</td><td style="text-align:center">—</td><td style="text-align:center">✅</td></tr>
     </table>
 </div>
 <div class="tip">To test Premium features, add <code>?premium=1</code> to the URL or use the "Open Premium" link above.</div>
@@ -1946,7 +1941,7 @@ body { background: #0d1117 !important; color: #c9d1d9 !important; }
         <li>Share button — does it copy/share the roll?</li>
         <li>Probability chart — does it update when you change the cup?</li>
         <li>Long-press a die for selection (Premium)</li>
-        <li>Formula bar — type a formula and roll (Premium)</li>
+        <li>Game Rooms — create (Pro) and join (Free) a room, verify rolls appear live</li>
     </ul>
 </div>
 
@@ -1955,7 +1950,7 @@ body { background: #0d1117 !important; color: #c9d1d9 !important; }
     <ul>
         <li>Roll 100d6 — does it handle large pools?</li>
         <li>Exploding dice with very high explosion chains — does it eventually stop?</li>
-        <li>Extremely long formulas in the formula bar</li>
+        <li>Many dice groups with different modifiers</li>
         <li>Rapidly tapping roll many times</li>
         <li>Switching presets while results are animating</li>
         <li>Using the app on a very small screen / landscape mode</li>
