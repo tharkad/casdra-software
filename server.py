@@ -3959,6 +3959,16 @@ def build_dicevault_product_page():
         that multi-system players and game masters reach for.</p>
         <div class="dv-features">
             <div class="dv-feat">
+                <div class="feat-icon">&#9734;</div>
+                <h3>Unlimited Favorites <span class="pro-tag">Pro</span></h3>
+                <p>No preset limit. Organize your favorites into game-specific packs with drag-and-drop reorder.</p>
+            </div>
+            <div class="dv-feat">
+                <div class="feat-icon">&#128101;</div>
+                <h3>Game Rooms <span class="pro-tag">Pro</span></h3>
+                <p>Real-time multiplayer rolling. Create a room, share the code, and everyone rolls into the same live feed. Only the host needs Pro &mdash; your whole table joins free.</p>
+            </div>
+            <div class="dv-feat">
                 <div class="feat-icon">&#9878;</div>
                 <h3>Multi-Group Formulas <span class="pro-tag">Pro</span></h3>
                 <p>Combine dice groups with + or | (display). Build compound rolls like 4d6dl + 1d8 or Column | Play results.</p>
@@ -3974,9 +3984,9 @@ def build_dicevault_product_page():
                 <p>Pre-built presets for D&amp;D, Pathfinder, Fate, Savage Worlds, Blades, DCC, Strat-O-Matic, and 11 more.</p>
             </div>
             <div class="dv-feat">
-                <div class="feat-icon">&#128101;</div>
-                <h3>Game Rooms <span class="pro-tag">Pro</span></h3>
-                <p>Real-time multiplayer rolling. Create a room, share the code, and everyone rolls into the same live feed. Only the host needs Pro &mdash; your whole table joins free.</p>
+                <div class="feat-icon">&#127760;</div>
+                <h3>Community Packs <span class="pro-tag">Pro</span></h3>
+                <p>Submit your own game packs for other players to discover. Access packs built by the community.</p>
             </div>
             <div class="dv-feat">
                 <div class="feat-icon">&#127920;</div>
@@ -3987,16 +3997,6 @@ def build_dicevault_product_page():
                 <div class="feat-icon">&#127912;</div>
                 <h3>All 6 Themes <span class="pro-tag">Pro</span></h3>
                 <p>Midnight, Purple, Forest, and Blood join Dark and Parchment. Match your table's aesthetic.</p>
-            </div>
-            <div class="dv-feat">
-                <div class="feat-icon">&#9734;</div>
-                <h3>Unlimited Favorites <span class="pro-tag">Pro</span></h3>
-                <p>No preset limit. Organize your favorites into game-specific packs with drag-and-drop reorder.</p>
-            </div>
-            <div class="dv-feat">
-                <div class="feat-icon">&#127760;</div>
-                <h3>Community Packs <span class="pro-tag">Pro</span></h3>
-                <p>Submit your own game packs for other players to discover. Access packs built by the community.</p>
             </div>
         </div>
 
