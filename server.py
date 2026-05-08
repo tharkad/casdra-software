@@ -3846,65 +3846,46 @@ def build_dicevault_product_page():
     <div class="dv-screenshots">
         <div class="dv-screenshots-inner">
             <div class="dv-screenshot">
-                <div class="phone-frame" style="background:linear-gradient(180deg,#1a1a2e,#0d1117)">
-                    <div class="dv-mini-chart" style="width:80%;margin:0 auto 12px">
-                        <div class="dv-mini-bar" style="height:9px;background:hsl(20,85%,50%)"></div>
-                        <div class="dv-mini-bar" style="height:17px;background:hsl(40,85%,50%)"></div>
-                        <div class="dv-mini-bar" style="height:26px;background:hsl(60,85%,50%)"></div>
-                        <div class="dv-mini-bar" style="height:35px;background:hsl(80,85%,50%)"></div>
-                        <div class="dv-mini-bar" style="height:43px;background:hsl(100,85%,50%)"></div>
-                        <div class="dv-mini-bar highlight" style="height:52px;background:hsl(120,85%,50%)"></div>
-                        <div class="dv-mini-bar" style="height:43px;background:hsl(100,85%,50%)"></div>
-                        <div class="dv-mini-bar" style="height:35px;background:hsl(80,85%,50%)"></div>
-                        <div class="dv-mini-bar" style="height:26px;background:hsl(60,85%,50%)"></div>
-                        <div class="dv-mini-bar" style="height:17px;background:hsl(40,85%,50%)"></div>
-                        <div class="dv-mini-bar" style="height:9px;background:hsl(20,85%,50%)"></div>
-                    </div>
-                    <div class="dv-mini-labels" style="width:80%;margin:0 auto 8px"><span>2</span><span>7</span><span>12</span></div>
+                <div class="phone-frame" style="background:#0d1117">
+                    <img class="ss-img" src="/static/hero-prob-chart.png" alt="3d6 distribution chart">
+                    <img class="ss-img" src="/static/hero-prob-top.png" alt="Roll result with probability" style="margin-top:4px">
                     <div class="ss-title">Live Probability</div>
-                    <div class="ss-desc">Distribution chart updates as you build your dice pool. See your odds before you roll.</div>
+                    <div class="ss-desc">See the distribution for your exact dice pool. Your roll lights up on the chart.</div>
                 </div>
             </div>
             <div class="dv-screenshot">
-                <div class="phone-frame" style="background:linear-gradient(180deg,#1a2e1a,#0d1117)">
-                    <div class="ss-icon">&#127922;</div>
+                <div class="phone-frame" style="background:#0d1117">
+                    <img class="ss-img" src="/static/hero-cup.png" alt="Dice cup with colorful dice">
                     <div class="ss-title">Visual Dice Cup</div>
-                    <div class="ss-desc">Felt-texture cup with geometric die shapes. d4 through d100, coins, and custom faces.</div>
+                    <div class="ss-desc">Geometric die shapes in color. d4 through d100, coins, and custom faces.</div>
                 </div>
             </div>
             <div class="dv-screenshot">
-                <div class="phone-frame" style="background:linear-gradient(180deg,#2e1a2e,#0d1117)">
-                    <div class="ss-icon">&#128218;</div>
+                <div class="phone-frame" style="background:#0d1117">
+                    <img class="ss-img" src="/static/hero-packs.png" alt="Game pack browser">
                     <div class="ss-title">18 Game Packs</div>
                     <div class="ss-desc">D&amp;D, Pathfinder, Savage Worlds, Blades in the Dark, Strat-O-Matic, and more.</div>
                 </div>
             </div>
             <div class="dv-screenshot">
-                <div class="phone-frame" style="background:linear-gradient(180deg,#2e2a1a,#0d1117)">
-                    <div class="ss-icon">&#128101;</div>
+                <div class="phone-frame" style="background:#0d1117">
+                    <img class="ss-img" src="/static/hero-rooms.png" alt="Game room with player rolls">
                     <div class="ss-title">Game Rooms</div>
                     <div class="ss-desc">Real-time multiplayer. Share a room code &mdash; your whole table joins free.</div>
                 </div>
             </div>
             <div class="dv-screenshot">
-                <div class="phone-frame" style="background:linear-gradient(180deg,#1a2e2e,#0d1117)">
-                    <div class="ss-icon">&#9878;</div>
+                <div class="phone-frame" style="background:#0d1117">
+                    <img class="ss-img" src="/static/hero-multigroup.png" alt="Multi-group dice formula with result">
                     <div class="ss-title">Multi-Group Formulas</div>
                     <div class="ss-desc">4d6 drop lowest + 1d8. Compound rolls with operators.</div>
                 </div>
             </div>
             <div class="dv-screenshot">
-                <div class="phone-frame" style="background:linear-gradient(180deg,#2e1a1a,#0d1117)">
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:12px">
-                        <span style="font-size:22px;background:#21262d;border-radius:6px;padding:4px;text-align:center">&#128128;</span>
-                        <span style="font-size:22px;background:#21262d;border-radius:6px;padding:4px;text-align:center">&#127939;</span>
-                        <span style="font-size:22px;background:#21262d;border-radius:6px;padding:4px;text-align:center">&#128165;</span>
-                        <span style="font-size:22px;background:#21262d;border-radius:6px;padding:4px;text-align:center">&#9876;&#65039;</span>
-                        <span style="font-size:22px;background:#21262d;border-radius:6px;padding:4px;text-align:center">&#128737;</span>
-                        <span style="font-size:22px;background:#21262d;border-radius:6px;padding:4px;text-align:center">&#10024;</span>
-                    </div>
+                <div class="phone-frame" style="background:#0d1117">
+                    <img class="ss-img" src="/static/hero-custom.png" alt="Custom dice with emoji face results">
                     <div class="ss-title">Custom Dice</div>
-                    <div class="ss-desc">Any number of sides &mdash; d7, d13, d30. Or use words and emoji as faces for games like Zombie Dice and King of Tokyo.</div>
+                    <div class="ss-desc">Any number of sides &mdash; d7, d13, d30. Or use words and emoji as faces.</div>
                 </div>
             </div>
         </div>
