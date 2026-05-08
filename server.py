@@ -3856,7 +3856,7 @@ def build_dicevault_product_page():
             <div class="dv-screenshot">
                 <div class="phone-frame" style="background:#0d1117">
                     <div class="ss-title">18 Game Packs</div>
-                    <div class="ss-desc">D&amp;D, Pathfinder, Savage Worlds, Blades in the Dark, Strat-O-Matic, and more.</div>
+                    <div class="ss-desc">D&amp;D, Pathfinder, Savage Worlds, Strat-O-Matic, and more.</div>
                     <img class="ss-img" src="/static/hero-packs.png" alt="Game pack browser">
                 </div>
             </div>
