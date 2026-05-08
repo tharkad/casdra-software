@@ -3725,12 +3725,12 @@ def build_dicevault_product_page():
     }
     .dv-screenshot .phone-frame {
         width: 100%; flex: 1; display: flex; flex-direction: column;
-        align-items: center; justify-content: center; padding: 32px 20px; text-align: center;
+        align-items: center; justify-content: flex-start; padding: 20px 20px; text-align: center;
     }
     .dv-screenshot .ss-icon { font-size: 48px; margin-bottom: 12px; }
-    .dv-screenshot .ss-img { width: 100%; border-radius: 8px; margin-bottom: 12px; display: block; }
+    .dv-screenshot .ss-img { width: 100%; border-radius: 8px; display: block; }
     .dv-screenshot .ss-title { font-size: 15px; font-weight: 700; color: #fff; }
-    .dv-screenshot .ss-desc { font-size: 12px; color: #8b949e; margin-top: 6px; line-height: 1.4; }
+    .dv-screenshot .ss-desc { font-size: 12px; color: #8b949e; margin-top: 4px; margin-bottom: 12px; line-height: 1.4; }
 
     /* ── Section Layout ───────────────────────────────── */
     .dv-section { max-width: 960px; margin: 0 auto; padding: 48px 20px; }
@@ -3847,45 +3847,45 @@ def build_dicevault_product_page():
         <div class="dv-screenshots-inner">
             <div class="dv-screenshot">
                 <div class="phone-frame" style="background:#0d1117">
-                    <img class="ss-img" src="/static/hero-prob-chart.png" alt="3d6 distribution chart">
-                    <img class="ss-img" src="/static/hero-prob-top.png" alt="Roll result with probability" style="margin-top:4px">
                     <div class="ss-title">Live Probability</div>
                     <div class="ss-desc">See the distribution for your exact dice pool. Your roll lights up on the chart.</div>
+                    <img class="ss-img" src="/static/hero-prob-chart.png" alt="3d6 distribution chart">
+                    <img class="ss-img" src="/static/hero-prob-top.png" alt="Roll result with probability" style="margin-top:4px">
                 </div>
             </div>
             <div class="dv-screenshot">
                 <div class="phone-frame" style="background:#0d1117">
-                    <img class="ss-img" src="/static/hero-cup.png" alt="Dice cup with colorful dice">
                     <div class="ss-title">Visual Dice Cup</div>
                     <div class="ss-desc">Geometric die shapes in color. d4 through d100, coins, and custom faces.</div>
+                    <img class="ss-img" src="/static/hero-cup.png" alt="Dice cup with colorful dice">
                 </div>
             </div>
             <div class="dv-screenshot">
                 <div class="phone-frame" style="background:#0d1117">
-                    <img class="ss-img" src="/static/hero-packs.png" alt="Game pack browser">
                     <div class="ss-title">18 Game Packs</div>
                     <div class="ss-desc">D&amp;D, Pathfinder, Savage Worlds, Blades in the Dark, Strat-O-Matic, and more.</div>
+                    <img class="ss-img" src="/static/hero-packs.png" alt="Game pack browser">
                 </div>
             </div>
             <div class="dv-screenshot">
                 <div class="phone-frame" style="background:#0d1117">
-                    <img class="ss-img" src="/static/hero-rooms.png" alt="Game room with player rolls">
                     <div class="ss-title">Game Rooms</div>
                     <div class="ss-desc">Real-time multiplayer. Share a room code &mdash; your whole table joins free.</div>
+                    <img class="ss-img" src="/static/hero-rooms.png" alt="Game room with player rolls">
                 </div>
             </div>
             <div class="dv-screenshot">
                 <div class="phone-frame" style="background:#0d1117">
-                    <img class="ss-img" src="/static/hero-multigroup.png" alt="Multi-group dice formula with result">
                     <div class="ss-title">Multi-Group Formulas</div>
                     <div class="ss-desc">4d6 drop lowest + 1d8. Compound rolls with operators.</div>
+                    <img class="ss-img" src="/static/hero-multigroup.png" alt="Multi-group dice formula with result">
                 </div>
             </div>
             <div class="dv-screenshot">
                 <div class="phone-frame" style="background:#0d1117">
-                    <img class="ss-img" src="/static/hero-custom.png" alt="Custom dice with emoji face results">
                     <div class="ss-title">Custom Dice</div>
                     <div class="ss-desc">Any number of sides &mdash; d7, d13, d30. Or use words and emoji as faces.</div>
+                    <img class="ss-img" src="/static/hero-custom.png" alt="Custom dice with emoji face results">
                 </div>
             </div>
         </div>
