@@ -3723,8 +3723,8 @@ def build_dicevault_product_page():
     }
     .dv-screenshot .ss-icon { font-size: 48px; margin-bottom: 12px; }
     .dv-screenshot .ss-img { width: 100%; border-radius: 8px; display: block; }
-    .dv-screenshot .ss-title { font-size: 15px; font-weight: 700; color: #fff; }
-    .dv-screenshot .ss-desc { font-size: 12px; color: #8b949e; margin-top: 4px; margin-bottom: 12px; line-height: 1.4; }
+    .dv-screenshot .ss-title { font-size: 19px; font-weight: 700; color: #fff; }
+    .dv-screenshot .ss-desc { font-size: 14px; color: #8b949e; margin-top: 4px; margin-bottom: 12px; line-height: 1.5; }
 
     /* ── Section Layout ───────────────────────────────── */
     .dv-section { max-width: 960px; margin: 0 auto; padding: 48px 20px; }
