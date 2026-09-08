@@ -5230,12 +5230,16 @@ body {
   font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
   background-color: #0d1117;
   color: #e6edf3;
-  margin: 0 auto;
+  margin: 0;
   padding: 24px 16px;
-  /* Matches the board's own natural width (11 columns x 24px + 10 gaps
-     x 6px = 324px, plus .panel's 24px x 2 padding) -- the page should
-     never be wider than the board itself. */
-  max-width: 380px;
+  /* Centering via `margin: 0 auto` + `max-width` on body did not render
+     reliably on at least one real device (iOS Chrome, which runs on
+     WebKit) -- confirmed live, not a caching issue. A flex container
+     sidesteps that auto-margin computation entirely: body just centers
+     whichever single panel child is visible, at its own natural width. */
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
 }
 
 .js-hidden {
@@ -5249,6 +5253,18 @@ body {
   padding: 24px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   text-align: center;
+  /* Matches the board's own natural width (11 columns x 24px + 10 gaps
+     x 6px = 324px, plus this padding x 2) -- the panel should never be
+     wider than the board itself. Width 100% lets it shrink below that
+     on narrow phones while flex centering (above) keeps it from ever
+     exceeding it. */
+  max-width: 380px;
+  width: 100%;
+  /* content-box (the default) would add this padding on top of the
+     100% width, overflowing the flex container by 48px -- border-box
+     keeps padding inside the specified width instead. */
+  box-sizing: border-box;
+  align-self: flex-start;
 }
 
 #game-screen {
