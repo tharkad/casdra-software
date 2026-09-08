@@ -5218,7 +5218,7 @@ def build_cant_stop_page():
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cant Stop Game</title>
     <style>
 body {
@@ -5447,7 +5447,7 @@ body {
   height: 60px;
   border: 1px solid #30363d;
   border-radius: 8px;
-  background-color: #21262d;
+  background-color: var(--dice-bg-color, #21262d);
   box-sizing: border-box;
 }
 
@@ -5622,9 +5622,21 @@ body {
   gap: 12px;
 }
 #bust-probability {
-  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   color: #8b949e;
   white-space: nowrap;
+}
+#bust-probability-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #e6edf3;
+  line-height: 1.1;
+}
+#bust-probability-label {
+  font-size: 11px;
+  color: #8b949e;
 }
     </style>
 </head>
@@ -5682,7 +5694,10 @@ body {
         <button id="roll-button">Roll Dice</button>
         <div class="dice-row">
             <div id="dice"></div>
-            <div id="bust-probability"></div>
+            <div id="bust-probability">
+                <div id="bust-probability-value"></div>
+                <div id="bust-probability-label">Bust</div>
+            </div>
         </div>
         <div id="pairing-options"></div>
         <button id="stop-button" class="js-hidden">Press and hold to stop</button>
@@ -5857,6 +5872,10 @@ document.addEventListener('DOMContentLoaded', function() {
         PLAYER_COLORS.forEach(color => indicator.classList.remove(`turn-indicator--${color}`));
         indicator.classList.add(`turn-indicator--${PLAYER_COLORS[currentPlayerIndex]}`);
         document.getElementById('roll-button').style.setProperty('--roll-button-color', MULTI_MARKER_COLOR_HEX[PLAYER_COLORS[currentPlayerIndex]]);
+        // Set on #dice itself (not per-die) -- CSS custom properties
+        // inherit down to .die children even though #dice's own
+        // innerHTML gets wiped and rebuilt on every roll.
+        document.getElementById('dice').style.setProperty('--dice-bg-color', MULTI_MARKER_COLOR_HEX[PLAYER_COLORS[currentPlayerIndex]]);
     }
 
     // Add event listener to start game button
@@ -5935,7 +5954,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateBustProbabilityDisplay() {
         const pct = calculateBustProbability();
-        document.getElementById('bust-probability').textContent = `Bust: ${pct}%`;
+        document.getElementById('bust-probability-value').textContent = `${pct}%`;
     }
 
     // Function to generate pairings
@@ -6105,8 +6124,12 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('pairing-options').appendChild(optionElement);
         });
 
-        // Re-enable the roll button after rolling
-        document.getElementById('roll-button').disabled = false;
+        // The player must resolve this roll's pairing options (pick one,
+        // or the board-choice sub-case) before rolling again -- lock
+        // #roll-button until they do. Re-enabled at the two resolve
+        // points (the #pairing-options and #board click handlers),
+        // alongside showStopButton().
+        document.getElementById('roll-button').disabled = true;
     }
 
     let bustAcknowledgePending = false;
@@ -6233,6 +6256,7 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('dice').innerHTML = '';
       document.getElementById('pairing-options').innerHTML = '';
 
+      document.getElementById('roll-button').disabled = false;
       showStopButton();
       updateBustProbabilityDisplay();
     });
@@ -6308,6 +6332,8 @@ document.addEventListener('DOMContentLoaded', function() {
         winScreen.classList.add('js-hidden');
         gameScreen.classList.add('js-hidden');
         document.getElementById('roll-button').classList.remove('js-hidden');
+        document.getElementById('roll-button').disabled = false;
+        document.getElementById('roll-button').textContent = 'Roll Dice';
 
         document.querySelectorAll('.column--claimed').forEach(column => {
             column.classList.remove('column--claimed');
