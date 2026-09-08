@@ -5333,26 +5333,10 @@ body {
   50% { box-shadow: 0 0 12px 4px currentColor; filter: brightness(1.3); }
 }
 
-.marker--red {
-  background-color: #e74c3c;
-  color: #e74c3c;
-  animation: marker-sparkle 2s ease-in-out infinite;
-}
-.marker--blue {
-  background-color: #3498db;
-  color: #3498db;
-  animation: marker-sparkle 2s ease-in-out infinite;
-}
-.marker--green {
-  background-color: #2ecc71;
-  color: #2ecc71;
-  animation: marker-sparkle 2s ease-in-out infinite;
-}
-.marker--yellow {
-  background-color: #f1c40f;
-  color: #f1c40f;
-  animation: marker-sparkle 2s ease-in-out infinite;
-}
+.marker--red { background-color: #e74c3c; } /* Removed animation */
+.marker--blue { background-color: #3498db; } /* Removed animation */
+.marker--green { background-color: #2ecc71; } /* Removed animation */
+.marker--yellow { background-color: #f1c40f; } /* Removed animation */
 
 .space--white-marker {
   position: relative;
@@ -5370,7 +5354,7 @@ body {
   color: var(--white-marker-color, #fff);
   border: 1px solid #333;
   transform: translate(-50%, -50%);
-  animation: marker-sparkle 2s ease-in-out infinite;
+  animation: marker-sparkle 2s ease-in-out infinite; /* Keep this */
 }
 
 .column--claimed {
