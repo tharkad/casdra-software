@@ -5374,7 +5374,6 @@ body {
 }
 
 .column--claimed {
-  opacity: 0.6;
 }
 
 .die {
@@ -5893,10 +5892,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         const lower = otherColor.toLowerCase();
                         if (lower !== currentColor) s.classList.remove(`marker--${lower}`);
                     });
+                    s.classList.add(`marker--${currentColor}`); // added this line
                 });
             }
         });
 
+        // NEW in this spec: check for a win using the player who just stopped,
+        // BEFORE the turn advances to anyone else.
         const wonGame = checkWinCondition(currentColor);
         if (wonGame) return; // game over -- do NOT advance the turn below
 
@@ -5993,6 +5995,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   const lower = otherColor.toLowerCase();
                   if (lower !== color.toLowerCase()) space.classList.remove(`marker--${lower}`);
               });
+              space.classList.add(`marker--${color.toLowerCase()}`); // added this line
           });
       }
     };
