@@ -3619,6 +3619,7 @@ def build_home_page():
         <a href="/board-games">Hawaii Board Games <span class="chevron">&#8250;</span></a>
         <a href="/music-gear">Music Gear <span class="chevron">&#8250;</span></a>
         <a href="/big-ideas">Big Ideas <span class="chevron">&#8250;</span></a>
+        <a href="/cant-stop">Can't Stop <span class="chevron">&#8250;</span></a>
         <a href="/song-burst">Song Burst <span class="chevron">&#8250;</span></a>
         <a href="/dice">Dice Vault <span class="chevron">&#8250;</span></a>
         <a href="/dice/help">Dice Vault Help <span class="chevron">&#8250;</span></a>
@@ -5202,6 +5203,755 @@ def build_supplement_detail_page(conn, sup_id, fdc_status=None, fdc_label=""):
     return html_page(h(sup["name"]), body, extra_js=js)
 
 
+def build_cant_stop_page():
+    """Standalone Can't Stop board game -- inlines its CSS/JS (built via
+    the spec-driven-pipeline project) directly into the page, per this
+    codebase's no-separate-frontend-build convention. Source of truth for
+    the game itself lives in the spec-driven-pipeline repo's
+    docs/games/cant_stop/specs/ and apps/cant_stop/ -- update there and
+    re-paste here, not the other way around."""
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cant Stop Game</title>
+    <style>
+body {
+  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  background-color: #fafafa;
+  color: #222;
+  margin: 0;
+  padding: 16px;
+}
+
+.js-hidden {
+  display: none !important;
+}
+
+#game-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+#player-setup select,
+#player-setup button,
+#roll-button,
+#stop-button,
+#bust-acknowledge-button,
+#new-game-button {
+  font-family: inherit;
+  font-size: 16px;
+  padding: 8px 16px;
+  margin: 4px 4px 4px 0;
+  border: 1px solid #999;
+  border-radius: 6px;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+#roll-button:disabled {
+  background-color: #eee;
+  color: #999;
+  cursor: not-allowed;
+}
+
+#board {
+  display: flex; /* required since Spec 01 -- keep it */
+  gap: 6px;
+  align-items: flex-end;
+  margin: 16px 0;
+}
+
+/* Spec 01's DOM order is bottom-to-top; column-reverse renders the last
+   child (space--top) at the visual top without changing DOM order. */
+.column {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 2px;
+}
+
+.space {
+  min-height: 24px; /* required since Spec 01 -- keep it */
+  min-width: 24px;  /* required since Spec 01 -- keep it */
+  border: 1px solid #999;
+  border-radius: 4px;
+  background-color: #eee;
+  box-sizing: border-box;
+}
+
+.space--top {
+  border-color: #333;
+  border-width: 2px;
+  background-color: #ddeedd;
+}
+
+.marker--red { background-color: #e74c3c; }
+.marker--blue { background-color: #3498db; }
+.marker--green { background-color: #2ecc71; }
+.marker--yellow { background-color: #f1c40f; }
+
+.space--white-marker {
+  position: relative;
+}
+
+.space--white-marker::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--white-marker-color, #fff);
+  border: 1px solid #333;
+  transform: translate(-50%, -50%);
+}
+
+.column--claimed {
+  opacity: 0.6;
+}
+
+.die {
+  display: inline-block;
+  margin: 5px;
+  padding: 10px;
+  border: 1px solid #333;
+  border-radius: 5px;
+  font-size: 18px;
+  text-align: center;
+  background-color: #f9f9f9;
+  min-width: 20px;
+}
+
+.pairing-option {
+  display: inline-block;
+  margin: 5px;
+  padding: 10px;
+  border: 1px solid #333;
+  border-radius: 5px;
+  font-size: 18px;
+  text-align: center;
+  background-color: #e0e0e0;
+  cursor: pointer;
+}
+
+.pairing-option:hover {
+  background-color: #cfe8ff;
+}
+
+.pairing-option--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+#turn-indicator {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+/* Text-safe versions of the marker colors -- plain marker yellow (#f1c40f)
+   is too low-contrast to read as text on a white background, so this one
+   substitutes a darker gold that still reads as "yellow". */
+.turn-indicator--red { color: #e74c3c; }
+.turn-indicator--blue { color: #3498db; }
+.turn-indicator--green { color: #27ae60; }
+.turn-indicator--yellow { color: #b8860b; }
+
+.pairing-number--legal {
+  display: inline-block;
+  border: 2px solid #27ae60;
+  border-radius: 2px;
+  padding: 0 4px;
+}
+
+#column-choice-prompt {
+  width: 100%;
+  margin: 5px;
+  font-weight: bold;
+}
+
+#bust-banner {
+  margin-top: 10px;
+  padding: 10px;
+  font-size: 24px;
+  color: #c0392b;
+  font-weight: bold;
+}
+
+#win-screen {
+  display: flex; /* required since Spec 07 -- keep it */
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+#win-message {
+  font-size: 32px;
+}
+    </style>
+</head>
+<body>
+    <div id="player-setup">
+        <select id="player-count">
+            <option value="2">2 Players</option>
+            <option value="3">3 Players</option>
+            <option value="4">4 Players</option>
+        </select>
+        <ul id="player-colors" class="js-hidden">
+            <li>
+                <label>Player 1 (Red):</label>
+                <input type="color" value="#FF0000" disabled />
+            </li>
+            <li>
+                <label>Player 2 (Blue):</label>
+                <input type="color" value="#0000FF" disabled />
+            </li>
+            <li>
+                <label>Player 3 (Green):</label>
+                <input type="color" value="#008000" disabled />
+            </li>
+            <li>
+                <label>Player 4 (Yellow):</label>
+                <input type="color" value="#FFFF00" disabled />
+            </li>
+        </ul>
+        <button id="start-game-button">Start Game</button>
+    </div>
+
+    <div id="game-screen" class="js-hidden">
+        <p id="turn-indicator" class="turn-indicator--red">Player 1's turn</p>
+        <div id="board"></div>
+        <button id="roll-button">Roll Dice</button>
+        <div id="dice"></div>
+        <div id="pairing-options"></div>
+        <button id="stop-button" class="js-hidden">Stop</button>
+        <div id="bust-banner" class="js-hidden">BUST</div>
+        <button id="bust-acknowledge-button" class="js-hidden">Busted - Press to continue</button>
+    </div>
+
+    <div id="win-screen" class="js-hidden">
+        <p id="win-message"></p>
+        <button id="new-game-button">Start New Game</button>
+    </div>
+
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const playerSetup = document.getElementById('player-setup');
+    const gameScreen = document.getElementById('game-screen');
+    const winScreen = document.getElementById('win-screen');
+    const playerCountSelect = document.getElementById('player-count');
+    const playerColorsList = document.getElementById('player-colors');
+
+    // Generate the board with JavaScript
+    const HEIGHTS = [3, 5, 7, 9, 11, 13, 11, 9, 7, 5, 3]; // columns 2..12
+
+    function generateBoard() {
+        const board = document.getElementById('board');
+        for (let col = 2; col <= 12; col++) {
+            const column = document.createElement('div');
+            column.className = 'column';
+            column.dataset.number = col;
+            const height = HEIGHTS[col - 2];
+            for (let i = 0; i < height; i++) {
+                const space = document.createElement('div');
+                space.className = (i === height - 1) ? 'space space--top' : 'space';
+                column.appendChild(space);
+            }
+            board.appendChild(column);
+        }
+    }
+
+    // Update player colors list based on selected player count
+    function updatePlayerColors() {
+        const playerCount = parseInt(playerCountSelect.value, 10);
+        for (let i = 0; i < playerColorsList.children.length; i++) {
+            if (i < playerCount) {
+                playerColorsList.children[i].classList.remove('js-hidden');
+            } else {
+                playerColorsList.children[i].classList.add('js-hidden');
+            }
+        }
+    }
+
+    // Add event listener to player count select
+    playerCountSelect.addEventListener('change', updatePlayerColors);
+
+    // Initialize player colors list based on default selection
+    updatePlayerColors();
+
+    let currentPlayerIndex = 0;
+    const PLAYER_COLORS = ['red', 'blue', 'green', 'yellow'];
+    let playerCount;
+
+    // Exposed so code outside this closure (the white-marker-tint observer,
+    // which lives at the top level of the file) can always read the LIVE
+    // current player, not a stale snapshot -- currentPlayerIndex is
+    // reassigned throughout the game and is otherwise private to this closure.
+    window.getCurrentPlayerColor = function() {
+        return PLAYER_COLORS[currentPlayerIndex];
+    };
+
+    // Sets the turn-indicator's text AND colors it to match the current
+    // player, reading currentPlayerIndex/PLAYER_COLORS live (never a
+    // snapshot) -- call this any time currentPlayerIndex changes instead of
+    // setting .textContent directly, so the color never goes stale.
+    function updateTurnIndicator() {
+        const indicator = document.getElementById('turn-indicator');
+        indicator.textContent = `Player ${currentPlayerIndex + 1}'s turn`;
+        PLAYER_COLORS.forEach(color => indicator.classList.remove(`turn-indicator--${color}`));
+        indicator.classList.add(`turn-indicator--${PLAYER_COLORS[currentPlayerIndex]}`);
+    }
+
+    // Add event listener to start game button
+    document.getElementById('start-game-button').addEventListener('click', function() {
+        playerSetup.classList.add('js-hidden');
+        gameScreen.classList.remove('js-hidden');
+        generateBoard();
+        playerCount = parseInt(playerCountSelect.value, 10);
+        updateTurnIndicator();
+    });
+
+    function showStopButton() {
+      document.getElementById('stop-button').classList.remove('js-hidden');
+    }
+
+    function hideStopButton() {
+      document.getElementById('stop-button').classList.add('js-hidden');
+    }
+
+    window.generatePairings = generatePairings;
+
+    // Function to apply sum to column and convert white markers
+    function applySumToColumn(sum, currentPlayerColor) {
+        const column = document.querySelector(`.column[data-number="${sum}"]`);
+        if (!column || column.classList.contains('column--claimed')) return; // NEW: added by this spec
+
+        const spaces = Array.from(column.querySelectorAll('.space'));
+
+        const existingWhiteIndex = spaces.findIndex(
+            s => s.classList.contains('space--white-marker')
+        );
+
+        if (existingWhiteIndex !== -1) {
+            const nextIndex = existingWhiteIndex + 1;
+            if (nextIndex < spaces.length) {
+                spaces[existingWhiteIndex].classList.remove('space--white-marker');
+                spaces[nextIndex].classList.add('space--white-marker');
+            }
+            return; // already at the top: nothing further to do
+        }
+
+        const columnsInProgress = document.querySelectorAll('.space--white-marker').length;
+        if (columnsInProgress >= 3) return;
+
+        const ownPermanentIndex = spaces.findIndex(
+            s => s.classList.contains(`marker--${currentPlayerColor}`)
+        );
+        const placeAt = (ownPermanentIndex !== -1) ? ownPermanentIndex + 1 : 0;
+        if (placeAt < spaces.length) {
+            spaces[placeAt].classList.add('space--white-marker');
+        }
+    }
+
+    function rollBusts(pairings) {
+        return !pairings.some(([lo, hi]) => isLegalSum(lo) || isLegalSum(hi));
+    }
+
+    // Function to generate pairings
+    function generatePairings(dice) {
+      const groupings = [
+          [[0, 1], [2, 3]],
+          [[0, 2], [1, 3]],
+          [[0, 3], [1, 2]],
+      ];
+      const seen = new Set();
+      const pairings = [];
+      for (const [g1, g2] of groupings) {
+        const sumA = dice[g1[0]] + dice[g1[1]];
+        const sumB = dice[g2[0]] + dice[g2[1]];
+        const lo = Math.min(sumA, sumB);
+        const hi = Math.max(sumA, sumB);
+        const key = `${lo},${hi}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          pairings.push([lo, hi]); // exactly 2 elements: the two sums, nothing else
+        }
+      }
+      return pairings; // 1 to 3 entries, NEVER more
+    }
+
+    function isLegalSum(sum) {
+      const column = document.querySelector(`.column[data-number="${sum}"]`);
+      if (!column) return false;
+      if (column.classList.contains('column--claimed')) return false;
+
+      const spaces = Array.from(column.querySelectorAll('.space'));
+      const existingWhiteIndex = spaces.findIndex(
+        s => s.classList.contains('space--white-marker')
+      );
+
+      if (existingWhiteIndex !== -1) {
+        return existingWhiteIndex + 1 < spaces.length; // can still advance
+      }
+
+      const columnsInProgress = document.querySelectorAll('.space--white-marker').length;
+      return columnsInProgress < 3; // room for a new column
+    }
+
+    // True when a column already has one of the current player's
+    // in-progress (white) markers -- i.e. applying this sum would ADVANCE
+    // an existing runner rather than start a brand new one.
+    function isColumnInProgress(sum) {
+        const column = document.querySelector(`.column[data-number="${sum}"]`);
+        if (!column) return false;
+        return Array.from(column.querySelectorAll('.space')).some(
+            s => s.classList.contains('space--white-marker')
+        );
+    }
+
+    // A chosen pairing is ambiguous exactly when the player already has 2
+    // columns in progress and BOTH sums of the pairing would start brand
+    // new (3rd) columns -- using both would require a 4th column, which
+    // the rules forbid, so the player must choose exactly ONE. Every other
+    // case (an existing column being advanced, or fewer than 2 columns in
+    // progress) has no ambiguity: applying both sums in sequence already
+    // does the right thing via applySumToColumn's own in-progress check.
+    function isAmbiguousNewColumnChoice(lo, hi) {
+        const columnsInProgress = document.querySelectorAll('.space--white-marker').length;
+        if (columnsInProgress !== 2) return false;
+        if (isColumnInProgress(lo) || isColumnInProgress(hi)) return false;
+        return isLegalSum(lo) && isLegalSum(hi);
+    }
+
+    // Replaces #pairing-options with a choice between the two candidate
+    // columns -- used only for the ambiguous case above. The dice stay
+    // visible until the player actually picks one.
+    function showColumnChoice(lo, hi) {
+        const container = document.getElementById('pairing-options');
+        container.innerHTML = '';
+
+        const prompt = document.createElement('p');
+        prompt.id = 'column-choice-prompt';
+        prompt.textContent = 'Choose which column to advance:';
+        container.appendChild(prompt);
+
+        [lo, hi].forEach(col => {
+            const choiceElement = document.createElement('div');
+            choiceElement.className = 'pairing-option column-choice-option';
+            choiceElement.dataset.column = col;
+            choiceElement.textContent = `Column ${col}`;
+            container.appendChild(choiceElement);
+        });
+    }
+
+    function rollDice(currentPlayerIndex) {
+      hideStopButton();
+        let diceValues;
+        if (window.__testDiceOverride) {
+            diceValues = window.__testDiceOverride;
+            delete window.__testDiceOverride; // one-shot: only this roll uses it
+        } else {
+            diceValues = [];
+            for (let i = 0; i < 4; i++) {
+                diceValues.push(Math.floor(Math.random() * 6) + 1);
+            }
+        }
+
+        document.getElementById('dice').innerHTML = ''; // Clear any existing dice
+
+        for (let i = 0; i < 4; i++) {
+            const dieElement = document.createElement('div');
+            dieElement.className = 'die';
+            dieElement.textContent = diceValues[i];
+            document.getElementById('dice').appendChild(dieElement);
+        }
+
+        const pairings = generatePairings(diceValues);
+
+        if (rollBusts(pairings)) {
+            showBustBanner(currentPlayerIndex + 1);
+            return;
+        }
+
+        // Only reached when NOT a bust: now, and only now, create .pairing-option
+        document.getElementById('pairing-options').innerHTML = ''; // always clear first, regardless of outcome
+
+        pairings.forEach(([lo, hi]) => {
+            const optionElement = document.createElement('div');
+            optionElement.className = 'pairing-option';
+            optionElement.dataset.sums = `${lo},${hi}`;
+            const loLegal = isLegalSum(lo);
+            const hiLegal = isLegalSum(hi);
+            optionElement.innerHTML =
+                `<span class="pairing-number${loLegal ? ' pairing-number--legal' : ''}">${lo}</span>` +
+                ` &amp; ` +
+                `<span class="pairing-number${hiLegal ? ' pairing-number--legal' : ''}">${hi}</span>`;
+            if (!loLegal && !hiLegal) {
+                optionElement.classList.add('pairing-option--disabled');
+            }
+            document.getElementById('pairing-options').appendChild(optionElement);
+        });
+
+        // Re-enable the roll button after rolling
+        document.getElementById('roll-button').disabled = false;
+    }
+
+    function showBustBanner(bustedPlayerIndex) {
+      document.getElementById('bust-banner').textContent = `Player ${bustedPlayerIndex} BUST`;
+      document.getElementById('bust-banner').classList.remove('js-hidden');
+      document.getElementById('bust-acknowledge-button').classList.remove('js-hidden'); // easy to forget -- both must be shown together
+      document.getElementById('roll-button').disabled = true;
+    }
+
+    // Attach this listener exactly ONCE, outside showBustBanner (which may be
+    // called many times over a game) -- attaching it inside showBustBanner
+    // would add a new listener on every bust, and a single click would then
+    // fire the handler multiple times.
+    document.getElementById('bust-acknowledge-button').addEventListener('click', () => {
+      document.getElementById('bust-banner').classList.add('js-hidden');
+      document.getElementById('bust-acknowledge-button').classList.add('js-hidden');
+
+      document.querySelectorAll('.space--white-marker').forEach(
+        space => space.classList.remove('space--white-marker')
+      );
+
+      currentPlayerIndex = (currentPlayerIndex + 1) % playerCount;
+      updateTurnIndicator();
+
+      document.getElementById('roll-button').disabled = false;
+    });
+
+    function stopAndBankProgress(playerColor) {
+        const currentColor = playerColor.toLowerCase();
+
+        document.querySelectorAll('.space--white-marker').forEach(space => {
+            const column = space.closest('.column');
+            const spaces = Array.from(column.querySelectorAll('.space'));
+            const olderMarkerSpace = spaces.find(
+                s => s !== space && s.classList.contains(`marker--${currentColor}`)
+            );
+            if (olderMarkerSpace) {
+                olderMarkerSpace.classList.remove(`marker--${currentColor}`);
+            }
+            space.classList.remove('space--white-marker');
+            space.classList.add(`marker--${currentColor}`);
+
+            if (space.classList.contains('space--top')) {
+                column.classList.add('column--claimed');
+                column.dataset.claimedBy = currentColor;
+                spaces.forEach(s => {
+                    PLAYER_COLORS.forEach(otherColor => {
+                        const lower = otherColor.toLowerCase();
+                        if (lower !== currentColor) s.classList.remove(`marker--${lower}`);
+                    });
+                });
+            }
+        });
+
+        // NEW in this spec: check for a win using the player who just stopped,
+        // BEFORE the turn advances to anyone else.
+        const wonGame = checkWinCondition(currentColor);
+        if (wonGame) return; // game over -- do NOT advance the turn below
+
+        hideStopButton();
+        currentPlayerIndex = (currentPlayerIndex + 1) % playerCount;
+        updateTurnIndicator();
+    }
+
+    function checkWinCondition(playerColor) {
+      const claimedByPlayer = document.querySelectorAll(
+          `.column--claimed[data-claimed-by="${playerColor}"]`
+      ).length;
+
+      if (claimedByPlayer >= 3) {
+        document.getElementById('game-screen').classList.add('js-hidden');
+        document.getElementById('win-screen').classList.remove('js-hidden');
+        document.getElementById('win-message').textContent =
+            `Player ${PLAYER_COLORS.indexOf(playerColor) + 1} (${playerColor}) wins!`;
+        return true;
+      }
+      return false;
+    }
+
+    const rollButton = document.getElementById('roll-button');
+    rollButton.addEventListener('click', function() {
+        currentPlayerIndex = currentPlayerIndex % playerCount; // Ensure index wraps around
+        rollDice(currentPlayerIndex);
+    });
+
+    document.getElementById('pairing-options').addEventListener('click', (event) => {
+      // Use closest(), not a direct classList check on event.target: Spec 12
+      // renders each sum inside a child <span>, so a real click's target is
+      // often that span, not the .pairing-option div itself. Check the
+      // column-choice case FIRST, since a .column-choice-option element
+      // also carries the .pairing-option class (for shared styling).
+      const choiceTarget = event.target.closest('.column-choice-option');
+      if (choiceTarget) {
+        const column = Number(choiceTarget.dataset.column);
+        applySumToColumn(column, PLAYER_COLORS[currentPlayerIndex]);
+
+        document.getElementById('dice').innerHTML = '';
+        document.getElementById('pairing-options').innerHTML = '';
+
+        showStopButton();
+        return;
+      }
+
+      const optionTarget = event.target.closest('.pairing-option');
+      if (!optionTarget) return;
+      if (optionTarget.classList.contains('pairing-option--disabled')) return;
+
+      const [lo, hi] = optionTarget.dataset.sums.split(',').map(Number).sort((a, b) => a - b);
+
+      if (isAmbiguousNewColumnChoice(lo, hi)) {
+        // Both sums would start a brand new (3rd) column -- only one is
+        // allowed, so let the player pick instead of silently favoring lo.
+        showColumnChoice(lo, hi);
+        return;
+      }
+
+      applySumToColumn(lo, PLAYER_COLORS[currentPlayerIndex]);
+      applySumToColumn(hi, PLAYER_COLORS[currentPlayerIndex]);
+
+      document.getElementById('dice').innerHTML = '';
+      document.getElementById('pairing-options').innerHTML = '';
+
+      showStopButton();
+    });
+
+    document.getElementById('stop-button').addEventListener('click', function() {
+        stopAndBankProgress(PLAYER_COLORS[currentPlayerIndex]);
+    });
+
+    // New game button
+    document.getElementById('new-game-button').addEventListener('click', function() {
+        playerSetup.classList.remove('js-hidden');
+        winScreen.classList.add('js-hidden');
+        gameScreen.classList.add('js-hidden');
+
+        document.querySelectorAll('.column--claimed').forEach(column => {
+            column.classList.remove('column--claimed');
+            column.dataset.claimedBy = '';
+            Array.from(column.querySelectorAll('.space')).forEach(space => {
+                space.classList.remove(...space.classList);
+            });
+        });
+
+        currentPlayerIndex = 0;
+        playerCount = parseInt(playerCountSelect.value, 10);
+        updateTurnIndicator();
+    });
+
+    // Test-only setup hook
+    window.forceClaimColumn = function(number, color) {
+      const column = document.querySelector(`.column[data-number="${number}"]`);
+      if (column) {
+          column.classList.add('column--claimed');
+          column.dataset.claimedBy = color.toLowerCase();
+          column.querySelector('.space--top').classList.add(`marker--${color.toLowerCase()}`);
+          Array.from(column.querySelectorAll('.space')).forEach(space => {
+              PLAYER_COLORS.forEach(otherColor => {
+                  const lower = otherColor.toLowerCase();
+                  if (lower !== color.toLowerCase()) space.classList.remove(`marker--${lower}`);
+              });
+          });
+      }
+    };
+
+    window.setTestDice = function(a, b, c, d) {
+        window.__testDiceOverride = [a, b, c, d];
+    };
+});
+
+const MULTI_MARKER_COLOR_HEX = {
+  red: '#e74c3c',
+  blue: '#3498db',
+  green: '#2ecc71',
+  yellow: '#f1c40f',
+};
+const MULTI_MARKER_COLOR_ORDER = ['red', 'blue', 'green', 'yellow'];
+
+function updateMultiMarkerDisplay(space) {
+  const present = MULTI_MARKER_COLOR_ORDER.filter(
+    color => space.classList.contains(`marker--${color}`)
+  );
+  if (present.length <= 1) {
+    // 0 or 1 marker: let the normal marker--<color> CSS rule (or the
+    // plain .space background) show through, exactly as before this spec.
+    space.style.backgroundImage = '';
+    return;
+  }
+  // 2+ markers: render one equal-width vertical stripe per present
+  // color, in canonical red/blue/green/yellow order (filtered to only
+  // the colors actually present -- e.g. red+yellow is a 2-stripe split,
+  // not a 4-stripe split with gaps).
+  const step = 100 / present.length;
+  const stops = present
+    .map((color, i) => {
+      const hex = MULTI_MARKER_COLOR_HEX[color];
+      return `${hex} ${i * step}%, ${hex} ${(i + 1) * step}%`;
+    })
+    .join(', ');
+  space.style.backgroundImage = `linear-gradient(to right, ${stops})`;
+}
+
+function refreshAllMultiMarkerDisplays() {
+  document.querySelectorAll('.space').forEach(updateMultiMarkerDisplay);
+}
+
+// Lighter tints of each player color, for the in-progress (white) marker
+// dot -- a .space--white-marker always belongs to whichever player is
+// CURRENTLY taking their turn (white markers are always cleared/converted
+// before any other player's turn begins), so PLAYER_COLORS[currentPlayerIndex]
+// at the moment the class is added is always the correct owner.
+const WHITE_MARKER_LIGHT_HEX = {
+  red: '#f5b7b1',
+  blue: '#aed6f1',
+  green: '#a9dfbf',
+  yellow: '#f9e79f',
+};
+
+function updateWhiteMarkerTint(space) {
+  if (!space.classList.contains('space--white-marker')) {
+    space.style.removeProperty('--white-marker-color');
+    return;
+  }
+  space.style.setProperty('--white-marker-color', WHITE_MARKER_LIGHT_HEX[window.getCurrentPlayerColor()]);
+}
+
+// #board exists (empty) from page load, and every .column/.space is
+// added under it later (Spec 01's createBoard) -- `subtree: true` means
+// this observer automatically covers those future descendants too, so
+// it does not matter that #board is empty at the moment this runs.
+const multiMarkerObserver = new MutationObserver(mutationList => {
+  const changedSpaces = new Set();
+  mutationList.forEach(mutation => {
+    if (mutation.target.classList && mutation.target.classList.contains('space')) {
+      changedSpaces.add(mutation.target);
+    }
+  });
+  changedSpaces.forEach(space => {
+    updateMultiMarkerDisplay(space);
+    updateWhiteMarkerTint(space);
+  });
+});
+
+multiMarkerObserver.observe(document.getElementById('board'), {
+  attributes: true,
+  attributeFilter: ['class'],
+  subtree: true,
+});
+    </script>
+</body>
+</html>
+"""
+
+
 # ---------------------------------------------------------------------------
 # Request handler
 # ---------------------------------------------------------------------------
@@ -5356,7 +6106,7 @@ class Handler(BaseHTTPRequestHandler):
 
         # In web mode, block internal routes
         if WEB_MODE and not (path == "/" or path.startswith("/song-burst") or path.startswith("/dice")
-                            or path.startswith("/dicevault")
+                            or path.startswith("/dicevault") or path.startswith("/cant-stop")
                             or path.startswith("/manifest") or path.startswith("/apple-touch")
                             or path.startswith("/favicon") or path.startswith("/static")):
             self.send_response(404)
@@ -5380,6 +6130,9 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/big-ideas":
             self.send_html(build_big_ideas_page())
+
+        elif path == "/cant-stop":
+            self.send_html(build_cant_stop_page())
 
         elif path == "/dice":
             premium = qs.get("premium") != "0"  # Default to pro during testing
