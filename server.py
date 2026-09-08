@@ -5519,8 +5519,14 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  position: fixed;
+  inset: 0;
   text-align: center;
+  background-color: rgba(13, 17, 23, 0.85);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  z-index: 50;
 }
 
 #win-message {
@@ -5960,7 +5966,9 @@ document.addEventListener('DOMContentLoaded', function() {
       ).length;
 
       if (claimedByPlayer >= 3) {
-        document.getElementById('game-screen').classList.add('js-hidden');
+        // Spec 30: #game-screen deliberately stays visible -- winning
+        // must not make the board disappear, only overlay the win
+        // message on top of it (see #win-screen's CSS).
         document.getElementById('win-screen').classList.remove('js-hidden');
         document.getElementById('win-message').textContent =
             `Player ${PLAYER_COLORS.indexOf(playerColor) + 1} (${playerColor}) wins!`;
