@@ -5476,6 +5476,13 @@ body {
   box-shadow: 0 0 16px 4px var(--active-glow-color, #d4a030);
   border-radius: 6px;
 }
+
+.column-probability {
+    min-width: 24px;
+    font-size: 10px;
+    text-align: center;
+    color: #8b949e;
+}
     </style>
 </head>
 <body>
@@ -5533,6 +5540,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Generate the board with JavaScript
     const HEIGHTS = [3, 5, 7, 9, 11, 13, 11, 9, 7, 5, 3]; // columns 2..12
 
+    const COLUMN_PROBABILITIES = {
+      2: 13.2, 3: 23.3, 4: 35.6, 5: 44.8, 6: 56.1, 7: 64.4,
+      8: 56.1, 9: 44.8, 10: 35.6, 11: 23.3, 12: 13.2,
+    };
+
     function generateBoard() {
         const board = document.getElementById('board');
         for (let col = 2; col <= 12; col++) {
@@ -5545,9 +5557,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 space.className = (i === height - 1) ? 'space space--top' : 'space';
                 column.appendChild(space);
             }
-            // Appended LAST, after every .space -- the column is
+            // Appended after every .space but BEFORE the number label --
+            // in this column-reverse layout, this renders visually ABOVE
+            // the spaces but BELOW the number label (which stays the very
+            // last DOM child, so it stays the topmost element).
+            const probability = document.createElement('div');
+            probability.className = 'column-probability';
+            probability.textContent = `${COLUMN_PROBABILITIES[col]}%`;
+            column.appendChild(probability);
+
+            // Appended LAST, after everything else -- the column is
             // column-reverse (see the .column CSS rule), so the last DOM
-            // child renders at the visual TOP, above .space--top.
+            // child renders at the visual TOP, above .space--top AND above
+            // .column-probability.
             const label = document.createElement('div');
             label.className = 'column-label';
             label.textContent = col;
