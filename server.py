@@ -5223,18 +5223,30 @@ def build_cant_stop_page():
     <style>
 body {
   font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
-  background-color: #fafafa;
-  color: #222;
-  margin: 0;
-  padding: 16px;
+  background-color: #0d1117;
+  color: #e6edf3;
+  margin: 0 auto;
+  padding: 24px 16px;
+  max-width: 640px;
 }
 
 .js-hidden {
   display: none !important;
 }
 
+/* Card-style container -- added to #player-setup, #game-screen, and
+   #win-screen (see step 2). Gives the app a "modern panel" look instead
+   of bare content floating on the page background. */
+.panel {
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
 #game-screen {
-  display: flex;
+  display: flex; /* required since Spec 08 -- keep it */
   flex-direction: column;
   align-items: stretch;
 }
@@ -5247,22 +5259,43 @@ body {
 #new-game-button {
   font-family: inherit;
   font-size: 16px;
-  padding: 8px 16px;
+  font-weight: 600;
+  padding: 10px 20px;
   margin: 4px 4px 4px 0;
-  border: 1px solid #999;
-  border-radius: 6px;
-  background-color: #fff;
+  border: none;
+  border-radius: 999px;
+  background-color: #d4a030;
+  color: #0d1117;
   cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+#player-setup select {
+  background-color: #21262d;
+  color: #e6edf3;
+  border: 1px solid #30363d;
+}
+
+#player-setup button:hover,
+#roll-button:hover:not(:disabled),
+#stop-button:hover,
+#bust-acknowledge-button:hover,
+#new-game-button:hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 16px rgba(212, 160, 48, 0.35);
 }
 
 #roll-button:disabled {
-  background-color: #eee;
-  color: #999;
+  background-color: #30363d;
+  color: #8b949e;
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 #board {
   display: flex; /* required since Spec 01 -- keep it */
+  justify-content: center;
   gap: 6px;
   align-items: flex-end;
   margin: 16px 0;
@@ -5271,8 +5304,8 @@ body {
 /* Spec 01's DOM order is bottom-to-top; column-reverse renders the last
    child (space--top) at the visual top without changing DOM order. */
 .column {
-  display: flex;
-  flex-direction: column-reverse;
+  display: flex; /* required since Spec 01 -- keep it */
+  flex-direction: column-reverse; /* required since Spec 01 -- keep it */
   align-items: center;
   gap: 2px;
 }
@@ -5280,21 +5313,29 @@ body {
 .space {
   min-height: 24px; /* required since Spec 01 -- keep it */
   min-width: 24px;  /* required since Spec 01 -- keep it */
-  border: 1px solid #999;
+  border: 1px solid #30363d;
   border-radius: 4px;
   background-color: #555;
   box-sizing: border-box;
 }
 
 .space--top {
-  border-color: #333;
+  border-color: #d4a030; /* Changed from green to gold */
   border-width: 2px;
-  background-color: #ddeedd;
+  background-color: #3d3320; /* New dark warm-brown background color */
+}
+
+.column-label {
+  min-width: 24px;
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+  color: #8b949e;
 }
 
 .marker--red { background-color: #e74c3c; }
 .marker--blue { background-color: #3498db; }
-.marker--green { background-color: #2ecc71; }
+.marker--green { background-color: #2ecc71; } /* No changes to marker colors */
 .marker--yellow { background-color: #f1c40f; }
 
 .space--white-marker {
@@ -5322,11 +5363,13 @@ body {
   display: inline-block;
   margin: 5px;
   padding: 10px;
-  border: 1px solid #333;
-  border-radius: 5px;
+  border: 1px solid #30363d;
+  border-radius: 8px;
   font-size: 18px;
+  font-weight: 600;
   text-align: center;
-  background-color: #f9f9f9;
+  background-color: #21262d;
+  color: #e6edf3;
   min-width: 20px;
 }
 
@@ -5334,16 +5377,17 @@ body {
   display: inline-block;
   margin: 5px;
   padding: 10px;
-  border: 1px solid #333;
-  border-radius: 5px;
+  border: 1px solid #30363d;
+  border-radius: 8px;
   font-size: 18px;
   text-align: center;
-  background-color: #e0e0e0;
+  background-color: #21262d;
+  color: #e6edf3;
   cursor: pointer;
 }
 
 .pairing-option:hover {
-  background-color: #cfe8ff;
+  background-color: #1f3a5f;
 }
 
 .pairing-option--disabled {
@@ -5352,22 +5396,9 @@ body {
   pointer-events: none;
 }
 
-#turn-indicator {
-  font-size: 20px;
-  font-weight: bold;
-}
-
-/* Text-safe versions of the marker colors -- plain marker yellow (#f1c40f)
-   is too low-contrast to read as text on a white background, so this one
-   substitutes a darker gold that still reads as "yellow". */
-.turn-indicator--red { color: #e74c3c; }
-.turn-indicator--blue { color: #3498db; }
-.turn-indicator--green { color: #27ae60; }
-.turn-indicator--yellow { color: #b8860b; }
-
-.pairing-number--legal {
+.pairing-number--legal { /* Changed border color from green to gold */
   display: inline-block;
-  border: 2px solid #27ae60;
+  border: 2px solid #d4a030; /* Gold accent color */
   border-radius: 2px;
   padding: 0 4px;
 }
@@ -5376,13 +5407,25 @@ body {
   width: 100%;
   margin: 5px;
   font-weight: bold;
+  color: #e6edf3;
 }
+
+#turn-indicator {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+.turn-indicator--red { color: #f85149; }
+.turn-indicator--blue { color: #58a6ff; }
+.turn-indicator--green { color: #3fb950; } /* No changes to turn indicator colors */
+.turn-indicator--yellow { color: #e3b341; }
 
 #bust-banner {
   margin-top: 10px;
   padding: 10px;
   font-size: 24px;
-  color: #c0392b;
+  color: #f85149;
   font-weight: bold;
 }
 
@@ -5392,23 +5435,18 @@ body {
   justify-content: center;
   align-items: center;
   height: 100vh;
+  text-align: center;
 }
 
 #win-message {
   font-size: 32px;
-}
-
-.column-label {
-  min-width: 24px;
-  font-size: 14px;
-  font-weight: bold;
-  text-align: center;
-  color: #444;
+  font-weight: 800;
+  color: #fff;
 }
     </style>
 </head>
 <body>
-    <div id="player-setup">
+    <div id="player-setup" class="panel">
         <select id="player-count">
             <option value="2">2 Players</option>
             <option value="3">3 Players</option>
@@ -5435,7 +5473,7 @@ body {
         <button id="start-game-button">Start Game</button>
     </div>
 
-    <div id="game-screen" class="js-hidden">
+    <div id="game-screen" class="js-hidden panel">
         <p id="turn-indicator" class="turn-indicator--red">Player 1's turn</p>
         <div id="board"></div>
         <button id="roll-button">Roll Dice</button>
@@ -5446,7 +5484,7 @@ body {
         <button id="bust-acknowledge-button" class="js-hidden">Busted - Press to continue</button>
     </div>
 
-    <div id="win-screen" class="js-hidden">
+    <div id="win-screen" class="js-hidden panel">
         <p id="win-message"></p>
         <button id="new-game-button">Start New Game</button>
     </div>
@@ -5863,7 +5901,10 @@ document.addEventListener('DOMContentLoaded', function() {
           column.dataset.claimedBy = color.toLowerCase();
           column.querySelector('.space--top').classList.add(`marker--${color.toLowerCase()}`);
           Array.from(column.querySelectorAll('.space')).forEach(space => {
-              space.classList.remove(...space.classList);
+              PLAYER_COLORS.forEach(otherColor => {
+                  const lower = otherColor.toLowerCase();
+                  if (lower !== color.toLowerCase()) space.classList.remove(`marker--${lower}`);
+              });
           });
       }
     };
