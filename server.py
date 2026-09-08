@@ -5208,91 +5208,55 @@ def build_supplement_detail_page(conn, sup_id, fdc_status=None, fdc_label=""):
 
 
 def build_cant_stop_debug_page():
-    """Temporary diagnostic page -- reports real computed layout values
-    as plain visible text, so a device that's showing wrong layout can
-    just be screenshotted instead of needing devtools/remote debugging.
-    Reproduces the game page's EXACT body + .panel CSS (copied verbatim
-    from apps/cant_stop/styles.css) so it tests the actual structure
-    that's misbehaving, not just a simplified stand-in.
+    """Temporary diagnostic page -- the REAL game page (build_cant_stop_page,
+    completely unmodified) with a fixed-position overlay injected just
+    before </body> that reports computed layout values as plain visible
+    text. A hand-copied reproduction of just body+.panel rendered fine on
+    the reporting device while the real page didn't -- so this tests the
+    actual production DOM/CSS/JS directly instead of a stand-in that might
+    be missing whatever the real difference turns out to be.
     Safe to delete once the padding investigation is resolved."""
-    return """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Cant Stop Debug</title>
-<style>
-/* Copied verbatim from apps/cant_stop/styles.css -- the real body +
-   .panel rules, unmodified, so this tests the actual failing structure. */
-body {
-  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
-  background-color: #0d1117;
-  color: #e6edf3;
-  margin: 0;
-  padding: 24px 16px;
-  display: flex;
-  justify-content: center;
-}
-.panel {
-  background-color: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-  text-align: center;
-  max-width: 380px;
-  width: 100%;
-  box-sizing: border-box;
-}
-/* Debug-only additions below this line. */
-#out { font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; text-align: left; color: #0f0; }
-</style>
-</head>
-<body>
-<div class="panel"><div id="out">loading...</div></div>
+    overlay = """
+<div id="debug-overlay" style="position:fixed; top:0; left:0; right:0; z-index:99999; background:#111; color:#0f0; font-family:monospace; font-size:11px; white-space:pre-wrap; word-break:break-all; padding:8px; text-align:left; max-height:60vh; overflow:auto; border-bottom:2px solid #0f0;">loading debug overlay...</div>
 <script>
-function report() {
-  const b = document.body;
-  const p = document.querySelector('.panel');
-  const html = document.documentElement;
-  const bcs = getComputedStyle(b);
-  const pcs = getComputedStyle(p);
-  const brect = b.getBoundingClientRect();
-  const prect = p.getBoundingClientRect();
-  const vv = window.visualViewport;
-  const lines = [
-    'userAgent: ' + navigator.userAgent,
-    '',
-    'devicePixelRatio: ' + window.devicePixelRatio,
-    'window.innerWidth/Height: ' + window.innerWidth + ' / ' + window.innerHeight,
-    'documentElement.clientWidth/Height: ' + html.clientWidth + ' / ' + html.clientHeight,
-    'visualViewport.width/height: ' + (vv ? vv.width : 'n/a') + ' / ' + (vv ? vv.height : 'n/a'),
-    'visualViewport.scale: ' + (vv ? vv.scale : 'n/a'),
-    '',
-    '--- BODY ---',
-    'computed paddingLeft/Right: ' + bcs.paddingLeft + ' / ' + bcs.paddingRight,
-    'computed display/justifyContent: ' + bcs.display + ' / ' + bcs.justifyContent,
-    'getBoundingClientRect: ' + JSON.stringify(brect),
-    '',
-    '--- .panel (the actual game card) ---',
-    'computed width/maxWidth: ' + pcs.width + ' / ' + pcs.maxWidth,
-    'computed boxSizing: ' + pcs.boxSizing,
-    'computed paddingLeft/Right: ' + pcs.paddingLeft + ' / ' + pcs.paddingRight,
-    'getBoundingClientRect: ' + JSON.stringify(prect),
-    '',
-    'GAP left of panel (should be ~16px): ' + (prect.left - brect.left),
-    'GAP right of panel (should be ~16px): ' + (brect.right - prect.right),
-    '',
-    'The card around this text should have visible dark space on its left AND right.',
-  ];
-  document.getElementById('out').textContent = lines.join('\\n');
-}
-report();
-window.addEventListener('resize', report);
-if (window.visualViewport) window.visualViewport.addEventListener('resize', report);
+(function() {
+  function report() {
+    const b = document.body;
+    const visiblePanel = Array.from(document.querySelectorAll('.panel')).find(
+      el => getComputedStyle(el).display !== 'none'
+    );
+    const bcs = getComputedStyle(b);
+    const brect = b.getBoundingClientRect();
+    const vv = window.visualViewport;
+    const lines = [
+      'devicePixelRatio: ' + window.devicePixelRatio + '  |  innerWidth/Height: ' + window.innerWidth + '/' + window.innerHeight,
+      'visualViewport w/h/scale: ' + (vv ? vv.width : 'n/a') + '/' + (vv ? vv.height : 'n/a') + '/' + (vv ? vv.scale : 'n/a'),
+      'BODY padding L/R: ' + bcs.paddingLeft + '/' + bcs.paddingRight + '  display/justifyContent: ' + bcs.display + '/' + bcs.justifyContent,
+      'BODY rect: ' + JSON.stringify(brect),
+    ];
+    if (visiblePanel) {
+      const pid = visiblePanel.id || '(no id)';
+      const pcs = getComputedStyle(visiblePanel);
+      const prect = visiblePanel.getBoundingClientRect();
+      lines.push(
+        'VISIBLE PANEL: #' + pid,
+        'panel width/maxWidth/boxSizing: ' + pcs.width + ' / ' + pcs.maxWidth + ' / ' + pcs.boxSizing,
+        'panel rect: ' + JSON.stringify(prect),
+        'GAP left/right (should be ~16): ' + (prect.left - brect.left) + ' / ' + (brect.right - prect.right)
+      );
+    } else {
+      lines.push('NO VISIBLE .panel FOUND');
+    }
+    document.getElementById('debug-overlay').textContent = lines.join('\\n');
+  }
+  report();
+  window.addEventListener('resize', report);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', report);
+  document.addEventListener('click', function() { setTimeout(report, 50); });
+})();
 </script>
-</body>
-</html>"""
+</body>"""
+    return build_cant_stop_page().replace("</body>", overlay)
 
 
 def build_cant_stop_page():
