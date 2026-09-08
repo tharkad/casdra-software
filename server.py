@@ -5360,18 +5360,60 @@ body {
 }
 
 .die {
-  display: inline-block;
+  display: inline-grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 4px;
   margin: 5px;
-  padding: 10px;
+  padding: 8px;
+  width: 60px;
+  height: 60px;
   border: 1px solid #30363d;
   border-radius: 8px;
-  font-size: 18px;
-  font-weight: 600;
-  text-align: center;
   background-color: #21262d;
-  color: #e6edf3;
-  min-width: 20px;
+  box-sizing: border-box;
 }
+
+.pip {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background-color: transparent;
+  justify-self: center;
+  align-self: center;
+}
+
+/* Each die--<value> class makes exactly the right pips (by their
+   position in the 3x3 grid, 1-indexed left-to-right/top-to-bottom)
+   visible -- see Spec 18's table for which positions map to which
+   value. Every other .pip stays transparent (invisible but still
+   occupying its grid cell, so the layout never shifts). */
+.die--1 .pip:nth-child(5) { background-color: #e6edf3; }
+
+.die--2 .pip:nth-child(1),
+.die--2 .pip:nth-child(9) { background-color: #e6edf3; }
+
+.die--3 .pip:nth-child(1),
+.die--3 .pip:nth-child(5),
+.die--3 .pip:nth-child(9) { background-color: #e6edf3; }
+
+.die--4 .pip:nth-child(1),
+.die--4 .pip:nth-child(3),
+.die--4 .pip:nth-child(7),
+.die--4 .pip:nth-child(9) { background-color: #e6edf3; }
+
+.die--5 .pip:nth-child(1),
+.die--5 .pip:nth-child(3),
+.die--5 .pip:nth-child(5),
+.die--5 .pip:nth-child(7),
+.die--5 .pip:nth-child(9) { background-color: #e6edf3; }
+
+.die--6 .pip:nth-child(1),
+.die--6 .pip:nth-child(3),
+.die--6 .pip:nth-child(4),
+.die--6 .pip:nth-child(6),
+.die--6 .pip:nth-child(7),
+.die--6 .pip:nth-child(9) { background-color: #e6edf3; }
 
 .pairing-option {
   display: inline-block;
@@ -5396,9 +5438,9 @@ body {
   pointer-events: none;
 }
 
-.pairing-number--legal { /* Changed border color from green to gold */
+.pairing-number--legal {
   display: inline-block;
-  border: 2px solid #d4a030; /* Gold accent color */
+  border: 2px solid #d4a030;
   border-radius: 2px;
   padding: 0 4px;
 }
@@ -5726,8 +5768,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         for (let i = 0; i < 4; i++) {
             const dieElement = document.createElement('div');
-            dieElement.className = 'die';
-            dieElement.textContent = diceValues[i];
+            dieElement.className = `die die--${diceValues[i]}`;
+            dieElement.dataset.value = diceValues[i]; // kept for any test/debug reading of the actual value
+            for (let p = 0; p < 9; p++) {
+                const pip = document.createElement('span');
+                pip.className = 'pip';
+                dieElement.appendChild(pip);
+            }
             document.getElementById('dice').appendChild(dieElement);
         }
 
