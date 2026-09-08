@@ -5207,58 +5207,6 @@ def build_supplement_detail_page(conn, sup_id, fdc_status=None, fdc_label=""):
     return html_page(h(sup["name"]), body, extra_js=js)
 
 
-def build_cant_stop_debug_page():
-    """Temporary diagnostic page -- the REAL game page (build_cant_stop_page,
-    completely unmodified) with a fixed-position overlay injected just
-    before </body> that reports computed layout values as plain visible
-    text. A hand-copied reproduction of just body+.panel rendered fine on
-    the reporting device while the real page didn't -- so this tests the
-    actual production DOM/CSS/JS directly instead of a stand-in that might
-    be missing whatever the real difference turns out to be.
-    Safe to delete once the padding investigation is resolved."""
-    overlay = """
-<div id="debug-overlay" style="position:fixed; top:0; left:0; right:0; z-index:99999; background:#111; color:#0f0; font-family:monospace; font-size:11px; white-space:pre-wrap; word-break:break-all; padding:8px; text-align:left; max-height:60vh; overflow:auto; border-bottom:2px solid #0f0;">loading debug overlay...</div>
-<script>
-(function() {
-  function report() {
-    const b = document.body;
-    const visiblePanel = Array.from(document.querySelectorAll('.panel')).find(
-      el => getComputedStyle(el).display !== 'none'
-    );
-    const bcs = getComputedStyle(b);
-    const brect = b.getBoundingClientRect();
-    const vv = window.visualViewport;
-    const lines = [
-      'devicePixelRatio: ' + window.devicePixelRatio + '  |  innerWidth/Height: ' + window.innerWidth + '/' + window.innerHeight,
-      'visualViewport w/h/scale: ' + (vv ? vv.width : 'n/a') + '/' + (vv ? vv.height : 'n/a') + '/' + (vv ? vv.scale : 'n/a'),
-      'BODY padding L/R: ' + bcs.paddingLeft + '/' + bcs.paddingRight + '  display/justifyContent: ' + bcs.display + '/' + bcs.justifyContent,
-      'BODY rect: ' + JSON.stringify(brect),
-    ];
-    if (visiblePanel) {
-      const pid = visiblePanel.id || '(no id)';
-      const pcs = getComputedStyle(visiblePanel);
-      const prect = visiblePanel.getBoundingClientRect();
-      lines.push(
-        'VISIBLE PANEL: #' + pid,
-        'panel width/maxWidth/boxSizing: ' + pcs.width + ' / ' + pcs.maxWidth + ' / ' + pcs.boxSizing,
-        'panel rect: ' + JSON.stringify(prect),
-        'GAP left/right (should be ~16): ' + (prect.left - brect.left) + ' / ' + (brect.right - prect.right)
-      );
-    } else {
-      lines.push('NO VISIBLE .panel FOUND');
-    }
-    document.getElementById('debug-overlay').textContent = lines.join('\\n');
-  }
-  report();
-  window.addEventListener('resize', report);
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', report);
-  document.addEventListener('click', function() { setTimeout(report, 50); });
-})();
-</script>
-</body>"""
-    return build_cant_stop_page().replace("</body>", overlay)
-
-
 def build_cant_stop_page():
     """Standalone Can't Stop board game -- inlines its CSS/JS (built via
     the spec-driven-pipeline project) directly into the page, per this
@@ -5310,16 +5258,26 @@ body {
   padding: 24px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   text-align: center;
-  /* Matches the board's own natural width (11 columns x 24px + 10 gaps
-     x 6px = 324px, plus this padding x 2) -- the panel should never be
-     wider than the board itself. Width 100% lets it shrink below that
-     on narrow phones while flex centering (above) keeps it from ever
-     exceeding it. */
-  max-width: 380px;
-  width: 100%;
-  /* content-box (the default) would add this padding on top of the
-     100% width, overflowing the flex container by 48px -- border-box
-     keeps padding inside the specified width instead. */
+  /* The board's own hand-calculated width is 324px (11 columns x 24px +
+     10 gaps x 6px), so 380px (+48px padding = 372px floor) looked like
+     enough headroom -- but that's only ~4px of real slack per side, and
+     real-device font rendering for the per-column percentage labels
+     (e.g. "64.4%") measured wide enough on at least one real phone to
+     eat into it entirely, leaving the outer columns flush against the
+     panel's edge with no visible padding. Chromium's font metrics never
+     reproduced this, so it only ever showed up on a real device.
+     380 -> 420px trades a wider page cap for a real (~24px/side) safety
+     margin that can absorb that kind of rendering variance. */
+  max-width: 420px;
+  /* No explicit width -- the panel shrinks to hug its content (the
+     board, its widest child) instead of always stretching out to fill
+     available space up to max-width. That stretching used to make
+     #board's own justify-content:center add a SECOND layer of
+     centering on top of this padding (the board centering itself
+     within extra unused panel width), roughly doubling the visible
+     gap around it. Now the gap is just this padding, one clear value
+     instead of an emergent one. box-sizing:border-box is harmless to
+     keep even though nothing here sets a percentage/fixed width. */
   box-sizing: border-box;
 }
 
@@ -5694,8 +5652,16 @@ body {
 }
 
 .column-probability {
-    min-width: 24px;
-    font-size: 10px;
+    /* This label (e.g. "64.4%") was wider than the 24px space column
+       beneath it at 10px font -- since .column sizes to its widest
+       child, EVERY column silently inflated to that label's width,
+       and the cumulative overflow across all 11 columns ate straight
+       through the panel's own padding on real-device font rendering
+       (this measured fine in some environments but not others, since
+       it was already right at the edge of overflowing). 8px reliably
+       fits "XX.X%" within the 24px space width instead. */
+    width: 24px;
+    font-size: 8px;
     text-align: center;
     color: #8b949e;
 }
@@ -6847,9 +6813,6 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/cant-stop":
             self.send_html(build_cant_stop_page())
-
-        elif path == "/cant-stop-debug":
-            self.send_html(build_cant_stop_debug_page())
 
         elif path == "/dice":
             premium = qs.get("premium") != "0"  # Default to pro during testing
