@@ -5336,7 +5336,7 @@ body {
 .marker--red { background-color: #e74c3c; } /* Removed animation */
 .marker--blue { background-color: #3498db; } /* Removed animation */
 .marker--green { background-color: #2ecc71; } /* Removed animation */
-.marker--yellow { background-color: #f1c40f; } /* Removed animation */
+.marker--yellow { background-color: #e67e22; } /* Removed animation */
 
 .space--white-marker {
   position: relative;
@@ -5452,7 +5452,7 @@ body {
 .turn-indicator--red { color: #f85149; }
 .turn-indicator--blue { color: #58a6ff; }
 .turn-indicator--green { color: #3fb950; }
-.turn-indicator--yellow { color: #e3b341; }
+.turn-indicator--yellow { color: #f0883e; }
 
 #bust-banner {
   margin-top: 10px;
@@ -5512,8 +5512,8 @@ body {
                 <input type="color" value="#008000" disabled />
             </li>
             <li>
-                <label>Player 4 (Yellow):</label>
-                <input type="color" value="#FFFF00" disabled />
+                <label>Player 4 (Orange):</label>
+                <input type="color" value="#e67e22" disabled />
             </li>
         </ul>
         <button id="start-game-button">Start Game</button>
@@ -5993,7 +5993,7 @@ const MULTI_MARKER_COLOR_HEX = {
   red: '#e74c3c',
   blue: '#3498db',
   green: '#2ecc71',
-  yellow: '#f1c40f',
+  yellow: '#e67e22',
 };
 const MULTI_MARKER_COLOR_ORDER = ['red', 'blue', 'green', 'yellow'];
 
@@ -6034,7 +6034,7 @@ const WHITE_MARKER_LIGHT_HEX = {
   red: '#f5b7b1',
   blue: '#aed6f1',
   green: '#a9dfbf',
-  yellow: '#f9e79f',
+  yellow: '#f5cba7',
 };
 
 function updateWhiteMarkerTint(space) {
