@@ -3664,6 +3664,10 @@ def build_web_home_page():
                 <h2>ChartBurst</h2>
                 <p>You need to know the lyrics, AND the melody!</p>
             </a>
+            <a class="app-card" href="/cant-stop" style="margin-top:12px">
+                <h2>Can't Stop</h2>
+                <p>The classic push-your-luck dice game — 2 to 4 players</p>
+            </a>
         </div>
     </div>
     """
