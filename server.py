@@ -5271,6 +5271,27 @@ body {
   background-color: var(--roll-button-color, #d4a030);
 }
 
+#stop-button {
+  position: relative;
+  overflow: hidden;
+}
+
+#stop-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  background-color: rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+#stop-button.holding::after {
+  width: 100%;
+  transition: width 1s linear;
+}
+
 #player-setup select {
   background-color: #21262d;
   color: #e6edf3;
@@ -5529,7 +5550,7 @@ body {
         <button id="roll-button">Roll Dice</button>
         <div id="dice"></div>
         <div id="pairing-options"></div>
-        <button id="stop-button" class="js-hidden">Stop</button>
+        <button id="stop-button" class="js-hidden">Press and hold to stop</button>
         <div id="bust-banner" class="js-hidden">BUST</div>
         <button id="bust-acknowledge-button" class="js-hidden">Busted - Press to continue</button>
     </div>
@@ -5950,9 +5971,45 @@ document.addEventListener('DOMContentLoaded', function() {
       showStopButton();
     });
 
-    document.getElementById('stop-button').addEventListener('click', function() {
-        stopAndBankProgress(PLAYER_COLORS[currentPlayerIndex]);
-    });
+    // Press-and-hold to Stop: a plain click no longer does anything. Holding
+    // the button down for stopHoldDurationMs (real gameplay: 1000ms) adds
+    // the 'holding' class (see CSS for the growing fill indicator) and
+    // starts a timer; releasing before the timer fires cancels everything.
+    let stopHoldDurationMs = 1000;
+    let stopHoldTimeoutId = null;
+
+    // Test-only override -- lets tests use a fast mousedown/mouseup pair
+    // instead of simulating a real 1-second hold. Real gameplay always uses
+    // 1000ms; this hook exists purely for test speed.
+    window.setStopHoldDuration = function(ms) {
+        stopHoldDurationMs = ms;
+    };
+
+    function startStopHold() {
+        if (stopHoldTimeoutId !== null) return; // already holding -- ignore repeats
+        document.getElementById('stop-button').classList.add('holding');
+        stopHoldTimeoutId = setTimeout(() => {
+            document.getElementById('stop-button').classList.remove('holding');
+            stopHoldTimeoutId = null;
+            stopAndBankProgress(PLAYER_COLORS[currentPlayerIndex]);
+        }, stopHoldDurationMs);
+    }
+
+    function cancelStopHold() {
+        if (stopHoldTimeoutId !== null) {
+            clearTimeout(stopHoldTimeoutId);
+            stopHoldTimeoutId = null;
+        }
+        document.getElementById('stop-button').classList.remove('holding');
+    }
+
+    const stopButtonEl = document.getElementById('stop-button');
+    stopButtonEl.addEventListener('mousedown', startStopHold);
+    stopButtonEl.addEventListener('touchstart', startStopHold);
+    stopButtonEl.addEventListener('mouseup', cancelStopHold);
+    stopButtonEl.addEventListener('mouseleave', cancelStopHold);
+    stopButtonEl.addEventListener('touchend', cancelStopHold);
+    stopButtonEl.addEventListener('touchcancel', cancelStopHold);
 
     // New game button
     document.getElementById('new-game-button').addEventListener('click', function() {
