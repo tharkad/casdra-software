@@ -6592,8 +6592,11 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('pairing-options').innerHTML = '';
 
         document.getElementById('win-screen').classList.remove('js-hidden');
+        // Just the name, no "(color)" -- players have real names now,
+        // and the color is an internal detail that can read as wrong
+        // once a player has renamed themselves anyway.
         document.getElementById('win-message').textContent =
-            `${PLAYER_NAMES[PLAYER_COLORS.indexOf(playerColor)]} (${playerColor}) wins!`;
+            `${PLAYER_NAMES[PLAYER_COLORS.indexOf(playerColor)]} wins!`;
         return true;
       }
       return false;
@@ -6665,16 +6668,16 @@ document.addEventListener('DOMContentLoaded', function() {
         await sleep(AUTOMA_STEP_DELAY_MS);
 
         if (bustAcknowledgePending) {
-            await sleep(AUTOMA_STEP_DELAY_MS);
-            document.getElementById('bust-banner').classList.add('js-hidden');
-            document.querySelectorAll('.space--white-marker').forEach(space => {
-                space.classList.remove('space--white-marker', 'space--busting');
-            });
-            bustAcknowledgePending = false;
-            currentPlayerIndex = (currentPlayerIndex + 1) % playerCount;
-            updateTurnIndicator(); // relabels for whoever's now current
-            updateBustProbabilityDisplay();
-            return; // next player (human or automa) clicks to continue
+            // Bug fix: this used to auto-acknowledge the bust internally,
+            // so the human watching never actually SAW the automa's bust
+            // banner or got to register what happened -- it flashed and
+            // cleared within the same turn. showBustBanner (called from
+            // inside rollDice above) already relabeled #roll-button to
+            // "Busted - Press to continue"; just stop here and let the
+            // roll-button's own click handler take over exactly like a
+            // human's bust, including its existing check for whether the
+            // NEXT player is also an automa.
+            return;
         }
 
         while (true) {
