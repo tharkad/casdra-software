@@ -5239,6 +5239,14 @@ body {
      whichever single panel child is visible, at its own natural width. */
   display: flex;
   justify-content: center;
+  /* "safe center" vertically centers the panel when there's room (a
+     wide/tall desktop window, where pinning it to the top left a huge,
+     unbalanced empty gap below it that read as missing padding) but
+     falls back to top-alignment when the panel is taller than the
+     viewport (small phones with a tall board) -- plain "center" would
+     let the panel overflow equally off BOTH edges there, pushing the
+     turn indicator and board top off-screen above a fresh page load. */
+  align-items: safe center;
   min-height: 100vh;
 }
 
@@ -5264,7 +5272,6 @@ body {
      100% width, overflowing the flex container by 48px -- border-box
      keeps padding inside the specified width instead. */
   box-sizing: border-box;
-  align-self: flex-start;
 }
 
 #game-screen {
@@ -5403,14 +5410,18 @@ body {
 
 .marker-quadrant {
   position: absolute;
-  width: 50%;
-  height: 50%;
   pointer-events: none;
 }
-.marker-quadrant--top-left { top: 0; left: 0; }
-.marker-quadrant--top-right { top: 0; right: 0; }
-.marker-quadrant--bottom-left { bottom: 0; left: 0; }
-.marker-quadrant--bottom-right { bottom: 0; right: 0; }
+/* 3 or 4 colors sharing a space: one square quadrant each. */
+.marker-quadrant--top-left { top: 0; left: 0; width: 50%; height: 50%; }
+.marker-quadrant--top-right { top: 0; right: 0; width: 50%; height: 50%; }
+.marker-quadrant--bottom-left { bottom: 0; left: 0; width: 50%; height: 50%; }
+.marker-quadrant--bottom-right { bottom: 0; right: 0; width: 50%; height: 50%; }
+/* Exactly 2 colors: full-height rectangles instead, so the two colors
+   together cover the whole space rather than sitting in 2 of the 4
+   quadrant corners with the other 2 corners showing empty gray. */
+.marker-quadrant--left { top: 0; left: 0; width: 50%; height: 100%; }
+.marker-quadrant--right { top: 0; right: 0; width: 50%; height: 100%; }
 
 .space--top {
   border-color: #d4a030; /* Changed from green to gold */
@@ -6516,10 +6527,27 @@ function updateMultiMarkerDisplay(space) {
     // plain .space background) show through.
     return;
   }
-  // 2+ markers: one quadrant div per possible color, always all four --
-  // a present color's quadrant gets that color, an absent color's
-  // quadrant stays transparent so the space's own background shows
-  // through in that corner.
+
+  if (present.length === 2) {
+    // Exactly 2 colors: split the space into 2 equal rectangles that
+    // together fill it completely -- the fixed-quadrant-per-color
+    // layout below would put 2 of the 4 corners in play (not
+    // necessarily adjacent ones) and leave the other 2 showing the
+    // space's own empty background, wasting up to half the space.
+    const positions = ['left', 'right'];
+    present.forEach((color, i) => {
+      const half = document.createElement('div');
+      half.className = `marker-quadrant marker-quadrant--${positions[i]}`;
+      half.style.backgroundColor = MULTI_MARKER_COLOR_HEX[color];
+      space.appendChild(half);
+    });
+    return;
+  }
+
+  // 3 or 4 colors: one square quadrant div per possible color, always
+  // all four -- a present color's quadrant gets that color, an absent
+  // color's quadrant (only possible with exactly 3 present) stays
+  // transparent so the space's own background shows through there.
   MULTI_MARKER_COLOR_ORDER.forEach(color => {
     const quadrant = document.createElement('div');
     quadrant.className = `marker-quadrant marker-quadrant--${MULTI_MARKER_QUADRANT[color]}`;
