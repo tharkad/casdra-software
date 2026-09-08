@@ -5252,7 +5252,6 @@ body {
 #player-setup button,
 #roll-button,
 #stop-button,
-#bust-acknowledge-button,
 #new-game-button {
   font-family: inherit;
   font-size: 16px;
@@ -5305,7 +5304,6 @@ body {
 #player-setup button:hover,
 #roll-button:hover:not(:disabled),
 #stop-button:hover,
-#bust-acknowledge-button:hover,
 #new-game-button:hover {
   transform: scale(1.03);
   box-shadow: 0 4px 16px rgba(212, 160, 48, 0.35);
@@ -5364,7 +5362,19 @@ body {
   border-radius: 4px;
   background-color: #555;
   box-sizing: border-box;
+  position: relative; /* anchors .marker-quadrant, see below */
 }
+
+.marker-quadrant {
+  position: absolute;
+  width: 50%;
+  height: 50%;
+  pointer-events: none;
+}
+.marker-quadrant--top-left { top: 0; left: 0; }
+.marker-quadrant--top-right { top: 0; right: 0; }
+.marker-quadrant--bottom-left { bottom: 0; left: 0; }
+.marker-quadrant--bottom-right { bottom: 0; right: 0; }
 
 .space--top {
   border-color: #d4a030; /* Changed from green to gold */
@@ -5383,6 +5393,16 @@ body {
 @keyframes marker-sparkle {
   0%, 100% { box-shadow: 0 0 4px 1px currentColor; filter: brightness(1); }
   50% { box-shadow: 0 0 12px 4px currentColor; filter: brightness(1.3); }
+}
+
+@keyframes peg-pop-in {
+  from { transform: translate(-50%, -50%) scale(0); }
+  to { transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes bust-drop {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(60px); opacity: 0; }
 }
 
 .marker--red { background-color: #e74c3c; } /* Removed animation */
@@ -5406,7 +5426,11 @@ body {
   color: var(--white-marker-color, #fff);
   border: 1px solid #333;
   transform: translate(-50%, -50%);
-  animation: marker-sparkle 2s ease-in-out infinite; /* Keep this */
+  animation: peg-pop-in 0.15s ease-out, marker-sparkle 2s ease-in-out infinite;
+}
+
+.space--busting::after {
+  animation: bust-drop 0.4s ease-in forwards;
 }
 
 .column--claimed {
@@ -5488,6 +5512,16 @@ body {
   padding: 0 4px;
 }
 
+@keyframes pairing-number-pulse {
+  0%, 100% { box-shadow: 0 0 4px 1px var(--legal-highlight-color, #d4a030); }
+  50% { box-shadow: 0 0 12px 4px var(--legal-highlight-color, #d4a030); }
+}
+
+.pairing-number--in-progress {
+  border-width: 3px;
+  animation: pairing-number-pulse 1.2s ease-in-out infinite;
+}
+
 #column-choice-prompt {
   width: 100%;
   margin: 5px;
@@ -5517,16 +5551,8 @@ body {
 #win-screen {
   display: flex; /* required since Spec 07 -- keep it */
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  position: fixed;
-  inset: 0;
   text-align: center;
-  background-color: rgba(13, 17, 23, 0.85);
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  z-index: 50;
 }
 
 #win-message {
@@ -5547,6 +5573,59 @@ body {
     text-align: center;
     color: #8b949e;
 }
+
+.player-setup-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+.player-name-input {
+  flex: 1;
+  font-family: inherit;
+  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #30363d;
+  background-color: #21262d;
+  color: #e6edf3;
+}
+.color-swatches {
+  display: flex;
+  gap: 4px;
+}
+/* #player-setup button (the shared button-styling rule above) also
+   matches .color-swatch -- they're real <button> elements inside
+   #player-setup -- and its ID-selector specificity would otherwise beat
+   these plain class rules (including the shorthand `border: none`
+   silently winning over any border set here). Scope every rule below
+   with #player-setup to win the cascade. */
+#player-setup .color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+#player-setup .color-swatch[data-color="red"] { background-color: #e74c3c; }
+#player-setup .color-swatch[data-color="blue"] { background-color: #3498db; }
+#player-setup .color-swatch[data-color="green"] { background-color: #2ecc71; }
+#player-setup .color-swatch[data-color="yellow"] { background-color: #e67e22; }
+#player-setup .color-swatch--selected {
+  border-color: #fff;
+}
+
+.dice-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#bust-probability {
+  font-size: 14px;
+  color: #8b949e;
+  white-space: nowrap;
+}
     </style>
 </head>
 <body>
@@ -5556,22 +5635,42 @@ body {
             <option value="3">3 Players</option>
             <option value="4">4 Players</option>
         </select>
-        <ul id="player-colors" class="js-hidden">
-            <li>
-                <label>Player 1 (Red):</label>
-                <input type="color" value="#FF0000" disabled />
+        <ul id="player-colors">
+            <li class="player-setup-row" data-slot="0">
+                <input type="text" class="player-name-input" value="Player 1" />
+                <div class="color-swatches">
+                    <button type="button" class="color-swatch" data-color="red"></button>
+                    <button type="button" class="color-swatch" data-color="blue"></button>
+                    <button type="button" class="color-swatch" data-color="green"></button>
+                    <button type="button" class="color-swatch" data-color="yellow"></button>
+                </div>
             </li>
-            <li>
-                <label>Player 2 (Blue):</label>
-                <input type="color" value="#0000FF" disabled />
+            <li class="player-setup-row" data-slot="1">
+                <input type="text" class="player-name-input" value="Player 2" />
+                <div class="color-swatches">
+                    <button type="button" class="color-swatch" data-color="red"></button>
+                    <button type="button" class="color-swatch" data-color="blue"></button>
+                    <button type="button" class="color-swatch" data-color="green"></button>
+                    <button type="button" class="color-swatch" data-color="yellow"></button>
+                </div>
             </li>
-            <li>
-                <label>Player 3 (Green):</label>
-                <input type="color" value="#008000" disabled />
+            <li class="player-setup-row" data-slot="2">
+                <input type="text" class="player-name-input" value="Player 3" />
+                <div class="color-swatches">
+                    <button type="button" class="color-swatch" data-color="red"></button>
+                    <button type="button" class="color-swatch" data-color="blue"></button>
+                    <button type="button" class="color-swatch" data-color="green"></button>
+                    <button type="button" class="color-swatch" data-color="yellow"></button>
+                </div>
             </li>
-            <li>
-                <label>Player 4 (Orange):</label>
-                <input type="color" value="#e67e22" disabled />
+            <li class="player-setup-row" data-slot="3">
+                <input type="text" class="player-name-input" value="Player 4" />
+                <div class="color-swatches">
+                    <button type="button" class="color-swatch" data-color="red"></button>
+                    <button type="button" class="color-swatch" data-color="blue"></button>
+                    <button type="button" class="color-swatch" data-color="green"></button>
+                    <button type="button" class="color-swatch" data-color="yellow"></button>
+                </div>
             </li>
         </ul>
         <button id="start-game-button">Start Game</button>
@@ -5581,16 +5680,17 @@ body {
         <p id="turn-indicator" class="turn-indicator--red">Player 1's turn</p>
         <div id="board"></div>
         <button id="roll-button">Roll Dice</button>
-        <div id="dice"></div>
+        <div class="dice-row">
+            <div id="dice"></div>
+            <div id="bust-probability"></div>
+        </div>
         <div id="pairing-options"></div>
         <button id="stop-button" class="js-hidden">Press and hold to stop</button>
         <div id="bust-banner" class="js-hidden">BUST</div>
-        <button id="bust-acknowledge-button" class="js-hidden">Busted - Press to continue</button>
-    </div>
-
-    <div id="win-screen" class="js-hidden panel">
-        <p id="win-message"></p>
-        <button id="new-game-button">Start New Game</button>
+        <div id="win-screen" class="js-hidden">
+            <p id="win-message"></p>
+            <button id="new-game-button">Start New Game</button>
+        </div>
     </div>
 
     <script>
@@ -5660,8 +5760,87 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize player colors list based on default selection
     updatePlayerColors();
 
+    const PLAYER_SETUP_STORAGE_KEY = 'cant_stop_player_setup';
+    let playerColorAssignments = ['red', 'blue', 'green', 'yellow'];
+
+    function renderPlayerColorSwatches() {
+        document.querySelectorAll('.player-setup-row').forEach(row => {
+            const slot = Number(row.dataset.slot);
+            const assigned = playerColorAssignments[slot];
+            row.querySelectorAll('.color-swatch').forEach(swatch => {
+                swatch.classList.toggle('color-swatch--selected', swatch.dataset.color === assigned);
+            });
+        });
+    }
+
+    function savePlayerSetupToLocalStorage() {
+        const names = Array.from(document.querySelectorAll('.player-name-input')).map(el => el.value);
+        const data = {
+            playerCount: playerCountSelect.value,
+            names: names,
+            colors: playerColorAssignments,
+        };
+        try {
+            localStorage.setItem(PLAYER_SETUP_STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {
+            // localStorage can throw (private browsing, quota, disabled) --
+            // never let a storage failure break the setup screen itself.
+        }
+    }
+
+    function loadPlayerSetupFromLocalStorage() {
+        let saved;
+        try {
+            saved = JSON.parse(localStorage.getItem(PLAYER_SETUP_STORAGE_KEY));
+        } catch (e) {
+            saved = null;
+        }
+        if (!saved) return;
+
+        if (saved.playerCount) {
+            playerCountSelect.value = saved.playerCount;
+        }
+        if (Array.isArray(saved.colors) && saved.colors.length === 4) {
+            playerColorAssignments = saved.colors.slice();
+        }
+        const nameInputs = document.querySelectorAll('.player-name-input');
+        if (Array.isArray(saved.names)) {
+            nameInputs.forEach((el, i) => {
+                if (saved.names[i]) el.value = saved.names[i];
+            });
+        }
+        renderPlayerColorSwatches();
+        updatePlayerColors();
+    }
+
+    document.querySelectorAll('.color-swatches').forEach(container => {
+        container.addEventListener('click', (event) => {
+            const swatch = event.target.closest('.color-swatch');
+            if (!swatch) return;
+            const row = swatch.closest('.player-setup-row');
+            const slot = Number(row.dataset.slot);
+            const clickedColor = swatch.dataset.color;
+
+            const otherSlot = playerColorAssignments.indexOf(clickedColor);
+            const ownColor = playerColorAssignments[slot];
+            playerColorAssignments[slot] = clickedColor;
+            if (otherSlot !== -1 && otherSlot !== slot) {
+                playerColorAssignments[otherSlot] = ownColor;
+            }
+            renderPlayerColorSwatches();
+            savePlayerSetupToLocalStorage();
+        });
+    });
+
+    document.querySelectorAll('.player-name-input').forEach(input => {
+        input.addEventListener('input', savePlayerSetupToLocalStorage);
+    });
+
+    loadPlayerSetupFromLocalStorage();
+    renderPlayerColorSwatches();
+
     let currentPlayerIndex = 0;
-    const PLAYER_COLORS = ['red', 'blue', 'green', 'yellow'];
+    let PLAYER_COLORS = ['red', 'blue', 'green', 'yellow'];
     let playerCount;
 
     window.getCurrentPlayerColor = function() {
@@ -5682,11 +5861,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add event listener to start game button
     document.getElementById('start-game-button').addEventListener('click', function() {
+        PLAYER_COLORS = playerColorAssignments.slice(0, 4);
+        savePlayerSetupToLocalStorage();
         playerSetup.classList.add('js-hidden');
         gameScreen.classList.remove('js-hidden');
         generateBoard();
         playerCount = parseInt(playerCountSelect.value, 10);
         updateTurnIndicator();
+        updateBustProbabilityDisplay();
     });
 
     function showStopButton() {
@@ -5733,6 +5915,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function rollBusts(pairings) {
         return !pairings.some(([lo, hi]) => isLegalSum(lo) || isLegalSum(hi));
+    }
+
+    function calculateBustProbability() {
+        let bustCount = 0;
+        let total = 0;
+        for (let a = 1; a <= 6; a++) {
+            for (let b = 1; b <= 6; b++) {
+                for (let c = 1; c <= 6; c++) {
+                    for (let d = 1; d <= 6; d++) {
+                        total++;
+                        if (rollBusts(generatePairings([a, b, c, d]))) bustCount++;
+                    }
+                }
+            }
+        }
+        return Math.round((bustCount / total) * 100);
+    }
+
+    function updateBustProbabilityDisplay() {
+        const pct = calculateBustProbability();
+        document.getElementById('bust-probability').textContent = `Bust: ${pct}%`;
     }
 
     // Function to generate pairings
@@ -5814,6 +6017,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function clearColumnChoiceHighlights() {
         document.querySelectorAll('.column--choosable').forEach(el => el.classList.remove('column--choosable'));
         document.querySelectorAll('.column-choice-arrow').forEach(el => el.remove());
+        document.getElementById('roll-button').disabled = false;
     }
 
     // Highlights the two candidate columns on the board itself -- used
@@ -5836,6 +6040,8 @@ document.addEventListener('DOMContentLoaded', function() {
             choiceArrow.textContent = '▼';
             columnElement.appendChild(choiceArrow);
         });
+
+        document.getElementById('roll-button').disabled = true;
     }
 
     function rollDice(currentPlayerIndex) {
@@ -5886,9 +6092,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // function only ever runs synchronously inside a roll-button click,
             // so currentPlayerIndex always reflects whoever is ACTUALLY rolling.
             const legalColor = MULTI_MARKER_COLOR_HEX[PLAYER_COLORS[currentPlayerIndex]];
-            const renderNumber = (value, isLegal) => isLegal
-                ? `<span class="pairing-number pairing-number--legal" style="--legal-highlight-color: ${legalColor}">${value}</span>`
-                : `<span class="pairing-number">${value}</span>`;
+            const renderNumber = (value, isLegal) => {
+                if (!isLegal) return `<span class="pairing-number">${value}</span>`;
+                const inProgressClass = isColumnInProgress(value) ? ' pairing-number--in-progress' : '';
+                return `<span class="pairing-number pairing-number--legal${inProgressClass}" style="--legal-highlight-color: ${legalColor}">${value}</span>`;
+            };
             optionElement.innerHTML =
                 `${renderNumber(lo, loLegal)} &amp; ${renderNumber(hi, hiLegal)}`;
             if (!loLegal && !hiLegal) {
@@ -5901,26 +6109,27 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('roll-button').disabled = false;
     }
 
+    let bustAcknowledgePending = false;
+
     function showBustBanner(bustedPlayerIndex) {
       document.getElementById('bust-banner').textContent = `Player ${bustedPlayerIndex} BUST`;
       document.getElementById('bust-banner').classList.remove('js-hidden');
-      document.getElementById('bust-acknowledge-button').classList.remove('js-hidden'); // easy to forget -- both must be shown together
-      document.getElementById('roll-button').disabled = true;
-    }
 
-    document.getElementById('bust-acknowledge-button').addEventListener('click', () => {
-      document.getElementById('bust-banner').classList.add('js-hidden');
-      document.getElementById('bust-acknowledge-button').classList.add('js-hidden');
-
+      // Triggers the drop-off animation immediately (see CSS). The
+      // underlying space--white-marker class is NOT removed here; that
+      // happens synchronously on acknowledge, below -- a deferred
+      // (setTimeout-based) removal was tried and found to be a real bug:
+      // a stale timeout can strip the NEXT player's own freshly placed
+      // marker if they reuse the same space before the timer fires.
       document.querySelectorAll('.space--white-marker').forEach(
-        space => space.classList.remove('space--white-marker')
+        space => space.classList.add('space--busting')
       );
 
-      currentPlayerIndex = (currentPlayerIndex + 1) % playerCount;
-      updateTurnIndicator();
-
-      document.getElementById('roll-button').disabled = false;
-    });
+      bustAcknowledgePending = true;
+      document.getElementById('roll-button').textContent = 'Busted - Press to continue';
+      // #roll-button is never disabled -- the player acknowledges by
+      // clicking IT, so it must stay clickable.
+    }
 
     function stopAndBankProgress(playerColor) {
         const currentColor = playerColor.toLowerCase();
@@ -5958,6 +6167,7 @@ document.addEventListener('DOMContentLoaded', function() {
         hideStopButton();
         currentPlayerIndex = (currentPlayerIndex + 1) % playerCount;
         updateTurnIndicator();
+        updateBustProbabilityDisplay();
     }
 
     function checkWinCondition(playerColor) {
@@ -5966,9 +6176,15 @@ document.addEventListener('DOMContentLoaded', function() {
       ).length;
 
       if (claimedByPlayer >= 3) {
-        // Spec 30: #game-screen deliberately stays visible -- winning
-        // must not make the board disappear, only overlay the win
-        // message on top of it (see #win-screen's CSS).
+        // #game-screen, #board, and #turn-indicator are NEVER touched
+        // here -- winning must not make the board disappear. #win-screen
+        // lives inside #game-screen, replacing only the controls
+        // (#roll-button, #stop-button) in the space they occupy.
+        document.getElementById('roll-button').classList.add('js-hidden');
+        document.getElementById('stop-button').classList.add('js-hidden');
+        document.getElementById('dice').innerHTML = '';
+        document.getElementById('pairing-options').innerHTML = '';
+
         document.getElementById('win-screen').classList.remove('js-hidden');
         document.getElementById('win-message').textContent =
             `Player ${PLAYER_COLORS.indexOf(playerColor) + 1} (${playerColor}) wins!`;
@@ -5980,6 +6196,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const rollButton = document.getElementById('roll-button');
     rollButton.addEventListener('click', function() {
         currentPlayerIndex = currentPlayerIndex % playerCount; // Ensure index wraps around
+
+        if (bustAcknowledgePending) {
+            document.getElementById('bust-banner').classList.add('js-hidden');
+            document.getElementById('dice').innerHTML = ''; // clear the busted roll's dice too
+            document.querySelectorAll('.space--white-marker').forEach(space => {
+                space.classList.remove('space--white-marker', 'space--busting');
+            });
+            bustAcknowledgePending = false;
+            document.getElementById('roll-button').textContent = 'Roll Dice';
+
+            currentPlayerIndex = (currentPlayerIndex + 1) % playerCount;
+            updateTurnIndicator();
+            updateBustProbabilityDisplay();
+            return; // this click acknowledged the bust; it did NOT also roll
+        }
+
         rollDice(currentPlayerIndex);
     });
 
@@ -6002,6 +6234,7 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('pairing-options').innerHTML = '';
 
       showStopButton();
+      updateBustProbabilityDisplay();
     });
 
     // Spec 28: the ambiguous column-choice now resolves by clicking the
@@ -6018,6 +6251,7 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('pairing-options').innerHTML = '';
 
       showStopButton();
+      updateBustProbabilityDisplay();
     });
 
     // Press-and-hold to Stop: a plain click no longer does anything. Holding
@@ -6073,6 +6307,7 @@ document.addEventListener('DOMContentLoaded', function() {
         playerSetup.classList.remove('js-hidden');
         winScreen.classList.add('js-hidden');
         gameScreen.classList.add('js-hidden');
+        document.getElementById('roll-button').classList.remove('js-hidden');
 
         document.querySelectorAll('.column--claimed').forEach(column => {
             column.classList.remove('column--claimed');
@@ -6101,6 +6336,7 @@ document.addEventListener('DOMContentLoaded', function() {
               space.classList.add(`marker--${color.toLowerCase()}`); // added this line
           });
       }
+      if (document.getElementById('bust-probability')) updateBustProbabilityDisplay();
     };
 
     window.setTestDice = function(a, b, c, d) {
@@ -6115,31 +6351,39 @@ const MULTI_MARKER_COLOR_HEX = {
   yellow: '#e67e22',
 };
 const MULTI_MARKER_COLOR_ORDER = ['red', 'blue', 'green', 'yellow'];
+const MULTI_MARKER_QUADRANT = {
+  red: 'top-left',
+  blue: 'top-right',
+  green: 'bottom-left',
+  yellow: 'bottom-right',
+};
 
 function updateMultiMarkerDisplay(space) {
+  // Always clear any quadrants from a previous call first -- a space
+  // that drops back to 0 or 1 marker color must lose them entirely.
+  space.querySelectorAll('.marker-quadrant').forEach(q => q.remove());
+  space.style.backgroundImage = '';
+
   const present = MULTI_MARKER_COLOR_ORDER.filter(
     color => space.classList.contains(`marker--${color}`)
   );
   if (present.length <= 1) {
     // 0 or 1 marker: let the normal marker--<color> CSS rule (or the
-    // plain .space background) show through, exactly as before this spec.
-    space.style.backgroundImage = '';
+    // plain .space background) show through.
     return;
   }
-  // 2+ markers: render one equal-height horizontal band per present
-  // color, in canonical red/blue/green/yellow order (filtered to only
-  // the colors actually present -- e.g. red+yellow is a 2-band split,
-  // not a 4-band split with gaps). Spec 31: stacked top-to-bottom
-  // (wide rectangles) rather than side-to-side (thin vertical stripes
-  // that visually competed with the board's own columns).
-  const step = 100 / present.length;
-  const stops = present
-    .map((color, i) => {
-      const hex = MULTI_MARKER_COLOR_HEX[color];
-      return `${hex} ${i * step}%, ${hex} ${(i + 1) * step}%`;
-    })
-    .join(', ');
-  space.style.backgroundImage = `linear-gradient(to bottom, ${stops})`;
+  // 2+ markers: one quadrant div per possible color, always all four --
+  // a present color's quadrant gets that color, an absent color's
+  // quadrant stays transparent so the space's own background shows
+  // through in that corner.
+  MULTI_MARKER_COLOR_ORDER.forEach(color => {
+    const quadrant = document.createElement('div');
+    quadrant.className = `marker-quadrant marker-quadrant--${MULTI_MARKER_QUADRANT[color]}`;
+    quadrant.style.backgroundColor = present.includes(color)
+      ? MULTI_MARKER_COLOR_HEX[color]
+      : 'transparent';
+    space.appendChild(quadrant);
+  });
 }
 
 function refreshAllMultiMarkerDisplays() {
