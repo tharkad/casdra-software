@@ -5207,6 +5207,64 @@ def build_supplement_detail_page(conn, sup_id, fdc_status=None, fdc_label=""):
     return html_page(h(sup["name"]), body, extra_js=js)
 
 
+def build_cant_stop_debug_page():
+    """Temporary diagnostic page -- reports real computed layout values
+    as plain visible text, so a device that's showing wrong layout can
+    just be screenshotted instead of needing devtools/remote debugging.
+    Safe to delete once the padding investigation is resolved."""
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cant Stop Debug</title>
+<style>
+  body { font-family: -apple-system, monospace; background: #111; color: #0f0; padding: 24px 16px; margin: 0; font-size: 13px; white-space: pre-wrap; word-break: break-all; }
+  .box { border: 2px solid #0f0; margin: 8px 0; }
+  .swatch { height: 20px; background: #d4a030; }
+</style>
+</head>
+<body>
+<div id="out">loading...</div>
+<div class="box"><div class="swatch"></div></div>
+<script>
+function report() {
+  const b = document.body;
+  const html = document.documentElement;
+  const cs = getComputedStyle(b);
+  const rect = b.getBoundingClientRect();
+  const vv = window.visualViewport;
+  const lines = [
+    'userAgent: ' + navigator.userAgent,
+    '',
+    'devicePixelRatio: ' + window.devicePixelRatio,
+    'window.innerWidth/Height: ' + window.innerWidth + ' / ' + window.innerHeight,
+    'documentElement.clientWidth/Height: ' + html.clientWidth + ' / ' + html.clientHeight,
+    'visualViewport.width/height: ' + (vv ? vv.width : 'n/a') + ' / ' + (vv ? vv.height : 'n/a'),
+    'visualViewport.scale: ' + (vv ? vv.scale : 'n/a'),
+    'visualViewport.offsetLeft/Top: ' + (vv ? vv.offsetLeft : 'n/a') + ' / ' + (vv ? vv.offsetTop : 'n/a'),
+    '',
+    'body computed paddingLeft/Right: ' + cs.paddingLeft + ' / ' + cs.paddingRight,
+    'body computed paddingTop/Bottom: ' + cs.paddingTop + ' / ' + cs.paddingBottom,
+    'body computed marginLeft/Right: ' + cs.marginLeft + ' / ' + cs.marginRight,
+    'body computed display: ' + cs.display,
+    'body computed justifyContent: ' + cs.justifyContent,
+    'body computed backgroundColor: ' + cs.backgroundColor,
+    'body getBoundingClientRect: ' + JSON.stringify(rect),
+    '',
+    'html computed fontSize (zoom-ish indicator): ' + getComputedStyle(html).fontSize,
+    'The green box below should have visible dark space on its left AND right, matching this text block.',
+  ];
+  document.getElementById('out').textContent = lines.join('\\n');
+}
+report();
+window.addEventListener('resize', report);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', report);
+</script>
+</body>
+</html>"""
+
+
 def build_cant_stop_page():
     """Standalone Can't Stop board game -- inlines its CSS/JS (built via
     the spec-driven-pipeline project) directly into the page, per this
@@ -6795,6 +6853,9 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/cant-stop":
             self.send_html(build_cant_stop_page())
+
+        elif path == "/cant-stop-debug":
+            self.send_html(build_cant_stop_debug_page())
 
         elif path == "/dice":
             premium = qs.get("premium") != "0"  # Default to pro during testing
