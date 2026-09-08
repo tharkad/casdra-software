@@ -5282,7 +5282,7 @@ body {
   min-width: 24px;  /* required since Spec 01 -- keep it */
   border: 1px solid #999;
   border-radius: 4px;
-  background-color: #eee;
+  background-color: #555;
   box-sizing: border-box;
 }
 
@@ -5397,6 +5397,14 @@ body {
 #win-message {
   font-size: 32px;
 }
+
+.column-label {
+  min-width: 24px;
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+  color: #444;
+}
     </style>
 </head>
 <body>
@@ -5466,6 +5474,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 space.className = (i === height - 1) ? 'space space--top' : 'space';
                 column.appendChild(space);
             }
+            // Appended LAST, after every .space -- the column is
+            // column-reverse (see the .column CSS rule), so the last DOM
+            // child renders at the visual TOP, above .space--top.
+            const label = document.createElement('div');
+            label.className = 'column-label';
+            label.textContent = col;
+            column.appendChild(label);
             board.appendChild(column);
         }
     }
@@ -5492,10 +5507,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const PLAYER_COLORS = ['red', 'blue', 'green', 'yellow'];
     let playerCount;
 
-    // Exposed so code outside this closure (the white-marker-tint observer,
-    // which lives at the top level of the file) can always read the LIVE
-    // current player, not a stale snapshot -- currentPlayerIndex is
-    // reassigned throughout the game and is otherwise private to this closure.
     window.getCurrentPlayerColor = function() {
         return PLAYER_COLORS[currentPlayerIndex];
     };
@@ -5607,9 +5618,6 @@ document.addEventListener('DOMContentLoaded', function() {
       return columnsInProgress < 3; // room for a new column
     }
 
-    // True when a column already has one of the current player's
-    // in-progress (white) markers -- i.e. applying this sum would ADVANCE
-    // an existing runner rather than start a brand new one.
     function isColumnInProgress(sum) {
         const column = document.querySelector(`.column[data-number="${sum}"]`);
         if (!column) return false;
@@ -5619,13 +5627,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // A chosen pairing is ambiguous exactly when the player already has 2
-    // columns in progress and BOTH sums of the pairing would start brand
-    // new (3rd) columns -- using both would require a 4th column, which
+    // columns in progress and BOTH sums of the pairing would start a brand
+    // new (3rd) column -- using both would require a 4th column, which
     // the rules forbid, so the player must choose exactly ONE. Every other
     // case (an existing column being advanced, or fewer than 2 columns in
     // progress) has no ambiguity: applying both sums in sequence already
     // does the right thing via applySumToColumn's own in-progress check.
+    //
+    // A double (lo === hi) is NEVER ambiguous, even when it would start a
+    // brand new 3rd column: both "sums" are the same single column, so
+    // there is only one candidate, not two -- showing a choice between
+    // "Column 4" and "Column 4" is nonsensical, and it would also rob the
+    // player of the second, legitimate advance a double grants
+    // (applySumToColumn called twice on the same column starts it AND
+    // immediately advances it one more space; a column choice only ever
+    // applies the sum once).
     function isAmbiguousNewColumnChoice(lo, hi) {
+        if (lo === hi) return false;
         const columnsInProgress = document.querySelectorAll('.space--white-marker').length;
         if (columnsInProgress !== 2) return false;
         if (isColumnInProgress(lo) || isColumnInProgress(hi)) return false;
@@ -5712,10 +5730,6 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('roll-button').disabled = true;
     }
 
-    // Attach this listener exactly ONCE, outside showBustBanner (which may be
-    // called many times over a game) -- attaching it inside showBustBanner
-    // would add a new listener on every bust, and a single click would then
-    // fire the handler multiple times.
     document.getElementById('bust-acknowledge-button').addEventListener('click', () => {
       document.getElementById('bust-banner').classList.add('js-hidden');
       document.getElementById('bust-acknowledge-button').classList.add('js-hidden');
@@ -5757,8 +5771,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // NEW in this spec: check for a win using the player who just stopped,
-        // BEFORE the turn advances to anyone else.
         const wonGame = checkWinCondition(currentColor);
         if (wonGame) return; // game over -- do NOT advance the turn below
 
@@ -5789,11 +5801,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.getElementById('pairing-options').addEventListener('click', (event) => {
-      // Use closest(), not a direct classList check on event.target: Spec 12
-      // renders each sum inside a child <span>, so a real click's target is
-      // often that span, not the .pairing-option div itself. Check the
-      // column-choice case FIRST, since a .column-choice-option element
-      // also carries the .pairing-option class (for shared styling).
       const choiceTarget = event.target.closest('.column-choice-option');
       if (choiceTarget) {
         const column = Number(choiceTarget.dataset.column);
@@ -5813,8 +5820,6 @@ document.addEventListener('DOMContentLoaded', function() {
       const [lo, hi] = optionTarget.dataset.sums.split(',').map(Number).sort((a, b) => a - b);
 
       if (isAmbiguousNewColumnChoice(lo, hi)) {
-        // Both sums would start a brand new (3rd) column -- only one is
-        // allowed, so let the player pick instead of silently favoring lo.
         showColumnChoice(lo, hi);
         return;
       }
@@ -5851,7 +5856,6 @@ document.addEventListener('DOMContentLoaded', function() {
         updateTurnIndicator();
     });
 
-    // Test-only setup hook
     window.forceClaimColumn = function(number, color) {
       const column = document.querySelector(`.column[data-number="${number}"]`);
       if (column) {
@@ -5859,10 +5863,7 @@ document.addEventListener('DOMContentLoaded', function() {
           column.dataset.claimedBy = color.toLowerCase();
           column.querySelector('.space--top').classList.add(`marker--${color.toLowerCase()}`);
           Array.from(column.querySelectorAll('.space')).forEach(space => {
-              PLAYER_COLORS.forEach(otherColor => {
-                  const lower = otherColor.toLowerCase();
-                  if (lower !== color.toLowerCase()) space.classList.remove(`marker--${lower}`);
-              });
+              space.classList.remove(...space.classList);
           });
       }
     };
