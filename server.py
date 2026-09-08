@@ -5234,9 +5234,6 @@ body {
   display: none !important;
 }
 
-/* Card-style container -- added to #player-setup, #game-screen, and
-   #win-screen (see step 2). Gives the app a "modern panel" look instead
-   of bare content floating on the page background. */
 .panel {
   background-color: #161b22;
   border: 1px solid #30363d;
@@ -5301,8 +5298,6 @@ body {
   margin: 16px 0;
 }
 
-/* Spec 01's DOM order is bottom-to-top; column-reverse renders the last
-   child (space--top) at the visual top without changing DOM order. */
 .column {
   display: flex; /* required since Spec 01 -- keep it */
   flex-direction: column-reverse; /* required since Spec 01 -- keep it */
@@ -5383,31 +5378,21 @@ body {
   align-self: center;
 }
 
-/* Each die--<value> class makes exactly the right pips (by their
-   position in the 3x3 grid, 1-indexed left-to-right/top-to-bottom)
-   visible -- see Spec 18's table for which positions map to which
-   value. Every other .pip stays transparent (invisible but still
-   occupying its grid cell, so the layout never shifts). */
 .die--1 .pip:nth-child(5) { background-color: #e6edf3; }
-
 .die--2 .pip:nth-child(1),
 .die--2 .pip:nth-child(9) { background-color: #e6edf3; }
-
 .die--3 .pip:nth-child(1),
 .die--3 .pip:nth-child(5),
 .die--3 .pip:nth-child(9) { background-color: #e6edf3; }
-
 .die--4 .pip:nth-child(1),
 .die--4 .pip:nth-child(3),
 .die--4 .pip:nth-child(7),
 .die--4 .pip:nth-child(9) { background-color: #e6edf3; }
-
 .die--5 .pip:nth-child(1),
 .die--5 .pip:nth-child(3),
 .die--5 .pip:nth-child(5),
 .die--5 .pip:nth-child(7),
 .die--5 .pip:nth-child(9) { background-color: #e6edf3; }
-
 .die--6 .pip:nth-child(1),
 .die--6 .pip:nth-child(3),
 .die--6 .pip:nth-child(4),
@@ -5440,7 +5425,7 @@ body {
 
 .pairing-number--legal {
   display: inline-block;
-  border: 2px solid #d4a030;
+  border: 2px solid var(--legal-highlight-color, #d4a030);
   border-radius: 2px;
   padding: 0 4px;
 }
@@ -5460,7 +5445,7 @@ body {
 
 .turn-indicator--red { color: #f85149; }
 .turn-indicator--blue { color: #58a6ff; }
-.turn-indicator--green { color: #3fb950; } /* No changes to turn indicator colors */
+.turn-indicator--green { color: #3fb950; }
 .turn-indicator--yellow { color: #e3b341; }
 
 #bust-banner {
@@ -5794,10 +5779,15 @@ document.addEventListener('DOMContentLoaded', function() {
             optionElement.dataset.sums = `${lo},${hi}`;
             const loLegal = isLegalSum(lo);
             const hiLegal = isLegalSum(hi);
+            // Read PLAYER_COLORS[currentPlayerIndex] live, at render time -- this
+            // function only ever runs synchronously inside a roll-button click,
+            // so currentPlayerIndex always reflects whoever is ACTUALLY rolling.
+            const legalColor = MULTI_MARKER_COLOR_HEX[PLAYER_COLORS[currentPlayerIndex]];
+            const renderNumber = (value, isLegal) => isLegal
+                ? `<span class="pairing-number pairing-number--legal" style="--legal-highlight-color: ${legalColor}">${value}</span>`
+                : `<span class="pairing-number">${value}</span>`;
             optionElement.innerHTML =
-                `<span class="pairing-number${loLegal ? ' pairing-number--legal' : ''}">${lo}</span>` +
-                ` &amp; ` +
-                `<span class="pairing-number${hiLegal ? ' pairing-number--legal' : ''}">${hi}</span>`;
+                `${renderNumber(lo, loLegal)} &amp; ${renderNumber(hi, hiLegal)}`;
             if (!loLegal && !hiLegal) {
                 optionElement.classList.add('pairing-option--disabled');
             }
