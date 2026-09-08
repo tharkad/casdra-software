@@ -5239,15 +5239,12 @@ body {
      whichever single panel child is visible, at its own natural width. */
   display: flex;
   justify-content: center;
-  /* "safe center" vertically centers the panel when there's room (a
-     wide/tall desktop window, where pinning it to the top left a huge,
-     unbalanced empty gap below it that read as missing padding) but
-     falls back to top-alignment when the panel is taller than the
-     viewport (small phones with a tall board) -- plain "center" would
-     let the panel overflow equally off BOTH edges there, pushing the
-     turn indicator and board top off-screen above a fresh page load. */
-  align-items: safe center;
-  min-height: 100vh;
+  /* Reverted: vertically centering the panel (align-items: safe center)
+     pushed it noticeably far down the screen on mobile, which read as
+     wrong/too-low rather than better-padded. Back to plain top
+     alignment (the default), matching how it looked before that
+     change and how a mobile game's start screen is normally expected
+     to sit. */
 }
 
 .js-hidden {
