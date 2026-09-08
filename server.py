@@ -5220,6 +5220,11 @@ def build_cant_stop_page():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cant Stop Game</title>
+    <!-- Inline data-URI SVG so the favicon travels with index.html into
+         both server embeds without needing a separate asset file synced
+         across repos. A gold 5-pip die on the app's own dark background,
+         matching the existing color scheme (#d4a030 / #0d1117). -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1117'/%3E%3Crect x='5' y='5' width='22' height='22' rx='5' fill='%23d4a030'/%3E%3Ccircle cx='11' cy='11' r='2.3' fill='%230d1117'/%3E%3Ccircle cx='21' cy='11' r='2.3' fill='%230d1117'/%3E%3Ccircle cx='16' cy='16' r='2.3' fill='%230d1117'/%3E%3Ccircle cx='11' cy='21' r='2.3' fill='%230d1117'/%3E%3Ccircle cx='21' cy='21' r='2.3' fill='%230d1117'/%3E%3C/svg%3E">
     <style>
 body {
   font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
@@ -5448,7 +5453,34 @@ body {
   animation: bust-drop 0.4s ease-in forwards;
 }
 
+@keyframes marker-travel {
+  from { transform: translate(-50%, calc(-50% + var(--marker-travel-y, 0px))); }
+  to { transform: translate(-50%, -50%); }
+}
+
+/* Placed after .space--white-marker::after so its animation wins the
+   cascade (equal specificity, source order decides) while the marker is
+   advancing to a new space within its column -- replaces the pop-in with
+   a slide up from its previous position. Temporary: removed once the
+   animation finishes (see applySumToColumn). */
+.space--marker-arriving::after {
+  animation: marker-travel 0.2s ease-out, marker-sparkle 2s ease-in-out infinite;
+}
+
 .column--claimed {
+}
+
+/* Once a column is claimed, every space in it gets the claiming
+   player's solid marker--<color> background (see stopAndBankProgress),
+   but .space--top's own gold 2px border-highlight (meant to call out
+   the winning space while the column is still being played) was never
+   reset -- it kept ringing that one cell even after the whole column
+   belongs to a single player, reading as a leftover "marker spot"
+   instead of one uniform solid-color column. Higher specificity here
+   (two classes) beats .space--top's single-class border rule. */
+.column--claimed .space {
+  border-color: #30363d;
+  border-width: 1px;
 }
 
 .die {
@@ -5576,10 +5608,13 @@ body {
   color: #fff;
 }
 
-/* Active Column Glow */
-.column:has(.space--white-marker) {
-  box-shadow: 0 0 16px 4px var(--active-glow-color, #d4a030);
-  border-radius: 6px;
+/* Active Column Glow -- applied per-space rather than as one box-shadow
+   around the whole column container. A single shadow around the tall,
+   narrow column box read as a hard rectangular outline; glowing each
+   cell instead lets the light follow each space's own rounded corners
+   and blend together up the column instead of boxing it in. */
+.column:has(.space--white-marker) .space {
+  box-shadow: 0 0 8px 2px var(--active-glow-color, #d4a030);
 }
 
 .column-probability {
@@ -5589,6 +5624,24 @@ body {
     color: #8b949e;
 }
 
+#player-colors {
+  /* Browser default UL styling (40px left padding, disc bullets) was
+     never stripped here -- harmless while the panel was wide, but once
+     the panel was narrowed to match the board's width, that leftover
+     indent ate into the already-tight content area and pushed the 4th
+     color swatch off the edge of the screen. */
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Center each row as its own group (rather than stretching it full
+     panel width, which put the name input flush left and the swatches
+     flush right) so the block reads as centered like the player-count
+     select and Start Game button above/below it. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .player-setup-row {
   display: flex;
   align-items: center;
@@ -5596,7 +5649,8 @@ body {
   margin: 6px 0;
 }
 .player-name-input {
-  flex: 1;
+  flex: none;
+  width: 140px;
   font-family: inherit;
   font-size: 14px;
   padding: 6px 10px;
@@ -5936,8 +5990,23 @@ document.addEventListener('DOMContentLoaded', function() {
         if (existingWhiteIndex !== -1) {
             const nextIndex = existingWhiteIndex + 1;
             if (nextIndex < spaces.length) {
-                spaces[existingWhiteIndex].classList.remove('space--white-marker');
-                spaces[nextIndex].classList.add('space--white-marker');
+                const fromSpace = spaces[existingWhiteIndex];
+                const toSpace = spaces[nextIndex];
+                // Animate the marker traveling up from its previous space
+                // rather than just popping into existence at the new one.
+                // Positions are read before either class changes -- the
+                // marker itself is a decorative ::after pseudo-element, so
+                // toggling space--white-marker never moves the space's own
+                // box, and the distance is stable to compute up front.
+                const dy = fromSpace.getBoundingClientRect().top - toSpace.getBoundingClientRect().top;
+                fromSpace.classList.remove('space--white-marker');
+                toSpace.style.setProperty('--marker-travel-y', `${dy}px`);
+                toSpace.classList.add('space--marker-arriving', 'space--white-marker');
+                toSpace.addEventListener('animationend', function onDone(e) {
+                    if (e.animationName !== 'marker-travel') return;
+                    toSpace.classList.remove('space--marker-arriving');
+                    toSpace.removeEventListener('animationend', onDone);
+                });
             }
             return; // already at the top: nothing further to do
         }
