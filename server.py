@@ -5470,6 +5470,12 @@ body {
   font-weight: 800;
   color: #fff;
 }
+
+/* Active Column Glow */
+.column:has(.space--white-marker) {
+  box-shadow: 0 0 16px 4px var(--active-glow-color, #d4a030);
+  border-radius: 6px;
+}
     </style>
 </head>
 <body>
@@ -6000,11 +6006,18 @@ const WHITE_MARKER_LIGHT_HEX = {
 };
 
 function updateWhiteMarkerTint(space) {
+  const column = space.closest('.column');
   if (!space.classList.contains('space--white-marker')) {
     space.style.removeProperty('--white-marker-color');
+    if (column && !column.querySelector('.space--white-marker')) {
+      column.style.removeProperty('--active-glow-color');
+    }
     return;
   }
   space.style.setProperty('--white-marker-color', WHITE_MARKER_LIGHT_HEX[window.getCurrentPlayerColor()]);
+  if (column) {
+    column.style.setProperty('--active-glow-color', MULTI_MARKER_COLOR_HEX[window.getCurrentPlayerColor()]);
+  }
 }
 
 // #board exists (empty) from page load, and every .column/.space is
