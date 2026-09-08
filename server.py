@@ -5405,6 +5405,24 @@ body {
   to { transform: translateX(-50%) translateY(-8px); }
 }
 
+/* The resulting bust % if this column is the one picked -- a sibling
+   of the arrow (not a child of it) so it stays put and readable while
+   the arrow itself bounces. Offsetting it sideways collided with the
+   NEXT column's own always-visible probability label (columns are
+   only 6px apart) -- centered directly above the arrow instead, same
+   horizontal line the arrow itself already uses without colliding. */
+.column-choice-probability {
+  position: absolute;
+  top: -48px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  color: #d4a030;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .space {
   min-height: 24px; /* required since Spec 01 -- keep it */
   min-width: 24px;  /* required since Spec 01 -- keep it */
@@ -5463,6 +5481,34 @@ body {
 .marker--blue { background-color: #3498db; } /* Removed animation */
 .marker--green { background-color: #2ecc71; } /* Removed animation */
 .marker--yellow { background-color: #e67e22; } /* Removed animation */
+
+@keyframes permanent-marker-travel {
+  from { transform: translateY(var(--marker-travel-y, 0px)); }
+  to { transform: translateY(0); }
+}
+
+/* When Stop banks progress, the space gaining marker--<color> gets this
+   temporary overlay: a full-square copy of its own now-instant
+   background-color (background-color:inherit picks it up from the
+   space itself, whichever marker--<color> just applied) that slides
+   down from the space the permanent marker is moving FROM, landing
+   exactly on top of the real (already-set) background. Gives the
+   impression of the permanent marker traveling up to meet where the
+   temporary marker was, instead of just instantly appearing there.
+   Temporary: removed once the animation finishes (see
+   stopAndBankProgress). */
+.space--marker-landing::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: inherit;
+  border-radius: inherit;
+  animation: permanent-marker-travel 0.3s ease-out;
+  pointer-events: none;
+}
 
 .space--white-marker {
   position: relative;
@@ -6090,6 +6136,22 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('bust-probability-value').textContent = `${pct}%`;
     }
 
+    // What the bust probability WOULD become if the player picks this
+    // column in an ambiguous new-column choice (Spec 13) -- temporarily
+    // marks the column as in-progress (a fresh column always starts at
+    // its bottom space), recalculates, then reverts. isLegalSum/
+    // calculateBustProbability read live DOM state, so this is the only
+    // way to ask "what if" without a parallel non-DOM board model.
+    function bustProbabilityIfChosen(col) {
+        const column = document.querySelector(`.column[data-number="${col}"]`);
+        const firstSpace = column.querySelector('.space');
+        const alreadyMarked = firstSpace.classList.contains('space--white-marker');
+        if (!alreadyMarked) firstSpace.classList.add('space--white-marker');
+        const pct = calculateBustProbability();
+        if (!alreadyMarked) firstSpace.classList.remove('space--white-marker');
+        return pct;
+    }
+
     // Function to generate pairings
     function generatePairings(dice) {
       const groupings = [
@@ -6169,6 +6231,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function clearColumnChoiceHighlights() {
         document.querySelectorAll('.column--choosable').forEach(el => el.classList.remove('column--choosable'));
         document.querySelectorAll('.column-choice-arrow').forEach(el => el.remove());
+        document.querySelectorAll('.column-choice-probability').forEach(el => el.remove());
         document.getElementById('roll-button').disabled = false;
     }
 
@@ -6191,6 +6254,12 @@ document.addEventListener('DOMContentLoaded', function() {
             choiceArrow.className = 'column-choice-arrow';
             choiceArrow.textContent = '▼';
             columnElement.appendChild(choiceArrow);
+
+            const pct = bustProbabilityIfChosen(col);
+            const pctLabel = document.createElement('span');
+            pctLabel.className = 'column-choice-probability';
+            pctLabel.textContent = `${pct}%`;
+            columnElement.appendChild(pctLabel);
         });
 
         document.getElementById('roll-button').disabled = true;
@@ -6308,11 +6377,28 @@ document.addEventListener('DOMContentLoaded', function() {
             const olderMarkerSpace = spaces.find(
                 s => s !== space && s.classList.contains(`marker--${currentColor}`)
             );
+            // Animate the permanent marker traveling up from wherever it
+            // was (its previous banked position in this column, if any)
+            // to where the temporary marker just was -- read positions
+            // before either class changes, same technique as the
+            // in-progress marker's own travel animation.
+            const dy = olderMarkerSpace
+                ? olderMarkerSpace.getBoundingClientRect().top - space.getBoundingClientRect().top
+                : null;
             if (olderMarkerSpace) {
                 olderMarkerSpace.classList.remove(`marker--${currentColor}`);
             }
             space.classList.remove('space--white-marker');
             space.classList.add(`marker--${currentColor}`);
+            if (dy !== null) {
+                space.style.setProperty('--marker-travel-y', `${dy}px`);
+                space.classList.add('space--marker-landing');
+                space.addEventListener('animationend', function onDone(e) {
+                    if (e.animationName !== 'permanent-marker-travel') return;
+                    space.classList.remove('space--marker-landing');
+                    space.removeEventListener('animationend', onDone);
+                });
+            }
 
             if (space.classList.contains('space--top')) {
                 column.classList.add('column--claimed');
