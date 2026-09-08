@@ -5732,9 +5732,46 @@ body {
 
 .player-setup-row {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0;
+}
+.player-setup-row-main {
+  display: flex;
   align-items: center;
   gap: 8px;
-  margin: 6px 0;
+}
+.player-setup-row-type {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* #player-setup select (the shared button-styling rule) would otherwise
+   win via its ID-selector specificity and force these into the same
+   big gold pill as "2 Players"/Start Game -- match that specificity by
+   scoping with #player-setup too (same fix as #player-setup .color-swatch
+   needed earlier). */
+#player-setup .player-type-select,
+#player-setup .player-automa-kind-select {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 3px 6px;
+  margin: 0;
+  border-radius: 6px;
+  border: 1px solid #30363d;
+  background-color: #21262d;
+  color: #e6edf3;
+  /* #player-setup select's custom-arrow styling (36px right padding +
+     a background-image positioned 16px from the right) is sized for
+     the big pill selects -- left as-is on these much smaller ones, the
+     arrow and text visibly collided. Back to a plain native control
+     (appearance not otherwise reset by that rule) at this small size. */
+  appearance: auto;
+  -webkit-appearance: menulist;
+  padding-right: 6px;
+  background-image: none;
 }
 .player-name-input {
   flex: none;
@@ -5807,39 +5844,83 @@ body {
         </select>
         <ul id="player-colors">
             <li class="player-setup-row" data-slot="0">
-                <input type="text" class="player-name-input" value="Player 1" />
-                <div class="color-swatches">
-                    <button type="button" class="color-swatch" data-color="red"></button>
-                    <button type="button" class="color-swatch" data-color="blue"></button>
-                    <button type="button" class="color-swatch" data-color="green"></button>
-                    <button type="button" class="color-swatch" data-color="yellow"></button>
+                <div class="player-setup-row-main">
+                    <input type="text" class="player-name-input" value="Player 1" />
+                    <div class="color-swatches">
+                        <button type="button" class="color-swatch" data-color="red"></button>
+                        <button type="button" class="color-swatch" data-color="blue"></button>
+                        <button type="button" class="color-swatch" data-color="green"></button>
+                        <button type="button" class="color-swatch" data-color="yellow"></button>
+                    </div>
+                </div>
+                <div class="player-setup-row-type">
+                    <select class="player-type-select">
+                        <option value="person">Person</option>
+                        <option value="automa">Automa</option>
+                    </select>
+                    <select class="player-automa-kind-select js-hidden">
+                        <option value="random">Random</option>
+                    </select>
                 </div>
             </li>
             <li class="player-setup-row" data-slot="1">
-                <input type="text" class="player-name-input" value="Player 2" />
-                <div class="color-swatches">
-                    <button type="button" class="color-swatch" data-color="red"></button>
-                    <button type="button" class="color-swatch" data-color="blue"></button>
-                    <button type="button" class="color-swatch" data-color="green"></button>
-                    <button type="button" class="color-swatch" data-color="yellow"></button>
+                <div class="player-setup-row-main">
+                    <input type="text" class="player-name-input" value="Player 2" />
+                    <div class="color-swatches">
+                        <button type="button" class="color-swatch" data-color="red"></button>
+                        <button type="button" class="color-swatch" data-color="blue"></button>
+                        <button type="button" class="color-swatch" data-color="green"></button>
+                        <button type="button" class="color-swatch" data-color="yellow"></button>
+                    </div>
+                </div>
+                <div class="player-setup-row-type">
+                    <select class="player-type-select">
+                        <option value="person">Person</option>
+                        <option value="automa">Automa</option>
+                    </select>
+                    <select class="player-automa-kind-select js-hidden">
+                        <option value="random">Random</option>
+                    </select>
                 </div>
             </li>
             <li class="player-setup-row" data-slot="2">
-                <input type="text" class="player-name-input" value="Player 3" />
-                <div class="color-swatches">
-                    <button type="button" class="color-swatch" data-color="red"></button>
-                    <button type="button" class="color-swatch" data-color="blue"></button>
-                    <button type="button" class="color-swatch" data-color="green"></button>
-                    <button type="button" class="color-swatch" data-color="yellow"></button>
+                <div class="player-setup-row-main">
+                    <input type="text" class="player-name-input" value="Player 3" />
+                    <div class="color-swatches">
+                        <button type="button" class="color-swatch" data-color="red"></button>
+                        <button type="button" class="color-swatch" data-color="blue"></button>
+                        <button type="button" class="color-swatch" data-color="green"></button>
+                        <button type="button" class="color-swatch" data-color="yellow"></button>
+                    </div>
+                </div>
+                <div class="player-setup-row-type">
+                    <select class="player-type-select">
+                        <option value="person">Person</option>
+                        <option value="automa">Automa</option>
+                    </select>
+                    <select class="player-automa-kind-select js-hidden">
+                        <option value="random">Random</option>
+                    </select>
                 </div>
             </li>
             <li class="player-setup-row" data-slot="3">
-                <input type="text" class="player-name-input" value="Player 4" />
-                <div class="color-swatches">
-                    <button type="button" class="color-swatch" data-color="red"></button>
-                    <button type="button" class="color-swatch" data-color="blue"></button>
-                    <button type="button" class="color-swatch" data-color="green"></button>
-                    <button type="button" class="color-swatch" data-color="yellow"></button>
+                <div class="player-setup-row-main">
+                    <input type="text" class="player-name-input" value="Player 4" />
+                    <div class="color-swatches">
+                        <button type="button" class="color-swatch" data-color="red"></button>
+                        <button type="button" class="color-swatch" data-color="blue"></button>
+                        <button type="button" class="color-swatch" data-color="green"></button>
+                        <button type="button" class="color-swatch" data-color="yellow"></button>
+                    </div>
+                </div>
+                <div class="player-setup-row-type">
+                    <select class="player-type-select">
+                        <option value="person">Person</option>
+                        <option value="automa">Automa</option>
+                    </select>
+                    <select class="player-automa-kind-select js-hidden">
+                        <option value="random">Random</option>
+                    </select>
                 </div>
             </li>
         </ul>
@@ -5948,10 +6029,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function savePlayerSetupToLocalStorage() {
         const names = Array.from(document.querySelectorAll('.player-name-input')).map(el => el.value);
+        const types = Array.from(document.querySelectorAll('.player-type-select')).map(el => el.value);
+        const automaKinds = Array.from(document.querySelectorAll('.player-automa-kind-select')).map(el => el.value);
         const data = {
             playerCount: playerCountSelect.value,
             names: names,
             colors: playerColorAssignments,
+            types: types,
+            automaKinds: automaKinds,
         };
         try {
             localStorage.setItem(PLAYER_SETUP_STORAGE_KEY, JSON.stringify(data));
@@ -5959,6 +6044,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // localStorage can throw (private browsing, quota, disabled) --
             // never let a storage failure break the setup screen itself.
         }
+    }
+
+    // Shows the automa-kind dropdown (currently just "Random") only for
+    // rows set to Automa -- a Person row has no automa type to pick.
+    function updateAutomaKindVisibility(row) {
+        const typeSelect = row.querySelector('.player-type-select');
+        const kindSelect = row.querySelector('.player-automa-kind-select');
+        kindSelect.classList.toggle('js-hidden', typeSelect.value !== 'automa');
     }
 
     function loadPlayerSetupFromLocalStorage() {
@@ -5982,6 +6075,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (saved.names[i]) el.value = saved.names[i];
             });
         }
+        const typeSelects = document.querySelectorAll('.player-type-select');
+        if (Array.isArray(saved.types)) {
+            typeSelects.forEach((el, i) => {
+                if (saved.types[i]) el.value = saved.types[i];
+            });
+        }
+        const kindSelects = document.querySelectorAll('.player-automa-kind-select');
+        if (Array.isArray(saved.automaKinds)) {
+            kindSelects.forEach((el, i) => {
+                if (saved.automaKinds[i]) el.value = saved.automaKinds[i];
+            });
+        }
+        document.querySelectorAll('.player-setup-row').forEach(updateAutomaKindVisibility);
         renderPlayerColorSwatches();
         updatePlayerColors();
     }
@@ -6009,17 +6115,48 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('input', savePlayerSetupToLocalStorage);
     });
 
+    document.querySelectorAll('.player-setup-row').forEach((row, i) => {
+        const typeSelect = row.querySelector('.player-type-select');
+        const nameInput = row.querySelector('.player-name-input');
+        typeSelect.addEventListener('change', () => {
+            updateAutomaKindVisibility(row);
+            // A nice default: if the name was never customized away from
+            // its own placeholder, switching to Automa fills in "Random"
+            // instead of leaving a human-sounding "Player N" on an
+            // automa's turn indicator. The player can still rename it.
+            if (typeSelect.value === 'automa' && nameInput.value.trim() === `Player ${i + 1}`) {
+                nameInput.value = 'Random';
+            } else if (typeSelect.value === 'person' && nameInput.value.trim() === 'Random') {
+                nameInput.value = `Player ${i + 1}`;
+            }
+            savePlayerSetupToLocalStorage();
+        });
+    });
+
+    document.querySelectorAll('.player-automa-kind-select').forEach(select => {
+        select.addEventListener('change', savePlayerSetupToLocalStorage);
+    });
+
     loadPlayerSetupFromLocalStorage();
     renderPlayerColorSwatches();
 
     let currentPlayerIndex = 0;
     let PLAYER_COLORS = ['red', 'blue', 'green', 'yellow'];
     let PLAYER_NAMES = ['Player 1', 'Player 2', 'Player 3', 'Player 4'];
+    // 'person' or 'automa' per player index. PLAYER_AUTOMA_KINDS only
+    // matters where the matching PLAYER_TYPES entry is 'automa' --
+    // 'random' is the only kind that exists so far.
+    let PLAYER_TYPES = ['person', 'person', 'person', 'person'];
+    let PLAYER_AUTOMA_KINDS = ['random', 'random', 'random', 'random'];
     let playerCount;
 
     window.getCurrentPlayerColor = function() {
         return PLAYER_COLORS[currentPlayerIndex];
     };
+
+    function isCurrentPlayerAutoma() {
+        return PLAYER_TYPES[currentPlayerIndex] === 'automa';
+    }
 
     // Sets the turn-indicator's text AND colors it to match the current
     // player, reading currentPlayerIndex/PLAYER_COLORS live (never a
@@ -6036,6 +6173,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // innerHTML gets wiped and rebuilt on every roll.
         document.getElementById('dice').style.setProperty('--dice-bg-color', MULTI_MARKER_COLOR_HEX[PLAYER_COLORS[currentPlayerIndex]]);
         document.getElementById('pairing-options').style.setProperty('--pairing-border-color', MULTI_MARKER_COLOR_HEX[PLAYER_COLORS[currentPlayerIndex]]);
+        // This function only ever runs at a genuine turn-boundary (game
+        // start, or right after a stop/bust hands the turn to the next
+        // player), never mid-roll -- always safe to (re)set the label.
+        // An automa never rolls on its own; the human clicks "Next Turn"
+        // to kick off its animated turn instead of "Roll Dice".
+        document.getElementById('roll-button').textContent = isCurrentPlayerAutoma() ? 'Next Turn' : 'Roll Dice';
     }
 
     // Add event listener to start game button
@@ -6044,6 +6187,8 @@ document.addEventListener('DOMContentLoaded', function() {
         PLAYER_NAMES = Array.from(document.querySelectorAll('.player-name-input')).map(
             (el, i) => el.value.trim() || `Player ${i + 1}`
         );
+        PLAYER_TYPES = Array.from(document.querySelectorAll('.player-type-select')).map(el => el.value);
+        PLAYER_AUTOMA_KINDS = Array.from(document.querySelectorAll('.player-automa-kind-select')).map(el => el.value);
         savePlayerSetupToLocalStorage();
         playerSetup.classList.add('js-hidden');
         gameScreen.classList.remove('js-hidden');
@@ -6467,21 +6612,107 @@ document.addEventListener('DOMContentLoaded', function() {
                 space.classList.remove('space--white-marker', 'space--busting');
             });
             bustAcknowledgePending = false;
-            document.getElementById('roll-button').textContent = 'Roll Dice';
 
             currentPlayerIndex = (currentPlayerIndex + 1) % playerCount;
-            updateTurnIndicator();
+            updateTurnIndicator(); // also relabels the button (Roll Dice / Next Turn)
             updateBustProbabilityDisplay();
+
+            if (isCurrentPlayerAutoma()) {
+                // An automa never rolls on its own -- require the
+                // explicit "Next Turn" click updateTurnIndicator just
+                // labeled this button with, same as any other hand-off
+                // into an automa's turn.
+                return;
+            }
             // Bug fix: this click used to only acknowledge the bust,
             // relabeling the button to "Roll Dice" while leaving the
             // PREVIOUS player's busted dice on screen -- looking exactly
             // like clicking "Roll Dice" did nothing, requiring a second,
             // separate click to actually roll. Fall through and roll for
-            // the new player immediately instead.
+            // the new (human) player immediately instead.
+        }
+
+        if (isCurrentPlayerAutoma()) {
+            runAutomaTurn();
+            return;
         }
 
         rollDice(currentPlayerIndex);
     });
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // How long each visible step of an automa's turn pauses for, so a
+    // human watching can actually follow what it did (roll, pick,
+    // stop/continue) rather than seeing it resolve instantly.
+    let AUTOMA_STEP_DELAY_MS = 900;
+    window.setAutomaStepDelay = function(ms) {
+        AUTOMA_STEP_DELAY_MS = ms;
+    };
+
+    // Plays one full automa turn: rolls, resolves whatever pairing/column
+    // decision results by picking uniformly at random among the LEGAL
+    // options (a pairing pick can itself reveal an ambiguous column
+    // choice, needing another random pick), then randomly decides to
+    // stop or keep rolling. Reuses the exact same functions and DOM click
+    // targets a human's own turn goes through (rollDice, the real
+    // .pairing-option/.column--choosable elements, stopAndBankProgress)
+    // rather than reimplementing any game rule separately.
+    async function runAutomaTurn() {
+        rollDice(currentPlayerIndex);
+        await sleep(AUTOMA_STEP_DELAY_MS);
+
+        if (bustAcknowledgePending) {
+            await sleep(AUTOMA_STEP_DELAY_MS);
+            document.getElementById('bust-banner').classList.add('js-hidden');
+            document.querySelectorAll('.space--white-marker').forEach(space => {
+                space.classList.remove('space--white-marker', 'space--busting');
+            });
+            bustAcknowledgePending = false;
+            currentPlayerIndex = (currentPlayerIndex + 1) % playerCount;
+            updateTurnIndicator(); // relabels for whoever's now current
+            updateBustProbabilityDisplay();
+            return; // next player (human or automa) clicks to continue
+        }
+
+        while (true) {
+            const choosable = Array.from(document.querySelectorAll('.column--choosable'));
+            if (choosable.length > 0) {
+                await sleep(AUTOMA_STEP_DELAY_MS);
+                choosable[Math.floor(Math.random() * choosable.length)].click();
+                continue;
+            }
+            const options = Array.from(
+                document.querySelectorAll('#pairing-options .pairing-option:not(.pairing-option--disabled)')
+            );
+            if (options.length > 0) {
+                await sleep(AUTOMA_STEP_DELAY_MS);
+                options[Math.floor(Math.random() * options.length)].click();
+                continue;
+            }
+            break; // nothing left to resolve for this roll
+        }
+
+        await sleep(AUTOMA_STEP_DELAY_MS);
+        // Test-only override for the stop-vs-continue coin flip -- true
+        // forces stop, false forces continue, undefined/null leaves it
+        // genuinely random. Not one-shot (persists until changed/cleared)
+        // since a test may want it to apply across several rolls in a row.
+        const shouldStop = (window.__testAutomaForceStop ?? null) !== null
+            ? window.__testAutomaForceStop
+            : Math.random() < 0.5;
+        if (shouldStop) {
+            stopAndBankProgress(PLAYER_COLORS[currentPlayerIndex]); // advances the turn + relabels itself
+            return;
+        }
+        return runAutomaTurn(); // keep rolling as the same automa player
+    }
+
+    window.setAutomaForcedDecision = function(shouldStop) {
+        window.__testAutomaForceStop = shouldStop; // true, false, or null to go back to random
+    };
 
     document.getElementById('pairing-options').addEventListener('click', (event) => {
       const optionTarget = event.target.closest('.pairing-option');
