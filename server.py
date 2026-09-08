@@ -6126,10 +6126,12 @@ function updateMultiMarkerDisplay(space) {
     space.style.backgroundImage = '';
     return;
   }
-  // 2+ markers: render one equal-width vertical stripe per present
+  // 2+ markers: render one equal-height horizontal band per present
   // color, in canonical red/blue/green/yellow order (filtered to only
-  // the colors actually present -- e.g. red+yellow is a 2-stripe split,
-  // not a 4-stripe split with gaps).
+  // the colors actually present -- e.g. red+yellow is a 2-band split,
+  // not a 4-band split with gaps). Spec 31: stacked top-to-bottom
+  // (wide rectangles) rather than side-to-side (thin vertical stripes
+  // that visually competed with the board's own columns).
   const step = 100 / present.length;
   const stops = present
     .map((color, i) => {
@@ -6137,7 +6139,7 @@ function updateMultiMarkerDisplay(space) {
       return `${hex} ${i * step}%, ${hex} ${(i + 1) * step}%`;
     })
     .join(', ');
-  space.style.backgroundImage = `linear-gradient(to right, ${stops})`;
+  space.style.backgroundImage = `linear-gradient(to bottom, ${stops})`;
 }
 
 function refreshAllMultiMarkerDisplays() {
