@@ -5227,7 +5227,10 @@ body {
   color: #e6edf3;
   margin: 0 auto;
   padding: 24px 16px;
-  max-width: 640px;
+  /* Matches the board's own natural width (11 columns x 24px + 10 gaps
+     x 6px = 324px, plus .panel's 24px x 2 padding) -- the page should
+     never be wider than the board itself. */
+  max-width: 380px;
 }
 
 .js-hidden {
@@ -5240,6 +5243,7 @@ body {
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  text-align: center;
 }
 
 #game-screen {
@@ -5299,6 +5303,17 @@ body {
   background-color: #21262d;
   color: #e6edf3;
   border: 1px solid #30363d;
+  /* Remove the browser's native dropdown arrow (its position/size
+     varies enough across browsers, relative to this button's custom
+     pill padding, to look off-center) and draw our own, precisely
+     placed and vertically centered instead. */
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23e6edf3' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 12px 8px;
 }
 
 #player-setup button:hover,
@@ -5440,11 +5455,11 @@ body {
   display: inline-grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  gap: 4px;
-  margin: 5px;
-  padding: 8px;
-  width: 60px;
-  height: 60px;
+  gap: 3px;
+  margin: 3px;
+  padding: 6px;
+  width: 50px;
+  height: 50px;
   border: 1px solid #30363d;
   border-radius: 8px;
   background-color: var(--dice-bg-color, #21262d);
@@ -5486,7 +5501,7 @@ body {
   display: inline-block;
   margin: 5px;
   padding: 10px;
-  border: 1px solid #30363d;
+  border: 1px solid var(--pairing-border-color, #30363d);
   border-radius: 8px;
   font-size: 18px;
   text-align: center;
@@ -5619,6 +5634,7 @@ body {
 .dice-row {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
 }
 #bust-probability {
@@ -5856,6 +5872,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let currentPlayerIndex = 0;
     let PLAYER_COLORS = ['red', 'blue', 'green', 'yellow'];
+    let PLAYER_NAMES = ['Player 1', 'Player 2', 'Player 3', 'Player 4'];
     let playerCount;
 
     window.getCurrentPlayerColor = function() {
@@ -5868,7 +5885,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // setting .textContent directly, so the color never goes stale.
     function updateTurnIndicator() {
         const indicator = document.getElementById('turn-indicator');
-        indicator.textContent = `Player ${currentPlayerIndex + 1}'s turn`;
+        indicator.textContent = `${PLAYER_NAMES[currentPlayerIndex]}'s turn`;
         PLAYER_COLORS.forEach(color => indicator.classList.remove(`turn-indicator--${color}`));
         indicator.classList.add(`turn-indicator--${PLAYER_COLORS[currentPlayerIndex]}`);
         document.getElementById('roll-button').style.setProperty('--roll-button-color', MULTI_MARKER_COLOR_HEX[PLAYER_COLORS[currentPlayerIndex]]);
@@ -5876,11 +5893,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // inherit down to .die children even though #dice's own
         // innerHTML gets wiped and rebuilt on every roll.
         document.getElementById('dice').style.setProperty('--dice-bg-color', MULTI_MARKER_COLOR_HEX[PLAYER_COLORS[currentPlayerIndex]]);
+        document.getElementById('pairing-options').style.setProperty('--pairing-border-color', MULTI_MARKER_COLOR_HEX[PLAYER_COLORS[currentPlayerIndex]]);
     }
 
     // Add event listener to start game button
     document.getElementById('start-game-button').addEventListener('click', function() {
         PLAYER_COLORS = playerColorAssignments.slice(0, 4);
+        PLAYER_NAMES = Array.from(document.querySelectorAll('.player-name-input')).map(
+            (el, i) => el.value.trim() || `Player ${i + 1}`
+        );
         savePlayerSetupToLocalStorage();
         playerSetup.classList.add('js-hidden');
         gameScreen.classList.remove('js-hidden');
@@ -5888,6 +5909,7 @@ document.addEventListener('DOMContentLoaded', function() {
         playerCount = parseInt(playerCountSelect.value, 10);
         updateTurnIndicator();
         updateBustProbabilityDisplay();
+        renderPlaceholderDice();
     });
 
     function showStopButton() {
@@ -6063,6 +6085,30 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('roll-button').disabled = true;
     }
 
+    // Renders exactly 4 dice showing diceValues into #dice, replacing
+    // whatever was there. #dice is otherwise NEVER cleared to empty --
+    // it always shows either these freshly-rolled values or, before the
+    // very first roll of a game, a static all-1s placeholder (see
+    // renderPlaceholderDice below) -- never nothing at all.
+    function renderDice(diceValues) {
+        document.getElementById('dice').innerHTML = '';
+        for (let i = 0; i < 4; i++) {
+            const dieElement = document.createElement('div');
+            dieElement.className = `die die--${diceValues[i]}`;
+            dieElement.dataset.value = diceValues[i]; // kept for any test/debug reading of the actual value
+            for (let p = 0; p < 9; p++) {
+                const pip = document.createElement('span');
+                pip.className = 'pip';
+                dieElement.appendChild(pip);
+            }
+            document.getElementById('dice').appendChild(dieElement);
+        }
+    }
+
+    function renderPlaceholderDice() {
+        renderDice([1, 1, 1, 1]);
+    }
+
     function rollDice(currentPlayerIndex) {
       hideStopButton();
       clearColumnChoiceHighlights();
@@ -6077,19 +6123,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        document.getElementById('dice').innerHTML = ''; // Clear any existing dice
-
-        for (let i = 0; i < 4; i++) {
-            const dieElement = document.createElement('div');
-            dieElement.className = `die die--${diceValues[i]}`;
-            dieElement.dataset.value = diceValues[i]; // kept for any test/debug reading of the actual value
-            for (let p = 0; p < 9; p++) {
-                const pip = document.createElement('span');
-                pip.className = 'pip';
-                dieElement.appendChild(pip);
-            }
-            document.getElementById('dice').appendChild(dieElement);
-        }
+        renderDice(diceValues);
 
         const pairings = generatePairings(diceValues);
 
@@ -6135,7 +6169,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let bustAcknowledgePending = false;
 
     function showBustBanner(bustedPlayerIndex) {
-      document.getElementById('bust-banner').textContent = `Player ${bustedPlayerIndex} BUST`;
+      document.getElementById('bust-banner').textContent = `${PLAYER_NAMES[bustedPlayerIndex - 1]} BUST`;
       document.getElementById('bust-banner').classList.remove('js-hidden');
 
       // Triggers the drop-off animation immediately (see CSS). The
@@ -6205,12 +6239,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // (#roll-button, #stop-button) in the space they occupy.
         document.getElementById('roll-button').classList.add('js-hidden');
         document.getElementById('stop-button').classList.add('js-hidden');
-        document.getElementById('dice').innerHTML = '';
         document.getElementById('pairing-options').innerHTML = '';
 
         document.getElementById('win-screen').classList.remove('js-hidden');
         document.getElementById('win-message').textContent =
-            `Player ${PLAYER_COLORS.indexOf(playerColor) + 1} (${playerColor}) wins!`;
+            `${PLAYER_NAMES[PLAYER_COLORS.indexOf(playerColor)]} (${playerColor}) wins!`;
         return true;
       }
       return false;
@@ -6222,7 +6255,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (bustAcknowledgePending) {
             document.getElementById('bust-banner').classList.add('js-hidden');
-            document.getElementById('dice').innerHTML = ''; // clear the busted roll's dice too
+            // #dice is deliberately left showing the busted roll's values
+            // -- dice are never cleared to empty, only replaced by the
+            // next real roll.
             document.querySelectorAll('.space--white-marker').forEach(space => {
                 space.classList.remove('space--white-marker', 'space--busting');
             });
@@ -6253,7 +6288,6 @@ document.addEventListener('DOMContentLoaded', function() {
       applySumToColumn(lo, PLAYER_COLORS[currentPlayerIndex]);
       applySumToColumn(hi, PLAYER_COLORS[currentPlayerIndex]);
 
-      document.getElementById('dice').innerHTML = '';
       document.getElementById('pairing-options').innerHTML = '';
 
       document.getElementById('roll-button').disabled = false;
@@ -6271,7 +6305,6 @@ document.addEventListener('DOMContentLoaded', function() {
       applySumToColumn(column, PLAYER_COLORS[currentPlayerIndex]);
       clearColumnChoiceHighlights();
 
-      document.getElementById('dice').innerHTML = '';
       document.getElementById('pairing-options').innerHTML = '';
 
       showStopButton();
