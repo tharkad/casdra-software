@@ -5211,6 +5211,9 @@ def build_cant_stop_debug_page():
     """Temporary diagnostic page -- reports real computed layout values
     as plain visible text, so a device that's showing wrong layout can
     just be screenshotted instead of needing devtools/remote debugging.
+    Reproduces the game page's EXACT body + .panel CSS (copied verbatim
+    from apps/cant_stop/styles.css) so it tests the actual structure
+    that's misbehaving, not just a simplified stand-in.
     Safe to delete once the padding investigation is resolved."""
     return """<!DOCTYPE html>
 <html lang="en">
@@ -5219,20 +5222,43 @@ def build_cant_stop_debug_page():
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Cant Stop Debug</title>
 <style>
-  body { font-family: -apple-system, monospace; background: #111; color: #0f0; padding: 24px 16px; margin: 0; font-size: 13px; white-space: pre-wrap; word-break: break-all; }
-  .box { border: 2px solid #0f0; margin: 8px 0; }
-  .swatch { height: 20px; background: #d4a030; }
+/* Copied verbatim from apps/cant_stop/styles.css -- the real body +
+   .panel rules, unmodified, so this tests the actual failing structure. */
+body {
+  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  background-color: #0d1117;
+  color: #e6edf3;
+  margin: 0;
+  padding: 24px 16px;
+  display: flex;
+  justify-content: center;
+}
+.panel {
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  text-align: center;
+  max-width: 380px;
+  width: 100%;
+  box-sizing: border-box;
+}
+/* Debug-only additions below this line. */
+#out { font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; text-align: left; color: #0f0; }
 </style>
 </head>
 <body>
-<div id="out">loading...</div>
-<div class="box"><div class="swatch"></div></div>
+<div class="panel"><div id="out">loading...</div></div>
 <script>
 function report() {
   const b = document.body;
+  const p = document.querySelector('.panel');
   const html = document.documentElement;
-  const cs = getComputedStyle(b);
-  const rect = b.getBoundingClientRect();
+  const bcs = getComputedStyle(b);
+  const pcs = getComputedStyle(p);
+  const brect = b.getBoundingClientRect();
+  const prect = p.getBoundingClientRect();
   const vv = window.visualViewport;
   const lines = [
     'userAgent: ' + navigator.userAgent,
@@ -5242,18 +5268,22 @@ function report() {
     'documentElement.clientWidth/Height: ' + html.clientWidth + ' / ' + html.clientHeight,
     'visualViewport.width/height: ' + (vv ? vv.width : 'n/a') + ' / ' + (vv ? vv.height : 'n/a'),
     'visualViewport.scale: ' + (vv ? vv.scale : 'n/a'),
-    'visualViewport.offsetLeft/Top: ' + (vv ? vv.offsetLeft : 'n/a') + ' / ' + (vv ? vv.offsetTop : 'n/a'),
     '',
-    'body computed paddingLeft/Right: ' + cs.paddingLeft + ' / ' + cs.paddingRight,
-    'body computed paddingTop/Bottom: ' + cs.paddingTop + ' / ' + cs.paddingBottom,
-    'body computed marginLeft/Right: ' + cs.marginLeft + ' / ' + cs.marginRight,
-    'body computed display: ' + cs.display,
-    'body computed justifyContent: ' + cs.justifyContent,
-    'body computed backgroundColor: ' + cs.backgroundColor,
-    'body getBoundingClientRect: ' + JSON.stringify(rect),
+    '--- BODY ---',
+    'computed paddingLeft/Right: ' + bcs.paddingLeft + ' / ' + bcs.paddingRight,
+    'computed display/justifyContent: ' + bcs.display + ' / ' + bcs.justifyContent,
+    'getBoundingClientRect: ' + JSON.stringify(brect),
     '',
-    'html computed fontSize (zoom-ish indicator): ' + getComputedStyle(html).fontSize,
-    'The green box below should have visible dark space on its left AND right, matching this text block.',
+    '--- .panel (the actual game card) ---',
+    'computed width/maxWidth: ' + pcs.width + ' / ' + pcs.maxWidth,
+    'computed boxSizing: ' + pcs.boxSizing,
+    'computed paddingLeft/Right: ' + pcs.paddingLeft + ' / ' + pcs.paddingRight,
+    'getBoundingClientRect: ' + JSON.stringify(prect),
+    '',
+    'GAP left of panel (should be ~16px): ' + (prect.left - brect.left),
+    'GAP right of panel (should be ~16px): ' + (brect.right - prect.right),
+    '',
+    'The card around this text should have visible dark space on its left AND right.',
   ];
   document.getElementById('out').textContent = lines.join('\\n');
 }
