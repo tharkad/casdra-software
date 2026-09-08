@@ -6186,7 +6186,15 @@ document.addEventListener('DOMContentLoaded', function() {
       );
 
       if (existingWhiteIndex !== -1) {
-        return existingWhiteIndex + 1 < spaces.length; // can still advance
+        // In progress in this column -- legal regardless of whether
+        // there's still room to advance. A marker already sitting on
+        // the top space makes this number a safe no-op (see
+        // applySumToColumn's own "already at the top" branch), NOT an
+        // illegal/bust-triggering roll -- the player still has a
+        // marker there. This wasn't just a display bug: rollBusts uses
+        // this same check, so getting it wrong here could incorrectly
+        // end a player's turn as "busted" on a genuinely safe roll.
+        return true;
       }
 
       const columnsInProgress = document.querySelectorAll('.space--white-marker').length;
@@ -6453,8 +6461,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (bustAcknowledgePending) {
             document.getElementById('bust-banner').classList.add('js-hidden');
             // #dice is deliberately left showing the busted roll's values
-            // -- dice are never cleared to empty, only replaced by the
-            // next real roll.
+            // until the roll below replaces them -- dice are never
+            // cleared to empty.
             document.querySelectorAll('.space--white-marker').forEach(space => {
                 space.classList.remove('space--white-marker', 'space--busting');
             });
@@ -6464,7 +6472,12 @@ document.addEventListener('DOMContentLoaded', function() {
             currentPlayerIndex = (currentPlayerIndex + 1) % playerCount;
             updateTurnIndicator();
             updateBustProbabilityDisplay();
-            return; // this click acknowledged the bust; it did NOT also roll
+            // Bug fix: this click used to only acknowledge the bust,
+            // relabeling the button to "Roll Dice" while leaving the
+            // PREVIOUS player's busted dice on screen -- looking exactly
+            // like clicking "Roll Dice" did nothing, requiring a second,
+            // separate click to actually roll. Fall through and roll for
+            // the new player immediately instead.
         }
 
         rollDice(currentPlayerIndex);
