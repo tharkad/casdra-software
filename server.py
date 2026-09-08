@@ -5328,6 +5328,29 @@ body {
   flex-direction: column-reverse; /* required since Spec 01 -- keep it */
   align-items: center;
   gap: 2px;
+  position: relative; /* anchors .column-choice-arrow, see below */
+}
+
+.column--choosable {
+  box-shadow: 0 0 20px 6px rgba(212, 160, 48, 0.7);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.column-choice-arrow {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  color: #d4a030;
+  pointer-events: none;
+  animation: column-choice-bounce 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes column-choice-bounce {
+  from { transform: translateX(-50%) translateY(0); }
+  to { transform: translateX(-50%) translateY(-8px); }
 }
 
 .space {
@@ -5775,9 +5798,17 @@ document.addEventListener('DOMContentLoaded', function() {
         return isLegalSum(lo) && isLegalSum(hi);
     }
 
-    // Replaces #pairing-options with a choice between the two candidate
-    // columns -- used only for the ambiguous case above. The dice stay
-    // visible until the player actually picks one.
+    // Spec 28: clears any board-integrated column-choice highlight left
+    // over from a previous roll -- the glow (column--choosable) and the
+    // bouncing arrow (column-choice-arrow) must never survive a re-roll.
+    function clearColumnChoiceHighlights() {
+        document.querySelectorAll('.column--choosable').forEach(el => el.classList.remove('column--choosable'));
+        document.querySelectorAll('.column-choice-arrow').forEach(el => el.remove());
+    }
+
+    // Highlights the two candidate columns on the board itself -- used
+    // only for the ambiguous case above. The dice stay visible until the
+    // player actually picks one by clicking a highlighted column.
     function showColumnChoice(lo, hi) {
         const container = document.getElementById('pairing-options');
         container.innerHTML = '';
@@ -5788,16 +5819,18 @@ document.addEventListener('DOMContentLoaded', function() {
         container.appendChild(prompt);
 
         [lo, hi].forEach(col => {
-            const choiceElement = document.createElement('div');
-            choiceElement.className = 'pairing-option column-choice-option';
-            choiceElement.dataset.column = col;
-            choiceElement.textContent = `Column ${col}`;
-            container.appendChild(choiceElement);
+            const columnElement = document.querySelector(`.column[data-number="${col}"]`);
+            columnElement.classList.add('column--choosable');
+            const choiceArrow = document.createElement('span');
+            choiceArrow.className = 'column-choice-arrow';
+            choiceArrow.textContent = '▼';
+            columnElement.appendChild(choiceArrow);
         });
     }
 
     function rollDice(currentPlayerIndex) {
       hideStopButton();
+      clearColumnChoiceHighlights();
         let diceValues;
         if (window.__testDiceOverride) {
             diceValues = window.__testDiceOverride;
@@ -5939,18 +5972,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.getElementById('pairing-options').addEventListener('click', (event) => {
-      const choiceTarget = event.target.closest('.column-choice-option');
-      if (choiceTarget) {
-        const column = Number(choiceTarget.dataset.column);
-        applySumToColumn(column, PLAYER_COLORS[currentPlayerIndex]);
-
-        document.getElementById('dice').innerHTML = '';
-        document.getElementById('pairing-options').innerHTML = '';
-
-        showStopButton();
-        return;
-      }
-
       const optionTarget = event.target.closest('.pairing-option');
       if (!optionTarget) return;
       if (optionTarget.classList.contains('pairing-option--disabled')) return;
@@ -5964,6 +5985,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
       applySumToColumn(lo, PLAYER_COLORS[currentPlayerIndex]);
       applySumToColumn(hi, PLAYER_COLORS[currentPlayerIndex]);
+
+      document.getElementById('dice').innerHTML = '';
+      document.getElementById('pairing-options').innerHTML = '';
+
+      showStopButton();
+    });
+
+    // Spec 28: the ambiguous column-choice now resolves by clicking the
+    // highlighted board column itself, not a separate button.
+    document.getElementById('board').addEventListener('click', (event) => {
+      const choiceTarget = event.target.closest('.column--choosable');
+      if (!choiceTarget) return;
+
+      const column = Number(choiceTarget.dataset.number);
+      applySumToColumn(column, PLAYER_COLORS[currentPlayerIndex]);
+      clearColumnChoiceHighlights();
 
       document.getElementById('dice').innerHTML = '';
       document.getElementById('pairing-options').innerHTML = '';
