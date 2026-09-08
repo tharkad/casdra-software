@@ -5267,6 +5267,10 @@ body {
   transition: transform 0.15s, box-shadow 0.15s;
 }
 
+#roll-button {
+  background-color: var(--roll-button-color, #d4a030);
+}
+
 #player-setup select {
   background-color: #21262d;
   color: #e6edf3;
@@ -5619,6 +5623,7 @@ document.addEventListener('DOMContentLoaded', function() {
         indicator.textContent = `Player ${currentPlayerIndex + 1}'s turn`;
         PLAYER_COLORS.forEach(color => indicator.classList.remove(`turn-indicator--${color}`));
         indicator.classList.add(`turn-indicator--${PLAYER_COLORS[currentPlayerIndex]}`);
+        document.getElementById('roll-button').style.setProperty('--roll-button-color', MULTI_MARKER_COLOR_HEX[PLAYER_COLORS[currentPlayerIndex]]);
     }
 
     // Add event listener to start game button
