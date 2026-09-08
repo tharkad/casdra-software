@@ -5274,6 +5274,10 @@ body {
 #stop-button {
   position: relative;
   overflow: hidden;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
 }
 
 #stop-button::after {
@@ -6042,7 +6046,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const stopButtonEl = document.getElementById('stop-button');
     stopButtonEl.addEventListener('mousedown', startStopHold);
-    stopButtonEl.addEventListener('touchstart', startStopHold);
+    stopButtonEl.addEventListener('touchstart', function(event) {
+        // Spec 29: without this, a ~1s touch hold on mobile is also the
+        // platform's own "select this text" gesture -- suppress it so
+        // the hold-to-stop gesture doesn't collide with the browser's
+        // native selection callout. Registered non-passive so
+        // preventDefault() reliably takes effect.
+        event.preventDefault();
+        startStopHold();
+    }, { passive: false });
     stopButtonEl.addEventListener('mouseup', cancelStopHold);
     stopButtonEl.addEventListener('mouseleave', cancelStopHold);
     stopButtonEl.addEventListener('touchend', cancelStopHold);
