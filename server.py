@@ -5986,6 +5986,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function generateBoard() {
         const board = document.getElementById('board');
+        // Bug fix: this runs again every time Start Game is clicked --
+        // including a 2nd (or later) game after New Game returns to
+        // player-setup -- and used to just append a fresh set of 11
+        // columns on top of whatever was already in #board, doubling
+        // the board and leaving the previous game's markers (including
+        // banked-but-not-claimed permanent markers the New Game button's
+        // own cleanup never touched) visible underneath. Clearing first
+        // makes every Start Game a genuinely fresh board, and makes the
+        // New Game button's own column--claimed cleanup below fully
+        // redundant (kept anyway since it's harmless and cheap).
+        board.innerHTML = '';
         for (let col = 2; col <= 12; col++) {
             const column = document.createElement('div');
             column.className = 'column';
