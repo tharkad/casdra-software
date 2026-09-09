@@ -5231,7 +5231,7 @@ body {
   background-color: #0d1117;
   color: #e6edf3;
   margin: 0;
-  padding: 24px 16px;
+  padding: 12px 8px;
   /* Centering via `margin: 0 auto` + `max-width` on body did not render
      reliably on at least one real device (iOS Chrome, which runs on
      WebKit) -- confirmed live, not a caching issue. A flex container
@@ -5255,7 +5255,7 @@ body {
   background-color: #161b22;
   border: 1px solid #30363d;
   border-radius: 16px;
-  padding: 24px;
+  padding: 14px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   text-align: center;
   /* The board's own hand-calculated width is 324px (11 columns x 24px +
@@ -5710,10 +5710,17 @@ body {
        and the cumulative overflow across all 11 columns ate straight
        through the panel's own padding on real-device font rendering
        (this measured fine in some environments but not others, since
-       it was already right at the edge of overflowing). 8px reliably
-       fits "XX.X%" within the 24px space width instead. */
+       it was already right at the edge of overflowing). width stays
+       explicitly fixed at 24px (never just min-width) so this can
+       never inflate its column's own width again regardless of font
+       size or rendering differences across devices -- any overflow is
+       purely visual, spilling into the column's own 6px gap rather
+       than affecting layout. The values now round to whole numbers
+       (e.g. "64%", max 3 characters instead of 5), comfortably
+       narrower at this same box width, which is what makes it safe to
+       size the font back up for legibility. */
     width: 24px;
-    font-size: 8px;
+    font-size: 10px;
     text-align: center;
     color: #8b949e;
 }
