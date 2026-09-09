@@ -6803,6 +6803,15 @@ document.addEventListener('DOMContentLoaded', function() {
             return calculateBustProbability() >= 50;
         }
         if (kind === 'ai') {
+            // A column can be fully climbed (its white marker sitting on
+            // .space--top) without being locked in yet -- that only
+            // happens at banking (stopAndBankProgress). Rolling again
+            // risks busting and losing that climb for nothing, since
+            // there's no further progress to make in an already-topped
+            // column anyway. Always stop the instant one is topped.
+            if (document.querySelector('.space--top.space--white-marker')) {
+                return true;
+            }
             // A flat 50% threshold regardless of the stakes is how
             // Maniac plays, not a genuinely good strategy -- the more
             // pegs already banked this turn, the more there is to lose,
