@@ -5991,7 +5991,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // last DOM child, so it stays the topmost element).
             const probability = document.createElement('div');
             probability.className = 'column-probability';
-            probability.textContent = `${COLUMN_PROBABILITIES[col]}%`;
+            probability.textContent = `${Math.round(COLUMN_PROBABILITIES[col])}%`;
             column.appendChild(probability);
 
             // Appended LAST, after everything else -- the column is
