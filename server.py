@@ -5873,7 +5873,7 @@ body {
                     </select>
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
-                        <option value="fifty_percent">Fifty Percent</option>
+                        <option value="fifty_percent">Maniac</option>
                     </select>
                 </div>
             </li>
@@ -5894,7 +5894,7 @@ body {
                     </select>
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
-                        <option value="fifty_percent">Fifty Percent</option>
+                        <option value="fifty_percent">Maniac</option>
                     </select>
                 </div>
             </li>
@@ -5915,7 +5915,7 @@ body {
                     </select>
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
-                        <option value="fifty_percent">Fifty Percent</option>
+                        <option value="fifty_percent">Maniac</option>
                     </select>
                 </div>
             </li>
@@ -5936,7 +5936,7 @@ body {
                     </select>
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
-                        <option value="fifty_percent">Fifty Percent</option>
+                        <option value="fifty_percent">Maniac</option>
                     </select>
                 </div>
             </li>
@@ -6134,7 +6134,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Human-readable label per automa kind, used only for the
     // name-input default-filling behavior below.
-    const AUTOMA_KIND_LABELS = { random: 'Random', fifty_percent: 'Fifty Percent' };
+    // "fifty_percent" is this kind's internal value/identifier -- kept
+    // stable even though its user-facing name changed to "Maniac", same
+    // as this codebase's established pattern of not renaming an
+    // internal identifier just because its displayed label changed
+    // (see Spec 25's own note about the "yellow" identifier).
+    const AUTOMA_KIND_LABELS = { random: 'Random', fifty_percent: 'Maniac' };
 
     document.querySelectorAll('.player-setup-row').forEach((row, i) => {
         const typeSelect = row.querySelector('.player-type-select');
@@ -6328,7 +6333,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return pct;
     }
 
-    // General version of the above for the "Fifty Percent" automa's own
+    // General version of the above for the "Maniac" automa's own
     // pairing-choice decision: simulates actually applying BOTH sums of
     // a pairing option (mirroring applySumToColumn's own placement
     // logic -- advance an in-progress column, or start a fresh one at
@@ -6717,6 +6722,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (isCurrentPlayerAutoma()) {
+            // Distinguishes "its turn is actively running" from the
+            // "Next Turn" button's own idle state -- the human clicked
+            // to start it, so the label should say so while it plays,
+            // not just repeat the same "X's turn" it already showed
+            // before the click.
+            document.getElementById('turn-indicator').textContent = `${PLAYER_NAMES[currentPlayerIndex]} playing...`;
             runAutomaTurn();
             return;
         }
@@ -6791,9 +6802,15 @@ document.addEventListener('DOMContentLoaded', function() {
     async function runAutomaTurn() {
         const kind = PLAYER_AUTOMA_KINDS[currentPlayerIndex];
         rollDice(currentPlayerIndex);
-        await sleep(AUTOMA_STEP_DELAY_MS);
 
         if (bustAcknowledgePending) {
+            // Checked BEFORE the sleep below (not after) so this reverts
+            // the instant the bust banner itself appears, not up to a
+            // full step-delay later -- it's no longer actively
+            // "playing", paused waiting on the human to press through
+            // the bust, so drop the "...playing" label back to the
+            // plain "X's turn" text (matching a human's own bust wait).
+            document.getElementById('turn-indicator').textContent = `${PLAYER_NAMES[currentPlayerIndex]}'s turn`;
             // Bug fix: this used to auto-acknowledge the bust internally,
             // so the human watching never actually SAW the automa's bust
             // banner or got to register what happened -- it flashed and
@@ -6839,7 +6856,7 @@ document.addEventListener('DOMContentLoaded', function() {
         window.__testAutomaForceStop = shouldStop; // true, false, or null to go back to random
     };
 
-    // Test-only: exposes the exact evaluation the "Fifty Percent" automa
+    // Test-only: exposes the exact evaluation the "Maniac" automa
     // uses for its own pairing/column decisions, so tests can verify it
     // always clicks whichever option ITS OWN evaluation ranks lowest
     // instead of needing to independently re-derive expected values.
