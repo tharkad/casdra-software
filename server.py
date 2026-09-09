@@ -5874,6 +5874,7 @@ body {
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
                         <option value="fifty_percent">Maniac</option>
+                        <option value="ai">AI</option>
                     </select>
                 </div>
             </li>
@@ -5895,6 +5896,7 @@ body {
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
                         <option value="fifty_percent">Maniac</option>
+                        <option value="ai">AI</option>
                     </select>
                 </div>
             </li>
@@ -5916,6 +5918,7 @@ body {
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
                         <option value="fifty_percent">Maniac</option>
+                        <option value="ai">AI</option>
                     </select>
                 </div>
             </li>
@@ -5937,6 +5940,7 @@ body {
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
                         <option value="fifty_percent">Maniac</option>
+                        <option value="ai">AI</option>
                     </select>
                 </div>
             </li>
@@ -6139,7 +6143,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // as this codebase's established pattern of not renaming an
     // internal identifier just because its displayed label changed
     // (see Spec 25's own note about the "yellow" identifier).
-    const AUTOMA_KIND_LABELS = { random: 'Random', fifty_percent: 'Maniac' };
+    const AUTOMA_KIND_LABELS = { random: 'Random', fifty_percent: 'Maniac', ai: 'AI' };
 
     document.querySelectorAll('.player-setup-row').forEach((row, i) => {
         const typeSelect = row.querySelector('.player-type-select');
@@ -6764,6 +6768,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // tests can exercise the threshold directly against a specific
     // board state, without needing a real dice sequence to naturally
     // reach it.
+    // How many temp-marker ("peg") steps the CURRENT player has banked
+    // so far this turn -- summed across every in-progress column, each
+    // counted as how far its white marker sits above where THIS
+    // player's own marker would naturally start in that column (their
+    // existing permanent marker one space below, if any, else the very
+    // bottom). White markers only ever exist for the turn currently
+    // being played (cleared on every turn transition, whether by a
+    // stop or a bust), so this is always exactly "pegs at risk if this
+    // turn busts right now" -- no separate turn-start snapshot needed.
+    function pegsAtRiskThisTurn() {
+        const currentColor = PLAYER_COLORS[currentPlayerIndex];
+        let total = 0;
+        document.querySelectorAll('.column').forEach(column => {
+            const spaces = Array.from(column.querySelectorAll('.space'));
+            const whiteIndex = spaces.findIndex(s => s.classList.contains('space--white-marker'));
+            if (whiteIndex === -1) return;
+            const ownPermanentIndex = spaces.findIndex(s => s.classList.contains(`marker--${currentColor}`));
+            const startIndex = ownPermanentIndex !== -1 ? ownPermanentIndex + 1 : 0;
+            total += whiteIndex - startIndex + 1;
+        });
+        return total;
+    }
+
     function automaShouldStop(kind) {
         // Test-only override -- true forces stop, false forces continue,
         // undefined/null leaves it to the kind's own logic. Not one-shot
@@ -6775,22 +6802,51 @@ document.addEventListener('DOMContentLoaded', function() {
         if (kind === 'fifty_percent') {
             return calculateBustProbability() >= 50;
         }
+        if (kind === 'ai') {
+            // A flat 50% threshold regardless of the stakes is how
+            // Maniac plays, not a genuinely good strategy -- the more
+            // pegs already banked this turn, the more there is to lose,
+            // so this becomes more conservative as progress accumulates
+            // instead of always risking it right up to the same number.
+            // Hand-picked constants (5 points per peg, 15% floor), not
+            // tuned against real play data.
+            const threshold = Math.max(15, 50 - pegsAtRiskThisTurn() * 5);
+            return calculateBustProbability() >= threshold;
+        }
         return Math.random() < 0.5; // random (default)
+    }
+
+    // "ai"'s own scoring, layered on top of the raw bust-probability-if-
+    // applied value: a real, well-known Can't Stop heuristic beyond
+    // pure risk-minimization -- advancing a column you're ALREADY
+    // working gets a flat bonus (real progress, doesn't spend one of
+    // the 3 in-progress slots), and starting a BRAND NEW column gets a
+    // bonus scaled by how common that column's sum is (COLUMN_
+    // PROBABILITIES), since a common column is far easier to keep
+    // advancing on future rolls than a rare one, even when a single
+    // roll's own bust math looks similar between them. Lower score is
+    // still better, same as the raw bust-probability comparison alone.
+    function aiScoreForSum(sum) {
+        if (isColumnInProgress(sum)) {
+            return -15; // meaningfully prefer advancing existing progress
+        }
+        return -((COLUMN_PROBABILITIES[sum] || 0) / 5); // prefer common columns when starting fresh
     }
 
     // Picks which element to click among a roll's candidate choices --
     // either .column--choosable elements (ambiguous column choice) or
-    // non-disabled .pairing-option elements. "random" picks uniformly.
-    // "fifty_percent" evaluates the resulting bust probability for EACH
-    // candidate and picks whichever leaves the lowest one.
+    // non-disabled .pairing-option elements. "random" picks uniformly;
+    // "fifty_percent" and "ai" evaluate EVERY candidate via the caller-
+    // supplied `evaluate` (which itself differs by kind -- see
+    // runAutomaTurn) and pick whichever scores lowest.
     function pickAutomaChoice(kind, elements, evaluate) {
-        if (kind === 'fifty_percent') {
+        if (kind === 'fifty_percent' || kind === 'ai') {
             let best = elements[0];
-            let bestPct = evaluate(elements[0]);
+            let bestScore = evaluate(elements[0]);
             for (let i = 1; i < elements.length; i++) {
-                const pct = evaluate(elements[i]);
-                if (pct < bestPct) {
-                    bestPct = pct;
+                const score = evaluate(elements[i]);
+                if (score < bestScore) {
+                    bestScore = score;
                     best = elements[i];
                 }
             }
@@ -6827,7 +6883,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const choosable = Array.from(document.querySelectorAll('.column--choosable'));
             if (choosable.length > 0) {
                 await sleep(AUTOMA_STEP_DELAY_MS);
-                pickAutomaChoice(kind, choosable, el => bustProbabilityIfChosen(Number(el.dataset.number))).click();
+                pickAutomaChoice(kind, choosable, el => {
+                    const col = Number(el.dataset.number);
+                    const pct = bustProbabilityIfChosen(col);
+                    // Both of an ambiguous choice's candidates are, by
+                    // definition, brand new -- only the commonality half
+                    // of aiScoreForSum ever applies here.
+                    return kind === 'ai' ? pct + aiScoreForSum(col) : pct;
+                }).click();
                 continue;
             }
             const options = Array.from(
@@ -6837,7 +6900,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 await sleep(AUTOMA_STEP_DELAY_MS);
                 pickAutomaChoice(kind, options, el => {
                     const [lo, hi] = el.dataset.sums.split(',').map(Number).sort((a, b) => a - b);
-                    return bustProbabilityIfPairingApplied(lo, hi);
+                    const pct = bustProbabilityIfPairingApplied(lo, hi);
+                    return kind === 'ai' ? pct + aiScoreForSum(lo) + aiScoreForSum(hi) : pct;
                 }).click();
                 continue;
             }
@@ -6885,6 +6949,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // by preferring a safer non-ambiguous pairing from the same roll,
     // making that hard to force from the outside.
     window.__testPickAutomaChoice = pickAutomaChoice;
+    window.__testAiScoreForSum = aiScoreForSum;
+    window.__testPegsAtRiskThisTurn = pegsAtRiskThisTurn;
 
     document.getElementById('pairing-options').addEventListener('click', (event) => {
       const optionTarget = event.target.closest('.pairing-option');
