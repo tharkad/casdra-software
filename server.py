@@ -5660,6 +5660,12 @@ body {
   font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.3px;
+  /* The tallest (7) column's own bust-choice-probability label sits
+     48px above its bouncing arrow, which itself sits right above that
+     column's own top edge -- the tallest column in the board, closest
+     to this element above it. The default <p> margin (22px) wasn't
+     enough clearance and the two visibly overlapped. */
+  margin: 0 0 40px 0;
 }
 
 .turn-indicator--red { color: #f85149; }
