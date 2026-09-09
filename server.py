@@ -5860,6 +5860,7 @@ body {
                     </select>
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
+                        <option value="fifty_percent">Fifty Percent</option>
                     </select>
                 </div>
             </li>
@@ -5880,6 +5881,7 @@ body {
                     </select>
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
+                        <option value="fifty_percent">Fifty Percent</option>
                     </select>
                 </div>
             </li>
@@ -5900,6 +5902,7 @@ body {
                     </select>
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
+                        <option value="fifty_percent">Fifty Percent</option>
                     </select>
                 </div>
             </li>
@@ -5920,6 +5923,7 @@ body {
                     </select>
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
+                        <option value="fifty_percent">Fifty Percent</option>
                     </select>
                 </div>
             </li>
@@ -6115,26 +6119,40 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('input', savePlayerSetupToLocalStorage);
     });
 
+    // Human-readable label per automa kind, used only for the
+    // name-input default-filling behavior below.
+    const AUTOMA_KIND_LABELS = { random: 'Random', fifty_percent: 'Fifty Percent' };
+
     document.querySelectorAll('.player-setup-row').forEach((row, i) => {
         const typeSelect = row.querySelector('.player-type-select');
+        const kindSelect = row.querySelector('.player-automa-kind-select');
         const nameInput = row.querySelector('.player-name-input');
+
         typeSelect.addEventListener('change', () => {
             updateAutomaKindVisibility(row);
             // A nice default: if the name was never customized away from
-            // its own placeholder, switching to Automa fills in "Random"
-            // instead of leaving a human-sounding "Player N" on an
-            // automa's turn indicator. The player can still rename it.
+            // its own placeholder, switching to Automa fills in the
+            // chosen kind's own name (e.g. "Random") instead of leaving
+            // a human-sounding "Player N" on an automa's turn
+            // indicator. The player can still rename it.
             if (typeSelect.value === 'automa' && nameInput.value.trim() === `Player ${i + 1}`) {
-                nameInput.value = 'Random';
-            } else if (typeSelect.value === 'person' && nameInput.value.trim() === 'Random') {
+                nameInput.value = AUTOMA_KIND_LABELS[kindSelect.value] || 'Random';
+            } else if (typeSelect.value === 'person'
+                       && Object.values(AUTOMA_KIND_LABELS).includes(nameInput.value.trim())) {
                 nameInput.value = `Player ${i + 1}`;
             }
             savePlayerSetupToLocalStorage();
         });
-    });
 
-    document.querySelectorAll('.player-automa-kind-select').forEach(select => {
-        select.addEventListener('change', savePlayerSetupToLocalStorage);
+        kindSelect.addEventListener('change', () => {
+            // Same idea, the other direction: if the name still matches
+            // some OTHER kind's own default label (never customized),
+            // follow it over to the newly chosen kind's label instead.
+            if (Object.values(AUTOMA_KIND_LABELS).includes(nameInput.value.trim())) {
+                nameInput.value = AUTOMA_KIND_LABELS[kindSelect.value] || nameInput.value;
+            }
+            savePlayerSetupToLocalStorage();
+        });
     });
 
     loadPlayerSetupFromLocalStorage();
@@ -6294,6 +6312,56 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!alreadyMarked) firstSpace.classList.add('space--white-marker');
         const pct = calculateBustProbability();
         if (!alreadyMarked) firstSpace.classList.remove('space--white-marker');
+        return pct;
+    }
+
+    // General version of the above for the "Fifty Percent" automa's own
+    // pairing-choice decision: simulates actually applying BOTH sums of
+    // a pairing option (mirroring applySumToColumn's own placement
+    // logic -- advance an in-progress column, or start a fresh one at
+    // the correct index for THIS player), measures the resulting bust
+    // probability, then reverts every mutation it made, in reverse
+    // order, so the real board is left untouched.
+    function simulateApplyPairingForBustCheck(lo, hi) {
+        const appliedMutations = []; // {space, undoAction: 'add' | 'remove'}, in application order
+        function simulateOneSum(sum) {
+            const column = document.querySelector(`.column[data-number="${sum}"]`);
+            if (!column || column.classList.contains('column--claimed')) return;
+            const spaces = Array.from(column.querySelectorAll('.space'));
+            const existingWhiteIndex = spaces.findIndex(s => s.classList.contains('space--white-marker'));
+            if (existingWhiteIndex !== -1) {
+                const nextIndex = existingWhiteIndex + 1;
+                if (nextIndex < spaces.length) {
+                    spaces[existingWhiteIndex].classList.remove('space--white-marker');
+                    spaces[nextIndex].classList.add('space--white-marker');
+                    appliedMutations.push({ space: spaces[existingWhiteIndex], undoAction: 'add' });
+                    appliedMutations.push({ space: spaces[nextIndex], undoAction: 'remove' });
+                }
+                return;
+            }
+            const columnsInProgress = document.querySelectorAll('.space--white-marker').length;
+            if (columnsInProgress >= 3) return;
+            const currentColor = PLAYER_COLORS[currentPlayerIndex];
+            const ownPermanentIndex = spaces.findIndex(s => s.classList.contains(`marker--${currentColor}`));
+            const placeAt = (ownPermanentIndex !== -1) ? ownPermanentIndex + 1 : 0;
+            if (placeAt < spaces.length) {
+                spaces[placeAt].classList.add('space--white-marker');
+                appliedMutations.push({ space: spaces[placeAt], undoAction: 'remove' });
+            }
+        }
+        simulateOneSum(lo);
+        simulateOneSum(hi); // sequential, same as applySumToColumn(lo) then applySumToColumn(hi) for real
+        return appliedMutations;
+    }
+
+    function bustProbabilityIfPairingApplied(lo, hi) {
+        const mutations = simulateApplyPairingForBustCheck(lo, hi);
+        const pct = calculateBustProbability();
+        for (let i = mutations.length - 1; i >= 0; i--) {
+            const m = mutations[i];
+            if (m.undoAction === 'add') m.space.classList.add('space--white-marker');
+            else m.space.classList.remove('space--white-marker');
+        }
         return pct;
     }
 
@@ -6663,7 +6731,52 @@ document.addEventListener('DOMContentLoaded', function() {
     // targets a human's own turn goes through (rollDice, the real
     // .pairing-option/.column--choosable elements, stopAndBankProgress)
     // rather than reimplementing any game rule separately.
+    // Whether the automa should stop (bank progress) rather than keep
+    // rolling, after whatever pairing/column decision was just applied
+    // for real. "fifty_percent" only stops once the CURRENT bust odds
+    // reach 50% or more ("always go if there's a less than fifty
+    // percent chance to bust"); "random" is a coin flip. Extracted as
+    // its own named function (rather than inlined in runAutomaTurn) so
+    // tests can exercise the threshold directly against a specific
+    // board state, without needing a real dice sequence to naturally
+    // reach it.
+    function automaShouldStop(kind) {
+        // Test-only override -- true forces stop, false forces continue,
+        // undefined/null leaves it to the kind's own logic. Not one-shot
+        // (persists until changed/cleared) since a test may want it to
+        // apply across several rolls in a row.
+        if ((window.__testAutomaForceStop ?? null) !== null) {
+            return window.__testAutomaForceStop;
+        }
+        if (kind === 'fifty_percent') {
+            return calculateBustProbability() >= 50;
+        }
+        return Math.random() < 0.5; // random (default)
+    }
+
+    // Picks which element to click among a roll's candidate choices --
+    // either .column--choosable elements (ambiguous column choice) or
+    // non-disabled .pairing-option elements. "random" picks uniformly.
+    // "fifty_percent" evaluates the resulting bust probability for EACH
+    // candidate and picks whichever leaves the lowest one.
+    function pickAutomaChoice(kind, elements, evaluate) {
+        if (kind === 'fifty_percent') {
+            let best = elements[0];
+            let bestPct = evaluate(elements[0]);
+            for (let i = 1; i < elements.length; i++) {
+                const pct = evaluate(elements[i]);
+                if (pct < bestPct) {
+                    bestPct = pct;
+                    best = elements[i];
+                }
+            }
+            return best;
+        }
+        return elements[Math.floor(Math.random() * elements.length)]; // random (default)
+    }
+
     async function runAutomaTurn() {
+        const kind = PLAYER_AUTOMA_KINDS[currentPlayerIndex];
         rollDice(currentPlayerIndex);
         await sleep(AUTOMA_STEP_DELAY_MS);
 
@@ -6684,7 +6797,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const choosable = Array.from(document.querySelectorAll('.column--choosable'));
             if (choosable.length > 0) {
                 await sleep(AUTOMA_STEP_DELAY_MS);
-                choosable[Math.floor(Math.random() * choosable.length)].click();
+                pickAutomaChoice(kind, choosable, el => bustProbabilityIfChosen(Number(el.dataset.number))).click();
                 continue;
             }
             const options = Array.from(
@@ -6692,21 +6805,17 @@ document.addEventListener('DOMContentLoaded', function() {
             );
             if (options.length > 0) {
                 await sleep(AUTOMA_STEP_DELAY_MS);
-                options[Math.floor(Math.random() * options.length)].click();
+                pickAutomaChoice(kind, options, el => {
+                    const [lo, hi] = el.dataset.sums.split(',').map(Number).sort((a, b) => a - b);
+                    return bustProbabilityIfPairingApplied(lo, hi);
+                }).click();
                 continue;
             }
             break; // nothing left to resolve for this roll
         }
 
         await sleep(AUTOMA_STEP_DELAY_MS);
-        // Test-only override for the stop-vs-continue coin flip -- true
-        // forces stop, false forces continue, undefined/null leaves it
-        // genuinely random. Not one-shot (persists until changed/cleared)
-        // since a test may want it to apply across several rolls in a row.
-        const shouldStop = (window.__testAutomaForceStop ?? null) !== null
-            ? window.__testAutomaForceStop
-            : Math.random() < 0.5;
-        if (shouldStop) {
+        if (automaShouldStop(kind)) {
             stopAndBankProgress(PLAYER_COLORS[currentPlayerIndex]); // advances the turn + relabels itself
             return;
         }
@@ -6716,6 +6825,36 @@ document.addEventListener('DOMContentLoaded', function() {
     window.setAutomaForcedDecision = function(shouldStop) {
         window.__testAutomaForceStop = shouldStop; // true, false, or null to go back to random
     };
+
+    // Test-only: exposes the exact evaluation the "Fifty Percent" automa
+    // uses for its own pairing/column decisions, so tests can verify it
+    // always clicks whichever option ITS OWN evaluation ranks lowest
+    // instead of needing to independently re-derive expected values.
+    window.__testBustProbabilityIfPairingApplied = bustProbabilityIfPairingApplied;
+    window.__testBustProbabilityIfChosen = bustProbabilityIfChosen;
+    window.__testCalculateBustProbability = calculateBustProbability;
+    // Lets a test exercise the stop-vs-continue threshold directly
+    // against any board state it sets up (e.g. via forceClaimColumn or
+    // manually toggling space--white-marker), without needing a real
+    // dice sequence to naturally reach that state. Temporarily clears
+    // any active setAutomaForcedDecision override so it reflects the
+    // kind's OWN logic, then restores whatever override was active.
+    window.__testAutomaShouldStop = function(kind) {
+        const previousOverride = window.__testAutomaForceStop ?? null;
+        window.__testAutomaForceStop = null;
+        const result = automaShouldStop(kind);
+        window.__testAutomaForceStop = previousOverride;
+        return result;
+    };
+
+    // Lets a test exercise the choice-picking logic directly against
+    // ANY elements/evaluation it sets up (e.g. a hand-picked pair of
+    // .column--choosable-like elements), without needing a real dice
+    // sequence to naturally produce that exact ambiguous scenario -- a
+    // genuinely risk-minimizing automa often dodges an ambiguous choice
+    // by preferring a safer non-ambiguous pairing from the same roll,
+    // making that hard to force from the outside.
+    window.__testPickAutomaChoice = pickAutomaChoice;
 
     document.getElementById('pairing-options').addEventListener('click', (event) => {
       const optionTarget = event.target.closest('.pairing-option');
