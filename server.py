@@ -5874,7 +5874,7 @@ body {
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
                         <option value="fifty_percent">Maniac</option>
-                        <option value="ai">AI</option>
+                        <option value="genetic_ai">Genetic AI (Gen 150)</option>
                     </select>
                 </div>
             </li>
@@ -5896,7 +5896,7 @@ body {
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
                         <option value="fifty_percent">Maniac</option>
-                        <option value="ai">AI</option>
+                        <option value="genetic_ai">Genetic AI (Gen 150)</option>
                     </select>
                 </div>
             </li>
@@ -5918,7 +5918,7 @@ body {
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
                         <option value="fifty_percent">Maniac</option>
-                        <option value="ai">AI</option>
+                        <option value="genetic_ai">Genetic AI (Gen 150)</option>
                     </select>
                 </div>
             </li>
@@ -5940,7 +5940,7 @@ body {
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
                         <option value="fifty_percent">Maniac</option>
-                        <option value="ai">AI</option>
+                        <option value="genetic_ai">Genetic AI (Gen 150)</option>
                     </select>
                 </div>
             </li>
@@ -6154,7 +6154,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // as this codebase's established pattern of not renaming an
     // internal identifier just because its displayed label changed
     // (see Spec 25's own note about the "yellow" identifier).
-    const AUTOMA_KIND_LABELS = { random: 'Random', fifty_percent: 'Maniac', ai: 'AI' };
+    const AUTOMA_KIND_LABELS = { random: 'Random', fifty_percent: 'Maniac', genetic_ai: 'Genetic AI (Gen 150)' };
 
     document.querySelectorAll('.player-setup-row').forEach((row, i) => {
         const typeSelect = row.querySelector('.player-type-select');
@@ -6820,6 +6820,28 @@ document.addEventListener('DOMContentLoaded', function() {
         return total;
     }
 
+    // "Genetic AI" -- discovered by a genetic-algorithm tournament (see
+    // spec-driven-pipeline/ga_tournament/), not hand-tuned. These are the
+    // reigning champion's actual evolved genes as of generation 150 of
+    // run_20260909_140811 (margin +5.7% over the previous hand-tuned "AI"
+    // kind's own win rate, verified via a best-3-of-5 title-match series,
+    // not just a lucky round-robin number -- see that project's
+    // data/hall_of_fame.json for full provenance). Replaces the old
+    // hand-tuned "ai" kind entirely (removed, not kept alongside this).
+    const GENETIC_AI_COLUMN_START_WEIGHT = {
+        2: -7.03, 3: 0.53, 4: -7.59, 5: 8.49, 6: -28.31, 7: -27.31,
+        8: -29.85, 9: -4.88, 10: -24.71, 11: 9.88, 12: -26.93,
+    };
+    const GENETIC_AI_COLUMN_PROGRESS_WEIGHT = {
+        2: -47.36, 3: -60.0, 4: -37.78, 5: -14.79, 6: -38.05, 7: -40.42,
+        8: -37.63, 9: -27.2, 10: -45.03, 11: -50.73, 12: -41.04,
+    };
+    const GENETIC_AI_STOP_BASE_THRESHOLD = 52.18;
+    const GENETIC_AI_STOP_PEG_PENALTY = 5.77;
+    const GENETIC_AI_STOP_FLOOR = 20.95;
+    const GENETIC_AI_STOP_TOPPED_COLUMN_BONUS = 100;
+    const GENETIC_AI_STOP_OPPONENT_DESPERATION_DISCOUNT = 45.82;
+
     function automaShouldStop(kind) {
         // Test-only override -- true forces stop, false forces continue,
         // undefined/null leaves it to the kind's own logic. Not one-shot
@@ -6831,54 +6853,68 @@ document.addEventListener('DOMContentLoaded', function() {
         if (kind === 'fifty_percent') {
             return calculateBustProbability() >= 50;
         }
-        if (kind === 'ai') {
-            // A column can be fully climbed (its white marker sitting on
+        if (kind === 'genetic_ai') {
+            const topped = !!document.querySelector('.space--top.space--white-marker');
+            const desperate = anyOpponentCloseToWinning();
+            let effective = calculateBustProbability();
+            // A column can be fully climbed (white marker on
             // .space--top) without being locked in yet -- that only
-            // happens at banking (stopAndBankProgress). Rolling again
-            // risks busting and losing that climb for nothing, since
-            // there's no further progress to make in an already-topped
-            // column anyway. Always stop the instant one is topped.
-            if (document.querySelector('.space--top.space--white-marker')) {
-                return true;
-            }
-            // A flat 50% threshold regardless of the stakes is how
-            // Maniac plays, not a genuinely good strategy -- the more
-            // pegs already banked this turn, the more there is to lose,
-            // so this becomes more conservative as progress accumulates
-            // instead of always risking it right up to the same number.
-            // Hand-picked constants (5 points per peg, 15% floor), not
-            // tuned against real play data.
-            const threshold = Math.max(15, 50 - pegsAtRiskThisTurn() * 5);
-            return calculateBustProbability() >= threshold;
+            // happens at banking (stopAndBankProgress). This bonus makes
+            // stopping far more likely the instant one is topped (100 at
+            // its evolved value here is effectively unconditional) --
+            // EXCEPT when desperate (see below), which can pull the
+            // effective value back down.
+            if (topped) effective += GENETIC_AI_STOP_TOPPED_COLUMN_BONUS;
+            // When an opponent already has 2+ columns claimed, playing it
+            // safe doesn't help catch up -- this discount makes the
+            // automa willing to push its luck further than its normal
+            // risk rule (and the topped-column bonus above) would allow.
+            if (desperate) effective -= GENETIC_AI_STOP_OPPONENT_DESPERATION_DISCOUNT;
+            const threshold = Math.max(
+                GENETIC_AI_STOP_FLOOR,
+                GENETIC_AI_STOP_BASE_THRESHOLD - pegsAtRiskThisTurn() * GENETIC_AI_STOP_PEG_PENALTY
+            );
+            return effective >= threshold;
         }
         return Math.random() < 0.5; // random (default)
     }
 
-    // "ai"'s own scoring, layered on top of the raw bust-probability-if-
-    // applied value: a real, well-known Can't Stop heuristic beyond
-    // pure risk-minimization -- advancing a column you're ALREADY
-    // working gets a flat bonus (real progress, doesn't spend one of
-    // the 3 in-progress slots), and starting a BRAND NEW column gets a
-    // bonus scaled by how common that column's sum is (COLUMN_
-    // PROBABILITIES), since a common column is far easier to keep
-    // advancing on future rolls than a rare one, even when a single
-    // roll's own bust math looks similar between them. Lower score is
-    // still better, same as the raw bust-probability comparison alone.
-    function aiScoreForSum(sum) {
+    // True iff some OTHER player already has >= 2 claimed columns (one
+    // away from winning) -- used by "genetic_ai"'s desperation discount.
+    function anyOpponentCloseToWinning() {
+        const currentColor = PLAYER_COLORS[currentPlayerIndex];
+        const claimedCounts = {};
+        document.querySelectorAll('.column--claimed').forEach(column => {
+            const owner = column.dataset.claimedBy;
+            if (owner && owner !== currentColor) {
+                claimedCounts[owner] = (claimedCounts[owner] || 0) + 1;
+            }
+        });
+        return Object.values(claimedCounts).some(count => count >= 2);
+    }
+
+    // "genetic_ai"'s own scoring, layered on top of the raw
+    // bust-probability-if-applied value: an independently-evolved weight
+    // per column (see the GENETIC_AI_COLUMN_* constants below) for both
+    // advancing an already-in-progress column and starting a brand new
+    // one -- discovered by a genetic-algorithm tournament, not
+    // hand-tuned. Lower score is still better, same as the raw
+    // bust-probability comparison alone.
+    function geneticAiScoreForSum(sum) {
         if (isColumnInProgress(sum)) {
-            return -15; // meaningfully prefer advancing existing progress
+            return GENETIC_AI_COLUMN_PROGRESS_WEIGHT[sum];
         }
-        return -((COLUMN_PROBABILITIES[sum] || 0) / 5); // prefer common columns when starting fresh
+        return GENETIC_AI_COLUMN_START_WEIGHT[sum];
     }
 
     // Picks which element to click among a roll's candidate choices --
     // either .column--choosable elements (ambiguous column choice) or
     // non-disabled .pairing-option elements. "random" picks uniformly;
-    // "fifty_percent" and "ai" evaluate EVERY candidate via the caller-
-    // supplied `evaluate` (which itself differs by kind -- see
+    // "fifty_percent" and "genetic_ai" evaluate EVERY candidate via the
+    // caller-supplied `evaluate` (which itself differs by kind -- see
     // runAutomaTurn) and pick whichever scores lowest.
     function pickAutomaChoice(kind, elements, evaluate) {
-        if (kind === 'fifty_percent' || kind === 'ai') {
+        if (kind === 'fifty_percent' || kind === 'genetic_ai') {
             let best = elements[0];
             let bestScore = evaluate(elements[0]);
             for (let i = 1; i < elements.length; i++) {
@@ -6925,9 +6961,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const col = Number(el.dataset.number);
                     const pct = bustProbabilityIfChosen(col);
                     // Both of an ambiguous choice's candidates are, by
-                    // definition, brand new -- only the commonality half
-                    // of aiScoreForSum ever applies here.
-                    return kind === 'ai' ? pct + aiScoreForSum(col) : pct;
+                    // definition, brand new -- only the "starting fresh"
+                    // half of geneticAiScoreForSum ever applies here.
+                    return kind === 'genetic_ai' ? pct + geneticAiScoreForSum(col) : pct;
                 }).click();
                 continue;
             }
@@ -6939,7 +6975,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 pickAutomaChoice(kind, options, el => {
                     const [lo, hi] = el.dataset.sums.split(',').map(Number).sort((a, b) => a - b);
                     const pct = bustProbabilityIfPairingApplied(lo, hi);
-                    return kind === 'ai' ? pct + aiScoreForSum(lo) + aiScoreForSum(hi) : pct;
+                    return kind === 'genetic_ai' ? pct + geneticAiScoreForSum(lo) + geneticAiScoreForSum(hi) : pct;
                 }).click();
                 continue;
             }
@@ -6987,7 +7023,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // by preferring a safer non-ambiguous pairing from the same roll,
     // making that hard to force from the outside.
     window.__testPickAutomaChoice = pickAutomaChoice;
-    window.__testAiScoreForSum = aiScoreForSum;
+    window.__testGeneticAiScoreForSum = geneticAiScoreForSum;
+    window.__testAnyOpponentCloseToWinning = anyOpponentCloseToWinning;
     window.__testPegsAtRiskThisTurn = pegsAtRiskThisTurn;
 
     document.getElementById('pairing-options').addEventListener('click', (event) => {
