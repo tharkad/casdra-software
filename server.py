@@ -5874,7 +5874,7 @@ body {
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
                         <option value="fifty_percent">Maniac</option>
-                        <option value="genetic_ai">Genetic AI (Gen 150)</option>
+                        <option value="genetic_ai">Genetic AI (Gen 605)</option>
                     </select>
                 </div>
             </li>
@@ -5896,7 +5896,7 @@ body {
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
                         <option value="fifty_percent">Maniac</option>
-                        <option value="genetic_ai">Genetic AI (Gen 150)</option>
+                        <option value="genetic_ai">Genetic AI (Gen 605)</option>
                     </select>
                 </div>
             </li>
@@ -5918,7 +5918,7 @@ body {
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
                         <option value="fifty_percent">Maniac</option>
-                        <option value="genetic_ai">Genetic AI (Gen 150)</option>
+                        <option value="genetic_ai">Genetic AI (Gen 605)</option>
                     </select>
                 </div>
             </li>
@@ -5940,7 +5940,7 @@ body {
                     <select class="player-automa-kind-select js-hidden">
                         <option value="random">Random</option>
                         <option value="fifty_percent">Maniac</option>
-                        <option value="genetic_ai">Genetic AI (Gen 150)</option>
+                        <option value="genetic_ai">Genetic AI (Gen 605)</option>
                     </select>
                 </div>
             </li>
@@ -6154,7 +6154,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // as this codebase's established pattern of not renaming an
     // internal identifier just because its displayed label changed
     // (see Spec 25's own note about the "yellow" identifier).
-    const AUTOMA_KIND_LABELS = { random: 'Random', fifty_percent: 'Maniac', genetic_ai: 'Genetic AI (Gen 150)' };
+    const AUTOMA_KIND_LABELS = { random: 'Random', fifty_percent: 'Maniac', genetic_ai: 'Genetic AI (Gen 605)' };
 
     document.querySelectorAll('.player-setup-row').forEach((row, i) => {
         const typeSelect = row.querySelector('.player-type-select');
@@ -6821,26 +6821,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // "Genetic AI" -- discovered by a genetic-algorithm tournament (see
-    // spec-driven-pipeline/ga_tournament/), not hand-tuned. These are the
-    // reigning champion's actual evolved genes as of generation 150 of
-    // run_20260909_140811 (margin +5.7% over the previous hand-tuned "AI"
-    // kind's own win rate, verified via a best-3-of-5 title-match series,
-    // not just a lucky round-robin number -- see that project's
-    // data/hall_of_fame.json for full provenance). Replaces the old
-    // hand-tuned "ai" kind entirely (removed, not kept alongside this).
+    // spec-driven-pipeline/ga_tournament/), not hand-tuned. Stable
+    // internal id (genetic_ai) across promotions, same precedent as
+    // fifty_percent staying stable through its "Maniac" rename (Spec 25)
+    // -- only the constants below and the "(Gen N)" display label change
+    // each time a newer champion is promoted. Currently: roster id
+    // run_20260909_140811_gen604 (crowned at generation 604 of that run,
+    // margin +7.1% over the AI baseline at crowning time, verified via a
+    // best-3-of-5 title-match series) -- see ga_tournament's
+    // data/champions_roster.json for full provenance. Replaces this
+    // kind's previous promotion (generation 150) entirely, not kept
+    // alongside it.
     const GENETIC_AI_COLUMN_START_WEIGHT = {
-        2: -7.03, 3: 0.53, 4: -7.59, 5: 8.49, 6: -28.31, 7: -27.31,
-        8: -29.85, 9: -4.88, 10: -24.71, 11: 9.88, 12: -26.93,
+        2: -19.88, 3: 10.0, 4: -19.01, 5: -12.53, 6: -29.6, 7: -26.53,
+        8: -33.47, 9: -11.37, 10: -25.72, 11: -1.85, 12: -14.32,
     };
     const GENETIC_AI_COLUMN_PROGRESS_WEIGHT = {
-        2: -47.36, 3: -60.0, 4: -37.78, 5: -14.79, 6: -38.05, 7: -40.42,
-        8: -37.63, 9: -27.2, 10: -45.03, 11: -50.73, 12: -41.04,
+        2: -60.0, 3: -37.02, 4: -49.02, 5: -26.74, 6: -35.79, 7: -36.81,
+        8: -41.71, 9: -32.94, 10: -50.7, 11: -50.78, 12: -59.13,
     };
-    const GENETIC_AI_STOP_BASE_THRESHOLD = 52.18;
-    const GENETIC_AI_STOP_PEG_PENALTY = 5.77;
-    const GENETIC_AI_STOP_FLOOR = 20.95;
-    const GENETIC_AI_STOP_TOPPED_COLUMN_BONUS = 100;
-    const GENETIC_AI_STOP_OPPONENT_DESPERATION_DISCOUNT = 45.82;
+    const GENETIC_AI_STOP_BASE_THRESHOLD = 56.73;
+    const GENETIC_AI_STOP_PEG_PENALTY = 6.7;
+    const GENETIC_AI_STOP_FLOOR = 20.56;
+    const GENETIC_AI_STOP_TOPPED_COLUMN_BONUS = 99.71;
+    const GENETIC_AI_STOP_OPPONENT_DESPERATION_DISCOUNT = 17.07;
 
     function automaShouldStop(kind) {
         // Test-only override -- true forces stop, false forces continue,
