@@ -5846,9 +5846,174 @@ body {
   font-size: 11px;
   color: #8b949e;
 }
+
+/* Spec 39: How-to-play help modal. #help-button is `position: fixed` to
+   the viewport itself (not inside .panel) so it stays put in the upper
+   right of the page regardless of which panel (#player-setup or
+   #game-screen) is currently visible -- "the game view" is the whole
+   page, not just one screen within it. */
+#help-button {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #30363d;
+  background-color: #161b22;
+  color: #d4a030;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+#help-button:hover {
+  border-color: #d4a030;
+}
+
+#help-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background-color: rgba(1, 4, 9, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+#help-modal {
+  position: relative;
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  max-width: 480px;
+  max-height: 85vh;
+  text-align: left;
+  box-sizing: border-box;
+  /* Header stays fixed in place; only #help-modal-body scrolls -- so the
+     close button is always reachable even when the (fairly long) body
+     content overflows on a small screen, instead of scrolling away with
+     it. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#help-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 16px 24px;
+  border-bottom: 1px solid #30363d;
+  flex: 0 0 auto;
+}
+
+#help-modal-title {
+  margin: 0;
+  color: #d4a030;
+  font-size: 24px;
+}
+
+#help-modal-body {
+  padding: 20px 24px 24px 24px;
+  overflow-y: auto;
+}
+
+#help-modal .help-tagline {
+  color: #8b949e;
+  font-style: italic;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+#help-modal h3 {
+  color: #e6edf3;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-top: 1px solid #30363d;
+  padding-top: 16px;
+  margin: 20px 0 10px 0;
+}
+#help-modal h3:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+#help-modal p,
+#help-modal li {
+  color: #c9d1d9;
+  line-height: 1.55;
+  font-size: 14px;
+}
+
+#help-modal ol {
+  margin: 0;
+  padding-left: 20px;
+}
+#help-modal ol li + li {
+  margin-top: 8px;
+}
+
+#help-modal strong {
+  color: #e6edf3;
+}
+
+#help-modal-close {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #30363d;
+  background-color: #0d1117;
+  color: #8b949e;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+#help-modal-close:hover {
+  color: #e6edf3;
+  border-color: #8b949e;
+}
     </style>
 </head>
 <body>
+    <button id="help-button" type="button" aria-haspopup="dialog" aria-controls="help-modal" aria-label="How to play">?</button>
+
+    <div id="help-modal-backdrop" class="js-hidden">
+        <div id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
+            <div id="help-modal-header">
+                <h2 id="help-modal-title">Can't Stop</h2>
+                <button id="help-modal-close" type="button" aria-label="Close">&times;</button>
+            </div>
+            <div id="help-modal-body">
+                <p class="help-tagline">A classic push-your-luck dice game: climb as far as you dare on each roll, then decide whether to bank your progress or risk it all on one more throw.</p>
+
+                <h3>How to Play</h3>
+                <ol>
+                    <li>On your turn, roll four dice and split them into two pairs. You may choose either of the up-to-three ways to pair them; each pair's sum (2&ndash;12) advances your marker one step in that column.</li>
+                    <li>You can be actively advancing in at most three columns at once each turn. Advancing a column you've already started this turn is always allowed, even past that limit.</li>
+                    <li>After every roll, decide whether to keep rolling or stop. Stopping banks your progress in every column you advanced this turn, permanently.</li>
+                    <li>If a roll leaves no legal way to advance in any pairing, you <strong>bust</strong> &mdash; all progress made <em>this turn</em> is lost, and play passes to the next player. Progress already banked from previous turns is always safe.</li>
+                    <li>Reach the top of a column to claim it permanently. Claim three columns to win the game.</li>
+                    <li>Columns near the middle (6, 7, 8) come up more often on four dice, so they're shorter and easier to climb; columns near the ends (2, 12) are rarer and taller. The bust-risk percentage shown each roll reflects this.</li>
+                </ol>
+
+                <h3>Opponents</h3>
+                <p>Play against a choice of computer opponents with genuinely different personalities: <strong>Random</strong> plays unpredictably, <strong>Maniac</strong> pushes its luck until the odds turn against it, <strong>Genetic AI</strong> is the reigning champion of an ongoing genetic-algorithm tournament that has evolved its strategy over hundreds of generations of simulated play, and <strong>Cautious AI</strong> banks its progress early, playing it safe at the first sign of real risk.</p>
+
+                <h3>Play With Friends</h3>
+                <p>Can't Stop supports 2 to 4 players in one pass-and-play session on a single device &mdash; freely mix human players with any of the computer opponents above, in any combination.</p>
+            </div>
+        </div>
+    </div>
+
     <div id="player-setup" class="panel">
         <select id="player-count">
             <option value="2">2 Players</option>
@@ -5979,6 +6144,38 @@ document.addEventListener('DOMContentLoaded', function() {
     const winScreen = document.getElementById('win-screen');
     const playerCountSelect = document.getElementById('player-count');
     const playerColorsList = document.getElementById('player-colors');
+
+    // Spec 39: how-to-play help modal. Available on both #player-setup and
+    // #game-screen (#help-button is fixed-positioned to the viewport, not
+    // scoped to either panel) and independent of any game state -- open
+    // and close are pure UI, with no interaction with the rest of the
+    // game's logic below.
+    const helpButton = document.getElementById('help-button');
+    const helpModalBackdrop = document.getElementById('help-modal-backdrop');
+    const helpModalClose = document.getElementById('help-modal-close');
+
+    function openHelpModal() {
+        helpModalBackdrop.classList.remove('js-hidden');
+    }
+    function closeHelpModal() {
+        helpModalBackdrop.classList.add('js-hidden');
+    }
+    helpButton.addEventListener('click', openHelpModal);
+    helpModalClose.addEventListener('click', closeHelpModal);
+    // Clicking the dimmed backdrop itself closes the modal, but a click
+    // that merely bubbles up FROM inside the modal box (e.g. following a
+    // link or selecting text) must not -- checking event.target against
+    // the backdrop element itself (not e.g. closest()) is what makes that
+    // distinction, since only a genuine backdrop click ever has the
+    // backdrop as its own target.
+    helpModalBackdrop.addEventListener('click', (event) => {
+        if (event.target === helpModalBackdrop) closeHelpModal();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !helpModalBackdrop.classList.contains('js-hidden')) {
+            closeHelpModal();
+        }
+    });
 
     // Generate the board with JavaScript
     const HEIGHTS = [3, 5, 7, 9, 11, 13, 11, 9, 7, 5, 3]; // columns 2..12
