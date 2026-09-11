@@ -5267,8 +5267,10 @@ body {
      panel's edge with no visible padding. Chromium's font metrics never
      reproduced this, so it only ever showed up on a real device.
      380 -> 420px trades a wider page cap for a real (~24px/side) safety
-     margin that can absorb that kind of rendering variance. */
-  max-width: 420px;
+     margin that can absorb that kind of rendering variance. 420 -> 480px
+     (Spec 39 follow-up) makes room for #help-button sitting in the
+     panel's own corner without crowding the board/turn-indicator. */
+  max-width: 480px;
   /* No explicit width -- the panel shrinks to hug its content (the
      board, its widest child) instead of always stretching out to fill
      available space up to max-width. That stretching used to make
@@ -5847,15 +5849,25 @@ body {
   color: #8b949e;
 }
 
-/* Spec 39: How-to-play help modal. #help-button is `position: fixed` to
-   the viewport itself (not inside .panel) so it stays put in the upper
-   right of the page regardless of which panel (#player-setup or
-   #game-screen) is currently visible -- "the game view" is the whole
-   page, not just one screen within it. */
+/* Spec 39: How-to-play help modal. #game-view wraps #help-button and
+   both panels (#player-setup/#game-screen) in one positioning context:
+   `display: inline-block` shrink-wraps it to whichever single panel is
+   currently visible (the other is `display: none` via .js-hidden, so it
+   never affects the wrapper's size), and `position: relative` anchors
+   #help-button's `position: absolute` to THAT panel's own edge -- fixing
+   a follow-up complaint that anchoring the button to the full browser
+   viewport instead put it far outside the actual game card on a wide
+   window. Body's existing `display: flex; justify-content: center`
+   still centers this one wrapper exactly as it used to center the panel
+   directly. */
+#game-view {
+  position: relative;
+  display: inline-block;
+}
 #help-button {
-  position: fixed;
-  top: 14px;
-  right: 14px;
+  position: absolute;
+  top: 10px;
+  right: 10px;
   z-index: 10;
   width: 36px;
   height: 36px;
@@ -5984,8 +5996,6 @@ body {
     </style>
 </head>
 <body>
-    <button id="help-button" type="button" aria-haspopup="dialog" aria-controls="help-modal" aria-label="How to play">?</button>
-
     <div id="help-modal-backdrop" class="js-hidden">
         <div id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
             <div id="help-modal-header">
@@ -6013,6 +6023,9 @@ body {
             </div>
         </div>
     </div>
+
+    <div id="game-view">
+    <button id="help-button" type="button" aria-haspopup="dialog" aria-controls="help-modal" aria-label="How to play">?</button>
 
     <div id="player-setup" class="panel">
         <select id="player-count">
@@ -6135,6 +6148,7 @@ body {
             <p id="win-message"></p>
             <button id="new-game-button">Start New Game</button>
         </div>
+    </div>
     </div>
 
     <script>
