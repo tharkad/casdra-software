@@ -6979,14 +6979,6 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPlayerIndex = currentPlayerIndex % playerCount; // Ensure index wraps around
 
         if (bustAcknowledgePending) {
-            // Captured BEFORE currentPlayerIndex advances below -- this is
-            // whoever just busted, i.e. whether the click the human is
-            // making right now is "acknowledging my OWN bust" (human) vs.
-            // "the human pressing through an automa's bust on its behalf"
-            // (automa). Only the former should auto-continue into a next
-            // automa's turn -- see the comment below.
-            const bustingPlayerWasAutoma = isCurrentPlayerAutoma();
-
             document.getElementById('bust-banner').classList.add('js-hidden');
             // #dice is deliberately left showing the busted roll's values
             // until the roll below replaces them -- dice are never
@@ -7000,29 +6992,23 @@ document.addEventListener('DOMContentLoaded', function() {
             updateTurnIndicator(); // also relabels the button (Roll Dice / Next Turn)
             updateBustProbabilityDisplay();
 
-            if (isCurrentPlayerAutoma() && bustingPlayerWasAutoma) {
-                // Preserves the established "automa turns never auto-chain
-                // into the next automa without a fresh click" rule (same
-                // as a stop-triggered automa-to-automa handoff) -- this
-                // bust-acknowledge click was itself just the human pressing
-                // through an AUTOMA's bust, not a genuinely new action by
-                // the human, so the following automa still needs its own
-                // explicit "Next Turn" click.
-                return;
-            }
-            // Bug fix: this click used to only acknowledge the bust,
-            // relabeling the button (to "Roll Dice" for a human, or
-            // "Next Turn" for an automa) while leaving the PREVIOUS
-            // player's busted dice on screen -- looking exactly like the
-            // click did nothing, requiring a separate second click to
-            // actually continue. Fall through instead when the busting
-            // player was HUMAN (whether the next player is human or
-            // automa): the human just took a genuine action here
-            // (acknowledging their own bust), so that same click should
-            // hand off immediately rather than demand a redundant second
-            // press just to start an automa's turn -- the
-            // isCurrentPlayerAutoma() check right below already does
-            // exactly that (identical to a genuine "Next Turn" click).
+            // Always fall through, so acknowledging a bust IS the press
+            // that starts the next turn -- one press ends the turn and
+            // begins the next one, in every combination of who busted
+            // and who follows them.
+            //
+            // This used to only acknowledge the bust, relabelling the
+            // button and leaving the busted dice on screen: the press
+            // looked like it did nothing and a second one was needed to
+            // actually continue. That was fixed for a HUMAN's own bust,
+            // but an automa's bust kept the extra press, to preserve an
+            // "automa turns never auto-chain without a fresh click"
+            // rule. It cost the human a dead press, and the rule
+            // survives without it: every automa turn still needs exactly
+            // one human press to begin -- either "Next Turn" when the
+            // previous turn ended on its own, or this acknowledgement
+            // when the previous turn ended in a bust. Automa turns still
+            // never run back-to-back off a single press.
         }
 
         if (isCurrentPlayerAutoma()) {
