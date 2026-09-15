@@ -5848,13 +5848,6 @@ body {
   font-size: 11px;
   color: #8b949e;
 }
-/* The impossible-bust readout puts the word "Can't" where a percentage
-   normally goes, over the existing "Bust" label. Five letters at this
-   element's own 28px/800 are wider than even "100%" and crowd the dice
-   sitting beside it in .dice-row, so the word form steps down a size. */
-#bust-probability-value.bust-probability-value--word {
-  font-size: 20px;
-}
 
 /* Spec 39: How-to-play help modal. #game-view wraps #help-button and
    both panels (#player-setup/#game-screen) in one positioning context:
@@ -6586,11 +6579,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // so the impossible case only needs its first word here: the two
         // existing lines already read as the single phrase "Can't Bust",
         // with no extra markup and no second layout to keep in step.
-        const impossible = bustCount === 0;
-        valueElement.textContent = impossible
+        //
+        // The word is set at exactly the same size as a percentage --
+        // this readout is one headline number whatever it says, and a
+        // smaller word made the impossible case look like a lesser
+        // reading of it. It fits beside the dice at full size; measured,
+        // not assumed.
+        valueElement.textContent = bustCount === 0
             ? "Can't"
             : formatBustProbability(bustCount, total);
-        valueElement.classList.toggle('bust-probability-value--word', impossible);
     }
 
     // What the bust probability WOULD become if the player picks this
