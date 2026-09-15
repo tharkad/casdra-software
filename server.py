@@ -5835,38 +5835,41 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* Both states occupy exactly this height, so the dice row never
+     changes size when the readout switches between "14% to Bust" and
+     "Can't Bust". 43px is the percentage layout's OWN natural height: a
+     28px value at line-height 1.1 (30.8px) over an 11px label line
+     (12px) = 42.8px. Centring means whichever state is shorter sits in
+     the middle of the same box rather than shifting the row. A test
+     asserts the two states measure equal, so this cannot silently drift
+     if either font size changes. */
+  min-height: 43px;
+  justify-content: center;
   color: #8b949e;
   white-space: nowrap;
 }
-/* Under a percentage these two lines are a number over its unit caption
-   ("< 1%" small-capped with "Bust"), so they are sized very differently.
-   When a bust is impossible they are instead one phrase -- "Can't Bust"
-   -- and splitting a phrase across 28px and 11px reads as a headline
-   word with a tiny afterthought under it, not as the phrase. So in that
-   state the label is set exactly like the value: same size, weight and
-   colour, both words matching. Grouped with the value's own rule so the
-   two can never drift apart. */
-#bust-probability-value,
-#bust-probability.bust-probability--cant #bust-probability-label {
+#bust-probability-value {
   font-size: 28px;
   font-weight: 800;
   color: #e6edf3;
   line-height: 1.1;
 }
-/* Matching the two lines' font-size still left the phrase with
-   characters of two different heights -- caps against lowercase, the
-   tall C and B over the shorter "an't"/"ust". Upper-casing it puts every
-   character at cap height, so they are all genuinely the same size, and
-   it matches the all-caps BUST banner the game already shows. Scoped to
-   this state only: a percentage keeps "Bust" as a small mixed-case unit
-   caption, which was never in question. */
-#bust-probability.bust-probability--cant #bust-probability-value,
-#bust-probability.bust-probability--cant #bust-probability-label {
-  text-transform: uppercase;
-}
 #bust-probability-label {
   font-size: 11px;
   color: #8b949e;
+}
+/* "Can't Bust" is one phrase, not a number with a unit caption, so its
+   two lines are set alike -- same size, weight and colour, and mixed
+   case. 19px is the size at which two equal lines fit the section
+   height above; the percentage state fills the same box with a
+   different shape (one big number over a small caption). Listed after
+   the two rules it overrides, and more specific than both. */
+#bust-probability.bust-probability--cant #bust-probability-value,
+#bust-probability.bust-probability--cant #bust-probability-label {
+  font-size: 19px;
+  font-weight: 800;
+  color: #e6edf3;
+  line-height: 1.1;
 }
 
 /* Spec 39: How-to-play help modal. #game-view wraps #help-button and
@@ -6158,7 +6161,7 @@ body {
             <div id="dice"></div>
             <div id="bust-probability">
                 <div id="bust-probability-value"></div>
-                <div id="bust-probability-label">Bust</div>
+                <div id="bust-probability-label">to Bust</div>
             </div>
         </div>
         <div id="pairing-options"></div>
@@ -6609,6 +6612,12 @@ document.addEventListener('DOMContentLoaded', function() {
         valueElement.textContent = impossible
             ? "Can't"
             : formatBustProbability(bustCount, total);
+        // The label carries the rest of whichever sentence this is:
+        // "14%" + "to Bust", or "Can't" + "Bust". The percentage wording
+        // is the markup's default, so this is the only place either is
+        // set at runtime.
+        document.getElementById('bust-probability-label').textContent =
+            impossible ? 'Bust' : 'to Bust';
         document.getElementById('bust-probability')
             .classList.toggle('bust-probability--cant', impossible);
     }
