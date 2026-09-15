@@ -6938,12 +6938,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // NEW in this spec: check for a win using the player who just stopped,
         // BEFORE the turn advances to anyone else.
         const wonGame = checkWinCondition(currentColor);
-        if (wonGame) return; // game over -- do NOT advance the turn below
+        if (wonGame) return false; // game over -- do NOT advance the turn below
 
         hideStopButton();
         currentPlayerIndex = (currentPlayerIndex + 1) % playerCount;
         updateTurnIndicator();
         updateBustProbabilityDisplay();
+        // Whether there IS a next turn to start. The human's own stop
+        // gesture uses this to begin it directly (see startStopHold);
+        // an automa's stop ignores it, so automa turns never chain.
+        return true;
     }
 
     function checkWinCondition(playerColor) {
@@ -6969,6 +6973,23 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
       }
       return false;
+    }
+
+    // Starts whoever currentPlayerIndex now points at. Shared by the
+    // button's own click and by the human's stop gesture, so "ending my
+    // turn" and "starting the next one" are the same single action
+    // however the turn ended -- a bust, or holding Stop.
+    function beginCurrentPlayersTurn() {
+        if (isCurrentPlayerAutoma()) {
+            // Distinguishes "its turn is actively running" from the
+            // "Next Turn" button's own idle state -- a human action
+            // started it, so the label should say so while it plays,
+            // not just repeat the same "X's turn" it already showed.
+            document.getElementById('turn-indicator').textContent = `${PLAYER_NAMES[currentPlayerIndex]} playing...`;
+            runAutomaTurn();
+            return;
+        }
+        rollDice(currentPlayerIndex);
     }
 
     const rollButton = document.getElementById('roll-button');
@@ -7008,18 +7029,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // never run back-to-back off a single press.
         }
 
-        if (isCurrentPlayerAutoma()) {
-            // Distinguishes "its turn is actively running" from the
-            // "Next Turn" button's own idle state -- the human clicked
-            // to start it, so the label should say so while it plays,
-            // not just repeat the same "X's turn" it already showed
-            // before the click.
-            document.getElementById('turn-indicator').textContent = `${PLAYER_NAMES[currentPlayerIndex]} playing...`;
-            runAutomaTurn();
-            return;
-        }
-
-        rollDice(currentPlayerIndex);
+        beginCurrentPlayersTurn();
     });
 
     function sleep(ms) {
@@ -7413,7 +7423,25 @@ document.addEventListener('DOMContentLoaded', function() {
         stopHoldTimeoutId = setTimeout(() => {
             document.getElementById('stop-button').classList.remove('holding');
             stopHoldTimeoutId = null;
-            stopAndBankProgress(PLAYER_COLORS[currentPlayerIndex]);
+            // Holding Stop is itself the press that starts the next
+            // turn: having banked, the player should not then have to
+            // press "Next Turn" to make an automa go.
+            //
+            // Scoped to an automa deliberately. When the next player is
+            // a HUMAN the button reads "Roll Dice", and pressing it is
+            // that player's own first action on their own turn, not a
+            // dead press -- rolling for them here would take their roll
+            // away and hand them a board they never threw. "Next Turn"
+            // is the only label that means "nothing is waiting on me",
+            // and it is the one this skips.
+            //
+            // Also skipped when banking just won the game: there is no
+            // next turn, and stopAndBankProgress says so by returning
+            // false.
+            const turnAdvanced = stopAndBankProgress(PLAYER_COLORS[currentPlayerIndex]);
+            if (turnAdvanced && isCurrentPlayerAutoma()) {
+                beginCurrentPlayersTurn();
+            }
         }, stopHoldDurationMs);
     }
 
