@@ -11,8 +11,16 @@ repos, in the same pass, without asking**:
 
 A change on a feature branch is not done, and a change that reached one repo
 but not the others is worse than not done — the copies drift silently.
-Pushing `main` is what ships; deployment picks `main` up on its own, so there
-is no separate deploy step to run afterwards.
+
+**This repo is casdra.com**, deployed automatically from `main` (Railway, via
+`RAILWAY_ENVIRONMENT`/`WEB_MODE`). Pushing `main` is what ships; there is no
+separate deploy step, and no way to verify one from a sandbox.
+
+**casdra.com is the site that counts for Can't Stop.** There is a second,
+internal Tailscale-only site (the `casdra-server` repo) which is to be
+disregarded for Can't Stop — owner's standing instruction. Its copy of the page
+is still kept byte-identical to this one, to prevent drift; disregard the
+*site*, not the sync.
 
 Because `main` ships to a live site, run the tests before pushing. For Can't
 Stop they live in the `spec-driven-pipeline` repo.
