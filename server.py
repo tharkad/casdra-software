@@ -5634,6 +5634,55 @@ body {
   pointer-events: none;
 }
 
+/* While an automa's turn is actually running, the controls stay visible
+   -- the layout must not jump -- but go hollow and inert: an outline
+   ring instead of a fill, and no pointer events, so a stray tap cannot
+   interfere with a turn that is not the human's.
+
+   `outline` rather than `border` because outline takes no layout space,
+   so nothing moves by a pixel when the state flips.
+
+   The automa drives .pairing-option and .column--choosable with
+   el.click(), which dispatches directly and is unaffected by
+   pointer-events -- so blocking the pointer here does not block the
+   automa. Keyboard activation of a focused button IS still possible,
+   which is why the handlers check the flag too.
+
+   This deliberately does NOT cover the moments the human is meant to
+   act: .automa-playing is cleared before the bust banner appears and
+   before the turn is handed on, so "Busted - Press to continue" and
+   "Next Turn" are both live and fully styled. */
+#game-screen.automa-playing #roll-button,
+#game-screen.automa-playing #roll-button:disabled,
+#game-screen.automa-playing #stop-button {
+  background-color: transparent;
+  box-shadow: none;
+  transform: none;
+  pointer-events: none;
+  outline-offset: -2px;
+}
+#game-screen.automa-playing #roll-button,
+#game-screen.automa-playing #roll-button:disabled {
+  color: var(--roll-button-color, #d4a030);
+  outline: 2px solid var(--roll-button-color, #d4a030);
+}
+#game-screen.automa-playing #stop-button {
+  color: #d4a030;
+  outline: 2px solid #d4a030;
+}
+/* The dice-choice buttons hollow out the same way. */
+#game-screen.automa-playing .pairing-option {
+  background-color: transparent;
+  cursor: default;
+  pointer-events: none;
+}
+/* ...and the board's own column choice, which is the same decision in a
+   different control. */
+#game-screen.automa-playing .column--choosable {
+  cursor: default;
+  pointer-events: none;
+}
+
 .pairing-number--legal {
   display: inline-block;
   border: 2px solid var(--legal-highlight-color, #d4a030);
@@ -7007,6 +7056,21 @@ document.addEventListener('DOMContentLoaded', function() {
       return false;
     }
 
+    // True only while an automa's turn is actually running -- not while
+    // it is paused on its own bust banner, and not once it has handed
+    // off. Drives .automa-playing on #game-screen, which hollows the
+    // controls out and makes them inert (see styles.css). Handlers below
+    // check the flag as well, because pointer-events does not stop
+    // keyboard activation of a focused button.
+    let automaTurnActive = false;
+
+    function setAutomaTurnActive(active) {
+        automaTurnActive = active;
+        document.getElementById('game-screen')
+            .classList.toggle('automa-playing', active);
+    }
+    window.__testIsAutomaTurnActive = () => automaTurnActive;
+
     // Starts whoever currentPlayerIndex now points at. Shared by the
     // button's own click and by the human's stop gesture, so "ending my
     // turn" and "starting the next one" are the same single action
@@ -7018,6 +7082,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // started it, so the label should say so while it plays,
             // not just repeat the same "X's turn" it already showed.
             document.getElementById('turn-indicator').textContent = `${PLAYER_NAMES[currentPlayerIndex]} playing...`;
+            setAutomaTurnActive(true);
             runAutomaTurn();
             return;
         }
@@ -7026,6 +7091,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const rollButton = document.getElementById('roll-button');
     rollButton.addEventListener('click', function() {
+        // Inert while an automa is mid-turn. The CSS already blocks the
+        // pointer; this also covers Enter/Space on a focused button, and
+        // makes a double-run impossible rather than merely unlikely.
+        if (automaTurnActive) return;
+
         currentPlayerIndex = currentPlayerIndex % playerCount; // Ensure index wraps around
 
         if (bustAcknowledgePending) {
@@ -7318,6 +7388,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // roll-button's own click handler take over exactly like a
             // human's bust, including its existing check for whether the
             // NEXT player is also an automa.
+            //
+            // No longer "playing": the turn is paused ON the human now,
+            // so the controls come back to life -- "Busted - Press to
+            // continue" has to be pressable.
+            setAutomaTurnActive(false);
             return;
         }
 
@@ -7353,6 +7428,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         await sleep(AUTOMA_STEP_DELAY_MS);
         if (automaShouldStop(kind)) {
+            // Cleared BEFORE banking, so whatever the next state is --
+            // another player's turn, or the win screen -- is live the
+            // moment it appears.
+            setAutomaTurnActive(false);
             stopAndBankProgress(PLAYER_COLORS[currentPlayerIndex]); // advances the turn + relabels itself
             return;
         }
@@ -7450,6 +7529,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     function startStopHold() {
+        if (automaTurnActive) return; // not the human's turn to stop
         if (stopHoldTimeoutId !== null) return; // already holding -- ignore repeats
         document.getElementById('stop-button').classList.add('holding');
         stopHoldTimeoutId = setTimeout(() => {
