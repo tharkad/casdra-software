@@ -5838,7 +5838,16 @@ body {
   color: #8b949e;
   white-space: nowrap;
 }
-#bust-probability-value {
+/* Under a percentage these two lines are a number over its unit caption
+   ("< 1%" small-capped with "Bust"), so they are sized very differently.
+   When a bust is impossible they are instead one phrase -- "Can't Bust"
+   -- and splitting a phrase across 28px and 11px reads as a headline
+   word with a tiny afterthought under it, not as the phrase. So in that
+   state the label is set exactly like the value: same size, weight and
+   colour, both words matching. Grouped with the value's own rule so the
+   two can never drift apart. */
+#bust-probability-value,
+#bust-probability.bust-probability--cant #bust-probability-label {
   font-size: 28px;
   font-weight: 800;
   color: #e6edf3;
@@ -6575,19 +6584,22 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateBustProbabilityDisplay() {
         const { bustCount, total } = countBustOutcomes();
         const valueElement = document.getElementById('bust-probability-value');
+        const impossible = bustCount === 0;
         // #bust-probability stacks this value over a static "Bust" label,
         // so the impossible case only needs its first word here: the two
         // existing lines already read as the single phrase "Can't Bust",
         // with no extra markup and no second layout to keep in step.
         //
-        // The word is set at exactly the same size as a percentage --
-        // this readout is one headline number whatever it says, and a
-        // smaller word made the impossible case look like a lesser
-        // reading of it. It fits beside the dice at full size; measured,
-        // not assumed.
-        valueElement.textContent = bustCount === 0
+        // The class is what makes those two lines match. Without it the
+        // phrase came out as a 28px "Can't" over an 11px "Bust" -- the
+        // label's percentage-caption size -- which reads as a headline
+        // word with an afterthought under it rather than as "Can't
+        // Bust". See the rule in styles.css.
+        valueElement.textContent = impossible
             ? "Can't"
             : formatBustProbability(bustCount, total);
+        document.getElementById('bust-probability')
+            .classList.toggle('bust-probability--cant', impossible);
     }
 
     // What the bust probability WOULD become if the player picks this
