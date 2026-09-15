@@ -5853,6 +5853,17 @@ body {
   color: #e6edf3;
   line-height: 1.1;
 }
+/* Matching the two lines' font-size still left the phrase with
+   characters of two different heights -- caps against lowercase, the
+   tall C and B over the shorter "an't"/"ust". Upper-casing it puts every
+   character at cap height, so they are all genuinely the same size, and
+   it matches the all-caps BUST banner the game already shows. Scoped to
+   this state only: a percentage keeps "Bust" as a small mixed-case unit
+   caption, which was never in question. */
+#bust-probability.bust-probability--cant #bust-probability-value,
+#bust-probability.bust-probability--cant #bust-probability-label {
+  text-transform: uppercase;
+}
 #bust-probability-label {
   font-size: 11px;
   color: #8b949e;
