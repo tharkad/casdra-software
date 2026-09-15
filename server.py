@@ -5848,6 +5848,13 @@ body {
   font-size: 11px;
   color: #8b949e;
 }
+/* The impossible-bust readout puts the word "Can't" where a percentage
+   normally goes, over the existing "Bust" label. Five letters at this
+   element's own 28px/800 are wider than even "100%" and crowd the dice
+   sitting beside it in .dice-row, so the word form steps down a size. */
+#bust-probability-value.bust-probability-value--word {
+  font-size: 20px;
+}
 
 /* Spec 39: How-to-play help modal. #game-view wraps #help-button and
    both panels (#player-setup/#game-screen) in one positioning context:
@@ -6528,7 +6535,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return !pairings.some(([lo, hi]) => isLegalSum(lo) || isLegalSum(hi));
     }
 
-    function calculateBustProbability() {
+    // Spec 33 counted these 1296 outcomes inline and returned only a
+    // rounded percent. The raw counts are now needed on their own,
+    // because rounding collapses "no roll can bust" and "a bust is
+    // merely very unlikely" into the same 0% -- see
+    // formatBustProbability below.
+    function countBustOutcomes() {
         let bustCount = 0;
         let total = 0;
         for (let a = 1; a <= 6; a++) {
@@ -6541,28 +6553,67 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         }
+        return { bustCount, total };
+    }
+
+    // Deliberately unchanged in value and return type: this whole-percent
+    // number is what every automa kind's score function is tuned against
+    // (Specs 35/37/38), so it must keep rounding exactly as it always
+    // has. Only the DISPLAY of a bust chance is reformatted below.
+    function calculateBustProbability() {
+        const { bustCount, total } = countBustOutcomes();
         return Math.round((bustCount / total) * 100);
     }
 
+    // Display-only. "A bust cannot happen" and "a bust is possible but
+    // rounds down to nothing" are different facts, and a bare rounded
+    // percent showed both as 0% -- telling the player there is no risk
+    // when there often is. Early on, with free marker slots and nothing
+    // claimed, a bust really is impossible; with three columns in
+    // progress it can sit well under half a percent and still be real.
+    // So an exact zero says so in words, and any nonzero chance that
+    // would round to 0% is floored at "< 1%".
+    function formatBustProbability(bustCount, total) {
+        if (bustCount === 0) return "Can't Bust";
+        const pct = Math.round((bustCount / total) * 100);
+        return pct === 0 ? '< 1%' : `${pct}%`;
+    }
+
     function updateBustProbabilityDisplay() {
-        const pct = calculateBustProbability();
-        document.getElementById('bust-probability-value').textContent = `${pct}%`;
+        const { bustCount, total } = countBustOutcomes();
+        const valueElement = document.getElementById('bust-probability-value');
+        // #bust-probability stacks this value over a static "Bust" label,
+        // so the impossible case only needs its first word here: the two
+        // existing lines already read as the single phrase "Can't Bust",
+        // with no extra markup and no second layout to keep in step.
+        const impossible = bustCount === 0;
+        valueElement.textContent = impossible
+            ? "Can't"
+            : formatBustProbability(bustCount, total);
+        valueElement.classList.toggle('bust-probability-value--word', impossible);
     }
 
     // What the bust probability WOULD become if the player picks this
     // column in an ambiguous new-column choice (Spec 13) -- temporarily
     // marks the column as in-progress (a fresh column always starts at
-    // its bottom space), recalculates, then reverts. isLegalSum/
-    // calculateBustProbability read live DOM state, so this is the only
+    // its bottom space), recounts, then reverts. isLegalSum/
+    // countBustOutcomes read live DOM state, so this is the only
     // way to ask "what if" without a parallel non-DOM board model.
-    function bustProbabilityIfChosen(col) {
+    function bustOutcomesIfChosen(col) {
         const column = document.querySelector(`.column[data-number="${col}"]`);
         const firstSpace = column.querySelector('.space');
         const alreadyMarked = firstSpace.classList.contains('space--white-marker');
         if (!alreadyMarked) firstSpace.classList.add('space--white-marker');
-        const pct = calculateBustProbability();
+        const outcomes = countBustOutcomes();
         if (!alreadyMarked) firstSpace.classList.remove('space--white-marker');
-        return pct;
+        return outcomes;
+    }
+
+    // Rounded-percent form, kept for the automa score functions (and the
+    // __test hook) that have always consumed this as a plain number.
+    function bustProbabilityIfChosen(col) {
+        const { bustCount, total } = bustOutcomesIfChosen(col);
+        return Math.round((bustCount / total) * 100);
     }
 
     // General version of the above for the "Maniac" automa's own
@@ -6726,10 +6777,13 @@ document.addEventListener('DOMContentLoaded', function() {
             choiceArrow.textContent = '▼';
             columnElement.appendChild(choiceArrow);
 
-            const pct = bustProbabilityIfChosen(col);
+            const { bustCount, total } = bustOutcomesIfChosen(col);
             const pctLabel = document.createElement('span');
             pctLabel.className = 'column-choice-probability';
-            pctLabel.textContent = `${pct}%`;
+            // Same wording rule as the main readout; this label has no
+            // separate "Bust" line beneath it, so it carries the whole
+            // phrase itself.
+            pctLabel.textContent = formatBustProbability(bustCount, total);
             columnElement.appendChild(pctLabel);
         });
 
