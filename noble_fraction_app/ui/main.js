@@ -13,8 +13,9 @@ import { recapSheet } from './recap.js';
 import { gameOverSheet } from './gameover.js';
 import { menuSheet } from './menu.js';
 import { helpSheet } from './help.js';
+import { logSheet } from './log.js';
 
-const ui = { pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, recapSeen: null };
+const ui = { pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, recapSeen: null };
 const params = new URLSearchParams(location.search);
 const storage = (() => { try { return params.has('seed') ? null : localStorage; } catch { return null; } })();
 const controller = createController({ storage, onChange: render });
@@ -23,7 +24,7 @@ const overlay = document.getElementById('overlay');
 const PANES = [['market', 'Market'], ['facility', 'Mine'], ['rival', 'Rival']];
 
 function newGame(level) {
-    Object.assign(ui, { pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, recapSeen: null });
+    Object.assign(ui, { pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, recapSeen: null });
     const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
     controller.newGame({ seed, difficulty: level ?? params.get('level') ?? undefined, startingPlayer: params.get('start') === 'rival' ? RIVAL : params.has('seed') ? HUMAN : undefined });
 }
@@ -50,7 +51,8 @@ function render() {
     clear(app).append(hud(ctx), consoleBar(ctx), h('main', { id: 'main' }, tabs, paneBody()), handStrip(ctx));
     const recap = controller.recap();
     const sheet = s.turn.phase === 'over' ? gameOverSheet(ctx)
-        : ui.help ? helpSheet(ctx)
+        : ui.log ? logSheet(ctx)
+            : ui.help ? helpSheet(ctx)
             : ui.menu ? menuSheet(ctx)
             : ppePicker(ctx) ?? (ui.zoom ? zoomSheet(ctx) : null)
                 ?? (recap && ui.recapSeen !== recap.turnNo ? recapSheet(ctx) : null);
@@ -59,8 +61,6 @@ function render() {
 }
 
 document.addEventListener('click', e => {
-    const open = e.target.closest('[data-open="recap"]');
-    if (open) { ui.recapSeen = null; render(); return; }
     const zoom = e.target.closest('[data-zoom]');
     if (zoom && !zoom.classList.contains('nozoom') && !zoom.closest('.pick')) ctx.setUi({ zoom: Number(zoom.dataset.zoom) });
 });

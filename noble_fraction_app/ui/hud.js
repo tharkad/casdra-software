@@ -20,7 +20,7 @@ export function hud(ctx) {
         side(HUMAN, 'You'), side(RIVAL, 'Rival'),
         h('div', { class: 'hint', 'data-hint': '' }, over ? 'Game over' : free ? 'Place a free Bid Token on a card' : HINTS[s.turn.phase]),
         h('span', { class: 'turnno', 'data-turn': '' }, `Turn ${s.turn.number} · ${LEVELS.find(l => l.id === controller.level())?.label ?? ''}`),
-        controller.recap() ? h('button', { class: 'btn small', 'data-open': 'recap' }, 'Rival turn') : null,
+        h('button', { class: 'btn small', 'data-open': 'log', onclick: () => ctx.setUi({ log: true }) }, 'Log'),
         h('button', { class: 'btn small', 'data-open': 'help', 'aria-label': 'Rules', onclick: () => ctx.setUi({ help: true }) }, '?'),
         h('button', { class: 'btn small', 'data-open': 'menu', 'aria-label': 'Menu', onclick: () => ctx.setUi({ menu: !ui.menu }) }, '☰'));
 }
