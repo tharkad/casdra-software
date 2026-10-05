@@ -3668,6 +3668,10 @@ def build_web_home_page():
                 <h2>Can't Stop</h2>
                 <p>The classic push-your-luck dice game — 2 to 4 players</p>
             </a>
+            <a class="app-card" href="/noble-fraction/" style="margin-top:12px">
+                <h2>Noble Fraction</h2>
+                <p>Run a cryogenic gas plant and corner the market in xenon — solo vs a rival, built for phones</p>
+            </a>
         </div>
     </div>
     """
