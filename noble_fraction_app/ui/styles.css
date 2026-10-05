@@ -102,7 +102,6 @@ body { position: fixed; inset: 0; container-type: size; }
 .levels { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
 .dim { color: var(--dim); }
 .btn.current { border-color: var(--teal); }
-.recap li.why { color: var(--dim); font-style: italic; list-style: none; margin-left: -20px; }
 /* With a big hand the cards overlap a little instead of scrolling. */
 #hand .cards.tight { gap: 0; }
 #hand .cards.tight .card + .card { margin-left: -16px; }

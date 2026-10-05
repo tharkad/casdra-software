@@ -8,7 +8,7 @@ import { actAttr } from './actions.js';
 
 function facts(d) {
     if (d.kind === 'contract') return `${SECTORS[d.sector].name} · needs Xe×${d.xe} · pays $${d.money} · ${d.vp} VP`;
-    if (d.kind === 'pipeline') return `Pipeline · costs $${d.buy} · hand size +1`;
+    if (d.kind === 'pipeline') return `Main · costs $${d.buy} · hand size +1`;
     if (d.kind === 'element') return 'Element';
     const install = d.pink ? 'cannot be installed' : `install $${d.installDiff} later, $${d.installTotal} straight from the line`;
     return `${d.kind === 'starter' ? 'Starter' : `Upgrade · costs $${d.buy}`} · ${install}`;

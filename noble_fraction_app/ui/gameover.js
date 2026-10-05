@@ -1,7 +1,7 @@
 import { h } from './dom.js';
 import { newGameButtons } from './menu.js';
 
-const PARTS = [['contracts', 'Contracts'], ['upgrades', 'Upgrades'], ['pipelines', 'Pipelines'], ['money', 'Money'], ['bonuses', 'Bonuses'], ['privilege', 'Founder\'s Seal']];
+const PARTS = [['contracts', 'Contracts'], ['upgrades', 'Upgrades'], ['pipelines', 'Mains'], ['money', 'Money'], ['bonuses', 'Bonuses'], ['privilege', 'Founder\'s Seal']];
 
 export function gameOverSheet(ctx) {
     const w = ctx.controller.winner();

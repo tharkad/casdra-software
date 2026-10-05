@@ -3,7 +3,7 @@ import { cardEl, xePips } from './card.js';
 import { CARD_DEFS } from '../data/cards.js';
 import { xeNeeded } from '../engine/contracts.js';
 
-// A player's board: installed Upgrades, the open Contract and its stored Xe, Pipelines, completed
+// A player's board: installed Upgrades, the open Contract and its stored Xe, Mains, completed
 // Contracts. Used for both sides (only public information is shown for the Rival).
 export function facilityPane(ctx, pid) {
     const { s, idx } = ctx;
@@ -17,7 +17,7 @@ export function facilityPane(ctx, pid) {
             p.contract ? row([p.contract]) : h('p', { class: 'empty' }, 'no open contract'),
             h('div', { class: 'xe', 'data-xe': pid }, `Xe stored ${p.storedXe}${p.contract ? ` / ${need}` : ''}`, xePips(p.storedXe, need)))),
         group(`Done ${p.completed.length}`, p.completed.length ? row(p.completed) : h('p', { class: 'empty' }, 'none')),
-        p.pipelines.length ? group('Pipelines', row(p.pipelines)) : null,
+        p.pipelines.length ? group('Mains', row(p.pipelines)) : null,
         pid === 1 ? group('Rival', h('div', { class: 'stats' },
             h('span', {}, `Hand ${p.hand.length}`), h('span', {}, `Deck ${p.draw.length}`),
             h('span', {}, `Discard ${p.discard.length}`), h('span', {}, `Tokens ${p.tokensLeft}`))) : null);

@@ -87,9 +87,8 @@ export function describeEvent(e) {
     }
 }
 
-// Collapses repeats (three Bids on one card become one line with a count) and, when a turn placed
-// more Bid Tokens than a plain BID allows, says why. `s` is the game state the recap ends in.
-export function summarizeEvents(events, s) {
+// Collapses repeats: three Bids on one card become one line with a count.
+export function summarizeEvents(events) {
     const merged = [];
     const seen = new Map();
     for (const e of events) {
@@ -99,14 +98,5 @@ export function summarizeEvents(events, s) {
         else { const entry = { ...e, n: 1 }; seen.set(key, entry); merged.push(entry); }
     }
     const lines = merged.map(describeEvent).filter(Boolean);
-    const bids = events.filter(e => e.type === 'bid' || e.type === 'bidMove').length;
-    const overtime = events.some(e => e.type === 'turnStart' && e.overtime);
-    const rival = events.find(e => e.by !== undefined)?.by;
-    const multiBid = rival !== undefined && (s.players[rival].installed.some(c => c.defId === 'account_manager')
-        || events.some(e => e.type === 'played' && e.card === 'account_manager'));
-    if (bids > 1 && (overtime || multiBid)) {
-        const why = [overtime ? 'Night Shift gives two BID steps' : null, multiBid ? `${nameOf('account_manager')} lets each BID step place or move 3 tokens` : null].filter(Boolean);
-        lines.push(`Why ${bids} Bids? ${why.join('; ')}.`);
-    }
     return lines;
 }

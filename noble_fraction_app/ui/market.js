@@ -1,7 +1,7 @@
 import { h } from './dom.js';
 import { cardEl } from './card.js';
 
-// Both lines side by side: three Contracts (pipelines sit among them) and three Upgrades.
+// Both lines side by side: three Contracts (Mains sit among them) and three Upgrades.
 export function marketPane(ctx) {
     const { s, idx } = ctx;
     const line = (title, cards, key) => h('section', { class: 'line', 'data-line': key },
