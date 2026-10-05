@@ -13,7 +13,24 @@ export function glyphEl(id, cls = 'glyph') {
     return box;
 }
 
-const ELEMENT_INFO = { N: { z: 7, hue: 228 }, O: { z: 8, hue: 350 }, Kr: { z: 36, hue: 138 }, Xe: { z: 54, hue: 186 } };
+const ELEMENT_INFO = {
+    N: { z: 7, hue: 228, at: [2, 15] }, O: { z: 8, hue: 350, at: [2, 16] },
+    Kr: { z: 36, hue: 138, at: [4, 18] }, Xe: { z: 54, hue: 186, at: [5, 18] },     // [period, group]
+};
+
+// A miniature periodic table with one element lit: the backdrop of the atomic number.
+const PERIODS = [[1, 18], [1, 2, 13, 14, 15, 16, 17, 18], [1, 2, 13, 14, 15, 16, 17, 18],
+    Array.from({ length: 18 }, (_, i) => i + 1), Array.from({ length: 18 }, (_, i) => i + 1),
+    [1, 2, ...Array.from({ length: 16 }, (_, i) => i + 3)], [1, 2, ...Array.from({ length: 16 }, (_, i) => i + 3)]];
+function periodicTable([period, group]) {
+    const cell = (row, col, lit) => `<rect x="${(col - 1) * 6}" y="${(row - 1) * 6 + (row > 7 ? 3 : 0)}" width="5" height="5" rx="1" class="${lit ? 'lit' : 'cell'}"/>`;
+    let svg = '';
+    PERIODS.forEach((cols, r) => cols.forEach(c => { svg += cell(r + 1, c, r + 1 === period && c === group); }));
+    for (const row of [8, 9]) for (let c = 3; c <= 16; c += 1) svg += cell(row, c, false);
+    const box = h('span', { class: 'ptable' });
+    box.innerHTML = `<svg viewBox="0 0 108 63" aria-hidden="true">${svg}</svg>`;
+    return box;
+}
 const KIND_HUE = { upgrade: 262, starter: 172, pipeline: 212 };
 
 const circle = (cls, text) => h('span', { class: `badge ${cls}` }, text);
@@ -21,6 +38,7 @@ const circle = (cls, text) => h('span', { class: `badge ${cls}` }, text);
 function elementFace(d) {
     const info = ELEMENT_INFO[d.id];
     return h('div', { class: `face kind-element el-${d.id}`, style: `--h:${info.hue}` },
+        periodicTable(info.at),
         h('span', { class: 'atomic' }, info.z),
         glyphEl('element_ring', 'glyph ring'),
         h('span', { class: 'symbol' }, d.id),

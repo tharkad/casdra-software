@@ -149,10 +149,15 @@ body { position: fixed; inset: 0; container-type: size; }
 .plus { font-size: 7cqw; font-weight: 800; color: hsl(var(--h) 60% 80%); }
 /* elements */
 .kind-element { align-items: center; justify-content: center; }
-.kind-element .ring { position: absolute; inset: 8% 4% 12%; opacity: .75; }
+.kind-element .ring { position: absolute; inset: 24% 4% 12%; opacity: .75; }
 .kind-element .ring svg { width: 100%; height: 100%; }
 .symbol { position: relative; font-size: 44cqw; font-weight: 900; line-height: 1; color: #fff; text-shadow: 0 0 5cqw hsl(var(--h) 90% 60%), 0 .8cqw 0 rgba(0, 0, 0, .4); }
 .ename { position: absolute; bottom: 6cqw; font-size: 9cqw; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: hsl(var(--h) 60% 84%); }
-.atomic { position: absolute; top: 4cqw; left: 5cqw; font-size: 10cqw; font-weight: 800; color: hsl(var(--h) 60% 84%); }
+.ptable { position: absolute; top: 3cqw; left: 3cqw; right: 3cqw; opacity: .95; }
+.ptable svg { display: block; width: 100%; }
+.ptable .cell { fill: hsl(var(--h) 45% 52% / .75); }
+.ptable .lit { fill: #fff; stroke: hsl(var(--h) 100% 60%); stroke-width: 1.6; filter: drop-shadow(0 0 3px hsl(var(--h) 100% 75%)); }
+.atomic { position: absolute; top: 24cqw; left: 5cqw; padding: 0 3cqw; border-radius: 3cqw; font-size: 12cqw; font-weight: 900; color: #fff;
+    background: hsl(var(--h) 60% 22% / .85); border: .8cqw solid hsl(var(--h) 80% 70%); }
 .el-Xe .symbol { color: hsl(48 100% 85%); text-shadow: 0 0 6cqw hsl(186 100% 60%), 0 0 12cqw hsl(186 100% 50%); }
 .kind-pipeline .glyph { color: hsl(var(--h) 50% 90%); }
