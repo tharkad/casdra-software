@@ -22,13 +22,15 @@ const ELEMENT_INFO = {
 const PERIODS = [[1, 18], [1, 2, 13, 14, 15, 16, 17, 18], [1, 2, 13, 14, 15, 16, 17, 18],
     Array.from({ length: 18 }, (_, i) => i + 1), Array.from({ length: 18 }, (_, i) => i + 1),
     [1, 2, ...Array.from({ length: 16 }, (_, i) => i + 3)], [1, 2, ...Array.from({ length: 16 }, (_, i) => i + 3)]];
-function periodicTable([period, group]) {
+function periodicTable(symbol, [period, group]) {
     // Row 1 is a taller band, so hydrogen and helium sit at its ends like the real table.
     const rowY = row => (row === 1 ? 4.5 : 14 + (row - 2) * 6 + (row > 7 ? 3 : 0));
     const cell = (row, col, lit) => `<rect x="${(col - 1) * 6}" y="${rowY(row)}" width="5" height="5" rx="1" class="${lit ? 'lit' : 'cell'}"/>`;
     let svg = '';
     PERIODS.forEach((cols, r) => cols.forEach(c => { svg += cell(r + 1, c, r + 1 === period && c === group); }));
     for (const row of [8, 9]) for (let c = 3; c <= 16; c += 1) svg += cell(row, c, false);
+    // the element's abbreviation fills the empty notch above the transition metals
+    svg += `<text x="41.5" y="21" text-anchor="middle" class="zsym">${symbol}</text>`;
     const box = h('span', { class: 'ptable' });
     box.innerHTML = `<svg viewBox="0 0 108 66" aria-hidden="true">${svg}</svg>`;
     return box;
@@ -40,9 +42,8 @@ const circle = (cls, text) => h('span', { class: `badge ${cls}` }, text);
 function elementFace(d) {
     const info = ELEMENT_INFO[d.id];
     return h('div', { class: `face kind-element el-${d.id}`, style: `--h:${info.hue}` },
-        periodicTable(info.at),
+        periodicTable(d.id, info.at),
         glyphEl('element_ring', 'glyph ring'),
-        h('span', { class: 'symbol' }, d.id),
         h('span', { class: 'ename' }, d.name));
 }
 
