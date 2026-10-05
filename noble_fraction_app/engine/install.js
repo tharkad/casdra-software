@@ -1,5 +1,6 @@
 import { handle, provide } from './registry.js';
 import { activePlayer, def, logEvent, takeFrom } from './helpers.js';
+import { completeIfAble } from './contracts.js';
 
 const INSTALL_PHASES = ['distill', 'airwipe', 'buybid', 'overtimeBid', 'cleanup'];
 
@@ -15,6 +16,7 @@ export function installCard(s, p, card, cost) {
     p.money -= cost;
     p.installed.push(card);
     logEvent(s, { type: 'install', pid: p.id, card: card.defId, cost });
+    completeIfAble(s, p);                  // an installed helper (Packed Tower) may make the open Contract finishable right now
 }
 
 provide(s => {

@@ -56,5 +56,5 @@ export function performBuy(s, p, a) {
     else if (a.install) p.installed.push(card);
     else p.discard.push(card);
     logEvent(s, { type: 'buy', pid: p.id, card: card.defId, install: a.install, paid: q.price, delta: q.delta });
-    if (d.kind === 'contract') completeIfAble(s, p);
+    completeIfAble(s, p);                  // buying a Contract, or installing a helper straight from the line, can finish it
 }
