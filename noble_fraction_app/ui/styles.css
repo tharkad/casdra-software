@@ -7,7 +7,7 @@
        bar paints edge to edge behind them. */
     --pad-l: max(8px, calc(var(--safe-l) * .6)); --pad-r: max(8px, calc(var(--safe-r) * .6)); --pad-b: calc(var(--safe-b) * .5);
     /* Keep the top bar clear of the status bar / edge-swipe zone so its buttons can be tapped. */
-    --pad-t: max(16px, var(--safe-t)); --hud-h: calc(36px + var(--pad-t));
+    --pad-t: max(16px, var(--safe-t)); --hud-h: calc(46px + var(--pad-t));
     /* One card size everywhere: whatever lets 4+4 market cards fit across AND market + hand fit down. */
     --cardh: min(calc((100cqh - 84px - var(--hud-h) - var(--pad-b)) / 2), calc((100cqw - var(--pad-l) - var(--pad-r) - 46px - 16px - 10px - 42px) / 8 / .644));
 }
@@ -25,7 +25,7 @@ body { position: fixed; inset: 0; container-type: size; }
 @media (orientation: portrait) { #rotate { display: flex; } #app, #overlay { display: none; } }
 
 /* HUD */
-#hud { display: flex; align-items: center; gap: 10px; padding: var(--pad-t) var(--pad-r) 0 var(--pad-l); background: var(--panel); border-bottom: 1px solid var(--line); min-width: 0; }
+#hud { display: flex; align-items: center; gap: 10px; padding: var(--pad-t) var(--pad-r) 8px var(--pad-l); background: var(--panel); border-bottom: 1px solid var(--line); min-width: 0; }
 .side { display: flex; gap: 6px; align-items: baseline; white-space: nowrap; padding: 3px 9px; border: 2px solid var(--line); border-radius: 8px; background: rgba(255, 255, 255, .04); }
 .side b { font-size: 12px; } .side-0 { border-color: var(--teal); } .side-0 b { color: var(--teal); } .side-1 { border-color: var(--orange); } .side-1 b { color: var(--orange); }
 .vp { color: var(--violet-lt); font-weight: 800; } .cash { color: var(--green); font-weight: 700; }
