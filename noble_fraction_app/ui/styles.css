@@ -139,12 +139,14 @@ body { position: fixed; inset: 0; container-type: size; }
 .phase em { font-style: normal; }
 .phase .glyph.tiny { width: 8cqw; height: 8cqw; }
 .glyph.tiny { width: 11cqw; height: 11cqw; }
-.xe-need { display: inline-flex; gap: 1.2cqw; flex-wrap: wrap; max-width: 40%; align-items: center; }
+.xe-need { display: inline-flex; gap: 1cqw; flex-wrap: nowrap; align-items: center; }
 .xe-need::before { content: 'Xe'; font-size: 5.4cqw; font-weight: 800; color: hsl(186 85% 70%); margin-right: .6cqw; }
-.xe-dot { width: 6cqw; height: 6cqw; border-radius: 50%; background: hsl(186 85% 60%); border: .8cqw solid #fff; }
+.xe-dot { width: 5cqw; height: 5cqw; border-radius: 50%; background: hsl(186 85% 60%); border: .8cqw solid #fff; }
 .pay { font-size: 12cqw; font-weight: 900; color: hsl(120 70% 72%); }
-.vp-star { display: inline-flex; align-items: center; justify-content: center; width: 15cqw; height: 15cqw; font-size: 9cqw; font-weight: 900; color: hsl(46 100% 16%);
-    background: hsl(46 100% 62%); clip-path: polygon(50% 0, 62% 33%, 98% 36%, 70% 58%, 80% 94%, 50% 74%, 20% 94%, 30% 58%, 2% 36%, 38% 33%); }
+/* Victory points: a round gold medal with the number centred and a small star on its rim. */
+.vp-star { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 16cqw; height: 16cqw; border-radius: 50%; font-size: 10.5cqw; font-weight: 900; line-height: 1;
+    color: hsl(40 100% 12%); background: radial-gradient(circle at 35% 30%, hsl(48 100% 78%), hsl(42 95% 56%)); border: 1cqw solid #fff; box-shadow: 0 .6cqw 1.6cqw rgba(0, 0, 0, .55); }
+.vp-star::after { content: '★'; position: absolute; top: -5.2cqw; right: -3cqw; font-size: 7cqw; color: hsl(48 100% 70%); text-shadow: 0 0 1cqw rgba(0, 0, 0, .8); }
 .plus { font-size: 7cqw; font-weight: 800; color: hsl(var(--h) 60% 80%); }
 /* elements */
 .kind-element { align-items: center; justify-content: center; }
