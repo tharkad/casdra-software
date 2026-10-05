@@ -18,7 +18,8 @@ export function hud(ctx) {
     const free = s.turn.f.freeBids > 0 && s.turn.phase === 'distill';
     return h('header', { id: 'hud' },
         side(HUMAN, 'You'), side(RIVAL, 'Rival'),
-        h('div', { class: 'hint', 'data-hint': '' }, over ? 'Game over' : free ? 'Place a free Bid Token on a card' : HINTS[s.turn.phase]),
+        h('div', { class: 'hint', 'data-hint': '' }, over ? 'Game over' : free ? 'Place a free Bid Token on a card'
+            : s.turn.phase === 'overtimeBid' ? `Night Shift — BID ${3 - s.turn.f.stepsLeft} of 2` : HINTS[s.turn.phase]),
         h('span', { class: 'turnno', 'data-turn': '' }, `Turn ${s.turn.number} · ${LEVELS.find(l => l.id === controller.level())?.label ?? ''}`),
         h('button', { class: 'btn small', 'data-open': 'log', onclick: () => ctx.setUi({ log: true }) }, 'Log'),
         h('button', { class: 'btn small', 'data-open': 'help', 'aria-label': 'Rules', onclick: () => ctx.setUi({ help: true }) }, '?'),
