@@ -101,7 +101,7 @@ export function summarizeEvents(events) {
     return lines;
 }
 
-// The whole game as a turn log: one group per turn, newest turn first and newest move first inside it.
+// The whole game as a turn log: newest turn first, but the moves inside a turn in the order they happened.
 export function groupLog(log) {
     const turns = [];
     for (const e of log) {
@@ -109,6 +109,6 @@ export function groupLog(log) {
         if (last && last.turnNo === e.turnNo && last.by === e.by) last.events.push(e);
         else turns.push({ turnNo: e.turnNo, by: e.by, events: [e] });
     }
-    return turns.map(t => ({ turnNo: t.turnNo, by: t.by, lines: summarizeEvents(t.events).reverse() }))
+    return turns.map(t => ({ turnNo: t.turnNo, by: t.by, lines: summarizeEvents(t.events) }))
         .filter(t => t.lines.length > 0).reverse();
 }

@@ -1,7 +1,7 @@
 import { h } from './dom.js';
 import { groupLog } from './labels.js';
 
-// The turn log: every move of every turn, newest at the top. Teal is you, orange is the Rival.
+// The turn log: every move of every turn; the newest turn is at the top, each turn reads in play order. Teal is you, orange is the Rival.
 export function logSheet(ctx) {
     const turns = groupLog(ctx.s.log);
     return h('div', { class: 'sheet log', 'data-sheet': 'log' },
