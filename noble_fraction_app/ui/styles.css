@@ -83,7 +83,7 @@ body { position: fixed; inset: 0; container-type: size; }
 /* Sheets */
 #overlay:empty { display: none; }
 .scrim { position: fixed; inset: 0; z-index: 50; background: rgba(5, 8, 20, .78); display: flex; align-items: center; justify-content: center;
-    padding: 6px var(--pad-r) 6px var(--pad-l); }
+    padding: 6px max(8px, var(--safe-r)) 6px max(8px, var(--safe-l)); }
 .sheet { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; max-height: 100%; max-width: 100%; overflow: auto; }
 .sheet h2 { margin: 0 0 6px; font-size: 17px; }
 .zoom { display: flex; gap: 16px; align-self: stretch; }
@@ -189,7 +189,7 @@ body[data-busy] #console .bar { opacity: .5; }
 @keyframes blink { 50% { opacity: .3; } }
 
 /* ---- start screen ---- */
-.start { height: 100cqh; display: grid; grid-template-columns: minmax(0, 34%) minmax(0, 1fr); align-items: center; gap: 12px; padding: var(--pad-t) var(--pad-r) var(--pad-b) var(--pad-l); overflow: auto;
+.start { height: 100cqh; display: grid; grid-template-columns: minmax(0, 34%) minmax(0, 1fr); align-items: center; gap: 12px; padding: var(--pad-t) max(16px, calc(var(--safe-r) + 12px)) var(--pad-b) max(16px, calc(var(--safe-l) + 12px)); overflow: auto;       /* full notch insets: nothing here may sit under the notch */
     background: radial-gradient(120% 90% at 20% 30%, #1b2a5a 0%, var(--bg) 60%); }
 .start-art { display: flex; justify-content: center; }
 .ring-big { display: block; width: min(36cqh, 100%); aspect-ratio: 1; color: var(--teal); filter: drop-shadow(0 0 18px rgba(45, 212, 191, .55)); animation: spin-slow 40s linear infinite; }
