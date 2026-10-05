@@ -25,7 +25,8 @@ function snapshot(s) {
     return s.players.map(p => {
         const sets = Object.fromEntries(ZONES.map(z => [z, new Set(p[z].map(c => c.uid))]));
         const all = new Set([...ZONES.flatMap(z => [...sets[z]]), ...(p.contract ? [p.contract.uid] : [])]);
-        return { money: p.money, vp: score(s, p.id).total, sets, all, market, defs: new Map([...ZONES.flatMap(z => p[z])].map(c => [c.uid, c.defId])) };
+        const sc = score(s, p.id);
+        return { money: p.money, vp: sc.total, parts: sc.parts, sets, all, market, defs: new Map([...ZONES.flatMap(z => p[z])].map(c => [c.uid, c.defId])) };
     });
 }
 const bidKey = s => new Map([...s.market.contractLine, ...s.market.upgradeLine].map(c => [c.uid, JSON.stringify(c.bids ?? {})]));
@@ -116,6 +117,10 @@ function destination(next, uid) {
     return null;
 }
 
+// Why did the VP total change? Names the score parts that moved (money counts 1 VP per $5, or per $2 with a Reserve Fund).
+const PART_NAMES = { contracts: 'Contract', upgrades: 'Upgrade', pipelines: 'Main', money: 'from $', bonuses: 'bonus', privilege: "Founder's Seal" };
+const vpReason = (was, is) => Object.keys(PART_NAMES).filter(k => (is.parts[k] ?? 0) !== (was.parts[k] ?? 0)).map(k => PART_NAMES[k]).join(', ');
+
 const namesOf = defIds => {
     const counts = {};
     defIds.forEach(id => { counts[id] = (counts[id] ?? 0) + 1; });
@@ -144,7 +149,8 @@ export function play({ before, next, events, actor }) {
         }
         if (is.vp !== was.vp) {
             const d = is.vp - was.vp;
-            floatText(one(`.side-${pid} .vp`), `${d > 0 ? '+' : '−'}${Math.abs(d)} VP`, d > 0 ? 'vp' : 'loss');
+            const why = vpReason(was, is);
+            floatText(one(`.side-${pid} .vp`), `${d > 0 ? '+' : '−'}${Math.abs(d)} VP${why ? ` (${why})` : ''}`, d > 0 ? 'vp' : 'loss');
             pulse(one(`.side-${pid} .vp`));
         }
         // Cards that did not exist anywhere before: added to the plant's discard pile from the supply.
