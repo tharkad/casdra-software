@@ -12,7 +12,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import zlib
 from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, quote as url_quote, urlencode, urlparse, parse_qsl
+from urllib.parse import parse_qs, quote as url_quote, unquote, urlencode, urlparse, parse_qsl
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "casdra.db")
 
@@ -7898,6 +7898,7 @@ class Handler(BaseHTTPRequestHandler):
         # In web mode, block internal routes
         if WEB_MODE and not (path == "/" or path.startswith("/song-burst") or path.startswith("/dice")
                             or path.startswith("/dicevault") or path.startswith("/cant-stop")
+                            or path.startswith("/noble-fraction")
                             or path.startswith("/manifest") or path.startswith("/apple-touch")
                             or path.startswith("/favicon") or path.startswith("/static")):
             self.send_response(404)
@@ -7924,6 +7925,45 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/cant-stop":
             self.send_html(build_cant_stop_page())
+
+        elif path == "/noble-fraction":
+            # Same trailing-slash redirect as /fires-of-midway: relative module imports
+            # in index.html must resolve under /noble-fraction/.
+            self.send_response(301)
+            self.send_header("Location", "/noble-fraction/")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        elif path == "/noble-fraction/" or path.startswith("/noble-fraction/"):
+            # Noble Fraction: ES modules + the publisher's card art (webp). Private
+            # deploy only -- this tree must never be mirrored into casdra-software.
+            rel_path = "index.html" if path == "/noble-fraction/" else unquote(path[len("/noble-fraction/"):])
+            asset_root = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "noble_fraction_app"))
+            resolved = os.path.realpath(os.path.join(asset_root, rel_path))
+            if os.path.commonpath([resolved, asset_root]) != asset_root:
+                self.send_error(404)
+                return
+            ext = os.path.splitext(resolved)[1].lower()
+            content_type = {
+                ".html": "text/html; charset=utf-8",
+                ".js": "text/javascript",
+                ".css": "text/css",
+                ".webp": "image/webp",
+                ".png": "image/png",
+                ".json": "application/json",
+                ".webmanifest": "application/manifest+json",
+            }.get(ext, "application/octet-stream")
+            try:
+                with open(resolved, "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-cache" if ext in (".html", ".js", ".css") else "public, max-age=86400")
+                self.end_headers()
+                self.wfile.write(data)
+            except FileNotFoundError:
+                self.send_error(404)
 
         elif path == "/dice":
             premium = qs.get("premium") != "0"  # Default to pro during testing
