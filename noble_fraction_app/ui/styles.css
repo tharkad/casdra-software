@@ -160,3 +160,8 @@ body { position: fixed; inset: 0; container-type: size; }
 .ptable .cell { fill: hsl(var(--h) 45% 52% / .75); }
 .ptable .lit { fill: #fff; stroke: hsl(var(--h) 100% 60%); stroke-width: 1.6; filter: drop-shadow(0 0 3px hsl(var(--h) 100% 75%)); }
 .el-Xe .kind-pipeline .glyph { color: hsl(var(--h) 50% 90%); }
+
+.costs { position: relative; display: inline-flex; flex: none; width: 21cqw; height: 18cqw; }
+.costs .badge.cost { position: absolute; left: 0; top: 0; }
+.costs .later { position: absolute; right: -.5cqw; bottom: -1cqw; width: 11.5cqw; height: 11.5cqw; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
+    font-size: 6.6cqw; font-weight: 900; background: hsl(var(--h) 60% 14%); color: #fff; border: .9cqw solid hsl(var(--h) 85% 72%); }

@@ -39,6 +39,11 @@ const KIND_HUE = { upgrade: 262, starter: 172, pipeline: 212 };
 
 const circle = (cls, text) => h('span', { class: `badge ${cls}` }, text);
 
+// The two numbers in an Upgrade's top-left corner: what it costs to buy, and (ringed) what it costs
+// to install later from your hand. A card that can never be installed shows only the first.
+const upgradeCosts = d => h('span', { class: 'costs', title: d.pink ? `Buy $${d.buy}` : `Buy $${d.buy} · install later +$${d.installDiff}` },
+    circle('cost', d.buy), d.pink ? null : h('b', { class: 'later' }, d.installDiff));
+
 function elementFace(d) {
     const info = ELEMENT_INFO[d.id];
     return h('div', { class: `face kind-element el-${d.id}`, style: `--h:${info.hue}` },
@@ -64,7 +69,8 @@ export function cardFace(defId) {
     if (d.kind === 'element') return elementFace(d);
     const hue = d.kind === 'contract' ? SECTORS[d.sector].hue : KIND_HUE[d.kind];
     const corner = d.kind === 'contract' ? glyphEl(SECTORS[d.sector].glyph, 'glyph corner')
-        : circle('cost', d.kind === 'starter' ? d.installCost ?? d.installDiff : d.buy);
+        : d.kind === 'upgrade' ? upgradeCosts(d)
+            : circle('cost', d.kind === 'starter' ? d.installCost ?? d.installDiff : d.buy);
     const tint = d.kind === 'pipeline' ? ` el-${d.color}` : '';
     return h('div', { class: `face kind-${d.kind}${tint}`, style: `--h:${d.kind === 'pipeline' ? ELEMENT_INFO[d.color].hue : hue}` },
         h('div', { class: 'top' }, corner, h('span', { class: 'name' }, d.name)),
