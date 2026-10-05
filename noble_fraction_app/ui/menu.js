@@ -1,5 +1,6 @@
 import { h } from './dom.js';
 import { LEVELS } from '../bot/levels.js';
+import { SPEEDS } from './fx.js';
 
 // "New game" in three strengths of Rival; the current one is marked.
 export function newGameButtons(ctx) {
@@ -8,9 +9,14 @@ export function newGameButtons(ctx) {
         LEVELS.map(l => h('button', { class: `btn ${l.id === current ? 'current' : ''}`, 'data-new': l.id, onclick: () => ctx.newGame(l.id) }, l.label)));
 }
 
+const SPEED_LABELS = { normal: 'Normal', fast: 'Fast', off: 'Off' };
+
 export function menuSheet(ctx) {
     return h('div', { class: 'sheet menu', 'data-sheet': 'menu' },
         h('h2', {}, 'Noble Fraction'),
         h('button', { class: 'btn primary', 'data-close': '', onclick: () => ctx.setUi({ menu: false }) }, 'Resume'),
-        newGameButtons(ctx));
+        h('div', { class: 'levels' }, h('span', { class: 'dim' }, 'Animations:'),
+            Object.keys(SPEEDS).reverse().map(k => h('button', { class: `btn ${ctx.fxMode === k ? 'current' : ''}`, 'data-fx': k, onclick: () => ctx.setFx(k) }, SPEED_LABELS[k]))),
+        newGameButtons(ctx),
+        h('button', { class: 'btn', 'data-open': 'mainmenu', onclick: () => ctx.mainMenu() }, 'Main menu'));
 }

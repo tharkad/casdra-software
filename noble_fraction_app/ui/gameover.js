@@ -1,5 +1,6 @@
 import { h } from './dom.js';
 import { newGameButtons } from './menu.js';
+import { achievementById } from '../profile/achievements.js';
 
 const PARTS = [['contracts', 'Contracts'], ['upgrades', 'Upgrades'], ['pipelines', 'Mains'], ['money', 'Money'], ['bonuses', 'Bonuses'], ['privilege', 'Founder\'s Seal']];
 
@@ -12,5 +13,8 @@ export function gameOverSheet(ctx) {
             h('tr', {}, h('td', {}, 'Xe left in deck'), h('td', {}, w.scores[0].xeInSystem), h('td', {}, w.scores[1].xeInSystem))));
     return h('div', { class: 'sheet gameover', 'data-sheet': 'gameover' },
         h('h2', {}, headline), table,
-        newGameButtons(ctx));
+        ctx.ui.gameAch.length ? h('div', { class: 'new-ach', 'data-new-ach': '' }, h('h3', {}, `Achievements earned this game (${ctx.ui.gameAch.length})`),
+            h('ul', {}, ctx.ui.gameAch.map(id => h('li', {}, `🏆 ${achievementById(id)?.name ?? id} — ${achievementById(id)?.text ?? ''}`)))) : null,
+        newGameButtons(ctx),
+        h('button', { class: 'btn', 'data-open': 'mainmenu', onclick: () => ctx.mainMenu() }, 'Main menu'));
 }

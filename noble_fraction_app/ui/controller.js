@@ -5,27 +5,47 @@ export const HUMAN = 0;
 export const RIVAL = 1;
 const SAVE_KEY = 'noble-fraction.save.v1';
 
-// Owns the one game state. The human acts through dispatch(); whenever the turn passes to the
-// Rival the controller plays the Rival's whole turn with the bot and keeps what happened as a
-// recap for the UI. No DOM in here, so it runs (and is tested) in Node.
-export function createController({ storage = null, onChange = () => {} } = {}) {
+// Owns the one game state. The human acts through dispatch(). The Rival's turn can be played two
+// ways: all at once (autoRival, used by tests and by "animations off") or one bot action at a time
+// with stepRival(), which the UI uses to let the player watch it happen. No DOM in here, so it runs
+// (and is tested) in Node.
+export function createController({ storage = null, onChange = () => {}, autoRival = true } = {}) {
     let state = null;
     let recap = null;
     let level = DEFAULT_LEVEL;
+    let auto = autoRival;
+    let rivalFrom = null;                  // log index where the Rival's current turn started
+    let extra = {};                        // small per-game scratch the UI keeps with the save (e.g. stats tracking)
 
-    function runRival() {
-        const from = state.log.length;
-        const choose = policyFor(level);
-        while (state.turn.phase !== 'over' && state.turn.active === RIVAL) {
-            const legal = legalActions(state);
-            state = apply(state, choose(state, legal));
+    const rivalToMove = () => state.turn.phase !== 'over' && state.turn.active === RIVAL;
+
+    // One bot action. Returns the events it produced and whether the Rival's turn is now over.
+    function stepRival() {
+        if (!rivalToMove()) return { action: null, events: [], done: true };
+        if (rivalFrom === null) rivalFrom = state.log.length;
+        const before = state.log.length;
+        const action = policyFor(level)(state, legalActions(state));
+        state = apply(state, action);
+        const done = !rivalToMove();
+        if (done) {
+            recap = { events: state.log.slice(rivalFrom), turnNo: state.turn.number };
+            rivalFrom = null;
         }
-        recap = { events: state.log.slice(from), turnNo: state.turn.number };
+        persist();
+        onChange();
+        return { action, events: state.log.slice(before), done };
+    }
+
+    function playRivalToEnd() {
+        const from = state.log.length;
+        let step;
+        do { step = stepRival(); } while (!step.done);
+        return state.log.slice(from);
     }
 
     function persist() {
         if (!storage) return;
-        try { storage.setItem(SAVE_KEY, JSON.stringify({ state, recap, level })); } catch { /* storage full or blocked */ }
+        try { storage.setItem(SAVE_KEY, JSON.stringify({ state, recap, level, extra })); } catch { /* storage full or blocked */ }
     }
 
     function finishMove() {
@@ -38,8 +58,10 @@ export function createController({ storage = null, onChange = () => {} } = {}) {
             level = difficulty;
             state = createGame({ seed: seed ?? crypto.getRandomValues(new Uint32Array(1))[0], startingPlayer });
             recap = null;
-            if (state.turn.active === RIVAL) runRival();
-            finishMove();
+            rivalFrom = null;
+            extra = {};
+            if (auto && rivalToMove()) playRivalToEnd();
+            else finishMove();
         },
         load() {
             try {
@@ -47,19 +69,32 @@ export function createController({ storage = null, onChange = () => {} } = {}) {
                 if (!saved?.state) return false;
                 ({ state, recap } = saved);
                 level = saved.level ?? DEFAULT_LEVEL;
+                extra = saved.extra ?? {};
+                rivalFrom = null;
                 onChange();
                 return true;
             } catch { return false; }
         },
         hasSave: () => { try { return Boolean(storage?.getItem(SAVE_KEY)); } catch { return false; } },
+        // A saved game that is still in progress (a finished one is not worth continuing).
+        savedGame() {
+            try {
+                const saved = JSON.parse(storage?.getItem(SAVE_KEY) ?? 'null');
+                return saved?.state && saved.state.turn.phase !== 'over'
+                    ? { turn: saved.state.turn.number, level: saved.level ?? DEFAULT_LEVEL } : null;
+            } catch { return null; }
+        },
         clearSave: () => { try { storage?.removeItem(SAVE_KEY); } catch { /* ignore */ } },
         dispatch(action) {
             state = apply(state, action);
-            if (state.turn.phase !== 'over' && state.turn.active === RIVAL) runRival();
-            else recap = null;
-            finishMove();
+            if (auto && rivalToMove()) playRivalToEnd();
+            else { if (!rivalToMove()) recap = null; finishMove(); }
         },
+        stepRival, playRivalToEnd, rivalToMove: () => (state ? rivalToMove() : false),
+        setAutoRival(on) { auto = on; },
         dismissRecap() { recap = null; onChange(); },
+        extra: () => extra,
+        setExtra(patch) { extra = { ...extra, ...patch }; persist(); },
         level: () => level,
         state: () => state,
         legal: () => (state.turn.phase === 'over' ? [] : legalActions(state)),

@@ -9,31 +9,112 @@ import { facilityPane } from './facility.js';
 import { handStrip } from './hand.js';
 import { zoomSheet } from './zoom.js';
 import { ppePicker } from './ppe.js';
-import { recapSheet } from './recap.js';
 import { gameOverSheet } from './gameover.js';
 import { menuSheet } from './menu.js';
 import { helpSheet } from './help.js';
 import { logSheet } from './log.js';
+import { startScreen } from './start.js';
+import { statsSheet } from './stats.js';
+import { createProfile } from './profile.js';
+import { ACHIEVEMENTS, achievementById } from '../profile/achievements.js';
+import * as fx from './fx.js';
+import { loadSettings, saveSettings, prefersReducedMotion } from './settings.js';
 
-const ui = { pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, recapSeen: null };
 const params = new URLSearchParams(location.search);
-const storage = (() => { try { return params.has('seed') ? null : localStorage; } catch { return null; } })();
-const controller = createController({ storage, onChange: render });
+const persistent = !params.has('seed');                      // ?seed=N is a throwaway test game
+const store = (() => { try { return persistent ? localStorage : null; } catch { return null; } })();
+const settings = persistent ? loadSettings() : {};
+
+const ui = { screen: 'game', pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, stats: false, statsTab: 'overview',
+    level: params.get('level') ?? settings.level ?? 'normal', gameAch: [], skip: false };
+let busy = false;
+let fxMode = params.get('fx') ?? settings.fx ?? (prefersReducedMotion() ? 'off' : 'normal');
+fx.setSpeed(fxMode);
+
+const controller = createController({ storage: store, onChange: render, autoRival: false });
+const profile = createProfile(store);
 const app = document.getElementById('app');
 const overlay = document.getElementById('overlay');
 const PANES = [['market', 'Market'], ['facility', 'Mine'], ['rival', 'Rival']];
+const wait = n => new Promise(resolve => setTimeout(resolve, n));
+
+// ---- stats + achievements, updated after every state change ----
+function award(ids) {
+    ids.forEach(id => {
+        ui.gameAch.push(id);
+        const a = achievementById(id);
+        if (a) fx.toast(`🏆 ${a.name} — ${a.text}`, 2);
+    });
+}
+function track() {
+    const s = controller.state();
+    const now = Date.now();
+    const base = { state: s, level: controller.level(), extra: controller.extra(), now };
+    if (!base.extra.startedAt) base.extra = { ...base.extra, startedAt: now };
+    const live = profile.live(base);
+    let extra = live.extra;
+    award(live.newly);
+    if (s.turn.phase === 'over') {
+        const done = profile.finish({ ...base, extra });
+        award(done.newly);
+        extra = done.extra;
+    }
+    controller.setExtra(extra);
+}
+
+// ---- playing: the human acts, then the Rival's turn is watched step by step ----
+async function runRival() {
+    if (!controller.rivalToMove()) return;
+    if (!fx.enabled()) { controller.playRivalToEnd(); track(); return; }
+    busy = true; ui.skip = false; ui.pane = 'market'; document.body.dataset.busy = '1'; render();
+    fx.clearToasts();
+    fx.toast("Rival's turn", 1);
+    while (controller.rivalToMove() && !ui.skip) {
+        const before = fx.capture(controller.state());
+        const step = controller.stepRival();
+        fx.play({ before, next: controller.state(), events: step.events, actor: RIVAL });
+        track();
+        for (let waited = 0; waited < fx.ms(step.events.length ? 1000 : 160) && !ui.skip; waited += 40) await wait(40);
+    }
+    if (controller.rivalToMove()) { controller.playRivalToEnd(); track(); }
+    busy = false; delete document.body.dataset.busy; render();
+    if (controller.state().turn.phase !== 'over') fx.toast('Your turn', 0);
+}
+
+function act(action) {
+    if (busy) return;
+    Object.assign(ui, { zoom: null, ppeSel: [] });
+    const before = fx.capture(controller.state());
+    const from = controller.state().log.length;
+    controller.dispatch(action);
+    fx.play({ before, next: controller.state(), events: controller.state().log.slice(from), actor: HUMAN });
+    track();
+    runRival();
+}
 
 function newGame(level) {
-    Object.assign(ui, { pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, recapSeen: null });
+    Object.assign(ui, { screen: 'game', pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, stats: false, gameAch: [], level: level ?? ui.level });
+    if (persistent) saveSettings({ level: ui.level });
     const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
-    controller.newGame({ seed, difficulty: level ?? params.get('level') ?? undefined, startingPlayer: params.get('start') === 'rival' ? RIVAL : params.has('seed') ? HUMAN : undefined });
+    controller.newGame({ seed, difficulty: level ?? params.get('level') ?? ui.level, startingPlayer: params.get('start') === 'rival' ? RIVAL : params.has('seed') ? HUMAN : undefined });
+    track();
+    runRival();
+}
+
+function continueGame() {
+    if (!controller.load()) return newGame();
+    Object.assign(ui, { screen: 'game', pane: 'market', gameAch: [] });
+    render();
+    runRival();
 }
 
 const ctx = {
-    controller, ui,
+    controller, ui, profile, fxMode,
     setUi(patch) { Object.assign(ui, patch); render(); },
-    act(action) { Object.assign(ui, { zoom: null, ppeSel: [] }); controller.dispatch(action); },
-    newGame,
+    act, newGame, continueGame,
+    skip() { ui.skip = true; },
+    mainMenu() { Object.assign(ui, { screen: 'start', menu: false }); render(); },
+    setFx(mode) { fxMode = mode; fx.setSpeed(mode); if (persistent) saveSettings({ fx: mode }); render(); },
 };
 
 function paneBody() {
@@ -42,21 +123,32 @@ function paneBody() {
     return marketPane(ctx);
 }
 
+function pickSheet(s) {
+    if (ui.screen === 'start') return ui.stats ? statsSheet(ctx) : ui.help ? helpSheet(ctx) : null;
+    return s.turn.phase === 'over' ? gameOverSheet(ctx)
+        : ui.stats ? statsSheet(ctx)
+            : ui.log ? logSheet(ctx)
+                : ui.help ? helpSheet(ctx)
+                    : ui.menu ? menuSheet(ctx)
+                        : ppePicker(ctx) ?? (ui.zoom ? zoomSheet(ctx) : null);
+}
+
 function render() {
     const s = controller.state();
-    Object.assign(ctx, { s, legal: controller.legal() });
+    clear(overlay);
+    if (ui.screen === 'start' || !s) {
+        clear(app).append(startScreen(ctx));
+        const sheet = pickSheet(s);
+        if (sheet) overlay.append(h('div', { class: 'scrim' }, sheet));
+        return;
+    }
+    const rivalTurn = s.turn.phase !== 'over' && s.turn.active === RIVAL;
+    Object.assign(ctx, { s, fxMode, busy, rivalTurn, legal: rivalTurn ? [] : controller.legal() });
     ctx.idx = indexActions(ctx.legal);
     const tabs = h('nav', { id: 'tabs' }, PANES.map(([key, label]) => h('button', {
         class: `tab ${ui.pane === key ? 'on' : ''}`, 'data-pane': key, onclick: () => ctx.setUi({ pane: key }) }, label)));
     clear(app).append(hud(ctx), consoleBar(ctx), h('main', { id: 'main' }, tabs, paneBody()), handStrip(ctx));
-    const recap = controller.recap();
-    const sheet = s.turn.phase === 'over' ? gameOverSheet(ctx)
-        : ui.log ? logSheet(ctx)
-            : ui.help ? helpSheet(ctx)
-            : ui.menu ? menuSheet(ctx)
-            : ppePicker(ctx) ?? (ui.zoom ? zoomSheet(ctx) : null)
-                ?? (recap && ui.recapSeen !== recap.turnNo ? recapSheet(ctx) : null);
-    clear(overlay);
+    const sheet = pickSheet(s);
     if (sheet) overlay.append(h('div', { class: 'scrim' }, sheet));
 }
 
@@ -67,11 +159,14 @@ document.addEventListener('click', e => {
 
 // Test hook: what the baseline bot would do for the human, described so a test can click the real control.
 window.__xp = {
-    controller, ui, ctx,
+    controller, ui, ctx, profile, fx,
+    isBusy: () => busy,
     botPlan() {
         const a = chooseAction(controller.state(), controller.legal());
         return { act: actAttr(a), uid: cardUid(a) ?? null, type: a.type, uids: a.uids ?? null };
     },
 };
-if (!controller.load()) newGame();
-else render();
+
+if (params.has('seed')) newGame();
+else { ui.screen = 'start'; render(); }
+void ACHIEVEMENTS;

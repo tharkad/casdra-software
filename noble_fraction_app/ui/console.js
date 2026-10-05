@@ -16,6 +16,10 @@ export function stepTrack(s) {
 
 export function consoleBar(ctx) {
     const { s, idx } = ctx;
+    if (ctx.rivalTurn) {
+        return h('nav', { id: 'console' }, h('div', { class: 'rival-banner', 'data-rival-banner': '' }, 'Rival is playing', h('span', { class: 'dots' })),
+            ctx.busy ? h('button', { class: 'btn', 'data-skip': '', onclick: () => ctx.skip() }, 'Skip ▸▸') : null);
+    }
     const steps = stepTrack(s).map(t => h('span', { class: `step ${t.on ? 'on' : ''}`, 'data-step': t.key }, t.label));
     const buttons = idx.bar.map(a => h('button', { class: `btn ${a.type === 'finishTurn' ? 'primary' : ''}`,
         'data-act': actAttr(a), onclick: () => ctx.act(a) }, barLabel(a, s)));
