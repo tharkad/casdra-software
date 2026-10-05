@@ -17,7 +17,7 @@ export function startScreen(ctx) {
                 class: `level ${ctx.ui.level === l.id ? 'on' : ''}`, 'data-level': l.id, role: 'radio', 'aria-checked': ctx.ui.level === l.id,
                 onclick: () => ctx.setUi({ level: l.id }) }, h('b', {}, l.label), h('small', {}, BLURBS[l.id])))),
             h('div', { class: 'start-actions' },
-                h('button', { class: 'btn primary big', 'data-start': 'play', onclick: () => ctx.newGame(ctx.ui.level) }, 'New game'),
+                h('button', { class: 'btn primary big', 'data-start': 'play', onclick: () => (saved ? ctx.setUi({ confirmNew: true }) : ctx.newGame(ctx.ui.level)) }, 'New game'),
                 saved ? h('button', { class: 'btn big', 'data-start': 'continue', onclick: () => ctx.continueGame() },
                     `Continue · Turn ${saved.turn} · ${LEVELS.find(l => l.id === saved.level)?.label ?? ''}`) : null),
             h('div', { class: 'start-links' },

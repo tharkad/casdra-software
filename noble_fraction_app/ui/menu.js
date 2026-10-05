@@ -17,6 +17,6 @@ export function menuSheet(ctx) {
         h('button', { class: 'btn primary', 'data-close': '', onclick: () => ctx.setUi({ menu: false }) }, 'Resume'),
         h('div', { class: 'levels' }, h('span', { class: 'dim' }, 'Animations:'),
             Object.keys(SPEEDS).reverse().map(k => h('button', { class: `btn ${ctx.fxMode === k ? 'current' : ''}`, 'data-fx': k, onclick: () => ctx.setFx(k) }, SPEED_LABELS[k]))),
-        newGameButtons(ctx),
-        h('button', { class: 'btn', 'data-open': 'mainmenu', onclick: () => ctx.mainMenu() }, 'Main menu'));
+        // One deliberate step away from the game: the start screen, where Continue is waiting.
+        h('button', { class: 'btn', 'data-menu-new': '', onclick: () => ctx.mainMenu() }, 'New game'));
 }

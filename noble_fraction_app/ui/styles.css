@@ -224,3 +224,7 @@ body[data-busy] #console .bar { opacity: .5; }
 .toast.by-2 { border-color: hsl(46 95% 60%); color: hsl(46 100% 82%); }
 .new-ach { margin: 6px 0; padding: 6px 10px; border: 2px solid hsl(46 95% 60%); border-radius: 10px; }
 .new-ach h3 { margin: 0 0 3px; font-size: 13px; color: hsl(46 100% 76%); } .new-ach li { font-size: 12.5px; }
+
+.confirm { max-width: 420px; } .confirm p { margin: 0 0 10px; color: var(--dim); }
+.confirm-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn.danger { border-color: var(--red); color: #fecaca; }

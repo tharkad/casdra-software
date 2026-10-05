@@ -15,6 +15,7 @@ import { helpSheet } from './help.js';
 import { logSheet } from './log.js';
 import { startScreen } from './start.js';
 import { statsSheet } from './stats.js';
+import { confirmNewSheet } from './confirm.js';
 import { createProfile } from './profile.js';
 import { ACHIEVEMENTS, achievementById } from '../profile/achievements.js';
 import * as fx from './fx.js';
@@ -93,7 +94,7 @@ function act(action) {
 }
 
 function newGame(level) {
-    Object.assign(ui, { screen: 'game', pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, stats: false, gameAch: [], level: level ?? ui.level });
+    Object.assign(ui, { screen: 'game', pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, stats: false, confirmNew: false, gameAch: [], level: level ?? ui.level });
     if (persistent) saveSettings({ level: ui.level });
     const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
     controller.newGame({ seed, difficulty: level ?? params.get('level') ?? ui.level, startingPlayer: params.get('start') === 'rival' ? RIVAL : params.has('seed') ? HUMAN : undefined });
@@ -124,7 +125,7 @@ function paneBody() {
 }
 
 function pickSheet(s) {
-    if (ui.screen === 'start') return ui.stats ? statsSheet(ctx) : ui.help ? helpSheet(ctx) : null;
+    if (ui.screen === 'start') return ui.confirmNew ? confirmNewSheet(ctx) : ui.stats ? statsSheet(ctx) : ui.help ? helpSheet(ctx) : null;
     return s.turn.phase === 'over' ? gameOverSheet(ctx)
         : ui.stats ? statsSheet(ctx)
             : ui.log ? logSheet(ctx)
