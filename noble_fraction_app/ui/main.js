@@ -36,7 +36,7 @@ const controller = createController({ storage: store, onChange: render, autoRiva
 const profile = createProfile(store);
 const app = document.getElementById('app');
 const overlay = document.getElementById('overlay');
-const PANES = [['market', 'Market'], ['facility', 'Mine'], ['rival', 'Rival']];
+const PANES = [['market', 'Market'], ['facility', 'My Tableau'], ['rival', "Rival's Tableau"]];
 const wait = n => new Promise(resolve => setTimeout(resolve, n));
 
 // ---- stats + achievements, updated after every state change ----
