@@ -134,13 +134,26 @@ function pickSheet(s) {
                         : ppePicker(ctx) ?? (ui.zoom ? zoomSheet(ctx) : null);
 }
 
+// Tapping the dim area around a sheet closes it like its Close button. Sheets that need an answer
+// (the Shift Engineer picker, the game-over summary, the abandon-game question) are not dismissible this way.
+function dismissTop() {
+    if (ui.confirmNew) return ctx.setUi({ confirmNew: false });
+    if (ui.stats) return ctx.setUi({ stats: false });
+    if (ui.log) return ctx.setUi({ log: false });
+    if (ui.help) return ctx.setUi({ help: false });
+    if (ui.menu) return ctx.setUi({ menu: false });
+    if (ui.zoom) return ctx.setUi({ zoom: null });
+    return null;
+}
+const scrim = sheet => h('div', { class: 'scrim', onclick: e => { if (e.target === e.currentTarget && !(sheet.dataset.sheet === 'gameover' || sheet.dataset.sheet === 'ppe')) dismissTop(); } }, sheet);
+
 function render() {
     const s = controller.state();
     clear(overlay);
     if (ui.screen === 'start' || !s) {
         clear(app).append(startScreen(ctx));
         const sheet = pickSheet(s);
-        if (sheet) overlay.append(h('div', { class: 'scrim' }, sheet));
+        if (sheet) overlay.append(scrim(sheet));
         return;
     }
     const rivalTurn = s.turn.phase !== 'over' && s.turn.active === RIVAL;
@@ -150,7 +163,7 @@ function render() {
         class: `tab ${ui.pane === key ? 'on' : ''}`, 'data-pane': key, onclick: () => ctx.setUi({ pane: key }) }, label)));
     clear(app).append(hud(ctx), consoleBar(ctx), h('main', { id: 'main' }, tabs, paneBody()), handStrip(ctx));
     const sheet = pickSheet(s);
-    if (sheet) overlay.append(h('div', { class: 'scrim' }, sheet));
+    if (sheet) overlay.append(scrim(sheet));
 }
 
 document.addEventListener('click', e => {
