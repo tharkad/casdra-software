@@ -67,7 +67,7 @@ export function cardLabel(a, s) {
 const LINE = { contract: 'Contracts', upgrade: 'Upgrades' };
 export function describeEvent(e) {
     switch (e.type) {
-    case 'turnStart': return e.overtime ? 'Began a NIGHT SHIFT (two BID steps, no INTAKE/PURGE or BUY)' : 'Began the turn';
+    case 'turnStart': return e.overtime ? 'Began a NIGHT SHIFT (two BID steps, no INTAKE/PURGE or BUY)' : null;     // a normal start is not worth a line
     case 'distill': return e.count ? `Distilled away ${e.element}×${e.count}` : 'Distilled (nothing to remove)';
     case 'distillAll': return `Distilled all ${e.element} (×${e.count})`;
     case 'isolated': return `Isolated Xe×${e.xe} into cold storage`;
