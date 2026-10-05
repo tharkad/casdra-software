@@ -154,7 +154,6 @@ body { position: fixed; inset: 0; container-type: size; }
 .ename { position: absolute; bottom: 6cqw; font-size: 9cqw; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: hsl(var(--h) 60% 84%); }
 .ptable { position: absolute; top: 3cqw; left: 3cqw; right: 3cqw; opacity: .95; }
 .ptable svg { display: block; width: 100%; }
-.ptable .znum { font-size: 17px; font-weight: 900; fill: #fff; stroke: hsl(var(--h) 60% 18%); stroke-width: .6px; paint-order: stroke; }
 .ptable .cell { fill: hsl(var(--h) 45% 52% / .75); }
 .ptable .lit { fill: #fff; stroke: hsl(var(--h) 100% 60%); stroke-width: 1.6; filter: drop-shadow(0 0 3px hsl(var(--h) 100% 75%)); }
 .el-Xe .symbol { color: hsl(48 100% 85%); text-shadow: 0 0 6cqw hsl(186 100% 60%), 0 0 12cqw hsl(186 100% 50%); }

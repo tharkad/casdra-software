@@ -14,22 +14,21 @@ export function glyphEl(id, cls = 'glyph') {
 }
 
 const ELEMENT_INFO = {
-    N: { z: 7, hue: 228, at: [2, 15] }, O: { z: 8, hue: 350, at: [2, 16] },
-    Kr: { z: 36, hue: 138, at: [4, 18] }, Xe: { z: 54, hue: 186, at: [5, 18] },     // [period, group]
+    N: { hue: 228, at: [2, 15] }, O: { hue: 350, at: [2, 16] },
+    Kr: { hue: 138, at: [4, 18] }, Xe: { hue: 186, at: [5, 18] },     // [period, group]
 };
 
-// A miniature periodic table with one element lit: the backdrop of the atomic number.
+// A miniature periodic table with this card's element lit; it says which element the card is.
 const PERIODS = [[1, 18], [1, 2, 13, 14, 15, 16, 17, 18], [1, 2, 13, 14, 15, 16, 17, 18],
     Array.from({ length: 18 }, (_, i) => i + 1), Array.from({ length: 18 }, (_, i) => i + 1),
     [1, 2, ...Array.from({ length: 16 }, (_, i) => i + 3)], [1, 2, ...Array.from({ length: 16 }, (_, i) => i + 3)]];
-function periodicTable(z, [period, group]) {
-    // The number goes in the empty notch at the top (groups 3-12, periods 1-3), centred in it.
+function periodicTable([period, group]) {
+    // Row 1 is a taller band, so hydrogen and helium sit at its ends like the real table.
     const rowY = row => (row === 1 ? 4.5 : 14 + (row - 2) * 6 + (row > 7 ? 3 : 0));
     const cell = (row, col, lit) => `<rect x="${(col - 1) * 6}" y="${rowY(row)}" width="5" height="5" rx="1" class="${lit ? 'lit' : 'cell'}"/>`;
     let svg = '';
     PERIODS.forEach((cols, r) => cols.forEach(c => { svg += cell(r + 1, c, r + 1 === period && c === group); }));
     for (const row of [8, 9]) for (let c = 3; c <= 16; c += 1) svg += cell(row, c, false);
-    svg += `<text x="41.5" y="18.4" text-anchor="middle" class="znum">${z}</text>`;     // centre of the empty notch above the transition metals
     const box = h('span', { class: 'ptable' });
     box.innerHTML = `<svg viewBox="0 0 108 66" aria-hidden="true">${svg}</svg>`;
     return box;
@@ -41,7 +40,7 @@ const circle = (cls, text) => h('span', { class: `badge ${cls}` }, text);
 function elementFace(d) {
     const info = ELEMENT_INFO[d.id];
     return h('div', { class: `face kind-element el-${d.id}`, style: `--h:${info.hue}` },
-        periodicTable(info.z, info.at),
+        periodicTable(info.at),
         glyphEl('element_ring', 'glyph ring'),
         h('span', { class: 'symbol' }, d.id),
         h('span', { class: 'ename' }, d.name));
