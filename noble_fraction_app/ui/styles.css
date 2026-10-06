@@ -192,17 +192,17 @@ body[data-busy] #console .bar { opacity: .5; }
 @keyframes blink { 50% { opacity: .3; } }
 
 /* ---- start screen ---- */
-.start { height: 100cqh; display: grid; grid-template-columns: minmax(0, 34%) minmax(0, 1fr); align-items: center; gap: 12px; padding: var(--pad-t) max(16px, calc(var(--safe-r) + 12px)) var(--pad-b) max(16px, calc(var(--safe-l) + 12px)); overflow: auto;       /* full notch insets: nothing here may sit under the notch */
+.start { height: 100cqh; display: grid; grid-template-columns: minmax(0, 34%) minmax(0, 1fr); align-items: center; justify-content: center; gap: 12px; padding: var(--pad-t) max(16px, calc(var(--safe-r) + 12px)) var(--pad-b) max(16px, calc(var(--safe-l) + 12px)); overflow: auto;       /* full notch insets: nothing here may sit under the notch */
     background: radial-gradient(120% 90% at 20% 30%, #1b2a5a 0%, var(--bg) 60%); }
 .start-art { display: flex; justify-content: center; }
 .ring-big { display: block; width: min(36cqh, 100%); aspect-ratio: 1; color: var(--teal); filter: drop-shadow(0 0 18px rgba(45, 212, 191, .55)); animation: spin-slow 40s linear infinite; }
 .ring-big svg { width: 100%; height: 100%; }
 @keyframes spin-slow { to { transform: rotate(360deg); } }
-.start-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.start-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 600px; }
 .start h1 { margin: 0; font-size: clamp(26px, 9cqh, 44px); line-height: 1; letter-spacing: -.02em; } .start h1 span { color: var(--teal); }
 .start .tag { margin: 0; color: var(--dim); font-size: 13px; }
 .levels-pick { display: flex; gap: 6px; }
-.level { flex: 1; min-width: 0; text-align: left; padding: 6px 9px; border-radius: 10px; border: 2px solid var(--line); background: var(--panel); display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
+.level { flex: 1 1 0; min-width: 0; text-align: left; padding: 6px 9px; border-radius: 10px; border: 2px solid var(--line); background: var(--panel); display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
 .level small { color: var(--dim); font-size: 10.5px; line-height: 1.2; } .level.on { border-color: var(--teal); background: var(--panel2); }
 .start-actions, .start-links { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn.big { min-height: 46px; font-size: 16px; padding: 0 18px; }
@@ -274,3 +274,6 @@ body[data-busy] #console .bar { opacity: .5; }
 .hint.scrolls .hint-text { animation: hint-pan var(--dur, 6s) ease-in-out infinite alternate; }
 @keyframes hint-pan { 0%, 14% { transform: translateX(0); } 86%, 100% { transform: translateX(var(--shift, 0)); } }
 @media (prefers-reduced-motion: reduce) { .hint.scrolls { text-overflow: ellipsis; } .hint.scrolls .hint-text { animation: none; } }
+
+/* on a big screen the start screen stays a compact, centred block instead of stretching */
+@media (min-width: 1000px) { .start { grid-template-columns: minmax(0, 320px) minmax(0, 600px); gap: 56px; } .level { flex: 0 1 190px; } }
