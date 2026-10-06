@@ -187,6 +187,11 @@ function render() {
     fitHint();
 }
 
+// belt and braces for browsers that ignore user-select (and the iOS magnifier / context menu)
+document.addEventListener('selectstart', e => e.preventDefault());
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('dragstart', e => e.preventDefault());
+
 document.addEventListener('click', e => {
     const zoom = e.target.closest('[data-zoom]');
     if (zoom && !zoom.classList.contains('nozoom') && !zoom.closest('.pick')) ctx.setUi({ zoom: Number(zoom.dataset.zoom) });

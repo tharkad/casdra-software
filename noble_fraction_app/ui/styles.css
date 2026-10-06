@@ -12,6 +12,9 @@
     --cardh: min(calc((100cqh - 84px - var(--hud-h) - var(--pad-b)) / 2), calc((100cqw - var(--pad-l) - var(--pad-r) - 64px - 24px - 12px - 84px) / 8 / .644));
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* A game, not a document: nothing is selectable, there is no long-press callout, and no tap flash. */
+* { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+img, svg { -webkit-user-drag: none; user-drag: none; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
     font: 13px/1.25 -apple-system, "Segoe UI", Roboto, sans-serif; overscroll-behavior: none; touch-action: manipulation; }
 button { font: inherit; color: inherit; }
@@ -271,3 +274,5 @@ body[data-busy] #console .bar { opacity: .5; }
 
 /* on a big screen the start screen stays a compact, centred block instead of stretching */
 @media (min-width: 1000px) { .start { grid-template-columns: minmax(0, 320px) minmax(0, 600px); gap: 56px; } .level { flex: 0 1 190px; } }
+
+/* the only exception: nothing. (Selection is off even in the rules and log sheets.) */
