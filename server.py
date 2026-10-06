@@ -7954,6 +7954,7 @@ class Handler(BaseHTTPRequestHandler):
                 ".css": "text/css",
                 ".webp": "image/webp",
                 ".png": "image/png",
+                ".svg": "image/svg+xml",
                 ".json": "application/json",
                 ".webmanifest": "application/manifest+json",
             }.get(ext, "application/octet-stream")
