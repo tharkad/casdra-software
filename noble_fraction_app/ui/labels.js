@@ -79,7 +79,7 @@ export function describeEvent(e) {
     case 'played': return `Played ${nameOf(e.card)}`;
     case 'usedInstalled': return `Used installed ${nameOf(e.card)}`;
     case 'peekDeck': return `${nameOf('sampling_port')}: ${e.choice === 'draw' ? 'drew' : 'discarded'} ${nameOf(e.card)}`;
-    case 'contractCompleted': return `COMPLETED ${nameOf(e.contract)} (+$${e.money})`;
+    case 'contractCompleted': return `COMPLETED ${nameOf(e.contract)} (+$${e.money}) — used ${e.xe ?? '?'} Xe${e.discounted ? ', Packed Tower −1' : ''}${e.xeLeft !== undefined ? `, ${e.xeLeft} left` : ''}`;
     case 'bid': return `Bid on ${nameOf(e.card)}${e.n > 1 ? ` ×${e.n}` : ''}`;
     case 'bidMove': return `Moved ${e.n > 1 ? `${e.n} Bids` : 'a Bid'} from ${nameOf(e.from)} to ${nameOf(e.card)}`;
     case 'gameEndTriggered': return `Triggered the game end (${e.side === 'plus3' ? '+3 VP' : 'final turn'})`;

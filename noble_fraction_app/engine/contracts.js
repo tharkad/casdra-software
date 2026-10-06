@@ -22,7 +22,7 @@ export function completeIfAble(s, p) {
     p.money += def(card).money;
     p.completed.push(card);
     p.contract = null;
-    logEvent(s, { type: 'contractCompleted', pid: p.id, contract: card.defId, money: def(card).money });
+    logEvent(s, { type: 'contractCompleted', pid: p.id, contract: card.defId, money: def(card).money, xe: need.cost, discounted: need.discounted, xeLeft: p.storedXe });
     return true;
 }
 
