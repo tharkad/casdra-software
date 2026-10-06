@@ -26,7 +26,7 @@ body { position: fixed; inset: 0; container-type: size; }
 
 /* HUD */
 #hud { display: flex; align-items: center; gap: 10px; padding: var(--pad-t) var(--pad-r) 8px var(--pad-l); background: var(--panel); border-bottom: 1px solid var(--line); min-width: 0; }
-.side { display: flex; gap: 6px; align-items: baseline; white-space: nowrap; padding: 3px 9px; border: 2px solid var(--line); border-radius: 8px; background: rgba(255, 255, 255, .04); }
+.side { display: flex; gap: 6px; align-items: center; line-height: 1; white-space: nowrap; padding: 3px 9px; border: 2px solid var(--line); border-radius: 8px; background: rgba(255, 255, 255, .04); }
 .side b { font-size: 12px; } .side-0 { border-color: var(--teal); } .side-0 b { color: var(--teal); } .side-1 { border-color: var(--orange); } .side-1 b { color: var(--orange); }
 .vp { color: var(--violet-lt); font-weight: 800; } .cash { color: var(--green); font-weight: 700; }
 .hint { flex: 1; text-align: center; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -238,3 +238,6 @@ body[data-busy] #console .bar { opacity: .5; }
 .stat svg { width: 17px; height: 17px; } .stat b { font-size: 13px; color: var(--text); }
 .stat-contract svg { color: hsl(46 90% 70%); } .stat-machine svg { color: var(--violet-lt); }
 .side { gap: 7px; }
+
+.side .vp, .side .cash, .side b, .stat { line-height: 1; }
+.stat svg { display: block; flex: none; }
