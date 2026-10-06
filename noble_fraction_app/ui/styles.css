@@ -247,10 +247,10 @@ body[data-busy] #console .bar { opacity: .5; }
 @property --flow { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
 .card.act::before {
     content: ''; position: absolute; inset: -5.5px; border-radius: calc(7cqw + 5.5px); padding: 3px; pointer-events: none; z-index: 2;
-    background: conic-gradient(from var(--flow), #2dd4bf, #a7f3d0 12%, #8b6cff 30%, #2dd4bf 48%, #67e8f9 62%, #8b6cff 80%, #2dd4bf);
+    background: conic-gradient(from var(--flow), hsl(172 85% 60%), hsl(200 90% 62%), hsl(228 90% 70%), hsl(262 90% 72%), hsl(350 88% 64%), hsl(32 95% 58%), hsl(140 72% 56%), hsl(172 85% 60%));
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
     mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-    filter: drop-shadow(0 0 5px rgba(45, 212, 191, .75));
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, .4));
     animation: flow 2.4s linear infinite;
 }
 @keyframes flow { to { --flow: 360deg; } }
