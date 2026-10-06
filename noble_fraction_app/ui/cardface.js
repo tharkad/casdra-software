@@ -46,7 +46,7 @@ const upgradeCosts = d => h('span', { class: 'costs', title: d.pink ? `Buy $${d.
 
 function elementFace(d) {
     const info = ELEMENT_INFO[d.id];
-    return h('div', { class: `face kind-element el-${d.id}`, style: `--h:${info.hue}` },
+    return h('div', { class: `face kind-element el-${d.id}`, style: `--h:${info.hue};--gain:${throbGain(info.hue)}` },
         periodicTable(d.id, info.at),
         glyphEl('element_ring', 'glyph ring'),
         h('span', { class: 'ename' }, d.name));
@@ -92,6 +92,30 @@ export function nameSize(name, kind) {
     return 5.5;
 }
 
+// ---- throb gain ----
+// A playable card's background swells by `--lift`. The same change in HSL lightness looks far brighter on yellow,
+// orange and green than on blue and violet, so each hue gets a gain that makes the PERCEIVED (CIE L*) swing equal.
+const hslToRgb = (h, s, l) => {
+    s /= 100; l /= 100;
+    const k = n => (n + h / 30) % 12; const a = s * Math.min(l, 1 - l);
+    return [0, 8, 4].map(n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))));
+};
+const lightness = (h, s, l) => {
+    const [r, g, b] = hslToRgb(h, Math.min(100, s), Math.min(100, l)).map(c => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return y > 0.008856 ? 116 * Math.cbrt(y) - 16 : 903.3 * y;
+};
+const TARGET_SWING = 17;                              // L* units the centre of the background should gain at the peak of the throb
+export function throbGain(hue) {
+    const base = lightness(hue, 55, 30);
+    let lo = 0.3; let hi = 3.4;                       // bisect the boost so that the swing hits the target (monotonic in the boost)
+    for (let i = 0; i < 24; i += 1) {
+        const mid = (lo + hi) / 2;
+        if (lightness(hue, 55 + 30 * mid, 30 + 22 * mid) - base < TARGET_SWING) lo = mid; else hi = mid;
+    }
+    return Math.round(((lo + hi) / 2) * 100) / 100;
+}
+
 export function cardFace(defId) {
     const d = CARD_DEFS[defId];
     if (d.kind === 'element') return elementFace(d);
@@ -100,7 +124,8 @@ export function cardFace(defId) {
         : d.kind === 'upgrade' ? upgradeCosts(d)
             : circle('cost', d.kind === 'starter' ? d.installCost ?? d.installDiff : d.buy);
     const tint = d.kind === 'pipeline' ? ` el-${d.color}` : '';
-    return h('div', { class: `face kind-${d.kind}${tint}`, style: `--h:${d.kind === 'pipeline' ? ELEMENT_INFO[d.color].hue : hue}` },
+    const faceHue = d.kind === 'pipeline' ? ELEMENT_INFO[d.color].hue : hue;
+    return h('div', { class: `face kind-${d.kind}${tint}`, style: `--h:${faceHue};--gain:${throbGain(faceHue)}` },
         h('div', { class: 'top' }, corner, h('span', { class: 'name', style: `--name-fs:${nameSize(d.name, d.kind)}cqw` }, d.name)),
         h('div', { class: 'art' }, glyphEl(d.glyph)),
         d.text ? h('p', { class: 'rules' }, d.text) : null,

@@ -252,8 +252,8 @@ body[data-busy] #console .bar { opacity: .5; }
    --lift (0..1) is a registered number so the gradient colours can be animated with it. */
 @property --lift { syntax: '<number>'; inherits: true; initial-value: 0; }
 .face {
-    background: radial-gradient(120% 70% at 50% 28%, hsl(var(--h) calc(55% + var(--lift) * 30%) calc(30% + var(--lift) * 22%)), hsl(var(--h) calc(55% + var(--lift) * 20%) calc(14% + var(--lift) * 14%)) 75%),
-        hsl(var(--h) 50% calc(12% + var(--lift) * 12%));
+    background: radial-gradient(120% 70% at 50% 28%, hsl(var(--h) calc(55% + var(--lift) * var(--gain, 1) * 30%) calc(30% + var(--lift) * var(--gain, 1) * 22%)), hsl(var(--h) calc(55% + var(--lift) * var(--gain, 1) * 20%) calc(14% + var(--lift) * var(--gain, 1) * 14%)) 75%),
+        hsl(var(--h) 50% calc(12% + var(--lift) * var(--gain, 1) * 12%));
 }
 .card.act .face { animation: lift 1.8s ease-in-out infinite; }
 @keyframes lift { 0%, 100% { --lift: 0; } 45% { --lift: 1; } }
