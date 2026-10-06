@@ -3,6 +3,14 @@ import { cardEl, xePips } from './card.js';
 import { CARD_DEFS } from '../data/cards.js';
 import { xeNeeded } from '../engine/contracts.js';
 
+// Says why the Xe needed is what it is when a Packed Tower is involved (its discount is once per turn).
+function towerNote(s, p) {
+    if (!p.contract || !p.installed.some(c => c.defId === 'packed_tower') || s.turn.phase === 'over') return null;
+    if (s.turn.active === p.id && s.turn.f.spcUsed) return h('small', { class: 'xe-note' }, 'Packed Tower already used this turn');
+    if (xeNeeded(s, p)?.discounted) return h('small', { class: 'xe-note' }, 'incl. Packed Tower −1');
+    return null;
+}
+
 // A player's board: installed Upgrades, the open Contract and its stored Xe, Mains, completed
 // Contracts. Used for both sides (only public information is shown for the Rival).
 export function facilityPane(ctx, pid) {
@@ -15,7 +23,7 @@ export function facilityPane(ctx, pid) {
         group(`Installed (${p.installed.length}/5)`, p.installed.length ? row(p.installed) : h('p', { class: 'empty' }, 'none yet')),
         group('Contract', h('div', { class: 'contract' },
             p.contract ? row([p.contract]) : h('p', { class: 'empty' }, 'no open contract'),
-            h('div', { class: 'xe', 'data-xe': pid }, `Xe stored ${p.storedXe}${p.contract ? ` / ${need}` : ''}`, xePips(p.storedXe, need)))),
+            h('div', { class: 'xe', 'data-xe': pid }, `Xe stored ${p.storedXe}${p.contract ? ` / ${need}` : ''}`, xePips(p.storedXe, need), towerNote(s, p)))),
         group(`Done ${p.completed.length}`, p.completed.length ? row(p.completed) : h('p', { class: 'empty' }, 'none')),
         p.pipelines.length ? group('Mains', row(p.pipelines)) : null,
         pid === 1 ? group('Rival', h('div', { class: 'stats' },

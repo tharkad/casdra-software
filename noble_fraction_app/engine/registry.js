@@ -5,6 +5,10 @@ export const providers = [];     // (state) => action[]   (each returns only its
 export const handle = (type, fn) => { handlers[type] = fn; };
 export const provide = fn => { providers.push(fn); };
 
+// Rules that must hold "immediately" are applied by settlers, which apply() runs after EVERY action.
+export const settlers = [];
+export const settle = fn => { settlers.push(fn); };
+
 // Order-insensitive identity for an action, so callers need not match key order.
 export function canon(value) {
     if (Array.isArray(value)) return `[${value.map(canon).join(',')}]`;

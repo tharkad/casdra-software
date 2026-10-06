@@ -226,3 +226,5 @@ body[data-busy] #console .bar { opacity: .5; }
 .confirm { max-width: 420px; } .confirm p { margin: 0 0 10px; color: var(--dim); }
 .confirm-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .btn.danger { border-color: var(--red); color: #fecaca; }
+
+.xe-note { display: block; color: var(--dim); font-size: 10px; margin-top: 3px; max-width: 120px; }

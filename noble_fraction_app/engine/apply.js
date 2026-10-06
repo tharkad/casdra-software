@@ -1,4 +1,4 @@
-import { handlers, canon } from './registry.js';
+import { handlers, settlers, canon } from './registry.js';
 import { legalActions } from './legal.js';
 
 // Returns a NEW state. The action must be one legalActions(state) offers (compared by canonical
@@ -10,5 +10,6 @@ export function apply(state, action) {
     }
     const draft = structuredClone(state);
     handlers[action.type](draft, action);
+    settlers.forEach(rule => rule(draft));
     return draft;
 }

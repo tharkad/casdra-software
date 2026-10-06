@@ -1,11 +1,12 @@
-import { def, logEvent } from './helpers.js';
+import { def, logEvent, activePlayer } from './helpers.js';
+import { settle } from './registry.js';
 
 // Cost in Xe to finish this player's contract right now. Packed Tower (installed)
 // takes one off once per turn, never below 1 Xe (A4: applied automatically, always beneficial).
 export function xeNeeded(s, p) {
     if (!p.contract) return null;
     const base = def(p.contract).xe;
-    const canDiscount = s.turn.active === p.id && !s.turn.f.spcUsed && base > 1
+    const canDiscount = s.turn.active === p.id && s.turn.phase !== 'start' && s.turn.phase !== 'over' && !s.turn.f.spcUsed && base > 1
         && p.installed.some(c => c.defId === 'packed_tower');
     return { cost: canDiscount ? base - 1 : base, discounted: canDiscount };
 }
@@ -24,3 +25,11 @@ export function completeIfAble(s, p) {
     logEvent(s, { type: 'contractCompleted', pid: p.id, contract: card.defId, money: def(card).money });
     return true;
 }
+
+// Rulebook p.8: a Contract completes IMMEDIATELY once enough Xe is stored. Rather than remember to check
+// at every place that can change that (isolating Xe, buying a Contract, installing a Packed Tower, a new
+// turn refreshing its once-per-turn discount...), the engine checks after every action.
+settle(s => {
+    if (s.turn.phase === 'start' || s.turn.phase === 'over') return;
+    completeIfAble(s, activePlayer(s));
+});
