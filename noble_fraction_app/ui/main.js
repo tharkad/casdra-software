@@ -153,6 +153,20 @@ function dismissTop() {
 }
 const scrim = sheet => h('div', { class: 'scrim', onclick: e => { if (e.target === e.currentTarget && !(sheet.dataset.sheet === 'gameover' || sheet.dataset.sheet === 'ppe')) dismissTop(); } }, sheet);
 
+// A hint too long for its slot slowly pans back and forth so the whole line can be read (instead of "…").
+function fitHint() {
+    const box = document.querySelector('#hud .hint');
+    const text = box?.querySelector('.hint-text');
+    if (!text) return;
+    const hidden = Math.ceil(text.scrollWidth - box.clientWidth);
+    box.classList.toggle('scrolls', hidden > 1);
+    if (hidden > 1) {
+        box.style.setProperty('--shift', `${-hidden - 2}px`);
+        box.style.setProperty('--dur', `${Math.max(4, hidden / 26 + 2.4).toFixed(1)}s`);        // ~26px a second plus a pause at each end
+    }
+}
+window.addEventListener('resize', fitHint);
+
 function render() {
     const s = controller.state();
     clear(overlay);
@@ -170,6 +184,7 @@ function render() {
     clear(app).append(hud(ctx), consoleBar(ctx), h('main', { id: 'main' }, tabs, paneBody()), handStrip(ctx));
     const sheet = pickSheet(s);
     if (sheet) overlay.append(scrim(sheet));
+    fitHint();
 }
 
 document.addEventListener('click', e => {

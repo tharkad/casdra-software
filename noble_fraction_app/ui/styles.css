@@ -263,3 +263,10 @@ body[data-busy] #console .bar { opacity: .5; }
 .market .row { gap: 13px; }
 
 .mode-pick { margin-bottom: -2px; } .mode-pick .level small { font-size: 10px; }
+
+/* a hint that does not fit pans slowly back and forth (see fitHint in main.js) */
+.hint-text { display: inline-block; }
+.hint.scrolls { text-overflow: clip; text-align: left; }
+.hint.scrolls .hint-text { animation: hint-pan var(--dur, 6s) ease-in-out infinite alternate; }
+@keyframes hint-pan { 0%, 14% { transform: translateX(0); } 86%, 100% { transform: translateX(var(--shift, 0)); } }
+@media (prefers-reduced-motion: reduce) { .hint.scrolls { text-overflow: ellipsis; } .hint.scrolls .hint-text { animation: none; } }
