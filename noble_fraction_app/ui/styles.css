@@ -9,7 +9,7 @@
     /* Keep the top bar clear of the status bar / edge-swipe zone so its buttons can be tapped. */
     --pad-t: max(16px, var(--safe-t)); --hud-h: calc(46px + var(--pad-t));
     /* One card size everywhere: whatever lets 4+4 market cards fit across AND market + hand fit down. */
-    --cardh: min(calc((100cqh - 84px - var(--hud-h) - var(--pad-b)) / 2), calc((100cqw - var(--pad-l) - var(--pad-r) - 64px - 16px - 10px - 42px) / 8 / .644));
+    --cardh: min(calc((100cqh - 84px - var(--hud-h) - var(--pad-b)) / 2), calc((100cqw - var(--pad-l) - var(--pad-r) - 64px - 24px - 12px - 72px) / 8 / .644));
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
@@ -50,6 +50,7 @@ body { position: fixed; inset: 0; container-type: size; }
 .tab { flex: 1; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; font-size: 10.5px; line-height: 1.15; padding: 0 2px; }
 .tab.on { background: var(--violet); border-color: var(--violet); color: #fff; }
 .pane { display: flex; gap: 12px; padding: 4px 8px; overflow: auto hidden; min-height: 0; align-items: stretch; }
+.pane.market { overflow: visible; padding: 4px 12px; }
 .pane h3 { margin: 0 0 2px; font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 .line, .group { display: flex; flex-direction: column; min-height: 0; flex: none; }
 .row { display: flex; gap: 6px; flex: 1; min-height: 0; }
@@ -67,7 +68,7 @@ body { position: fixed; inset: 0; container-type: size; }
 .ppe .card { --ch: 140px; }
 /* Market: 4 + 4 cards across the pane; height is the smaller of what the pane or the width allows. */
 .market { gap: 10px; }
-.card.act { border-color: var(--teal); box-shadow: 0 0 8px rgba(45, 212, 191, .55); }
+/* playable cards: a wide ring, set off from the card edge, with colour flowing around it (see the end of this file) */
 .tokens { position: absolute; left: 0; right: 0; bottom: 14%; display: flex; justify-content: center; gap: 4px; pointer-events: none; }
 .tok { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 3px solid #fff;
     background: var(--teal); color: #04221e; font-size: 13px; font-weight: 800; box-shadow: 0 1px 6px rgba(0, 0, 0, .7); }
@@ -78,7 +79,7 @@ body { position: fixed; inset: 0; container-type: size; }
 #hand { display: flex; gap: 6px; padding: 4px var(--pad-r) var(--pad-b) var(--pad-l); background: var(--panel); border-top: 1px solid var(--line); min-height: 0; }
 .piles { display: flex; flex-direction: column; justify-content: center; gap: 6px; width: 74px; color: var(--dim); font-size: 11px; flex: none; }
 .tokcount { display: flex; align-items: center; gap: 4px; color: var(--text); }
-#hand .cards { display: flex; gap: 6px; overflow: auto hidden; flex: 1; min-width: 0; }
+#hand .cards { display: flex; gap: 6px; overflow: visible; flex: 1; min-width: 0; padding: 0 8px; }
 
 /* Sheets */
 #overlay:empty { display: none; }
@@ -227,7 +228,7 @@ body[data-busy] #console .bar { opacity: .5; }
 .confirm-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .btn.danger { border-color: var(--red); color: #fecaca; }
 
-.xe-note { display: block; color: var(--dim); font-size: 10px; margin-top: 3px; max-width: 120px; }
+.xe-note { display: block; color: var(--dim); font-size: 10px; margin-top: 3px; max-width: 120px; white-space: normal; }
 
 .log-turn li.ach-line { color: hsl(46 100% 76%); font-weight: 700; list-style: none; margin-left: -18px; }
 
@@ -241,3 +242,18 @@ body[data-busy] #console .bar { opacity: .5; }
 
 .side .vp, .side .cash, .side b, .stat { line-height: 1; }
 .stat svg { display: block; flex: none; }
+
+/* ---- playable-card ring ---- */
+@property --flow { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.card.act::before {
+    content: ''; position: absolute; inset: -5.5px; border-radius: calc(7cqw + 5.5px); padding: 3px; pointer-events: none; z-index: 2;
+    background: conic-gradient(from var(--flow), #2dd4bf, #a7f3d0 12%, #8b6cff 30%, #2dd4bf 48%, #67e8f9 62%, #8b6cff 80%, #2dd4bf);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    filter: drop-shadow(0 0 5px rgba(45, 212, 191, .75));
+    animation: flow 2.4s linear infinite;
+}
+@keyframes flow { to { --flow: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .card.act::before { animation: none; } }
+
+.market .row { gap: 11px; }
