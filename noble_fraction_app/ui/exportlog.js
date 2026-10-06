@@ -1,11 +1,12 @@
 import { groupLog } from './labels.js';
 import { score, winner } from '../engine/index.js';
+import { LEVELS } from '../bot/levels.js';
 
 // A plain-text copy of the whole game log, oldest turn first (the sheet shows newest first), with enough
 // header (mode, level, seed) to replay or report the game. Pure: callers pass `when` in.
 export function buildLogExport({ state, level, achievements = [], when = null }) {
     const mode = state.rules?.mode === 'overtime' ? 'Overtime (10 to end)' : 'Normal (5 to end)';
-    const lines = ['NOBLE FRACTION — game log', `Game length: ${mode}`, `Rival level: ${level}`];
+    const lines = ['NOBLE FRACTION — game log', `Game length: ${mode}`, `Rival level: ${LEVELS.find(l => l.id === level)?.label ?? level}`];
     if (state.rules?.seed !== undefined) lines.push(`Seed: ${state.rules.seed}`);
     if (when) lines.push(`Exported: ${when}`);
     const mine = score(state, 0).total; const theirs = score(state, 1).total;

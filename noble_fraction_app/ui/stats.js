@@ -2,6 +2,10 @@ import { h } from './dom.js';
 import { statTiles, levelRecords } from '../profile/stats.js';
 import { ACHIEVEMENTS } from '../profile/achievements.js';
 import { glyphEl } from './cardface.js';
+import { LEVELS } from '../bot/levels.js';
+
+const levelLabel = id => LEVELS.find(l => l.id === id)?.label ?? id;
+const lengthLabel = mode => (mode === 'overtime' ? 'Overtime' : 'Normal');
 
 const TABS = [['overview', 'Overview'], ['achievements', 'Achievements'], ['history', 'History']];
 
@@ -23,9 +27,9 @@ function achievements(data) {
 
 function history(data) {
     if (!data.games.length) return h('p', { class: 'empty' }, 'No finished games yet.');
-    return h('table', { class: 'level-table' }, h('thead', {}, h('tr', {}, ['Result', 'Score', 'Level', 'Turns'].map(x => h('th', {}, x)))),
+    return h('table', { class: 'level-table' }, h('thead', {}, h('tr', {}, ['Result', 'Score', 'Level', 'Length', 'Turns'].map(x => h('th', {}, x)))),
         h('tbody', {}, [...data.games].reverse().map(g => h('tr', { class: `res-${g.result}` }, h('td', {}, g.result === 'win' ? 'Won' : g.result === 'loss' ? 'Lost' : 'Tied'),
-            h('td', {}, `${g.myTotal}–${g.rivalTotal}`), h('td', {}, `${g.level}${g.mode === 'overtime' ? ' · overtime' : ''}`), h('td', {}, g.turns)))));
+            h('td', {}, `${g.myTotal}–${g.rivalTotal}`), h('td', {}, levelLabel(g.level)), h('td', {}, lengthLabel(g.mode)), h('td', {}, g.turns)))));
 }
 
 export function statsSheet(ctx) {
