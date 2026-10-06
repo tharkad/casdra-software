@@ -1,6 +1,7 @@
 import { h } from './dom.js';
 import { HUMAN, RIVAL } from './controller.js';
 import { LEVELS } from '../bot/levels.js';
+import { endCount } from '../engine/endgame.js';
 
 // Two tiny icons for the score boxes: a signed contract (clipboard with a tick) and an industrial machine (gear).
 const ICONS = {
@@ -25,7 +26,7 @@ export function hud(ctx) {
         const p = s.players[pid];
         return h('div', { class: `side side-${pid}`, 'data-side': pid },
             h('b', {}, label), h('span', { class: 'vp' }, `${controller.score(pid).total} VP`), h('span', { class: 'cash' }, `$${p.money}`),
-            stat('contract', p.completed.length, 'completed contracts'), stat('machine', p.installed.length, 'installed upgrades'));
+            stat('contract', p.completed.length, `completed contracts (the game ends at ${endCount(s)})`), stat('machine', p.installed.length, `installed upgrades (the game ends at ${endCount(s)})`));
     };
     const free = s.turn.f.freeBids > 0 && s.turn.phase === 'distill';
     return h('header', { id: 'hud' },
