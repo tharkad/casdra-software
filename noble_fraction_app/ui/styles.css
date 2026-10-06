@@ -232,3 +232,9 @@ body[data-busy] #console .bar { opacity: .5; }
 .log-turn li.ach-line { color: hsl(46 100% 76%); font-weight: 700; list-style: none; margin-left: -18px; }
 
 .btn[disabled] { opacity: .42; cursor: not-allowed; }
+
+/* score-box counters: completed contracts and installed upgrades */
+.stat { display: inline-flex; align-items: center; gap: 2px; color: var(--dim); }
+.stat svg { width: 17px; height: 17px; } .stat b { font-size: 13px; color: var(--text); }
+.stat-contract svg { color: hsl(46 90% 70%); } .stat-machine svg { color: var(--violet-lt); }
+.side { gap: 7px; }
