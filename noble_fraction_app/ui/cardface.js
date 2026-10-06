@@ -55,7 +55,7 @@ function elementFace(d) {
 function foot(d) {
     if (d.kind === 'contract') {
         return h('div', { class: 'foot' },
-            h('span', { class: 'xe-need', title: `${d.xe} Xe needed` }, `Xe ×${d.xe}`),
+            h('span', { class: 'xe-need', title: `${d.xe} Xe needed` }, h('span', { class: 'xe-sym' }, 'Xe'), h('span', { class: 'xe-n' }, `×${d.xe}`)),
             h('span', { class: 'pay' }, `$${d.money}`),
             h('span', { class: 'vp-star' }, d.vp));
     }

@@ -69,7 +69,8 @@ body { position: fixed; inset: 0; container-type: size; }
 /* Market: 4 + 4 cards across the pane; height is the smaller of what the pane or the width allows. */
 .market { gap: 10px; }
 /* playable cards: a wide ring, set off from the card edge, with colour flowing around it (see the end of this file) */
-.tokens { position: absolute; left: 0; right: 0; bottom: 14%; display: flex; justify-content: center; gap: 4px; pointer-events: none; }
+/* Bid Token badges sit just under the card name (below the header row), centred */
+.tokens { position: absolute; left: 0; right: 0; top: 34cqw; display: flex; justify-content: center; gap: 4px; pointer-events: none; z-index: 1; }
 .tok { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 3px solid #fff;
     background: var(--teal); color: #04221e; font-size: 13px; font-weight: 800; box-shadow: 0 1px 6px rgba(0, 0, 0, .7); }
 .tok-1 { background: var(--orange); color: #2a1200; }
@@ -141,7 +142,9 @@ body { position: fixed; inset: 0; container-type: size; }
 .phase em { font-style: normal; }
 .phase .glyph.tiny { width: 9cqw; height: 9cqw; }
 .glyph.tiny { width: 13cqw; height: 13cqw; }
-.xe-need { font-size: 11cqw; font-weight: 900; white-space: nowrap; color: hsl(186 85% 72%); }
+.xe-need { display: inline-flex; flex-direction: column; align-items: flex-start; line-height: .95; white-space: nowrap; color: hsl(186 85% 72%); }
+.xe-sym { font-size: 9.5cqw; font-weight: 800; letter-spacing: .02em; }
+.xe-n { font-size: 16cqw; font-weight: 900; }
 .pay { font-size: 18cqw; font-weight: 900; color: hsl(120 70% 72%); }
 /* Victory points: a round gold medal with the number centred and a small star on its rim. */
 .vp-star { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 25cqw; height: 25cqw; border-radius: 50%; font-size: 17cqw; font-weight: 900; line-height: 1;
