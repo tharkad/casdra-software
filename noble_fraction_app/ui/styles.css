@@ -228,3 +228,5 @@ body[data-busy] #console .bar { opacity: .5; }
 .btn.danger { border-color: var(--red); color: #fecaca; }
 
 .xe-note { display: block; color: var(--dim); font-size: 10px; margin-top: 3px; max-width: 120px; }
+
+.log-turn li.ach-line { color: hsl(46 100% 76%); font-weight: 700; list-style: none; margin-left: -18px; }

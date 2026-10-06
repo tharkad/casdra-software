@@ -40,9 +40,11 @@ const PANES = [['market', 'Market'], ['facility', 'My Tableau'], ['rival', "Riva
 const wait = n => new Promise(resolve => setTimeout(resolve, n));
 
 // ---- stats + achievements, updated after every state change ----
+let earnedNow = [];
 function award(ids) {
     ids.forEach(id => {
         ui.gameAch.push(id);
+        earnedNow.push(id);
         const a = achievementById(id);
         if (a) fx.toast(`🏆 ${a.name} — ${a.text}`, 2);
     });
@@ -60,7 +62,11 @@ function track() {
         award(done.newly);
         extra = done.extra;
     }
-    controller.setExtra(extra);
+    // Remember where in the game log each achievement was earned, so the turn log can show it.
+    const last = s.log.at(-1);
+    const ach = [...(extra.ach ?? []), ...earnedNow.map(id => ({ id, turnNo: last?.turnNo ?? s.turn.number, by: last?.by ?? 0, afterIndex: s.log.length }))];
+    earnedNow = [];
+    controller.setExtra({ ...extra, ach });
 }
 
 // ---- playing: the human acts, then the Rival's turn is watched step by step ----

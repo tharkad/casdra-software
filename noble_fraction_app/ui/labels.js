@@ -1,6 +1,9 @@
 import { CARD_DEFS, DISTILL_PRIORITY } from '../data/cards.js';
 import { quote } from '../engine/buy.js';
 import { findCard } from './find.js';
+import { achievementById } from '../profile/achievements.js';
+
+const achievementLine = id => { const a = achievementById(id); return a ? `🏆 Achievement unlocked: ${a.name} — ${a.text}` : null; };
 
 const nameOf = defId => CARD_DEFS[defId].name;
 const count = (cards, id) => cards.filter(c => c.defId === id).length;
@@ -86,6 +89,7 @@ export function describeEvent(e) {
     case 'bid': return `Bid on ${nameOf(e.card)}${e.n > 1 ? ` ×${e.n}` : ''}`;
     case 'bidMove': return `Moved ${e.n > 1 ? `${e.n} Bids` : 'a Bid'} from ${nameOf(e.from)} to ${nameOf(e.card)}`;
     case 'gameEndTriggered': return `Triggered the game end (${e.side === 'plus3' ? '+3 VP' : 'final turn'})`;
+    case 'achievement': return achievementLine(e.id);
     default: return null;
     }
 }
@@ -105,9 +109,15 @@ export function summarizeEvents(events) {
 }
 
 // The whole game as a turn log: newest turn first, but the moves inside a turn in the order they happened.
-export function groupLog(log) {
+export function groupLog(log, achievements = []) {
+    // Achievements are not engine events, so the UI remembers when each was earned (`afterIndex` = how many
+    // engine events had happened) and they are slotted back in at that point.
+    const merged = [];
+    const earnedAt = i => achievements.filter(a => a.afterIndex === i).map(a => ({ type: 'achievement', id: a.id, by: a.by, turnNo: a.turnNo }));
+    log.forEach((e, i) => { merged.push(...earnedAt(i), e); });
+    merged.push(...achievements.filter(a => a.afterIndex >= log.length).map(a => ({ type: 'achievement', id: a.id, by: a.by, turnNo: a.turnNo })));
     const turns = [];
-    for (const e of log) {
+    for (const e of merged) {
         const last = turns.at(-1);
         if (last && last.turnNo === e.turnNo && last.by === e.by) last.events.push(e);
         else turns.push({ turnNo: e.turnNo, by: e.by, events: [e] });
