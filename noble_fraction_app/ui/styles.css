@@ -276,3 +276,5 @@ body[data-busy] #console .bar { opacity: .5; }
 @media (min-width: 1000px) { .start { grid-template-columns: minmax(0, 320px) minmax(0, 600px); gap: 56px; } .level { flex: 0 1 190px; } }
 
 /* the only exception: nothing. (Selection is off even in the rules and log sheets.) */
+
+.head-btns { display: inline-flex; gap: 8px; }

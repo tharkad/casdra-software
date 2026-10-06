@@ -26,7 +26,7 @@ export const END_COUNTS = { normal: 5, overtime: 10 };
 
 export function createGame({ seed = 1, startingPlayer, mode = 'normal' } = {}) {
     const s = {
-        rng: seed >>> 0, uidCounter: 0, log: [], players: [], rules: { mode, endCount: END_COUNTS[mode] ?? 5 },
+        rng: seed >>> 0, uidCounter: 0, log: [], players: [], rules: { mode, endCount: END_COUNTS[mode] ?? 5, seed: seed >>> 0 },
         market: {
             contractDeck: [], contractDiscard: [], contractLine: [],
             upgradeDeck: [], upgradeDiscard: [], upgradeLine: [],
