@@ -32,7 +32,7 @@ export function hud(ctx) {
         side(HUMAN, 'You'), side(RIVAL, 'Rival'),
         h('div', { class: 'hint', 'data-hint': '' }, over ? 'Game over' : free ? 'Place a free Bid Token on a card'
             : s.turn.phase === 'overtimeBid' ? `Night Shift — BID ${3 - s.turn.f.stepsLeft} of 2` : HINTS[s.turn.phase]),
-        h('span', { class: 'turnno', 'data-turn': '' }, `Turn ${s.turn.number} · ${LEVELS.find(l => l.id === controller.level())?.label ?? ''}`),
+        h('span', { class: 'turnno', 'data-turn': '' }, `Turn ${s.turn.number} · ${LEVELS.find(l => l.id === controller.level())?.label ?? ''}${controller.mode() === 'overtime' ? ' · Overtime' : ''}`),
         h('button', { class: 'btn small', 'data-open': 'log', onclick: () => ctx.setUi({ log: true }) }, 'Log'),
         h('button', { class: 'btn small', 'data-open': 'stats', onclick: () => ctx.setUi({ stats: true }) }, 'Stats'),
         h('button', { class: 'btn small', 'data-open': 'help', 'aria-label': 'Rules', onclick: () => ctx.setUi({ help: true }) }, '?'),

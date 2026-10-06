@@ -243,20 +243,23 @@ body[data-busy] #console .bar { opacity: .5; }
 .side .vp, .side .cash, .side b, .stat { line-height: 1; }
 .stat svg { display: block; flex: none; }
 
-/* ---- playable-card ring: it grows and brightens, then throbs back ---- */
+/* ---- playable-card ring: the card's border grows outward, brightening, then throbs back ----
+   The ring's inner edge always sits exactly on the card edge (inset == padding), so there is no gap. */
 .card.act::before {
-    content: ''; position: absolute; inset: -5px; border-radius: calc(7cqw + 5px); padding: 3px; pointer-events: none; z-index: 2;
+    content: ''; position: absolute; inset: -3px; border-radius: calc(7cqw + 3px); padding: 3px; pointer-events: none; z-index: 2;
     background: hsl(var(--ring-h, 172) 90% 62%);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
     mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
     animation: throb 1.9s ease-in-out infinite;
 }
 @keyframes throb {
-    0%   { inset: -5px;   padding: 3px;   background: hsl(var(--ring-h, 172) 90% 62%);  filter: drop-shadow(0 0 2px hsl(var(--ring-h, 172) 90% 62% / .4)); }
-    32%  { inset: -8px;   padding: 5px; background: hsl(var(--ring-h, 172) 100% 80%); filter: drop-shadow(0 0 9px hsl(var(--ring-h, 172) 100% 70% / .95)); }
-    46%  { inset: -6.5px; padding: 4px;   background: hsl(var(--ring-h, 172) 95% 70%);  filter: drop-shadow(0 0 5px hsl(var(--ring-h, 172) 95% 66% / .7)); }
-    58%  { inset: -7.5px; padding: 4.5px;  background: hsl(var(--ring-h, 172) 100% 76%); filter: drop-shadow(0 0 8px hsl(var(--ring-h, 172) 100% 70% / .85)); }
-    100% { inset: -5px;   padding: 3px;   background: hsl(var(--ring-h, 172) 90% 62%);  filter: drop-shadow(0 0 2px hsl(var(--ring-h, 172) 90% 62% / .4)); }
+    0%   { inset: -3px;   padding: 3px;   border-radius: calc(7cqw + 3px);   background: hsl(var(--ring-h, 172) 90% 62%);  filter: drop-shadow(0 0 2px hsl(var(--ring-h, 172) 90% 62% / .4)); }
+    32%  { inset: -7px;   padding: 7px;   border-radius: calc(7cqw + 7px);   background: hsl(var(--ring-h, 172) 100% 80%); filter: drop-shadow(0 0 9px hsl(var(--ring-h, 172) 100% 70% / .95)); }
+    46%  { inset: -4.5px; padding: 4.5px; border-radius: calc(7cqw + 4.5px); background: hsl(var(--ring-h, 172) 95% 70%);  filter: drop-shadow(0 0 5px hsl(var(--ring-h, 172) 95% 66% / .7)); }
+    58%  { inset: -6px;   padding: 6px;   border-radius: calc(7cqw + 6px);   background: hsl(var(--ring-h, 172) 100% 76%); filter: drop-shadow(0 0 8px hsl(var(--ring-h, 172) 100% 70% / .85)); }
+    100% { inset: -3px;   padding: 3px;   border-radius: calc(7cqw + 3px);   background: hsl(var(--ring-h, 172) 90% 62%);  filter: drop-shadow(0 0 2px hsl(var(--ring-h, 172) 90% 62% / .4)); }
 }
 @media (prefers-reduced-motion: reduce) { .card.act::before { animation: none; } }
 .market .row { gap: 13px; }
+
+.mode-pick { margin-bottom: -2px; } .mode-pick .level small { font-size: 10px; }

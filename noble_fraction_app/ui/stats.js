@@ -25,7 +25,7 @@ function history(data) {
     if (!data.games.length) return h('p', { class: 'empty' }, 'No finished games yet.');
     return h('table', { class: 'level-table' }, h('thead', {}, h('tr', {}, ['Result', 'Score', 'Level', 'Turns'].map(x => h('th', {}, x)))),
         h('tbody', {}, [...data.games].reverse().map(g => h('tr', { class: `res-${g.result}` }, h('td', {}, g.result === 'win' ? 'Won' : g.result === 'loss' ? 'Lost' : 'Tied'),
-            h('td', {}, `${g.myTotal}–${g.rivalTotal}`), h('td', {}, g.level), h('td', {}, g.turns)))));
+            h('td', {}, `${g.myTotal}–${g.rivalTotal}`), h('td', {}, `${g.level}${g.mode === 'overtime' ? ' · overtime' : ''}`), h('td', {}, g.turns)))));
 }
 
 export function statsSheet(ctx) {

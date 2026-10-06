@@ -103,6 +103,7 @@ export function summarizeGame({ state, level, pid = 0, maxDeficit = 0, startedAt
     const me = state.players[pid];
     return {
         level,
+        mode: state.rules?.mode ?? 'normal',
         startedAt,
         endedAt,
         over,
@@ -238,6 +239,7 @@ export function recordHistoryEntry(games, summary, cap = 30) {
     const entry = {
         endedAt: summary.endedAt ?? null,
         level: summary.level,
+        mode: summary.mode ?? 'normal',
         result: summary.result,
         myTotal: summary.myTotal,
         rivalTotal: summary.rivalTotal,

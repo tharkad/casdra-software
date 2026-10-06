@@ -54,9 +54,9 @@ export function createController({ storage = null, onChange = () => {}, autoRiva
     }
 
     return {
-        newGame({ seed, startingPlayer, difficulty = DEFAULT_LEVEL } = {}) {
+        newGame({ seed, startingPlayer, difficulty = DEFAULT_LEVEL, mode = 'normal' } = {}) {
             level = difficulty;
-            state = createGame({ seed: seed ?? crypto.getRandomValues(new Uint32Array(1))[0], startingPlayer });
+            state = createGame({ seed: seed ?? crypto.getRandomValues(new Uint32Array(1))[0], startingPlayer, mode });
             recap = null;
             rivalFrom = null;
             extra = {};
@@ -81,7 +81,7 @@ export function createController({ storage = null, onChange = () => {}, autoRiva
             try {
                 const saved = JSON.parse(storage?.getItem(SAVE_KEY) ?? 'null');
                 return saved?.state && saved.state.turn.phase !== 'over'
-                    ? { turn: saved.state.turn.number, level: saved.level ?? DEFAULT_LEVEL } : null;
+                    ? { turn: saved.state.turn.number, level: saved.level ?? DEFAULT_LEVEL, mode: saved.state.rules?.mode ?? 'normal' } : null;
             } catch { return null; }
         },
         clearSave: () => { try { storage?.removeItem(SAVE_KEY); } catch { /* ignore */ } },
@@ -96,6 +96,7 @@ export function createController({ storage = null, onChange = () => {}, autoRiva
         extra: () => extra,
         setExtra(patch) { extra = { ...extra, ...patch }; persist(); },
         level: () => level,
+        mode: () => state?.rules?.mode ?? 'normal',
         state: () => state,
         legal: () => (state.turn.phase === 'over' ? [] : legalActions(state)),
         recap: () => recap,

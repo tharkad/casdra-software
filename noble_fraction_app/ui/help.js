@@ -2,7 +2,7 @@ import { h } from './dom.js';
 
 // A rules summary for the "?" button. Short on purpose: the rulebook is the authority.
 const SECTIONS = [
-    ['The goal', 'You run a cryogenic air-separation plant. Pull rare xenon (Xe) out of the air, deliver it to Contracts, and finish with the most VP. The game ends when someone has 5 installed Upgrades or 5 completed Contracts; the other player then gets one last turn.'],
+    ['The goal', 'You run a cryogenic air-separation plant. Pull rare xenon (Xe) out of the air, deliver it to Contracts, and finish with the most VP. The game ends when someone has 5 installed Upgrades or 5 completed Contracts (10 of either in the long Overtime game length); the other player then gets one last turn.'],
     ['A turn, in order', 'DISTILL → INTAKE or PURGE → BUY or BID → end of turn. A Night Shift turn changes this (see below).'],
     ['DISTILL', 'Distill removes ALL cards of one element from your hand and returns them to the supply, in priority N, then O, then Kr. Xe is never removed. Play Upgrades marked DISTILL in any order. Press "End distill" to finish: if your hand then holds nothing but Xe, all of it moves to cold storage, where it pays for your Contract. Heat Exchanger and Cryo Chiller pay out when you end DISTILL.'],
     ['INTAKE or PURGE', 'INTAKE: add one air packet (one each of N, O, Kr, Xe) to your discard pile and gain $2 (the Intake Fan brings two packets and $4). PURGE: choose the Contract line or the Upgrade line and replace every card that has no Bid Token on it.'],

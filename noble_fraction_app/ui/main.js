@@ -27,7 +27,7 @@ const store = (() => { try { return persistent ? localStorage : null; } catch { 
 const settings = persistent ? loadSettings() : {};
 
 const ui = { screen: 'game', pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, stats: false, statsTab: 'overview',
-    level: params.get('level') ?? settings.level ?? 'normal', gameAch: [], skip: false };
+    level: params.get('level') ?? settings.level ?? 'normal', mode: params.get('mode') ?? settings.mode ?? 'normal', gameAch: [], skip: false };
 let busy = false;
 let fxMode = params.get('fx') ?? settings.fx ?? (prefersReducedMotion() ? 'off' : 'normal');
 fx.setSpeed(fxMode);
@@ -99,18 +99,18 @@ function act(action) {
     runRival();
 }
 
-function newGame(level) {
-    Object.assign(ui, { screen: 'game', pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, stats: false, confirmNew: false, gameAch: [], level: level ?? ui.level });
-    if (persistent) saveSettings({ level: ui.level });
+function newGame(level, mode) {
+    Object.assign(ui, { screen: 'game', pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, stats: false, confirmNew: false, gameAch: [], level: level ?? ui.level, mode: mode ?? ui.mode });
+    if (persistent) saveSettings({ level: ui.level, mode: ui.mode });
     const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
-    controller.newGame({ seed, difficulty: level ?? params.get('level') ?? ui.level, startingPlayer: params.get('start') === 'rival' ? RIVAL : params.has('seed') ? HUMAN : undefined });
+    controller.newGame({ seed, mode: ui.mode, difficulty: level ?? params.get('level') ?? ui.level, startingPlayer: params.get('start') === 'rival' ? RIVAL : params.has('seed') ? HUMAN : undefined });
     track();
     runRival();
 }
 
 function continueGame() {
     if (!controller.load()) return newGame();
-    Object.assign(ui, { screen: 'game', pane: 'market', gameAch: [] });
+    Object.assign(ui, { screen: 'game', pane: 'market', gameAch: [], mode: controller.mode(), level: controller.level() });
     render();
     runRival();
 }

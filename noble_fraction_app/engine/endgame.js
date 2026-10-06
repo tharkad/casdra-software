@@ -1,11 +1,12 @@
 import { handle } from './registry.js';
 import { activePlayer, logEvent, other } from './helpers.js';
 
-// Game end (rulebook p.10-11): 5 installed Upgrades or 5 completed Contracts, checked when the
+// Game end (rulebook p.10-11): 5 installed Upgrades or 5 completed Contracts (10 in the long 'overtime' mode, s.rules.endCount), checked when the
 // player is ready to finish the turn. The trigger player takes the Xenon Privilege Token and
 // picks a side before End of Turn; every other player then gets exactly one final turn.
+export const endCount = s => s.rules?.endCount ?? 5;
 export const needsPrivilege = (s, p) =>
-    s.endgame.triggeredBy === null && (p.installed.length >= 5 || p.completed.length >= 5);
+    s.endgame.triggeredBy === null && (p.installed.length >= endCount(s) || p.completed.length >= endCount(s));
 
 export const privilegeActions = () => [
     { type: 'choosePrivilege', side: 'plus3' },
