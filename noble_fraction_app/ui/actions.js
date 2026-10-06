@@ -32,3 +32,10 @@ export function indexActions(legal, s = null) {
 
 
 export const actAttr = a => canon(a);
+
+// Actions that only differ by WHICH identical card they act on (discarding one of two Krypton) are one
+// choice to the player. Returns the group an action belongs to; every other action is its own group.
+export function actionGroup(a, s) {
+    if (a.discard === undefined) return actAttr(a);
+    return `${a.type}:${a.uid}:discard:${findCard(s, a.discard).card.defId}`;
+}

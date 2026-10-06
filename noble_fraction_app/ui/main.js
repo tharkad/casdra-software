@@ -1,6 +1,6 @@
 import { h, clear } from './dom.js';
 import { createController, HUMAN, RIVAL } from './controller.js';
-import { indexActions, cardUid, actAttr } from './actions.js';
+import { indexActions, cardUid, actAttr, actionGroup } from './actions.js';
 import { chooseAction } from '../bot/policy.js';
 import { hud } from './hud.js';
 import { consoleBar } from './console.js';
@@ -183,7 +183,7 @@ window.__xp = {
     isBusy: () => busy,
     botPlan() {
         const a = chooseAction(controller.state(), controller.legal());
-        return { act: actAttr(a), uid: cardUid(a) ?? null, type: a.type, uids: a.uids ?? null };
+        return { act: actAttr(a), uid: cardUid(a) ?? null, type: a.type, uids: a.uids ?? null, group: actionGroup(a, controller.state()) };
     },
 };
 

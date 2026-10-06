@@ -44,12 +44,12 @@ export function barLabel(a, s) {
 const nameByUid = (s, uid) => nameOf(findCard(s, uid).card.defId);
 
 // The button text for a card-bound action shown in that card's zoom sheet.
-export function cardLabel(a, s) {
+export function cardLabel(a, s, same = 1) {
     const p = s.players[s.turn.active];
     switch (a.type) {
     case 'play': case 'useInstalled': {
         const verb = a.type === 'play' ? 'Play' : 'Use';
-        if (a.discard) return `${verb} — discard ${nameByUid(s, a.discard)}`;
+        if (a.discard) return same > 1 ? `${verb} — discard one ${nameByUid(s, a.discard)} (you have ${same})` : `${verb} — discard ${nameByUid(s, a.discard)}`;
         if (a.install) return `${verb} — install ${nameByUid(s, a.install)} free`;
         if (a.choice) return `${verb} — ${a.choice === 'draw' ? 'draw the top card' : 'discard the top card'}`;
         if (CARD_DEFS[findCard(s, a.uid).card.defId].ability === 'lessXe') return `${verb} — finish your Contract with ${CARD_DEFS[p.contract.defId].xe - 1} Xe`;
