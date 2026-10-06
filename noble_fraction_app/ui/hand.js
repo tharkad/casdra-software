@@ -10,5 +10,5 @@ export function handStrip(ctx) {
             h('span', { 'data-count': 'draw' }, `Deck ${me.draw.length}`),
             h('span', { 'data-count': 'discard' }, `Discard ${me.discard.length}`),
             h('span', { class: 'tokcount' }, h('b', { class: 'tok tok-0' }, me.tokensLeft), 'tokens left')),
-        h('div', { class: `cards ${me.hand.length > 6 ? 'tight' : ''}`, 'data-hand': '' }, me.hand.map(c => cardEl(c, { act: idx.byUid.has(c.uid) }))));
+        h('div', { class: 'cards', 'data-hand': '' }, me.hand.map(c => cardEl(c, { act: idx.byUid.has(c.uid) }))));
 }

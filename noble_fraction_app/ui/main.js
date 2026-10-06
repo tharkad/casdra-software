@@ -167,6 +167,19 @@ function fitHint() {
 }
 window.addEventListener('resize', fitHint);
 
+// A hand that fits is laid out normally; one that is too wide for its strip overlaps by exactly the amount needed.
+function fitHand() {
+    const box = document.querySelector('#hand .cards');
+    if (!box) return;
+    box.style.removeProperty('--hand-overlap');
+    const cards = [...box.querySelectorAll('.card')];
+    if (cards.length < 2) return;
+    const natural = cards.at(-1).getBoundingClientRect().right - cards[0].getBoundingClientRect().left;
+    const room = box.clientWidth - parseFloat(getComputedStyle(box).paddingLeft) - parseFloat(getComputedStyle(box).paddingRight);
+    if (natural > room) box.style.setProperty('--hand-overlap', `${((natural - room) / (cards.length - 1)).toFixed(2)}px`);
+}
+window.addEventListener('resize', fitHand);
+
 function render() {
     const s = controller.state();
     clear(overlay);
@@ -185,6 +198,7 @@ function render() {
     const sheet = pickSheet(s);
     if (sheet) overlay.append(scrim(sheet));
     fitHint();
+    fitHand();
 }
 
 // belt and braces for browsers that ignore user-select (and the iOS magnifier / context menu)
