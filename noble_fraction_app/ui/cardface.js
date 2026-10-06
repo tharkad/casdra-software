@@ -64,6 +64,14 @@ function foot(d) {
     return h('div', { class: 'foot' }, d.phase ? h('span', { class: 'phase' }, glyphEl(`ph_${d.phase === 'wipe' ? 'purge' : d.phase === 'air' ? 'intake' : d.phase}`, 'glyph tiny'), h('em', {}, PHASES[d.phase])) : h('span'), install);
 }
 
+// The colour a card is drawn in (also the colour of its playable ring).
+export function cardHue(defId) {
+    const d = CARD_DEFS[defId];
+    if (d.kind === 'element') return ELEMENT_INFO[d.id].hue;
+    if (d.kind === 'pipeline') return ELEMENT_INFO[d.color].hue;
+    return d.kind === 'contract' ? SECTORS[d.sector].hue : KIND_HUE[d.kind];
+}
+
 export function cardFace(defId) {
     const d = CARD_DEFS[defId];
     if (d.kind === 'element') return elementFace(d);

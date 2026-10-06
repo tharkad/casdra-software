@@ -9,7 +9,7 @@
     /* Keep the top bar clear of the status bar / edge-swipe zone so its buttons can be tapped. */
     --pad-t: max(16px, var(--safe-t)); --hud-h: calc(46px + var(--pad-t));
     /* One card size everywhere: whatever lets 4+4 market cards fit across AND market + hand fit down. */
-    --cardh: min(calc((100cqh - 84px - var(--hud-h) - var(--pad-b)) / 2), calc((100cqw - var(--pad-l) - var(--pad-r) - 64px - 24px - 12px - 72px) / 8 / .644));
+    --cardh: min(calc((100cqh - 84px - var(--hud-h) - var(--pad-b)) / 2), calc((100cqw - var(--pad-l) - var(--pad-r) - 64px - 24px - 12px - 84px) / 8 / .644));
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
@@ -243,17 +243,20 @@ body[data-busy] #console .bar { opacity: .5; }
 .side .vp, .side .cash, .side b, .stat { line-height: 1; }
 .stat svg { display: block; flex: none; }
 
-/* ---- playable-card ring ---- */
-@property --flow { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+/* ---- playable-card ring: it grows and brightens, then throbs back ---- */
 .card.act::before {
-    content: ''; position: absolute; inset: -5.5px; border-radius: calc(7cqw + 5.5px); padding: 3px; pointer-events: none; z-index: 2;
-    background: conic-gradient(from var(--flow), hsl(172 85% 60%), hsl(200 90% 62%), hsl(228 90% 70%), hsl(262 90% 72%), hsl(350 88% 64%), hsl(32 95% 58%), hsl(140 72% 56%), hsl(172 85% 60%));
+    content: ''; position: absolute; inset: -5px; border-radius: calc(7cqw + 5px); padding: 3px; pointer-events: none; z-index: 2;
+    background: hsl(var(--ring-h, 172) 90% 62%);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
     mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-    filter: drop-shadow(0 0 5px rgba(255, 255, 255, .4));
-    animation: flow 2.4s linear infinite;
+    animation: throb 1.9s ease-in-out infinite;
 }
-@keyframes flow { to { --flow: 360deg; } }
+@keyframes throb {
+    0%   { inset: -5px;   padding: 3px;   background: hsl(var(--ring-h, 172) 90% 62%);  filter: drop-shadow(0 0 2px hsl(var(--ring-h, 172) 90% 62% / .4)); }
+    32%  { inset: -8px;   padding: 5px; background: hsl(var(--ring-h, 172) 100% 80%); filter: drop-shadow(0 0 9px hsl(var(--ring-h, 172) 100% 70% / .95)); }
+    46%  { inset: -6.5px; padding: 4px;   background: hsl(var(--ring-h, 172) 95% 70%);  filter: drop-shadow(0 0 5px hsl(var(--ring-h, 172) 95% 66% / .7)); }
+    58%  { inset: -7.5px; padding: 4.5px;  background: hsl(var(--ring-h, 172) 100% 76%); filter: drop-shadow(0 0 8px hsl(var(--ring-h, 172) 100% 70% / .85)); }
+    100% { inset: -5px;   padding: 3px;   background: hsl(var(--ring-h, 172) 90% 62%);  filter: drop-shadow(0 0 2px hsl(var(--ring-h, 172) 90% 62% / .4)); }
+}
 @media (prefers-reduced-motion: reduce) { .card.act::before { animation: none; } }
-
-.market .row { gap: 11px; }
+.market .row { gap: 13px; }
