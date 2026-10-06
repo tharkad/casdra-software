@@ -248,23 +248,16 @@ body[data-busy] #console .bar { opacity: .5; }
 .side .vp, .side .cash, .side b, .stat { line-height: 1; }
 .stat svg { display: block; flex: none; }
 
-/* ---- playable-card ring: the card's border grows outward, brightening, then throbs back ----
-   The ring's inner edge always sits exactly on the card edge (inset == padding), so there is no gap. */
-.card.act > .act-ring {
-    content: ''; position: absolute; inset: -3px; border-radius: calc(7cqw + 3px); padding: 3px; pointer-events: none; z-index: 2;
-    background: hsl(var(--ring-h, 172) 90% 62%);
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
-    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-    animation: throb 1.9s ease-in-out infinite;
+/* ---- playable cards: the card's own background colour swells brighter and settles back (borders untouched) ----
+   --lift (0..1) is a registered number so the gradient colours can be animated with it. */
+@property --lift { syntax: '<number>'; inherits: true; initial-value: 0; }
+.face {
+    background: radial-gradient(120% 70% at 50% 28%, hsl(var(--h) calc(55% + var(--lift) * 30%) calc(30% + var(--lift) * 22%)), hsl(var(--h) calc(55% + var(--lift) * 20%) calc(14% + var(--lift) * 14%)) 75%),
+        hsl(var(--h) 50% calc(12% + var(--lift) * 12%));
 }
-@keyframes throb {
-    0%   { inset: -3px;   padding: 3px;   border-radius: calc(7cqw + 3px);   background: hsl(var(--ring-h, 172) 90% 62%);  filter: drop-shadow(0 0 2px hsl(var(--ring-h, 172) 90% 62% / .4)); }
-    32%  { inset: -7px;   padding: 7px;   border-radius: calc(7cqw + 7px);   background: hsl(var(--ring-h, 172) 100% 80%); filter: drop-shadow(0 0 9px hsl(var(--ring-h, 172) 100% 70% / .95)); }
-    46%  { inset: -4.5px; padding: 4.5px; border-radius: calc(7cqw + 4.5px); background: hsl(var(--ring-h, 172) 95% 70%);  filter: drop-shadow(0 0 5px hsl(var(--ring-h, 172) 95% 66% / .7)); }
-    58%  { inset: -6px;   padding: 6px;   border-radius: calc(7cqw + 6px);   background: hsl(var(--ring-h, 172) 100% 76%); filter: drop-shadow(0 0 8px hsl(var(--ring-h, 172) 100% 70% / .85)); }
-    100% { inset: -3px;   padding: 3px;   border-radius: calc(7cqw + 3px);   background: hsl(var(--ring-h, 172) 90% 62%);  filter: drop-shadow(0 0 2px hsl(var(--ring-h, 172) 90% 62% / .4)); }
-}
-@media (prefers-reduced-motion: reduce) { .card.act > .act-ring { animation: none; } }
+.card.act .face { animation: lift 1.8s ease-in-out infinite; }
+@keyframes lift { 0%, 100% { --lift: 0; } 45% { --lift: 1; } }
+@media (prefers-reduced-motion: reduce) { .card.act .face { animation: none; --lift: .55; } }
 .market .row { gap: 13px; }
 
 .mode-pick { margin-bottom: -2px; } .mode-pick .level small { font-size: 10px; }
