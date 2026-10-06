@@ -12,6 +12,9 @@ export function cardEl(card, { classes = '', act = false } = {}) {
     return h('button', { class: `card ${act ? 'act' : ''} ${classes}`, 'data-uid': card.uid, 'data-def': card.defId,
         'data-zoom': card.uid, 'aria-label': d.name, style: `--ring-h:${cardHue(card.defId)}` },
     cardFace(card.defId),
+    // The playable ring is a real child element (not ::before): card-relative units (cqw) in a pseudo-element
+    // resolve against the wrong container on iPhone, which blew the ring up into a capsule.
+    act ? h('i', { class: 'act-ring', 'aria-hidden': 'true' }) : null,
     pips.length ? h('span', { class: 'tokens' }, pips) : null);
 }
 

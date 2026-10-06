@@ -39,6 +39,20 @@ export const ACHIEVEMENTS = [
     A('bidding_frenzy', 'Bidding Frenzy', 'Place 5 or more Bids in a single turn.', 'plant', 'sampling_port', 'live', ({ game }) => game.maxBidsInOneTurn >= 5),
     A('fully_upgraded', 'Fully Upgraded', 'Install 5 Upgrades in one game.', 'plant', 'ph_any', 'live', ({ game }) => game.upgradesInstalled >= 5),
     A('clean_sweep', 'Clean Sweep', 'Purge a line 3 times in one game.', 'plant', 'ph_purge', 'live', ({ game }) => game.purges >= 3),
+
+    // ---- added later: the long game, Packed Tower, variety and career totals ----
+    A('long_haul', 'The Long Haul', 'Finish an Overtime game.', 'play', 'ph_end', 'final', ({ game }) => game.over && game.mode === 'overtime'),
+    A('marathon_winner', 'Marathon Winner', 'Beat the Rival in an Overtime game.', 'skill', 'ion_engine', 'final', ({ game }) => win(game) && game.mode === 'overtime'),
+    A('sprint', 'Sprint Finish', 'Win a game in 14 of your own turns or fewer.', 'skill', 'orbital_thruster', 'final', ({ game }) => win(game) && game.turns <= 14),
+    A('diversified', 'Diversified Portfolio', 'Complete a Contract in every sector (Health, Showbiz, Aerospace) in one game.', 'plant', 'sec_showbiz', 'live', ({ game }) => Object.values(game.contractsBySector).every(n => n >= 1)),
+    A('tower_time', 'Tower Time', 'Finish a Contract with Packed Tower.', 'plant', 'desiccant_bed', 'live', ({ game }) => game.towerUses >= 1),
+    A('xe_saver', 'Xe Saver', 'Use Packed Tower three times in one game.', 'plant', 'isotope_gas', 'live', ({ game }) => game.towerUses >= 3),
+    A('cash_reserves', 'Cash Reserves', 'Hold $25 or more at once.', 'plant', 'stage_spotlight', 'live', ({ game }) => game.money >= 25),
+    A('tenfold', 'Tenfold', 'Install 10 Upgrades in one game.', 'plant', 'uv_sterilizer', 'live', ({ game }) => game.upgradesInstalled >= 10),
+    A('night_veteran', 'Night Shift Regular', 'Take 10 Night Shifts across all your games.', 'play', 'sun_simulator', 'final', ({ lifetime }) => lifetime.nightShifts >= 10),
+    A('bid_tycoon', 'Bid Tycoon', 'Place 50 Bids across all your games.', 'play', 'cinema_projector', 'final', ({ lifetime }) => lifetime.bids >= 50),
+    A('contractor', 'Master Contractor', 'Complete 25 Contracts across all your games.', 'play', 'anesthesia_unit', 'final', ({ lifetime }) => lifetime.contractsCompleted >= 25),
+    A('xenon_baron', 'Xenon Baron', 'Isolate 100 Xe across all your games.', 'play', 'element_ring', 'final', ({ lifetime }) => lifetime.xeIsolated >= 100),
 ];
 
 const BY_ID = new Map(ACHIEVEMENTS.map(a => [a.id, a]));

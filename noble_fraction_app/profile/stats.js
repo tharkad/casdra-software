@@ -51,7 +51,7 @@ export function summarizeGame({ state, level, pid = 0, maxDeficit = 0, startedAt
     const g = {
         nightShifts: 0, distills: 0, xeIsolated: 0, contractsCompleted: 0, completedVp: 0, biggestContractVp: 0,
         contractsBySector: zeroSectors(), xeDelivered: 0, upgradesInstalled: 0, installedByCard: {},
-        bids: 0, buys: 0, intakes: 0, purges: 0, heatWaveMax: 0, boughtAndCompletedSameTurn: false,
+        bids: 0, buys: 0, intakes: 0, purges: 0, heatWaveMax: 0, boughtAndCompletedSameTurn: false, towerUses: 0,
     };
 
     for (const e of log) {
@@ -88,6 +88,7 @@ export function summarizeGame({ state, level, pid = 0, maxDeficit = 0, startedAt
         case 'contractCompleted': {
             const d = CARD_DEFS[e.contract];
             g.contractsCompleted += 1;
+            if (e.discounted) g.towerUses += 1;                       // finished with Packed Tower's help
             g.completedVp += d?.vp ?? 0;
             g.xeDelivered += d?.xe ?? 0;
             g.biggestContractVp = Math.max(g.biggestContractVp, d?.vp ?? 0);
@@ -133,6 +134,7 @@ export function summarizeGame({ state, level, pid = 0, maxDeficit = 0, startedAt
         mains: me.pipelines.length,
         maxDeficit,
         heatWaveMax: g.heatWaveMax,
+        towerUses: g.towerUses,
         boughtAndCompletedSameTurn: g.boughtAndCompletedSameTurn,
         allTokensOut: me.tokensLeft === 0,
     };
