@@ -72,6 +72,26 @@ export function cardHue(defId) {
     return d.kind === 'contract' ? SECTORS[d.sector].hue : KIND_HUE[d.kind];
 }
 
+// The largest name size (in card-width units) at which the name wraps into at most two lines inside the room
+// the corner badge leaves it. Measured with a deliberately wide average letter so no name can be clipped.
+const NAME_ROOM = { contract: 68, upgrade: 52, starter: 64, pipeline: 64 };
+const CHAR_EM = 0.56;
+export function nameSize(name, kind) {
+    const room = NAME_ROOM[kind] ?? 64;
+    for (let fs = 10; fs >= 5.5; fs -= 0.25) {
+        const perLine = Math.floor(room / (fs * CHAR_EM));
+        let lines = 1; let used = 0;
+        for (const word of name.split(' ')) {
+            if (word.length > perLine) { lines = 99; break; }
+            if (used === 0) used = word.length;
+            else if (used + 1 + word.length <= perLine) used += 1 + word.length;
+            else { lines += 1; used = word.length; }
+        }
+        if (lines <= 2) return fs;
+    }
+    return 5.5;
+}
+
 export function cardFace(defId) {
     const d = CARD_DEFS[defId];
     if (d.kind === 'element') return elementFace(d);
@@ -81,7 +101,7 @@ export function cardFace(defId) {
             : circle('cost', d.kind === 'starter' ? d.installCost ?? d.installDiff : d.buy);
     const tint = d.kind === 'pipeline' ? ` el-${d.color}` : '';
     return h('div', { class: `face kind-${d.kind}${tint}`, style: `--h:${d.kind === 'pipeline' ? ELEMENT_INFO[d.color].hue : hue}` },
-        h('div', { class: 'top' }, corner, h('span', { class: 'name' }, d.name)),
+        h('div', { class: 'top' }, corner, h('span', { class: 'name', style: `--name-fs:${nameSize(d.name, d.kind)}cqw` }, d.name)),
         h('div', { class: 'art' }, glyphEl(d.glyph)),
         d.text ? h('p', { class: 'rules' }, d.text) : null,
         foot(d));
