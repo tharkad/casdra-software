@@ -42,7 +42,9 @@ provide(s => {
     const { step } = s.turn.f;
     const { bidOk, buyOk } = allowance(s, p);
     const acts = [...(bidOk ? bidOptions(s, p) : []), ...(buyOk ? buyOptions(s, p) : [])];
-    if (step.bids + step.buys > 0 || acts.length === 0) acts.push({ type: 'endStep' });
+    // A step can always be ended: with nothing worth doing (all five Bid Tokens out, nothing affordable) the player
+    // must be able to pass rather than be forced to move a token or buy something they do not want.
+    acts.push({ type: 'endStep' });
     return acts;
 });
 

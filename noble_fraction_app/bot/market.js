@@ -49,7 +49,9 @@ export function chooseBuyBid(s, actions, w) {
     const plays = actions.filter(a => a.type === 'play' && ['floor_broker', 'multiBid', 'procurement_agent'].includes(CARD_DEFS[me(s).hand.find(c => c.uid === a.uid)?.defId]?.ability));
     if (plays.length && (bestBuy?.v ?? -9) > -1) return plays[0];
     const bids = actions.filter(a => a.type === 'bid' || a.type === 'bidMove').map(a => ({ a, v: bidScore(s, a, w) })).sort((x, y) => y.v - x.v);
-    const end = actions.find(a => a.type === 'endStep');
+    // Passing is always legal for a human now; the tuned bots keep their old habit of acting if they can in a step.
+    const { step } = s.turn.f;
+    const end = step.bids + step.buys > 0 || !bids.length ? actions.find(a => a.type === 'endStep') : null;
     if (bids[0] && (bids[0].v > 0.5 || !end)) return bids[0].a;
     return end ?? bids[0]?.a ?? actions[0];
 }

@@ -32,7 +32,11 @@ export function barLabel(a, s) {
     }
     case 'air': return a.feed ? 'Intake ×2 (Fan) +$4' : 'Intake +$2';
     case 'wipe': return `PURGE ${a.line === 'contract' ? 'contracts' : 'upgrades'}${a.ppe ? ' (Shift Engineer)' : ''}`;
-    case 'endStep': return s.turn.phase === 'overtimeBid' && s.turn.f.stepsLeft > 1 ? 'Next bid step' : 'End step';
+    case 'endStep': {
+        const passed = !s.turn.f.step || s.turn.f.step.bids + s.turn.f.step.buys === 0;     // nothing done yet this step
+        const more = s.turn.phase === 'overtimeBid' && s.turn.f.stepsLeft > 1;
+        return passed ? (more ? 'Pass this bid step' : 'Pass') : (more ? 'Next bid step' : 'End step');
+    }
     case 'finishTurn': return 'Finish turn';
     case 'completeContract': return `Complete Contract (${CARD_DEFS[p.contract.defId].xe} Xe)`;
     case 'play': case 'useInstalled': return `Use Packed Tower: finish with ${CARD_DEFS[p.contract.defId].xe - 1} Xe`;
