@@ -188,6 +188,16 @@ export function play({ before, next, events, actor }) {
         if (inHand) animate(el, [{ filter: 'brightness(1.9)' }, { filter: 'none' }], { duration: ms(1400), delay: ms(110 * order), fill: 'none' });
         order += 1;
     });
+    // Cards that stayed but now sit somewhere else (the hand closing up after a discard, a market line shifting)
+    // slide from where they were to where they are, instead of snapping there while other animations still run.
+    document.querySelectorAll('#app .card[data-uid]').forEach(el => {
+        const was = before.cards.get(Number(el.dataset.uid));
+        if (!was) return;
+        const r = el.getBoundingClientRect();
+        const dx = was.rect.left - r.left; const dy = was.rect.top - r.top;
+        if (Math.abs(dx) < 1.5 && Math.abs(dy) < 1.5) return;
+        animate(el, [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: ms(520), easing: 'cubic-bezier(.25,.8,.3,1)' });
+    });
     const present = new Set([...document.querySelectorAll('#app .card[data-uid]')].map(el => Number(el.dataset.uid)));
     before.cards.forEach((info, uid) => {
         if (present.has(uid)) return;
