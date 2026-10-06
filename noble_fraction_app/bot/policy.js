@@ -1,4 +1,4 @@
-import { DISTILL_PRIORITY } from '../data/cards.js';
+import { DISTILL_PRIORITY, CARD_DEFS } from '../data/cards.js';
 import { score } from '../engine/index.js';
 import { DEFAULT_WEIGHTS } from './weights.js';
 import { me, foe } from './eval.js';
@@ -38,8 +38,18 @@ function chooseCleanup(s, actions, w) {
     return actions.find(a => a.type === 'finishTurn');
 }
 
+// Packed Tower is a button here, like every other card: whenever it can finish the Contract it saves an Xe,
+// so the bot always presses it. (Finishing at full price, `completeContract`, is never better.)
+function towerUse(state, actions) {
+    const p = me(state);
+    return actions.find(a => (a.type === 'play' || a.type === 'useInstalled')
+        && CARD_DEFS[[...p.hand, ...p.installed].find(c => c.uid === a.uid)?.defId]?.ability === 'lessXe');
+}
+
 export function chooseAction(state, actions, w = DEFAULT_WEIGHTS) {
     if (actions.length === 1) return actions[0];
+    const tower = towerUse(state, actions);
+    if (tower) return tower;
     switch (state.turn.phase) {
         case 'start': return chooseStart(state, actions, w);
         case 'distill': return chooseDistill(state, actions, w);

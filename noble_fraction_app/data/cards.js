@@ -49,7 +49,7 @@ const DEFS = [
     upgrade('floor_broker', 'Floor Broker', 2, 5, 2, 'bid', 'floor_broker', 'You may Bid and Buy in the same step.'),
     upgrade('cold_turbine', 'Cold Turbine', 2, 5, 2, 'any', 'addKrXe', 'Add one Kr and one Xe to your discard pile.'),
     upgrade('gas_reclaimer', 'Gas Reclaimer', 2, null, 1, 'any', 'addXe', 'Add one Xe to your discard pile.'),
-    upgrade('packed_tower', 'Packed Tower', 4, 5, 2, 'passive', 'lessXe', 'Finish a Contract with one less Xe (never below 1).'),
+    upgrade('packed_tower', 'Packed Tower', 4, 5, 2, 'any', 'lessXe', 'Use it once a turn (or play it from your hand) to finish your Contract with one less Xe (never below 1).'),
     upgrade('sampling_port', 'Sampling Port', 0, 5, 2, 'distill', 'peekDeck', 'Look at the top card of your deck, then draw it or discard it.'),
     upgrade('desiccant_bed', 'Desiccant Bed', 3, 4, 2, 'distill', 'distillAll:O', 'Remove every O from your hand.'),
     upgrade('spotless_audit', 'Spotless Audit', 3, 5, 1, 'end', 'endBonus', 'While installed: +3 VP at game end.'),

@@ -21,7 +21,7 @@ export function consoleBar(ctx) {
             ctx.busy ? h('button', { class: 'btn', 'data-skip': '', onclick: () => ctx.skip() }, 'Skip ▸▸') : null);
     }
     const steps = stepTrack(s).map(t => h('span', { class: `step ${t.on ? 'on' : ''}`, 'data-step': t.key }, t.label));
-    const buttons = idx.bar.map(a => h('button', { class: `btn ${a.type === 'finishTurn' ? 'primary' : ''}`,
+    const buttons = idx.bar.map(a => h('button', { class: `btn ${a.type === 'finishTurn' || a.type === 'play' || a.type === 'useInstalled' ? 'primary' : ''}`,
         'data-act': actAttr(a), onclick: () => ctx.act(a) }, barLabel(a, s)));
     return h('nav', { id: 'console' }, h('div', { class: 'track' }, steps), h('div', { class: 'bar' }, buttons));
 }

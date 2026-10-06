@@ -1,14 +1,15 @@
 import { h } from './dom.js';
 import { cardEl, xePips } from './card.js';
 import { CARD_DEFS } from '../data/cards.js';
-import { xeNeeded } from '../engine/contracts.js';
+import { xeNeeded, towerOffer } from '../engine/contracts.js';
 
 // Says why the Xe needed is what it is when a Packed Tower is involved (its discount is once per turn).
 function towerNote(s, p) {
     if (!p.contract || !p.installed.some(c => c.defId === 'packed_tower') || s.turn.phase === 'over') return null;
-    if (s.turn.active === p.id && s.turn.f.spcUsed) return h('small', { class: 'xe-note' }, 'Packed Tower already used this turn');
-    if (xeNeeded(s, p)?.discounted) return h('small', { class: 'xe-note' }, 'incl. Packed Tower −1');
-    return null;
+    const offer = towerOffer(s, p);
+    if (offer) return h('small', { class: 'xe-note', 'data-tower-note': '' }, `Packed Tower can finish this with ${offer.cost} Xe`);
+    const spent = s.turn.active === p.id && p.installed.some(c => c.defId === 'packed_tower' && s.turn.f.usedInstalled?.[c.uid]);
+    return spent ? h('small', { class: 'xe-note' }, 'Packed Tower already used this turn') : null;
 }
 
 // A player's board: installed Upgrades, the open Contract and its stored Xe, Mains, completed

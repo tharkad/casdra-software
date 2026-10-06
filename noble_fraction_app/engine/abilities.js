@@ -13,22 +13,25 @@ const PLAY_PHASES = {
     distill: ['distill', 'any'], airwipe: ['any'], buybid: ['any', 'bid', 'buy'], overtimeBid: ['any', 'bid'],
 };
 
-const inPhase = (s, d) => (PLAY_PHASES[s.turn.phase] ?? []).includes(d.phase);
+// An ability may list its own `phases`; otherwise the card's printed phase icon decides.
+const inPhase = (s, d, ability) => (ability.phases
+    ? ability.phases.includes(s.turn.phase)
+    : (PLAY_PHASES[s.turn.phase] ?? []).includes(d.phase));
 
 provide(s => {
-    if (!PLAY_PHASES[s.turn.phase]) return [];
+    if (s.turn.phase === 'start' || s.turn.phase === 'over') return [];
     const p = activePlayer(s);
     const acts = [];
     for (const card of p.hand) {
         const d = def(card);
         const ability = ABILITIES[d.ability];
-        if (!ability || ability.handUse === false || !inPhase(s, d) || d.kind === 'element') continue;
+        if (!ability || ability.handUse === false || !inPhase(s, d, ability) || d.kind === 'element') continue;
         ability.params(s, p, card, true).forEach(params => acts.push({ type: 'play', uid: card.uid, ...params }));
     }
     for (const card of p.installed) {
         const d = def(card);
         const ability = ABILITIES[d.ability];
-        if (!ability || !ability.installedUse || s.turn.f.usedInstalled[card.uid] || !inPhase(s, d)) continue;
+        if (!ability || !ability.installedUse || s.turn.f.usedInstalled[card.uid] || !inPhase(s, d, ability)) continue;
         ability.params(s, p, card, false).forEach(params => acts.push({ type: 'useInstalled', uid: card.uid, ...params }));
     }
     return acts;

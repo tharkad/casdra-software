@@ -158,7 +158,7 @@ function render() {
     }
     const rivalTurn = s.turn.phase !== 'over' && s.turn.active === RIVAL;
     Object.assign(ctx, { s, fxMode, busy, rivalTurn, legal: rivalTurn ? [] : controller.legal() });
-    ctx.idx = indexActions(ctx.legal);
+    ctx.idx = indexActions(ctx.legal, s);
     const tabs = h('nav', { id: 'tabs' }, PANES.map(([key, label]) => h('button', {
         class: `tab ${ui.pane === key ? 'on' : ''}`, 'data-pane': key, onclick: () => ctx.setUi({ pane: key }) }, label)));
     clear(app).append(hud(ctx), consoleBar(ctx), h('main', { id: 'main' }, tabs, paneBody()), handStrip(ctx));

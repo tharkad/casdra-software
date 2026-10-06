@@ -31,6 +31,8 @@ export function barLabel(a, s) {
     case 'wipe': return `PURGE ${a.line === 'contract' ? 'contracts' : 'upgrades'}${a.ppe ? ' (Shift Engineer)' : ''}`;
     case 'endStep': return s.turn.phase === 'overtimeBid' && s.turn.f.stepsLeft > 1 ? 'Next bid step' : 'End step';
     case 'finishTurn': return 'Finish turn';
+    case 'completeContract': return `Complete Contract (${CARD_DEFS[p.contract.defId].xe} Xe)`;
+    case 'play': case 'useInstalled': return `Use Packed Tower: finish with ${CARD_DEFS[p.contract.defId].xe - 1} Xe`;
     case 'choosePrivilege': return a.side === 'plus3' ? 'Take +3 VP and end game' : 'Final turn for both';
     default: return a.type;
     }
@@ -47,6 +49,7 @@ export function cardLabel(a, s) {
         if (a.discard) return `${verb} — discard ${nameByUid(s, a.discard)}`;
         if (a.install) return `${verb} — install ${nameByUid(s, a.install)} free`;
         if (a.choice) return `${verb} — ${a.choice === 'draw' ? 'draw the top card' : 'discard the top card'}`;
+        if (CARD_DEFS[findCard(s, a.uid).card.defId].ability === 'lessXe') return `${verb} — finish your Contract with ${CARD_DEFS[p.contract.defId].xe - 1} Xe`;
         return verb;
     }
     case 'install': return `Install ($${CARD_DEFS[findCard(s, a.uid).card.defId].installDiff})`;

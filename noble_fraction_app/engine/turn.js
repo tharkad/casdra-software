@@ -1,5 +1,6 @@
 import { handle, provide } from './registry.js';
 import { activePlayer, logEvent } from './helpers.js';
+import { completeIfAble } from './contracts.js';
 
 export function freshTurnFlags(overtime) {
     return {
@@ -8,7 +9,6 @@ export function freshTurnFlags(overtime) {
         armedCash: 0, armedBidTokens: 0,      // hand-played copies armed for this phase
         usedInstalled: {},                  // uid -> true once an installed once-per-turn ability fired
         freeBids: 0,                        // Cryo Chiller tokens still to place
-        spcUsed: false,
         wipedOrAired: false,
         buys: 0, maxBuys: 1, bidActions: 0, bidSteps: 0, tokensLeft: 0, agent: false,
     };
@@ -40,6 +40,8 @@ export function advanceTurn(s) {
         s.turn.phase = 'start';
     } else if (s.endgame.turnsLeft.length === 0) {
         s.turn.phase = 'over';
+        // A Contract still waiting for its Packed Tower decision is finished at full price: nothing is left to decide.
+        s.players.forEach(p => completeIfAble(s, p, { force: true }));
     } else {
         s.turn.active = s.endgame.turnsLeft.shift();
         s.turn.phase = 'start';
