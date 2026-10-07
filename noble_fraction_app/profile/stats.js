@@ -5,8 +5,8 @@ import { score, winner } from '../engine/score.js';
 // callers pass timestamps in and persist the results themselves.
 
 const SECTORS = ['health', 'showbiz', 'aerospace'];
-const LEVELS = ['easy', 'normal', 'hard'];
-const LEVEL_LABELS = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
+const LEVELS = ['easy', 'normal', 'hard', 'expert'];
+const LEVEL_LABELS = { easy: 'Easy', normal: 'Normal', hard: 'Hard', expert: 'Expert' };
 
 // Who an event belongs to: events that name a player (`pid`) are cross-checked against `by`
 // (the active player when the engine logged it); `pid` wins when both exist.

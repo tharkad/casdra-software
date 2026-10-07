@@ -13,7 +13,7 @@ export function ppePicker(ctx) {
     const toggle = uid => ctx.setUi({ ppeSel: chosen.includes(uid) ? chosen.filter(u => u !== uid) : [...chosen, uid].slice(-need) });
     return h('div', { class: 'sheet ppe', 'data-sheet': 'purgeDraw' },
         h('h2', {}, `Keep ${need} for the ${line} line (${chosen.length}/${need})`),
-        h('div', { class: 'row' }, drawn.map(c => h('div', { class: `pick ${chosen.includes(c.uid) ? 'on' : ''}`, 'data-pick': c.uid, onclick: () => toggle(c.uid) },
+        h('div', { class: 'row' }, drawn.map(c => h('div', { class: `pick ${chosen.includes(c.uid) ? 'on' : ''}`, 'data-pick': c.uid, 'data-focusable': '', role: 'button', onclick: () => toggle(c.uid) },
             cardEl(c, { classes: 'nozoom' })))),
         h('button', { class: 'btn primary', disabled: match ? false : true, 'data-act': match ? actAttr(match) : null,
             onclick: () => match && ctx.act(match) }, 'Confirm'));

@@ -7,10 +7,13 @@
        bar paints edge to edge behind them. */
     --pad-l: max(8px, calc(var(--safe-l) * .6)); --pad-r: max(8px, calc(var(--safe-r) * .6)); --pad-b: calc(var(--safe-b) * .5);
     /* Keep the top bar clear of the status bar / edge-swipe zone so its buttons can be tapped. */
-    --pad-t: max(16px, var(--safe-t)); --hud-h: calc(46px + var(--pad-t));
+    --ui: 1;                                  /* chrome (HUD, turn bar, tabs, sheets) scale: 1 on phones, bigger on handhelds / desktops */
+    --pad-t: max(16px, var(--safe-t)); --hud-h: calc((46px + var(--pad-t)) * var(--ui)); --bar-h: calc(44px * var(--ui)); --tabs-w: calc(64px * var(--ui));
     /* One card size everywhere: whatever lets 4+4 market cards fit across AND market + hand fit down. */
-    --cardh: min(calc((100cqh - 84px - var(--hud-h) - var(--pad-b)) / 2), calc((100cqw - var(--pad-l) - var(--pad-r) - 64px - 24px - 12px - 84px) / 8 / .644));
+    --cardh: min(calc((100cqh - var(--bar-h) - 40px - var(--hud-h) - var(--pad-b)) / 2), calc((100cqw - var(--pad-l) - var(--pad-r) - var(--tabs-w) - 24px - 12px - 84px) / 8 / .644));
 }
+@media (min-width: 1000px) and (min-height: 640px) { :root { --ui: 1.3; } }
+@media (min-width: 1700px) and (min-height: 950px) { :root { --ui: 1.6; } }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 /* A game, not a document: nothing is selectable, there is no long-press callout, and no tap flash. */
 * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -21,7 +24,7 @@ button { font: inherit; color: inherit; }
 
 /* body is the size container: fixed to the visible viewport, so it is right with or without browser chrome. */
 body { position: fixed; inset: 0; container-type: size; }
-#app { display: grid; grid-template-rows: var(--hud-h) 44px minmax(0, 1fr) calc(var(--cardh) + 10px + var(--pad-b)); height: 100cqh; }
+#app { display: grid; grid-template-rows: var(--hud-h) var(--bar-h) minmax(0, 1fr) calc(var(--cardh) + 10px + var(--pad-b)); height: 100cqh; }
 #rotate { display: none; position: fixed; inset: 0; z-index: 99; background: var(--bg); align-items: center; justify-content: center;
     text-align: center; font-size: 18px; }
 .rotate-icon { font-size: 56px; color: var(--teal); }
@@ -48,11 +51,13 @@ body { position: fixed; inset: 0; container-type: size; }
 .bar { display: flex; gap: 6px; overflow-x: auto; flex: 1; min-width: 0; padding: 2px 0; scrollbar-width: none; }
 
 /* Main pane */
-#main { display: grid; grid-template-columns: calc(64px + var(--pad-l)) minmax(0, 1fr); min-height: 0; padding-right: var(--pad-r); }
+#main { display: grid; grid-template-columns: calc(var(--tabs-w) + var(--pad-l)) minmax(0, 1fr); min-height: 0; padding-right: var(--pad-r); }
 #tabs { display: flex; flex-direction: column; gap: 4px; padding: 4px 4px 4px var(--pad-l); background: #0e1428; }
 .tab { flex: 1; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; font-size: 10.5px; line-height: 1.15; padding: 0 2px; }
 .tab.on { background: var(--violet); border-color: var(--violet); color: #fff; }
-.pane { display: flex; gap: 12px; padding: 4px 8px; overflow: auto hidden; min-height: 0; align-items: stretch; }
+.pane { display: flex; gap: 12px; padding: 4px 8px; overflow: auto hidden; min-height: 0; align-items: stretch; scrollbar-width: none; }
+.pane::-webkit-scrollbar { display: none; }
+.pane .card { scroll-margin-inline: 56px; }
 .pane.market { overflow: visible; padding: 4px 12px; }
 .pane h3 { margin: 0 0 2px; font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 .line, .group { display: flex; flex-direction: column; min-height: 0; flex: none; }
@@ -92,7 +97,7 @@ body { position: fixed; inset: 0; container-type: size; }
 .sheet { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; max-height: 100%; max-width: 100%; overflow: auto; }
 .sheet h2 { margin: 0 0 6px; font-size: 17px; }
 /* the sheet is as tall as the screen allows but never taller than 620px, so on a big monitor the card stays card-sized and the text column keeps its room */
-.zoom { display: flex; gap: 16px; align-self: center; height: min(calc(100cqh - 16px), 620px); width: auto; max-width: 100%; }
+.zoom { display: flex; gap: 16px; align-self: center; height: min(calc((100cqh - 16px) / var(--ui)), 430px); width: auto; max-width: 100%; }   /* the sheet is zoomed by --ui, so its cap is in pre-zoom px */
 .zoom .card.big { height: 100%; width: auto; aspect-ratio: .644; flex: none; cursor: default; border: 0; padding: 0; }
 .zoom .info { display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow: auto; flex: 0 1 380px; width: 380px; }
 .zoom .info h2 { overflow-wrap: anywhere; }
@@ -133,7 +138,8 @@ body { position: fixed; inset: 0; container-type: size; }
 .name { font-size: var(--name-fs, 10cqw); line-height: 1.05; font-weight: 800; letter-spacing: -.01em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .badge { flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 900; }
 .badge.cost { width: 24cqw; height: 24cqw; font-size: 16cqw; background: hsl(var(--h) 85% 66%); color: hsl(var(--h) 60% 12%); border: .9cqw solid #fff; }
-.badge.cost::before { content: '$'; font-size: 8cqw; margin-right: .2cqw; }
+.badge.cost { position: relative; }
+.badge.cost::before { content: '$'; position: absolute; left: 15%; top: 14%; font-size: 8cqw; line-height: 1; margin: 0; }   /* the digit alone is centred; the $ is a small superscript */
 .badge.install { width: 22cqw; height: 22cqw; font-size: 15cqw; background: transparent; color: hsl(var(--h) 40% 94%); border: 1cqw solid hsl(var(--h) 60% 70%); }
 .glyph.corner { width: 20cqw; height: 20cqw; flex: none; }
 .art { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 1cqw 6cqw; }
@@ -167,7 +173,7 @@ body { position: fixed; inset: 0; container-type: size; }
 .ptable .lit { fill: #fff; stroke: hsl(var(--h) 100% 60%); stroke-width: 1.6; filter: drop-shadow(0 0 3px hsl(var(--h) 100% 75%)); }
 .el-Xe .kind-pipeline .glyph { color: hsl(var(--h) 50% 90%); }
 
-.costs { position: relative; display: inline-flex; flex: none; width: 36cqw; height: 29cqw; }
+.costs { position: relative; display: inline-flex; flex: none; width: 40cqw; height: 29cqw; margin-right: 1cqw; }
 .costs .badge.cost { position: absolute; left: 0; top: 0; }
 .costs .later { position: absolute; right: -.5cqw; bottom: -1cqw; width: 18cqw; height: 18cqw; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
     font-size: 11.5cqw; font-weight: 900; background: hsl(var(--h) 60% 14%); color: #fff; border: .9cqw solid hsl(var(--h) 85% 72%); }
@@ -218,6 +224,8 @@ body[data-busy] #console .bar { opacity: .5; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; margin-bottom: 8px; }
 .tile { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; display: flex; flex-direction: column; gap: 1px; }
 .tile b { font-size: 18px; color: var(--teal); } .tile span { font-size: 10.5px; color: var(--dim); }
+.history-tools { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 6px; flex-wrap: wrap; }
+.btn.small { padding: 2px 10px; font-size: 12px; }
 .level-table { border-collapse: collapse; width: 100%; font-size: 13px; } .level-table th, .level-table td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--line); }
 .res-win td:first-child { color: #86efac; } .res-loss td:first-child { color: #fca5a5; }
 .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; }
@@ -278,3 +286,44 @@ body[data-busy] #console .bar { opacity: .5; }
 
 .head-btns { display: inline-flex; gap: 8px; }
 
+
+/* ---- controller / keyboard focus: one always-visible ring drawn INSIDE the control (so scrolling strips never clip it),
+   shown only while a pad or the keyboard is in use ---- */
+body[data-input=pad] .nf-focus { outline: 4px solid #fbbf24; outline-offset: -4px; box-shadow: inset 0 0 0 7px rgba(255, 255, 255, .92); z-index: 6; }
+body[data-input=pad] .card.nf-focus { box-shadow: none; outline: none; }
+body[data-input=pad] .card.nf-focus > .face { box-shadow: inset 0 0 0 1.6cqw #fbbf24, inset 0 0 0 3.4cqw #fff; }
+.pick.nf-focus { outline: 4px solid #fbbf24; outline-offset: -4px; }
+
+/* ---- handheld / desktop scale: the chrome grows with --ui (cards already scale with the container) ---- */
+#hud, #console { zoom: var(--ui); }
+#hud { padding-top: var(--pad-t); }
+.tab { font-size: calc(10.5px * var(--ui)); }
+.pane h3 { font-size: calc(10px * var(--ui)); }
+.piles { font-size: calc(11px * var(--ui)); width: calc(74px * var(--ui)); }
+.sheet { zoom: var(--ui); }
+#console { height: auto; }
+@media (min-width: 1000px) and (min-height: 640px) { .pane.market { align-content: center; } #main { align-items: stretch; } .pane { padding-top: 10px; } }
+
+/* ---- on-screen button hints (controller / keyboard mode only, and only where there is room above the hand) ---- */
+#hints { display: none; position: fixed; z-index: 40; left: calc(var(--tabs-w) + var(--pad-l) + 16px); right: var(--pad-r); bottom: calc(var(--cardh) + 10px + var(--pad-b) + 14px);
+    gap: 8px 18px; flex-wrap: wrap; align-items: center; padding: 8px 14px; background: rgba(8, 12, 28, .88); border: 1px solid var(--line); border-radius: 12px; font-size: calc(13px * var(--ui)); pointer-events: none; }
+body[data-input=pad] #hints { display: flex; }
+@media (max-height: 639px) { body[data-input=pad] #hints { display: none; } }
+body[data-input=pad]:has(#overlay .sheet) #hints { z-index: 60; bottom: 12px; left: 12px; }
+/* the title screen has no hand to sit above: the bar goes on the bottom edge and the content leaves room for it */
+body[data-input=pad]:has([data-screen=start]) #hints { left: max(12px, var(--pad-l)); right: max(12px, var(--pad-r)); bottom: calc(10px + var(--pad-b)); }
+body[data-input=pad] .start { padding-bottom: calc(var(--pad-b) + 64px * var(--ui)); }
+.hint-key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.pad-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 1.7em; height: 1.7em; padding: 0 .35em; border-radius: 999px; font-weight: 800; font-size: .85em; color: #0b1020; background: #cbd5e1; }
+.pad-btn.a { background: #4ade80; } .pad-btn.b { background: #f87171; } .pad-btn.x { background: #60a5fa; } .pad-btn.y { background: #fbbf24; }
+.pad-btn.sh { background: #94a3b8; border-radius: .6em; font-size: .75em; }
+.zoom .info [data-close] { margin-top: auto; }   /* Close sits at the bottom of the column; the actions stay under the facts */
+
+/* chevrons instead of a scrollbar (ui/main.js fitArrows): appear only when there is more to scroll to in that direction */
+#main { position: relative; }
+.scroll-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 8; width: calc(34px * var(--ui)); height: calc(64px * var(--ui)); border: 1px solid var(--line); border-radius: 12px;
+    background: rgba(12, 18, 40, .92); color: #fff; font-size: calc(34px * var(--ui)); line-height: 1; display: flex; align-items: center; justify-content: center; padding: 0 0 4px; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, .5); }
+.scroll-arrow[hidden] { display: none; }
+.scroll-arrow.left { left: calc(var(--tabs-w) + var(--pad-l) + 4px); } .scroll-arrow.right { right: calc(var(--pad-r) + 4px); }
+/* sheets' vertical scrollbars: slim and dark rather than the browser default */
+.sheet *, .log-body, .help-body, .stats-body { scrollbar-width: thin; scrollbar-color: #3a4a85 transparent; }

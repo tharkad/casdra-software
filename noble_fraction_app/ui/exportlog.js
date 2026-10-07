@@ -23,9 +23,14 @@ export function buildLogExport({ state, level, achievements = [], when = null })
     return `${lines.join('\n')}\n`;
 }
 
-// Hands the text to the best thing the device offers: the share sheet (phones), the clipboard, or a download.
-// Returns which one worked ('share' | 'copy' | 'download').
-export async function deliverExport(text, filename = 'noble-fraction-log.txt') {
+export const lastSaved = { path: null };                       // where the desktop app put the last file, for the confirmation message
+
+// Hands the text to the best thing the device offers: the desktop app's Documents folder (when asked for a file), the share sheet (phones),
+// the clipboard, or a download. Returns which one worked ('file' | 'share' | 'copy' | 'download').
+export async function deliverExport(text, filename = 'noble-fraction-log.txt', { prefer = null } = {}) {
+    if (prefer === 'file' && window.nobleFractionShell?.saveFile) {
+        try { const where = await window.nobleFractionShell.saveFile(filename, text); if (where) { lastSaved.path = where; return 'file'; } } catch { /* fall through */ }
+    }
     try {
         if (navigator.share && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) { await navigator.share({ title: 'Noble Fraction log', text }); return 'share'; }
     } catch (e) { if (e?.name === 'AbortError') return 'share'; }                         // the player closed the share sheet: fine

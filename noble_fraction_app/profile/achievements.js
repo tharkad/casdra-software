@@ -16,6 +16,7 @@ export const ACHIEVEMENTS = [
     A('win_easy', 'Warm-Up Win', 'Beat the Rival on Easy.', 'play', 'gas_reclaimer', 'final', ({ game }) => win(game) && game.level === 'easy'),
     A('win_normal', 'Shift Supervisor', 'Beat the Rival on Normal.', 'play', 'procurement_agent', 'final', ({ game }) => win(game) && game.level === 'normal'),
     A('win_hard', 'Master Fractionator', 'Beat the Rival on Hard.', 'play', 'molecular_sieve', 'final', ({ game }) => win(game) && game.level === 'hard'),
+    A('win_expert', 'Grandmaster Fractionator', 'Beat the Expert Rival, the one that plans ahead.', 'play', 'planetarium', 'final', ({ game }) => win(game) && game.level === 'expert'),
     A('hat_trick', 'Hat Trick', 'Win three games in a row.', 'play', 'return_loop', 'final', ({ lifetime }) => lifetime.bestStreak >= 3),
     A('ten_wins', 'Ten Barrels', 'Win 10 games.', 'play', 'reserve_fund', 'final', ({ lifetime }) => lifetime.wins >= 10),
 

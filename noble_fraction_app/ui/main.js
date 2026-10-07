@@ -17,9 +17,12 @@ import { startScreen } from './start.js';
 import { statsSheet } from './stats.js';
 import { confirmNewSheet } from './confirm.js';
 import { createProfile } from './profile.js';
+import { createGameStore, buildRecord } from './gamelogs.js';
 import { ACHIEVEMENTS, achievementById } from '../profile/achievements.js';
 import * as fx from './fx.js';
 import { loadSettings, saveSettings, prefersReducedMotion } from './settings.js';
+import { createInput } from './input/input.js';
+import { loadExpert, expertReady } from '../ai/expert.js';
 
 const params = new URLSearchParams(location.search);
 const persistent = !params.has('seed');                      // ?seed=N is a throwaway test game
@@ -34,10 +37,12 @@ fx.setSpeed(fxMode);
 
 const controller = createController({ storage: store, onChange: render, autoRival: false });
 const profile = createProfile(store);
+const games = createGameStore(store);                      // every finished game, replayable (see gamelogs.js)
 const app = document.getElementById('app');
 const overlay = document.getElementById('overlay');
 const PANES = [['market', 'Market'], ['facility', 'My Tableau'], ['rival', "Rival's Tableau"]];
 const wait = n => new Promise(resolve => setTimeout(resolve, n));
+let input = null;                                     // created once ctx exists (below)
 
 // ---- stats + achievements, updated after every state change ----
 let earnedNow = [];
@@ -59,6 +64,7 @@ function track() {
     award(live.newly);
     if (s.turn.phase === 'over') {
         const done = profile.finish({ ...base, extra });
+        if (done.summary) games.add(buildRecord({ record: controller.record(), summary: done.summary, now }));
         award(done.newly);
         extra = done.extra;
     }
@@ -99,7 +105,14 @@ function act(action) {
     runRival();
 }
 
-function newGame(level, mode) {
+// The Expert Rival's net is fetched the first time it is needed; the game waits for it so Expert never silently plays as Hard.
+async function ensureExpert(level) {
+    if (level !== 'expert' || expertReady()) return;
+    try { await loadExpert(); } catch { /* offline or missing: the policy falls back to Hard rather than stalling */ }
+}
+
+async function newGame(level, mode) {
+    await ensureExpert(level ?? ui.level);
     Object.assign(ui, { screen: 'game', pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, stats: false, confirmNew: false, gameAch: [], level: level ?? ui.level, mode: mode ?? ui.mode });
     if (persistent) saveSettings({ level: ui.level, mode: ui.mode });
     const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
@@ -108,21 +121,24 @@ function newGame(level, mode) {
     runRival();
 }
 
-function continueGame() {
+async function continueGame() {
     if (!controller.load()) return newGame();
+    await ensureExpert(controller.level());
     Object.assign(ui, { screen: 'game', pane: 'market', gameAch: [], mode: controller.mode(), level: controller.level() });
     render();
     runRival();
 }
 
 const ctx = {
-    controller, ui, profile, fxMode,
+    controller, ui, profile, games, fxMode,
     setUi(patch) { Object.assign(ui, patch); render(); },
     act, newGame, continueGame,
     skip() { ui.skip = true; },
     mainMenu() { Object.assign(ui, { screen: 'start', menu: false }); render(); },
     setFx(mode) { fxMode = mode; fx.setSpeed(mode); if (persistent) saveSettings({ fx: mode }); render(); },
 };
+
+input = createInput({ ctx });
 
 function paneBody() {
     if (ui.pane === 'facility') return facilityPane(ctx, HUMAN);
@@ -180,6 +196,28 @@ function fitHand() {
 }
 window.addEventListener('resize', fitHand);
 
+// Scroll indicators for the tableau strips: chevrons at the ends appear only when there is more to see that way
+// (the native scrollbar is hidden). They are also tappable.
+function fitArrows() {
+    const strip = document.querySelector('#main .pane');
+    const main = document.getElementById('main');
+    main?.querySelectorAll('.scroll-arrow').forEach(a => a.remove());
+    if (!strip || strip.classList.contains('market')) return;
+    const make = dir => {
+        const a = Object.assign(document.createElement('button'), { className: `scroll-arrow ${dir}`, textContent: dir === 'left' ? '‹' : '›', ariaLabel: `Scroll ${dir}`, tabIndex: -1 });
+        a.addEventListener('click', e => { e.stopPropagation(); strip.scrollBy({ left: (dir === 'left' ? -1 : 1) * strip.clientWidth * 0.7, behavior: 'smooth' }); });
+        main.append(a); return a;
+    };
+    const left = make('left'); const right = make('right');
+    const update = () => {
+        left.hidden = strip.scrollLeft < 2;
+        right.hidden = strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 2;
+    };
+    strip.addEventListener('scroll', update, { passive: true });
+    update();
+}
+window.addEventListener('resize', fitArrows);
+
 function render() {
     const s = controller.state();
     clear(overlay);
@@ -199,6 +237,8 @@ function render() {
     if (sheet) overlay.append(scrim(sheet));
     fitHint();
     fitHand();
+    fitArrows();
+    input?.afterRender();
 }
 
 // belt and braces for browsers that ignore user-select (and the iOS magnifier / context menu)
@@ -213,7 +253,7 @@ document.addEventListener('click', e => {
 
 // Test hook: what the baseline bot would do for the human, described so a test can click the real control.
 window.__xp = {
-    controller, ui, ctx, profile, fx,
+    controller, ui, ctx, profile, games, fx, input,
     isBusy: () => busy,
     botPlan() {
         const a = chooseAction(controller.state(), controller.legal());

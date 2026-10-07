@@ -26,7 +26,7 @@ export function zoomSheet(ctx) {
     return h('div', { class: 'sheet zoom', 'data-sheet': 'zoom' },
         h('div', { class: 'card big' }, cardFace(d.id)),
         h('div', { class: 'info' },
-            h('h2', {}, d.name), h('p', { class: 'facts' }, facts(d)), d.text ? h('p', {}, d.text) : null,
+            h('h2', {}, d.name), h('p', { class: 'facts' }, facts(d)),
             h('div', { class: 'acts' }, groups.size ? [...groups.entries()].map(([key, list]) => h('button', { class: 'btn primary', 'data-act': actAttr(list[0]), 'data-group': key,
                 onclick: () => ctx.act(list[0]) }, cardLabel(list[0], ctx.s, list.length))) : h('p', { class: 'empty' }, 'Nothing you can do with this right now.')),
             h('button', { class: 'btn', 'data-close': '', onclick: () => ctx.setUi({ zoom: null }) }, 'Close')));

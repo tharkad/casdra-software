@@ -16,6 +16,10 @@ export function createController({ storage = null, onChange = () => {}, autoRiva
     let auto = autoRival;
     let rivalFrom = null;                  // log index where the Rival's current turn started
     let extra = {};                        // small per-game scratch the UI keeps with the save (e.g. stats tracking)
+    let moves = [];                        // every action applied this game, [seat, action], so the whole game can be replayed from its seed
+    let start = null;                      // who moved first
+    let startArg = null;                   // the startingPlayer newGame was ASKED for (null = drawn from the seed); replay must ask the same way, because drawing consumes rng
+    let replayable = true;                 // false for a game resumed from a save made before moves were recorded
 
     const rivalToMove = () => state.turn.phase !== 'over' && state.turn.active === RIVAL;
 
@@ -25,6 +29,7 @@ export function createController({ storage = null, onChange = () => {}, autoRiva
         if (rivalFrom === null) rivalFrom = state.log.length;
         const before = state.log.length;
         const action = policyFor(level)(state, legalActions(state));
+        moves.push([state.turn.active, action]);
         state = apply(state, action);
         const done = !rivalToMove();
         if (done) {
@@ -45,7 +50,7 @@ export function createController({ storage = null, onChange = () => {}, autoRiva
 
     function persist() {
         if (!storage) return;
-        try { storage.setItem(SAVE_KEY, JSON.stringify({ state, recap, level, extra })); } catch { /* storage full or blocked */ }
+        try { storage.setItem(SAVE_KEY, JSON.stringify({ state, recap, level, extra, moves, start, startArg, replayable })); } catch { /* storage full or blocked */ }
     }
 
     function finishMove() {
@@ -60,6 +65,7 @@ export function createController({ storage = null, onChange = () => {}, autoRiva
             recap = null;
             rivalFrom = null;
             extra = {};
+            moves = []; replayable = true; start = state.turn.active; startArg = startingPlayer ?? null;
             if (auto && rivalToMove()) playRivalToEnd();
             else finishMove();
         },
@@ -70,6 +76,7 @@ export function createController({ storage = null, onChange = () => {}, autoRiva
                 ({ state, recap } = saved);
                 level = saved.level ?? DEFAULT_LEVEL;
                 extra = saved.extra ?? {};
+                moves = saved.moves ?? []; start = saved.start ?? null; startArg = saved.startArg ?? null; replayable = Boolean(saved.moves) && saved.replayable !== false;
                 rivalFrom = null;
                 onChange();
                 return true;
@@ -86,6 +93,7 @@ export function createController({ storage = null, onChange = () => {}, autoRiva
         },
         clearSave: () => { try { storage?.removeItem(SAVE_KEY); } catch { /* ignore */ } },
         dispatch(action) {
+            moves.push([state.turn.active, action]);
             state = apply(state, action);
             if (auto && rivalToMove()) playRivalToEnd();
             else { if (!rivalToMove()) recap = null; finishMove(); }
@@ -96,6 +104,8 @@ export function createController({ storage = null, onChange = () => {}, autoRiva
         extra: () => extra,
         setExtra(patch) { extra = { ...extra, ...patch }; persist(); },
         level: () => level,
+        // Everything needed to replay this game exactly: the engine is deterministic given the seed, who started, the length and the actions.
+        record: () => ({ seed: state.rules.seed, mode: state.rules.mode, level, start, startArg, replayable, moves }),
         mode: () => state?.rules?.mode ?? 'normal',
         state: () => state,
         legal: () => (state.turn.phase === 'over' ? [] : legalActions(state)),
