@@ -116,7 +116,8 @@ body { position: fixed; inset: 0; container-type: size; }
 .btn.current { border-color: var(--teal); }
 /* Cards only overlap when the hand really does not fit; fitHand() (main.js) sets --hand-overlap to just what is needed. */
 #hand .cards .card + .card { margin-left: calc(var(--hand-overlap, 0px) * -1); }
-.turnno { white-space: nowrap; color: var(--text); font-weight: 600; }
+.turnno { display: flex; flex-direction: column; align-items: flex-start; white-space: nowrap; color: var(--text); font-weight: 600; line-height: 1.12; }
+.turnno span { font-size: .82em; font-weight: 600; color: var(--dim); } .turnno .ot { color: var(--orange); }
 .help { display: flex; flex-direction: column; width: min(100%, 820px); }
 .help-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .help-body { overflow: auto; column-width: 300px; column-gap: 22px; }
@@ -136,8 +137,13 @@ body { position: fixed; inset: 0; container-type: size; }
 .glyph .a { fill: hsl(var(--h) 85% 62%); } .glyph .b { fill: hsl(var(--h) 45% 34%); }
 .top { position: relative; display: flex; align-items: center; gap: 2cqw; padding: 3cqw 3.4cqw 0; min-height: 32cqw; }
 .name { font-size: var(--name-fs, 10cqw); line-height: 1.05; font-weight: 800; letter-spacing: -.01em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.badge { flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 900; }
-.badge.cost { width: 24cqw; height: 24cqw; font-size: 16cqw; background: hsl(var(--h) 85% 66%); color: hsl(var(--h) 60% 12%); border: .9cqw solid #fff; }
+.badge { flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 900; line-height: 1; }
+/* Centre the digit by its ink, not its line box: the line box is taller above the digits than below (it leaves room for accents), which put the
+   numbers visibly high on iPhone. Trimming the block to the cap height centres the digit exactly; a browser without text-box gets a fixed nudge. */
+.d { display: block; line-height: 1; }
+@supports (text-box: trim-both cap alphabetic) { .d { text-box: trim-both cap alphabetic; } }
+@supports not (text-box: trim-both cap alphabetic) { .d { transform: translateY(.07em); } }
+.badge.cost { width: 24cqw; height: 24cqw; font-size: 16cqw; background: hsl(var(--h) 85% var(--bl, 66%)); color: hsl(var(--h) 60% 12%); border: .9cqw solid #fff; }
 .badge.cost { position: relative; }
 .badge.cost::before { content: '$'; position: absolute; left: 15%; top: 14%; font-size: 8cqw; line-height: 1; margin: 0; }   /* the digit alone is centred; the $ is a small superscript */
 .badge.install { width: 22cqw; height: 22cqw; font-size: 15cqw; background: transparent; color: hsl(var(--h) 40% 94%); border: 1cqw solid hsl(var(--h) 60% 70%); }

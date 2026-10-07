@@ -37,12 +37,14 @@ function periodicTable(symbol, [period, group]) {
 }
 const KIND_HUE = { upgrade: 262, starter: 172, pipeline: 212 };
 
-const circle = (cls, text) => h('span', { class: `badge ${cls}` }, text);
+// The digit sits in its own block so CSS can centre it by its ink (see .d in styles.css).
+const digit = text => h('span', { class: 'd' }, text);
+const circle = (cls, text) => h('span', { class: `badge ${cls}` }, digit(text));
 
 // The two numbers in an Upgrade's top-left corner: what it costs to buy, and (ringed) what it costs
 // to install later from your hand. A card that can never be installed shows only the first.
 const upgradeCosts = d => h('span', { class: 'costs', title: d.pink ? `Buy $${d.buy}` : `Buy $${d.buy} · install later +$${d.installDiff}` },
-    circle('cost', d.buy), d.pink ? null : h('b', { class: 'later' }, d.installDiff));
+    circle('cost', d.buy), d.pink ? null : h('b', { class: 'later' }, digit(d.installDiff)));
 
 function elementFace(d) {
     const info = ELEMENT_INFO[d.id];
@@ -57,7 +59,7 @@ function foot(d) {
         return h('div', { class: 'foot' },
             h('span', { class: 'xe-need', title: `${d.xe} Xe needed` }, h('span', { class: 'xe-sym' }, 'Xe'), h('span', { class: 'xe-n' }, `×${d.xe}`)),
             h('span', { class: 'pay' }, `$${d.money}`),
-            h('span', { class: 'vp-star' }, d.vp));
+            h('span', { class: 'vp-star' }, digit(d.vp)));
     }
     if (d.kind === 'pipeline') return h('div', { class: 'foot' }, h('span', { class: 'plus' }, '+1 hand'));
     const install = d.pink ? glyphEl('ph_noinstall', 'glyph tiny') : circle('install', d.installTotal);
@@ -105,6 +107,15 @@ const lightness = (h, s, l) => {
     const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
     return y > 0.008856 ? 116 * Math.cbrt(y) - 16 : 903.3 * y;
 };
+// ---- cost-badge contrast ----
+// The price circle is a pale tint of the card's hue with dark text. At the same HSL lightness violet is far darker than green, so on the
+// purple Upgrades the digit was hard to read (4.5:1 against 8-10:1 elsewhere). Each hue gets the lowest fill lightness that gives >= 8:1.
+const relLum = rgb => { const [r, g, b] = rgb.map(c => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+export const badgeContrast = (hue, l) => { const [a, b] = [relLum(hslToRgb(hue, 85, l)), relLum(hslToRgb(hue, 60, 12))].sort((x, y) => y - x); return (a + 0.05) / (b + 0.05); };
+export function badgeLightness(hue) {
+    let l = 66; while (l < 92 && badgeContrast(hue, l) < 8) l += 1;
+    return l;
+}
 const TARGET_SWING = 17;                              // L* units the centre of the background should gain at the peak of the throb
 export function throbGain(hue) {
     const base = lightness(hue, 55, 30);
@@ -125,7 +136,7 @@ export function cardFace(defId) {
             : circle('cost', d.kind === 'starter' ? d.installCost ?? d.installDiff : d.buy);
     const tint = d.kind === 'pipeline' ? ` el-${d.color}` : '';
     const faceHue = d.kind === 'pipeline' ? ELEMENT_INFO[d.color].hue : hue;
-    return h('div', { class: `face kind-${d.kind}${tint}`, style: `--h:${faceHue};--gain:${throbGain(faceHue)}` },
+    return h('div', { class: `face kind-${d.kind}${tint}`, style: `--h:${faceHue};--gain:${throbGain(faceHue)};--bl:${badgeLightness(faceHue)}%` },
         h('div', { class: 'top' }, corner, h('span', { class: 'name', style: `--name-fs:${nameSize(d.name, d.kind)}cqw` }, d.name)),
         h('div', { class: 'art' }, glyphEl(d.glyph)),
         d.text ? h('p', { class: 'rules' }, d.text) : null,
