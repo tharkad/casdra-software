@@ -47,6 +47,31 @@ function animate(el, frames, opts) {
     return el.animate(frames, { fill: 'both', ...opts });
 }
 
+// The opening of a new game: the header and console settle in, then the market cards are dealt in from above and the hand from below,
+// each with a short stagger. Resolves when everything has landed; a tap or key press finishes it at once. Does nothing when animations are off.
+export function intro() {
+    if (!enabled()) return Promise.resolve();
+    const market = [...document.querySelectorAll('#main .card[data-uid]')];
+    const hand = [...document.querySelectorAll('#hand .card[data-uid]')];
+    const anims = [];
+    const go = (el, from, delay, duration, easing = 'cubic-bezier(.2,.85,.25,1.08)') => {
+        const a = animate(el, [{ opacity: 0, ...from }, { opacity: 1, transform: 'none' }], { duration: ms(duration), delay: ms(delay), easing, fill: 'backwards' });
+        if (a) anims.push(a);
+    };
+    const hud = one('#hud'); const consoleEl = one('#console');
+    if (hud) go(hud, { transform: 'translateY(-22px)' }, 0, 360, 'ease-out');
+    if (consoleEl) go(consoleEl, { transform: 'translateY(-10px)' }, 90, 360, 'ease-out');
+    market.forEach((el, i) => go(el, { transform: 'translateY(-70px) scale(.6) rotate(-6deg)' }, 220 + i * 55, 460));
+    hand.forEach((el, i) => go(el, { transform: 'translateY(150px) scale(.8) rotate(5deg)' }, 220 + market.length * 55 + i * 75, 480));
+    if (!anims.length) return Promise.resolve();
+    return new Promise(resolve => {
+        const done = () => { document.removeEventListener('pointerdown', skip, true); document.removeEventListener('keydown', skip, true); resolve(); };
+        const skip = () => anims.forEach(a => a.finish());
+        document.addEventListener('pointerdown', skip, true); document.addEventListener('keydown', skip, true);
+        Promise.all(anims.map(a => a.finished.catch(() => null))).then(done);
+    });
+}
+
 export function floatText(el, text, cls = '') {
     if (!el || !enabled()) return;
     const r = el.getBoundingClientRect();
@@ -59,6 +84,11 @@ export function floatText(el, text, cls = '') {
 }
 
 export function pulse(el, strength = 1.25) {
+    if (el?.classList?.contains('side')) {                    // a score box must not swell into its neighbour: it glows in its own colour instead
+        const colour = getComputedStyle(el).borderColor;
+        animate(el, [{ boxShadow: `0 0 0 0 ${colour}`, filter: 'brightness(1)' }, { boxShadow: `0 0 14px 3px ${colour}`, filter: 'brightness(1.35)', offset: .4 }, { boxShadow: `0 0 0 0 ${colour}`, filter: 'brightness(1)' }], { duration: ms(620), fill: 'none' });
+        return;
+    }
     animate(el, [{ transform: 'scale(1)' }, { transform: `scale(${strength})`, offset: .4 }, { transform: 'scale(1)' }], { duration: ms(520), fill: 'none' });
 }
 

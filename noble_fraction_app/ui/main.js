@@ -118,6 +118,11 @@ async function newGame(level, mode) {
     const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
     controller.newGame({ seed, mode: ui.mode, difficulty: level ?? params.get('level') ?? ui.level, startingPlayer: params.get('start') === 'rival' ? RIVAL : params.has('seed') ? HUMAN : undefined });
     track();
+    if (fx.enabled()) {                                   // the table is dealt in rather than cutting to it (a tap skips); nothing can be played meanwhile
+        busy = true; document.body.dataset.busy = '1';
+        await fx.intro();
+        busy = false; delete document.body.dataset.busy;
+    }
     runRival();
 }
 
