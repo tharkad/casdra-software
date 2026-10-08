@@ -22,6 +22,7 @@ import { ACHIEVEMENTS, achievementById } from '../profile/achievements.js';
 import * as fx from './fx.js';
 import { loadSettings, saveSettings, prefersReducedMotion } from './settings.js';
 import { createInput } from './input/input.js';
+import { createDrag } from './drag/drag.js';
 import { loadExpert, expertReady } from '../ai/expert.js';
 
 const params = new URLSearchParams(location.search);
@@ -30,7 +31,7 @@ const store = (() => { try { return persistent ? localStorage : null; } catch { 
 const settings = persistent ? loadSettings() : {};
 
 const ui = { screen: 'game', pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, stats: false, statsTab: 'overview',
-    level: params.get('level') ?? settings.level ?? 'normal', mode: params.get('mode') ?? settings.mode ?? 'normal', gameAch: [], skip: false };
+    drag: settings.drag !== false, level: params.get('level') ?? settings.level ?? 'normal', mode: params.get('mode') ?? settings.mode ?? 'normal', gameAch: [], skip: false };
 let busy = false;
 let fxMode = params.get('fx') ?? settings.fx ?? (prefersReducedMotion() ? 'off' : 'normal');
 fx.setSpeed(fxMode);
@@ -140,10 +141,13 @@ const ctx = {
     act, newGame, continueGame,
     skip() { ui.skip = true; },
     mainMenu() { Object.assign(ui, { screen: 'start', menu: false }); render(); },
+    setDrag(on) { ui.drag = on; if (persistent) saveSettings({ drag: on }); drag.cancel('toggle', true); render(); },
     setFx(mode) { fxMode = mode; fx.setSpeed(mode); if (persistent) saveSettings({ fx: mode }); render(); },
 };
 
 input = createInput({ ctx });
+const drag = createDrag({ ctx, fx, enabled: () => ui.drag !== false,
+    tip: { should: () => persistent && !loadSettings().dragTip, mark: () => saveSettings({ dragTip: true }) } });
 
 function paneBody() {
     if (ui.pane === 'facility') return facilityPane(ctx, HUMAN);
@@ -244,6 +248,7 @@ function render() {
     fitHand();
     fitArrows();
     input?.afterRender();
+    drag.afterRender();
 }
 
 // belt and braces for browsers that ignore user-select (and the iOS magnifier / context menu)
@@ -258,7 +263,7 @@ document.addEventListener('click', e => {
 
 // Test hook: what the baseline bot would do for the human, described so a test can click the real control.
 window.__xp = {
-    controller, ui, ctx, profile, games, fx, input,
+    controller, ui, ctx, profile, games, fx, input, drag,
     isBusy: () => busy,
     botPlan() {
         const a = chooseAction(controller.state(), controller.legal());

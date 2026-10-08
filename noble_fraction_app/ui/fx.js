@@ -31,14 +31,20 @@ function snapshot(s) {
 }
 const bidKey = s => new Map([...s.market.contractLine, ...s.market.upgradeLine].map(c => [c.uid, JSON.stringify(c.bids ?? {})]));
 
+// A card that was dragged and dropped starts its flight from where the player released it, not from its slot.
+const dragRects = new Map();
+export const noteDragRect = (uid, rect) => { dragRects.set(uid, rect); };
+
 // Call BEFORE the move: remembers the state and where every card element is.
 export function capture(s) {
     const cards = new Map();
     if (enabled()) {
         document.querySelectorAll('#app .card[data-uid]').forEach(el => {
-            cards.set(Number(el.dataset.uid), { rect: el.getBoundingClientRect(), node: el.cloneNode(true) });
+            const uid = Number(el.dataset.uid);
+            cards.set(uid, { rect: dragRects.get(uid) ?? el.getBoundingClientRect(), node: el.cloneNode(true) });
         });
     }
+    dragRects.clear();
     return { cards, snap: snapshot(s), bids: bidKey(s) };
 }
 

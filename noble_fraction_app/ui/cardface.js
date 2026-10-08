@@ -76,7 +76,7 @@ export function cardHue(defId) {
 
 // The largest name size (in card-width units) at which the name wraps into at most two lines inside the room
 // the corner badge leaves it. Measured with a deliberately wide average letter so no name can be clipped.
-const NAME_ROOM = { contract: 68, upgrade: 46, starter: 64, pipeline: 64 };
+const NAME_ROOM = { contract: 68, upgrade: 49, starter: 64, pipeline: 64 };
 const CHAR_EM = 0.56;
 export function nameSize(name, kind) {
     const room = NAME_ROOM[kind] ?? 64;

@@ -179,9 +179,10 @@ body { position: fixed; inset: 0; container-type: size; }
 .ptable .lit { fill: #fff; stroke: hsl(var(--h) 100% 60%); stroke-width: 1.6; filter: drop-shadow(0 0 3px hsl(var(--h) 100% 75%)); }
 .el-Xe .kind-pipeline .glyph { color: hsl(var(--h) 50% 90%); }
 
-.costs { position: relative; display: inline-flex; flex: none; width: 40cqw; height: 29cqw; margin-right: 1cqw; }
+.costs { position: relative; display: inline-flex; flex: none; width: 37cqw; height: 29cqw; margin-right: 1cqw; }
 .costs .badge.cost { position: absolute; left: 0; top: 0; }
-.costs .later { position: absolute; right: -.5cqw; bottom: -1cqw; width: 18cqw; height: 18cqw; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
+.costs .later { position: absolute; right: 0; bottom: 2cqw; width: 18cqw; height: 18cqw;       /* tucked up and left so it overlaps the price circle's rim a little (never its digit) */
+    display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
     font-size: 11.5cqw; font-weight: 900; background: hsl(var(--h) 60% 14%); color: #fff; border: .9cqw solid hsl(var(--h) 85% 72%); }
 
 .log { display: flex; flex-direction: column; width: min(100%, 560px); }
@@ -333,3 +334,28 @@ body[data-input=pad] .start { padding-bottom: calc(var(--pad-b) + 64px * var(--u
 .scroll-arrow.left { left: calc(var(--tabs-w) + var(--pad-l) + 4px); } .scroll-arrow.right { right: calc(var(--pad-r) + 4px); }
 /* sheets' vertical scrollbars: slim and dark rather than the browser default */
 .sheet *, .log-body, .help-body, .stats-body { scrollbar-width: thin; scrollbar-color: #3a4a85 transparent; }
+
+/* ---- dragging cards and Bid Tokens (ui/drag/) ---- */
+#drag { position: fixed; inset: 0; pointer-events: none; z-index: 70; }
+.drag-ghost { position: fixed; left: 0; top: 0; margin: 0; will-change: transform; transform-origin: 50% 55%; filter: drop-shadow(0 14px 18px rgba(0, 0, 0, .55)); pointer-events: none; }
+.drag-ghost .face { animation: none; }
+.tok-ghost { display: inline-flex; align-items: center; justify-content: center; font-size: 18px; border-radius: 50%; }
+.card.drag-origin, .tok.drag-origin { opacity: .3; }
+.card.drag-origin { outline: 2px dashed var(--line); outline-offset: -2px; }
+/* the tray sits over the hand strip, so it never covers the market the card came from */
+#drag-tray { position: fixed; z-index: 65; left: calc(var(--tabs-w) + var(--pad-l)); right: var(--pad-r); bottom: calc(var(--pad-b) + 6px); height: calc(var(--cardh) * .62); display: flex; gap: 10px; justify-content: center; align-items: stretch; pointer-events: none; animation: drag-in .14s ease-out; }
+.drag-well { flex: 1 1 0; min-width: 120px; max-width: 280px; display: flex; align-items: center; justify-content: center; padding: 8px 14px; border-radius: 14px; text-align: center; font-weight: 700; font-size: calc(13px * var(--ui)); line-height: 1.2;
+    background: rgba(12, 18, 40, .94); border: 2px solid var(--line); color: var(--text);
+    transition: transform .12s, border-color .12s, background .12s, box-shadow .12s; }
+.drag-well.more { flex: 0 1 110px; min-width: 80px; color: var(--dim); }
+body.dragging #hand .cards, body.dragging #hand .piles { opacity: .18; transition: opacity .12s; }
+.drag-well.active { transform: scale(1.06); border-color: var(--teal); background: rgba(18, 58, 62, .96); box-shadow: 0 0 18px rgba(45, 212, 191, .45); }
+@keyframes drag-in { from { opacity: 0; } to { opacity: 1; } }
+body.dragging, body.dragging * { cursor: grabbing !important; }
+.pane .card, #hand .card { touch-action: pan-x; }
+.pane .card.act, #hand .card.act { cursor: grab; }
+.card.drop-ok { outline: 3px solid var(--teal); outline-offset: -3px; }
+.card.drop-hot { box-shadow: 0 0 22px rgba(45, 212, 191, .6); transform: scale(1.03); }
+.card.drop-dim { opacity: .45; }
+@media (prefers-reduced-motion: reduce) { #drag-tray { animation: none; } .drag-well { transition: none; } }
+#drag-debug { position: fixed; z-index: 90; left: 6px; top: 6px; padding: 6px 8px; border-radius: 6px; background: rgba(0,0,0,.75); color: #9ef; font: 11px/1.3 ui-monospace, Menlo, monospace; white-space: pre; pointer-events: none; }
