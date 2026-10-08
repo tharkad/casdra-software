@@ -4,6 +4,8 @@ import { cardFace } from './cardface.js';
 import { findCard } from './find.js';
 import { cardLabel } from './labels.js';
 import { actAttr, actionGroup } from './actions.js';
+import { duplicateReason, DUPLICATE_NOTE } from './duplicates.js';
+import { HUMAN } from './controller.js';
 
 
 function facts(d) {
@@ -20,6 +22,7 @@ export function zoomSheet(ctx) {
     if (!found) return null;
     const d = CARD_DEFS[found.card.defId];
     const actions = ctx.idx.byUid.get(found.card.uid) ?? [];
+    const dup = found.where === 'contractLine' || found.where === 'upgradeLine' ? duplicateReason(ctx.s, HUMAN, found.card) : null;
     // One button per distinct choice, counting the interchangeable cards behind it.
     const groups = new Map();
     actions.forEach(a => { const k = actionGroup(a, ctx.s); groups.set(k, [...(groups.get(k) ?? []), a]); });
@@ -27,6 +30,7 @@ export function zoomSheet(ctx) {
         h('div', { class: 'card big' }, cardFace(d.id)),
         h('div', { class: 'info' },
             h('h2', {}, d.name), h('p', { class: 'facts' }, facts(d)),
+            dup ? h('p', { class: 'dup-note', 'data-dup-note': dup }, DUPLICATE_NOTE[dup]) : null,
             h('div', { class: 'acts' }, groups.size ? [...groups.entries()].map(([key, list]) => h('button', { class: 'btn primary', 'data-act': actAttr(list[0]), 'data-group': key,
                 onclick: () => ctx.act(list[0]) }, cardLabel(list[0], ctx.s, list.length))) : h('p', { class: 'empty' }, 'Nothing you can do with this right now.')),
             h('button', { class: 'btn', 'data-close': '', onclick: () => ctx.setUi({ zoom: null }) }, 'Close')));

@@ -359,3 +359,9 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
 .card.drop-dim { opacity: .45; }
 @media (prefers-reduced-motion: reduce) { #drag-tray { animation: none; } .drag-well { transition: none; } }
 #drag-debug { position: fixed; z-index: 90; left: 6px; top: 6px; padding: 6px 8px; border-radius: 6px; background: rgba(0,0,0,.75); color: #9ef; font: 11px/1.3 ui-monospace, Menlo, monospace; white-space: pre; pointer-events: none; }
+
+/* a market card you already have one of: a stamp on the art (Main = cannot be bought, so it is also dimmed) */
+.dup-tag { position: absolute; left: 50%; top: 56%; transform: translate(-50%, -50%) rotate(-9deg); padding: .7cqw 3.2cqw; border-radius: 99cqw; font-size: 8.2cqw; font-weight: 900; letter-spacing: .06em; text-transform: uppercase;
+    white-space: nowrap; color: #bff7ec; background: rgba(8, 22, 28, .86); border: .9cqw solid #2dd4bf; box-shadow: 0 .6cqw 2cqw rgba(0, 0, 0, .5); pointer-events: none; z-index: 2; }
+.card.dup-main .face { filter: saturate(.5) brightness(.72); }
+.dup-note { margin: 0; padding: 6px 9px; border-radius: 8px; background: rgba(45, 212, 191, .1); border: 1px solid rgba(45, 212, 191, .45); color: #bff7ec; font-size: 12px; line-height: 1.3; }
