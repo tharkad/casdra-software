@@ -1,4 +1,5 @@
 import { h } from './dom.js';
+import { CREDIT_LONG } from './credits.js';
 
 // A rules summary for the "?" button. Short on purpose: the rulebook is the authority.
 const SECTIONS = [
@@ -14,6 +15,7 @@ const SECTIONS = [
     ['End of turn', 'Both lines are refilled to 4 cards. Discard any hand cards you like, then draw back up to your hand size (5 plus your Mains).'],
     ['Scoring', 'Completed Contracts, 1 VP per installed Upgrade, Mains (1 / 4 / 9 VP for one / two / three), 1 VP per $5, Upgrade bonuses, and +3 VP if the player who ended the game took the +3 side of the Founder\'s Seal. A tie goes to the player with less Xe left in their deck.'],
     ['Using the app', 'Tap any card to zoom it and see what you can do with it. Teal is you, orange is the Rival. The Rival plays its whole turn at once, then shows a recap; "Rival turn" reopens it. Glowing cards have an action available.'],
+    ['Credits', CREDIT_LONG],
 ];
 
 export function helpSheet(ctx) {

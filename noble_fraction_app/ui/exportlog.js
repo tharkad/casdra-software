@@ -25,19 +25,21 @@ export function buildLogExport({ state, level, achievements = [], when = null })
 
 export const lastSaved = { path: null };                       // where the desktop app put the last file, for the confirmation message
 
-// Hands the text to the best thing the device offers: the desktop app's Documents folder (when asked for a file), the share sheet (phones),
-// the clipboard, or a download. Returns which one worked ('file' | 'share' | 'copy' | 'download').
-export async function deliverExport(text, filename = 'noble-fraction-log.txt', { prefer = null } = {}) {
+// Hands the text to the best thing the device offers. `prefer: 'file'` (Save all logs) means "give me a file": the desktop app's Documents folder, the
+// share sheet on phones, otherwise a real download -- never just the clipboard. Without it (a single readable log) the clipboard comes before a download.
+// Returns which one worked ('file' | 'share' | 'copy' | 'download').
+export async function deliverExport(text, filename = 'noble-fraction-log.txt', { prefer = null, type = 'text/plain' } = {}) {
     if (prefer === 'file' && window.nobleFractionShell?.saveFile) {
         try { const where = await window.nobleFractionShell.saveFile(filename, text); if (where) { lastSaved.path = where; return 'file'; } } catch { /* fall through */ }
     }
     try {
         if (navigator.share && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) { await navigator.share({ title: 'Noble Fraction log', text }); return 'share'; }
     } catch (e) { if (e?.name === 'AbortError') return 'share'; }                         // the player closed the share sheet: fine
-    try { await navigator.clipboard.writeText(text); return 'copy'; } catch { /* fall through to a download */ }
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-    const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+    if (prefer !== 'file') { try { await navigator.clipboard.writeText(text); return 'copy'; } catch { /* fall through to a download */ } }
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: filename, rel: 'noopener' });
+    a.style.display = 'none';
     document.body.append(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    setTimeout(() => URL.revokeObjectURL(url), 15000);                                     // Safari needs the URL to outlive the click
     return 'download';
 }

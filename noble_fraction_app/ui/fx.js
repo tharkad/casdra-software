@@ -110,6 +110,15 @@ export function toast(text, who = 0) {
     if (a) a.onfinish = () => t.remove(); else t.remove();
 }
 
+// Waits (up to maxMs, scaled by the speed setting) for the finite animations running on cards and boxes inside the app to finish.
+// The Rival's moves re-render the whole screen, which would cut them short -- so the Rival waits for the player's own animations (e.g. the new hand).
+export async function settle(maxMs = 1500, stop = () => false) {
+    if (!enabled()) return;
+    const deadline = performance.now() + ms(maxMs);
+    const running = () => document.getAnimations().filter(a => a.playState === 'running' && a.effect?.target?.closest?.('#app') && Number.isFinite(a.effect.getComputedTiming().endTime));
+    while (running().length && performance.now() < deadline && !stop()) await new Promise(resolve => setTimeout(resolve, 40));
+}
+
 export function clearToasts() { const box = one('#toasts'); if (box) box.replaceChildren(); }
 
 function flyChip(label, from, toEl, hue = 190) {

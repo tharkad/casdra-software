@@ -39,9 +39,12 @@ function history(data, ctx) {
         h('div', { class: 'history-tools' },
             h('span', { class: 'dim', 'data-log-count': '' }, `${stored.length} game log${stored.length === 1 ? '' : 's'} saved on this device`),
             stored.length ? h('button', { class: 'btn', 'data-save-all-logs': '', onclick: async e => {
-                const how = await deliverExport(bundle(stored), `noble-fraction-games-${new Date().toISOString().slice(0, 10)}.json`, { prefer: 'file' });
-                if (how === 'file') fx.toast(`Saved to ${lastSaved.path}`, 2);
-                flash(e.currentTarget, HOW[how] ?? 'Done ✓', 'Save all logs');
+                const btn = e.currentTarget;                                  // (currentTarget is gone after an await: keep the button itself)
+                try {
+                    const how = await deliverExport(bundle(stored), `noble-fraction-games-${new Date().toISOString().slice(0, 10)}.json`, { prefer: 'file', type: 'application/json' });
+                    if (how === 'file') fx.toast(`Saved to ${lastSaved.path}`, 2);
+                    flash(btn, HOW[how] ?? 'Done ✓', 'Save all logs');
+                } catch { flash(btn, 'Couldn\'t save', 'Save all logs'); }
             } }, 'Save all logs') : null),
         h('table', { class: 'level-table' }, h('thead', {}, h('tr', {}, ['Date', 'Result', 'Score', 'Level', 'Length', 'Turns', 'Log'].map(x => h('th', {}, x)))),
             h('tbody', {}, [...data.games].reverse().map(g => {
@@ -49,8 +52,8 @@ function history(data, ctx) {
                 return h('tr', { class: `res-${g.result}` }, h('td', {}, when(g)), h('td', {}, g.result === 'win' ? 'Won' : g.result === 'loss' ? 'Lost' : 'Tied'),
                     h('td', {}, `${g.myTotal}–${g.rivalTotal}`), h('td', {}, levelLabel(g.level)), h('td', {}, lengthLabel(g.mode)), h('td', {}, g.turns),
                     h('td', {}, rec ? h('button', { class: 'btn small', 'data-game-log': rec.id, onclick: async e => {
-                        const how = await deliverExport(recordText(rec), `noble-fraction-game-${rec.id}.txt`);
-                        flash(e.currentTarget, HOW[how] ?? 'Done ✓', 'Log');
+                        const btn = e.currentTarget;
+                        try { const how = await deliverExport(recordText(rec), `noble-fraction-game-${rec.id}.txt`); flash(btn, HOW[how] ?? 'Done ✓', 'Log'); } catch { flash(btn, 'Couldn\'t copy', 'Log'); }
                     } }, 'Log') : '–'));
             }))));
 }

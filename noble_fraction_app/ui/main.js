@@ -77,12 +77,16 @@ function track() {
 }
 
 // ---- playing: the human acts, then the Rival's turn is watched step by step ----
-async function runRival() {
+// The Rival's turn is played step by step on a screen that is already in "Rival is playing" mode (market pane, Skip button).
+function enterRivalMode() { busy = true; ui.skip = false; ui.pane = 'market'; document.body.dataset.busy = '1'; render(); }
+
+async function runRival({ prepared = false } = {}) {
     if (!controller.rivalToMove()) return;
     if (!fx.enabled()) { controller.playRivalToEnd(); track(); return; }
-    busy = true; ui.skip = false; ui.pane = 'market'; document.body.dataset.busy = '1'; render();
+    if (!prepared) enterRivalMode();
     fx.clearToasts();
     fx.toast("Rival's turn", 1);
+    await fx.settle(1500, () => ui.skip);                // let the player's own animations (the new hand arriving) finish before the Rival's first move re-renders
     while (controller.rivalToMove() && !ui.skip) {
         const before = fx.capture(controller.state());
         const step = controller.stepRival();
@@ -101,9 +105,12 @@ function act(action) {
     const before = fx.capture(controller.state());
     const from = controller.state().log.length;
     controller.dispatch(action);
+    // When this move hands the turn to the Rival, switch to the Rival's-turn screen FIRST: re-rendering after the animations start would cancel them.
+    const handOver = fx.enabled() && controller.rivalToMove();
+    if (handOver) enterRivalMode();
     fx.play({ before, next: controller.state(), events: controller.state().log.slice(from), actor: HUMAN });
     track();
-    runRival();
+    runRival({ prepared: handOver });
 }
 
 // The Expert Rival's net is fetched the first time it is needed; the game waits for it so Expert never silently plays as Hard.
