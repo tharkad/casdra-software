@@ -366,3 +366,4 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
     white-space: nowrap; color: #bff7ec; background: rgba(8, 22, 28, .86); border: .9cqw solid #2dd4bf; box-shadow: 0 .6cqw 2cqw rgba(0, 0, 0, .5); pointer-events: none; z-index: 2; }
 .card.dup-main .face { filter: saturate(.5) brightness(.72); }
 .dup-note { margin: 0; padding: 6px 9px; border-radius: 8px; background: rgba(45, 212, 191, .1); border: 1px solid rgba(45, 212, 191, .45); color: #bff7ec; font-size: 12px; line-height: 1.3; }
+.btn.warn { border-color: var(--orange); }

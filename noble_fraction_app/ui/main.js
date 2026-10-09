@@ -15,7 +15,7 @@ import { helpSheet } from './help.js';
 import { logSheet } from './log.js';
 import { startScreen } from './start.js';
 import { statsSheet } from './stats.js';
-import { confirmNewSheet } from './confirm.js';
+import { confirmNewSheet, confirmNightSheet } from './confirm.js';
 import { createProfile } from './profile.js';
 import { createGameStore, buildRecord } from './gamelogs.js';
 import { ACHIEVEMENTS, achievementById } from '../profile/achievements.js';
@@ -169,6 +169,7 @@ function pickSheet(s) {
             : ui.log ? logSheet(ctx)
                 : ui.help ? helpSheet(ctx)
                     : ui.menu ? menuSheet(ctx)
+                        : ui.confirmNight ? confirmNightSheet(ctx)
                         : ppePicker(ctx) ?? (ui.zoom ? zoomSheet(ctx) : null);
 }
 
@@ -176,6 +177,7 @@ function pickSheet(s) {
 // (the Shift Engineer picker, the game-over summary, the abandon-game question) are not dismissible this way.
 function dismissTop() {
     if (ui.confirmNew) return ctx.setUi({ confirmNew: false });
+    if (ui.confirmNight) return ctx.setUi({ confirmNight: null });
     if (ui.stats) return ctx.setUi({ stats: false });
     if (ui.log) return ctx.setUi({ log: false });
     if (ui.help) return ctx.setUi({ help: false });

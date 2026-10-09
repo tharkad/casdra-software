@@ -1,6 +1,7 @@
 import { h } from './dom.js';
 import { barLabel } from './labels.js';
 import { actAttr } from './actions.js';
+import { isFinalTurn } from './confirm.js';
 
 const NORMAL = [['distill', 'DISTILL'], ['airwipe', 'INTAKE / PURGE'], ['buybid', 'BUY / BID'], ['cleanup', 'END']];
 // A Night Shift turn is DISTILL, two BID steps (no BUY), END.
@@ -33,8 +34,11 @@ export function consoleBar(ctx) {
     }
     const steps = stepTrack(s).map(t => h('span', { class: `step ${t.on ? 'on' : ''}`, 'data-step': t.key }, t.label));
     const live = idx.bar.map(a => ({ rank: a.type === 'air' ? 0 : a.type === 'wipe' && !a.ppe ? (a.line === 'contract' ? 1 : 2) : a.type === 'wipe' ? 3 : 0,
-        el: h('button', { class: `btn ${a.type === 'finishTurn' || a.type === 'play' || a.type === 'useInstalled' ? 'primary' : ''}`,
-            'data-act': actAttr(a), onclick: () => ctx.act(a) }, barLabel(a, s)) }));
+        el: h('button', { class: `btn ${a.type === 'finishTurn' || a.type === 'play' || a.type === 'useInstalled' ? 'primary' : ''} ${a.type === 'beginTurn' && a.overtime && isFinalTurn(s) ? 'warn' : ''}`,
+            'data-act': actAttr(a), 'data-pass': a.type === 'endStep' ? '' : null,                // (a Pass is never the control to start on: see input/focus.js)
+            title: a.type === 'beginTurn' && a.overtime && isFinalTurn(s) ? 'Final turn: a Night Shift cannot BUY' : null,
+            // on the final turn a Night Shift asks first (it cannot BUY)
+            onclick: () => (a.type === 'beginTurn' && a.overtime && isFinalTurn(s) ? ctx.setUi({ confirmNight: a }) : ctx.act(a)) }, barLabel(a, s)) }));
     return h('nav', { id: 'console' }, h('div', { class: 'track' }, steps), h('div', { class: 'bar' }, [...live, ...unavailablePurges(ctx)]
         .sort((x, y) => x.rank - y.rank).map(x => x.el)));
 }

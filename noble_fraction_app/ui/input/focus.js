@@ -59,9 +59,9 @@ export const current = () => (state.key ? focusables().find(el => keyOf(el) === 
 
 export function setFocus(el) {
     document.querySelectorAll('.nf-focus').forEach(n => n.classList.remove('nf-focus'));
-    if (!el) { state.key = null; return; }
+    if (!el) { state.key = null; state.onPass = false; return; }
     el.classList.add('nf-focus');
-    state.key = keyOf(el); state.rect = el.getBoundingClientRect();
+    state.key = keyOf(el); state.rect = el.getBoundingClientRect(); state.onPass = el.matches('[data-pass]');
     el.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
 }
 
@@ -70,7 +70,10 @@ export function firstFocus() {
     const list = focusables();
     return list.find(el => el.matches('[data-start=continue]')) ?? list.find(el => el.matches('[data-start=play]'))
         ?? (inSheet() ? list.find(el => el.matches('.acts button, [data-keep], [data-pick]')) ?? list[0]
-            : list.find(el => el.closest('#console') && !el.disabled) ?? list.find(el => el.closest('#hand')) ?? list[0]);
+            : list.find(el => el.closest('#console') && !el.disabled && !el.matches('[data-pass]'))        // the turn's real controls first,
+                ?? list.find(el => el.matches('#main .card.act'))                                          // then a card you can act on (the BUY / BID step),
+                ?? list.find(el => el.closest('#console') && !el.disabled)                                 // Pass only when nothing else is possible
+                ?? list.find(el => el.closest('#hand')) ?? list[0]);
 }
 
 export function move(dir) {
@@ -93,6 +96,8 @@ export function restore(active) {
         const c = centre(state.rect);
         target = list.map(el => ({ el, d: Math.hypot(centre(el.getBoundingClientRect()).x - c.x, centre(el.getBoundingClientRect()).y - c.y) })).sort((a, b) => a.d - b.d)[0]?.el;
     }
+    // When the control you were on disappears (the step changed) and the nearest thing left is Pass, start from the best control instead of Pass.
+    if (target?.matches('[data-pass]') && !state.onPass && !sheetNow) target = firstFocus();
     state.layerWasSheet = sheetNow;
     setFocus(target ?? firstFocus());
 }
