@@ -224,6 +224,7 @@ body[data-busy] #console .bar { opacity: .5; }
 .btn.big { min-height: 46px; font-size: 16px; padding: 0 18px; }
 .start .last { margin: 0; color: var(--dim); font-size: 12px; }
 .start .credit { margin: 0; color: var(--dim); font-size: 11px; opacity: .8; }
+.start .version { margin: 0; color: var(--dim); font-size: 11px; opacity: .7; }
 
 /* ---- stats & achievements ---- */
 .stats { display: flex; flex-direction: column; width: min(100%, 760px); }

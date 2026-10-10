@@ -2,12 +2,18 @@ import { h } from './dom.js';
 import { glyphEl } from './cardface.js';
 import { LEVELS } from '../bot/levels.js';
 import { CREDIT_SHORT } from './credits.js';
+import { VERSION } from './version.js';
 
 const MODES = [['normal', 'Normal', 'The game ends at 5 contracts or 5 upgrades.'], ['overtime', 'Overtime', 'A long game: it takes 10 contracts or 10 upgrades.']];
 const BLURBS = { easy: 'A relaxed Rival. Good for learning the plant.', normal: 'A solid, steady Rival.', hard: 'Tuned by thousands of self-play games. Bring your best.', expert: 'A neural network that plans ahead. Takes a moment to think.' };
 
 // The first screen: title, difficulty, Play / Continue, and the way into Stats and the rules.
 export function startScreen(ctx) {
+    const shell = window.nobleFractionShell;
+    if (shell?.updateStatus && ctx.ui.shellVersion === undefined) {            // the desktop app's own version, once it answers (older shells simply have none)
+        ctx.ui.shellVersion = null;
+        shell.updateStatus().then(s => ctx.setUi({ shellVersion: s?.version ?? null }), () => {});
+    }
     const saved = ctx.controller.savedGame();
     const last = ctx.profile?.games?.at(-1);
     return h('div', { class: 'start', 'data-screen': 'start' },
@@ -30,5 +36,6 @@ export function startScreen(ctx) {
                 h('button', { class: 'btn', 'data-open': 'help', onclick: () => ctx.setUi({ help: true }) }, 'How to play'),
                 window.nobleFractionShell?.quit ? h('button', { class: 'btn', 'data-open': 'quit', onclick: () => window.nobleFractionShell.quit() }, 'Quit') : null),     // only inside the desktop shell
             last ? h('p', { class: 'last' }, `Last game: ${last.result === 'win' ? 'Won' : last.result === 'loss' ? 'Lost' : 'Tied'} ${last.myTotal}–${last.rivalTotal}`) : null,
-            h('p', { class: 'credit', 'data-credit': '' }, CREDIT_SHORT)));
+            h('p', { class: 'credit', 'data-credit': '' }, CREDIT_SHORT),
+            h('p', { class: 'version', 'data-version': '' }, `Version ${VERSION}`, ctx.ui.shellVersion ? ` · desktop app ${ctx.ui.shellVersion}` : '')));
 }
