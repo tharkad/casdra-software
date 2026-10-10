@@ -61,6 +61,13 @@ body { position: fixed; inset: 0; container-type: size; }
 .pane.market { overflow: visible; padding: 4px 12px; }
 .pane h3 { margin: 0 0 2px; font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 .line, .group { display: flex; flex-direction: column; min-height: 0; flex: none; }
+/* the two market lines are their own tinted sections; an empty slot keeps the room of a taken card until the line is restocked */
+.pane.market .line { --accent: var(--teal); padding: 3px 8px 5px; border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); border-radius: 12px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent) 5%, transparent)); }
+.pane.market .line-upgrade { --accent: var(--violet); }
+.pane.market .line h3 { display: flex; justify-content: space-between; gap: 10px; color: var(--accent); font-weight: 800; }
+.pane.market .line h3 .deck { color: var(--dim); font-weight: 600; }
+.slot { flex: none; height: var(--cardh); width: calc(var(--cardh) * .644); border: 2px dashed color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 8px; opacity: .6; }
 .row { display: flex; gap: 6px; flex: 1; min-height: 0; }
 .empty { color: var(--dim); margin: 4px 0; font-size: 12px; white-space: nowrap; }
 .contract { display: flex; gap: 8px; align-items: flex-start; height: 100%; }
@@ -224,7 +231,9 @@ body[data-busy] #console .bar { opacity: .5; }
 .btn.big { min-height: 46px; font-size: 16px; padding: 0 18px; }
 .start .last { margin: 0; color: var(--dim); font-size: 12px; }
 .start .credit { margin: 0; color: var(--dim); font-size: 11px; opacity: .8; }
-.start .version { margin: 0; color: var(--dim); font-size: 11px; opacity: .7; }
+/* the version sits in the corner, out of the flow: the title content has no spare height to give on a short phone screen */
+.start { position: relative; }
+.start .version { position: absolute; top: 6px; right: max(12px, calc(var(--safe-r) + 8px)); margin: 0; color: var(--dim); font-size: 11px; opacity: .7; }
 
 /* ---- stats & achievements ---- */
 .stats { display: flex; flex-direction: column; width: min(100%, 760px); }
@@ -321,7 +330,9 @@ body[data-input=pad] #hints { display: flex; }
 body[data-input=pad]:has(#overlay .sheet) #hints { z-index: 60; bottom: 12px; left: 12px; }
 /* the title screen has no hand to sit above: the bar goes on the bottom edge and the content leaves room for it */
 body[data-input=pad]:has([data-screen=start]) #hints { left: max(12px, var(--pad-l)); right: max(12px, var(--pad-r)); bottom: calc(10px + var(--pad-b)); }
-body[data-input=pad] .start { padding-bottom: calc(var(--pad-b) + 64px * var(--ui)); }
+/* ...and it is drawn OVER the title content: nothing on the title screen moves when a controller is first used. It also stays on short
+   (phone-landscape) screens, where the in-game bar is hidden for lack of room above the hand: here there is no hand to cover. */
+body[data-input=pad]:has([data-screen=start]) #hints { display: flex; }
 .hint-key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .pad-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 1.7em; height: 1.7em; padding: 0 .35em; border-radius: 999px; font-weight: 800; font-size: .85em; color: #0b1020; background: #cbd5e1; }
 .pad-btn.a { background: #4ade80; } .pad-btn.b { background: #f87171; } .pad-btn.x { background: #60a5fa; } .pad-btn.y { background: #fbbf24; }
