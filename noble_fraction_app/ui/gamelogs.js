@@ -9,14 +9,14 @@ const CAP = 100;                                               // ~10 KB each: a
 export function buildRecord({ record, summary, now }) {
     return {
         v: 1, id: String(summary.endedAt ?? now), when: new Date(summary.endedAt ?? now).toISOString(),
-        seed: record.seed, mode: record.mode, level: record.level, start: record.start, startArg: record.startArg ?? null, replayable: record.replayable,
+        seed: record.seed, mode: record.mode, lineSize: record.lineSize ?? 4, level: record.level, start: record.start, startArg: record.startArg ?? null, replayable: record.replayable,
         result: summary.result, myTotal: summary.myTotal, rivalTotal: summary.rivalTotal, turns: summary.turns, moves: record.moves,
     };
 }
 
 // The final state of a stored game, by replaying its moves. Throws if the engine no longer accepts one of them (an older version's game).
 export function replay(record) {
-    let s = createGame({ seed: record.seed, startingPlayer: record.startArg ?? undefined, mode: record.mode });
+    let s = createGame({ seed: record.seed, startingPlayer: record.startArg ?? undefined, mode: record.mode, lineSize: record.lineSize ?? 4 });
     for (const [, action] of record.moves) s = apply(s, action);
     return s;
 }

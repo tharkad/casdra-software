@@ -54,7 +54,9 @@ settleHooks.push((s, p) => {
         logEvent(s, { type: 'cashPerO', money: boilers * f.removed.O });
     }
     const vcrs = f.armedBidTokens + installedCount(p, 'cryo_chiller');
-    f.freeBids = Math.min(p.tokensLeft, vcrs * f.removed.N);
+    // With both lines empty (every card bought, only reachable in a long game) there is nothing to put a token on: forfeit them,
+    // or the phase would wait for a placement no action can make.
+    f.freeBids = allLineCards(s).length === 0 ? 0 : Math.min(p.tokensLeft, vcrs * f.removed.N);
 });
 
 // Tokens earned this way are placed one at a time before the phase can finish.

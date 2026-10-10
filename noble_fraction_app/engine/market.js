@@ -1,6 +1,11 @@
 import { shuffle } from './helpers.js';
 
-export const LINE_SIZE = 4;
+// Cards in each line. The designer's rule: 3 in a 2-player game (the printed rulebook says 4 in one place and 3 in another; the
+// designer's instructional video settles it). Games started before the fix carry no `rules.lineSize` and stay at 4, so a saved
+// game, a stored log or a human game in the training set still plays and replays exactly as it was played.
+export const DEFAULT_LINE_SIZE = 3;
+export const LEGACY_LINE_SIZE = 4;
+export const lineSize = s => s.rules?.lineSize ?? LEGACY_LINE_SIZE;
 
 const LINES = {
     contract: { line: 'contractLine', deck: 'contractDeck', discard: 'contractDiscard' },
@@ -23,7 +28,7 @@ export function drawForLine(s, kind) {
 
 export function refillLine(s, kind) {
     const line = s.market[LINES[kind].line];
-    while (line.length < LINE_SIZE) {
+    while (line.length < lineSize(s)) {
         const card = drawForLine(s, kind);
         if (card === null) break;
         line.push(card);

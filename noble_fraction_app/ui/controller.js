@@ -105,7 +105,7 @@ export function createController({ storage = null, onChange = () => {}, autoRiva
         setExtra(patch) { extra = { ...extra, ...patch }; persist(); },
         level: () => level,
         // Everything needed to replay this game exactly: the engine is deterministic given the seed, who started, the length and the actions.
-        record: () => ({ seed: state.rules.seed, mode: state.rules.mode, level, start, startArg, replayable, moves }),
+        record: () => ({ seed: state.rules.seed, mode: state.rules.mode, lineSize: state.rules.lineSize ?? 4, level, start, startArg, replayable, moves }),
         mode: () => state?.rules?.mode ?? 'normal',
         state: () => state,
         legal: () => (state.turn.phase === 'over' ? [] : legalActions(state)),

@@ -1,6 +1,6 @@
 import { handle, provide } from './registry.js';
 import { activePlayer, logEvent, newCard, takeFrom } from './helpers.js';
-import { LINE_SIZE, drawForLine, lineOf, discardOf, lineNames } from './market.js';
+import { lineSize, drawForLine, lineOf, discardOf, lineNames } from './market.js';
 import { enterBuyBid } from './buybid.js';
 
 const hasBid = card => Object.values(card.bids ?? {}).some(n => n > 0);
@@ -60,7 +60,7 @@ handle('wipe', (s, a) => {
     line.splice(0, line.length, ...keep);
     logEvent(s, { type: 'wipe', line: a.line, kept: keep.length });
     if (!a.ppe) {
-        while (line.length < LINE_SIZE) {
+        while (line.length < lineSize(s)) {
             const card = drawForLine(s, a.line);
             if (!card) break;
             line.push(card);
@@ -75,7 +75,7 @@ handle('wipe', (s, a) => {
         if (card) drawn.push(card);
     }
     p.discard.push(played);
-    s.turn.f.ppe = { line: a.line, drawn, slots: LINE_SIZE - keep.length };
+    s.turn.f.ppe = { line: a.line, drawn, slots: lineSize(s) - keep.length };
 });
 
 handle('ppeChoose', (s, a) => {

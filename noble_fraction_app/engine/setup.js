@@ -1,6 +1,6 @@
 import { CONTRACT_DECK, UPGRADE_DECK } from '../data/cards.js';
 import { newCard, shuffle, drawCards, rnd } from './helpers.js';
-import { refillLines } from './market.js';
+import { refillLines, DEFAULT_LINE_SIZE } from './market.js';
 
 export const STARTING_MONEY = 3;
 export const BID_TOKENS = 5;
@@ -24,9 +24,9 @@ function newPlayer(s, id) {
 // `mode`: 'normal' ends at 5 installed Upgrades or 5 completed Contracts, 'overtime' (the long game) at 10.
 export const END_COUNTS = { normal: 5, overtime: 10 };
 
-export function createGame({ seed = 1, startingPlayer, mode = 'normal' } = {}) {
+export function createGame({ seed = 1, startingPlayer, mode = 'normal', lineSize = DEFAULT_LINE_SIZE } = {}) {
     const s = {
-        rng: seed >>> 0, uidCounter: 0, log: [], players: [], rules: { mode, endCount: END_COUNTS[mode] ?? 5, seed: seed >>> 0 },
+        rng: seed >>> 0, uidCounter: 0, log: [], players: [], rules: { mode, endCount: END_COUNTS[mode] ?? 5, seed: seed >>> 0, lineSize },
         market: {
             contractDeck: [], contractDiscard: [], contractLine: [],
             upgradeDeck: [], upgradeDiscard: [], upgradeLine: [],
