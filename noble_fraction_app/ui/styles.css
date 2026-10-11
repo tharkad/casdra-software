@@ -74,10 +74,9 @@ body { position: fixed; inset: 0; container-type: size; }
 .pane.market .line h3 .deck { color: var(--dim); font-weight: 600; }
 /* every section is the height of a card whether or not it holds one: an empty tableau section shows a dashed card-sized place instead of shrinking */
 .pane.facility .group > :not(h3) { min-height: var(--cardh); }
-.pane.facility .group > .empty { margin: 0; display: flex; align-items: center; justify-content: center; padding: 0 12px; min-width: calc(var(--cardh) * .644); text-align: center;
-    border: 2px dashed color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 8px; white-space: normal; }
-.pane.facility .contract > .empty { margin: 0; display: flex; align-items: center; justify-content: center; padding: 0 12px; min-width: calc(var(--cardh) * .644); text-align: center;
-    border: 2px dashed color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 8px; white-space: normal; }
+.pane.facility .group > .empty, .pane.facility .contract > .empty { flex: none; box-sizing: border-box; width: calc(var(--cardh) * .644); height: var(--cardh); margin: 0;
+    display: flex; align-items: center; justify-content: center; padding: 4px; text-align: center; font-size: calc(11px * var(--ui)); line-height: 1.2; white-space: normal;
+    border: 2px dashed color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 8px; }
 .slot { flex: none; height: var(--cardh); width: calc(var(--cardh) * .644); border: 2px dashed color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 8px; opacity: .6; }
 .row { display: flex; gap: 6px; flex: 1; min-height: 0; }
 .empty { color: var(--dim); margin: 4px 0; font-size: 12px; white-space: nowrap; }
