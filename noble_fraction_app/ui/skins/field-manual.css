@@ -1,0 +1,23 @@
+/* Field Manual: warm paper, ink, restrained industrial colour, like printed cards in a manual. Light and the easiest to read. */
+html[data-skin=field-manual] {
+    --bg: #e8e1d0; --panel: #f6f1e5; --panel2: #eee7d6; --line: #c7bca4; --text: #1e242d; --dim: #626b76;
+    --accent: #1b6c79; --accent-ink: #ffffff;
+    --teal: #1b6c79; --violet: #565a9c; --violet-lt: #3d4180; --orange: #a5601a; --green: #3b7850; --red: #a6443a;
+    --rival: #a5601a; --rival-ink: #ffffff; --good: #2d7547; --bad: #a6443a; --gold: #c9972b; --gold-ink: #261b03; --xe: #14707e;
+    --scrim: rgba(30, 36, 45, .55);
+    --card-s: 30%; --card-l: 94%; --card-border-s: 30%; --card-border-l: 48%; --face-ink: #1e242d; --face-dim: #5a626d;
+    --glyph-s: 40%; --glyph-l: 38%; --glyph-b-l: 74%;
+    --badge-s: 38%; --badge-l: 26%; --badge-ink-s: 0%; --badge-ink-l: 100%;
+    --card-shadow: 0 .5cqw 1.2cqw rgba(70, 55, 25, .28);
+}
+html[data-skin=field-manual] .top { background: hsl(var(--h) 26% 86%); border-bottom-color: hsl(var(--h) 24% 62%); }
+html[data-skin=field-manual] .badge.install { border-color: hsl(var(--h) 30% 40%); }
+html[data-skin=field-manual] .kind-element .face, html[data-skin=field-manual] .card .face.kind-element { background: hsl(var(--h) 26% 93%); }
+html[data-skin=field-manual] .tok { box-shadow: 0 0 0 1px rgba(30, 36, 45, .45); border-color: var(--panel); }
+html[data-skin=field-manual] .xe-need { color: var(--xe); }
+html[data-skin=field-manual] .float.gain { color: #1f6b3c; } html[data-skin=field-manual] .float.loss { color: #a6443a; } html[data-skin=field-manual] .float.vp { color: #3d4180; }
+html[data-skin=field-manual] .float { text-shadow: 0 0 3px #f6f1e5, 0 0 3px #f6f1e5; }
+html[data-skin=field-manual] .sheet { box-shadow: 0 18px 50px rgba(50, 40, 20, .3); }
+html[data-skin=field-manual] .start { background: var(--bg); }
+html[data-skin=field-manual] .ring-big { color: var(--accent); }
+html[data-skin=field-manual] .btn.primary { color: #fff; }

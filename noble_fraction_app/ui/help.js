@@ -1,5 +1,5 @@
 import { h } from './dom.js';
-import { CREDIT_LONG } from './credits.js';
+import { CREDIT_LONG, CREDIT_FONTS } from './credits.js';
 
 // A rules summary for the "?" button. Short on purpose: the rulebook is the authority.
 const SECTIONS = [
@@ -12,10 +12,10 @@ const SECTIONS = [
     ['Upgrades', 'The round number top-left is the buy cost; the ringed number bottom-right is the total to install straight from the line. Installing from your hand later costs the difference. Installed Upgrades are worth 1 VP each and work every turn; the ones you use (such as Packed Tower, which finishes your Contract with one less Xe) have a Use button, once a turn when installed or once when played from your hand. You can install each design once. Cards marked with the crossed-out wrench can never be installed.'],
     ['Contracts', 'When your stored Xe reaches the Contract\'s Xe cost it completes instantly: the Xe returns to the supply, you collect the $ reward, and the card scores its VP at game end.'],
     ['Night Shift', 'Choose it at the start of a turn (never two turns in a row): Distill twice, then take two BID steps. No INTAKE, PURGE or BUY. Your discard pile is shuffled back into your deck.'],
-    ['End of turn', 'Both lines are refilled to 4 cards. Discard any hand cards you like, then draw back up to your hand size (5 plus your Mains).'],
+    ['End of turn', 'Both lines are refilled to 3 cards. Discard any hand cards you like, then draw back up to your hand size (5 plus your Mains).'],
     ['Scoring', 'Completed Contracts, 1 VP per installed Upgrade, Mains (1 / 4 / 9 VP for one / two / three), 1 VP per $5, Upgrade bonuses, and +3 VP if the player who ended the game took the +3 side of the Founder\'s Seal. A tie goes to the player with less Xe left in their deck.'],
     ['Using the app', 'Tap any card to zoom it and see what you can do with it. Teal is you, orange is the Rival. The Rival plays its whole turn at once, then shows a recap; "Rival turn" reopens it. Glowing cards have an action available.'],
-    ['Credits', CREDIT_LONG],
+    ['Credits', `${CREDIT_LONG} ${CREDIT_FONTS}`],
 ];
 
 export function helpSheet(ctx) {

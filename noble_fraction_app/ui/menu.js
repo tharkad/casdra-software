@@ -1,6 +1,7 @@
 import { h } from './dom.js';
 import { LEVELS } from '../bot/levels.js';
 import { SPEEDS } from './fx.js';
+import { SKINS } from './skins.js';
 
 // "New game" in three strengths of Rival; the current one is marked.
 export function newGameButtons(ctx) {
@@ -17,6 +18,8 @@ export function menuSheet(ctx) {
         h('button', { class: 'btn primary', 'data-close': '', onclick: () => ctx.setUi({ menu: false }) }, 'Resume'),
         h('div', { class: 'levels' }, h('span', { class: 'dim' }, 'Animations:'),
             Object.keys(SPEEDS).reverse().map(k => h('button', { class: `btn ${ctx.fxMode === k ? 'current' : ''}`, 'data-fx': k, onclick: () => ctx.setFx(k) }, SPEED_LABELS[k]))),
+        h('div', { class: 'levels' }, h('span', { class: 'dim' }, 'Theme:'),
+            SKINS.map(k => h('button', { class: `btn ${(document.documentElement.dataset.skin ?? 'classic') === k.id ? 'current' : ''}`, 'data-skin': k.id, title: k.note, onclick: () => ctx.setSkin(k.id) }, k.label))),
         h('div', { class: 'levels' }, h('span', { class: 'dim' }, 'Card dragging:'),
             [['on', true], ['off', false]].map(([k, v]) => h('button', { class: `btn ${(ctx.ui.drag !== false) === v ? 'current' : ''}`, 'data-drag': k, onclick: () => ctx.setDrag(v) }, k === 'on' ? 'On' : 'Off'))),
         // One deliberate step away from the game: the start screen, where Continue is waiting. The game is saved after every move, so nothing is lost.

@@ -1,0 +1,10 @@
+/* Open fonts, bundled so the game looks the same offline. IBM Plex (SIL OFL 1.1, (c) IBM Corp.), Barlow Semi Condensed (SIL OFL 1.1, (c) Jeremy Tribby). See LICENSES.md. */
+@font-face { font-family: 'Barlow Semi Condensed'; font-weight: 500; font-style: normal; font-display: swap; src: url(BarlowSemiCondensed-500.woff2) format('woff2'); }
+@font-face { font-family: 'Barlow Semi Condensed'; font-weight: 600; font-style: normal; font-display: swap; src: url(BarlowSemiCondensed-600.woff2) format('woff2'); }
+@font-face { font-family: 'Barlow Semi Condensed'; font-weight: 700; font-style: normal; font-display: swap; src: url(BarlowSemiCondensed-700.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-weight: 500; font-style: normal; font-display: swap; src: url(IBMPlexMono-500.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-weight: 600; font-style: normal; font-display: swap; src: url(IBMPlexMono-600.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-weight: 400; font-style: normal; font-display: swap; src: url(IBMPlexSans-400.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-weight: 500; font-style: normal; font-display: swap; src: url(IBMPlexSans-500.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-weight: 600; font-style: normal; font-display: swap; src: url(IBMPlexSans-600.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-weight: 700; font-style: normal; font-display: swap; src: url(IBMPlexSans-700.woff2) format('woff2'); }

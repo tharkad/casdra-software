@@ -190,6 +190,7 @@ body { position: fixed; inset: 0; container-type: size; }
 /* elements */
 .kind-element { align-items: center; justify-content: center; }
 .kind-element .ring { position: absolute; inset: 36% 4% 10%; opacity: .9; }
+.esym, .enum { display: none; }
 .kind-element .ring svg { width: 100%; height: 100%; }
 .ename { position: absolute; bottom: 6cqw; font-size: 9cqw; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: hsl(var(--h) 60% 84%); }
 .ptable { position: absolute; top: 3cqw; left: 3cqw; right: 3cqw; padding: 1.2cqw; border-radius: 2.5cqw; background: hsl(var(--h) 55% 17%); z-index: 1; }   /* solid panel: the card texture never shows through the table */
