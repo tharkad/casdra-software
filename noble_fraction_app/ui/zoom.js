@@ -6,6 +6,7 @@ import { cardLabel } from './labels.js';
 import { actAttr, actionGroup } from './actions.js';
 import { duplicateReason, DUPLICATE_NOTE } from './duplicates.js';
 import { HUMAN } from './controller.js';
+import { peekTop } from '../engine/distill-abilities.js';
 
 
 function facts(d) {
@@ -26,10 +27,15 @@ export function zoomSheet(ctx) {
     // One button per distinct choice, counting the interchangeable cards behind it.
     const groups = new Map();
     actions.forEach(a => { const k = actionGroup(a, ctx.s); groups.set(k, [...(groups.get(k) ?? []), a]); });
+    // Sampling Port: the top card of your System, face up, so draw-or-discard is a choice you can actually make.
+    const top = actions.some(a => a.choice) ? peekTop(ctx.s, ctx.s.players[ctx.s.turn.active]) : null;
     return h('div', { class: 'sheet zoom', 'data-sheet': 'zoom' },
         h('div', { class: 'card big' }, cardFace(d.id)),
         h('div', { class: 'info' },
             h('h2', {}, d.name), h('p', { class: 'facts' }, facts(d)),
+            top ? h('div', { class: 'peek', 'data-peek': top.defId },
+                h('div', { class: 'card peek-card' }, cardFace(top.defId)),
+                h('p', {}, h('b', {}, 'Top of your System:'), h('br'), CARD_DEFS[top.defId].name)) : null,
             dup ? h('p', { class: 'dup-note', 'data-dup-note': dup }, DUPLICATE_NOTE[dup]) : null,
             h('div', { class: 'acts' }, groups.size ? [...groups.entries()].map(([key, list]) => h('button', { class: 'btn primary', 'data-act': actAttr(list[0]), 'data-group': key,
                 onclick: () => ctx.act(list[0]) }, cardLabel(list[0], ctx.s, list.length))) : h('p', { class: 'empty' }, 'Nothing you can do with this right now.')),

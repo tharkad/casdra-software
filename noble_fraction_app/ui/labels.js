@@ -1,3 +1,4 @@
+import { peekTop } from '../engine/distill-abilities.js';
 import { CARD_DEFS, DISTILL_PRIORITY } from '../data/cards.js';
 import { quote } from '../engine/buy.js';
 import { findCard } from './find.js';
@@ -55,7 +56,10 @@ export function cardLabel(a, s, same = 1) {
         const verb = a.type === 'play' ? 'Play' : 'Use';
         if (a.discard) return same > 1 ? `${verb} — discard one ${nameByUid(s, a.discard)} (you have ${same})` : `${verb} — discard ${nameByUid(s, a.discard)}`;
         if (a.install) return `${verb} — install ${nameByUid(s, a.install)} free`;
-        if (a.choice) return `${verb} — ${a.choice === 'draw' ? 'draw the top card' : 'discard the top card'}`;
+        if (a.choice) {                                                                  // Sampling Port: the card is shown so the choice is an informed one
+            const top = peekTop(s, p);
+            return `${verb} — ${a.choice === 'draw' ? 'draw' : 'discard'} the top card${top ? ` (${nameOf(top.defId)})` : ''}`;
+        }
         if (CARD_DEFS[findCard(s, a.uid).card.defId].ability === 'lessXe') return `${verb} — finish your Contract with ${CARD_DEFS[p.contract.defId].xe - 1} Xe`;
         return verb;
     }

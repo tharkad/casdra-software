@@ -62,10 +62,15 @@ body { position: fixed; inset: 0; container-type: size; }
 .pane h3 { margin: 0 0 2px; font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 .line, .group { display: flex; flex-direction: column; min-height: 0; flex: none; }
 /* the two market lines are their own tinted sections; an empty slot keeps the room of a taken card until the line is restocked */
-.pane.market .line { --accent: var(--teal); padding: 3px 8px 5px; border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); border-radius: 12px;
+/* a section ends at the bottom of its cards plus the same margin it has at the top: it never stretches to fill the pane */
+.pane.market, .pane.facility { align-items: flex-start; }
+.pane.market .line, .pane.facility .group { --accent: var(--teal); padding: 4px 8px; border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); border-radius: 12px;
     background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent) 5%, transparent)); }
-.pane.market .line-upgrade { --accent: var(--violet); }
-.pane.market .line h3 { display: flex; justify-content: space-between; gap: 10px; color: var(--accent); font-weight: 800; }
+.pane.market .line-upgrade, .pane.facility .g-installed { --accent: var(--violet); }
+.pane.facility .g-done { --accent: var(--green); }
+.pane.facility .g-mains { --accent: var(--red); }
+.pane.facility .g-rival { --accent: var(--dim); }
+.pane.market .line h3, .pane.facility .group h3 { display: flex; justify-content: space-between; gap: 10px; color: var(--accent); font-weight: 800; }
 .pane.market .line h3 .deck { color: var(--dim); font-weight: 600; }
 .slot { flex: none; height: var(--cardh); width: calc(var(--cardh) * .644); border: 2px dashed color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 8px; opacity: .6; }
 .row { display: flex; gap: 6px; flex: 1; min-height: 0; }
@@ -110,6 +115,10 @@ body { position: fixed; inset: 0; container-type: size; }
 .zoom .info h2 { overflow-wrap: anywhere; }
 .facts { color: var(--dim); margin: 0; }
 .acts { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
+/* Sampling Port: the card on top of your System, shown face up beside the choice */
+.zoom .peek { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, .04); }
+.zoom .peek p { margin: 0; }
+.zoom .peek .card.peek-card { --ch: 92px; cursor: default; border: 0; padding: 0; }
 .acts .btn { text-align: left; white-space: normal; padding: 6px 12px; }
 .recap ol { margin: 0 0 10px; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
 .ppe .row { height: 150px; margin: 8px 0; justify-content: center; }
@@ -330,8 +339,14 @@ body[data-input=pad] #hints { display: flex; }
 body[data-input=pad]:has(#overlay .sheet) #hints { z-index: 60; bottom: 12px; left: 12px; }
 /* the title screen has no hand to sit above: the bar goes on the bottom edge and the content leaves room for it */
 body[data-input=pad]:has([data-screen=start]) #hints { left: max(12px, var(--pad-l)); right: max(12px, var(--pad-r)); bottom: calc(10px + var(--pad-b)); }
-/* ...and it is drawn OVER the title content: nothing on the title screen moves when a controller is first used. It also stays on short
-   (phone-landscape) screens, where the in-game bar is hidden for lack of room above the hand: here there is no hand to cover. */
+/* The title screen always keeps the bar's strip free at the bottom (whether or not a controller has been used yet), so the bar covers nothing
+   and nothing moves when it appears. It also stays on short (phone-landscape) screens, where the in-game bar is hidden for lack of room above
+   the hand: here there is no hand to cover. */
+.start { padding-bottom: calc(var(--pad-b) + 54px * var(--ui)); }
+/* short phone-landscape screens: the one-line difficulty blurbs, the tagline and the last-game line give way so the whole menu fits above the bar */
+@media (max-height: 430px) { .start-main { gap: 5px; } }
+@media (max-height: 380px) { .start .level small, .mode-pick small { display: none; } .start .tag { display: none; } }
+@media (max-height: 350px) { .start .last { display: none; } }
 body[data-input=pad]:has([data-screen=start]) #hints { display: flex; }
 .hint-key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .pad-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 1.7em; height: 1.7em; padding: 0 .35em; border-radius: 999px; font-weight: 800; font-size: .85em; color: #0b1020; background: #cbd5e1; }

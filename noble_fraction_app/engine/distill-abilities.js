@@ -29,6 +29,14 @@ function topCard(s, p) {
     if (p.draw.length === 0 && p.discard.length > 0) p.draw = shuffle(s, p.discard.splice(0));
     return p.draw[p.draw.length - 1] ?? null;
 }
+// What Sampling Port will show: the top card of the System. With the pile empty the discard pile is reshuffled first; that shuffle is
+// replayed here on a copy of the generator, so the card can be shown BEFORE the player chooses and is exactly the one the engine reveals.
+export function peekTop(s, p) {
+    if (p.draw.length > 0) return p.draw[p.draw.length - 1];
+    if (p.discard.length === 0) return null;
+    const order = shuffle({ rng: s.rng }, p.discard.slice());
+    return order[order.length - 1];
+}
 defineAbility('peekDeck', {
     installedUse: true,
     params: (s, p) => (p.draw.length + p.discard.length > 0 ? [{ choice: 'draw' }, { choice: 'discard' }] : []),
