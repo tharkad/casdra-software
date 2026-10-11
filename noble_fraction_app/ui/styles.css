@@ -98,10 +98,11 @@ body { position: fixed; inset: 0; container-type: size; }
 /* playable cards: a wide ring, set off from the card edge, with colour flowing around it (see the end of this file) */
 /* Bid Token badges sit just under the card name (below the header row), centred */
 .tokens { position: absolute; left: 0; right: 0; top: 34cqw; display: flex; justify-content: center; gap: 4px; pointer-events: none; z-index: 1; }
-.tok { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 3px solid #fff;
-    background: var(--teal); color: #04221e; font-size: 13px; font-weight: 800; box-shadow: 0 1px 6px rgba(0, 0, 0, .7); }
+.tok { --d: min(36px, 42cqw); display: inline-flex; align-items: center; justify-content: center; width: var(--d); height: var(--d); border-radius: 50%; border: 4px solid #fff; font-size: calc(var(--d) * .54);
+    background: var(--teal); color: #04221e; font-weight: 800; box-shadow: 0 1px 6px rgba(0, 0, 0, .7); }
 .tok-1 { background: var(--orange); color: #2a1200; }
-.tokcount .tok { width: 18px; height: 18px; border-width: 2px; }
+.tokcount .tok { --d: 27px; width: 27px; height: 27px; border-width: 3px; font-size: 15px; }
+.tokcount { min-height: 44px; }
 
 /* Hand */
 #hand { display: flex; gap: 6px; padding: 4px var(--pad-r) var(--pad-b) var(--pad-l); background: var(--panel); border-top: 1px solid var(--line); min-height: 0; }
@@ -217,8 +218,8 @@ body { position: fixed; inset: 0; container-type: size; }
 
 /* ---- animation layer (ui/fx.js) ---- */
 #fx { position: fixed; inset: 0; z-index: 90; pointer-events: none; overflow: hidden; }
-#toasts { position: absolute; top: calc(var(--hud-h) + 52px); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 4px; align-items: center; width: min(92%, 520px); }
-.toast { padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; background: rgba(12, 18, 40, .94); border: 2px solid var(--line); box-shadow: 0 4px 14px rgba(0, 0, 0, .5); text-align: center; }
+#toasts { position: absolute; top: calc(var(--hud-h) + 52px); left: 0; right: 0; height: 0; }                 /* the toasts inside are positioned by fx.js (a constant-speed ticker) */
+.toast { position: absolute; left: 50%; top: 0; width: max-content; max-width: min(92vw, 520px); will-change: transform, opacity; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; background: rgba(12, 18, 40, .94); border: 2px solid var(--line); box-shadow: 0 4px 14px rgba(0, 0, 0, .5); text-align: center; }
 .toast.by-0 { border-color: var(--teal); } .toast.by-1 { border-color: var(--orange); }
 .float { position: fixed; font-size: 15px; font-weight: 900; text-shadow: 0 1px 4px #000; white-space: nowrap; }
 .float.gain { color: #86efac; } .float.loss { color: #fca5a5; } .float.vp { color: var(--violet-lt); }
@@ -396,7 +397,9 @@ body.dragging #hand .cards, body.dragging #hand .piles { opacity: .18; transitio
 .drag-well.active { transform: scale(1.06); border-color: var(--teal); background: rgba(18, 58, 62, .96); box-shadow: 0 0 18px rgba(45, 212, 191, .45); }
 @keyframes drag-in { from { opacity: 0; } to { opacity: 1; } }
 body.dragging, body.dragging * { cursor: grabbing !important; }
-.pane .card, #hand .card { touch-action: pan-x; }
+/* a card in the hand or market never scrolls, so a finger on it belongs to dragging at once; only a scrolling tableau strip keeps pan-x */
+#hand .card, #hand .tokcount, .pane.market .card { touch-action: none; }
+.pane:not(.market) .card { touch-action: pan-x; }
 .pane .card.act, #hand .card.act { cursor: grab; }
 .card.drop-ok { outline: 3px solid var(--teal); outline-offset: -3px; }
 .card.drop-hot { box-shadow: 0 0 22px rgba(45, 212, 191, .6); transform: scale(1.03); }

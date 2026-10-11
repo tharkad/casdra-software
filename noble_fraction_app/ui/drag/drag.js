@@ -28,7 +28,8 @@ export function createDrag({ ctx, fx, enabled = () => true, tip = null }) {
 
     // ---- finding what was pressed ----
     function sourceOf(e) {
-        const chip = e.target.closest?.('#hand .tokcount .tok-0');
+        // the whole "N tokens left" row is the handle for your token chip, not just the little disc
+        const chip = e.target.closest?.('#hand .tokcount')?.querySelector('.tok-0');
         if (chip && tokenSources(ctx).chip) return { kind: 'chip', el: chip };
         const card = e.target.closest?.('#app .card[data-uid]');
         if (card) {
@@ -37,7 +38,8 @@ export function createDrag({ ctx, fx, enabled = () => true, tip = null }) {
             if (tokenSources(ctx).pips.has(uid)) {
                 for (const pip of card.querySelectorAll('.tok-0')) {
                     const r = pip.getBoundingClientRect();
-                    if (e.clientX >= r.left - 10 && e.clientX <= r.right + 10 && e.clientY >= r.top - 10 && e.clientY <= r.bottom + 10) return { kind: 'pip', uid, el: pip };
+                    const slop = Math.max(16, r.width * 0.7);                      // a pick-up area well beyond the token itself
+                    if (e.clientX >= r.left - slop && e.clientX <= r.right + slop && e.clientY >= r.top - slop && e.clientY <= r.bottom + slop) return { kind: 'pip', uid, el: pip };
                 }
             }
             return { kind: 'card', uid, el: card };
@@ -52,7 +54,7 @@ export function createDrag({ ctx, fx, enabled = () => true, tip = null }) {
         const src = sourceOf(e);
         if (!src) return;
         const canDrag = src.kind !== 'card' || ctx.idx.byUid.has(src.uid);
-        session = { id: e.pointerId, type: e.pointerType || 'mouse', src, g: createGesture({ pointerType: e.pointerType || 'mouse', canDrag }), lifted: false, ending: false,
+        session = { id: e.pointerId, type: e.pointerType || 'mouse', src, g: createGesture({ pointerType: e.pointerType || 'mouse', canDrag, free: Boolean(src.el.closest?.('#hand, .pane.market')) }), lifted: false, ending: false,
             last: { x: e.clientX, y: e.clientY, vx: 0 }, liftedAt: 0, raf: 0, active: null, wells: [], targets: null };
         session.g.down({ x: e.clientX, y: e.clientY, t: performance.now() });
         try { src.el.setPointerCapture?.(e.pointerId); } catch { /* element may not accept capture */ }
@@ -107,7 +109,7 @@ export function createDrag({ ctx, fx, enabled = () => true, tip = null }) {
         ghost.classList.add('drag-ghost'); ghost.removeAttribute('data-zoom'); ghost.removeAttribute('data-uid'); ghost.removeAttribute('id'); ghost.tabIndex = -1;
         ghost.setAttribute('aria-hidden', 'true');
         if (src.kind === 'card') { ghost.style.width = `${s.rect.width}px`; ghost.style.height = `${s.rect.height}px`; src.el.classList.add('drag-origin'); }
-        else { ghost.classList.add('tok-ghost'); const d = Math.max(34, s.rect.width * 1.5); ghost.style.width = `${d}px`; ghost.style.height = `${d}px`; src.el.classList.add('drag-origin'); }
+        else { ghost.classList.add('tok-ghost'); const d = Math.max(48, s.rect.width * 1.5); ghost.style.width = `${d}px`; ghost.style.height = `${d}px`; src.el.classList.add('drag-origin'); }
         s.w = parseFloat(ghost.style.width); s.h = parseFloat(ghost.style.height);
         s.ghost = ghost; getLayer().append(ghost);
         if (src.kind === 'card') buildTray(); else markTargets();

@@ -98,37 +98,48 @@ export function pulse(el, strength = 1.25) {
     animate(el, [{ transform: 'scale(1)' }, { transform: `scale(${strength})`, offset: .4 }, { transform: 'scale(1)' }], { duration: ms(520), fill: 'none' });
 }
 
-// Toasts rise: a new one slides up into the bottom of the stack and every toast keeps drifting upward while it is shown, then fades. When one
-// is removed (it expired, or the stack is full) the others glide into the gap instead of jumping. The drift uses the `translate` property and
-// the gap-closing glide uses `transform`, so the two never fight over one property.
-function glide(box, change) {
-    const was = new Map([...box.children].map(c => [c, c.getBoundingClientRect().top]));
-    change();
-    [...box.children].forEach(c => {
-        const before = was.get(c);
-        if (before === undefined) return;
-        const d = before - c.getBoundingClientRect().top;
-        if (Math.abs(d) > 0.5) animate(c, [{ transform: `translateY(${d}px)` }, { transform: 'none' }], { duration: ms(300), easing: 'cubic-bezier(.2,.8,.2,1)' });
-    });
+// Toasts are a ticker: the whole stack scrolls upward at one constant speed, and a new toast is added at the BOTTOM of the stack (below the
+// last one, or at the starting line when the stack has already scrolled clear of it). Positions are absolute, so a toast leaving never shifts
+// the others. Each toast fades in as it appears and fades out as it nears the top of its run.
+const SPEED = 14;                                           // px per second at normal animation speed
+const GAP = 8;                                              // px between toasts in the stack
+const FADE_FROM = -26; const GONE_AT = -62;                 // y (px above the starting line) where fading starts / the toast is removed
+const MAX_TOASTS = 4;
+const stack = [];                                           // { el, y, h, born }
+let ticker = 0; let lastTick = 0;
+
+function place(t) {
+    t.el.style.transform = `translate(-50%, ${t.y.toFixed(1)}px)`;
+    const fadeIn = Math.min(1, (performance.now() - t.born) / 180);
+    const fadeOut = t.y >= FADE_FROM ? 1 : Math.max(0, 1 - (FADE_FROM - t.y) / (FADE_FROM - GONE_AT));
+    t.el.style.opacity = String(Math.min(fadeIn, fadeOut));
 }
-const DRIFT = 26;                                           // px a toast climbs over its life
+
+function tick(now) {
+    const dt = Math.min(0.1, (now - lastTick) / 1000); lastTick = now;
+    const speed = SPEED / (ms(1000) / 1000 || 1);
+    for (let i = stack.length - 1; i >= 0; i -= 1) {
+        const t = stack[i];
+        t.y -= speed * dt;
+        if (t.y <= GONE_AT) { t.el.remove(); stack.splice(i, 1); } else place(t);
+    }
+    ticker = stack.length ? requestAnimationFrame(tick) : 0;
+}
+
 export function toast(text, who = 0) {
     if (!enabled()) return;
     const box = one('#toasts');
     if (!box) return;
-    const t = h('div', { class: `toast by-${who}` }, text);
-    glide(box, () => {
-        while (box.children.length >= 3) box.firstChild.remove();
-        box.append(t);
-    });
-    const life = ms(3000);
-    const a = animate(t, [
-        { opacity: 0, translate: '0 14px', easing: 'ease-out' },                               // slides up into place...
-        { opacity: 1, translate: `0 ${-DRIFT * 0.1}px`, offset: .1, easing: 'linear' },         // ...then climbs at a steady pace...
-        { opacity: 1, translate: `0 ${-DRIFT * 0.85}px`, offset: .85, easing: 'linear' },       // ...and fades out still moving
-        { opacity: 0, translate: `0 ${-DRIFT}px` },
-    ], { duration: life, easing: 'linear' });
-    if (a) a.onfinish = () => glide(box, () => t.remove()); else t.remove();
+    while (stack.length >= MAX_TOASTS) stack.shift().el.remove();
+    const el = h('div', { class: `toast by-${who}` }, text);
+    el.style.opacity = '0';
+    box.append(el);
+    const h0 = el.getBoundingClientRect().height;
+    const last = stack[stack.length - 1];
+    const y = last ? Math.max(0, last.y + last.h + GAP) : 0;     // at the bottom of the stack, never above the starting line
+    const t = { el, y, h: h0, born: performance.now() };
+    stack.push(t); place(t);
+    if (!ticker) { lastTick = performance.now(); ticker = requestAnimationFrame(tick); }
 }
 
 // Waits (up to maxMs, scaled by the speed setting) for the finite animations running on cards and boxes inside the app to finish.
@@ -140,7 +151,7 @@ export async function settle(maxMs = 1500, stop = () => false) {
     while (running().length && performance.now() < deadline && !stop()) await new Promise(resolve => setTimeout(resolve, 40));
 }
 
-export function clearToasts() { const box = one('#toasts'); if (box) box.replaceChildren(); }
+export function clearToasts() { stack.length = 0; const box = one('#toasts'); if (box) box.replaceChildren(); }
 
 function flyChip(label, from, toEl, hue = 190) {
     if (!toEl) return;

@@ -1,9 +1,10 @@
 // Pure pointer-gesture recogniser for card dragging: no DOM, so it is tested in Node. See the design doc, "Gesture grammar":
-//   tap = press and release;  touch/pen = 10px mostly-vertical movement lifts, mostly-horizontal movement yields to the strip's scrolling,
+//   tap = press and release;  touch/pen on a card in the hand or market (which never scroll) = a 6px move in ANY direction lifts it, like any
+//   card game on a phone;  on a strip that can scroll = 10px mostly-vertical movement lifts, mostly-horizontal yields to the strip;
 //   a 220ms hold without moving lifts in place;  mouse = 4px any direction;  a card with no legal action only rubber-bands.
-export const CONFIG = { holdMs: 220, holdSlop: 6, touchStart: 10, verticalBias: 1.2, mouseStart: 4, rubberMax: 8, fingerLift: 56 };
+export const CONFIG = { holdMs: 220, holdSlop: 6, touchStart: 10, freeStart: 6, verticalBias: 1.2, mouseStart: 4, rubberMax: 8, fingerLift: 56 };
 
-export function createGesture({ pointerType = 'touch', canDrag = true, config = CONFIG } = {}) {
+export function createGesture({ pointerType = 'touch', canDrag = true, free = false, config = CONFIG } = {}) {
     const mouse = pointerType === 'mouse';
     let state = 'idle'; let start = null; let last = null; let holdDead = false; let vx = 0;
     const clampTug = dy => Math.sign(dy) * Math.min(config.rubberMax, Math.abs(dy) * 0.25);
@@ -20,6 +21,7 @@ export function createGesture({ pointerType = 'touch', canDrag = true, config = 
                 last = p;
                 if (d > config.holdSlop) holdDead = true;
                 if (mouse) return d >= config.mouseStart ? (canDrag ? lift(p, 'move') : tug(dy)) : [];
+                if (free) return d >= config.freeStart ? (canDrag ? lift(p, 'move') : tug(dy)) : [];       // nothing here scrolls: any direction picks the card up
                 if (d < config.touchStart) return [];
                 if (Math.abs(dy) > config.verticalBias * Math.abs(dx)) return canDrag ? lift(p, 'move') : tug(dy);
                 state = 'scrolling'; return [{ type: 'scroll' }];                   // a horizontal swipe belongs to the strip
