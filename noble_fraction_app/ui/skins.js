@@ -2,13 +2,15 @@
 // card-face rules, plus the bundled open fonts (ui/fonts). `classic` is the original theme and has no stylesheet of its own.
 // The choice is remembered per device (settings.skin) and can be forced with ?skin=<id>; index.html applies it before first paint.
 export const SKINS = [
-    { id: 'classic', label: 'Classic', note: 'The original look.' },
+    { id: 'classic', label: 'Vibes', note: 'The original look: bright, saturated, glowing. (Its id stays "classic" so saved choices and links keep working.)' },
     { id: 'control-room', label: 'Control Room', note: 'Graphite and cool light, like an instrument panel. Calm and precise.' },
     { id: 'blueprint', label: 'Blueprint', note: 'Engineering-drawing blue with fine linework.' },
     { id: 'field-manual', label: 'Field Manual', note: 'Printed-card paper and ink. A light look, easiest to read.' },
 ];
 export const SKIN_IDS = SKINS.map(s => s.id);
 export const isSkin = id => SKIN_IDS.includes(id);
+// ?skin=vibes is the same theme as ?skin=classic
+export const normalizeSkin = id => (id === 'vibes' ? 'classic' : id);
 
 const THEME_COLOR = { classic: '#0b1020', 'control-room': '#12161c', blueprint: '#0b2a4a', 'field-manual': '#ece6d8' };
 
