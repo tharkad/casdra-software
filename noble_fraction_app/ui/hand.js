@@ -3,9 +3,9 @@ import { cardEl } from './card.js';
 import { HUMAN } from './controller.js';
 import { CARD_DEFS } from '../data/cards.js';
 
-// The hand is laid out for reading: elements first, worst to best (N, O, Kr, then Xe, the one you want), then every other card by the
+// The hand is laid out for reading: elements first, best to worst (Xe, the one you want, then Kr, O, N), then every other card by the
 // cost on its badge, cheapest first (ties by name). It is only how the hand is SHOWN: the game's own order is untouched.
-const ELEMENT_ORDER = ['N', 'O', 'Kr', 'Xe'];
+const ELEMENT_ORDER = ['Xe', 'Kr', 'O', 'N'];
 const badgeCost = d => (d.kind === 'starter' ? d.installCost ?? d.installDiff : d.buy) ?? 0;
 export function sortHand(cards) {
     const key = c => {
