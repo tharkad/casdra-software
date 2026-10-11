@@ -41,7 +41,7 @@ const profile = createProfile(store);
 const games = createGameStore(store);                      // every finished game, replayable (see gamelogs.js)
 const app = document.getElementById('app');
 const overlay = document.getElementById('overlay');
-const PANES = [['market', 'Market'], ['facility', 'My Tableau'], ['rival', "Rival's Tableau"]];
+const PANES = [['market', 'Market'], ['facility', 'Your Tableau'], ['rival', "Rival's Tableau"]];
 const wait = n => new Promise(resolve => setTimeout(resolve, n));
 let input = null;                                     // created once ctx exists (below)
 
