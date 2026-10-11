@@ -1,3 +1,5 @@
+/* THEME MARKER: the game has one look (the original). A selectable-themes experiment (Control Room, Blueprint, Field Manual) was built and
+   removed in October 2026; read the themes-experiment note under docs/games/ and git tag noble-fraction-themes-2026-10-11 before adding any theme. */
 :root {
     --bg: #0b1020; --panel: #141b33; --panel2: #1c2547; --line: #2b3763; --text: #e8ecff; --dim: #8c97c4;
     --violet: #8b6cff; --violet-lt: #d4c8ff; --teal: #2dd4bf; --orange: #fb923c; --green: #4ade80; --red: #f87171;
@@ -190,7 +192,6 @@ body { position: fixed; inset: 0; container-type: size; }
 /* elements */
 .kind-element { align-items: center; justify-content: center; }
 .kind-element .ring { position: absolute; inset: 36% 4% 10%; opacity: .9; }
-.esym, .enum { display: none; }
 .kind-element .ring svg { width: 100%; height: 100%; }
 .ename { position: absolute; bottom: 6cqw; font-size: 9cqw; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: hsl(var(--h) 60% 84%); }
 .ptable { position: absolute; top: 3cqw; left: 3cqw; right: 3cqw; padding: 1.2cqw; border-radius: 2.5cqw; background: hsl(var(--h) 55% 17%); z-index: 1; }   /* solid panel: the card texture never shows through the table */
@@ -351,8 +352,17 @@ body[data-input=pad]:has([data-screen=start]) #hints { left: max(12px, var(--pad
 .start { padding-bottom: calc(var(--pad-b) + 54px * var(--ui)); }
 /* short phone-landscape screens: the one-line difficulty blurbs, the tagline and the last-game line give way so the whole menu fits above the bar */
 @media (max-height: 430px) { .start-main { gap: 5px; } }
-@media (max-height: 380px) { .start .level small, .mode-pick small { display: none; } .start .tag { display: none; } }
-@media (max-height: 350px) { .start .last { display: none; } }
+/* a phone held sideways (about 300-380px tall): the menu is tightened and the art column narrows, so every option keeps its description */
+@media (max-height: 380px) {
+    .start { grid-template-columns: minmax(0, 20%) minmax(0, 1fr); }
+    .start-main { gap: 4px; max-width: 700px; }
+    .start .tag, .start .last { display: none; }
+    .level { padding: 4px 8px; gap: 1px; }
+    .level small, .mode-pick .level small { font-size: 9.5px; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .btn.big { min-height: 38px; font-size: 15px; padding: 0 16px; }
+    .start-links .btn { min-height: 32px; font-size: 13px; }
+}
+@media (max-height: 300px) { .start .level small, .mode-pick small { display: none; } }
 body[data-input=pad]:has([data-screen=start]) #hints { display: flex; }
 .hint-key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .pad-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 1.7em; height: 1.7em; padding: 0 .35em; border-radius: 999px; font-weight: 800; font-size: .85em; color: #0b1020; background: #cbd5e1; }

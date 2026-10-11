@@ -13,18 +13,6 @@
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="stylesheet" href="ui/styles.css">
-    <script>
-        // The chosen look (?skin=… or the saved setting) is applied here, before first paint, so there is no flash of the classic look.
-        (function () {
-            var ids = ['control-room', 'blueprint', 'field-manual'], id = null;
-            try { id = new URLSearchParams(location.search).get('skin') || JSON.parse(localStorage.getItem('noble-fraction.settings.v1') || '{}').skin; } catch (e) { /* no storage */ }
-            if (ids.indexOf(id) < 0) return;
-            document.documentElement.dataset.skin = id;
-            [['skin-fonts', 'ui/fonts/fonts.css'], ['skin-base', 'ui/skins/_base.css'], ['skin-css', 'ui/skins/' + id + '.css']].forEach(function (x) {
-                var l = document.createElement('link'); l.rel = 'stylesheet'; l.id = x[0]; l.href = x[1]; document.head.appendChild(l);
-            });
-        })();
-    </script>
 </head>
 <body>
     <div id="rotate" role="alert"><div><div class="rotate-icon">&#x21BB;</div>Rotate your phone to landscape</div></div>

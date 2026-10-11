@@ -46,12 +46,9 @@ const circle = (cls, text) => h('span', { class: `badge ${cls}` }, digit(text));
 const upgradeCosts = d => h('span', { class: 'costs', title: d.pink ? `Buy $${d.buy}` : `Buy $${d.buy} · install later +$${d.installDiff}` },
     circle('cost', d.buy), d.pink ? null : h('b', { class: 'later' }, digit(d.installDiff)));
 
-const ATOMIC_NUMBER = { N: 7, O: 8, Kr: 36, Xe: 54 };
 function elementFace(d) {
     const info = ELEMENT_INFO[d.id];
     return h('div', { class: `face kind-element el-${d.id}`, style: `--h:${info.hue};--gain:${throbGain(info.hue)}` },
-        h('span', { class: 'enum' }, String(ATOMIC_NUMBER[d.id])),       // (the symbol and atomic number are only shown by the plainer looks, see ui/skins/)
-        h('span', { class: 'esym' }, d.id),
         periodicTable(d.id, info.at),
         glyphEl('element_ring', 'glyph ring'),
         h('span', { class: 'ename' }, d.name));

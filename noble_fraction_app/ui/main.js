@@ -21,7 +21,6 @@ import { createGameStore, buildRecord } from './gamelogs.js';
 import { ACHIEVEMENTS, achievementById } from '../profile/achievements.js';
 import * as fx from './fx.js';
 import { loadSettings, saveSettings, prefersReducedMotion } from './settings.js';
-import { applySkin, isSkin, normalizeSkin } from './skins.js';
 import { createInput } from './input/input.js';
 import { createDrag } from './drag/drag.js';
 import { loadExpert, expertReady } from '../ai/expert.js';
@@ -30,8 +29,6 @@ const params = new URLSearchParams(location.search);
 const persistent = !params.has('seed');                      // ?seed=N is a throwaway test game
 const store = (() => { try { return persistent ? localStorage : null; } catch { return null; } })();
 const settings = persistent ? loadSettings() : {};
-const skinParam = normalizeSkin(params.get('skin'));                         // ?skin=<id> forces a look (index.html already applied it before first paint)
-applySkin(isSkin(skinParam) ? skinParam : isSkin(settings.skin) ? settings.skin : 'classic');
 
 const ui = { screen: 'game', pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, stats: false, statsTab: 'overview',
     drag: settings.drag !== false, level: params.get('level') ?? settings.level ?? 'normal', mode: params.get('mode') ?? settings.mode ?? 'normal', gameAch: [], skip: false };
@@ -152,7 +149,6 @@ const ctx = {
     skip() { ui.skip = true; },
     mainMenu() { Object.assign(ui, { screen: 'start', menu: false }); render(); },
     setDrag(on) { ui.drag = on; if (persistent) saveSettings({ drag: on }); drag.cancel('toggle', true); render(); },
-    setSkin(id) { const applied = applySkin(id); ui.skin = applied; if (persistent) saveSettings({ skin: applied }); render(); },
     setFx(mode) { fxMode = mode; fx.setSpeed(mode); if (persistent) saveSettings({ fx: mode }); render(); },
 };
 
