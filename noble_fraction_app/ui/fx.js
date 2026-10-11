@@ -98,16 +98,37 @@ export function pulse(el, strength = 1.25) {
     animate(el, [{ transform: 'scale(1)' }, { transform: `scale(${strength})`, offset: .4 }, { transform: 'scale(1)' }], { duration: ms(520), fill: 'none' });
 }
 
+// Toasts rise: a new one slides up into the bottom of the stack and every toast keeps drifting upward while it is shown, then fades. When one
+// is removed (it expired, or the stack is full) the others glide into the gap instead of jumping. The drift uses the `translate` property and
+// the gap-closing glide uses `transform`, so the two never fight over one property.
+function glide(box, change) {
+    const was = new Map([...box.children].map(c => [c, c.getBoundingClientRect().top]));
+    change();
+    [...box.children].forEach(c => {
+        const before = was.get(c);
+        if (before === undefined) return;
+        const d = before - c.getBoundingClientRect().top;
+        if (Math.abs(d) > 0.5) animate(c, [{ transform: `translateY(${d}px)` }, { transform: 'none' }], { duration: ms(300), easing: 'cubic-bezier(.2,.8,.2,1)' });
+    });
+}
+const DRIFT = 26;                                           // px a toast climbs over its life
 export function toast(text, who = 0) {
     if (!enabled()) return;
     const box = one('#toasts');
     if (!box) return;
-    while (box.children.length >= 3) box.firstChild.remove();
     const t = h('div', { class: `toast by-${who}` }, text);
-    box.append(t);
-    const life = ms(2600);
-    const a = animate(t, [{ opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none', offset: .08 }, { opacity: 1, offset: .85 }, { opacity: 0 }], { duration: life });
-    if (a) a.onfinish = () => t.remove(); else t.remove();
+    glide(box, () => {
+        while (box.children.length >= 3) box.firstChild.remove();
+        box.append(t);
+    });
+    const life = ms(3000);
+    const a = animate(t, [
+        { opacity: 0, translate: '0 14px', easing: 'ease-out' },                               // slides up into place...
+        { opacity: 1, translate: `0 ${-DRIFT * 0.1}px`, offset: .1, easing: 'linear' },         // ...then climbs at a steady pace...
+        { opacity: 1, translate: `0 ${-DRIFT * 0.85}px`, offset: .85, easing: 'linear' },       // ...and fades out still moving
+        { opacity: 0, translate: `0 ${-DRIFT}px` },
+    ], { duration: life, easing: 'linear' });
+    if (a) a.onfinish = () => glide(box, () => t.remove()); else t.remove();
 }
 
 // Waits (up to maxMs, scaled by the speed setting) for the finite animations running on cards and boxes inside the app to finish.
@@ -180,7 +201,7 @@ export function play({ before, next, events, actor }) {
 
     events.forEach(e => {
         const text = describeEvent(e);
-        if (text) toast(`${e.by === 1 ? 'Rival: ' : ''}${text}`, e.by ?? who);
+        if (text && (e.by ?? who) !== 0) toast(`${e.by === 1 ? 'Rival: ' : ''}${text}`, e.by ?? who);      // no toast for the player's own actions
         if (e.type === 'contractCompleted') confetti(e.by === 1 ? center(one('.side-1').getBoundingClientRect()) : { x: innerWidth / 2, y: innerHeight / 2 });
     });
 
@@ -204,13 +225,12 @@ export function play({ before, next, events, actor }) {
         if (createdDefs.length) {
             const home = pid === 0 ? '[data-count=discard]' : '.side-1';
             const label = namesOf(createdDefs);
-            toast(`${pid === 1 ? 'Rival: ' : ''}+${label} added to ${pid === 1 ? "the Rival's" : 'your'} discard pile`, pid);
+            if (pid === 1) toast(`Rival: +${label} added to the Rival's discard pile`, pid);
             createdDefs.forEach((id, i) => setTimeout(() => flyChip(id.length <= 2 ? id : '+', { x: innerWidth / 2 + (i - createdDefs.length / 2) * 26, y: 24 }, one(home), CARD_DEFS[id].kind === 'element' ? 190 : 260), ms(120 * i)));
         }
         // Cards that moved from the deck into the hand.
         const drawn = [...is.sets.hand].filter(uid => was.sets.draw.has(uid));
         if (drawn.length && pid === 0) {
-            toast(`You drew ${drawn.length} card${drawn.length > 1 ? 's' : ''}`, 0);
             const deck = one('[data-count=draw]'); if (deck) pulse(deck, 1.3);
         } else if (drawn.length && pid === 1 && events.some(e => e.type === 'played' || e.type === 'usedInstalled')) {
             toast(`Rival drew ${drawn.length} card${drawn.length > 1 ? 's' : ''}`, 1);

@@ -1,7 +1,7 @@
 import { h } from './dom.js';
 import { barLabel } from './labels.js';
 import { actAttr } from './actions.js';
-import { isFinalTurn } from './confirm.js';
+import { isFinalTurn, unusedUses } from './confirm.js';
 
 const NORMAL = [['distill', 'DISTILL'], ['airwipe', 'INTAKE / PURGE'], ['buybid', 'BUY / BID'], ['cleanup', 'END']];
 // A Night Shift turn is DISTILL, two BID steps (no BUY), END.
@@ -38,7 +38,11 @@ export function consoleBar(ctx) {
             'data-act': actAttr(a), 'data-pass': a.type === 'endStep' ? '' : null,                // (a Pass is never the control to start on: see input/focus.js)
             title: a.type === 'beginTurn' && a.overtime && isFinalTurn(s) ? 'Final turn: a Night Shift cannot BUY' : null,
             // on the final turn a Night Shift asks first (it cannot BUY)
-            onclick: () => (a.type === 'beginTurn' && a.overtime && isFinalTurn(s) ? ctx.setUi({ confirmNight: a }) : ctx.act(a)) }, barLabel(a, s)) }));
+            onclick: () => {
+                if (a.type === 'beginTurn' && a.overtime && isFinalTurn(s)) return ctx.setUi({ confirmNight: a });
+                const unused = ctx.ui.warnUnused === false ? [] : unusedUses(s, ctx.legal, a);        // a card you could still use: ask first
+                return unused.length ? ctx.setUi({ confirmUnused: { action: a, names: unused } }) : ctx.act(a);
+            } }, barLabel(a, s)) }));
     return h('nav', { id: 'console' }, h('div', { class: 'track' }, steps), h('div', { class: 'bar' }, [...live, ...unavailablePurges(ctx)]
         .sort((x, y) => x.rank - y.rank).map(x => x.el)));
 }

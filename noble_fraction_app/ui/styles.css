@@ -410,3 +410,5 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
 .card.dup-main .face { filter: saturate(.5) brightness(.72); }
 .dup-note { margin: 0; padding: 6px 9px; border-radius: 8px; background: rgba(45, 212, 191, .1); border: 1px solid rgba(45, 212, 191, .45); color: #bff7ec; font-size: 12px; line-height: 1.3; }
 .btn.warn { border-color: var(--orange); }
+.confirm [data-dont-warn] { align-self: flex-start; margin: 0 0 10px; }
+.confirm [data-dont-warn] .check { font-size: 1.15em; }

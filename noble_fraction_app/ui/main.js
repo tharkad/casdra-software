@@ -15,7 +15,7 @@ import { helpSheet } from './help.js';
 import { logSheet } from './log.js';
 import { startScreen } from './start.js';
 import { statsSheet } from './stats.js';
-import { confirmNewSheet, confirmNightSheet } from './confirm.js';
+import { confirmNewSheet, confirmNightSheet, confirmUnusedSheet } from './confirm.js';
 import { createProfile } from './profile.js';
 import { createGameStore, buildRecord } from './gamelogs.js';
 import { ACHIEVEMENTS, achievementById } from '../profile/achievements.js';
@@ -31,7 +31,7 @@ const store = (() => { try { return persistent ? localStorage : null; } catch { 
 const settings = persistent ? loadSettings() : {};
 
 const ui = { screen: 'game', pane: 'market', zoom: null, ppeSel: [], menu: false, help: false, log: false, stats: false, statsTab: 'overview',
-    drag: settings.drag !== false, level: params.get('level') ?? settings.level ?? 'normal', mode: params.get('mode') ?? settings.mode ?? 'normal', gameAch: [], skip: false };
+    drag: settings.drag !== false, warnUnused: settings.warnUnused !== false, level: params.get('level') ?? settings.level ?? 'normal', mode: params.get('mode') ?? settings.mode ?? 'normal', gameAch: [], skip: false };
 let busy = false;
 let fxMode = params.get('fx') ?? settings.fx ?? (prefersReducedMotion() ? 'off' : 'normal');
 fx.setSpeed(fxMode);
@@ -148,6 +148,7 @@ const ctx = {
     act, newGame, continueGame,
     skip() { ui.skip = true; },
     mainMenu() { Object.assign(ui, { screen: 'start', menu: false }); render(); },
+    setWarnUnused(on) { ui.warnUnused = on; if (persistent) saveSettings({ warnUnused: on }); render(); },
     setDrag(on) { ui.drag = on; if (persistent) saveSettings({ drag: on }); drag.cancel('toggle', true); render(); },
     setFx(mode) { fxMode = mode; fx.setSpeed(mode); if (persistent) saveSettings({ fx: mode }); render(); },
 };
@@ -170,6 +171,7 @@ function pickSheet(s) {
                 : ui.help ? helpSheet(ctx)
                     : ui.menu ? menuSheet(ctx)
                         : ui.confirmNight ? confirmNightSheet(ctx)
+                            : ui.confirmUnused ? confirmUnusedSheet(ctx)
                         : ppePicker(ctx) ?? (ui.zoom ? zoomSheet(ctx) : null);
 }
 
@@ -178,6 +180,7 @@ function pickSheet(s) {
 function dismissTop() {
     if (ui.confirmNew) return ctx.setUi({ confirmNew: false });
     if (ui.confirmNight) return ctx.setUi({ confirmNight: null });
+    if (ui.confirmUnused) { ui.confirmUnused = null; ui.dontWarnAgain = false; return ctx.setUi({}); }
     if (ui.stats) return ctx.setUi({ stats: false });
     if (ui.log) return ctx.setUi({ log: false });
     if (ui.help) return ctx.setUi({ help: false });
