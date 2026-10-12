@@ -7903,6 +7903,7 @@ class Handler(BaseHTTPRequestHandler):
         if WEB_MODE and not (path == "/" or path.startswith("/song-burst") or path.startswith("/dice")
                             or path.startswith("/dicevault") or path.startswith("/cant-stop")
                             or path.startswith("/noble-fraction")
+                            or path.startswith("/magic-realm")
                             or path.startswith("/manifest") or path.startswith("/apple-touch")
                             or path.startswith("/favicon") or path.startswith("/static")):
             self.send_response(404)
@@ -7929,6 +7930,44 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/cant-stop":
             self.send_html(build_cant_stop_page())
+
+        elif path == "/magic-realm":
+            # Trailing-slash redirect: relative module imports in index.html must resolve under /magic-realm/.
+            self.send_response(301)
+            self.send_header("Location", "/magic-realm/")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        elif path == "/magic-realm/" or path.startswith("/magic-realm/"):
+            # Magic Realm on a phone: plain ES modules, JSON data, bundled fonts. Mirror of the magic-realm repo's app/ (tools/deploy.py).
+            rel_path = "index.html" if path == "/magic-realm/" else unquote(path[len("/magic-realm/"):])
+            asset_root = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "magic_realm_app"))
+            resolved = os.path.realpath(os.path.join(asset_root, rel_path))
+            if os.path.commonpath([resolved, asset_root]) != asset_root:
+                self.send_error(404)
+                return
+            ext = os.path.splitext(resolved)[1].lower()
+            content_type = {
+                ".html": "text/html; charset=utf-8",
+                ".js": "text/javascript",
+                ".css": "text/css",
+                ".json": "application/json",
+                ".woff2": "font/woff2",
+                ".png": "image/png",
+                ".svg": "image/svg+xml",
+                ".txt": "text/plain; charset=utf-8",
+            }.get(ext, "application/octet-stream")
+            try:
+                with open(resolved, "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-cache" if ext in (".html", ".js", ".css", ".json") else "public, max-age=86400")
+                self.end_headers()
+                self.wfile.write(data)
+            except FileNotFoundError:
+                self.send_error(404)
 
         elif path == "/noble-fraction":
             # Same trailing-slash redirect as /fires-of-midway: relative module imports

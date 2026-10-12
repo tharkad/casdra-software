@@ -1,0 +1,546 @@
+{
+ "meta": {
+  "sources": [
+   "RealmSpeak MagicRealmData.xml (magic_realm/utility/components/resources/data) (standard_game setup)",
+   "digest 04_magic_treasure_search.md sections 3.2-3.3",
+   "digest 01_overview_setup_day.md section 3"
+  ],
+  "notes": "Fill order per RealmSpeak standard setup: 5 large treasures into the TWT boxes, remaining 18 large + 6 TWT cards shuffled, then site boxes (small first, large above, spells on top), dwelling boxes (2 small each), Scholar (3 small), spell cards by type. chitNumber is the clearing number printed on the site chit. Counters per dwelling list weapons/armor/horses that natives hold. row is the Monster Roll row of the guardian."
+ },
+ "sites": [
+  {
+   "name": "Hoard",
+   "chitNumber": 6,
+   "small": 4,
+   "large": 5,
+   "spells": [],
+   "guardian": "tremendous-flying-dragon-1",
+   "row": 1,
+   "special": null
+  },
+  {
+   "name": "Lair",
+   "chitNumber": 3,
+   "small": 4,
+   "large": 3,
+   "spells": [],
+   "guardian": "tremendous-dragon-1",
+   "row": 1,
+   "special": null
+  },
+  {
+   "name": "Altar",
+   "chitNumber": 1,
+   "small": 0,
+   "large": 4,
+   "spells": [
+    "II",
+    "III"
+   ],
+   "guardian": "demon-1",
+   "row": 2,
+   "special": null
+  },
+  {
+   "name": "Shrine",
+   "chitNumber": 4,
+   "small": 2,
+   "large": 2,
+   "spells": [
+    "I",
+    "V"
+   ],
+   "guardian": "winged-demon-1",
+   "row": 2,
+   "special": null
+  },
+  {
+   "name": "Pool",
+   "chitNumber": 6,
+   "small": 6,
+   "large": 3,
+   "spells": [],
+   "guardian": "octopus-1",
+   "row": 3,
+   "special": "fatigue_asterisk"
+  },
+  {
+   "name": "Vault",
+   "chitNumber": 3,
+   "small": 0,
+   "large": 5,
+   "spells": [],
+   "guardian": "tremendous-troll-1",
+   "row": 4,
+   "special": "fatigue_t,key"
+  },
+  {
+   "name": "Cairns",
+   "chitNumber": 5,
+   "small": 6,
+   "large": 1,
+   "spells": [],
+   "guardian": "tremendous-spider-1",
+   "row": 5,
+   "special": "fatigue_asterisk"
+  },
+  {
+   "name": "Statue",
+   "chitNumber": 2,
+   "small": 2,
+   "large": 1,
+   "spells": [
+    "VII",
+    "VII",
+    "VIII"
+   ],
+   "guardian": "imp-1",
+   "row": 5,
+   "special": null
+  }
+ ],
+ "twt": [
+  {
+   "name": "Chest",
+   "number": 1,
+   "largeTreasures": 2,
+   "goldReward": 50,
+   "contents": [],
+   "siteCard": false,
+   "needsKey": true,
+   "removeFromPlay": true,
+   "curse": false,
+   "lootTable": null
+  },
+  {
+   "name": "Remains of Thief",
+   "number": 2,
+   "largeTreasures": 1,
+   "goldReward": 20,
+   "contents": [
+    {
+     "name": "Living Sword",
+     "kind": "weapon",
+     "pilePosition": null
+    }
+   ],
+   "siteCard": false,
+   "needsKey": false,
+   "removeFromPlay": true,
+   "curse": true,
+   "lootTable": null
+  },
+  {
+   "name": "Mouldy Skeleton",
+   "number": 3,
+   "largeTreasures": 0,
+   "goldReward": 0,
+   "contents": [
+    {
+     "name": "Gold Helmet",
+     "kind": "armor",
+     "pilePosition": 1
+    },
+    {
+     "name": "Jade Shield",
+     "kind": "armor",
+     "pilePosition": 3
+    },
+    {
+     "name": "Silver Breastplate",
+     "kind": "armor",
+     "pilePosition": 2
+    }
+   ],
+   "siteCard": false,
+   "needsKey": false,
+   "removeFromPlay": true,
+   "curse": true,
+   "lootTable": null
+  },
+  {
+   "name": "Toadstool Circle",
+   "number": 4,
+   "largeTreasures": 1,
+   "goldReward": 0,
+   "contents": [
+    {
+     "name": "Devil Sword",
+     "kind": "weapon",
+     "pilePosition": null
+    }
+   ],
+   "siteCard": true,
+   "needsKey": false,
+   "removeFromPlay": false,
+   "curse": false,
+   "lootTable": {
+    "1": "weapon",
+    "2": "treasure",
+    "3": "teleport_cave",
+    "4": "peer_any",
+    "5": "power_pit",
+    "6": "curse"
+   }
+  },
+  {
+   "name": "Crypt of the Knight",
+   "number": 5,
+   "largeTreasures": 1,
+   "goldReward": 0,
+   "contents": [
+    {
+     "name": "Warhorse",
+     "kind": "horse",
+     "pilePosition": null
+    },
+    {
+     "name": "Tremendous Suit of Armor",
+     "kind": "armor",
+     "pilePosition": null
+    },
+    {
+     "name": "Bane Sword",
+     "kind": "weapon",
+     "pilePosition": null
+    }
+   ],
+   "siteCard": true,
+   "needsKey": false,
+   "removeFromPlay": false,
+   "curse": false,
+   "lootTable": {
+    "1": "horse",
+    "2": "armor",
+    "3": "weapon",
+    "4": "treasure",
+    "5": "gold",
+    "6": "curse"
+   }
+  },
+  {
+   "name": "Enchanted Meadow",
+   "number": 6,
+   "largeTreasures": 0,
+   "goldReward": 0,
+   "contents": [
+    {
+     "name": "Pony",
+     "kind": "horse",
+     "pilePosition": null
+    },
+    {
+     "name": "Truesteel Sword",
+     "kind": "weapon",
+     "pilePosition": null
+    }
+   ],
+   "siteCard": true,
+   "needsKey": false,
+   "removeFromPlay": false,
+   "curse": false,
+   "lootTable": {
+    "1": "horse",
+    "2": "weapon",
+    "3": "wish",
+    "4": "heal",
+    "5": "curse",
+    "6": "nothing"
+   }
+  }
+ ],
+ "dwellings": [
+  {
+   "name": "House",
+   "rsName": "House",
+   "garrisonGroup": "Soldiers",
+   "group": "Soldiers",
+   "virtual": false,
+   "treasures": {
+    "small": 2,
+    "counters": {
+     "Helmet": 3,
+     "Shield": 2,
+     "Staff": 2,
+     "Thrusting Sword": 2,
+     "Short Sword": 3
+    }
+   },
+   "nativeCounters": 4
+  },
+  {
+   "name": "Inn",
+   "rsName": "Inn",
+   "garrisonGroup": "Rogues",
+   "group": "Rogues",
+   "virtual": false,
+   "treasures": {
+    "small": 2,
+    "counters": {
+     "Workhorse": 6
+    }
+   },
+   "nativeCounters": 8
+  },
+  {
+   "name": "Chapel",
+   "rsName": "Chapel",
+   "garrisonGroup": "Order",
+   "group": "Order",
+   "virtual": false,
+   "treasures": {
+    "small": 2,
+    "counters": {
+     "Warhorse": 3,
+     "Suit of Armor": 2,
+     "Crossbow": 1,
+     "Great Sword": 1,
+     "Morning Star": 1,
+     "Great Axe": 2
+    }
+   },
+   "nativeCounters": 4
+  },
+  {
+   "name": "Guard house",
+   "rsName": "Guard",
+   "garrisonGroup": "Guard",
+   "group": "Guard",
+   "virtual": false,
+   "treasures": {
+    "small": 2,
+    "counters": {
+     "Helmet": 1,
+     "Breastplate": 1,
+     "Broadsword": 1,
+     "Axe": 2,
+     "Mace": 2
+    }
+   },
+   "nativeCounters": 3
+  },
+  {
+   "name": "Company Dwelling",
+   "rsName": "Company Dwelling",
+   "garrisonGroup": null,
+   "group": "Company",
+   "virtual": true,
+   "treasures": {
+    "small": 2,
+    "counters": {
+     "Helmet": 1,
+     "Shield": 1,
+     "Breastplate": 1
+    }
+   },
+   "nativeCounters": 7
+  },
+  {
+   "name": "Woodfolk Dwelling",
+   "rsName": "Woodfolk Dwelling",
+   "garrisonGroup": null,
+   "group": "Woodfolk",
+   "virtual": true,
+   "treasures": {
+    "small": 2,
+    "counters": {
+     "Medium Bow": 1,
+     "Light Bow": 2
+    }
+   },
+   "nativeCounters": 3
+  },
+  {
+   "name": "Patrol Dwelling",
+   "rsName": "Patrol Dwelling",
+   "garrisonGroup": null,
+   "group": "Patrol",
+   "virtual": true,
+   "treasures": {
+    "small": 2,
+    "counters": {
+     "Helmet": 1,
+     "Shield": 1,
+     "Breastplate": 1
+    }
+   },
+   "nativeCounters": 3
+  },
+  {
+   "name": "Lancer Dwelling",
+   "rsName": "Lancer Dwelling",
+   "garrisonGroup": null,
+   "group": "Lancers",
+   "virtual": true,
+   "treasures": {
+    "small": 2,
+    "counters": {
+     "Spear": 4
+    }
+   },
+   "nativeCounters": 4
+  },
+  {
+   "name": "Bashkar Dwelling",
+   "rsName": "Bashkar Dwelling",
+   "garrisonGroup": null,
+   "group": "Bashkars",
+   "virtual": true,
+   "treasures": {
+    "small": 2,
+    "counters": {
+     "Pony": 6
+    }
+   },
+   "nativeCounters": 6
+  }
+ ],
+ "visitors": [
+  {
+   "name": "Scholar",
+   "small": 3,
+   "spells": []
+  },
+  {
+   "name": "Shaman",
+   "small": 0,
+   "spells": [
+    "II",
+    "III"
+   ]
+  },
+  {
+   "name": "Warlock",
+   "small": 0,
+   "spells": [
+    "IV",
+    "VI"
+   ]
+  },
+  {
+   "name": "Crone",
+   "small": 0,
+   "spells": [
+    "V",
+    "VIII"
+   ]
+  }
+ ],
+ "spellContainers": [
+  {
+   "name": "Beast Pipes",
+   "kind": "artifact",
+   "spells": [
+    "VIII"
+   ]
+  },
+  {
+   "name": "Blasted Jewel",
+   "kind": "artifact",
+   "spells": [
+    "V"
+   ]
+  },
+  {
+   "name": "Enchanter's Skull",
+   "kind": "artifact",
+   "spells": [
+    "IV"
+   ]
+  },
+  {
+   "name": "Eye of the Idol",
+   "kind": "artifact",
+   "spells": [
+    "II"
+   ]
+  },
+  {
+   "name": "Glimmering Ring",
+   "kind": "artifact",
+   "spells": [
+    "III"
+   ]
+  },
+  {
+   "name": "Glowing Gem",
+   "kind": "artifact",
+   "spells": [
+    "VII"
+   ]
+  },
+  {
+   "name": "Hidden Ring",
+   "kind": "artifact",
+   "spells": [
+    "VI"
+   ]
+  },
+  {
+   "name": "Sacred Statue",
+   "kind": "artifact",
+   "spells": [
+    "I"
+   ]
+  },
+  {
+   "name": "Black Book",
+   "kind": "book",
+   "spells": [
+    "V",
+    "V",
+    "VIII",
+    "VIII"
+   ]
+  },
+  {
+   "name": "Book of Lore",
+   "kind": "book",
+   "spells": [
+    "IV",
+    "IV",
+    "IV",
+    "IV"
+   ]
+  },
+  {
+   "name": "Good Book",
+   "kind": "book",
+   "spells": [
+    "I",
+    "I",
+    "VII",
+    "VII"
+   ]
+  },
+  {
+   "name": "Scroll of Alchemy",
+   "kind": "book",
+   "spells": [
+    "VI",
+    "VI",
+    "VI",
+    "VI"
+   ]
+  },
+  {
+   "name": "Scroll of Nature",
+   "kind": "book",
+   "spells": [
+    "II",
+    "II",
+    "III",
+    "III"
+   ]
+  }
+ ],
+ "spellsOutOfPlay": [
+  "II",
+  "III",
+  "IV",
+  "V",
+  "VI",
+  "VIII"
+ ],
+ "notes": "Spell cards: 47 total, 41 in play (books 20, artifacts 8, sites 7, visitors 6), one each of II, III, IV, V, VI, VIII set aside. 74 treasure cards: 23 large + 45 small + 6 TWT. Small treasure distribution: 24 at sites, 18 in dwellings (2 each), 3 with the Scholar. Treasure counters: 4 magic swords, 4 magic armor pieces, a T3 warhorse and an L2 pony in TWT boxes."
+}

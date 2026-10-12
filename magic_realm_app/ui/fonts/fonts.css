@@ -1,0 +1,9 @@
+/* Open fonts (SIL OFL 1.1): Cinzel (Natanael Gama), Alegreya and Alegreya Sans (Juan Pablo del Peral / Huerta Tipografica). Bundled so the app looks the same offline. */
+@font-face { font-family: 'Alegreya'; font-weight: 400; font-style: normal; font-display: swap; src: url(Alegreya-400.woff2) format('woff2'); }
+@font-face { font-family: 'Alegreya'; font-weight: 500; font-style: normal; font-display: swap; src: url(Alegreya-500.woff2) format('woff2'); }
+@font-face { font-family: 'Alegreya'; font-weight: 700; font-style: normal; font-display: swap; src: url(Alegreya-700.woff2) format('woff2'); }
+@font-face { font-family: 'Alegreya Sans'; font-weight: 400; font-style: normal; font-display: swap; src: url(AlegreyaSans-400.woff2) format('woff2'); }
+@font-face { font-family: 'Alegreya Sans'; font-weight: 500; font-style: normal; font-display: swap; src: url(AlegreyaSans-500.woff2) format('woff2'); }
+@font-face { font-family: 'Alegreya Sans'; font-weight: 700; font-style: normal; font-display: swap; src: url(AlegreyaSans-700.woff2) format('woff2'); }
+@font-face { font-family: 'Cinzel'; font-weight: 600; font-style: normal; font-display: swap; src: url(Cinzel-600.woff2) format('woff2'); }
+@font-face { font-family: 'Cinzel'; font-weight: 700; font-style: normal; font-display: swap; src: url(Cinzel-700.woff2) format('woff2'); }

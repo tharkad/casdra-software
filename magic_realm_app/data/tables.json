@@ -1,0 +1,558 @@
+{
+ "meta": {
+  "sources": [
+   "RealmSpeak table classes (magic_realm/utility/components/source/.../table) read as facts (Meeting*, Peer, Locate, ReadRunes, MagicSight, Curse, PowerOfThePit, Wish, BattleModel reposition/changeTactics/missile, ActionRow hide)",
+   "RealmSpeak MagicRealmData.xml (magic_realm/utility/components/resources/data) (Transform and TWT site tables)",
+   "digest 03_combat.md sections 4.6, 4.7",
+   "digest 04_magic_treasure_search.md sections 2.5, 3.3, 4.2",
+   "digest 05_characters_natives_monsters_victory.md section 4.4"
+  ],
+  "notes": "Meeting, Peer, Locate, Loot, Reading Runes, Magic Sight, missile, hide, reposition and change-tactics agree between RealmSpeak and digests 03/04/05 (no differences). Curses and Power of the Pit names come from RealmSpeak; digests only name the Curses; effect wording paraphrased. Wish effects 4-6 summarised from digest 04. Not in the sources: the Hide table text itself and the Optional Missile / Fumble tables (excluded, optional rules)."
+ },
+ "dice": {
+  "standard": "Two dice, take the higher; modifiers add or subtract, then clamp to 1-6.",
+  "oneDie": "Characters with a \"one die\" ability roll a single die instead."
+ },
+ "monsterRoll": {
+  "dice": 1,
+  "rows": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "ghostsProwl": "every day"
+ },
+ "meeting": {
+  "columns": [
+   "Enemy",
+   "Unfriendly",
+   "Neutral",
+   "Friendly",
+   "Ally"
+  ],
+  "dice": "two dice, take the higher (modifiers apply, clamp 1-6)",
+  "rows": {
+   "1": [
+    {
+     "code": "insult",
+     "label": "Insult",
+     "multiplier": null
+    },
+    {
+     "code": "price",
+     "label": "Price x4",
+     "multiplier": 4
+    },
+    {
+     "code": "opportunity",
+     "label": "Opportunity",
+     "multiplier": null
+    },
+    {
+     "code": "opportunity",
+     "label": "Opportunity",
+     "multiplier": null
+    },
+    {
+     "code": "boon",
+     "label": "Boon (x1)",
+     "multiplier": 1
+    }
+   ],
+   "2": [
+    {
+     "code": "challenge",
+     "label": "Challenge",
+     "multiplier": null
+    },
+    {
+     "code": "no-deal",
+     "label": "No deal",
+     "multiplier": null
+    },
+    {
+     "code": "price",
+     "label": "Price x3",
+     "multiplier": 3
+    },
+    {
+     "code": "price",
+     "label": "Price x2",
+     "multiplier": 2
+    },
+    {
+     "code": "price",
+     "label": "Price x1",
+     "multiplier": 1
+    }
+   ],
+   "3": [
+    {
+     "code": "block-battle",
+     "label": "Block/Battle",
+     "multiplier": null
+    },
+    {
+     "code": "no-deal",
+     "label": "No deal",
+     "multiplier": null
+    },
+    {
+     "code": "price",
+     "label": "Price x4",
+     "multiplier": 4
+    },
+    {
+     "code": "price",
+     "label": "Price x2",
+     "multiplier": 2
+    },
+    {
+     "code": "price",
+     "label": "Price x2",
+     "multiplier": 2
+    }
+   ],
+   "4": [
+    {
+     "code": "block-battle",
+     "label": "Block/Battle",
+     "multiplier": null
+    },
+    {
+     "code": "insult",
+     "label": "Insult",
+     "multiplier": null
+    },
+    {
+     "code": "no-deal",
+     "label": "No deal",
+     "multiplier": null
+    },
+    {
+     "code": "price",
+     "label": "Price x3",
+     "multiplier": 3
+    },
+    {
+     "code": "price",
+     "label": "Price x3",
+     "multiplier": 3
+    }
+   ],
+   "5": [
+    {
+     "code": "block-battle",
+     "label": "Block/Battle",
+     "multiplier": null
+    },
+    {
+     "code": "challenge",
+     "label": "Challenge",
+     "multiplier": null
+    },
+    {
+     "code": "no-deal",
+     "label": "No deal",
+     "multiplier": null
+    },
+    {
+     "code": "price",
+     "label": "Price x4",
+     "multiplier": 4
+    },
+    {
+     "code": "price",
+     "label": "Price x4",
+     "multiplier": 4
+    }
+   ],
+   "6": [
+    {
+     "code": "block-battle",
+     "label": "Block/Battle",
+     "multiplier": null
+    },
+    {
+     "code": "block-battle",
+     "label": "Block/Battle",
+     "multiplier": null
+    },
+    {
+     "code": "trouble",
+     "label": "Trouble",
+     "multiplier": null
+    },
+    {
+     "code": "no-deal",
+     "label": "No deal",
+     "multiplier": null
+    },
+    {
+     "code": "price",
+     "label": "Price x4",
+     "multiplier": 4
+    }
+   ]
+  },
+  "rules": {
+   "Opportunity": "Re-roll one column friendlier.",
+   "Trouble": "Re-roll in the Unfriendly column.",
+   "Insult": "May pay 5 Notoriety to turn it into No deal; otherwise Block/Battle.",
+   "Challenge": "May pay 5 Fame to turn it into No deal; otherwise Block/Battle.",
+   "Boon": "Take the item or hire for free; relationship drops one level until repaid."
+  }
+ },
+ "missile": {
+  "dice": "two dice take higher (Archers one die; Crossbowmen two)",
+  "rows": {
+   "1": {
+    "levelShift": 2
+   },
+   "2": {
+    "levelShift": 1
+   },
+   "3": {
+    "levelShift": 0
+   },
+   "4": {
+    "levelShift": -1
+   },
+   "5": {
+    "levelShift": -2
+   },
+   "6": {
+    "levelShift": -3
+   }
+  },
+  "note": "Level shift applies to the harm level (N0 L1 M2 H3 T4); no excess-strength bonus."
+ },
+ "hide": {
+  "dice": "two dice take higher (modifiers apply)",
+  "rows": {
+   "1": "hidden",
+   "2": "hidden",
+   "3": "hidden",
+   "4": "hidden",
+   "5": "hidden",
+   "6": "no effect"
+  }
+ },
+ "peer": {
+  "1": [
+   "choice"
+  ],
+  "2": [
+   "clues",
+   "paths"
+  ],
+  "3": [
+   "hidden-enemies",
+   "paths"
+  ],
+  "4": [
+   "hidden-enemies"
+  ],
+  "5": [
+   "clues"
+  ],
+  "6": [
+   "nothing"
+  ]
+ },
+ "locate": {
+  "1": [
+   "choice"
+  ],
+  "2": [
+   "passages",
+   "clues"
+  ],
+  "3": [
+   "passages"
+  ],
+  "4": [
+   "discover-chits"
+  ],
+  "5": [
+   "nothing"
+  ],
+  "6": [
+   "nothing"
+  ]
+ },
+ "loot": {
+  "1": {
+   "takeNth": 1
+  },
+  "2": {
+   "takeNth": 2
+  },
+  "3": {
+   "takeNth": 3
+  },
+  "4": {
+   "takeNth": 4
+  },
+  "5": {
+   "takeNth": 5
+  },
+  "6": {
+   "takeNth": 6
+  }
+ },
+ "readRunes": {
+  "1": "learn-and-awaken",
+  "2": "learn-and-awaken",
+  "3": "learn-and-awaken",
+  "4": "awaken",
+  "5": "curse",
+  "6": "nothing"
+ },
+ "magicSight": {
+  "1": "choice",
+  "2": "counters",
+  "3": "treasure-cards",
+  "4": "perceive-spell",
+  "5": "discover-chits",
+  "6": "nothing"
+ },
+ "reposition": {
+  "positions": [
+   "first",
+   "second",
+   "third"
+  ],
+  "rows": {
+   "1": {
+    "newFirst": 1,
+    "newSecond": 3,
+    "newThird": 2,
+    "text": "first unchanged, other two swap"
+   },
+   "2": {
+    "newFirst": 3,
+    "newSecond": 2,
+    "newThird": 1,
+    "text": "middle unchanged, first and third swap"
+   },
+   "3": {
+    "newFirst": 2,
+    "newSecond": 1,
+    "newThird": 3,
+    "text": "third unchanged, first and second swap"
+   },
+   "4": {
+    "newFirst": 1,
+    "newSecond": 2,
+    "newThird": 3,
+    "text": "no change"
+   },
+   "5": {
+    "newFirst": 3,
+    "newSecond": 1,
+    "newThird": 2,
+    "text": "shift down/right, third wraps to first"
+   },
+   "6": {
+    "newFirst": 2,
+    "newSecond": 3,
+    "newThird": 1,
+    "text": "shift up/left, first wraps to third"
+   }
+  },
+  "note": "newX gives the OLD box number whose contents move into position X. One die, no modifiers."
+ },
+ "changeTactics": {
+  "dice": "two dice per box, take the higher, no modifiers",
+  "flipsOn": [
+   6
+  ],
+  "appliesTo": "Medium, Heavy, head, club and unhired native counters; never Tremendous monsters or native horses"
+ },
+ "curses": {
+  "rows": {
+   "1": {
+    "name": "Eyemist",
+    "effect": "Cannot perform any Search; enhanced (card or spell) Peer is still allowed."
+   },
+   "2": {
+    "name": "Squeak",
+    "effect": "Cannot be hidden; is unhidden when cursed."
+   },
+   "3": {
+    "name": "Wither",
+    "effect": "Cannot hold active effort asterisks; all asterisk chits are fatigued when cursed."
+   },
+   "4": {
+    "name": "Ill Health",
+    "effect": "Cannot Rest."
+   },
+   "5": {
+    "name": "Ashes",
+    "effect": "Gold is worthless: it can be added to but not spent or subtracted from."
+   },
+   "6": {
+    "name": "Disgust",
+    "effect": "Fame is worthless: it can be added to but not subtracted from."
+   }
+  },
+  "note": "Names and numbering agree between RealmSpeak and digest 04. The effect wording here is paraphrased from RealmSpeak behaviour; the exact 3.1 table text was not available. Digest 05 section 6.2 says Ashes counts recorded gold as -1 and Disgust counts Fame as -1 at scoring; RealmSpeak treats both as \"worthless, cannot subtract\". OPEN."
+ },
+ "powerOfThePit": {
+  "rows": {
+   "1": {
+    "name": "Fiery Chasm",
+    "effect": "Every unhidden character, native and monster in the clearing is killed; visitors and hidden individuals are unaffected."
+   },
+   "2": {
+    "name": "Carried Away",
+    "effect": "The target is killed outright."
+   },
+   "3": {
+    "name": "Terror",
+    "effect": "All Light and Medium monsters, natives and horses in the clearing are killed; each character there wounds all Light and Medium Move and Fight chits."
+   },
+   "4": {
+    "name": "Blight",
+    "effect": "All of the target's active chits showing effort asterisks become wounded."
+   },
+   "5": {
+    "name": "Forget",
+    "effect": "All of the target's active Magic chits become fatigued."
+   },
+   "6": {
+    "name": "Rust",
+    "effect": "Each active armor counter of the target is damaged (intact becomes damaged, damaged is destroyed); armor cards and inactive counters are not affected."
+   }
+  }
+ },
+ "wish": {
+  "rows": {
+   "1": {
+    "name": "Elsewhere (self)",
+    "effect": "Teleport yourself to any clearing of your choice."
+   },
+   "2": {
+    "name": "Elsewhere (other)",
+    "effect": "Teleport another character, native or monster (not yourself) in the clearing."
+   },
+   "3": {
+    "name": "Vision",
+    "effect": "Look at the contents of one box or pile of the Setup Card."
+   },
+   "4": {
+    "name": "Peace",
+    "effect": "Peace effect (nothing in the clearing attacks you; see spell Peace)."
+   },
+   "5": {
+    "name": "Health",
+    "effect": "Heal: wounds and fatigue restored."
+   },
+   "6": {
+    "name": "Strength",
+    "effect": "Gain extra strength for the next combat."
+   }
+  },
+  "note": "Names from RealmSpeak result strings; effects 4-6 are summarised from digest 04 (peace, health, strength) because their exact rules text was not in either source. OPEN."
+ },
+ "transform": {
+  "rows": [
+   {
+    "roll": 1,
+    "name": "Tremendous Dragon",
+    "vulnerability": "T",
+    "strength": "T",
+    "attackTime": 4,
+    "moveTime": 4,
+    "flies": true,
+    "armored": true,
+    "walksWoods": false
+   },
+   {
+    "roll": 2,
+    "name": "Lion",
+    "vulnerability": "H",
+    "strength": "H",
+    "attackTime": 3,
+    "moveTime": 4,
+    "flies": false,
+    "armored": false,
+    "walksWoods": true
+   },
+   {
+    "roll": 3,
+    "name": "Eagle",
+    "vulnerability": "M",
+    "strength": "M",
+    "attackTime": 2,
+    "moveTime": 2,
+    "flies": true,
+    "armored": false,
+    "walksWoods": false
+   },
+   {
+    "roll": 4,
+    "name": "Bird",
+    "vulnerability": "L",
+    "strength": null,
+    "attackTime": null,
+    "moveTime": 1,
+    "flies": true,
+    "armored": false,
+    "walksWoods": false
+   },
+   {
+    "roll": 5,
+    "name": "Squirrel",
+    "vulnerability": "L",
+    "strength": null,
+    "attackTime": null,
+    "moveTime": 2,
+    "flies": false,
+    "armored": false,
+    "walksWoods": true
+   },
+   {
+    "roll": 6,
+    "name": "Frog",
+    "vulnerability": "L",
+    "strength": null,
+    "attackTime": null,
+    "moveTime": 3,
+    "flies": false,
+    "armored": false,
+    "walksWoods": true
+   }
+  ]
+ },
+ "twtSiteTables": {
+  "Crypt of the Knight": {
+   "1": "horse",
+   "2": "armor",
+   "3": "weapon",
+   "4": "treasure",
+   "5": "gold",
+   "6": "curse"
+  },
+  "Enchanted Meadow": {
+   "1": "horse",
+   "2": "weapon",
+   "3": "wish",
+   "4": "heal",
+   "5": "curse",
+   "6": "nothing"
+  },
+  "Toadstool Circle": {
+   "1": "weapon",
+   "2": "treasure",
+   "3": "teleport_cave",
+   "4": "peer_any",
+   "5": "power_pit",
+   "6": "curse"
+  }
+ }
+}
