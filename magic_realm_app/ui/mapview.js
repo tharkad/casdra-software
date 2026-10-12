@@ -44,6 +44,7 @@ export function mountMap(host) {
         posOf.clear();
         const { tiles, placements, side } = model;
         const g = sv('g', { class: 'world' });
+        const top = sv('g', { class: 'top' });          // labels and the YOU marker sit above every tile
         let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
         const tileDefs = Object.fromEntries(tiles.map(t => [t.id, t]));
         for (const p of placements) {
@@ -53,6 +54,7 @@ export function mountMap(host) {
             const pos = Object.fromEntries(def.clearings.map(c => [c.n, rot(lay.pos[c.n], a).map(v => v * S)]));
             for (const c of def.clearings) posOf.set(p.id + c.n, [cx + pos[c.n][0], cy + pos[c.n][1]]);
             const tg = sv('g', { transform: `translate(${cx.toFixed(1)} ${cy.toFixed(1)})` });
+            const og = sv('g', { transform: `translate(${cx.toFixed(1)} ${cy.toFixed(1)})` });
             tg.append(sv('polygon', { class: 'hex', points: corners(S - 1.5).map(c => c.join(',')).join(' '), fill: GROUP[tile.group] }));
             const paths = sv('g', { class: 'paths' });
             for (const path of def.paths) {
@@ -69,12 +71,14 @@ export function mountMap(host) {
             });
             tg.append(paths);
             tg.append(sv('text', { class: 'tname', y: S * .8, 'text-anchor': 'middle' }, tileName(p.id).toUpperCase()));
-            // chits lying in the forest
+            // chits lying in the forest: a name once it is known, '?' while it is not
             (model.chitsByTile?.[p.id] ?? []).forEach((c, i) => {
-                const x = (i === 0 ? -1 : 1) * 0.42 * S, y = -0.7 * S;
-                tg.append(sv('g', { class: `chit ${c.up ? 'up' : 'down'}`, transform: `translate(${x} ${y})` },
-                    sv('rect', { x: -11, y: -11, width: 22, height: 22, rx: 5, class: 'chitbox' }),
-                    sv('text', { 'text-anchor': 'middle', dy: '.35em' }, c.up ? c.glyph : '?')));
+                const label = c.up ? c.name : '?';
+                const w = Math.max(18, label.length * 6.4 + 10);
+                const x = (i === 0 ? -1 : 1) * 0.0 * S, y = (-0.74 + i * 0.13) * S;
+                og.append(sv('g', { class: `chit ${c.up ? 'up' : 'down'}`, transform: `translate(${x} ${y})` },
+                    sv('rect', { x: -w / 2, y: -8, width: w, height: 16, rx: 5, class: 'chitbox' }),
+                    sv('text', { 'text-anchor': 'middle', dy: '.35em' }, label)));
             });
             def.clearings.forEach(c => {
                 const id = p.id + c.n, [x, y] = pos[c.n];
@@ -86,17 +90,24 @@ export function mountMap(host) {
                 cg.append(sv('circle', { r: 11.5, fill: CLEARING[c.type], stroke: ring ?? '#0c0e14', 'stroke-width': ring ? 3 : 1.5 }));
                 cg.append(sv('text', { 'text-anchor': 'middle', dy: '.35em', class: 'num' }, String(c.n)));
                 tg.append(cg);
-                // things standing in this clearing
+                // things standing in this clearing, each with its name
                 const toks = model.tokens?.[id] ?? [];
-                toks.slice(0, 4).forEach((t, i) => {
-                    const tx = x + 13 + (i % 2) * 15, ty = y - 14 + Math.floor(i / 2) * 15;
-                    tg.append(sv('g', { transform: `translate(${tx.toFixed(1)} ${ty.toFixed(1)})`, class: `tok ${t.k}`, 'pointer-events': 'none' },
-                        sv('circle', { r: 7.2 }), sv('text', { 'text-anchor': 'middle', dy: '.34em' }, t.label)));
+                toks.slice(0, 5).forEach((t, i) => {
+                    const w = t.label.length * 6.1 + 10, tx = x + 16, ty = y - 9 + i * 15;
+                    og.append(sv('g', { transform: `translate(${tx.toFixed(1)} ${ty.toFixed(1)})`, class: `pill ${t.k}`, 'pointer-events': 'none' },
+                        sv('rect', { x: 0, y: -7.5, width: w, height: 15, rx: 6 }), sv('text', { x: 5, dy: '.35em' }, t.label)));
                 });
-                if (model.hero === id) tg.append(sv('path', { class: `hero${model.heroHidden ? ' hid' : ''}`, transform: `translate(${(x - 17).toFixed(1)} ${(y - 17).toFixed(1)})`, d: 'M0 -9 L8 0 L0 9 L-8 0 Z', 'pointer-events': 'none' }));
+                if (model.hero === id) {
+                    const hid = model.heroHidden;
+                    og.append(sv('g', { class: `me${hid ? ' hid' : ''}`, transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})`, 'pointer-events': 'none' },
+                        sv('circle', { r: 21, class: 'halo' }),
+                        sv('g', { transform: 'translate(0 -30)' }, sv('rect', { x: hid ? -40 : -19, y: -9, width: hid ? 80 : 38, height: 18, rx: 6 }), sv('text', { 'text-anchor': 'middle', dy: '.36em' }, hid ? 'YOU (hidden)' : 'YOU'), sv('path', { d: 'M-5 9 L0 15 L5 9 Z' }))));
+                }
             });
             g.append(tg);
+            top.append(og);
         }
+        g.append(top);
         bounds = { minX, minY, maxX, maxY };
         svg.replaceChildren(g);
     }

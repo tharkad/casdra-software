@@ -134,6 +134,14 @@ function endDaylight(st, data) {
         st.turn.blocked = true; st.ch.hidden = false;
         say(st, `${bl.map(m => data.monsters[m.id].name).join(', ')} close in on you.`, 'block');
     }
+    // Show him what the end of his turn did, before the evening begins.
+    st.turnEnd = { ...res, day: st.day, blocked: !!st.turn.blocked, blockers: bl.map(m => data.monsters[m.id].name), plan: st.turn.results.slice() };
+    st.period = 'turn-end';
+    if (res.chits.length || res.arrivals.length || res.natives.length || st.turn.blocked) { st.pending = { type: 'turn-end' }; return; }
+    afterTurnEnd(st, data);
+}
+
+function afterTurnEnd(st, data) {
     st.period = 'sunset';
     sunset(st, data);
 }
@@ -451,6 +459,12 @@ export function apply(st0, data, action) {
             st.pending = null;
             combatAction(st, data, action);
             afterCombatStep(st, data);
+            return st;
+        }
+        case 'continue': {
+            if (p.type !== 'turn-end') throw new Error('nothing to continue');
+            st.pending = null;
+            afterTurnEnd(st, data);
             return st;
         }
         case 'restart': {

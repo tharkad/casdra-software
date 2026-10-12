@@ -28,13 +28,13 @@ function monstersInBox(st, boxId) { return st.mons.filter(m => !m.dead && !m.hir
 
 export function endOfTurn(st, data) {
     const here = st.ch.at, tile = tileOf(here);
-    const out = { arrivals: [], flipped: [], natives: [] };
+    const out = { at: here, tile, prowl: st.prowl, arrivals: [], flipped: [], chits: [], natives: [] };
     if (st.ch.onRoad) return out;                       // on a road he is in no clearing and nothing reacts
     // 1. prowling monsters already in this tile move to him
     for (const m of st.mons) {
         if (m.dead || m.hired || !m.loc?.c || tileOf(m.loc.c) !== tile || m.loc.c === here) continue;
         const row = monRow(data, m.id);
-        if (row === ROW_ALWAYS || row === st.prowl) { m.loc = { c: here }; out.arrivals.push(m.id); }
+        if (row === ROW_ALWAYS || row === st.prowl) { out.arrivals.push({ id: m.id, name: data.monsters[m.id].name, from: m.loc.c, to: here, why: 'prowls in your tile' }); m.loc = { c: here }; }
     }
     // 2. chits in the tile turn face up
     const flipped = [];
@@ -64,6 +64,7 @@ export function endOfTurn(st, data) {
     }
     out.flipped = flipped.map(c => c.id);
     for (const c of flipped) say(st, chitText(c, tile), 'discover');
+    const report = Object.fromEntries(flipped.map(c => [c.id, { id: c.id, kind: c.kind, name: c.name, letter: c.letter ?? null, num: c.num ?? null, summons: [], dest: null }]));
     // 3. chits summon: warnings first, then sounds and sites in number order
     const rank = c => (c.kind === 'warning' ? 0 : 1) * 100 + (c.num ?? 0);
     const letter = tileLetter(data, tile);
@@ -73,7 +74,11 @@ export function endOfTurn(st, data) {
         c.summoned = true;
         if (!box) continue;
         const dest = c.kind === 'warning' ? here : tile + c.num;
-        for (const m of monstersInBox(st, box.id)) { m.loc = { c: dest }; out.arrivals.push(m.id); }
+        for (const m of monstersInBox(st, box.id)) {
+            out.arrivals.push({ id: m.id, name: data.monsters[m.id].name, from: null, to: dest, why: `called by ${c.name}${c.kind === 'warning' ? '' : ' ' + c.num}` });
+            if (report[c.id]) { report[c.id].summons.push(data.monsters[m.id].name); report[c.id].dest = dest; }
+            m.loc = { c: dest };
+        }
         say(st, `${c.name}${c.kind === 'warning' ? '' : ' ' + c.num} summons ${monstersInBox(st, box.id).length ? '' : ''}${boxLabel(data, box)} to ${dest === here ? 'you' : 'clearing ' + numOf(dest)}.`, 'monster');
     }
     // 4. natives appear where a dwelling of theirs stands, if their row prowls
@@ -84,9 +89,11 @@ export function endOfTurn(st, data) {
         if (!dw) continue;
         const members = st.nats.filter(n => !n.dead && !n.hired && n.loc?.box && data.natives[n.id].group === g.id);
         if (!members.length) continue;
-        for (const n of members) { n.loc = { c: here }; out.natives.push(n.id); }
+        for (const n of members) n.loc = { c: here };
+        out.natives.push({ group: g.id, count: members.length, at: dw.kind });
         say(st, `The ${g.id} appear at the ${dw.kind}.`, 'native');
     }
+    out.chits = flipped.map(c => report[c.id]);
     return out;
 }
 

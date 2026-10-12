@@ -47,21 +47,28 @@ export function gameScreen(ctx) {
     function mapModel() {
         const tokens = {}, chitsByTile = {};
         const add = (id, t) => (tokens[id] ??= []).push(t);
+        const KINDNAME = { 'lost-city': 'Lost City', 'lost-castle': 'Lost Castle' };
         for (const c of st.chits) {
             if (c.pile || !c.tile) continue;
             if (c.kind === 'warning' && c.letter === 'V') continue;
             const known = c.up || st.ch.seen.includes(c.id);
-            const glyph = c.kind === 'warning' ? c.name[0] : c.kind === 'sound' ? '♪' : c.kind === 'site' ? '◆' : c.kind === 'lost-city' ? 'C' : 'K';
-            if (c.up && c.clearing && (c.kind === 'sound' || c.kind === 'site')) { add(c.tile + c.clearing, { k: c.kind, label: glyph }); continue; }
-            if (!c.up && c.kind === 'site' && st.ch.discovered.sites.includes(c.id)) { add(c.tile + c.num, { k: 'site', label: glyph }); continue; }
-            (chitsByTile[c.tile] ??= []).push({ up: known, glyph, id: c.id });
+            const name = KINDNAME[c.kind] ?? c.name;
+            if (c.up && c.clearing && (c.kind === 'sound' || c.kind === 'site')) { add(c.tile + c.clearing, { k: c.kind, label: c.kind === 'sound' ? `${name} (sound)` : `${name} (site)` }); continue; }
+            if (!c.up && c.kind === 'site' && st.ch.discovered.sites.includes(c.id)) { add(c.tile + c.num, { k: 'site', label: `${name} (site)` }); continue; }
+            (chitsByTile[c.tile] ??= []).push({ up: known, name: known ? (c.kind === 'sound' ? `${name} ${c.num}` : name) : '?', id: c.id });
         }
-        for (const d of st.dwellings) add(d.at, { k: 'dwelling', label: { Inn: 'I', House: 'H', Chapel: 'C', 'Guard house': 'G' }[d.kind] ?? 'D' });
-        const mons = {}, nats = {};
-        for (const m of st.mons) if (!m.dead && m.loc?.c) mons[m.loc.c] = (mons[m.loc.c] ?? 0) + 1;
-        for (const n of st.nats) if (!n.dead && n.loc?.c) nats[n.loc.c] = (nats[n.loc.c] ?? 0) + 1;
-        for (const [c, k] of Object.entries(mons)) add(c, { k: 'mon', label: String(k) });
-        for (const [c, k] of Object.entries(nats)) add(c, { k: 'nat', label: String(k) });
+        for (const d of st.dwellings) {
+            const here = d.at === st.ch.at;
+            add(d.at, { k: 'dwelling', label: d.kind });
+        }
+        // creatures by name: "Wolf x2", natives by group
+        const group = (list, key) => { const m = {}; for (const x of list) { const k = x.loc.c + '|' + key(x); (m[k] ??= { at: x.loc.c, name: key(x), n: 0 }).n++; } return Object.values(m); };
+        const mons = group(st.mons.filter(m => !m.dead && m.loc?.c), m => data.monsters[m.id].name);
+        const nats = group(st.nats.filter(n => !n.dead && !n.hired && n.loc?.c), n => data.natives[n.id].group);
+        for (const m of mons) add(m.at, { k: 'mon', label: m.n > 1 ? `${m.name} x${m.n}` : m.name });
+        for (const n of nats) add(n.at, { k: 'nat', label: n.n > 1 ? `${n.name} x${n.n}` : n.name });
+        const hires = st.nats.filter(n => n.hired && !n.dead);
+        if (hires.length && st.ch.at) add(st.ch.at, { k: 'ally', label: `Your hirelings x${hires.length}` });
         const planPath = ui.draft ? plannedClearings() : [];
         return {
             tiles: data.tiles, placements: st.placements, side: 'normal', showHidden: false, discovered: new Set(st.ch.discovered.paths),
@@ -98,7 +105,7 @@ export function gameScreen(ctx) {
     function renderDock() {
         const p = st.pending;
         const where = nameOfClearing(st.ch.at);
-        const info = h('div', { class: 'where2' }, h('b', {}, st.ch.onRoad ? 'On the road' : where), st.ch.hidden ? h('em', {}, 'hidden') : null);
+        const info = h('div', { class: 'where2' }, h('span', { class: 'you' }, 'You are at'), h('b', {}, st.ch.onRoad ? 'on the road' : where), st.ch.hidden ? h('em', {}, 'hidden') : h('em', { class: 'seen' }, 'visible'));
         const recent = [...st.log].reverse().filter(l => l.k !== 'day').slice(0, 3).reverse();
         let main;
         if (!p) main = h('div', { class: 'note' }, 'Working...');
@@ -127,7 +134,9 @@ export function gameScreen(ctx) {
         const out = [];
         const p = st.pending;
         if (p?.type?.startsWith('combat')) { out.push(combatSheet({ st, data, act, ui, render })); return out; }
-        if (p?.type === 'rest') out.push(modal('Rest', h('div', {}, h('p', { class: 'hint' }, 'You may regain one asterisk of effort. Choose a chit:'), ...p.options.map(o =>
+        if (p?.type === 'turn-end') out.push(turnEndSheet());
+        else if (p?.type === 'turn-end') out.push(turnEndSheet());
+        else if (p?.type === 'rest') out.push(modal('Rest', h('div', {}, h('p', { class: 'hint' }, 'You may regain one asterisk of effort. Choose a chit:'), ...p.options.map(o =>
             h('button', { class: 'btn', onclick: () => act({ type: 'rest', chit: o.chit }) }, o.text)))));
         else if (p?.type === 'search-choice') out.push(modal(`${TABLE_LABEL[p.table]}: your choice`, h('div', {}, h('p', { class: 'hint' }, `You rolled ${p.roll.join('+')}: take any result of the table.`),
             ...p.options.map(r => h('button', { class: 'btn', onclick: () => act({ type: 'search-choice', result: r }) }, r)))));
@@ -156,8 +165,9 @@ export function gameScreen(ctx) {
         return out;
     }
 
-    const modal = (title, body, { close } = {}) => h('div', { class: 'sheet-bg' }, h('div', { class: 'sheet2' },
-        h('div', { class: 'sheet2-head' }, h('b', {}, title), close ? h('button', { class: 'x', onclick: close }, '✕') : null), body));
+    // Sheets that are only for looking can be dismissed by tapping anywhere outside them; those that need an answer cannot.
+    const modal = (title, body, { close } = {}) => h('div', { class: 'sheet-bg', onclick: e => { if (close && e.target === e.currentTarget) close(); } }, h('div', { class: 'sheet2' },
+        h('div', { class: 'sheet2-head' }, h('b', {}, title), close ? h('button', { class: 'x', 'aria-label': 'Close', onclick: close }, '\u2715') : null), body));
 
     function tradeSheet(p) {
         if (p.type === 'trade-offer') {
@@ -209,27 +219,64 @@ export function gameScreen(ctx) {
 
     function clearingSheet() {
         const id = ui.sel, tile = tileOf(id), n = numOf(id);
-        const type = data.tile(tile).sides.normal.clearings.find(c => c.n === n).type;
-        const lines = [];
-        const things = [];
-        for (const d of st.dwellings) if (d.at === id) things.push(`${d.kind}`);
+        const cdef = data.tile(tile).sides.normal.clearings.find(c => c.n === n);
+        const here = st.ch.at === id && !st.ch.onRoad;
+        const sections = [];
+        const row = (k, text, sub) => h('div', { class: `crow ${k}` }, h('b', {}, text), sub ? h('small', {}, sub) : null);
+        // you
+        if (here) sections.push(['You', [row('me', st.ch.name, st.ch.hidden ? 'hidden: monsters cannot block you' : 'in plain sight')]]);
+        // dwelling and the people who live there
+        const dw = st.dwellings.filter(d => d.at === id);
+        const natHere = st.nats.filter(x => !x.dead && !x.hired && x.loc?.c === id);
+        const byGroup = {};
+        for (const x of natHere) (byGroup[data.natives[x.id].group] ??= []).push(data.natives[x.id]);
+        const REL = { '-2': 'enemy', '-1': 'unfriendly', '0': 'neutral', '1': 'friendly', '2': 'ally' };
+        const people = Object.entries(byGroup).map(([g, list]) => row('nat', `${g}: ${list.length} native${list.length === 1 ? '' : 's'}`,
+            `${REL[String(st.ch.rel?.[g] ?? 0)]} to you; ${list.map(x => x.name.replace(/^\w+ /, '')).join(', ')}`));
+        if (dw.length || people.length) sections.push(['Dwellings and natives', [...dw.map(d => row('dwelling', d.kind, 'a dwelling: natives live and trade here')), ...people]]);
+        // monsters
+        const mons = {};
+        for (const m of st.mons.filter(m => !m.dead && m.loc?.c === id)) (mons[data.monsters[m.id].name] ??= []).push(m);
+        const monRows = Object.entries(mons).map(([name, l]) => row('mon', `${name}${l.length > 1 ? ` x${l.length}` : ''}`, 'a monster: it will block you if you are seen'));
+        if (monRows.length) sections.push(['Monsters', monRows]);
+        // chits
+        const chitRows = [];
         for (const c of st.chits) {
             if (c.pile || c.tile !== tile) continue;
-            if (c.clearing === n && c.up) things.push(`${c.name}${c.kind === 'sound' ? ' (sound)' : ' (site)'}`);
-            else if (!c.up && c.kind === 'site' && c.num === n && st.ch.discovered.sites.includes(c.id)) things.push(`${c.name} (site you found)`);
+            if (c.clearing === n && c.up) chitRows.push(row(c.kind, c.kind === 'sound' ? `${c.name} (sound ${c.num})` : `${c.name} (site ${c.num})`, c.kind === 'site' ? (st.ch.discovered.sites.includes(c.id) ? 'discovered: you may loot it' : 'seen but not discovered: search with Locate to discover it') : 'monsters stir here'));
+            else if (!c.up && c.kind === 'site' && c.num === n && st.ch.discovered.sites.includes(c.id)) chitRows.push(row('site', `${c.name} (site)`, 'you found it: you may loot it'));
         }
-        const mons = st.mons.filter(m => !m.dead && m.loc?.c === id).map(m => data.monsters[m.id].name);
-        const nats = st.nats.filter(m => !m.dead && m.loc?.c === id).map(m => data.natives[m.id].name);
-        const ground = (st.abandoned[id] ?? []).map(i => nameOf(data, i));
-        const roads = roadsFrom(st, data, id).filter(r => r.usable).map(r => nameOfClearing(r.to));
-        return modal(nameOfClearing(id), h('div', {},
-            h('p', { class: 'hint' }, `${type} clearing${st.ch.at === id ? ' · you are here' : ''}`),
-            things.length ? h('p', {}, h('b', {}, 'Here: '), things.join(', ')) : null,
-            mons.length ? h('p', {}, h('b', {}, 'Monsters: '), mons.join(', ')) : null,
-            nats.length ? h('p', {}, h('b', {}, 'Natives: '), nats.join(', ')) : null,
-            ground.length ? h('p', {}, h('b', {}, 'On the ground: '), ground.join(', ')) : null,
-            h('p', {}, h('b', {}, 'Roads to: '), roads.join(', ') || 'none you know of')),
+        if (chitRows.length) sections.push(['Chits and sites', chitRows]);
+        const ground = (st.abandoned[id] ?? []);
+        if (ground.length) sections.push(['On the ground', ground.map(i => row('loot', nameOf(data, i), 'anyone here may pick it up with a Loot phase'))]);
+        const roads = roadsFrom(st, data, id);
+        const KIND = { open: 'road', tunnel: 'tunnel', hidden: 'hidden path', secret: 'secret passage' };
+        sections.push(['Roads', roads.length ? roads.map(r => row(r.usable ? 'road' : 'road off', `to ${nameOfClearing(r.to)}`, r.usable ? KIND[r.kind] : `${KIND[r.kind]} (not discovered)`)) : [row('road off', 'none', '')]]);
+        const mtn = cdef.type === 'mountain' ? 'mountain clearing: entering takes two Move phases' : cdef.type === 'cave' ? 'cave clearing: no sunlight phases on the day you are in one' : 'woods clearing';
+        return modal(nameOfClearing(id), h('div', { class: 'clearing' },
+            h('p', { class: 'hint' }, mtn),
+            ...sections.flatMap(([title, rows]) => [h('h3', {}, title), ...rows])),
             { close: () => { ui.sheet = null; ui.sel = null; render(); } });
+    }
+
+    // What happened when his turn ended: chits turned up, creatures that came, natives that appeared, being blocked.
+    function turnEndSheet() {
+        const t = st.turnEnd;
+        const lines = [];
+        const KIND = { warning: 'warning chit', sound: 'sound chit', site: 'site chit', 'lost-city': 'the Lost City', 'lost-castle': 'the Lost Castle' };
+        for (const c of t.chits) {
+            const what = c.kind === 'sound' ? `${c.name} (sound, clearing ${c.num})` : c.kind === 'site' ? `${c.name} (site, clearing ${c.num})` : c.kind === 'warning' ? `${c.name} warning` : (KIND[c.kind] ?? c.name);
+            lines.push(h('div', { class: 'crow chit' }, h('b', {}, `Turned up: ${what}`),
+                h('small', {}, c.summons.length ? `It calls out: ${[...new Set(c.summons)].map(n => `${c.summons.filter(x => x === n).length > 1 ? c.summons.filter(x => x === n).length + ' ' : ''}${n}`).join(', ')}${c.dest === t.at ? ' to your clearing' : c.dest ? ` to clearing ${numOf(c.dest)}` : ''}` : 'It calls nothing out today.')));
+        }
+        for (const a of t.arrivals.filter(a => a.why === 'prowls in your tile')) lines.push(h('div', { class: 'crow mon' }, h('b', {}, `${a.name} arrives`), h('small', {}, `it was prowling in this tile and comes to your clearing`)));
+        for (const nn of t.natives) lines.push(h('div', { class: 'crow nat' }, h('b', {}, `The ${nn.group} appear`), h('small', {}, `${nn.count} of them, at the ${nn.at}`)));
+        if (t.blocked) lines.push(h('div', { class: 'crow mon' }, h('b', {}, t.blockers.length ? `Blocked by ${[...new Set(t.blockers)].join(', ')}` : 'Your turn was cut short'), h('small', {}, 'the rest of your turn was lost and you are seen')));
+        const summary = t.plan?.length ? h('details', {}, h('summary', {}, 'What you did today'), ...t.plan.map((r, i) => h('p', { class: 'hint' }, `Phase ${i + 1}: ${r ?? '-'}`))) : null;
+        return modal(`End of your turn at ${nameOfClearing(t.at)}`, h('div', { class: 'clearing' },
+            ...(lines.length ? lines : [h('p', { class: 'hint' }, 'Nothing stirred.')]),
+            summary,
+            h('button', { class: 'btn primary', 'data-act': 'turn-ok', onclick: () => act({ type: 'continue' }) }, 'Continue to the evening')));
     }
 
     function charSheet() {
