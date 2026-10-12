@@ -5,8 +5,9 @@ import { SPEEDS } from './fx.js';
 // "New game" in three strengths of Rival; the current one is marked.
 export function newGameButtons(ctx) {
     const current = ctx.controller.level();
-    return h('div', { class: 'levels' }, h('span', { class: 'dim' }, 'New game vs the Rival:'),
-        LEVELS.map(l => h('button', { class: `btn ${l.id === current ? 'current' : ''}`, 'data-new': l.id, onclick: () => ctx.newGame(l.id) }, l.label)));
+    // the label sits above its buttons, both left-aligned, so the sheet it lives on is only as wide as its widest content
+    return h('div', { class: 'levels new-game' }, h('span', { class: 'dim' }, 'New game vs the Rival:'),
+        h('div', { class: 'level-buttons' }, LEVELS.map(l => h('button', { class: `btn ${l.id === current ? 'current' : ''}`, 'data-new': l.id, onclick: () => ctx.newGame(l.id) }, l.label))));
 }
 
 const SPEED_LABELS = { normal: 'Normal', fast: 'Fast', off: 'Off' };
