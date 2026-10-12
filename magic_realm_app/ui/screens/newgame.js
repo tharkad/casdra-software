@@ -27,7 +27,7 @@ export const DEPTHS = [
     { id: 'magic', label: 'Magic', text: 'The whole game: magic chits, spells, enchanting and the colours of magic.' },
 ];
 
-export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, depth: 'magic', dwelling: 'Inn', gearWeapon: false, gearArmor: true, vp: { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 } });
+export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, depth: 'magic', dwelling: 'Inn', vp: { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 } });
 
 export const vpTotal = g => g.length === 'month' ? 5 : g.length === 'custom' ? g.weeks + 1 : g.length === 'sudden' ? g.suddenVp : 5;
 
@@ -89,14 +89,10 @@ const VP_ROWS = [
     { k: 'gold', label: 'Gold', unit: 30, what: 'gold above your starting worth' },
 ];
 
-const DWELLINGS = [
-    { id: 'Inn', rel: 'Rogues: neutral', line: 'The rules\' start. The Rogues sell workhorses and trinkets; no weapons.' },
-    { id: 'House', rel: 'Soldiers: friendly', line: 'Soldiers sell helmets, shields, short swords, thrusting swords and staves.' },
-    { id: 'Chapel', rel: 'Order: neutral', line: 'The Order sells suits of armor, warhorses, crossbows, great swords, great axes and morning stars.' },
-    { id: 'Guard house', rel: 'Guard: enemy', line: 'The Guard keep the only Maces, broadswords and axes, and they are your enemies.' },
+// Where he may begin is on his character card (rules 3.3.4): the Black Knight has one dwelling, the Inn. Characters with several get a choice.
+const START_DWELLINGS = [
+    { id: 'Inn', line: 'The Black Knight\'s starting dwelling. The Rogues live here, and he may buy from them. He begins with his Mace, Suit of Armor and Shield, taken from the natives\' stock.' },
 ];
-const toggle = (label, on, set) => h('button', { class: `choice${on ? ' on' : ''}`, role: 'switch', 'aria-checked': on, 'data-gear': label, onclick: () => set(!on) },
-    h('span', { class: 'dot' }), h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, label, h('em', {}, on ? 'given' : 'trade for it'))));
 
 function charsStep(g, redraw, ctx) {
     const total = vpTotal(g), used = Object.values(g.vp).reduce((a, b) => a + b, 0);
@@ -108,15 +104,10 @@ function charsStep(g, redraw, ctx) {
                 h('span', { class: 'choice-line' }, 'Allied with the Company, friendly with Soldiers; the Guard are his enemies. Fear: one die on the Meeting Table.')))),
         h('p', { class: 'hint' }, 'More characters will come; this build plays the Black Knight.'),
         h('h2', { class: 'q' }, 'Where do you start?'),
-        h('p', { class: 'hint' }, 'The rules give the Black Knight the Inn. Any other dwelling is a variant: you may start where the natives suit you.'),
-        h('div', { class: 'choices', role: 'radiogroup' }, ...DWELLINGS.map(d => h('button', { class: `choice${g.dwelling === d.id ? ' on' : ''}`, role: 'radio', 'aria-checked': g.dwelling === d.id, 'data-dwelling': d.id,
+        h('div', { class: 'choices', role: 'radiogroup' }, ...START_DWELLINGS.map(d => h('button', { class: `choice${g.dwelling === d.id ? ' on' : ''}`, role: 'radio', 'aria-checked': g.dwelling === d.id, 'data-dwelling': d.id,
             onclick: () => { g.dwelling = d.id; redraw(); } },
             h('span', { class: 'dot' }),
-            h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, d.id, h('em', {}, d.rel)), h('span', { class: 'choice-line' }, d.line))))),
-        h('h2', { class: 'q' }, 'Your gear'),
-        h('p', { class: 'hint' }, 'The rules hand the Black Knight his Mace, Suit of Armor and Shield from the natives\' stock. Switch one off and you must trade for it (or win it).'),
-        toggle('Mace', g.gearWeapon, v => { g.gearWeapon = v; redraw(); }),
-        toggle('Suit of Armor and Shield', g.gearArmor, v => { g.gearArmor = v; redraw(); }),
+            h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, d.id), h('span', { class: 'choice-line' }, d.line))))),
         h('h2', { class: 'q' }, `Spend your ${total} victory points`),
         h('p', { class: 'hint' }, 'Each point sets a goal. Miss a goal and the shortfall counts triple; beat it and each point you put there pays a bonus.'),
         ...VP_ROWS.map(r => h('div', { class: 'vprow' },
@@ -142,7 +133,7 @@ export function newGameScreen(ctx) {
     const back = () => { if (g.step === 0) { ctx.go('title'); } else { g.step -= 1; redraw(); } };
     const start = () => {
         const lastDay = g.length === 'custom' ? g.weeks * 7 : 28;
-        ctx.go('game', { fresh: true, character: 'black-knight', vp: { ...g.vp }, startDwelling: g.dwelling, startGear: { weapon: g.gearWeapon, armor: g.gearArmor }, lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month' });
+        ctx.go('game', { fresh: true, character: 'black-knight', vp: { ...g.vp }, startDwelling: g.dwelling, lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month' });
     };
     const next = () => { if (g.step < STEPS.length - 1) { g.step += 1; g._scroll = 0; redraw(); } };
 
