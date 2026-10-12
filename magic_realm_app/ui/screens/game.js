@@ -134,7 +134,7 @@ export function gameScreen(ctx) {
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));
         else if (p?.type === 'hire' || p?.type === 'hire-offer') out.push(hireSheet(p));
         else if (!ui.welcomeDone && !welcomed() && st.day === 1 && p?.type === 'plan') out.push(modal('Welcome, Black Knight', h('div', {},
-            h('p', {}, 'You are at the Inn with a Mace, a Suit of Armor and a Shield. You have 28 days.'),
+            h('p', {}, `You are at the ${st.ch.startDwelling}${st.ch.items.length ? ' with ' + st.ch.items.map(i => nameOf(data, i)).join(', ') : ' with no weapon or armor yet: trade for some'}. You have ${st.lastDay ?? 28} days.`),
             h('p', {}, h('b', {}, 'Each morning'), ' you plan up to four phases in secret: move, hide, search, trade, hire, rest or alert.'),
             h('p', {}, h('b', {}, 'Then the day plays out'), ', a phase at a time, and anything you meet is called out by the chits you turn up.'),
             h('p', {}, h('b', {}, 'Each evening'), ' you fight whoever shares your clearing, playing your chits in secret.'),
@@ -176,7 +176,7 @@ export function gameScreen(ctx) {
         }
         const goods = stockOf(st, data, p.group), mine = sellable(st, data);
         return modal(`Trade with the ${p.group}`, h('div', { class: 'trade' },
-            h('p', { class: 'hint' }, `Relationship: ${REL_NAMES[String(st.ch.rel?.[p.group] ?? 0)]}. You have ${st.ch.gold} gold. In one Trade phase you may sell any number of things, or buy one.`),
+            h('p', { class: 'hint' }, `Relationship: ${REL_NAMES[String(st.ch.rel?.[p.group] ?? 0)]}. You have ${st.ch.gold} gold. In one Trade phase you may sell any number of things, or buy one.${(st.ch.rel?.[p.group] ?? 0) <= -2 ? ' They are your enemies: expect an insult or a fight, not a price.' : ''}`),
             h('h3', {}, 'For sale'),
             ...(goods.length ? goods.map(g => h('button', { class: 'btn row', disabled: p.mode === 'sell', onclick: () => act({ type: 'trade', act: 'buy', idx: g.idx }) },
                 h('span', { class: 'rl' }, h('b', {}, g.name), h('small', {}, g.sub)), h('em', {}, `${g.base}g`))) : [h('p', { class: 'hint' }, 'Nothing for sale.')]),
@@ -326,7 +326,7 @@ export function gameScreen(ctx) {
         });
         const filled = d.slots.slice(0, total).some(Boolean);
         return modal('Plan your day', h('div', { class: 'plan' },
-            h('p', { class: 'hint' }, st.day === 1 ? 'You start at the Inn with your Mace, Suit of Armor and Shield. The Rogues here sell horses and trinkets: plan a Trade phase to look. Plans are fixed once the day starts; an impossible move is simply lost.' : 'Plans are fixed once the day starts. An impossible move is simply lost. Mountains take two Move phases.'),
+            h('p', { class: 'hint' }, st.day === 1 ? `You start at the ${st.ch.startDwelling}${st.ch.items.length ? ` with ${st.ch.items.map(i => nameOf(data, i)).join(', ')}` : ' with no weapon or armor of your own'}. Plan a Trade phase to see what the natives here sell. Plans are fixed once the day starts; an impossible move is simply lost.` : 'Plans are fixed once the day starts. An impossible move is simply lost. Mountains take two Move phases.'),
             ...rows.filter(Boolean),
             h('button', { class: 'btn primary big', 'data-act': 'start-day', onclick: () => { const slots = d.slots.map(s => s); ui.draft = null; ui.sheet = null; act({ type: 'plan', slots }); } }, filled ? 'Start the day' : 'Start the day (do nothing)')),
             { close: () => { ui.sheet = null; render(); } });
@@ -367,7 +367,8 @@ export function gameScreen(ctx) {
             data = await loadData('data/');
             ctx.data = data;
             if (ctx.params?.fresh || !loadSaved()) {
-                st = newGame(data, { seed: ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: ctx.params?.character ?? 'black-knight', vp: ctx.params?.vp, mode: ctx.params?.mode, lastDay: ctx.params?.lastDay });
+                st = newGame(data, { seed: ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: ctx.params?.character ?? 'black-knight', vp: ctx.params?.vp, mode: ctx.params?.mode, lastDay: ctx.params?.lastDay,
+                    startDwelling: ctx.params?.startDwelling, startGear: ctx.params?.startGear });
                 saveGame(st);
             } else st = loadSaved();
             ctx.state = st;

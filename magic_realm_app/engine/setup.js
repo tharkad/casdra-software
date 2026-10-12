@@ -26,7 +26,8 @@ export function newGame(data, opts = {}) {
     revealValleys(st, data);
     placeDenizens(st, data);
     setupTreasure(st, data);
-    st.ch = makeCharacter(st, data, opts.character ?? 'black-knight', opts.vp);
+    st.startGear = { weapon: opts.startGear?.weapon ?? true, armor: opts.startGear?.armor ?? true };
+    st.ch = makeCharacter(st, data, opts.character ?? 'black-knight', opts.vp, { gear: st.startGear, dwelling: opts.startDwelling });
     st.ch.at = chooseStart(st, data, st.ch);
     st.ch.hidden = true;
     say(st, `${st.ch.name} begins at the ${st.ch.startDwelling}.`, 'day');
@@ -131,13 +132,13 @@ function setupTreasure(st, data) {
 }
 
 // ---- character ----
-export function makeCharacter(st, data, id, vp) {
+export function makeCharacter(st, data, id, vp, opt = {}) {
     const c = data.characters[id];
     const ch = {
         id, name: c.name, weight: c.weight, at: null, hidden: true, dead: false, gold: c.startGold ?? 10, fame: 0, notoriety: 0,
         chits: c.chits.map((x, i) => ({ id: `${id}-${i + 1}`, type: x.type, strength: x.strength, time: x.time, effort: x.effort ?? 0, state: 'active', stage: x.stage })),
         items: [], rel: { ...c.relationships }, discovered: { paths: [], sites: [] }, seen: [], hiddenEnemies: false, killsToday: 0,
-        vp: vp ?? { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 }, onRoad: null, startDwelling: c.startDwellings[0], startValue: c.startValue ?? 10,
+        vp: vp ?? { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 }, onRoad: null, startDwelling: opt.dwelling ?? c.startDwellings[0], startValue: 10,
     };
     // The starting weapon and armor are taken from the native group that owns them (never bought). A counter exists once: look in the
     // natives' stock, then lying on the ground; failing both he gets its price in gold instead.
@@ -158,10 +159,12 @@ export function makeCharacter(st, data, id, vp) {
         const def = Object.values(pool).find(d => d.name === name);       // the very first character: the Setup Card always has it
         return def ? { kind, id: def.id } : null;
     };
+    // Which starting gear he is given is an option: the rules give his stage-4 weapon and armor; he may instead have to trade for them.
+    const want = opt.gear ?? { weapon: true, armor: true };
     const gear = [];
-    for (const w of c.stage4.weapons ?? []) gear.push(take(w, data.weapons, 'weapon'));
-    for (const a of c.stage4.armor ?? []) gear.push(take(a, data.armor, 'armor'));
-    for (const g of gear.filter(Boolean)) { const it = makeItem(st, g.kind, g.id); it.active = true; ch.items.push(it); }
+    if (want.weapon) for (const w of c.stage4.weapons ?? []) gear.push(take(w, data.weapons, 'weapon'));
+    if (want.armor) for (const a of c.stage4.armor ?? []) gear.push(take(a, data.armor, 'armor'));
+    for (const g of gear.filter(Boolean)) { const it = makeItem(st, g.kind, g.id); it.active = true; ch.items.push(it); ch.startValue += priceOf(data, it); }
     return ch;
 }
 
@@ -171,7 +174,7 @@ export function restartAfterDeath(st, data, vp) {
     if (!old.dead) throw new Error('your character is alive');
     if (st.day >= (st.lastDay ?? 28) && st.mode !== 'endless') throw new Error('the game is over');
     st.deaths = (st.deaths ?? 0) + 1;                      // from now on gear counters are never conjured from nothing
-    const ch = makeCharacter(st, data, old.id, vp);
+    const ch = makeCharacter(st, data, old.id, vp, { gear: st.startGear, dwelling: data.characters[old.id].startDwellings[0] });   // a new hero starts at the Inn
     ch.at = chooseStart(st, data, ch);
     ch.hidden = true;
     st.ch = ch;
@@ -183,6 +186,6 @@ export function restartAfterDeath(st, data, vp) {
 }
 
 function chooseStart(st, data, ch) {
-    const d = st.dwellings.find(x => x.kind === ch.startDwelling);
+    const d = st.dwellings.find(x => x.kind === ch.startDwelling) ?? st.dwellings.find(x => x.kind === 'Inn');
     return d.at;
 }
