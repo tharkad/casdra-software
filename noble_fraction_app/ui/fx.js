@@ -101,7 +101,7 @@ export function pulse(el, strength = 1.25) {
 // Toasts are a ticker: the whole stack scrolls upward at one constant speed, and a new toast is added at the BOTTOM of the stack (below the
 // last one, or at the starting line when the stack has already scrolled clear of it). Positions are absolute, so a toast leaving never shifts
 // the others. Each toast fades in as it appears and fades out as it nears the top of its run.
-const SPEED = 28;                                           // px per second at normal animation speed
+const SPEED = 40;                                           // px per second at normal animation speed
 const GAP = 8;                                              // px between toasts in the stack
 const FADE_FROM = -26; const GONE_AT = -62;                 // y (px above the starting line) where fading starts / the toast is removed
 const MAX_TOASTS = 4;
