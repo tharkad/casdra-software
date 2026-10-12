@@ -328,7 +328,7 @@ export function restOptions(st) {
     // With one rest, only chits costing 1 are plain; a 2-asterisk chit needs making change from an active 1-asterisk chit.
     return out.filter(o => o.cost === 1 || st.ch.chits.some(c => c.state === 'active' && c.effort === 1));
 }
-export const chitLabel = c => `${c.type === 'move' ? 'Move' : c.type === 'fight' ? 'Fight' : 'Magic'} ${c.strength}${c.time}${'*'.repeat(c.effort)}`;
+export const chitLabel = c => c.type === 'magic' ? `Magic ${c.numeral ?? ''}${c.time}${'*'.repeat(c.effort)}` : `${c.type === 'move' ? 'Move' : 'Fight'} ${c.strength}${c.time}${'*'.repeat(c.effort)}`;
 
 function applyRest(st, o) {
     const c = st.ch.chits.find(x => x.id === o.chit);

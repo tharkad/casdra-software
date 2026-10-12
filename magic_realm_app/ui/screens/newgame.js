@@ -27,7 +27,7 @@ export const DEPTHS = [
     { id: 'magic', label: 'Magic', text: 'The whole game: magic chits, spells, enchanting and the colours of magic.' },
 ];
 
-export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, depth: 'magic', dwelling: 'Inn', vp: { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 } });
+export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, depth: 'magic', character: 'white-knight', dwelling: 'Inn', vp: { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 } });
 
 export const vpTotal = g => g.length === 'month' ? 5 : g.length === 'custom' ? g.weeks + 1 : g.length === 'sudden' ? g.suddenVp : 5;
 
@@ -89,32 +89,42 @@ const VP_ROWS = [
     { k: 'gold', label: 'Gold', unit: 30, what: 'gold above your starting worth' },
 ];
 
-// Where he may begin is on his character card (rules 3.3.4): the Black Knight has one dwelling, the Inn. Characters with several get a choice.
-const START_DWELLINGS = [
-    { id: 'Inn', line: 'The Black Knight\'s starting dwelling. The Rogues live here, and he may buy from them. He begins with his Mace, Suit of Armor and Shield, taken from the natives\' stock.' },
+// The characters this build can play. Where each may begin is on his card (rules 3.3.5): the Black Knight has the Inn only, the White Knight
+// the Inn or the Chapel. Gear is always the stage-4 weapon and armor, taken from the natives' stock (3.3.2).
+const DWELLING_LINE = {
+    Inn: 'The Rogues live here: they sell workhorses and trinkets.',
+    Chapel: 'The Order live here: they sell suits of armor, warhorses, crossbows, great swords, great axes and morning stars.',
+};
+export const CHARACTERS = [
+    { id: 'black-knight', name: 'Black Knight', weight: 'Medium weight', starts: ['Inn'], gear: 'Mace, Suit of Armor and Shield',
+      line: 'Allied with the Company, friendly with Soldiers; the Guard are his enemies. Fear: one die on the Meeting Table. Aim with missiles.' },
+    { id: 'white-knight', name: 'White Knight', weight: 'Heavy weight', starts: ['Inn', 'Chapel'], gear: 'Great Sword and Suit of Armor',
+      line: 'Allied with the Order, friendly with Lancers; the Company are his enemies. Health: an extra Rest phase a day. Honor: one less on every Meeting die. His Type I spell cannot be cast in this build yet.' },
 ];
 
 function charsStep(g, redraw, ctx) {
     const total = vpTotal(g), used = Object.values(g.vp).reduce((a, b) => a + b, 0);
+    const who = CHARACTERS.find(c => c.id === g.character) ?? CHARACTERS[0];
     return [
         h('h2', { class: 'q' }, 'Your character'),
-        h('div', { class: 'choices' },
-            h('div', { class: 'choice on' }, h('span', { class: 'dot' }), h('span', { class: 'choice-main' },
-                h('span', { class: 'choice-title' }, 'Black Knight', h('em', {}, 'Medium weight')),
-                h('span', { class: 'choice-line' }, 'Allied with the Company, friendly with Soldiers; the Guard are his enemies. Fear: one die on the Meeting Table.')))),
-        h('p', { class: 'hint' }, 'More characters will come; this build plays the Black Knight.'),
-        h('h2', { class: 'q' }, 'Where do you start?'),
-        h('div', { class: 'choices', role: 'radiogroup' }, ...START_DWELLINGS.map(d => h('button', { class: `choice${g.dwelling === d.id ? ' on' : ''}`, role: 'radio', 'aria-checked': g.dwelling === d.id, 'data-dwelling': d.id,
-            onclick: () => { g.dwelling = d.id; redraw(); } },
+        h('div', { class: 'choices', role: 'radiogroup' }, ...CHARACTERS.map(c => h('button', { class: `choice${g.character === c.id ? ' on' : ''}`, role: 'radio', 'aria-checked': g.character === c.id, 'data-char': c.id,
+            onclick: () => { g.character = c.id; if (!c.starts.includes(g.dwelling)) g.dwelling = c.starts[0]; redraw(); } },
             h('span', { class: 'dot' }),
-            h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, d.id), h('span', { class: 'choice-line' }, d.line))))),
+            h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, c.name, h('em', {}, c.weight)), h('span', { class: 'choice-line' }, c.line))))),
+        h('p', { class: 'hint' }, `He begins with his ${who.gear}, taken from the natives' stock as the rules say. More characters will come.`),
+        h('h2', { class: 'q' }, who.starts.length > 1 ? 'Where do you start?' : 'Where he starts'),
+        h('div', { class: 'choices', role: 'radiogroup' }, ...who.starts.map(d => h('button', { class: `choice${g.dwelling === d ? ' on' : ''}`, role: 'radio', 'aria-checked': g.dwelling === d, 'data-dwelling': d,
+            onclick: () => { g.dwelling = d; redraw(); } },
+            h('span', { class: 'dot' }),
+            h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, d), h('span', { class: 'choice-line' }, DWELLING_LINE[d]))))),
+        who.starts.length === 1 ? h('p', { class: 'hint' }, `The ${who.name} has only the ${who.starts[0]} on his character card.`) : null,
         h('h2', { class: 'q' }, `Spend your ${total} victory points`),
         h('p', { class: 'hint' }, 'Each point sets a goal. Miss a goal and the shortfall counts triple; beat it and each point you put there pays a bonus.'),
         ...VP_ROWS.map(r => h('div', { class: 'vprow' },
             h('div', { class: 'vp-l' }, h('b', {}, r.label), h('small', {}, g.vp[r.k] ? `goal: ${g.vp[r.k] * r.unit} ${r.what}` : 'no goal')),
             stepper(g.vp[r.k], () => 'points', 0, Math.min(5, g.vp[r.k] + (total - used)), v => { g.vp[r.k] = v; redraw(); }))),
         h('p', { class: used === total ? 'hint' : 'hint bad' }, used === total ? 'All points spent.' : `${total - used} point${total - used === 1 ? '' : 's'} left to spend.`),
-    ];
+    ].filter(Boolean);
 }
 
 function outline(step, go) {
@@ -133,7 +143,7 @@ export function newGameScreen(ctx) {
     const back = () => { if (g.step === 0) { ctx.go('title'); } else { g.step -= 1; redraw(); } };
     const start = () => {
         const lastDay = g.length === 'custom' ? g.weeks * 7 : 28;
-        ctx.go('game', { fresh: true, character: 'black-knight', vp: { ...g.vp }, startDwelling: g.dwelling, lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month' });
+        ctx.go('game', { fresh: true, character: g.character, vp: { ...g.vp }, startDwelling: g.dwelling, lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month' });
     };
     const next = () => { if (g.step < STEPS.length - 1) { g.step += 1; g._scroll = 0; redraw(); } };
 

@@ -1,6 +1,7 @@
 import { die, roll2, say } from './core.js';
 import { meetingResult } from './tables.js';
 import { hasCurse } from './effects.js';
+import { meetingDice } from './meeting.js';
 
 // The Hire activity (rules digest 05 section 4.5). He pays a native group to join him for 14 days.
 // Simplification noted in docs: a hired leader follows like any other hireling instead of taking his own turn.
@@ -35,10 +36,7 @@ export function beginHire(st, data) {
     return true;
 }
 
-function roll(st) {
-    if (st.ch.id === 'black-knight') { const d = die(st); return { dice: [d], value: d }; }
-    return roll2(st);
-}
+function roll(st) { return meetingDice(st); }
 
 // Returns a string when the Hire phase is over, or undefined when a decision is pending.
 export function hireAction(st, data, p, a) {

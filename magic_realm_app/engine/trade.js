@@ -2,6 +2,7 @@ import { lvl, die, roll2, say } from './core.js';
 import { meetingResult, REL_NAMES } from './tables.js';
 import { defOf, nameOf, priceOf, makeItem, summaryOf, autoEquip } from './items.js';
 import { hasCurse } from './effects.js';
+import { meetingDice } from './meeting.js';
 
 // The Trade activity (rules digest 05 section 4.4). He deals with one native leader in his clearing: sell as much as he likes,
 // or buy a single item (the price depends on a roll on the Meeting Table).
@@ -32,12 +33,7 @@ export function beginTrade(st, data) {
 }
 
 const relOf = (st, g) => st.ch.rel?.[g] ?? 0;
-const fear = st => st.ch.id === 'black-knight';
-
-function meetingRoll(st) {
-    if (fear(st)) { const d = die(st); return { dice: [d], value: d }; }
-    return roll2(st);
-}
+function meetingRoll(st) { return meetingDice(st); }
 
 // Returns a string when the Trade phase is over, or undefined when more input is wanted (st.pending is set).
 export function tradeAction(st, data, p, a) {

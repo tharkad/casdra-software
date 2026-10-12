@@ -136,9 +136,10 @@ export function makeCharacter(st, data, id, vp, opt = {}) {
     const c = data.characters[id];
     const ch = {
         id, name: c.name, weight: c.weight, at: null, hidden: true, dead: false, gold: c.startGold ?? 10, fame: 0, notoriety: 0,
-        chits: c.chits.map((x, i) => ({ id: `${id}-${i + 1}`, type: x.type, strength: x.strength, time: x.time, effort: x.effort ?? 0, state: 'active', stage: x.stage })),
+        chits: c.chits.map((x, i) => ({ id: `${id}-${i + 1}`, type: x.type, strength: x.strength, time: x.time, effort: x.effort ?? 0, state: 'active', stage: x.stage, numeral: x.magicNumeral ?? null })),
         items: [], rel: { ...c.relationships }, discovered: { paths: [], sites: [] }, seen: [], hiddenEnemies: false, killsToday: 0,
         vp: vp ?? { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 }, onRoad: null, startDwelling: opt.dwelling ?? c.startDwellings[0], startValue: 10,
+        adv: (c.advantages ?? []).map(a => a.key), spells: [],
     };
     // The starting weapon and armor are taken from the native group that owns them (never bought). A counter exists once: look in the
     // natives' stock, then lying on the ground; failing both he gets its price in gold instead.

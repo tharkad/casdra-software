@@ -3,6 +3,7 @@ import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './t
 import { pit } from './effects.js';
 import { hirelings } from './hire.js';
 import { cardChits, effortLimit } from './modifiers.js';
+import { meetingDice, hasAdv } from './meeting.js';
 import { makeItem, autoEquip, toggleItem, activeHorse } from './items.js';
 import { isCave } from './world.js';
 
@@ -121,9 +122,8 @@ function relOf(st, group) { return st.ch.rel?.[group] ?? 0; }
 
 function rollBattle(st, data, group) {
     const c = st.combat;
-    const fear = st.ch.id === 'black-knight';
     let rel = relOf(st, group);
-    const roll = () => { const r = fear ? { dice: [die(st)], value: 0 } : roll2(st); if (fear) r.value = r.dice[0]; return r; };
+    const roll = () => meetingDice(st);
     let r = roll(), col = rel;
     let res = meetingResult(col, r.value);
     let note = `Meeting roll with the ${group}: ${r.dice.join('+')} -> ${res}`;
@@ -501,7 +501,7 @@ function myHit(st, data, h, ctx) {
     let note = '';
     if (side.missile) {
         const r = roll2(st);
-        const aim = st.ch.id === 'black-knight' || st.ch.id === 'amazon' ? 1 : 0;
+        const aim = hasAdv(st, 'aim') ? 1 : 0;
         const v = clamp6(r.value - aim);
         level += MISSILE[v - 1];
         note = ` (missile roll ${r.dice.join('+')}${aim ? ' -1 for Aim' : ''} -> ${MISSILE[v - 1] >= 0 ? '+' : ''}${MISSILE[v - 1]})`;

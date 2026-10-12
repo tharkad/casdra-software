@@ -133,7 +133,7 @@ export function gameScreen(ctx) {
             ...p.options.map(r => h('button', { class: 'btn', onclick: () => act({ type: 'search-choice', result: r }) }, r)))));
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));
         else if (p?.type === 'hire' || p?.type === 'hire-offer') out.push(hireSheet(p));
-        else if (!ui.welcomeDone && !welcomed() && st.day === 1 && p?.type === 'plan') out.push(modal('Welcome, Black Knight', h('div', {},
+        else if (!ui.welcomeDone && !welcomed() && st.day === 1 && p?.type === 'plan') out.push(modal(`Welcome, ${st.ch.name}`, h('div', {},
             h('p', {}, `You are at the ${st.ch.startDwelling}${st.ch.items.length ? ' with ' + st.ch.items.map(i => nameOf(data, i)).join(', ') : ' with no weapon or armor yet: trade for some'}. You have ${st.lastDay ?? 28} days.`),
             h('p', {}, h('b', {}, 'Each morning'), ' you plan up to four phases in secret: move, hide, search, trade, hire, rest or alert.'),
             h('p', {}, h('b', {}, 'Then the day plays out'), ', a phase at a time, and anything you meet is called out by the chits you turn up.'),
@@ -234,10 +234,11 @@ export function gameScreen(ctx) {
 
     function charSheet() {
         const ch = st.ch;
-        const chitEl = c => h('div', { class: `chit2 ${c.type} ${c.state}` }, h('b', {}, `${c.strength}${c.time}`), h('span', {}, '*'.repeat(c.effort) || ' '), h('small', {}, c.type === 'move' ? 'Move' : c.type === 'fight' ? 'Fight' : 'Magic'));
+        const chitEl = c => h('div', { class: `chit2 ${c.type} ${c.state}` }, h('b', {}, c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`), h('span', {}, '*'.repeat(c.effort) || ' '), h('small', {}, c.type === 'move' ? 'Move' : c.type === 'fight' ? 'Fight' : 'Magic'));
         return modal(ch.name, h('div', {},
             h('div', { class: 'chits' }, ch.chits.map(chitEl)),
             h('p', { class: 'hint' }, 'Gold, Fame and Notoriety are shown on the top bar. Fatigued chits are dim; wounded chits are crossed out.'),
+            ch.spells?.length || (data.characters[ch.id].stage4.spellsKnown ?? 0) ? h('p', { class: 'hint' }, `Spell: one of type ${(data.characters[ch.id].stage4.spellTypes ?? []).join('/')} (spells cannot be cast in this build yet).`) : null,
             h('h3', {}, 'Carrying'),
             ...ch.items.map(it => h('button', { class: `btn row${it.active ? ' on' : ''}`, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid }); } },
                 h('span', {}, nameOf(data, it) + (it.damaged ? ' (damaged)' : '') + (it.destroyed ? ' (destroyed)' : '')), h('em', {}, `${WEIGHT_WORDS[weightOf(data, it)] ?? ''}${it.active ? ' · in use' : ''}`))),
@@ -283,7 +284,7 @@ export function gameScreen(ctx) {
             ...(s.rows ?? []).map(r => h('p', { class: 'scorerow' }, h('b', {}, r.cat), ` ${r.earned} of ${r.need}`, h('span', {}, ` \u2192 ${r.basic + r.bonus >= 0 ? '+' : ''}${r.basic + r.bonus}`))),
             h('p', { class: 'bigline' }, `Total ${s.total}`, h('small', {}, s.won ? ' (you won)' : ' (not enough)')),
             st.deaths ? h('p', { class: 'hint' }, `You have died ${st.deaths} time${st.deaths === 1 ? '' : 's'} this game.`) : null,
-            canRestart ? h('button', { class: 'btn primary', 'data-act': 'restart', onclick: () => { ui.restartVp = { great: 0, spells: 0, fame: 2, notoriety: 1, gold: 0 }; render(); } }, 'Return tomorrow as a new Black Knight') : null,
+            canRestart ? h('button', { class: 'btn primary', 'data-act': 'restart', onclick: () => { ui.restartVp = { great: 0, spells: 0, fame: 2, notoriety: 1, gold: 0 }; render(); } }, `Return tomorrow as a new ${st.ch.name}`) : null,
             h('button', { class: 'btn', onclick: () => { clearSaved(); ctx.go('title'); } }, 'Back to the title')));
     }
 
@@ -291,7 +292,7 @@ export function gameScreen(ctx) {
         const weeks = Math.ceil(((st.lastDay ?? 28) - st.day) / 7), total = Math.max(2, weeks + 1), v = ui.restartVp;
         const used = Object.values(v).reduce((a, b) => a + b, 0);
         const rows = [['fame', 'Fame', 10], ['notoriety', 'Notoriety', 20], ['gold', 'Gold', 30], ['great', 'Great treasures', 1]];
-        return modal('A new Black Knight', h('div', {},
+        return modal(`A new ${st.ch.name}`, h('div', {},
             h('p', {}, `He arrives at the Inn tomorrow. With ${weeks} week${weeks === 1 ? '' : 's'} left he has ${total} victory points to spend.`),
             ...rows.map(([k, label, f]) => h('div', { class: 'vprow' },
                 h('div', { class: 'vp-l' }, h('b', {}, label), h('small', {}, v[k] ? `goal: ${v[k] * f}` : 'no goal')),
@@ -367,7 +368,7 @@ export function gameScreen(ctx) {
             data = await loadData('data/');
             ctx.data = data;
             if (ctx.params?.fresh || !loadSaved()) {
-                st = newGame(data, { seed: ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: ctx.params?.character ?? 'black-knight', vp: ctx.params?.vp, mode: ctx.params?.mode, lastDay: ctx.params?.lastDay,
+                st = newGame(data, { seed: ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: ctx.params?.character ?? 'white-knight', vp: ctx.params?.vp, mode: ctx.params?.mode, lastDay: ctx.params?.lastDay,
                     startDwelling: ctx.params?.startDwelling, startGear: ctx.params?.startGear });
                 saveGame(st);
             } else st = loadSaved();

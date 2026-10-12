@@ -14,6 +14,7 @@ export function extraActs(st, data, { startsInCave = false, intoCave = false } =
     const h = activeHorse(st), hd = h ? data.horses[h.id] : null;
     if (hd?.kind === 'workhorse' && !startsInCave && !intoCave) out.push('move');
     for (const id of treasureIds(st)) if (EXTRA[id]) out.push(EXTRA[id]);
+    if ((st.ch.adv ?? []).includes('health')) out.push('rest');             // the White Knight's extra Rest phase
     return out;
 }
 
