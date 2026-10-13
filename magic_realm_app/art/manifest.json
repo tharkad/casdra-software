@@ -220,5 +220,23 @@
   "missileTable": "art/tables/missile.gif",
   "searchTable": "art/tables/search.gif",
   "pitTable": "art/tables/powerofthepit.gif"
+ },
+ "cards": {
+  "woods-girl": "art/characterdetail/woodsgirl.jpg",
+  "witch-king": "art/characterdetail/witch_king.jpg",
+  "berserker": "art/characterdetail/berserker.jpg",
+  "white-knight": "art/characterdetail/white_knight.jpg",
+  "druid": "art/characterdetail/druid.jpg",
+  "pilgrim": "art/characterdetail/pilgrim.jpg",
+  "witch": "art/characterdetail/witch.jpg",
+  "dwarf": "art/characterdetail/dwarf.jpg",
+  "elf": "art/characterdetail/elf.jpg",
+  "sorceror": "art/characterdetail/sorceror.jpg",
+  "black-knight": "art/characterdetail/black_knight.jpg",
+  "magician": "art/characterdetail/magician.jpg",
+  "wizard": "art/characterdetail/wizard.jpg",
+  "captain": "art/characterdetail/captain.jpg",
+  "amazon": "art/characterdetail/amazon.jpg",
+  "swordsman": "art/characterdetail/swordsman.jpg"
  }
 }

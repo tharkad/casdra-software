@@ -180,6 +180,7 @@ export function gameScreen(ctx) {
         else if (ui.sheet === 'clearing' && ui.sel) out.push(clearingSheet());
         else if (ui.sheet === 'menu') out.push(menuSheet());
         else if (ui.sheet === 'over' || ui.restartVp) out.push(overSheet());
+        else if (ui.sheet === 'card') out.push(modal(st.ch.name, h('div', {}, data.art?.cards?.[st.ch.id] ? h('img', { class: 'cardpic', src: data.art.cards[st.ch.id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { ui.sheet = 'char'; render(); } }));
         else if (ui.sheet === 'dice') out.push(diceSheet());
         else if (ui.sheet === 'tables') out.push(modal('Tables', h('div', { class: 'tables' },
             ...[['Meeting Table', 'meetingTable'], ['Search table', 'searchTable'], ['Missile table', 'missileTable'], ['Power of the Pit', 'pitTable']].filter(([, k]) => data.art?.misc?.[k])
@@ -369,7 +370,7 @@ export function gameScreen(ctx) {
         const chitEl = c => h('div', { class: `chit2 ${c.type} ${c.state}` }, h('b', {}, c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`), h('span', {}, '*'.repeat(c.effort) || ' '), h('small', {}, c.type === 'move' ? 'Move' : c.type === 'fight' ? 'Fight' : 'Magic'));
         const portrait = data.art?.characters?.[ch.id];
         return modal(ch.name, h('div', {},
-            portrait ? h('div', { class: 'portrait' }, h('img', { src: portrait, alt: ch.name })) : null,
+            portrait ? h('button', { class: 'portrait', 'aria-label': 'Show the character card', onclick: () => { ui.sheet = 'card'; render(); } }, h('img', { src: portrait, alt: ch.name }), data.art?.cards?.[ch.id] ? h('small', {}, 'Tap for the character card') : null) : null,
             h('div', { class: 'chits' }, ch.chits.map(chitEl)),
             h('p', { class: 'hint' }, 'Gold, Fame and Notoriety are shown on the top bar. Fatigued chits are dim; wounded chits are crossed out.'),
             ch.spells?.length || (data.characters[ch.id].stage4.spellsKnown ?? 0) ? h('p', { class: 'hint' }, `Spell: one of type ${(data.characters[ch.id].stage4.spellTypes ?? []).join('/')} (spells cannot be cast in this build yet).`) : null,

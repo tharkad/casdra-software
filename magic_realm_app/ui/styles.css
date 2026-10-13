@@ -334,3 +334,6 @@ details summary { cursor: pointer; color: var(--dim); margin: 10px 0 4px; }
 .tables h3 { margin-top: 14px; }
 .foepic { float: right; width: 44px; height: 44px; object-fit: contain; background: #efe6d0; border-radius: 8px; margin-left: 8px; padding: 2px; }
 .btn.row .ico + .rl { flex: 1; }
+.cardpic { width: 100%; height: auto; border-radius: 10px; display: block; margin: 8px 0; }
+button.portrait { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; background: none; border: 0; cursor: pointer; color: var(--dim); }
+button.portrait small { font-size: 13px; }

@@ -112,6 +112,7 @@ function charsStep(g, redraw, ctx) {
             h('span', { class: 'dot' }),
             h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, c.name, h('em', {}, c.weight)), h('span', { class: 'choice-line' }, c.line))))),
         h('p', { class: 'hint' }, `He begins with his ${who.gear}, taken from the natives' stock as the rules say. More characters will come.`),
+        h('img', { class: 'cardpic', src: `art/characterdetail/${who.id.replace('-', '_')}.jpg`, alt: `${who.name} character card`, onerror: e => e.target.remove() }),
         h('h2', { class: 'q' }, who.starts.length > 1 ? 'Where do you start?' : 'Where he starts'),
         h('div', { class: 'choices', role: 'radiogroup' }, ...who.starts.map(d => h('button', { class: `choice${g.dwelling === d ? ' on' : ''}`, role: 'radio', 'aria-checked': g.dwelling === d, 'data-dwelling': d,
             onclick: () => { g.dwelling = d; redraw(); } },
