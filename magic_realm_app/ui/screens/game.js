@@ -158,7 +158,7 @@ export function gameScreen(ctx) {
             main = h('div', { class: 'phase' },
                 h('div', { class: 'phase-info' }, h('b', {}, `Phase ${p.i + 1} of ${st.plan.length}`), h('span', {}, describeSlot(slot))),
                 h('div', { class: 'row2' },
-                    h('button', { class: 'btn primary', 'data-act': 'next', onclick: () => act({ type: 'next' }) }, 'Do it'),
+                    h('button', { class: 'btn primary', 'data-act': 'next', onclick: () => act({ type: 'next' }) }, describeSlot(slot)),
                     h('button', { class: 'btn', 'data-act': 'all', onclick: () => act({ type: 'next', all: true }) }, 'Play the day')));
         } else if (p.type === 'over') main = h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result');
         else main = h('div', { class: 'note' }, 'Decision needed...');
@@ -168,7 +168,7 @@ export function gameScreen(ctx) {
     function describeSlot(s) {
         if (!s || s.act === 'nothing') return 'Do nothing';
         if (s.act === 'move') return `Move to ${nameOfClearing(s.to)}`;
-        if (s.act === 'search') return `Search: ${TABLE_LABEL[s.table ?? 'peer']}`;
+        if (s.act === 'search') return s.table ? `Search: ${TABLE_LABEL[s.table]}` : 'Search';
         return ACT_LABEL[s.act] ?? s.act;
     }
 
@@ -182,6 +182,11 @@ export function gameScreen(ctx) {
         else if (p?.type === 'turn-end') out.push(turnEndSheet());
         else if (p?.type === 'rest') out.push(modal('Rest', h('div', {}, h('p', { class: 'hint' }, 'You may regain one asterisk of effort. Choose a chit:'), ...p.options.map(o =>
             h('button', { class: 'btn', onclick: () => act({ type: 'rest', chit: o.chit }) }, o.text)))));
+        else if (p?.type === 'search-table') out.push(modal('Search: which table?', h('div', {},
+            h('p', { class: 'hint' }, 'Name the table you will roll on. One roll, one table.'),
+            ...p.options.map(t => h('button', { class: 'btn', 'data-table': t, onclick: () => act({ type: 'search-table', table: t }) }, h('b', {}, TABLE_LABEL[t]),
+                h('small', {}, { peer: 'look for clues, hidden enemies and hidden paths', locate: 'find passages, clues and sites in this clearing', loot: 'take treasure from a site you have discovered here',
+                    ground: 'pick up what lies on the ground here', sitecard: 'search the place you found with a treasure card' }[t] ?? ''))))));
         else if (p?.type === 'search-choice') out.push(modal(`${TABLE_LABEL[p.table]}: your choice`, h('div', {}, latestRoll(st) ? rollRow(latestRoll(st)) : null, h('p', { class: 'hint' }, `You rolled ${p.roll.join('+')}: take any result of the table.`),
             ...p.options.map(r => h('button', { class: 'btn', onclick: () => act({ type: 'search-choice', result: r }) }, r)))));
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));
@@ -480,8 +485,6 @@ export function gameScreen(ctx) {
             out.push(h('p', { class: 'hint' }, at[i] || st.ch.onRoad ? 'Tap a clearing on the map, or choose here:' : 'You are on a road; move to one of its ends first.'));
             if (ui.pickMove === i || !s?.to) out.push(movePicker(i, at[i]));
         }
-        if (ui.pickSearch === i) out.push(h('div', { class: 'chips2' }, ...['peer', 'locate', 'loot', ...((st.abandoned[at[i]] ?? []).length ? ['ground'] : []), ...(st.ch.siteCards?.[at[i]]?.length ? ['sitecard'] : [])]
-            .map(t => h('button', { class: 'chip', onclick: () => { d.slots[i] = { act: 'search', table: t }; ui.pickSearch = null; advance(i + 1); render(); } }, TABLE_LABEL[t]))));
         return out;
     }
 
@@ -540,7 +543,6 @@ export function gameScreen(ctx) {
         const d = ui.draft;
         ui.pickMove = null; ui.pickSearch = null;
         if (a === 'move') { ui.pickMove = i; render(); return; }
-        if (a === 'search') { ui.pickSearch = i; render(); return; }
         d.slots[i] = { act: a };
         advance(i + 1);
         render();

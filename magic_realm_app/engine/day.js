@@ -350,9 +350,20 @@ function applyRest(st, o) {
     }
 }
 
+// Which tables he may search on where he stands (rule 7.5: he records only "S" at Birdsong and names the table when he does it).
+export function searchTables(st) {
+    const here = st.ch.at;
+    return ['peer', 'locate', 'loot', ...((st.abandoned[here] ?? []).length ? ['ground'] : []), ...(st.ch.siteCards?.[here]?.length ? ['sitecard'] : [])];
+}
+
 function doSearch(st, data, slot) {
-    const table = slot.table ?? 'peer';
     if (hasCurse(st, 'Eyemist')) return 'The Eyemist curse blinds you: you cannot search.';
+    if (!slot.table) {
+        // no table was named in the plan: ask when the phase comes
+        st.pending = { type: 'search-table', options: searchTables(st) };
+        return 'wait';
+    }
+    const table = slot.table;
     let r;
     if (oneDie(st, table === 'loot' || table === 'ground' || table === 'sitecard' ? 'loot' : 'search')) { const d1 = die(st); r = { dice: [d1], value: d1 }; } else r = roll2(st);
     const rawDice = [...r.dice];
@@ -434,6 +445,16 @@ export function apply(st0, data, action) {
             applyRest(st, o);
             say(st, `You rest (${o.text}).`, 'info');
             finishPhase(st, data, `You rest (${o.text}).`);
+            return settle(st, data, st.turn?.auto);
+        }
+        case 'search-table': {
+            if (p.type !== 'search-table') throw new Error('no search table is being chosen');
+            if (!p.options.includes(action.table)) throw new Error('you cannot search that table here');
+            st.pending = null;
+            const text = doSearch(st, data, { act: 'search', table: action.table });
+            if (text === 'wait') return st;                          // a Choice result is waiting for its own answer
+            say(st, text, 'info');
+            finishPhase(st, data, text);
             return settle(st, data, st.turn?.auto);
         }
         case 'search-choice': {
