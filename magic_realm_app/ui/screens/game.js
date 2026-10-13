@@ -308,7 +308,7 @@ export function gameScreen(ctx) {
         const cdef = data.tile(tile).sides.normal.clearings.find(c => c.n === n);
         const here = st.ch.at === id && !st.ch.onRoad;
         const sections = [];
-        const row = (k, text, sub) => h('div', { class: `crow ${k}` }, h('b', {}, text), sub ? h('small', {}, sub) : null);
+        const row = (k, text, sub, img) => h('div', { class: `crow ${k}` }, img ? h('img', { class: 'ico', src: img, alt: '' }) : null, h('div', { class: 'crow-t' }, h('b', {}, text), sub ? h('small', {}, sub) : null));
         // you
         if (here) sections.push(['You', [row('me', st.ch.name, st.ch.hidden ? 'hidden: monsters cannot block you' : 'in plain sight')]]);
         // dwelling and the people who live there
@@ -318,12 +318,12 @@ export function gameScreen(ctx) {
         for (const x of natHere) (byGroup[data.natives[x.id].group] ??= []).push(data.natives[x.id]);
         const REL = { '-2': 'enemy', '-1': 'unfriendly', '0': 'neutral', '1': 'friendly', '2': 'ally' };
         const people = Object.entries(byGroup).map(([g, list]) => row('nat', `${g}: ${list.length} native${list.length === 1 ? '' : 's'}`,
-            `${REL[String(st.ch.rel?.[g] ?? 0)]} to you; ${list.map(x => x.name.replace(/^\w+ /, '')).join(', ')}`));
-        if (dw.length || people.length) sections.push(['Dwellings and natives', [...dw.map(d => row('dwelling', d.kind, 'a dwelling: natives live and trade here')), ...people]]);
+            `${REL[String(st.ch.rel?.[g] ?? 0)]} to you; ${list.map(x => x.name.replace(/^\w+ /, '')).join(', ')}`, data.art?.natives?.[(list.find(x => x.leader) ?? list[0]).id]));
+        if (dw.length || people.length) sections.push(['Dwellings and natives', [...dw.map(d => row('dwelling', d.kind, 'a dwelling: natives live and trade here', data.art?.dwellings?.[d.kind])), ...people]]);
         // monsters
         const mons = {};
         for (const m of st.mons.filter(m => !m.dead && m.loc?.c === id)) (mons[data.monsters[m.id].name] ??= []).push(m);
-        const monRows = Object.entries(mons).map(([name, l]) => row('mon', `${name}${l.length > 1 ? ` x${l.length}` : ''}`, 'a monster: it will block you if you are seen'));
+        const monRows = Object.entries(mons).map(([name, l]) => row('mon', `${name}${l.length > 1 ? ` x${l.length}` : ''}`, 'a monster: it will block you if you are seen', data.art?.monsters?.[name]));
         if (monRows.length) sections.push(['Monsters', monRows]);
         // chits
         const chitRows = [];
