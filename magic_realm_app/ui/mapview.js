@@ -58,10 +58,16 @@ export function mountMap(host) {
             tg.append(sv('polygon', { class: 'hex', points: corners(S - 1.5).map(c => c.join(',')).join(' '), fill: GROUP[tile.group] }));
             const paths = sv('g', { class: 'paths' });
             for (const path of def.paths) {
+                // Hidden paths and secret passages are printed on the tile: they are always drawn, but faint and marked '?' until discovered.
                 const known = path.kind === 'open' || path.kind === 'tunnel' || model.showHidden || model.discovered?.has(pk(p.id + path.a, p.id + path.b));
-                if (!known) continue;
                 const A = pos[path.a], B = pos[path.b], s = PATH[path.kind];
-                paths.append(sv('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], stroke: s.stroke, 'stroke-width': s.w, 'stroke-dasharray': s.dash ?? null, 'stroke-linecap': 'round' }));
+                paths.append(sv('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], stroke: s.stroke, 'stroke-width': known ? s.w : 2, 'stroke-dasharray': known ? (s.dash ?? null) : '2 5',
+                    'stroke-linecap': 'round', opacity: known ? 1 : 0.55, class: known ? '' : 'undisc' }));
+                if (!known) {
+                    const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2;
+                    paths.append(sv('g', { class: 'undisc-mark', transform: `translate(${mx.toFixed(1)} ${my.toFixed(1)})` },
+                        sv('circle', { r: 6.5, stroke: s.stroke }), sv('text', { 'text-anchor': 'middle', dy: '.35em' }, '?')));
+                }
             }
             EDGES.forEach((name, le) => {
                 const n = def.edges[name];
@@ -101,7 +107,7 @@ export function mountMap(host) {
                     const hid = model.heroHidden;
                     og.append(sv('g', { class: `me${hid ? ' hid' : ''}`, transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})`, 'pointer-events': 'none' },
                         sv('circle', { r: 21, class: 'halo' }),
-                        sv('g', { transform: 'translate(0 -30)' }, sv('rect', { x: hid ? -40 : -19, y: -9, width: hid ? 80 : 38, height: 18, rx: 6 }), sv('text', { 'text-anchor': 'middle', dy: '.36em' }, hid ? 'YOU (hidden)' : 'YOU'), sv('path', { d: 'M-5 9 L0 15 L5 9 Z' }))));
+                        sv('g', { transform: 'translate(0 -30)' }, sv('rect', { x: -19, y: -9, width: 38, height: 18, rx: 6 }), sv('text', { 'text-anchor': 'middle', dy: '.36em' }, 'YOU'), sv('path', { d: 'M-5 9 L0 15 L5 9 Z' }))));
                 }
             });
             g.append(tg);

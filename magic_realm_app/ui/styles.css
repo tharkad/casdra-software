@@ -284,3 +284,7 @@ button { font: inherit; color: inherit; }
 .crow.me { border-left-color: var(--gold); } .crow.mon { border-left-color: #c44; } .crow.nat { border-left-color: #4a78c0; } .crow.dwelling { border-left-color: #b08a3a; }
 .crow.site, .crow.sound, .crow.chit, .crow.warning { border-left-color: #8a6ad0; } .crow.loot { border-left-color: var(--moss); } .crow.road.off { opacity: .55; }
 details summary { cursor: pointer; color: var(--dim); margin: 10px 0 4px; }
+
+.realm-svg .undisc-mark circle { fill: #14161f; stroke-width: 1.4; opacity: .9; }
+.realm-svg .undisc-mark text { font-size: 9px; font-weight: 800; fill: #cfc7ae; }
+.realm-svg .me.hid rect { fill: #3a3320; stroke: var(--gold); stroke-dasharray: 3 2; } .realm-svg .me.hid text { fill: var(--gold); }
