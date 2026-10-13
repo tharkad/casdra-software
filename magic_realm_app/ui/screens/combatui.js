@@ -40,6 +40,16 @@ export function combatSheet({ st, data, act, ui, render }) {
             h('div', { class: 'row2' },
                 h('button', { class: 'btn', onclick: () => send({ kind: 'pay', pay: true }) }, `Pay ${p.amount}`),
                 h('button', { class: 'btn primary', onclick: () => send({ kind: 'pay', pay: false }) }, 'Fight'))));
+    } else if (p.type === 'combat-drinks') {
+        body.push(h('div', { class: 'cb-q' }, h('p', {}, `The ${p.group} are in your clearing and are not friendly to you. Buy them drinks for ${p.cost} gold to make them one level friendlier before the Meeting roll?`),
+            h('div', { class: 'row2' },
+                h('button', { class: 'btn primary', 'data-act': 'buy-drinks', disabled: st.ch.gold < p.cost, onclick: () => send({ kind: 'drinks', buy: true }) }, `Buy drinks (${p.cost}g)`),
+                h('button', { class: 'btn', 'data-act': 'no-drinks', onclick: () => send({ kind: 'drinks', buy: false }) }, 'No thanks'))));
+    } else if (p.type === 'combat-choice') {
+        body.push(h('div', { class: 'cb-q' }, h('p', {}, `The ${p.groups.join(' and the ')} ${p.groups.length > 1 ? 'are' : 'is'} here and not looking for a fight. You may attack ${p.groups.length > 1 ? 'one of them, which brings its whole group in' : 'them'}, or let them be.`),
+            h('div', { class: 'row2' },
+                h('button', { class: 'btn', 'data-act': 'let-be', onclick: () => send({ kind: 'choice', fight: false }) }, 'Let them be'),
+                h('button', { class: 'btn primary', 'data-act': 'attack-natives', onclick: () => send({ kind: 'choice', fight: true }) }, 'Pick a fight'))));
     } else if (p.type === 'combat-encounter') {
         const o = encounterOptions(st, data);
         body.push(h('h3', {}, 'Encounter: one action'));
@@ -50,7 +60,7 @@ export function combatSheet({ st, data, act, ui, render }) {
             body.push(h('div', { class: 'chitrow' }, ...o.alertChits.map(ch => chitBtn(ch, false, () => send({ kind: 'encounter', act: 'alert', chit: ch.id })))));
         }
         if (o.canRun) {
-            const roads = roadsFrom(st, data, st.ch.at).filter(r => r.usable);
+            const roads = o.runTo.map(to => ({ to }));
             body.push(h('h3', {}, 'Run for it'));
             body.push(h('p', { class: 'hint' }, 'You leave the fight and end the day on a road. Pick a Move chit; the road goes to the clearing you choose.'));
             for (const r of roads) {

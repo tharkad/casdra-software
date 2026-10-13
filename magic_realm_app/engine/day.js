@@ -57,6 +57,7 @@ function submitPlan(st, data, slots) {
     const v = validatePlan(st, data, slots);
     if (v.errors.length) throw new Error(v.errors[0]);
     st.planBase = phasesFor(st, data, slots.filter(Boolean)).base;
+    st.ch.arrivedFrom = null;                      // a new day: he has not moved into any clearing yet
     st.plan = slots.slice(0, v.total).map(s => s ? { ...s } : null);
     while (st.plan.length < v.total) st.plan.push(null);
     st.planFull = slots;
@@ -265,7 +266,7 @@ function doMove(st, data, slot) {
         const r = st.ch.onRoad;
         if (to !== r.from && to !== r.to) return 'You cannot reach that from the road.';
         if (isMountain(st, data, to) && t.climb !== to) { t.climb = to; return `You begin the climb toward ${nameOfClearing(to)}.`; }
-        st.ch.at = to; st.ch.onRoad = null; t.climb = null;
+        st.ch.arrivedFrom = to === r.to ? r.from : r.to; st.ch.at = to; st.ch.onRoad = null; t.climb = null;
         followHero(st);
         return arrive(st, data, to);
     }
@@ -279,6 +280,7 @@ function doMove(st, data, slot) {
     }
     t.climb = null;
     const dropped = dropHeavy(st, data);
+    st.ch.arrivedFrom = from;
     st.ch.at = to;
     followHero(st);
     if (isCave(st, data, to)) {
@@ -459,7 +461,7 @@ export function apply(st0, data, action) {
         }
         case 'combat': {
             if (!st.combat) throw new Error('no combat');
-            const kindFor = { 'combat-pay': 'pay', 'combat-encounter': 'encounter', 'combat-melee': 'melee', 'combat-wounds': 'wounds', 'combat-fatigue': 'fatigue' };
+            const kindFor = { 'combat-pay': 'pay', 'combat-drinks': 'drinks', 'combat-choice': 'choice', 'combat-encounter': 'encounter', 'combat-melee': 'melee', 'combat-wounds': 'wounds', 'combat-fatigue': 'fatigue' };
             if (kindFor[p.type] !== action.kind) throw new Error(`that is not what the fight is waiting for (${kindFor[p.type] ?? p.type})`);
             st.pending = null;
             combatAction(st, data, action);
@@ -511,6 +513,8 @@ export function apply(st0, data, action) {
 function combatAction(st, data, a) {
     switch (a.kind) {
         case 'pay': return combat.payOrFight(st, data, a.pay);
+        case 'drinks': return combat.drinksAction(st, data, a.buy);
+        case 'choice': return combat.choiceAction(st, data, a.fight);
         case 'encounter': return combat.encounterAction(st, data, a);
         case 'melee': return combat.meleePlay(st, data, a);
         case 'wounds': return combat.chooseWounds(st, data, a.chits);

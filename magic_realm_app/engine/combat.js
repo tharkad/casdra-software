@@ -3,9 +3,9 @@ import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './t
 import { pit } from './effects.js';
 import { hirelings } from './hire.js';
 import { cardChits, effortLimit } from './modifiers.js';
-import { meetingOutcome, hasAdv } from './meeting.js';
+import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
 import { makeItem, autoEquip, toggleItem, activeHorse } from './items.js';
-import { isCave } from './world.js';
+import { isCave, roadsFrom } from './world.js';
 
 // Evening combat for one character against the denizens in his clearing (rules digest 03).
 // The combat is a small state machine stored in st.combat; the UI reads st.pending and answers with actions:
@@ -53,7 +53,7 @@ const isShield = def => (def.type ?? '').toLowerCase() === 'shield' || !!def.cho
 export function denSide(st, data, den) {
     if (den.kind === 'mon') {
         const m = data.monsters[den.id];
-        const s = den.side === 'red' && m.red ? { ...m.red, length: m.light.length, attack: 'weapon' } : (den.side === 'dark' && m.dark ? m.dark : m.light);
+        const s = den.side === 'red' && m.red ? { ...m.red, length: m.red.length ?? 0, attack: 'weapon' } : (den.side === 'dark' && m.dark ? m.dark : m.light);
         return { name: m.name, size: m.size, vuln: m.vulnerability, armored: !!m.armored, harm: s.harm, stars: s.stars ?? 0, atk: s.attackTime, move: s.moveTime,
             length: s.length ?? m.light.length ?? 0, attack: s.attack ?? 'weapon', spell: s.spell, fame: m.fame ?? 0, notor: m.notoriety ?? 0, gold: 0, tremendous: !!m.red };
     }
@@ -95,12 +95,52 @@ export function startCombat(st, data, clearing) {
     const c = st.combat = { at: clearing, round: 1, quiet: 0, step: 'start', dens: [], battling: {}, events: [], melee: false, ended: false, ran: false, pays: [], rollFrom: st.rollSeq ?? 0 };
     c.hires = hirelings(st).filter(n => n.loc?.c === clearing).map(n => ({ uid: nextUid(st), id: n.id, dead: false }));
     for (const m of denizensIn(st, data, clearing)) { addDen(st, data, { kind: 'mon', id: m.id }); tally(st, `faced.${data.monsters[m.id].name}`); }
-    // Natives roll the Meeting Table once per group present, to see whether the group battles him.
-    const groups = [...new Set(nativesIn(st, data, clearing).map(n => data.natives[n.id].group))];
-    for (const g of groups) rollBattle(st, data, g);
+    // Natives roll the Meeting Table once per group present, to see whether the group battles him (he may buy drinks first).
+    c.meetQueue = [...new Set(nativesIn(st, data, clearing).map(n => data.natives[n.id].group))];
+    return nextMeeting(st, data);
+}
+
+function nextMeeting(st, data) {
+    const c = st.combat;
+    while (c.meetQueue.length) {
+        const g = c.meetQueue[0], cost = drinksCost(st, data, g);
+        if (relOf(st, g) < 1 && cost > 0 && st.ch.gold >= cost && !(st.ch.curses ?? []).includes('Ashes')) {
+            c.step = 'drinks';
+            st.pending = { type: 'combat-drinks', group: g, cost };
+            return;
+        }
+        c.meetQueue.shift();
+        rollBattle(st, data, g);
+    }
+    // natives who are not battling him stand by: he may still pick a fight with them
+    for (const n of nativesIn(st, data, c.at)) if (!c.dens.some(d => d.kind === 'nat' && d.id === n.id)) addDen(st, data, { kind: 'nat', id: n.id }).bystander = true;
     if (!c.pays.length) return enterEncounter(st, data);
     c.step = 'pay';
     st.pending = { type: 'combat-pay', ...c.pays[0] };
+}
+
+// Rule 8.2.2a: before the evening Meeting roll he may pay one gold a head to make the group one level friendlier.
+export function drinksAction(st, data, buy) {
+    const c = st.combat;
+    if (c.step !== 'drinks') throw new Error('nobody is offering drinks now');
+    const g = c.meetQueue.shift(), cost = drinksCost(st, data, g);
+    st.pending = null;
+    if (buy) {
+        if (st.ch.gold < cost) throw new Error('not enough gold');
+        st.ch.gold -= cost;
+        say(st, `You buy drinks for the ${g} (${cost} gold): they warm to you.`, 'combat');
+    }
+    rollBattle(st, data, g, buy);
+    return nextMeeting(st, data);
+}
+
+// Evening with only peaceful natives about: he decides whether to attack them (any one of them, which brings its whole group in).
+export function choiceAction(st, data, fight) {
+    const c = st.combat;
+    if (c.step !== 'choice') throw new Error('there is no choice to make');
+    c.choiceMade = true;
+    if (!fight) { c.ended = true; c.why = 'quiet'; c.step = 'done'; st.pending = null; say(st, 'You let the natives be.', 'combat'); return; }
+    enterEncounter(st, data);
 }
 
 function addDen(st, data, d) {
@@ -128,10 +168,10 @@ function missileRoll(st, what, archer) {
     return m;
 }
 
-function rollBattle(st, data, group) {
+function rollBattle(st, data, group, drinks = false) {
     const c = st.combat;
     // Each Meeting roll (and any Trouble or Opportunity re-roll) is noted in the dice tray and the log by meetingOutcome.
-    const { res } = meetingOutcome(st, relOf(st, group), `Evening meeting with the ${group}`);
+    const { res } = meetingOutcome(st, relOf(st, group) + (drinks ? 1 : 0), `Evening meeting with the ${group}`);
     if (res === 'Block/Battle') return startBattling(st, data, group);
     if (res === 'Insult') c.pays.push({ group, cost: 'notoriety', amount: 5, why: 'Insult' });
     else if (res === 'Challenge') { if ((st.ch.curses ?? []).includes('Disgust')) startBattling(st, data, group); else c.pays.push({ group, cost: 'fame', amount: 5, why: 'Challenge' }); }
@@ -141,7 +181,11 @@ function startBattling(st, data, group) {
     const c = st.combat;
     if (c.battling[group]) return;
     c.battling[group] = true;
-    for (const n of nativesIn(st, data, c.at)) if (data.natives[n.id].group === group && !c.dens.some(d => d.kind === 'nat' && d.id === n.id)) addDen(st, data, { kind: 'nat', id: n.id });
+    for (const n of nativesIn(st, data, c.at)) {
+        if (data.natives[n.id].group !== group) continue;
+        const den = c.dens.find(d => d.kind === 'nat' && d.id === n.id);
+        if (den) den.bystander = false; else addDen(st, data, { kind: 'nat', id: n.id });
+    }
     say(st, `The ${group} will fight you.`, 'combat');
 }
 
@@ -159,31 +203,36 @@ export function payOrFight(st, data, pay) {
 function assignAll(st, data) {
     const c = st.combat;
     if (st.ch.hidden) return;
-    for (const d of c.dens) if (!d.dead && !d.assigned && d.kind !== 'part' && d.kind !== 'horse') d.assigned = true;
+    for (const d of c.dens) if (!d.dead && !d.assigned && !d.bystander && d.kind !== 'part' && d.kind !== 'horse') d.assigned = true;
 }
 
-// His own horse is played like a Move chit: walking side in the Encounter step, galloping side in the Melee step.
-function horseChit(st, data) {
+// His own horse is played like a Move chit, either side up (walking or galloping), whichever he can use; it is played once a round.
+function horseChits(st, data) {
     const h = activeHorse(st);
-    if (!h || isCave(st, data, st.ch.at)) return null;
+    if (!h || isCave(st, data, st.ch.at)) return [];
     const d = data.horses[h.id];
-    if (!d) return null;
-    const side = st.combat.melee ? d.gallop : d.walk;
-    return { id: 'horse:' + h.uid, type: 'move', strength: side.strength, time: side.moves, effort: 0, state: 'active', card: true, isHorse: true, name: d.name };
+    if (!d) return [];
+    return [['walk', d.walk], ['gallop', d.gallop]].map(([side, x]) => ({ id: `horse:${h.uid}:${side}`, horseUid: h.uid, side, type: 'move', strength: x.strength, time: x.moves, effort: 0, state: 'active', card: true, isHorse: true, name: `${d.name} (${side === 'walk' ? 'walking' : 'galloping'})` }));
 }
 
 function activeChits(st, type, data) {
     const real = st.ch.chits.filter(x => x.state === 'active' && (!type || x.type === type));
     const cards = type ? cardChits(st, type) : [...cardChits(st, 'move'), ...cardChits(st, 'fight')];
-    const horse = (!type || type === 'move') && data ? horseChit(st, data) : null;
-    return [...real, ...cards, ...(horse ? [horse] : [])].filter(x => !st.combat.played?.[x.id]);
+    const horse = (!type || type === 'move') && data ? horseChits(st, data) : [];
+    return [...real, ...cards, ...horse].filter(x => !st.combat.played?.[x.id] && !(x.isHorse && st.combat.played?.['horse:' + x.horseUid]));
 }
 
 function enterEncounter(st, data) {
     const c = st.combat;
-    if (!c.dens.some(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse')) {
+    const live = c.dens.filter(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse');
+    if (!live.length) {
         c.ended = true; c.why = 'quiet'; c.step = 'done'; st.pending = null;
         say(st, 'Nothing here wants a fight.', 'combat');
+        return;
+    }
+    if (!c.choiceMade && live.every(d => d.bystander)) {
+        c.step = 'choice';
+        st.pending = { type: 'combat-choice', groups: [...new Set(live.map(d => data.natives[d.id].group))] };
         return;
     }
     c.melee = false;
@@ -201,7 +250,7 @@ function deployHires(st, data) {
     for (const d of c.dens) d.engagedBy = null;
     const crew = (c.hires ?? []).filter(x => !x.dead);
     for (const hire of crew) {
-        const cand = c.dens.filter(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse' && !d.pickedUp);
+        const cand = c.dens.filter(d => !d.dead && !d.bystander && d.kind !== 'part' && d.kind !== 'horse' && !d.pickedUp);
         if (!cand.length) break;
         const free = cand.filter(d => !d.engagedBy);
         const pool = free.length ? free : cand;
@@ -214,6 +263,13 @@ function deployHires(st, data) {
 }
 
 // What the UI may offer in the encounter step.
+// Where he may run to: any road he knows, but back along the road he came by if he moved into this clearing today (rule 8.3.8).
+export function runDestinations(st, data) {
+    const roads = roadsFrom(st, data, st.ch.at).filter(r => r.usable).map(r => r.to);
+    const from = st.ch.arrivedFrom;
+    return from ? roads.filter(to => to === from) : roads;
+}
+
 export function encounterOptions(st, data) {
     const c = st.combat, w = weaponOf(st, data);
     const dens = c.dens.filter(d => d.assigned && !d.dead && d.kind !== 'part' && d.kind !== 'horse');
@@ -227,7 +283,7 @@ export function encounterOptions(st, data) {
     const fight = activeChits(st, 'fight', data).filter(x => x.time < slowest && lvl(x.strength) >= wlvl);
     const load = carriedWeight(st, data);
     const move = activeChits(st, 'move', data).filter(x => x.time < slowest && lvl(x.strength) >= (x.isHorse ? Math.max(load, lvl(st.ch.weight)) : load));
-    return { canAlert: !!w && fight.length > 0, alertChits: fight, canRun: !pickedUp && move.length > 0, runChits: move, pickedUp, weapon: w };
+    return { canAlert: !!w && fight.length > 0, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data) };
 }
 
 export function encounterAction(st, data, a) {
@@ -249,9 +305,12 @@ export function encounterAction(st, data, a) {
     } else if (a.act === 'run') {
         const chit = opt.runChits.find(x => x.id === a.chit);
         if (!chit) throw new Error('cannot run with that chit');
+        const dests = runDestinations(st, data);
+        if (!dests.length) throw new Error('there is nowhere to run');
+        if (a.to != null && !dests.includes(a.to)) throw new Error(st.ch.arrivedFrom ? 'you can only run back along the road you came by' : 'you can only run along a road you know');
         playChit(st, chit);
         c.ran = true;
-        st.ch.runTo = a.to ?? null;
+        st.ch.runTo = a.to ?? dests[0];
         say(st, 'You break away from the fight.', 'combat');
         return toFatigue(st, data);
     } else if (a.act !== 'pass') throw new Error('unknown encounter action');
@@ -261,6 +320,7 @@ export function encounterAction(st, data, a) {
 function playChit(st, chit) {
     const c = st.combat;
     c.played[chit.id] = true;
+    if (chit.isHorse) c.played['horse:' + chit.horseUid] = true;       // one side of the horse a round
     if (chit.effort) c.asterisks[chit.type === 'move' ? 'move' : 'fight'] += chit.effort;
 }
 
@@ -403,7 +463,7 @@ export function meleePlay(st, data, p) {
     hits.sort((a, b) => { const ka = key(a), kb = key(b); return ka[0] - kb[0] || ka[1] - kb[1]; });
     const sameKey = (a, b) => { const ka = key(a), kb = key(b); return ka[0] === kb[0] && ka[1] === kb[1]; };
     c.newWounds = 0;
-    let i = 0, dead = false;
+    let i = 0, dead = false, delivered = false;
     while (i < hits.length && !st.ch.dead) {
         let j = i; while (j + 1 < hits.length && sameKey(hits[i], hits[j + 1])) j++;
         const group = hits.slice(i, j + 1);
@@ -412,7 +472,7 @@ export function meleePlay(st, data, p) {
         const alive = new Set(c.dens.filter(d => !d.dead).map(d => d.uid));
         const dmg = [];
         for (const h of group) {
-            if (h.who === 'me') { if (alive.has(h.on)) dmg.push(() => myHit(st, data, h, { w, mySide, fight, myDir, notes, log })); }
+            if (h.who === 'me') { if (alive.has(h.on)) dmg.push(() => { delivered = true; myHit(st, data, h, { w, mySide, fight, myDir, notes, log }); }); }
             else if (h.who === 'hire') { if (alive.has(h.den) && !c.hires.find(x => x.uid === h.hire).dead) dmg.push(() => hireStrikes(st, data, h, log)); }
             else if (h.onHire) {
                 const den = c.dens.find(d => d.uid === h.who);
@@ -421,7 +481,7 @@ export function meleePlay(st, data, p) {
             else {
                 const den = c.dens.find(d => d.uid === h.who);
                 const ownerAlive = !den.partOf || alive.has(den.partOf);
-                if (alive.has(den.uid) && ownerAlive) dmg.push(() => denHit(st, data, den, { mnvDir, move, shieldDir: p.shieldDir, log, g: c.groupNo, horse: move?.isHorse ? st.ch.items.find(i => 'horse:' + i.uid === move.id) : null }));
+                if (alive.has(den.uid) && ownerAlive) dmg.push(() => denHit(st, data, den, { mnvDir, move, shieldDir: p.shieldDir, log, g: c.groupNo, horse: move?.isHorse ? st.ch.items.find(i => i.uid === move.horseUid) : null }));
             }
         }
         dmg.forEach(f => f());
@@ -433,7 +493,7 @@ export function meleePlay(st, data, p) {
         if (d && !d.dead && !d.pickedUp) { d.side = 'red'; d.pickedUp = true; log(`${denSide(st, data, d).name} seizes you!`); c.eventful = true; }
     }
     // weapon state: a weapon that hit goes unalerted; one that struck and missed turns alerted
-    if (w && fight && target && myDir != null) w.item.alerted = hits.some(h => h.who === 'me') ? false : true;
+    if (w && fight && target && myDir != null) w.item.alerted = !delivered;      // only a blow that was delivered unalerts the weapon; a miss or a cancelled blow leaves it alerted
     c.step = 'resolve';
     return afterMelee(st, data);
 }
@@ -521,10 +581,13 @@ function myHit(st, data, h, ctx) {
         return;
     }
     if (level >= vuln) {
+        const shared = den.dead;           // a hireling's blow killed it in the same instant: the bounty is paid once, and this still counts as a kill
         den.dead = true;
         // parts die with their owner
         for (const p of c.dens.filter(d => d.partOf === den.uid)) p.dead = true;
-        const reward = killReward(st, data, den, s);
+        let reward;
+        if (shared) { st.ch.killsToday = (st.ch.killsToday ?? 0) + 1; reward = ' (a shared kill: the bounty was already paid)'; }
+        else reward = killReward(st, data, den, s);
         if (den.kind === 'mon') { const m = st.mons.find(x => x.id === den.id); m.dead = true; m.loc = null; }
         else if (den.kind === 'nat') { const n = st.nats.find(x => x.id === den.id); n.dead = true; n.loc = null; dropNativeGoods(st, data, n); }
         tally(st, 'kills'); tally(st, `kill.${s.name}`);
@@ -555,12 +618,19 @@ function denHit(st, data, den, ctx) {
     // red side up from an earlier round: kills outright
     if (den.pickedUp) return killMe(st, `${s.name} crushes you.`, s.name);
     let level = lvl(s.harm), stars = s.stars ?? 0;
+    // a Demon's Power of the Pit and an Imp's curse go to the rider; a horse played as the maneuver does not take them
+    if (s.attack === 'spell') {
+        pit(st, data, `${s.name}'s magic`);
+        c.eventful = true;
+        if (st.ch.dead) { ctx.log(`${s.name}'s magic kills you.`); c.events.push('You are dead.'); }
+        else if (s.tremendous && den.kind !== 'part') c.toRed.push(den.uid);
+        return;
+    }
     // if his horse was played as the maneuver the blow lands on the horse, not on him
     if (ctx.horse && !ctx.horse.destroyed) {
         const hd = data.horses[ctx.horse.id];
         let hl = lvl(s.harm) + (hd.armored ? Math.max(0, stars - 1) : stars);
         if (s.attack === 'missile') hl += missileRoll(st, `${s.name}'s missile roll (at your horse)`, s.type === 'Archer');
-        if (s.attack === 'spell') hl = 4;
         if (hl >= lvl(hd.vulnerability)) {
             ctx.horse.destroyed = true; ctx.horse.active = false;
             ctx.log(`${s.name} strikes your ${hd.name} dead.`);
@@ -574,21 +644,19 @@ function denHit(st, data, den, ctx) {
     const sh = all.find(a => isShield(a.def) && ctx.shieldDir === dir);
     if (sh) pieces.push(sh);
     for (const a of all) if (!isShield(a.def) && coversDir(a.def, dir)) pieces.push(a);
+    // the first piece in the way takes the blow: shields and armor cards are the outer row, then helmets and breastplates, then suits
+    // (Ointment of Steel before the Suit); a counter before a card of the same row
+    const row = a => (isShield(a.def) || (a.def.card && a.def.id !== 'ointment-of-steel-1') ? 1 : /helmet|breastplate/.test(a.def.type ?? '') ? 2 : 3);
+    pieces.sort((x, y) => row(x) - row(y) || (x.def.id === 'ointment-of-steel-1' ? -1 : y.def.id === 'ointment-of-steel-1' ? 1 : 0) || (!!x.def.card - !!y.def.card));
     const armor = pieces[0] ?? null;
-    if (s.attack === 'spell') {
-        pit(st, data, `${s.name}'s magic`);
-        c.eventful = true;
-        if (st.ch.dead) { ctx.log(`${s.name}'s magic kills you.`); c.events.push('You are dead.'); }
-        else if (s.tremendous && den.kind !== 'part') c.toRed.push(den.uid);
-        return;
+    let note = '', missile = 0;
+    if (s.attack === 'missile') {
+        // the Missile Table shifts the harm; if the result is above Tremendous it ignores armor, judged before armor takes any star off
+        missile = missileRoll(st, `${s.name}'s missile roll`, s.type === 'Archer');
+        if (lvl(s.harm) + stars + missile > 4) return killMe(st, `${s.name}'s shot finds a vital spot; you are slain.`, s.name);
     }
     if (armor) stars = Math.max(0, stars - 1);
-    level += stars;
-    let note = '';
-    if (s.attack === 'missile') {
-        level += missileRoll(st, `${s.name}'s missile roll`, s.type === 'Archer');
-        if (level > 4) return killMe(st, `${s.name}'s shot finds a vital spot; you are slain.`, s.name);   // harm above Tremendous ignores armor
-    }
+    level += stars + missile;
     const L = letterOf(level);
     ctx.log(`${s.name} strikes ${DIRS[dir].toLowerCase()} for ${L} harm${armor ? ` against your ${armor.def.name}` : ''}.`);
     let wounded = false;
@@ -761,6 +829,7 @@ function hireStrikes(st, data, h, log) {
     let level = lvl(hs.harm) + (ds.armored ? Math.max(0, hs.stars - 1) : hs.stars);
     if (hs.missile) level += missileRoll(st, `${hs.name}'s missile roll`, hs.archer);
     if (level >= lvl(ds.vuln)) {
+        if (den.dead) { log(`${hs.name} strikes the ${ds.name} in the same instant; the bounty was already paid.`); return; }
         den.dead = true;
         for (const p of c.dens.filter(d => d.partOf === den.uid)) p.dead = true;
         if (den.kind === 'mon') { const m = st.mons.find(x => x.id === den.id); m.dead = true; m.loc = null; }
