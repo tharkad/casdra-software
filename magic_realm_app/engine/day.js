@@ -1,4 +1,4 @@
-import { clone, die, roll2, int, say, lvl, shuffle, noteRoll } from './core.js';
+import { clone, die, roll2, int, say, lvl, shuffle, noteRoll, tally } from './core.js';
 import { hides, PEER, LOCATE, meetingResult } from './tables.js';
 import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, tileClearings, graph } from './world.js';
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
@@ -388,7 +388,7 @@ function applySearchResult(st, data, table, res, dice) {
     if (/Passages/.test(res)) bits.push(discoverPaths(st, data, here, 'secret'));
     if (/Discover chits/.test(res)) {
         const ids = st.chits.filter(c => c.kind === 'site' && c.tile === tile && c.num === numOf(here) && !c.pile).map(c => c.id);
-        for (const id of ids) { if (!st.ch.discovered.sites.includes(id)) st.ch.discovered.sites.push(id); if (!st.ch.seen.includes(id)) st.ch.seen.push(id); }
+        for (const id of ids) { if (!st.ch.discovered.sites.includes(id)) { st.ch.discovered.sites.push(id); tally(st, 'sitesDiscovered'); } if (!st.ch.seen.includes(id)) st.ch.seen.push(id); }
         bits.push(ids.length ? `You discover a site here: ${ids.map(id => st.chits.find(c => c.id === id).name).join(', ')}.` : 'There is no site in this clearing.');
     }
     if (res === 'Nothing') bits.push('You find nothing.');

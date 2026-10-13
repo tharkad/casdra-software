@@ -1,4 +1,4 @@
-import { lvl, say } from './core.js';
+import { lvl, say, tally } from './core.js';
 import { makeItem, defOf, nameOf, autoEquip } from './items.js';
 import { numOf, tileOf } from './world.js';
 import { rollCurse, hasCurse, pit } from './effects.js';
@@ -56,6 +56,7 @@ export function lootFrom(st, data, r, groundOnly = false) {
     if (card?.kind === 'twt' && it.id !== 'chest') return takeTwt(st, data, pileList, it, card, r, label);
     const item = it.uid ? it : makeItem(st, it.kind, it.id);
     takeInto(st, data, item);
+    tally(st, 'looted'); if (site) tally(st, `looted.${site.name}`);
     const text = `Loot (${r.dice.join('+')}) at ${label}: you take the ${nameOf(data, item)}.`;
     say(st, text, 'loot');
     return text;
