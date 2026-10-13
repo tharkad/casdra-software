@@ -32,11 +32,21 @@ export function cardChits(st, type) {
 export const effortLimit = st => (treasureIds(st).includes('girtle-of-energy') ? 3 : 2);
 
 // Tables are normally rolled with two dice, taking the higher. Some cards let him roll one.
-export function oneDie(st, kind) {
+import { clearingType as clearingKind } from './world.js';
+export function oneDie(st, kind, where = null, data = null) {
     const ids = treasureIds(st);
     if (ids.includes('lucky-charm')) return true;
     if (kind === 'loot' && ids.includes('deft-gloves')) return true;
     if (kind === 'hide' && ids.includes('shoes-of-stealth')) return true;
+    // character advantages: one die on Search, Hide and Meeting tables in the Woods tiles (Woods Girl's Tracking) or in cave clearings (the Dwarf's
+    // Cave Knowledge), and the Druid's Concealment on the Hide table
+    const adv = st.ch.adv ?? [];
+    if (where && data && (kind === 'search' || kind === 'hide' || kind === 'meeting')) {
+        const tile = data.tile(where.slice(0, 2));
+        if (adv.includes('tracking') && tile?.group === 'woods') return true;
+        if (adv.includes('cave-knowledge') && clearingKind(st, data, where) === 'cave') return true;
+    }
+    if (kind === 'hide' && adv.includes('concealment')) return true;
     return false;
 }
 

@@ -214,6 +214,13 @@ function gameEnds(st, data) {
 function midnight(st, data) {
     st.period = 'midnight';
     for (const it of st.ch.items) if (it.kind === 'weapon') it.alerted = false;
+    // potions are good until Midnight, then they go back to the box they came from
+    const spent = st.ch.items.filter(it => it.kind === 'treasure' && data.treasures[it.id]?.discardTo);
+    for (const it of spent) {
+        (st.stock[data.treasures[it.id].discardTo] ??= []).push({ kind: 'treasure', id: it.id });
+        say(st, `The ${data.treasures[it.id].name} is used up and returns to the ${data.treasures[it.id].discardTo}.`, 'info');
+    }
+    if (spent.length) st.ch.items = st.ch.items.filter(it => !spent.includes(it));
     resetChitsAtMidnight(st);
     liftCursesAtChapel(st);
     expireHires(st, data);
@@ -300,7 +307,7 @@ function arrive(st, data, to) {
 function doHide(st, data) {
     if (hasCurse(st, 'Squeak')) return 'The Squeak curse betrays you: you cannot hide.';
     if (st.ch.hidden) return 'You are already hidden.';
-    const r = oneDie(st, 'hide') ? { dice: [die(st)], value: 0 } : roll2(st);
+    const r = oneDie(st, 'hide', st.ch.at, data) ? { dice: [die(st)], value: 0 } : roll2(st);
     if (r.value === 0) r.value = r.dice[0];
     noteRoll(st, 'Hide', r.dice, r.value, hides(r.value) ? 'You hide' : 'You are seen');
     if (hides(r.value)) { st.ch.hidden = true; return `You hide (rolled ${r.dice.join('+')}).`; }
@@ -365,7 +372,7 @@ function doSearch(st, data, slot) {
     }
     const table = slot.table;
     let r;
-    if (oneDie(st, table === 'loot' || table === 'ground' || table === 'sitecard' ? 'loot' : 'search')) { const d1 = die(st); r = { dice: [d1], value: d1 }; } else r = roll2(st);
+    if (oneDie(st, table === 'loot' || table === 'ground' || table === 'sitecard' ? 'loot' : 'search', st.ch.at, data)) { const d1 = die(st); r = { dice: [d1], value: d1 }; } else r = roll2(st);
     const rawDice = [...r.dice];
     if (table === 'locate') { const m = locateMod(st, tileOf(st.ch.at), data); if (m) { r.value = Math.max(1, r.value + m); r.dice = [...r.dice, `${m}`]; } }
     const SEARCH_WHAT = { peer: 'Search: Peer', locate: 'Search: Locate', loot: 'Search: Loot', ground: 'Search: Loot the ground', sitecard: 'Search: Site card' };
@@ -377,7 +384,8 @@ function doSearch(st, data, slot) {
         const list = table === 'peer' ? PEER : LOCATE;
         let res = list[r.value - 1];
         if (res === 'Choice') {
-            const options = [...new Set(list.filter(x => x !== 'Choice'))];
+            // 7.5: he may take any result of the Peer or Locate table, whichever table he rolled on (not Choice, and not Nothing)
+            const options = [...new Set([...PEER, ...LOCATE].filter(x => x !== 'Choice' && x !== 'Nothing'))];
             st.pending = { type: 'search-choice', table, options, roll: r.dice };
             return 'wait';
         }
@@ -504,6 +512,15 @@ export function apply(st0, data, action) {
             // free item management outside combat: switch items on and off
             const it = st.ch.items.find(i => i.uid === action.item);
             if (!it) throw new Error('no such item');
+            if (action.drop) {
+                // 4.3.2: he may abandon a belonging at the start of any phase; it lies where he stands
+                const where = st.ch.at ?? st.ch.onRoad?.from;
+                st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
+                st.abandoned[where] = [...(st.abandoned[where] ?? []), { ...it, active: false, alerted: false }];
+                say(st, `You leave the ${nameOf(data, it)} behind.`, 'info');
+                st.pending = p;
+                return st;
+            }
             if (it.kind === 'horse' && !it.active) {
                 const hd = data.horses[it.id];
                 if (isCave(st, data, st.ch.at)) throw new Error('A horse cannot be ridden in a cave.');

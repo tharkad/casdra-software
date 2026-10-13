@@ -37,6 +37,7 @@ function armorForBlow(st, data, g) {
 export function carriedWeight(st, data) {
     let w = 0;
     for (const it of st.ch.items) {
+        if (it.destroyed) continue;                      // destroyed armor is no longer carried
         const def = it.kind === 'weapon' ? data.weapons[it.id] : it.kind === 'armor' ? data.armor[it.id] : it.kind === 'horse' ? null : data.treasures[it.id];
         if (!def || def.weight == null) continue;
         w = Math.max(w, lvl(def.weight));
