@@ -1,4 +1,4 @@
-import { roll2, say } from './core.js';
+import { roll2, say, noteRoll } from './core.js';
 
 // Curses and the Power of the Pit (tables in data/src/tables.json; effects as RealmSpeak and digest 04 describe them).
 export function hasCurse(st, name) { return (st.ch.curses ?? []).includes(name); }
@@ -6,6 +6,7 @@ export function hasCurse(st, name) { return (st.ch.curses ?? []).includes(name);
 export function rollCurse(st, data) {
     const r = roll2(st);
     const row = data.tables.curses.rows[String(r.value)];
+    noteRoll(st, 'Curse', r.dice, r.value, row.name);
     const ch = st.ch;
     ch.curses ??= [];
     if (!ch.curses.includes(row.name)) ch.curses.push(row.name);
@@ -24,6 +25,7 @@ export function liftCursesAtChapel(st) {
 export function pit(st, data, why = 'The Pit') {
     const r = roll2(st);
     const row = data.tables.powerOfThePit.rows[String(r.value)];
+    noteRoll(st, 'Power of the Pit', r.dice, r.value, row.name);
     say(st, `${why}: ${row.name} (rolled ${r.dice.join('+')}). ${row.effect}`, 'combat');
     const ch = st.ch;
     switch (row.name) {

@@ -1,3 +1,4 @@
+import { rollRow } from '../dice.js';
 import { h } from '../dom.js';
 import { encounterOptions, meleeOptions, denSide } from '../../engine/combat.js';
 import { roadsFrom, nameOfClearing } from '../../engine/world.js';
@@ -26,6 +27,8 @@ export function combatSheet({ st, data, act, ui, render }) {
             h('b', {}, s.name), h('span', {}, `${s.size ?? ''} · ${atk} · moves ${s.move}`), d.pickedUp ? h('em', {}, 'has seized you') : null,
             d.engagedBy ? h('em', { class: 'ally' }, 'is fighting your hireling') : null);
     });
+    const dice = (st.rolls ?? []).filter(r => r.n > (c.rollFrom ?? 0)).slice(-4);
+    const diceBlock = dice.length ? h('div', { class: 'cb-dice' }, ...dice.map(r => rollRow(r, { compact: true }))) : null;
     const last = c.events?.length ? h('div', { class: 'cb-last' }, h('b', {}, 'Last round'), ...c.events.map(e => h('p', {}, e))) : null;
     const body = [];
     const chitBtn = (ch, sel, on, ok = true) => h('button', { class: `chit3 ${ch.type}${sel ? ' sel' : ''}`, disabled: !ok, onclick: on }, h('b', {}, `${ch.strength}${ch.time}`), h('span', {}, '*'.repeat(ch.effort) || ' '));
@@ -106,5 +109,5 @@ export function combatSheet({ st, data, act, ui, render }) {
         const sum = ui.pickChits.reduce((s, id) => s + st.ch.chits.find(x => x.id === id).effort, 0);
         body.push(h('button', { class: 'btn primary', disabled: sum < p.need || sum - p.need > 1, onclick: () => { const ids = ui.pickChits; ui.pickChits = null; send({ kind: 'fatigue', chits: ids }); } }, 'Fatigue these'));
     }
-    return h('div', { class: 'combat' }, header, state, h('div', { class: 'cb-scroll' }, h('div', { class: 'cb-foes' }, ...foeEls), last, h('div', { class: 'cb-body' }, ...body.filter(Boolean))));
+    return h('div', { class: 'combat' }, header, state, h('div', { class: 'cb-scroll' }, h('div', { class: 'cb-foes' }, ...foeEls), diceBlock, last, h('div', { class: 'cb-body' }, ...body.filter(Boolean))));
 }

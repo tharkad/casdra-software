@@ -1,9 +1,9 @@
-import { lvl, letterOf, die, roll2, shuffle, say, int } from './core.js';
+import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll } from './core.js';
 import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './tables.js';
 import { pit } from './effects.js';
 import { hirelings } from './hire.js';
 import { cardChits, effortLimit } from './modifiers.js';
-import { meetingDice, hasAdv } from './meeting.js';
+import { meetingOutcome, hasAdv } from './meeting.js';
 import { makeItem, autoEquip, toggleItem, activeHorse } from './items.js';
 import { isCave } from './world.js';
 
@@ -92,7 +92,7 @@ export function nativesIn(st, data, clearing) {
 }
 
 export function startCombat(st, data, clearing) {
-    const c = st.combat = { at: clearing, round: 1, quiet: 0, step: 'start', dens: [], battling: {}, events: [], melee: false, ended: false, ran: false, pays: [] };
+    const c = st.combat = { at: clearing, round: 1, quiet: 0, step: 'start', dens: [], battling: {}, events: [], melee: false, ended: false, ran: false, pays: [], rollFrom: st.rollSeq ?? 0 };
     c.hires = hirelings(st).filter(n => n.loc?.c === clearing).map(n => ({ uid: nextUid(st), id: n.id, dead: false }));
     for (const m of denizensIn(st, data, clearing)) addDen(st, data, { kind: 'mon', id: m.id });
     // Natives roll the Meeting Table once per group present, to see whether the group battles him.
@@ -120,19 +120,18 @@ function addDen(st, data, d) {
 
 function relOf(st, group) { return st.ch.rel?.[group] ?? 0; }
 
+// A missile roll (one die for archers, otherwise two): returns the change to harm level and notes the roll for the dice tray.
+function missileRoll(st, what, archer) {
+    const r = archer ? (() => { const d = die(st); return { dice: [d], value: d }; })() : roll2(st);
+    const m = MISSILE[r.value - 1];
+    noteRoll(st, what, r.dice, r.value, `${m >= 0 ? '+' : ''}${m} harm level${Math.abs(m) === 1 ? '' : 's'}`);
+    return m;
+}
+
 function rollBattle(st, data, group) {
     const c = st.combat;
-    let rel = relOf(st, group);
-    const roll = () => meetingDice(st);
-    let r = roll(), col = rel;
-    let res = meetingResult(col, r.value);
-    let note = `Meeting roll with the ${group}: ${r.dice.join('+')} -> ${res}`;
-    for (let guard = 0; guard < 6; guard++) {
-        if (res === 'Trouble') { r = roll(); col = -1; res = meetingResult(col, r.value); note += `; Trouble, re-roll as Unfriendly: ${r.dice.join('+')} -> ${res}`; }
-        else if (res === 'Opportunity') { r = roll(); col = Math.min(2, col + 1); res = meetingResult(col, r.value); note += `; Opportunity, re-roll one step friendlier: ${r.dice.join('+')} -> ${res}`; }
-        else break;
-    }
-    say(st, note, 'combat');
+    // Each Meeting roll (and any Trouble or Opportunity re-roll) is noted in the dice tray and the log by meetingOutcome.
+    const { res } = meetingOutcome(st, relOf(st, group), `Evening meeting with the ${group}`);
     if (res === 'Block/Battle') return startBattling(st, data, group);
     if (res === 'Insult') c.pays.push({ group, cost: 'notoriety', amount: 5, why: 'Insult' });
     else if (res === 'Challenge') { if ((st.ch.curses ?? []).includes('Disgust')) startBattling(st, data, group); else c.pays.push({ group, cost: 'fame', amount: 5, why: 'Challenge' }); }
@@ -349,6 +348,7 @@ export function meleePlay(st, data, p) {
     for (const d of c.dens) if (d.engagedBy && !d.dead) d.box = (die(st) - 1) % 3;   // creatures fighting hirelings sit in a random box
     // --- reposition and change tactics ---
     const rr = die(st), perm = REPOSITION[rr];
+    noteRoll(st, 'Repositioning roll', [rr], rr, rr === 4 ? 'no change' : 'the creatures shuffle between boxes');
     const inBox = b => c.dens.filter(d => !d.dead && d.box === b);
     const old = [inBox(0), inBox(1), inBox(2)];
     for (let nb = 0; nb < 3; nb++) for (const d of old[perm[nb]]) d.box = nb;
@@ -357,6 +357,7 @@ export function meleePlay(st, data, p) {
         const here = c.dens.filter(d => !d.dead && d.box === b && canFlip(st, data, d));
         if (!here.length) continue;
         const t = roll2(st);
+        noteRoll(st, `Tactics roll (${MANEUVERS[b]} box)`, t.dice, t.value, t.dice.includes(6) ? 'a 6: they switch sides' : 'no change');
         if (t.dice.includes(6)) {
             for (const d of here) d.side = d.side === 'light' ? 'dark' : 'light';
             log(`Tactics change in the ${MANEUVERS[b]} box (rolled ${t.dice.join('+')}): ${here.map(d => denSide(st, data, d).name).join(', ')} switch sides.`);
@@ -504,6 +505,7 @@ function myHit(st, data, h, ctx) {
         const aim = hasAdv(st, 'aim') ? 1 : 0;
         const v = clamp6(r.value - aim);
         level += MISSILE[v - 1];
+        noteRoll(st, 'Your missile roll', r.dice, v, `${MISSILE[v - 1] >= 0 ? '+' : ''}${MISSILE[v - 1]} harm level${Math.abs(MISSILE[v - 1]) === 1 ? '' : 's'}${aim ? ' (Aim -1)' : ''}`);
         note = ` (missile roll ${r.dice.join('+')}${aim ? ' -1 for Aim' : ''} -> ${MISSILE[v - 1] >= 0 ? '+' : ''}${MISSILE[v - 1]})`;
     } else if (ctx.fight && ctx.w && lvl(ctx.fight.strength) > lvl(side.harm)) { level += 1; note = ' (strong Fight chit +1)'; }
     else if (ctx.fight && !ctx.w) level += 1;
@@ -555,7 +557,7 @@ function denHit(st, data, den, ctx) {
     if (ctx.horse && !ctx.horse.destroyed) {
         const hd = data.horses[ctx.horse.id];
         let hl = lvl(s.harm) + (hd.armored ? Math.max(0, stars - 1) : stars);
-        if (s.attack === 'missile') hl += MISSILE[(s.type === 'Archer' ? die(st) : roll2(st).value) - 1];
+        if (s.attack === 'missile') hl += missileRoll(st, `${s.name}'s missile roll (at your horse)`, s.type === 'Archer');
         if (s.attack === 'spell') hl = 4;
         if (hl >= lvl(hd.vulnerability)) {
             ctx.horse.destroyed = true; ctx.horse.active = false;
@@ -582,9 +584,7 @@ function denHit(st, data, den, ctx) {
     level += stars;
     let note = '';
     if (s.attack === 'missile') {
-        const r = s.type === 'Archer' ? { dice: [die(st)], value: 0 } : roll2(st);
-        if (!r.value) r.value = r.dice[0];
-        level += MISSILE[r.value - 1];
+        level += missileRoll(st, `${s.name}'s missile roll`, s.type === 'Archer');
         if (level > 4) return killMe(st, `${s.name}'s shot finds a vital spot; you are slain.`);   // harm above Tremendous ignores armor
     }
     const L = letterOf(level);
@@ -756,7 +756,7 @@ function hireStats(data, id) {
 function hireStrikes(st, data, h, log) {
     const c = st.combat, den = c.dens.find(d => d.uid === h.den), hs = hireStats(data, c.hires.find(x => x.uid === h.hire).id), ds = denSide(st, data, den);
     let level = lvl(hs.harm) + (ds.armored ? Math.max(0, hs.stars - 1) : hs.stars);
-    if (hs.missile) level += MISSILE[(hs.archer ? die(st) : roll2(st).value) - 1];
+    if (hs.missile) level += missileRoll(st, `${hs.name}'s missile roll`, hs.archer);
     if (level >= lvl(ds.vuln)) {
         den.dead = true;
         for (const p of c.dens.filter(d => d.partOf === den.uid)) p.dead = true;
@@ -772,7 +772,7 @@ function hireStrikes(st, data, h, log) {
 function denStrikesHire(st, data, den, hireUid, log) {
     const c = st.combat, hire = c.hires.find(x => x.uid === hireUid), hs = hireStats(data, hire.id), ds = denSide(st, data, den);
     let level = lvl(ds.harm) + (hs.armored ? Math.max(0, ds.stars - 1) : ds.stars);
-    if (ds.attack === 'missile') level += MISSILE[(ds.type === 'Archer' ? die(st) : roll2(st).value) - 1];
+    if (ds.attack === 'missile') level += missileRoll(st, `${ds.name}'s missile roll (at ${hs.name})`, ds.type === 'Archer');
     if (ds.attack === 'spell') level = 4;
     if (level >= lvl(hs.vuln)) {
         hire.dead = true;

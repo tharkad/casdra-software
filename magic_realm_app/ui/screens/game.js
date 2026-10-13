@@ -9,6 +9,7 @@ import { WEIGHT_WORDS, lvl } from '../../engine/core.js';
 import { REL_NAMES } from '../../engine/tables.js';
 import { stockOf, sellable } from '../../engine/trade.js';
 import { drinksCost } from '../../engine/meeting.js';
+import { rollRow, rollsByIds, latestRoll, diceOf } from '../dice.js';
 import { combatSheet } from './combatui.js';
 import { HELP } from './info.js';
 
@@ -30,12 +31,13 @@ export function gameScreen(ctx) {
     const mapBox = h('div', { class: 'mapbox gamemap' });
     const strip = h('header', { class: 'status' });
     const dock = h('footer', { class: 'gdock' });
+    const tray = h('button', { class: 'tray', 'aria-label': 'Dice rolls', 'data-act': 'dice', onclick: () => { ui.sheet = ui.sheet === 'dice' ? null : 'dice'; render(); } });
     const layer = h('div', { class: 'layer' });
     const mapTools = h('div', { class: 'maptools' },
         h('button', { 'aria-label': 'Centre on me', onclick: () => map?.focus(st.ch.onRoad ? st.ch.onRoad.from : st.ch.at) }, '\u25CE'),
         h('button', { 'aria-label': 'Show the whole realm', onclick: () => map?.fit() }, '\u2922'));
     mapBox.append(mapTools);
-    root.append(strip, mapBox, dock, layer);
+    root.append(strip, mapBox, tray, dock, layer);
     let lastHero = null, st = null, data = null, map = null, ui = { sheet: null, sel: null, draft: null, toast: null };
 
     function commit(next) { st = next; ctx.state = st; saveGame(st); render(); }
@@ -98,16 +100,35 @@ export function gameScreen(ctx) {
         map.set(mapModel());
         const hero = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at;
         if (hero !== lastHero) { lastHero = hero; map.focus(hero); }
+        renderTray();
         renderDock();
         layer.replaceChildren(...sheets());
         if (ui.toast) layer.append(h('div', { class: 'toast' }, ui.toast));
+    }
+
+    // Monsters whose home row the Monster Roll has just called: they are the ones that can come to you at the end of the turn.
+    function prowlers() {
+        const alive = st.mons.filter(m => !m.dead && !m.hired && (data.monsters[m.id].homeRow === st.prowl || data.monsters[m.id].prowlsEveryDay));
+        const by = {};
+        for (const m of alive) (by[data.monsters[m.id].name] ??= 0), by[data.monsters[m.id].name]++;
+        return Object.entries(by).map(([name, n]) => (n > 1 ? `${name} x${n}` : name));
+    }
+
+    function renderTray() {
+        const r = latestRoll(st), fresh = r && r.n !== ui.seenRoll;
+        ui.seenRoll = r?.n;
+        tray.className = `tray${fresh ? ' fresh' : ''}`;
+        tray.replaceChildren(r ? rollRow(r, { compact: true }) : h('div', { class: 'rollrow compact none' }, h('div', { class: 'rr-what' }, 'Dice'), h('div', { class: 'rr-body' }, h('span', { class: 'rr-res dim' }, 'Your rolls show here'))),
+            h('span', { class: 'tray-more' }, '\u2026'));
     }
 
     function renderDock() {
         const p = st.pending;
         const where = nameOfClearing(st.ch.at);
         const info = h('div', { class: 'where2' }, h('span', { class: 'you' }, 'You are at'), h('b', {}, st.ch.onRoad ? 'on the road' : where), st.ch.hidden ? h('em', {}, 'hidden') : h('em', { class: 'seen' }, 'visible'));
-        const recent = [...st.log].reverse().filter(l => l.k !== 'day').slice(0, 3).reverse();
+        const recent = [...st.log].reverse().filter(l => l.k !== 'day' && l.k !== 'roll').slice(0, 3).reverse();
+        const prowl = st.period === 'daylight' && st.prowl ? h('button', { class: 'prowl', 'data-act': 'prowl', onclick: () => { ui.sheet = 'dice'; render(); } },
+            h('b', {}, `Monster roll ${st.prowl}`), h('span', {}, prowlers().join(', ') || 'no one stirs')) : null;
         let main;
         if (!p) main = h('div', { class: 'note' }, 'Working...');
         else if (p.type === 'plan') main = h('button', { class: 'btn primary big', 'data-act': 'plan', onclick: () => { ui.draft ??= { slots: Array(9).fill(null) }; ui.sheet = 'plan'; render(); } }, 'Plan your day');
@@ -120,7 +141,7 @@ export function gameScreen(ctx) {
                     h('button', { class: 'btn', 'data-act': 'all', onclick: () => act({ type: 'next', all: true }) }, 'Play the day')));
         } else if (p.type === 'over') main = h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result');
         else main = h('div', { class: 'note' }, 'Decision needed...');
-        dock.replaceChildren(...[info, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.t))) : null, main].filter(Boolean));
+        dock.replaceChildren(...[info, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.t))) : null, main].filter(Boolean));
     }
 
     function describeSlot(s) {
@@ -139,7 +160,7 @@ export function gameScreen(ctx) {
         else if (p?.type === 'turn-end') out.push(turnEndSheet());
         else if (p?.type === 'rest') out.push(modal('Rest', h('div', {}, h('p', { class: 'hint' }, 'You may regain one asterisk of effort. Choose a chit:'), ...p.options.map(o =>
             h('button', { class: 'btn', onclick: () => act({ type: 'rest', chit: o.chit }) }, o.text)))));
-        else if (p?.type === 'search-choice') out.push(modal(`${TABLE_LABEL[p.table]}: your choice`, h('div', {}, h('p', { class: 'hint' }, `You rolled ${p.roll.join('+')}: take any result of the table.`),
+        else if (p?.type === 'search-choice') out.push(modal(`${TABLE_LABEL[p.table]}: your choice`, h('div', {}, latestRoll(st) ? rollRow(latestRoll(st)) : null, h('p', { class: 'hint' }, `You rolled ${p.roll.join('+')}: take any result of the table.`),
             ...p.options.map(r => h('button', { class: 'btn', onclick: () => act({ type: 'search-choice', result: r }) }, r)))));
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));
         else if (p?.type === 'hire' || p?.type === 'hire-offer') out.push(hireSheet(p));
@@ -156,6 +177,7 @@ export function gameScreen(ctx) {
         else if (ui.sheet === 'clearing' && ui.sel) out.push(clearingSheet());
         else if (ui.sheet === 'menu') out.push(menuSheet());
         else if (ui.sheet === 'over' || ui.restartVp) out.push(overSheet());
+        else if (ui.sheet === 'dice') out.push(diceSheet());
         else if (ui.sheet === 'log') out.push(logSheet());
         else if (ui.sheet === 'key') out.push(modal('Map key', h('div', { class: 'key' },
             ...[['I H C G', 'Dwellings: Inn, House, Chapel, Guard house; the number beside it is the natives there'],
@@ -171,10 +193,25 @@ export function gameScreen(ctx) {
     const modal = (title, body, { close } = {}) => h('div', { class: 'sheet-bg', onclick: e => { if (close && e.target === e.currentTarget) close(); } }, h('div', { class: 'sheet2' },
         h('div', { class: 'sheet2-head' }, h('b', {}, title), close ? h('button', { class: 'x', 'aria-label': 'Close', onclick: close }, '\u2715') : null), body));
 
+    function diceSheet() {
+        const rolls = [...(st.rolls ?? [])].reverse().slice(0, 30);
+        const mon = st.prowl ? h('div', { class: 'monroll' },
+            h('b', {}, `Today's Monster roll: ${st.prowl}`),
+            h('p', {}, `Monsters of row ${st.prowl} prowl today. At the end of your turn any that are in your tile come to you, and chits that turn up can call more.`),
+            h('p', { class: 'prowlers' }, prowlers().join(', ') || 'None of them are left in the realm.')) : null;
+        return modal('Dice', h('div', { class: 'dicesheet' }, mon,
+            h('h3', {}, 'Your rolls'),
+            ...(rolls.length ? rolls.map(r => h('div', { class: 'histrow' }, h('small', {}, `Day ${r.day}`), rollRow(r))) : [h('p', { class: 'hint' }, 'Nothing has been rolled yet.')])),
+            { close: () => { ui.sheet = null; render(); } });
+    }
+
+    const offerDice = p => { const rs = rollsByIds(st, p.rollIds); return rs.length ? h('div', { class: 'offerdice' }, ...rs.map(r => rollRow(r))) : null; };
+
     function tradeSheet(p) {
         if (p.type === 'trade-offer') {
             if (p.insult) {
                 return modal(`${p.group}: ${p.insult}!`, h('div', {},
+                    offerDice(p),
                     h('p', {}, `The ${p.group} are offended. You may pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'} to calm things, or they will block you.`),
                     h('button', { class: 'btn', onclick: () => act({ type: 'trade', act: 'pay' }) }, `Pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'}`),
                     h('button', { class: 'btn', onclick: () => act({ type: 'trade', act: 'fight' }) }, 'Refuse')));
@@ -185,7 +222,7 @@ export function gameScreen(ctx) {
             const goldDue = Math.max(0, p.price - worth), ok = st.ch.gold >= goldDue;
             const short = goldDue - st.ch.gold;
             return modal(p.repay != null ? `Win back ${p.name}` : `Buy ${p.name}`, h('div', { class: 'trade' },
-                h('p', {}, p.rollNote),
+                offerDice(p) ?? h('p', {}, p.rollNote),
                 h('p', { class: 'bigline' }, `${p.price} gold`, h('small', {}, ` (${p.base} x ${p.mult})`)),
                 p.repay != null ? h('p', { class: 'hint' }, `This is your one chance to buy back the level the boon cost you: pay now, or it is lost for good.`) : null,
                 p.boon ? h('div', {},
@@ -230,11 +267,12 @@ export function gameScreen(ctx) {
     function hireSheet(p) {
         if (p.type === 'hire-offer') {
             if (p.insult) return modal(`${p.group}: ${p.insult}!`, h('div', {},
+                offerDice(p),
                 h('p', {}, `The ${p.group} are offended. Pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'} to calm things, or they block you.`),
                 h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'pay' }) }, `Pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'}`),
                 h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'fight' }) }, 'Refuse')));
             return modal(`Hire ${p.names.length === 1 ? p.names[0] : 'the ' + p.group}`, h('div', {},
-                h('p', {}, p.why),
+                offerDice(p) ?? h('p', {}, p.why),
                 h('p', { class: 'bigline' }, `${p.price} gold`, h('small', {}, ` (wages ${p.wage} x ${p.mult})`)),
                 p.boon ? h('div', {},
                     h('p', { class: 'hint' }, `It is a boon: they will join you free, but the ${p.group} will think one level less of you until you buy that level back from their leader in a Trade phase.`),

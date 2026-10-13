@@ -1,4 +1,4 @@
-import { clone, die, roll2, int, say, lvl, shuffle } from './core.js';
+import { clone, die, roll2, int, say, lvl, shuffle, noteRoll } from './core.js';
 import { hides, PEER, LOCATE, meetingResult } from './tables.js';
 import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, tileClearings, graph } from './world.js';
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
@@ -67,7 +67,7 @@ function submitPlan(st, data, slots) {
 function sunrise(st, data) {
     st.period = 'sunrise';
     st.prowl = die(st);
-    say(st, `Monster roll: row ${st.prowl} prowls today.`, 'day');
+    noteRoll(st, 'Monster roll', [st.prowl], st.prowl, `row ${st.prowl} prowls today`);
     if (st.day % 7 === 0) regenerate(st, data);
     // He becomes unhidden when his own turn begins.
     st.ch.hidden = false;
@@ -300,6 +300,7 @@ function doHide(st, data) {
     if (st.ch.hidden) return 'You are already hidden.';
     const r = oneDie(st, 'hide') ? { dice: [die(st)], value: 0 } : roll2(st);
     if (r.value === 0) r.value = r.dice[0];
+    noteRoll(st, 'Hide', r.dice, r.value, hides(r.value) ? 'You hide' : 'You are seen');
     if (hides(r.value)) { st.ch.hidden = true; return `You hide (rolled ${r.dice.join('+')}).`; }
     return `You fail to hide (rolled ${r.dice.join('+')}).`;
 }
@@ -352,7 +353,11 @@ function doSearch(st, data, slot) {
     if (hasCurse(st, 'Eyemist')) return 'The Eyemist curse blinds you: you cannot search.';
     let r;
     if (oneDie(st, table === 'loot' || table === 'ground' || table === 'sitecard' ? 'loot' : 'search')) { const d1 = die(st); r = { dice: [d1], value: d1 }; } else r = roll2(st);
+    const rawDice = [...r.dice];
     if (table === 'locate') { const m = locateMod(st, tileOf(st.ch.at), data); if (m) { r.value = Math.max(1, r.value + m); r.dice = [...r.dice, `${m}`]; } }
+    const SEARCH_WHAT = { peer: 'Search: Peer', locate: 'Search: Locate', loot: 'Search: Loot', ground: 'Search: Loot the ground', sitecard: 'Search: Site card' };
+    const tableList = table === 'peer' ? PEER : table === 'locate' ? LOCATE : null;
+    noteRoll(st, SEARCH_WHAT[table] ?? 'Search', rawDice, r.value, tableList ? tableList[Math.min(5, r.value - 1)] ?? '' : '');
     if (table === 'sitecard') return lootSiteCard(st, data, r) ?? 'There is no such place here.';
     const here = st.ch.at;
     if (table === 'peer' || table === 'locate') {

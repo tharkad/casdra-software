@@ -30,6 +30,21 @@ export function roll2(st) { const a = die(st), b = die(st); return { dice: [a, b
 // ---- log ----
 export function say(st, text, kind = 'info') { st.log.push({ day: st.day, t: text, k: kind }); }
 
+// ---- the dice tray: every roll the player should see is noted with what it was for, the faces, and the outcome ----
+// dice: the faces as rolled; used: the same dice after modifiers (Honor), when they differ; value: the number that counted.
+export function noteRoll(st, what, dice, value, result = '', used = null) {
+    st.rolls ??= []; st.rollSeq = (st.rollSeq ?? 0) + 1;
+    const entry = { n: st.rollSeq, day: st.day, what, dice: dice.map(Number), value, result };
+    if (used && used.some((u, i) => u !== entry.dice[i])) entry.used = used;
+    st.rolls.push(entry);
+    if (st.rolls.length > 60) st.rolls.shift();
+    // Every roll is also a line in the log: "Hide: rolled 4+2, 4 counts: You hide".
+    const faces = entry.used ? entry.dice.map((d, i) => (entry.used[i] === d ? `${d}` : `${d}-${d - entry.used[i]}`)).join('+') : entry.dice.join('+');
+    const counts = entry.dice.length > 1 || entry.used ? `, ${value} counts` : '';
+    say(st, `\u{1F3B2} ${what}: rolled ${faces}${counts}${result ? `: ${result}` : ''}`, 'roll');
+    return entry;
+}
+
 // ---- clearings are addressed as "BL4" (tile id + number) ----
 export const clearingId = (tile, n) => tile + n;
 export const parseClearing = id => ({ tile: id.slice(0, 2), n: Number(id.slice(2)) });

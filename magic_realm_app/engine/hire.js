@@ -75,19 +75,19 @@ export function hireAction(st, data, p, a) {
         st.ch.gold -= cost; drinks = true;
         say(st, `You buy drinks for the ${g} (${cost} gold): they warm to you.`, 'trade');
     }
-    const { res, r, note } = meetingOutcome(st, (st.ch.rel?.[g] ?? 0) + (drinks ? 1 : 0));
+    const { res, r, note, rolls } = meetingOutcome(st, (st.ch.rel?.[g] ?? 0) + (drinks ? 1 : 0), `Meeting roll: hiring from the ${g}`);
     const why = `${drinks ? 'Drinks; ' : ''}${note}rolled ${r.dice.join('+')}: ${res}`;
     if (res.startsWith('Price')) {
         const mult = Number(res.split('x')[1]);
-        st.pending = { type: 'hire-offer', group: g, members: opt.members, names: opt.names, wage: opt.wage, mult, price: opt.wage * mult, why, rehire: !!opt.rehire, affordable: st.ch.gold >= opt.wage * mult };
+        st.pending = { type: 'hire-offer', group: g, members: opt.members, names: opt.names, wage: opt.wage, mult, price: opt.wage * mult, why, rehire: !!opt.rehire, rollIds: rolls, affordable: st.ch.gold >= opt.wage * mult };
         return undefined;
     }
     if (res === 'Boon') {
-        st.pending = { type: 'hire-offer', group: g, members: opt.members, names: opt.names, wage: opt.wage, mult: 1, price: opt.wage, boon: true, why, rehire: !!opt.rehire, affordable: st.ch.gold >= opt.wage };
+        st.pending = { type: 'hire-offer', group: g, members: opt.members, names: opt.names, wage: opt.wage, mult: 1, price: opt.wage, boon: true, why, rehire: !!opt.rehire, rollIds: rolls, affordable: st.ch.gold >= opt.wage };
         return undefined;
     }
     if (res === 'No deal') { say(st, `No deal with the ${g} (${why}).`, 'trade'); return `The ${g} will not hire out.`; }
-    if (res === 'Insult' || res === 'Challenge') { st.pending = { type: 'hire-offer', group: g, insult: res, why }; return undefined; }
+    if (res === 'Insult' || res === 'Challenge') { st.pending = { type: 'hire-offer', group: g, insult: res, why, rollIds: rolls }; return undefined; }
     st.turn.blocked = true; st.turn.forceBlock = true; st.ch.hidden = false;
     say(st, `The ${g} block you (${why}).`, 'block');
     return `The ${g} block you.`;

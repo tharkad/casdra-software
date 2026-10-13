@@ -82,18 +82,18 @@ export function tradeAction(st, data, p, a) {
         if (k < 0) throw new Error(`you owe the ${g} no boon`);
         if (hasCurse(st, 'Ashes')) throw new Error('Your gold is worthless under the Ashes curse: nobody will deal.');
         const b = debts[k];
-        const { res, r, note } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0));
+        const { res, r, note, rolls } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0), `Meeting roll: repaying the ${g}`);
         const why = `${note}rolled ${r.dice.join('+')}: ${res}`;
         st.ch.hiddenAfterBlock = false;
         if (res.startsWith('Price') || res === 'Boon') {
             const mult = res === 'Boon' ? 1 : Number(res.split('x')[1]);       // a boon cannot be paid for with a boon: it is the base price
             const price = b.price * mult, worth = itemsWorthOf(st, data);
-            st.pending = { type: 'trade-offer', group: g, repay: k, name: `the ${g}'s goodwill`, base: b.price, mult, price, rollNote: why, affordable: st.ch.gold >= price, affordableWithItems: st.ch.gold + worth >= price };
+            st.pending = { type: 'trade-offer', group: g, repay: k, name: `the ${g}'s goodwill`, base: b.price, mult, price, rollNote: why, rollIds: rolls, affordable: st.ch.gold >= price, affordableWithItems: st.ch.gold + worth >= price };
             return undefined;
         }
         debts.splice(k, 1);                                                  // not bought on the first roll: lost for good
         say(st, `The ${g} will not hear of it (${why}): the lost level is gone for good.`, 'trade');
-        if (res === 'Insult' || res === 'Challenge') { st.pending = { type: 'trade-offer', group: g, insult: res, rollNote: why }; return undefined; }
+        if (res === 'Insult' || res === 'Challenge') { st.pending = { type: 'trade-offer', group: g, insult: res, rollIds: rolls, rollNote: why }; return undefined; }
         if (res === 'No deal') return `The ${g} will not deal; you lose your chance to win back their goodwill.`;
         st.turn.blocked = true; st.ch.hidden = false; st.turn.forceBlock = true;
         return `The ${g} block you.`;
@@ -106,26 +106,26 @@ export function tradeAction(st, data, p, a) {
         if (hasCurse(st, 'Ashes')) throw new Error('Your gold is worthless under the Ashes curse: nobody will sell to you.');
         const base = priceOf(data, it);
         // Resolve the meeting roll (with the friendly/trouble re-rolls); drinks make the group one level friendlier.
-        const { res, r, note } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0));
+        const { res, r, note, rolls } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0), `Meeting roll: buying from the ${g}`);
         st.ch.hiddenAfterBlock = false;
         if (res.startsWith('Price')) {
             const mult = Number(res.split('x')[1]);
             const price = base * mult;
             const itemsWorth = itemsWorthOf(st, data);
-            st.pending = { type: 'trade-offer', group: g, idx: a.idx, name: nameOf(data, it), base, mult, price, rollNote: `${note}rolled ${r.dice.join('+')}: ${res}`,
+            st.pending = { type: 'trade-offer', group: g, idx: a.idx, name: nameOf(data, it), base, mult, price, rollNote: `${note}rolled ${r.dice.join('+')}: ${res}`, rollIds: rolls,
                 affordable: st.ch.gold >= price, affordableWithItems: st.ch.gold + itemsWorth >= price };
             return undefined;
         }
         if (res === 'Boon') {
             // Price x1, or take it free as a boon (7.6.5e): the group drops a level until he buys it back.
             const itemsWorth = itemsWorthOf(st, data);
-            st.pending = { type: 'trade-offer', group: g, idx: a.idx, name: nameOf(data, it), base, mult: 1, price: base, boon: true, rollNote: `${note}rolled ${r.dice.join('+')}: Boon`,
+            st.pending = { type: 'trade-offer', group: g, idx: a.idx, name: nameOf(data, it), base, mult: 1, price: base, boon: true, rollNote: `${note}rolled ${r.dice.join('+')}: Boon`, rollIds: rolls,
                 affordable: st.ch.gold >= base, affordableWithItems: st.ch.gold + itemsWorth >= base };
             return undefined;
         }
         if (res === 'No deal') { say(st, `No deal: the ${g} will not sell (${note}rolled ${r.dice.join('+')}).`, 'trade'); return `The ${g} refuse to sell.`; }
         if (res === 'Insult' || res === 'Challenge') {
-            st.pending = { type: 'trade-offer', group: g, idx: a.idx, name: nameOf(data, it), base, insult: res, rollNote: `${note}rolled ${r.dice.join('+')}: ${res}` };
+            st.pending = { type: 'trade-offer', group: g, idx: a.idx, name: nameOf(data, it), base, insult: res, rollIds: rolls, rollNote: `${note}rolled ${r.dice.join('+')}: ${res}` };
             return undefined;
         }
         // Block/Battle: the group blocks him
