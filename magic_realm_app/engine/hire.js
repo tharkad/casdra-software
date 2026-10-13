@@ -1,7 +1,6 @@
-import { die, roll2, say } from './core.js';
-import { meetingResult } from './tables.js';
+import { say } from './core.js';
 import { hasCurse } from './effects.js';
-import { meetingDice } from './meeting.js';
+import { meetingOutcome, drinksCost } from './meeting.js';
 
 // The Hire activity (rules digest 05 section 4.5). He pays a native group to join him for 14 days.
 // Simplification noted in docs: a hired leader follows like any other hireling instead of taking his own turn.
@@ -36,8 +35,6 @@ export function beginHire(st, data) {
     return true;
 }
 
-function roll(st) { return meetingDice(st); }
-
 // Returns a string when the Hire phase is over, or undefined when a decision is pending.
 export function hireAction(st, data, p, a) {
     if (p.type === 'hire-offer') {
@@ -45,6 +42,16 @@ export function hireAction(st, data, p, a) {
             if (a.act === 'pay' && !(p.insult === 'Challenge' && hasCurse(st, 'Disgust'))) { if (p.insult === 'Insult') st.ch.notoriety -= 5; else st.ch.fame -= 5; return `You pay to smooth things over; the ${p.group} will not deal.`; }
             st.turn.blocked = true; st.turn.forceBlock = true; st.ch.hidden = false;
             return `The ${p.group} block you.`;
+        }
+        if (a.act === 'accept' && a.boon) {
+            // Free, as a boon (7.6.5e): the group drops a level until he buys it back from their leader.
+            if (!p.boon) throw new Error('that is not a boon');
+            if (p.rehire) { for (const id of p.members) { const n = st.nats.find(x => x.id === id); n.hiredUntil += 14; } }
+            else hire(st, data, p.members, p.group);
+            st.ch.rel[p.group] = Math.max(-2, (st.ch.rel[p.group] ?? 0) - 1);
+            (st.ch.boons ??= []).push({ group: p.group, price: p.wage, what: p.names.join(', '), day: st.day });
+            say(st, `The ${p.group} join you as a boon; they think a little less of you for it.`, 'trade');
+            return `${p.names.join(', ')} join you free.`;
         }
         if (a.act === 'accept') {
             if (st.ch.gold < p.price) throw new Error('not enough gold');
@@ -59,25 +66,25 @@ export function hireAction(st, data, p, a) {
     const opt = p.options.find(o => o.group === a.group && !!o.rehire === !!a.rehire);
     if (!opt) throw new Error('no such group here');
     const g = opt.group;
-    let col = st.ch.rel?.[g] ?? 0, r = roll(st), res = meetingResult(col, r.value), note = '';
-    for (let guard = 0; guard < 6; guard++) {
-        if (res === 'Trouble') { r = roll(st); note += 'Trouble; '; col = -1; res = meetingResult(col, r.value); }
-        else if (res === 'Opportunity') { r = roll(st); note += 'Opportunity; '; col = Math.min(2, col + 1); res = meetingResult(col, r.value); }
-        else break;
+    // Drinks (7.6.5b / 7.7.1b): paid for everyone of the group in his clearing, hired or not, even if he hires only one.
+    let drinks = false;
+    if (a.drinks) {
+        if (hasCurse(st, 'Ashes')) throw new Error('Your gold is worthless under the Ashes curse.');
+        const cost = drinksCost(st, data, g);
+        if (st.ch.gold < cost) throw new Error('not enough gold');
+        st.ch.gold -= cost; drinks = true;
+        say(st, `You buy drinks for the ${g} (${cost} gold): they warm to you.`, 'trade');
     }
-    if (res === 'Trouble' || res === 'Opportunity') res = 'No deal';
-    const why = `${note}rolled ${r.dice.join('+')}: ${res}`;
+    const { res, r, note } = meetingOutcome(st, (st.ch.rel?.[g] ?? 0) + (drinks ? 1 : 0));
+    const why = `${drinks ? 'Drinks; ' : ''}${note}rolled ${r.dice.join('+')}: ${res}`;
     if (res.startsWith('Price')) {
         const mult = Number(res.split('x')[1]);
         st.pending = { type: 'hire-offer', group: g, members: opt.members, names: opt.names, wage: opt.wage, mult, price: opt.wage * mult, why, rehire: !!opt.rehire, affordable: st.ch.gold >= opt.wage * mult };
         return undefined;
     }
     if (res === 'Boon') {
-        if (opt.rehire) { for (const id of opt.members) { const n = st.nats.find(x => x.id === id); n.hiredUntil += 14; } }
-        else hire(st, data, opt.members, g);
-        st.ch.rel[g] = Math.max(-2, (st.ch.rel[g] ?? 0) - 1);
-        say(st, `The ${g} join you as a boon; they think a little less of you for it.`, 'trade');
-        return `${opt.names.join(', ')} join you free.`;
+        st.pending = { type: 'hire-offer', group: g, members: opt.members, names: opt.names, wage: opt.wage, mult: 1, price: opt.wage, boon: true, why, rehire: !!opt.rehire, affordable: st.ch.gold >= opt.wage };
+        return undefined;
     }
     if (res === 'No deal') { say(st, `No deal with the ${g} (${why}).`, 'trade'); return `The ${g} will not hire out.`; }
     if (res === 'Insult' || res === 'Challenge') { st.pending = { type: 'hire-offer', group: g, insult: res, why }; return undefined; }

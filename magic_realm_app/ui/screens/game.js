@@ -8,6 +8,7 @@ import { nameOf, defOf, priceOf, weightOf, summaryOf } from '../../engine/items.
 import { WEIGHT_WORDS, lvl } from '../../engine/core.js';
 import { REL_NAMES } from '../../engine/tables.js';
 import { stockOf, sellable } from '../../engine/trade.js';
+import { drinksCost } from '../../engine/meeting.js';
 import { combatSheet } from './combatui.js';
 import { HELP } from './info.js';
 
@@ -183,9 +184,13 @@ export function gameScreen(ctx) {
             const worth = mine.filter(m => chosen.has(m.uid)).reduce((n, m) => n + m.price, 0);
             const goldDue = Math.max(0, p.price - worth), ok = st.ch.gold >= goldDue;
             const short = goldDue - st.ch.gold;
-            return modal(`Buy ${p.name}`, h('div', { class: 'trade' },
+            return modal(p.repay != null ? `Win back ${p.name}` : `Buy ${p.name}`, h('div', { class: 'trade' },
                 h('p', {}, p.rollNote),
                 h('p', { class: 'bigline' }, `${p.price} gold`, h('small', {}, ` (${p.base} x ${p.mult})`)),
+                p.repay != null ? h('p', { class: 'hint' }, `This is your one chance to buy back the level the boon cost you: pay now, or it is lost for good.`) : null,
+                p.boon ? h('div', {},
+                    h('p', { class: 'hint' }, `It is a boon: you may take it free. The ${p.group} will think one level less of you until you buy that level back from them in a Trade phase.`),
+                    h('button', { class: 'btn', 'data-act': 'take-boon', onclick: () => { ui.payWith = null; act({ type: 'trade', act: 'accept', boon: true }); } }, 'Take it as a boon (free)')) : null,
                 mine.length ? h('div', {},
                     h('h3', {}, 'Pay with your things?'),
                     h('p', { class: 'hint' }, `You have ${st.ch.gold} gold. Anything you hand over counts at its basic price, and they give no change.`),
@@ -196,12 +201,23 @@ export function gameScreen(ctx) {
                     worth > p.price ? h('small', {}, ` (${worth - p.price} gold over: no change)`) : null),
                 !ok ? h('p', { class: 'hint' }, `You are ${short} gold short: hand over more.`) : null,
                 h('div', { class: 'row2' },
-                    h('button', { class: 'btn primary', 'data-act': 'buy-ok', disabled: !ok, onclick: () => { const items = [...chosen]; ui.payWith = null; act({ type: 'trade', act: 'accept', items }); } }, 'Buy'),
+                    h('button', { class: 'btn primary', 'data-act': 'buy-ok', disabled: !ok, onclick: () => { const items = [...chosen]; ui.payWith = null; act({ type: 'trade', act: 'accept', items }); } }, p.repay != null ? 'Pay' : p.boon ? `Pay ${p.price} gold` : 'Buy'),
                     h('button', { class: 'btn', onclick: () => { ui.payWith = null; act({ type: 'trade', act: 'decline' }); } }, 'No thanks'))));
         }
         const goods = stockOf(st, data, p.group), mine = sellable(st, data);
         return modal(`Trade with the ${p.group}`, h('div', { class: 'trade' },
             h('p', { class: 'hint' }, `Relationship: ${REL_NAMES[String(st.ch.rel?.[p.group] ?? 0)]}. You have ${st.ch.gold} gold. In one Trade phase you may sell any number of things, or buy one.${(st.ch.rel?.[p.group] ?? 0) <= -2 ? ' They are your enemies: expect an insult or a fight, not a price.' : ''}`),
+            ...(() => {
+                const cost = drinksCost(st, data, p.group), owed = (st.ch.boons ?? []).map((b, n) => ({ ...b, n })).filter(b => b.group === p.group);
+                return [
+                    p.drinks ? h('p', { class: 'hint' }, `You have bought drinks for the ${p.group} (${p.drinksCost} gold): they count one level friendlier this phase.`)
+                        : h('button', { class: 'btn row', 'data-act': 'drinks', disabled: p.mode === 'sell' || st.ch.gold < cost, onclick: () => act({ type: 'trade', act: 'drinks' }) },
+                            h('span', { class: 'rl' }, h('b', {}, 'Buy drinks'), h('small', {}, `one gold for each of them here; one level friendlier for this phase's deal`)), h('em', {}, `${cost}g`)),
+                    ...(owed.length ? [h('h3', {}, 'Boons you owe'),
+                        ...owed.map(b => h('button', { class: 'btn row', 'data-act': 'repay', disabled: p.mode === 'sell', onclick: () => act({ type: 'trade', act: 'repay', n: b.n }) },
+                            h('span', { class: 'rl' }, h('b', {}, `Win back goodwill: ${b.what}`), h('small', {}, `one roll only; if you do not buy the level back now, it is lost for good`)), h('em', {}, `${b.price}g`)))] : []),
+                ];
+            })(),
             h('h3', {}, 'For sale'),
             ...(goods.length ? goods.map(g => h('button', { class: 'btn row', disabled: p.mode === 'sell', onclick: () => act({ type: 'trade', act: 'buy', idx: g.idx }) },
                 h('span', { class: 'rl' }, h('b', {}, g.name), h('small', {}, g.sub)), h('em', {}, `${g.base}g`))) : [h('p', { class: 'hint' }, 'Nothing for sale.')]),
@@ -220,15 +236,20 @@ export function gameScreen(ctx) {
             return modal(`Hire ${p.names.length === 1 ? p.names[0] : 'the ' + p.group}`, h('div', {},
                 h('p', {}, p.why),
                 h('p', { class: 'bigline' }, `${p.price} gold`, h('small', {}, ` (wages ${p.wage} x ${p.mult})`)),
+                p.boon ? h('div', {},
+                    h('p', { class: 'hint' }, `It is a boon: they will join you free, but the ${p.group} will think one level less of you until you buy that level back from their leader in a Trade phase.`),
+                    h('button', { class: 'btn', 'data-act': 'take-boon', onclick: () => act({ type: 'hire', act: 'accept', boon: true }) }, 'Take it as a boon (free)')) : null,
                 h('p', { class: 'hint' }, 'Hired for 14 days. They follow you and fight beside you.'),
                 h('div', { class: 'row2' },
-                    h('button', { class: 'btn primary', disabled: !p.affordable, onclick: () => act({ type: 'hire', act: 'accept' }) }, 'Hire'),
+                    h('button', { class: 'btn primary', disabled: !p.affordable, onclick: () => act({ type: 'hire', act: 'accept' }) }, p.boon ? `Pay ${p.price} gold` : 'Hire'),
                     h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'decline' }) }, 'No thanks'))));
         }
         return modal('Hire', h('div', {},
             h('p', { class: 'hint' }, `You have ${st.ch.gold} gold. The price is the wages times a roll on the Meeting Table. Relationships: ${p.options.map(o => `${o.group} ${REL_NAMES[String(st.ch.rel?.[o.group] ?? 0)]}`).join(', ')}.`),
-            ...p.options.map(o => h('button', { class: 'btn row', onclick: () => act({ type: 'hire', act: 'pick', group: o.group, rehire: !!o.rehire }) },
-                h('span', { class: 'rl' }, h('b', {}, `${o.group}${o.rehire ? ' (extend hire)' : ''}`), h('small', {}, o.names.join(', '))), h('em', {}, `wages ${o.wage}g`))),
+            h('button', { class: 'btn row' + (ui.drinks ? ' on' : ''), 'data-act': 'drinks-toggle', onclick: () => { ui.drinks = !ui.drinks; render(); } },
+                h('span', { class: 'rl' }, h('b', {}, `${ui.drinks ? '\u2713 ' : ''}Buy drinks first`), h('small', {}, 'one gold for each of them here, hired or not; one level friendlier for the roll')), h('em', {}, ui.drinks ? 'on' : 'off')),
+            ...p.options.map(o => { const dc = drinksCost(st, data, o.group); return h('button', { class: 'btn row', disabled: ui.drinks && st.ch.gold < dc, onclick: () => { const drinks = !!ui.drinks; ui.drinks = false; act({ type: 'hire', act: 'pick', group: o.group, rehire: !!o.rehire, drinks }); } },
+                h('span', { class: 'rl' }, h('b', {}, `${o.group}${o.rehire ? ' (extend hire)' : ''}`), h('small', {}, o.names.join(', ') + (ui.drinks ? ` (drinks ${dc}g)` : ''))), h('em', {}, `wages ${o.wage}g`)); }),
             h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'cancel' }) }, 'Never mind')));
     }
 

@@ -1,8 +1,8 @@
-import { lvl, die, roll2, say } from './core.js';
-import { meetingResult, REL_NAMES } from './tables.js';
+import { say } from './core.js';
+import { REL_NAMES } from './tables.js';
 import { defOf, nameOf, priceOf, makeItem, summaryOf, autoEquip } from './items.js';
 import { hasCurse } from './effects.js';
-import { meetingDice } from './meeting.js';
+import { meetingOutcome, drinksCost } from './meeting.js';
 
 // The Trade activity (rules digest 05 section 4.4). He deals with one native leader in his clearing: sell as much as he likes,
 // or buy a single item (the price depends on a roll on the Meeting Table).
@@ -33,7 +33,7 @@ export function beginTrade(st, data) {
 }
 
 const relOf = (st, g) => st.ch.rel?.[g] ?? 0;
-function meetingRoll(st) { return meetingDice(st); }
+const itemsWorthOf = (st, data) => st.ch.items.filter(i => !i.destroyed).reduce((n, i) => n + priceOf(data, i), 0);
 
 // Returns a string when the Trade phase is over, or undefined when more input is wanted (st.pending is set).
 export function tradeAction(st, data, p, a) {
@@ -56,11 +56,47 @@ export function tradeAction(st, data, p, a) {
         st.pending = p;
         return undefined;
     }
+    if (a.act === 'drinks') {
+        // 7.6.5b: natives only, once per phase, just before the roll; one gold per member of the group present.
+        if (p.drinks) throw new Error('you have already bought drinks this phase');
+        if (p.mode === 'sell' || p.sold.length) throw new Error('drinks come before the deal, and you have already sold');
+        if (hasCurse(st, 'Ashes')) throw new Error('Your gold is worthless under the Ashes curse.');
+        const cost = drinksCost(st, data, g);
+        if (st.ch.gold < cost) throw new Error('not enough gold');
+        st.ch.gold -= cost; p.drinks = true; p.drinksCost = cost;
+        say(st, `You buy drinks for the ${g} (${cost} gold): they warm to you.`, 'trade');
+        st.pending = p;
+        return undefined;
+    }
     if (a.act === 'done') return p.sold.length ? `You finish trading with the ${g}.` : `You decide not to trade with the ${g}.`;
     if (a.act === 'group') {
-        if (p.mode || p.sold.length) throw new Error('you have already started dealing with one leader');
+        if (p.mode || p.sold.length || p.drinks) throw new Error('you have already started dealing with one leader');
         if (!p.groups.includes(a.group)) throw new Error('no such leader here');
         p.group = a.group; st.pending = p; return undefined;
+    }
+    if (a.act === 'repay') {
+        // 7.6.5e.1: win back the level a boon cost him by buying it as if it were an item at the boon's price. One chance only.
+        if (p.mode === 'sell') throw new Error('you cannot both buy and sell in one phase');
+        const debts = (st.ch.boons ??= []);
+        const k = debts.findIndex((b, i) => b.group === g && (a.n == null || i === a.n));
+        if (k < 0) throw new Error(`you owe the ${g} no boon`);
+        if (hasCurse(st, 'Ashes')) throw new Error('Your gold is worthless under the Ashes curse: nobody will deal.');
+        const b = debts[k];
+        const { res, r, note } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0));
+        const why = `${note}rolled ${r.dice.join('+')}: ${res}`;
+        st.ch.hiddenAfterBlock = false;
+        if (res.startsWith('Price') || res === 'Boon') {
+            const mult = res === 'Boon' ? 1 : Number(res.split('x')[1]);       // a boon cannot be paid for with a boon: it is the base price
+            const price = b.price * mult, worth = itemsWorthOf(st, data);
+            st.pending = { type: 'trade-offer', group: g, repay: k, name: `the ${g}'s goodwill`, base: b.price, mult, price, rollNote: why, affordable: st.ch.gold >= price, affordableWithItems: st.ch.gold + worth >= price };
+            return undefined;
+        }
+        debts.splice(k, 1);                                                  // not bought on the first roll: lost for good
+        say(st, `The ${g} will not hear of it (${why}): the lost level is gone for good.`, 'trade');
+        if (res === 'Insult' || res === 'Challenge') { st.pending = { type: 'trade-offer', group: g, insult: res, rollNote: why }; return undefined; }
+        if (res === 'No deal') return `The ${g} will not deal; you lose your chance to win back their goodwill.`;
+        st.turn.blocked = true; st.ch.hidden = false; st.turn.forceBlock = true;
+        return `The ${g} block you.`;
     }
     if (a.act === 'buy') {
         if (p.mode === 'sell') throw new Error('you cannot both buy and sell in one phase');
@@ -69,28 +105,23 @@ export function tradeAction(st, data, p, a) {
         if (!it) throw new Error('that is not for sale');
         if (hasCurse(st, 'Ashes')) throw new Error('Your gold is worthless under the Ashes curse: nobody will sell to you.');
         const base = priceOf(data, it);
-        // Resolve the meeting roll (with the friendly/trouble re-rolls).
-        let col = relOf(st, g), r = meetingRoll(st), res = meetingResult(col, r.value), note = '';
-        for (let guard = 0; guard < 6; guard++) {
-            if (res === 'Trouble') { r = meetingRoll(st); note += `Trouble; `; col = -1; res = meetingResult(col, r.value); }
-            else if (res === 'Opportunity') { r = meetingRoll(st); note += `Opportunity; `; col = Math.min(2, col + 1); res = meetingResult(col, r.value); }
-            else break;
-        }
-        if (res === 'Trouble' || res === 'Opportunity') res = 'No deal';
+        // Resolve the meeting roll (with the friendly/trouble re-rolls); drinks make the group one level friendlier.
+        const { res, r, note } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0));
         st.ch.hiddenAfterBlock = false;
         if (res.startsWith('Price')) {
             const mult = Number(res.split('x')[1]);
             const price = base * mult;
-            const itemsWorth = st.ch.items.filter(i => !i.destroyed).reduce((n, i) => n + priceOf(data, i), 0);
+            const itemsWorth = itemsWorthOf(st, data);
             st.pending = { type: 'trade-offer', group: g, idx: a.idx, name: nameOf(data, it), base, mult, price, rollNote: `${note}rolled ${r.dice.join('+')}: ${res}`,
                 affordable: st.ch.gold >= price, affordableWithItems: st.ch.gold + itemsWorth >= price };
             return undefined;
         }
         if (res === 'Boon') {
-            takeBought(st, data, g, a.idx);
-            st.ch.rel[g] = Math.max(-2, (st.ch.rel[g] ?? 0) - 1);
-            say(st, `The ${g} give you the ${nameOf(data, it)} as a boon, and think a little less of you for it.`, 'trade');
-            return `The ${g} give you the ${nameOf(data, it)} free.`;
+            // Price x1, or take it free as a boon (7.6.5e): the group drops a level until he buys it back.
+            const itemsWorth = itemsWorthOf(st, data);
+            st.pending = { type: 'trade-offer', group: g, idx: a.idx, name: nameOf(data, it), base, mult: 1, price: base, boon: true, rollNote: `${note}rolled ${r.dice.join('+')}: Boon`,
+                affordable: st.ch.gold >= base, affordableWithItems: st.ch.gold + itemsWorth >= base };
+            return undefined;
         }
         if (res === 'No deal') { say(st, `No deal: the ${g} will not sell (${note}rolled ${r.dice.join('+')}).`, 'trade'); return `The ${g} refuse to sell.`; }
         if (res === 'Insult' || res === 'Challenge') {
@@ -129,6 +160,15 @@ function offerAction(st, data, p, a) {
         return `The ${g} block you.`;
     }
     if (a.act === 'accept') {
+        // A boon taken free: the group drops one level and he owes it until he buys the level back (7.6.5e).
+        if (a.boon) {
+            if (!p.boon) throw new Error('that is not a boon');
+            const it = takeBought(st, data, g, p.idx);
+            st.ch.rel[g] = Math.max(-2, (st.ch.rel[g] ?? 0) - 1);
+            (st.ch.boons ??= []).push({ group: g, price: p.base, what: nameOf(data, it), day: st.day });
+            say(st, `The ${g} give you the ${nameOf(data, it)} as a boon, and think a little less of you for it.`, 'trade');
+            return `The ${g} give you the ${nameOf(data, it)} free.`;
+        }
         // Rule 7.6.5c: part or all of the price may be paid in belongings at their basic Gold price. The seller keeps any overpayment
         // (no change), and recorded gold may not drop below zero.
         const uids = [...new Set(a.items ?? [])];
@@ -146,10 +186,23 @@ function offerAction(st, data, p, a) {
             if (d?.fameReward && d.fameReward.group === g) st.ch.fame += d.fameReward.points;
             given.push(nameOf(data, it));
         }
-        const got = takeBought(st, data, g, p.idx);
         const cost = given.length ? `${given.join(' and ')}${gold ? ` and ${gold} gold` : ''}` : `${gold} gold`;
-        say(st, `You buy the ${nameOf(data, got)} from the ${g} for ${cost}${worth > p.price ? ` (they keep the ${worth - p.price} gold of overpayment)` : ''}.`, 'trade');
+        const over = worth > p.price ? ` (they keep the ${worth - p.price} gold of overpayment)` : '';
+        if (p.repay != null) {
+            const debts = st.ch.boons ?? [];
+            debts.splice(p.repay, 1);
+            st.ch.rel[g] = (st.ch.rel[g] ?? 0) + 1;
+            say(st, `You win back the ${g}'s goodwill for ${cost}${over}.`, 'trade');
+            return `You win back the ${g}'s goodwill for ${cost}.`;
+        }
+        const got = takeBought(st, data, g, p.idx);
+        say(st, `You buy the ${nameOf(data, got)} from the ${g} for ${cost}${over}.`, 'trade');
         return `You buy the ${nameOf(data, got)} for ${cost}.`;
+    }
+    if (p.repay != null) {                                   // he turned down his one chance to win back the level
+        (st.ch.boons ?? []).splice(p.repay, 1);
+        say(st, `You turn down the ${g}'s price: the lost level is gone for good.`, 'trade');
+        return `You let the chance to win back the ${g} slip.`;
     }
     return 'You turn the offer down.';
 }
