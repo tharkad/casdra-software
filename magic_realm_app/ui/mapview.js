@@ -44,7 +44,9 @@ export function mountMap(host) {
         posOf.clear();
         const { tiles, placements, side } = model;
         const g = sv('g', { class: 'world' });
-        const top = sv('g', { class: 'top' });          // labels and the YOU marker sit above every tile
+        const top = sv('g', { class: 'top' });          // labels sit above every tile
+        const meLayer = sv('g', { class: 'me-layer' }); // the YOU marker goes first in it, so every label and chit paints over the marker, never the reverse
+        top.append(meLayer);
         let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
         const tileDefs = Object.fromEntries(tiles.map(t => [t.id, t]));
         for (const p of placements) {
@@ -133,7 +135,7 @@ export function mountMap(host) {
                 });
                 if (model.hero === id) {
                     const hid = model.heroHidden;
-                    og.append(sv('g', { class: `me${hid ? ' hid' : ''}`, transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})`, 'pointer-events': 'none' },
+                    meLayer.append(sv('g', { class: `me${hid ? ' hid' : ''}`, transform: `translate(${(cx + x).toFixed(1)} ${(cy + y).toFixed(1)})`, 'pointer-events': 'none' },
                         sv('circle', { r: 21, class: 'halo' }),
                         sv('g', { transform: 'translate(0 -30)' }, sv('rect', { x: -19, y: -9, width: 38, height: 18, rx: 6 }), sv('text', { 'text-anchor': 'middle', dy: '.36em' }, 'YOU'), sv('path', { d: 'M-5 9 L0 15 L5 9 Z' }))));
                 }

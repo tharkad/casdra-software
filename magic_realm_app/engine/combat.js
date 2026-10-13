@@ -388,7 +388,11 @@ export function meleePlay(st, data, p) {
     if (st.ch.hidden && target) { st.ch.hidden = false; log('You strike from hiding and are revealed.'); }
     if (target && !target.assigned) {
         // attacking an unassigned denizen makes it fight back; attacking a native brings its whole group in
-        if (target.kind === 'nat') startBattling(st, data, data.natives[target.id].group);
+        if (target.kind === 'nat') {
+            // the group begins to battle him at once, but nobody was assigned to answer this round: no blow comes back until the next
+            startBattling(st, data, data.natives[target.id].group);
+            for (const d of c.dens) if (d.kind === 'nat' && data.natives[d.id].group === data.natives[target.id].group || d.partOf === target.uid) d.noRetaliation = true;
+        }
         target.assigned = true;
         if (wasHidden) target.noRetaliation = true;          // a hidden character gets a free first blow
     }
@@ -561,7 +565,7 @@ function myHit(st, data, h, ctx) {
     level += stars;
     let note = '';
     if (side.missile) {
-        const r = roll2(st);
+        const r = hasAdv(st, 'archer') ? (() => { const d1 = die(st); return { dice: [d1], value: d1 }; })() : roll2(st);
         const aim = hasAdv(st, 'aim') ? 1 : 0;
         const v = clamp6(r.value - aim);
         level += MISSILE[v - 1];
@@ -627,12 +631,12 @@ function denHit(st, data, den, ctx) {
         return;
     }
     // if his horse was played as the maneuver the blow lands on the horse, not on him
-    if (ctx.horse && !ctx.horse.destroyed) {
+    if (ctx.horse && (!ctx.horse.destroyed || ctx.horse.destroyedGroup === ctx.g)) {
         const hd = data.horses[ctx.horse.id];
         let hl = lvl(s.harm) + (hd.armored ? Math.max(0, stars - 1) : stars);
         if (s.attack === 'missile') hl += missileRoll(st, `${s.name}'s missile roll (at your horse)`, s.type === 'Archer');
         if (hl >= lvl(hd.vulnerability)) {
-            ctx.horse.destroyed = true; ctx.horse.active = false;
+            ctx.horse.destroyed = true; ctx.horse.active = false; ctx.horse.destroyedGroup = ctx.g;
             ctx.log(`${s.name} strikes your ${hd.name} dead.`);
             c.eventful = true;
         } else ctx.log(`${s.name} hits your ${hd.name} but it stands.`);
