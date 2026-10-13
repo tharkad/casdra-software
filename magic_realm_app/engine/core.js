@@ -30,6 +30,9 @@ export function roll2(st) { const a = die(st), b = die(st); return { dice: [a, b
 // ---- log ----
 export function say(st, text, kind = 'info') { st.log.push({ day: st.day, t: text, k: kind }); }
 
+// Counters for the grind statistics: st.stats[key] += n. Never read by the rules.
+export function tally(st, key, n = 1) { const t = (st.stats ??= {}); t[key] = (t[key] ?? 0) + n; }
+
 // ---- the dice tray: every roll the player should see is noted with what it was for, the faces, and the outcome ----
 // dice: the faces as rolled; used: the same dice after modifiers (Honor), when they differ; value: the number that counted.
 export function noteRoll(st, what, dice, value, result = '', used = null) {

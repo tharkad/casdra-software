@@ -48,6 +48,7 @@ export function gameScreen(ctx) {
 
     // ---- model for the map ----
     function mapModel() {
+        const art = data.art;
         const tokens = {}, chitsByTile = {};
         const add = (id, t) => (tokens[id] ??= []).push(t);
         const KINDNAME = { 'lost-city': 'Lost City', 'lost-castle': 'Lost Castle' };
@@ -62,19 +63,21 @@ export function gameScreen(ctx) {
         }
         for (const d of st.dwellings) {
             const here = d.at === st.ch.at;
-            add(d.at, { k: 'dwelling', label: d.kind });
+            add(d.at, { k: 'dwelling', label: d.kind, img: art?.dwellings?.[d.kind] ?? null });
         }
         // creatures by name: "Wolf x2", natives by group
         const group = (list, key) => { const m = {}; for (const x of list) { const k = x.loc.c + '|' + key(x); (m[k] ??= { at: x.loc.c, name: key(x), n: 0 }).n++; } return Object.values(m); };
         const mons = group(st.mons.filter(m => !m.dead && m.loc?.c), m => data.monsters[m.id].name);
         const nats = group(st.nats.filter(n => !n.dead && !n.hired && n.loc?.c), n => data.natives[n.id].group);
-        for (const m of mons) add(m.at, { k: 'mon', label: m.n > 1 ? `${m.name} x${m.n}` : m.name });
-        for (const n of nats) add(n.at, { k: 'nat', label: n.n > 1 ? `${n.name} x${n.n}` : n.name });
+        const monImg = {}; for (const m of st.mons) monImg[data.monsters[m.id].name] = art?.monsters?.[data.monsters[m.id].name] ?? null;
+        const natImg = {}; for (const n of st.nats) { const g = data.natives[n.id].group; if (!natImg[g] || data.natives[n.id].leader) natImg[g] = art?.natives?.[n.id] ?? natImg[g] ?? null; }
+        for (const m of mons) add(m.at, { k: 'mon', label: m.n > 1 ? `${m.name} x${m.n}` : m.name, img: monImg[m.name] });
+        for (const n of nats) add(n.at, { k: 'nat', label: n.n > 1 ? `${n.name} x${n.n}` : n.name, img: natImg[n.name] });
         const hires = st.nats.filter(n => n.hired && !n.dead);
         if (hires.length && st.ch.at) add(st.ch.at, { k: 'ally', label: `Your hirelings x${hires.length}` });
         const planPath = ui.draft ? plannedClearings() : [];
         return {
-            tiles: data.tiles, placements: st.placements, side: 'normal', showHidden: false, discovered: new Set(st.ch.discovered.paths),
+            tiles: data.tiles, art: data.art, placements: st.placements, side: 'normal', showHidden: false, discovered: new Set(st.ch.discovered.paths),
             chitsByTile, tokens, hero: st.ch.onRoad ? null : st.ch.at, heroHidden: st.ch.hidden, selected: ui.sel, plan: planPath,
             onTap: id => { ui.sel = id; if (ui.sheet !== 'plan') ui.sheet = 'clearing'; render(); },
             onBackground: () => { if (ui.sheet === 'clearing') ui.sheet = null; ui.sel = null; render(); },

@@ -1,4 +1,4 @@
-import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll } from './core.js';
+import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll, tally } from './core.js';
 import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './tables.js';
 import { pit } from './effects.js';
 import { hirelings } from './hire.js';
@@ -527,9 +527,11 @@ function myHit(st, data, h, ctx) {
         const reward = killReward(st, data, den, s);
         if (den.kind === 'mon') { const m = st.mons.find(x => x.id === den.id); m.dead = true; m.loc = null; }
         else if (den.kind === 'nat') { const n = st.nats.find(x => x.id === den.id); n.dead = true; n.loc = null; dropNativeGoods(st, data, n); }
+        tally(st, 'kills'); tally(st, `kill.${s.name}`);
         ctx.log(`You kill the ${s.name} with ${finalL} harm${note}${reward}.`);
         c.eventful = true;
     } else {
+        tally(st, 'hitsNotKilling');
         ctx.log(`You hit the ${s.name} for ${finalL} harm${note}; it has vulnerability ${s.vuln} and survives.`);
         // a harmless hit still turns the weapon unalerted (handled by caller)
     }
@@ -594,9 +596,9 @@ function denHit(st, data, den, ctx) {
         const tough = lvl(armor.def.toughness ?? armor.def.weight);
         if (level >= tough) {
             const card = !!armor.def.card;
-            if (!card && level === tough && !armor.item.damaged && !armor.item.destroyed) { armor.item.damaged = true; ctx.log(`Your ${armor.def.name} is damaged.`); c.eventful = true; }
+            if (!card && level === tough && !armor.item.damaged && !armor.item.destroyed) { armor.item.damaged = true; tally(st, 'armorDamaged'); ctx.log(`Your ${armor.def.name} is damaged.`); c.eventful = true; }
             else if (!armor.item.destroyed) {
-                armor.item.destroyed = true; armor.item.active = false; armor.item.destroyedGroup = ctx.g;
+                armor.item.destroyed = true; armor.item.active = false; armor.item.destroyedGroup = ctx.g; tally(st, 'armorDestroyed');
                 const gold = !armor.def.native ? (armor.def.priceDestroyed ?? 0) : 0;
                 if (gold) st.ch.gold += gold;
                 ctx.log(`Your ${armor.def.name} is destroyed${gold ? ` (worth ${gold} gold to you)` : ''}.`);
@@ -608,7 +610,7 @@ function denHit(st, data, den, ctx) {
         return killMe(st, `${s.name} deals ${L} harm; you are slain.`);
     } else if (level >= lvl('L')) wounded = true;
     if (wounded) {
-        c.newWounds = (c.newWounds ?? 0) + 1;
+        c.newWounds = (c.newWounds ?? 0) + 1; tally(st, 'woundsTaken');
         c.eventful = true;
         ctx.log('You take a wound.');
     }
@@ -620,7 +622,7 @@ function denHit(st, data, den, ctx) {
 }
 
 function killMe(st, text) {
-    st.ch.dead = true;
+    st.ch.dead = true; tally(st, 'deathsInCombat');
     say(st, text, 'combat');
     st.combat.events.push(text);
     st.combat.eventful = true;
@@ -732,6 +734,7 @@ function nextRound(st, data) {
 function endCombat(st, data, why) {
     const c = st.combat;
     c.ended = true; c.why = why; c.step = 'done';
+    tally(st, 'combats'); tally(st, 'rounds', c.round); tally(st, `combat.${why}`);
     for (const d of c.dens) { if (d.kind === 'mon' && d.side === 'red') d.side = 'light'; }
     // Destroyed things leave his belongings; counters that came from the natives go back to their stock.
     const owners = Object.fromEntries((data.setupcard?.dwellings ?? []).flatMap(dw => [[dw.name, dw.group], [dw.rsName, dw.group]]));

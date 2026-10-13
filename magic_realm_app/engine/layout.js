@@ -5,9 +5,19 @@ import { makeRng } from './rng.js';
 // (circumradius 1, flat top, centre at 0,0): a clearing with an edge road is pulled toward that edge, roads act as springs, and clearings push
 // apart. The result is a schematic of our own, not a copy of anyone's artwork.
 const cache = new Map();
+// Where the clearings sit on the original tile pictures (data/src/artpos.json: tile -> side -> number -> [x, y] in tile-radius units).
+// When we have them the pictures are drawn and these positions are the click map; otherwise the schematic below is used.
+let ART = null;
+export function setArtPositions(tiles) { ART = tiles ?? null; cache.clear(); }
 export function layoutSide(tile, sideName) {
     const key = tile.id + ':' + sideName;
     if (cache.has(key)) return cache.get(key);
+    const artSide = ART?.[tile.id]?.[sideName];
+    if (artSide && tile.sides[sideName].clearings.every(c => artSide[String(c.n)])) {
+        const out = { art: true, pos: Object.fromEntries(tile.sides[sideName].clearings.map(c => [c.n, artSide[String(c.n)]])) };
+        cache.set(key, out);
+        return out;
+    }
     const side = tile.sides[sideName], rng = makeRng([...key].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7));
     const anchor = new Map();                               // clearing -> target point near the edge(s) it reaches
     EDGES.forEach((name, e) => {

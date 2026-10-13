@@ -55,12 +55,26 @@ export function mountMap(host) {
             for (const c of def.clearings) posOf.set(p.id + c.n, [cx + pos[c.n][0], cy + pos[c.n][1]]);
             const tg = sv('g', { transform: `translate(${cx.toFixed(1)} ${cy.toFixed(1)})` });
             const og = sv('g', { transform: `translate(${cx.toFixed(1)} ${cy.toFixed(1)})` });
-            tg.append(sv('polygon', { class: 'hex', points: corners(S - 1.5).map(c => c.join(',')).join(' '), fill: GROUP[tile.group] }));
+            const picture = lay.art ? model.art?.tiles?.[tile.id]?.[side] : null;
+            tg.append(sv('polygon', { class: 'hex', points: corners(S - (picture ? 0.5 : 1.5)).map(c => c.join(',')).join(' '), fill: GROUP[tile.group] }));
+            // The original tile picture, turned with the tile. The roads, caves and numbers are all in it; we draw only what changes.
+            if (picture) tg.append(sv('image', { href: picture, x: -S, y: -S * 0.866025, width: 2 * S, height: 1.732051 * S, transform: `rotate(${p.rot * 60})`, 'pointer-events': 'none' }));
             const paths = sv('g', { class: 'paths' });
             for (const path of def.paths) {
                 // Hidden paths and secret passages are printed on the tile: they are always drawn, but faint and marked '?' until discovered.
                 const known = path.kind === 'open' || path.kind === 'tunnel' || model.showHidden || model.discovered?.has(pk(p.id + path.a, p.id + path.b));
                 const A = pos[path.a], B = pos[path.b], s = PATH[path.kind];
+                if (picture) {
+                    // the picture already shows every road; mark the hidden ones we have not found, and trace the ones we have
+                    if (path.kind === 'open' || path.kind === 'tunnel') continue;
+                    if (known) paths.append(sv('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], stroke: s.stroke, 'stroke-width': 2, 'stroke-dasharray': '1.5 4', 'stroke-linecap': 'round', opacity: 0.9, class: 'found-path' }));
+                    else {
+                        const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2;
+                        paths.append(sv('g', { class: 'undisc-mark', transform: `translate(${mx.toFixed(1)} ${my.toFixed(1)})` },
+                            sv('circle', { r: 6.5, stroke: s.stroke }), sv('text', { 'text-anchor': 'middle', dy: '.35em' }, '?')));
+                    }
+                    continue;
+                }
                 paths.append(sv('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], stroke: s.stroke, 'stroke-width': known ? s.w : 2, 'stroke-dasharray': known ? (s.dash ?? null) : '2 5',
                     'stroke-linecap': 'round', opacity: known ? 1 : 0.55, class: known ? '' : 'undisc' }));
                 if (!known) {
@@ -69,14 +83,14 @@ export function mountMap(host) {
                         sv('circle', { r: 6.5, stroke: s.stroke }), sv('text', { 'text-anchor': 'middle', dy: '.35em' }, '?')));
                 }
             }
-            EDGES.forEach((name, le) => {
+            if (!picture) EDGES.forEach((name, le) => {
                 const n = def.edges[name];
                 if (n == null) return;
                 const [dx, dy] = edgeDir(worldEdge(le, p.rot)), A = pos[n];
                 paths.append(sv('line', { x1: A[0], y1: A[1], x2: dx * S * .866, y2: dy * S * .866, stroke: '#d8cba8', 'stroke-width': 2.4, 'stroke-linecap': 'round' }));
             });
             tg.append(paths);
-            tg.append(sv('text', { class: 'tname', y: S * .8, 'text-anchor': 'middle' }, tileName(p.id).toUpperCase()));
+            if (!picture) tg.append(sv('text', { class: 'tname', y: S * .8, 'text-anchor': 'middle' }, tileName(p.id).toUpperCase()));
             // chits lying in the forest: a name once it is known, '?' while it is not
             (model.chitsByTile?.[p.id] ?? []).forEach((c, i) => {
                 const label = c.up ? c.name : '?';
@@ -93,15 +107,24 @@ export function mountMap(host) {
                 const cg = sv('g', { class: `clr${sel ? ' sel' : ''}${onPlan ? ' plan' : ''}`, transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})`, 'data-clearing': id });
                 cg.append(sv('circle', { r: 19, fill: 'transparent' }));
                 if (onPlan) cg.append(sv('circle', { r: 17, class: 'planring' }));
-                cg.append(sv('circle', { r: 11.5, fill: CLEARING[c.type], stroke: ring ?? '#0c0e14', 'stroke-width': ring ? 3 : 1.5 }));
-                cg.append(sv('text', { 'text-anchor': 'middle', dy: '.35em', class: 'num' }, String(c.n)));
+                if (picture) {
+                    // an upright number over the printed one, so it reads whichever way the tile is turned
+                    cg.append(sv('circle', { r: 9, class: 'numbadge', fill: 'rgba(12,14,20,.82)', stroke: ring ?? 'rgba(255,255,255,.55)', 'stroke-width': ring ? 2.4 : 1 }));
+                    cg.append(sv('text', { 'text-anchor': 'middle', dy: '.36em', class: 'num artnum' }, String(c.n)));
+                } else {
+                    cg.append(sv('circle', { r: 11.5, fill: CLEARING[c.type], stroke: ring ?? '#0c0e14', 'stroke-width': ring ? 3 : 1.5 }));
+                    cg.append(sv('text', { 'text-anchor': 'middle', dy: '.35em', class: 'num' }, String(c.n)));
+                }
                 tg.append(cg);
                 // things standing in this clearing, each with its name
                 const toks = model.tokens?.[id] ?? [];
                 toks.slice(0, 5).forEach((t, i) => {
-                    const w = t.label.length * 6.1 + 10, tx = x + 16, ty = y - 9 + i * 15;
+                    const th = t.img ? 15 : 0, w = t.label.length * 6.1 + 10 + th, tx = x + 16, ty = y - 9 + i * (t.img ? 18 : 15);
                     og.append(sv('g', { transform: `translate(${tx.toFixed(1)} ${ty.toFixed(1)})`, class: `pill ${t.k}`, 'pointer-events': 'none' },
-                        sv('rect', { x: 0, y: -7.5, width: w, height: 15, rx: 6 }), sv('text', { x: 5, dy: '.35em' }, t.label)));
+                        sv('rect', { x: 0, y: -8.5, width: w, height: 17, rx: 6 }),
+                        t.img ? sv('rect', { x: 1.5, y: -7, width: 14, height: 14, rx: 3, class: 'thumbbg' }) : null,
+                        t.img ? sv('image', { href: t.img, x: 1.5, y: -7, width: 14, height: 14, preserveAspectRatio: 'xMidYMid meet' }) : null,
+                        sv('text', { x: 5 + th, dy: '.35em' }, t.label)));
                 });
                 if (model.hero === id) {
                     const hid = model.heroHidden;
