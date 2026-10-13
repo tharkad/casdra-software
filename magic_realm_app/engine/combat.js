@@ -497,6 +497,7 @@ export function meleePlay(st, data, p) {
         if (d && !d.dead && !d.pickedUp) { d.side = 'red'; d.pickedUp = true; log(`${denSide(st, data, d).name} seizes you!`); c.eventful = true; }
     }
     // weapon state: a weapon that hit goes unalerted; one that struck and missed turns alerted
+    if (w && fight && !target && (p.weaponSide === 'alerted' || p.weaponSide === 'unalerted')) w.item.alerted = p.weaponSide === 'alerted';      // 8.4.5 h.2
     if (w && fight && target && myDir != null) w.item.alerted = !delivered;      // only a blow that was delivered unalerts the weapon; a miss or a cancelled blow leaves it alerted
     c.step = 'resolve';
     return afterMelee(st, data);
@@ -624,7 +625,8 @@ function denHit(st, data, den, ctx) {
     let level = lvl(s.harm), stars = s.stars ?? 0;
     // a Demon's Power of the Pit and an Imp's curse go to the rider; a horse played as the maneuver does not take them
     if (s.attack === 'spell') {
-        pit(st, data, `${s.name}'s magic`);
+        const row = pit(st, data, `${s.name}'s magic`);
+        pitAftermath(st, data, row, den, ctx);
         c.eventful = true;
         if (st.ch.dead) { ctx.log(`${s.name}'s magic kills you.`); c.events.push('You are dead.'); }
         else if (s.tremendous && den.kind !== 'part') c.toRed.push(den.uid);
@@ -640,6 +642,8 @@ function denHit(st, data, den, ctx) {
             ctx.log(`${s.name} strikes your ${hd.name} dead.`);
             c.eventful = true;
         } else ctx.log(`${s.name} hits your ${hd.name} but it stands.`);
+        const owner = den.kind === 'part' ? c.dens.find(d => d.uid === den.partOf) : den;
+        if (owner && data.monsters[owner.id]?.red && !c.toRed.includes(owner.uid)) c.toRed.push(owner.uid);      // it has hit something of his: it turns red
         return;
     }
     // armor in that direction: a shield guarding that way first, then body armor
@@ -691,6 +695,31 @@ function denHit(st, data, den, ctx) {
         const owner = den.kind === 'part' ? c.dens.find(d => d.uid === den.partOf) : den;
         if (owner && data.monsters[owner.id]?.red && !c.toRed.includes(owner.uid)) c.toRed.push(owner.uid);
     }
+}
+
+// The Power of the Pit also hits the creatures in the clearing: a Fiery Chasm kills every unhidden individual (not the demon that cast it),
+// Terror kills the Light and Medium monsters, natives and horses. Nobody is paid a bounty for these deaths.
+function pitAftermath(st, data, rowName, caster, ctx) {
+    if (rowName !== 'Fiery Chasm' && rowName !== 'Terror') return;
+    const c = st.combat, small = x => lvl(x ?? 'T') <= lvl('M');
+    const dead = [];
+    for (const d of c.dens) {
+        if (d.dead || d.uid === caster.uid || (caster.partOf && d.uid === caster.partOf) || d.partOf === caster.uid || d.kind === 'part') continue;
+        const s = denSide(st, data, d);
+        const dies = rowName === 'Fiery Chasm' ? d.kind !== 'horse' : (d.kind === 'horse' ? small(s.vuln) : small(s.size));
+        if (!dies) continue;
+        d.dead = true;
+        for (const p of c.dens.filter(x => x.partOf === d.uid)) p.dead = true;
+        if (d.kind === 'mon') { const m = st.mons.find(x => x.id === d.id); if (m) { m.dead = true; m.loc = null; } }
+        else if (d.kind === 'nat') { const n = st.nats.find(x => x.id === d.id); if (n) { n.dead = true; n.loc = null; dropNativeGoods(st, data, n); } }
+        dead.push(s.name);
+    }
+    for (const h of c.hires ?? []) {
+        if (h.dead) continue;
+        const n = st.nats.find(x => x.id === h.id);
+        if (rowName === 'Fiery Chasm' || small(data.natives[h.id].weight)) { h.dead = true; if (n) { n.dead = true; n.hired = false; n.loc = null; } dead.push(data.natives[h.id].name); }
+    }
+    if (dead.length) ctx.log(`${rowName} kills: ${dead.join(', ')}.`);
 }
 
 function killMe(st, text, by = null) {
@@ -839,7 +868,8 @@ function hireStrikes(st, data, h, log) {
         if (den.kind === 'mon') { const m = st.mons.find(x => x.id === den.id); m.dead = true; m.loc = null; }
         else if (den.kind === 'nat') { const n = st.nats.find(x => x.id === den.id); n.dead = true; n.loc = null; dropNativeGoods(st, data, n); }
         // the hirer collects the bounty, unmultiplied, and the kill does not count toward his daily total
-        st.ch.fame += ds.fame ?? 0; st.ch.notoriety += ds.notor ?? 0; st.ch.gold += ds.gold ?? 0;
+        st.ch.fame += ds.fame ?? 0; st.ch.notoriety += ds.notor ?? 0;
+        if (data.natives[c.hires.find(x => x.uid === h.hire).id]?.leader) st.ch.gold += ds.gold ?? 0;         // the gold bounty goes only to a hired leader's kill (8.7.3 b)
         log(`${hs.name} kills the ${ds.name} for you.`);
         c.eventful = true;
     } else log(`${hs.name} hits the ${ds.name} but does not kill it.`);
