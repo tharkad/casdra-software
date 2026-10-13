@@ -211,6 +211,7 @@ function assignAll(st, data) {
 function horseChits(st, data) {
     const h = activeHorse(st);
     if (!h || isCave(st, data, st.ch.at)) return [];
+    if (st.combat?.dens?.some(d => d.pickedUp && !d.dead)) return [];       // a red-side Tremendous monster holds him: no horse play (8.4.7 d.2)
     const d = data.horses[h.id];
     if (!d) return [];
     return [['walk', d.walk], ['gallop', d.gallop]].map(([side, x]) => ({ id: `horse:${h.uid}:${side}`, horseUid: h.uid, side, type: 'move', strength: x.strength, time: x.moves, effort: 0, state: 'active', card: true, isHorse: true, name: `${d.name} (${side === 'walk' ? 'walking' : 'galloping'})` }));
@@ -842,7 +843,7 @@ function endCombat(st, data, why) {
     const owners = Object.fromEntries((data.setupcard?.dwellings ?? []).flatMap(dw => [[dw.name, dw.group], [dw.rsName, dw.group]]));
     for (const it of st.ch.items.filter(i => i.destroyed)) {
         const d = it.kind === 'armor' ? data.armor[it.id] : it.kind === 'weapon' ? data.weapons[it.id] : null;
-        const group = d?.native && !d.card ? owners[d.startBox] : null;
+        const group = d?.native && !d.card ? (owners[d.returnsTo] ?? owners[d.startBox]) : null;      // armor goes back to the dwelling it came from (8.4.9 k.3)
         if (group && st.stock[group]) st.stock[group].push({ kind: it.kind, id: it.id });
     }
     st.ch.items = st.ch.items.filter(i => !i.destroyed);
@@ -853,7 +854,9 @@ function endCombat(st, data, why) {
 
 // ---- hirelings ----
 function hireStats(data, id) {
-    const n = data.natives[id], s = n.light;
+    // the hirer deploys a hireling on the side that can fight: the one with an attack, the harder-hitting one if both have
+    const n = data.natives[id], sides = [n.light, n.dark].filter(x => x && x.harm != null && x.attackTime != null);
+    const s = sides.sort((a, b) => lvl(b.harm) - lvl(a.harm) || (b.stars ?? 0) - (a.stars ?? 0) || a.attackTime - b.attackTime)[0] ?? n.light;
     return { name: n.name, vuln: n.vulnerability, armored: !!n.armored, harm: s.harm, stars: s.stars ?? 0, atk: s.attackTime, move: s.moveTime, length: n.weapon?.length ?? 0,
         missile: !!n.weapon?.missile, archer: n.type === 'Archer', fame: n.fameBounty ?? 0, notor: n.notorietyBounty ?? 0, gold: n.goldBounty ?? 0 };
 }

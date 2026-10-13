@@ -2,7 +2,7 @@ import { h } from '../dom.js';
 import { mountMap } from '../mapview.js';
 import { loadData } from '../../engine/data.js';
 import { newGame } from '../../engine/setup.js';
-import { apply, phasesFor, validatePlan, restOptions, chitLabel, LAST_DAY } from '../../engine/day.js';
+import { apply, phasesFor, validatePlan, planKinds, restOptions, chitLabel, LAST_DAY } from '../../engine/day.js';
 import { roadsFrom, isMountain, isCave, nameOfClearing, tileOf, numOf, tileName } from '../../engine/world.js';
 import { nameOf, defOf, priceOf, weightOf, summaryOf } from '../../engine/items.js';
 import { WEIGHT_WORDS, lvl } from '../../engine/core.js';
@@ -181,7 +181,7 @@ export function gameScreen(ctx) {
         if (p?.type === 'turn-end') out.push(turnEndSheet());
         else if (p?.type === 'turn-end') out.push(turnEndSheet());
         else if (p?.type === 'rest') out.push(modal('Rest', h('div', {}, h('p', { class: 'hint' }, 'You may regain one asterisk of effort. Choose a chit:'), ...p.options.map(o =>
-            h('button', { class: 'btn', onclick: () => act({ type: 'rest', chit: o.chit }) }, o.text)))));
+            h('button', { class: 'btn', onclick: () => act({ type: 'rest', chit: o.chit, change: o.change }) }, o.text)))));
         else if (p?.type === 'search-table') out.push(modal('Search: which table?', h('div', {},
             h('p', { class: 'hint' }, 'Name the table you will roll on. One roll, one table.'),
             ...p.options.map(t => h('button', { class: 'btn', 'data-table': t, onclick: () => act({ type: 'search-table', table: t }) }, h('b', {}, TABLE_LABEL[t]),
@@ -473,15 +473,24 @@ export function gameScreen(ctx) {
         for (let i = 0; i < 9; i++) { at.push(loc); const s = ui.draft.slots[i]; if (s?.act === 'move' && s.to) loc = s.to; }
         return at;
     }
-    const planInfo = () => phasesFor(st, data, ui.draft.slots.filter(Boolean));
+    const planInfo = () => {
+        const v = planKinds(st, data, ui.draft.slots);
+        return { total: v.total, base: v.base, extras: v.extras, kinds: v.kinds, errors: v.errors };
+    };
 
-    function slotKind(i, base, extras) { return i < 2 ? 'basic' : i < base ? 'sunlight' : `extra (${extras[i - base] ?? ''} only)`; }
+    // what kind of phase this recorded activity uses: an extra phase may be recorded anywhere, the rest fill the basic and then the sunlight phases
+    function slotKind(i, base, extras) {
+        const k = planInfo().kinds[i];
+        if (k === 'extra') return 'extra phase';
+        if (k === 'basic' || k === 'sunlight') return k;
+        return extras.length ? `${base} ordinary + ${extras.length} extra (${[...new Set(extras)].join(', ')})` : 'unset';
+    }
 
     // the choices for one phase: what to do, and where or how
     function phaseChoices(i, at, base, extras, total) {
-        const d = ui.draft, s = d.slots[i], only = i >= base ? extras[i - base] : null;
+        const d = ui.draft, s = d.slots[i];
         const out = [h('div', { class: 'chips2 six' },
-            ...[...(only ? [only] : ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert']), 'nothing'].map(a => h('button', { class: `chip${s?.act === a ? ' on' : ''}`, 'data-slot': i, 'data-pick': a, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a])))];
+            ...['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', 'nothing'].map(a => h('button', { class: `chip${s?.act === a ? ' on' : ''}`, 'data-slot': i, 'data-pick': a, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a])))];
         if (ui.pickMove === i || s?.act === 'move') {
             out.push(h('p', { class: 'hint' }, at[i] || st.ch.onRoad ? 'Tap a clearing on the map, or choose here:' : 'You are on a road; move to one of its ends first.'));
             if (ui.pickMove === i || !s?.to) out.push(movePicker(i, at[i]));
@@ -490,9 +499,9 @@ export function gameScreen(ctx) {
     }
 
     function startDay() {
-        const d = ui.draft, { total, base, extras } = planInfo();
-        // A phase that no longer exists (a move into a cave takes the sunlight phases away) or that a changed day makes extra-only is dropped, not refused.
-        const slots = d.slots.map((s, i) => (!s || s.act === 'nothing' || i >= total || (i >= base && s.act !== extras[i - base]) ? null : s));
+        const d = ui.draft, { total, kinds } = planInfo();
+        // A phase that no longer exists (a move into a cave takes the sunlight phases away) is dropped, not refused.
+        const slots = d.slots.map((s, i) => (!s || s.act === 'nothing' || i >= total || kinds[i] === 'over' ? null : s));
         ui.draft = null; ui.sheet = null; ui.planStep = 0; ui.planCollapsed = false; ui.peek = false; ui.sel = null;
         act({ type: 'plan', slots });
     }
@@ -505,6 +514,8 @@ export function gameScreen(ctx) {
     }
     const startButton = () => {
         const open = firstUnset();
+        const bad = open == null ? planInfo().errors[0] : null;
+        if (bad) return h('button', { class: 'btn', 'data-act': 'start-day', 'aria-disabled': 'true', onclick: () => { ui.toast = bad; render(); setTimeout(() => { ui.toast = null; render(); }, 2600); } }, 'Fix the plan');
         return open == null
             ? h('button', { class: 'btn primary', 'data-act': 'start-day', onclick: startDay }, 'Start the day')
             : h('button', { class: 'btn', 'data-act': 'start-day', 'aria-disabled': 'true', onclick: () => { ui.planStep = open; ui.pickMove = null; ui.pickSearch = null; ui.planCollapsed = false; render(); } }, `Set phase ${open + 1} first`);

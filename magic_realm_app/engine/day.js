@@ -32,7 +32,7 @@ export function beginDay(st, data) {
 
 // How many phases the day will give him, given what he plans.
 export function phasesFor(st, data, slots) {
-    const startsInCave = isCave(st, data, st.ch.at);
+    const startsInCave = !st.ch.onRoad && isCave(st, data, st.ch.at);        // fleeing out of a cave leaves him on the road: a full day (8.3.8 d.2)
     const intoCave = slots.some(s => s?.act === 'move' && isCave(st, data, s.to));
     const sunlight = !startsInCave && !intoCave;
     // A working horse in use, and some treasure cards, give one more phase each, restricted to one activity.
@@ -41,22 +41,41 @@ export function phasesFor(st, data, slots) {
     return { total: base + extras.length, base, sunlight, extras, extra: extras.length };
 }
 
-export function validatePlan(st, data, slots) {
-    const { total, sunlight, base, extras } = phasesFor(st, data, slots.filter(Boolean));
-    const errors = [];
+// Which kind of phase each recorded activity uses (rule 6.2.4 a): an extra phase takes only its own activity and may be recorded anywhere; every other
+// activity uses the next ordinary phase, the first two being basic and the rest sunlight. Returns the kinds and any errors.
+export function planKinds(st, data, slots) {
+    const ph = phasesFor(st, data, slots.filter(Boolean));
+    const left = [...ph.extras], kinds = [], errors = [];
+    let regular = 0;
     slots.forEach((s, i) => {
-        if (!s) return;
-        if (i >= total) errors.push(`Phase ${i + 1} is not available today.`);
-        else if (i >= base && s.act !== extras[i - base]) errors.push(`Phase ${i + 1} is an extra phase that can only be used to ${extras[i - base]}.`);
+        if (!s || s.act === 'nothing') { kinds.push(null); return; }
+        if (i >= ph.total) { errors.push(`Phase ${i + 1} is not available today.`); kinds.push('over'); return; }
+        const k = left.indexOf(s.act);
+        if (k >= 0) { left.splice(k, 1); kinds.push('extra'); }
+        else {
+            regular++;
+            if (regular <= PHASES.basic) kinds.push('basic');
+            else if (regular <= ph.base) kinds.push('sunlight');
+            else {
+                kinds.push('over');
+                errors.push(ph.extras.length ? `Phase ${i + 1}: only ${ph.base} ordinary activities today; the extra phase can be used only for ${[...new Set(ph.extras)].join(' or ')}.` : `Phase ${i + 1} is not available today.`);
+            }
+        }
         if (s.act === 'move' && !s.to) errors.push(`Phase ${i + 1}: choose where to move.`);
     });
-    return { total, sunlight, errors };
+    return { kinds, errors, total: ph.total, base: ph.base, sunlight: ph.sunlight, extras: ph.extras };
+}
+
+export function validatePlan(st, data, slots) {
+    const v = planKinds(st, data, slots);
+    return { total: v.total, sunlight: v.sunlight, errors: v.errors, kinds: v.kinds };
 }
 
 function submitPlan(st, data, slots) {
     const v = validatePlan(st, data, slots);
     if (v.errors.length) throw new Error(v.errors[0]);
     st.planBase = phasesFor(st, data, slots.filter(Boolean)).base;
+    st.planKinds = v.kinds;
     st.ch.arrivedFrom = null;                      // a new day: he has not moved into any clearing yet
     st.plan = slots.slice(0, v.total).map(s => s ? { ...s } : null);
     while (st.plan.length < v.total) st.plan.push(null);
@@ -73,7 +92,7 @@ function sunrise(st, data) {
     // He becomes unhidden when his own turn begins.
     st.ch.hidden = false;
     st.period = 'daylight';
-    st.turn = { i: 0, climb: null, blocked: false, results: [], movedHere: null, auto: false, base: st.planBase ?? 4 };
+    st.turn = { i: 0, climb: null, blocked: false, results: [], movedHere: null, auto: false, base: st.planBase ?? 4, kinds: st.planKinds ?? null };
     st.pending = { type: 'phase', i: 0 };
 }
 
@@ -215,10 +234,12 @@ function midnight(st, data) {
     st.period = 'midnight';
     for (const it of st.ch.items) if (it.kind === 'weapon') it.alerted = false;
     // potions are good until Midnight, then they go back to the box they came from
-    const spent = st.ch.items.filter(it => it.kind === 'treasure' && data.treasures[it.id]?.discardTo);
+    const cardOf = it => data.treasures[it.card ?? (it.kind === 'treasure' ? it.id : '')];      // a card that became a counter keeps its card
+    const spent = st.ch.items.filter(it => cardOf(it)?.discardTo);
     for (const it of spent) {
-        (st.stock[data.treasures[it.id].discardTo] ??= []).push({ kind: 'treasure', id: it.id });
-        say(st, `The ${data.treasures[it.id].name} is used up and returns to the ${data.treasures[it.id].discardTo}.`, 'info');
+        const card = cardOf(it);
+        (st.stock[card.discardTo] ??= []).push({ kind: 'treasure', id: card.id });
+        say(st, `The ${card.name} is used up and returns to the ${card.discardTo}.`, 'info');
     }
     if (spent.length) st.ch.items = st.ch.items.filter(it => !spent.includes(it));
     resetChitsAtMidnight(st);
@@ -280,7 +301,7 @@ function doMove(st, data, slot) {
     const road = roadsFrom(st, data, from).find(r => r.to === to);
     if (!road) { t.climb = null; return `There is no road from here to ${nameOfClearing(to)}: the move is lost.`; }
     if (!road.usable) { t.climb = null; return `You do not know the way to ${nameOfClearing(to)}: the move is lost.`; }
-    if (isCave(st, data, to) && st.turn.i >= 2 && st.turn.i < (t.base ?? 4)) { t.climb = null; return 'You cannot enter a cave in a sunlight phase.'; }
+    if (isCave(st, data, to) && (t.kinds ? t.kinds[st.turn.i] === 'sunlight' : (st.turn.i >= 2 && st.turn.i < (t.base ?? 4)))) { t.climb = null; return 'You cannot enter a cave in a sunlight phase.'; }
     if (isMountain(st, data, to) && t.climb !== to) {
         t.climb = to;
         return `You start the climb toward ${nameOfClearing(to)} (mountains take two Move phases).`;
@@ -343,8 +364,14 @@ export function restOptions(st) {
             else out.push({ chit: c.id, to: 'fatigued', text: `heal ${chitLabel(c)} to fatigued`, cost: c.effort });
         }
     }
-    // With one rest, only chits costing 1 are plain; a 2-asterisk chit needs making change from an active 1-asterisk chit.
-    return out.filter(o => o.cost === 1 || st.ch.chits.some(c => c.state === 'active' && c.effort === 1));
+    // One Rest returns one asterisk. A chit worth two needs change: fatigue an active one-asterisk chit of ANY type, his choice (7.8.2 b).
+    const changers = st.ch.chits.filter(c => c.state === 'active' && c.effort === 1);
+    const res = [];
+    for (const o of out) {
+        if (o.cost === 1) res.push(o);
+        else for (const g of changers) res.push({ ...o, change: g.id, text: `${o.text}, fatiguing ${chitLabel(g)} for change` });
+    }
+    return res;
 }
 export const chitLabel = c => c.type === 'magic' ? `Magic ${c.numeral ?? ''}${c.time}${'*'.repeat(c.effort)}` : `${c.type === 'move' ? 'Move' : 'Fight'} ${c.strength}${c.time}${'*'.repeat(c.effort)}`;
 
@@ -352,7 +379,7 @@ function applyRest(st, o) {
     const c = st.ch.chits.find(x => x.id === o.chit);
     c.state = o.to;
     if (o.cost === 2) {
-        const give = st.ch.chits.find(x => x.state === 'active' && x.effort === 1 && x.type === c.type) ?? st.ch.chits.find(x => x.state === 'active' && x.effort === 1);
+        const give = st.ch.chits.find(x => x.id === o.change && x.state === 'active') ?? st.ch.chits.find(x => x.state === 'active' && x.effort === 1);
         if (give) give.state = 'fatigued';
     }
 }
@@ -447,7 +474,7 @@ export function apply(st0, data, action) {
         }
         case 'rest': {
             if (p.type !== 'rest') throw new Error('not resting');
-            const o = p.options.find(x => x.chit === action.chit);
+            const o = p.options.find(x => x.chit === action.chit && (action.change == null || x.change === action.change));
             if (!o) throw new Error('cannot rest that chit');
             st.pending = null;
             applyRest(st, o);
