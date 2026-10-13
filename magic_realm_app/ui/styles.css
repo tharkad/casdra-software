@@ -350,3 +350,25 @@ button.portrait small { font-size: 13px; }
 .realm-svg .chitglyph { fill: var(--text); font: 800 11px var(--font-ui); }
 .realm-svg .chit .nm { display: none; }
 .realm-svg.zoomed .chit .nm { display: inline; }
+
+/* ---- planning: a panel under the map, the map stays live above it ---- */
+.planpanel { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; min-height: 0; }
+.plan-body { overflow-y: auto; min-height: 0; flex: 1 1 auto; -webkit-overflow-scrolling: touch; }
+.plan-head, .plan-tabs, .planview, .plan-nav { flex: none; }
+.plan-head { display: flex; align-items: center; justify-content: space-between; }
+.plan-head b { font-family: var(--font-display); letter-spacing: .06em; font-size: 15px; text-transform: uppercase; }
+.plan-head .x { width: 44px; height: 36px; border: 0; background: none; color: var(--dim); font-size: 20px; cursor: pointer; }
+.plan-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.ptab { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text); min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2px 0; cursor: pointer; }
+.ptab b { font-size: 16px; line-height: 1.1; } .ptab small { font-size: 11px; color: var(--dim); line-height: 1.1; }
+.ptab.set small { color: var(--gold); } .ptab.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+.planview { width: 100%; }
+.plan-step, .plan-all { display: flex; flex-direction: column; gap: 8px; }
+.plan-all .slot { background: var(--panel2); }
+.plan-step .slot-head { padding: 0 2px; }
+.plan-nav .btn { min-height: 52px; }
+.planbar { display: flex; gap: 10px; align-items: stretch; }
+.planbar-main { flex: 1; min-width: 0; text-align: left; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; color: var(--text); }
+.planbar-main b { font-family: var(--font-display); letter-spacing: .06em; font-size: 14px; text-transform: uppercase; }
+.planbar-main small { color: var(--dim); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.planbar .btn { min-width: 84px; margin: 0; }

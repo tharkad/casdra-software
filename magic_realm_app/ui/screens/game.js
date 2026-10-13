@@ -82,8 +82,22 @@ export function gameScreen(ctx) {
         return {
             tiles: data.tiles, art: data.art, placements: st.placements, side: 'normal', showHidden: false, discovered: new Set(st.ch.discovered.paths),
             chitsByTile, tokens, hero: st.ch.onRoad ? null : st.ch.at, heroHidden: st.ch.hidden, selected: ui.sel, plan: planPath,
-            onTap: id => { ui.sel = id; if (ui.sheet !== 'plan') ui.sheet = 'clearing'; render(); },
-            onBackground: () => { if (ui.sheet === 'clearing') ui.sheet = null; ui.sel = null; render(); },
+            onTap: id => {
+                if (ui.sheet === 'plan' && st.pending?.type === 'plan' && ui.draft) {
+                    // planning: a tap on a clearing next to where this phase starts sets the move; any other tap just looks at that clearing
+                    const i = ui.planStep ?? 0, from = planLocations()[i];
+                    const wantsMove = ui.pickMove === i || ui.draft.slots[i]?.act === 'move';
+                    const reach = from && roadsFrom(st, data, from).some(r => r.usable && r.to === id);
+                    if (wantsMove && (reach || (st.ch.onRoad && i === 0 && (id === st.ch.onRoad.from || id === st.ch.onRoad.to)))) { ui.planCollapsed = false; setMove(i, id); return; }
+                    ui.sel = id; ui.peek = true; render(); return;
+                }
+                ui.sel = id; ui.sheet = 'clearing'; render();
+            },
+            onBackground: () => {
+                if (ui.sheet === 'plan' && st.pending?.type === 'plan' && ui.draft && !ui.planCollapsed) { ui.planCollapsed = true; ui.sel = null; render(); return; }   // like a popover: tapping outside tucks it away
+                if (ui.sheet === 'clearing') ui.sheet = null;
+                ui.sel = null; render();
+            },
         };
     }
 
@@ -137,7 +151,8 @@ export function gameScreen(ctx) {
             h('b', {}, `Monster roll ${st.prowl}`), h('span', {}, prowlers().join(', ') || 'no one stirs')) : null;
         let main;
         if (!p) main = h('div', { class: 'note' }, 'Working...');
-        else if (p.type === 'plan') main = h('button', { class: 'btn primary big', 'data-act': 'plan', onclick: () => { ui.draft ??= { slots: Array(9).fill(null) }; ui.sheet = 'plan'; render(); } }, 'Plan your day');
+        else if (p.type === 'plan' && ui.sheet === 'plan' && ui.draft) { dock.replaceChildren(ui.planCollapsed ? planBar() : planPanel()); return; }
+        else if (p.type === 'plan') main = h('button', { class: 'btn primary big', 'data-act': 'plan', onclick: () => { ui.draft ??= { slots: Array(9).fill(null) }; ui.sheet = 'plan'; ui.planCollapsed = false; render(); } }, 'Plan your day');
         else if (p.type === 'phase') {
             const slot = st.plan[p.i];
             main = h('div', { class: 'phase' },
@@ -162,6 +177,7 @@ export function gameScreen(ctx) {
         const out = [];
         const p = st.pending;
         if (p?.type?.startsWith('combat')) { out.push(combatSheet({ st, data, act, ui, render })); return out; }
+        if (ui.peek && ui.sel && p?.type === 'plan') { out.push(clearingSheet()); return out; }
         if (p?.type === 'turn-end') out.push(turnEndSheet());
         else if (p?.type === 'turn-end') out.push(turnEndSheet());
         else if (p?.type === 'rest') out.push(modal('Rest', h('div', {}, h('p', { class: 'hint' }, 'You may regain one asterisk of effort. Choose a chit:'), ...p.options.map(o =>
@@ -178,7 +194,6 @@ export function gameScreen(ctx) {
             h('p', { class: 'hint' }, 'Tap your gold, Fame and Notoriety for your chits and gear. The menu has the map key and a short guide.'),
             h('button', { class: 'btn primary', 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); ui.welcomeDone = true; render(); } }, 'Begin'))));
         else if (p?.type === 'plan' && st.day > 1 && ui.reportedDay !== st.day && ui.sheet !== 'plan') out.push(reportSheet());
-        else if (ui.sheet === 'plan' && p?.type === 'plan') out.push(planSheet());
         else if (ui.sheet === 'char') out.push(charSheet());
         else if (ui.sheet === 'clearing' && ui.sel) out.push(clearingSheet());
         else if (ui.sheet === 'menu') out.push(menuSheet());
@@ -345,7 +360,7 @@ export function gameScreen(ctx) {
         return modal(nameOfClearing(id), h('div', { class: 'clearing' },
             h('p', { class: 'hint' }, mtn),
             ...sections.flatMap(([title, rows]) => [h('h3', {}, title), ...rows])),
-            { close: () => { ui.sheet = null; ui.sel = null; render(); } });
+            { close: () => { if (ui.peek) { ui.peek = false; ui.sel = null; } else { ui.sheet = null; ui.sel = null; } render(); } });
     }
 
     // What happened when his turn ended: chits turned up, creatures that came, natives that appeared, being blocked.
@@ -445,35 +460,79 @@ export function gameScreen(ctx) {
     }
 
     // ---- planning ----
-    function planSheet() {
-        const d = ui.draft;
-        const { total, base, extras } = phasesFor(st, data, d.slots.filter(Boolean));
-        // where he will be at the start of each phase, as planned
-        const at = [];
-        let loc = st.ch.onRoad ? null : st.ch.at;
-        for (let i = 0; i < 9; i++) { at.push(loc); const s = d.slots[i]; if (s?.act === 'move' && s.to) loc = s.to; }
-        const rows = d.slots.slice(0, Math.max(4, total)).map((s, i) => {
-            const off = i >= total;
-            const only = i >= base && !off ? extras[i - base] : null;
-            return h('div', { class: `slot${off ? ' off' : ''}` },
-                h('div', { class: 'slot-head' }, h('b', {}, `Phase ${i + 1}`), h('span', {}, i < 2 ? 'basic' : i < base ? 'sunlight' : `extra (${only ?? ''} only)`), h('em', {}, s ? describeSlot(s) : (off ? 'unavailable on a cave day' : 'not set')),
-                    s && !off ? h('button', { class: 'clearbtn', onclick: () => { d.slots[i] = null; render(); } }, 'Clear') : null),
-                off ? null : h('div', { class: 'chips2 six' },
-                    ...(only ? [only] : ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert']).map(a => h('button', { class: `chip${s?.act === a ? ' on' : ''}`, 'data-slot': i, 'data-pick': a,
-                        onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a]))),
-                !off && ui.pickMove === i ? movePicker(i, at[i]) : null,
-                !off && ui.pickSearch === i ? h('div', { class: 'chips2' }, ...['peer', 'locate', 'loot', ...((st.abandoned[at[i]] ?? []).length ? ['ground'] : []), ...(st.ch.siteCards?.[at[i]]?.length ? ['sitecard'] : [])].map(t => h('button', { class: 'chip', onclick: () => { d.slots[i] = { act: 'search', table: t }; ui.pickSearch = null; render(); } }, TABLE_LABEL[t]))) : null);
-        });
-        const filled = d.slots.slice(0, total).some(Boolean);
-        return modal('Plan your day', h('div', { class: 'plan' },
-            h('p', { class: 'hint' }, st.day === 1 ? `You start at the ${st.ch.startDwelling}${st.ch.items.length ? ` with ${st.ch.items.map(i => nameOf(data, i)).join(', ')}` : ' with no weapon or armor of your own'}. Plan a Trade phase to see what the natives here sell. Plans are fixed once the day starts; an impossible move is simply lost.` : 'Plans are fixed once the day starts. An impossible move is simply lost. Mountains take two Move phases.'),
-            ...rows.filter(Boolean),
-            h('button', { class: 'btn primary big', 'data-act': 'start-day', onclick: () => {
-                // A phase that no longer exists (a move into a cave takes the sunlight phases away) or that a changed day makes extra-only is dropped, not refused.
-                const slots = d.slots.map((s, i) => (!s || i >= total || (i >= base && s.act !== extras[i - base]) ? null : s));
-                ui.draft = null; ui.sheet = null; act({ type: 'plan', slots });
-            } }, filled ? 'Start the day' : 'Start the day (do nothing)')),
-            { close: () => { ui.sheet = null; render(); } });
+    // ---- planning: a panel under the map, one phase at a time (or all of them), with the map still live above it ----
+    // where he will be at the start of each phase, as planned
+    function planLocations() {
+        const at = []; let loc = st.ch.onRoad ? null : st.ch.at;
+        for (let i = 0; i < 9; i++) { at.push(loc); const s = ui.draft.slots[i]; if (s?.act === 'move' && s.to) loc = s.to; }
+        return at;
+    }
+    const planInfo = () => phasesFor(st, data, ui.draft.slots.filter(Boolean));
+
+    function slotKind(i, base, extras) { return i < 2 ? 'basic' : i < base ? 'sunlight' : `extra (${extras[i - base] ?? ''} only)`; }
+
+    // the choices for one phase: what to do, and where or how
+    function phaseChoices(i, at, base, extras, total) {
+        const d = ui.draft, s = d.slots[i], only = i >= base ? extras[i - base] : null;
+        const out = [h('div', { class: 'chips2 six' },
+            ...(only ? [only] : ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert']).map(a => h('button', { class: `chip${s?.act === a ? ' on' : ''}`, 'data-slot': i, 'data-pick': a, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a])))];
+        if (ui.pickMove === i || s?.act === 'move') {
+            out.push(h('p', { class: 'hint' }, at[i] || st.ch.onRoad ? 'Tap a clearing on the map, or choose here:' : 'You are on a road; move to one of its ends first.'));
+            if (ui.pickMove === i || !s?.to) out.push(movePicker(i, at[i]));
+        }
+        if (ui.pickSearch === i) out.push(h('div', { class: 'chips2' }, ...['peer', 'locate', 'loot', ...((st.abandoned[at[i]] ?? []).length ? ['ground'] : []), ...(st.ch.siteCards?.[at[i]]?.length ? ['sitecard'] : [])]
+            .map(t => h('button', { class: 'chip', onclick: () => { d.slots[i] = { act: 'search', table: t }; ui.pickSearch = null; render(); } }, TABLE_LABEL[t]))));
+        return out;
+    }
+
+    function startDay() {
+        const d = ui.draft, { total, base, extras } = planInfo();
+        // A phase that no longer exists (a move into a cave takes the sunlight phases away) or that a changed day makes extra-only is dropped, not refused.
+        const slots = d.slots.map((s, i) => (!s || i >= total || (i >= base && s.act !== extras[i - base]) ? null : s));
+        ui.draft = null; ui.sheet = null; ui.planStep = 0; ui.planCollapsed = false; ui.peek = false; ui.sel = null;
+        act({ type: 'plan', slots });
+    }
+
+    function planPanel() {
+        const d = ui.draft, { total, base, extras } = planInfo(), at = planLocations();
+        ui.planView ??= 'step';
+        ui.planStep = Math.max(0, Math.min(total - 1, ui.planStep ?? 0));
+        const step = ui.planStep, filled = d.slots.slice(0, total).some(Boolean);
+        const tabs = h('div', { class: 'plan-tabs', role: 'tablist' }, ...Array.from({ length: total }, (_, i) => h('button', { class: `ptab${i === step ? ' on' : ''}${d.slots[i] ? ' set' : ''}`, 'data-tab': i, role: 'tab',
+            onclick: () => { ui.planStep = i; ui.pickMove = null; ui.pickSearch = null; ui.planView = 'step'; render(); } },
+            h('b', {}, i + 1), h('small', {}, d.slots[i] ? (ACT_LABEL[d.slots[i].act] ?? d.slots[i].act) : '–'))));
+        const view = h('div', { class: 'seg3 planview' },
+            h('button', { class: `segb${ui.planView === 'step' ? ' on' : ''}`, 'data-act': 'plan-view-step', onclick: () => { ui.planView = 'step'; render(); } }, 'One at a time'),
+            h('button', { class: `segb${ui.planView === 'all' ? ' on' : ''}`, 'data-act': 'plan-view-all', onclick: () => { ui.planView = 'all'; render(); } }, 'All phases'));
+        const head = h('div', { class: 'plan-head' }, h('b', {}, 'Plan your day'), h('button', { class: 'x', 'aria-label': 'Hide the plan', onclick: () => { ui.planCollapsed = true; render(); } }, '▾'));
+        let body;
+        if (ui.planView === 'all') {
+            body = h('div', { class: 'plan-all' }, ...d.slots.slice(0, total).map((s, i) => h('div', { class: 'slot' },
+                h('div', { class: 'slot-head' }, h('b', {}, `Phase ${i + 1}`), h('span', {}, slotKind(i, base, extras)), h('em', {}, s ? describeSlot(s) : 'not set'),
+                    s ? h('button', { class: 'clearbtn', onclick: () => { d.slots[i] = null; render(); } }, 'Clear') : null),
+                ...phaseChoices(i, at, base, extras, total))));
+        } else {
+            const s = d.slots[step];
+            body = h('div', { class: 'plan-step' },
+                h('div', { class: 'slot-head' }, h('b', {}, `Phase ${step + 1} of ${total}`), h('span', {}, slotKind(step, base, extras)), h('em', {}, s ? describeSlot(s) : 'not set'),
+                    s ? h('button', { class: 'clearbtn', onclick: () => { d.slots[step] = null; render(); } }, 'Clear') : null),
+                at[step] ? h('p', { class: 'hint' }, `You will be at ${nameOfClearing(at[step])}.`) : null,
+                ...phaseChoices(step, at, base, extras, total));
+        }
+        const nav = h('div', { class: 'row2 plan-nav' },
+            ui.planView === 'step' ? h('button', { class: 'btn', 'data-act': 'plan-back', disabled: step === 0, onclick: () => { ui.planStep = step - 1; ui.pickMove = null; ui.pickSearch = null; render(); } }, '‹ Back') : null,
+            ui.planView === 'step' && step < total - 1 ? h('button', { class: 'btn', 'data-act': 'plan-next', onclick: () => { ui.planStep = step + 1; ui.pickMove = null; ui.pickSearch = null; render(); } }, 'Next ›') : null,
+            h('button', { class: 'btn primary', 'data-act': 'start-day', onclick: startDay }, filled ? 'Start the day' : 'Start (do nothing)'));
+        return h('div', { class: 'planpanel' }, head, tabs, view, h('div', { class: 'plan-body' }, body), nav);
+    }
+
+    // the plan tucked away so the whole map shows; tap it to bring the plan back
+    function planBar() {
+        const d = ui.draft, { total } = planInfo();
+        const parts = d.slots.slice(0, total).map((s, i) => `${i + 1} ${s ? describeSlot(s) : '–'}`);
+        return h('div', { class: 'planbar' },
+            h('button', { class: 'planbar-main', 'data-act': 'plan-open', onclick: () => { ui.planCollapsed = false; render(); } }, h('b', {}, 'Your plan'), h('small', {}, parts.join(' · '))),
+            h('button', { class: 'btn primary', 'data-act': 'start-day', onclick: startDay }, 'Start'));
     }
 
     function pick(i, a, at) {
