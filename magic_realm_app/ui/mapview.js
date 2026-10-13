@@ -45,8 +45,6 @@ export function mountMap(host) {
         const { tiles, placements, side } = model;
         const g = sv('g', { class: 'world' });
         const top = sv('g', { class: 'top' });          // labels sit above every tile
-        const meLayer = sv('g', { class: 'me-layer' }); // the YOU marker goes first in it, so every label and chit paints over the marker, never the reverse
-        top.append(meLayer);
         let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
         const tileDefs = Object.fromEntries(tiles.map(t => [t.id, t]));
         for (const p of placements) {
@@ -122,6 +120,8 @@ export function mountMap(host) {
                     cg.append(sv('circle', { r: 11.5, fill: CLEARING[c.type], stroke: ring ?? '#0c0e14', 'stroke-width': ring ? 3 : 1.5 }));
                     cg.append(sv('text', { 'text-anchor': 'middle', dy: '.35em', class: 'num' }, String(c.n)));
                 }
+                // where he stands: a dotted ring drawn just above the tile picture and under every number, label and chit
+                if (model.hero === id) tg.append(sv('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 24, class: `youring${model.heroHidden ? ' hid' : ''}`, 'pointer-events': 'none' }));
                 tg.append(cg);
                 // things standing in this clearing, each with its name
                 const toks = model.tokens?.[id] ?? [];
@@ -133,12 +133,6 @@ export function mountMap(host) {
                         t.img ? sv('image', { href: t.img, x: 1.5, y: -7, width: 14, height: 14, preserveAspectRatio: 'xMidYMid meet' }) : null,
                         sv('text', { x: 5 + th, dy: '.35em' }, t.label)));
                 });
-                if (model.hero === id) {
-                    const hid = model.heroHidden;
-                    meLayer.append(sv('g', { class: `me${hid ? ' hid' : ''}`, transform: `translate(${(cx + x).toFixed(1)} ${(cy + y).toFixed(1)})`, 'pointer-events': 'none' },
-                        sv('circle', { r: 21, class: 'halo' }),
-                        sv('g', { transform: 'translate(0 -30)' }, sv('rect', { x: -19, y: -9, width: 38, height: 18, rx: 6 }), sv('text', { 'text-anchor': 'middle', dy: '.36em' }, 'YOU'), sv('path', { d: 'M-5 9 L0 15 L5 9 Z' }))));
-                }
             });
             g.append(tg);
             top.append(og);
