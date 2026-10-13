@@ -178,12 +178,26 @@ export function gameScreen(ctx) {
                     h('button', { class: 'btn', onclick: () => act({ type: 'trade', act: 'pay' }) }, `Pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'}`),
                     h('button', { class: 'btn', onclick: () => act({ type: 'trade', act: 'fight' }) }, 'Refuse')));
             }
-            return modal(`Buy ${p.name}`, h('div', {},
+            // Rule 7.6.5c: belongings may make up part or all of the price at their basic Gold price; no change is given.
+            const mine = sellable(st, data), chosen = new Set((ui.payWith ?? []).filter(u => mine.some(m => m.uid === u)));
+            const worth = mine.filter(m => chosen.has(m.uid)).reduce((n, m) => n + m.price, 0);
+            const goldDue = Math.max(0, p.price - worth), ok = st.ch.gold >= goldDue;
+            const short = goldDue - st.ch.gold;
+            return modal(`Buy ${p.name}`, h('div', { class: 'trade' },
                 h('p', {}, p.rollNote),
                 h('p', { class: 'bigline' }, `${p.price} gold`, h('small', {}, ` (${p.base} x ${p.mult})`)),
+                mine.length ? h('div', {},
+                    h('h3', {}, 'Pay with your things?'),
+                    h('p', { class: 'hint' }, `You have ${st.ch.gold} gold. Anything you hand over counts at its basic price, and they give no change.`),
+                    ...mine.map(m => h('button', { class: `btn row${chosen.has(m.uid) ? ' on' : ''}`, 'data-pay': m.uid, onclick: () => {
+                        const set = new Set(ui.payWith ?? []); set.has(m.uid) ? set.delete(m.uid) : set.add(m.uid); ui.payWith = [...set]; render();
+                    } }, h('span', { class: 'rl' }, h('b', {}, `${chosen.has(m.uid) ? '\u2713 ' : ''}${m.name}`), h('small', {}, m.sub)), h('em', {}, `${m.price}g`)))) : null,
+                h('p', { class: 'bigline' }, chosen.size ? `You pay ${goldDue} gold plus ${chosen.size} thing${chosen.size === 1 ? '' : 's'}` : `You pay ${p.price} gold`,
+                    worth > p.price ? h('small', {}, ` (${worth - p.price} gold over: no change)`) : null),
+                !ok ? h('p', { class: 'hint' }, `You are ${short} gold short: hand over more.`) : null,
                 h('div', { class: 'row2' },
-                    h('button', { class: 'btn primary', disabled: !p.affordable, onclick: () => act({ type: 'trade', act: 'accept' }) }, 'Buy'),
-                    h('button', { class: 'btn', onclick: () => act({ type: 'trade', act: 'decline' }) }, 'No thanks'))));
+                    h('button', { class: 'btn primary', 'data-act': 'buy-ok', disabled: !ok, onclick: () => { const items = [...chosen]; ui.payWith = null; act({ type: 'trade', act: 'accept', items }); } }, 'Buy'),
+                    h('button', { class: 'btn', onclick: () => { ui.payWith = null; act({ type: 'trade', act: 'decline' }); } }, 'No thanks'))));
         }
         const goods = stockOf(st, data, p.group), mine = sellable(st, data);
         return modal(`Trade with the ${p.group}`, h('div', { class: 'trade' },

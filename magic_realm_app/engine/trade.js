@@ -81,7 +81,9 @@ export function tradeAction(st, data, p, a) {
         if (res.startsWith('Price')) {
             const mult = Number(res.split('x')[1]);
             const price = base * mult;
-            st.pending = { type: 'trade-offer', group: g, idx: a.idx, name: nameOf(data, it), base, mult, price, rollNote: `${note}rolled ${r.dice.join('+')}: ${res}`, affordable: st.ch.gold >= price };
+            const itemsWorth = st.ch.items.filter(i => !i.destroyed).reduce((n, i) => n + priceOf(data, i), 0);
+            st.pending = { type: 'trade-offer', group: g, idx: a.idx, name: nameOf(data, it), base, mult, price, rollNote: `${note}rolled ${r.dice.join('+')}: ${res}`,
+                affordable: st.ch.gold >= price, affordableWithItems: st.ch.gold + itemsWorth >= price };
             return undefined;
         }
         if (res === 'Boon') {
@@ -127,11 +129,27 @@ function offerAction(st, data, p, a) {
         return `The ${g} block you.`;
     }
     if (a.act === 'accept') {
-        if (st.ch.gold < p.price) throw new Error('not enough gold');
-        st.ch.gold -= p.price;
-        const it = takeBought(st, data, g, p.idx);
-        say(st, `You buy the ${nameOf(data, it)} from the ${g} for ${p.price} gold.`, 'trade');
-        return `You buy the ${nameOf(data, it)} for ${p.price} gold.`;
+        // Rule 7.6.5c: part or all of the price may be paid in belongings at their basic Gold price. The seller keeps any overpayment
+        // (no change), and recorded gold may not drop below zero.
+        const uids = [...new Set(a.items ?? [])];
+        const paying = uids.map(uid => st.ch.items.find(i => i.uid === uid && !i.destroyed));
+        if (paying.some(i => !i)) throw new Error('no such item');
+        const worth = paying.reduce((n, i) => n + priceOf(data, i), 0);
+        const gold = Math.max(0, p.price - worth);
+        if (st.ch.gold < gold) throw new Error('not enough gold');
+        st.ch.gold -= gold;
+        const given = [];
+        for (const it of paying) {
+            st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
+            (st.stock[g] ??= []).push({ kind: it.kind, id: it.id, damaged: false });     // the buyer's box, like any sale
+            const d = it.card ? data.treasures[it.card] : defOf(data, it);
+            if (d?.fameReward && d.fameReward.group === g) st.ch.fame += d.fameReward.points;
+            given.push(nameOf(data, it));
+        }
+        const got = takeBought(st, data, g, p.idx);
+        const cost = given.length ? `${given.join(' and ')}${gold ? ` and ${gold} gold` : ''}` : `${gold} gold`;
+        say(st, `You buy the ${nameOf(data, got)} from the ${g} for ${cost}${worth > p.price ? ` (they keep the ${worth - p.price} gold of overpayment)` : ''}.`, 'trade');
+        return `You buy the ${nameOf(data, got)} for ${cost}.`;
     }
     return 'You turn the offer down.';
 }
