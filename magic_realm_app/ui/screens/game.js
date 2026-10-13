@@ -464,7 +464,11 @@ export function gameScreen(ctx) {
         return modal('Plan your day', h('div', { class: 'plan' },
             h('p', { class: 'hint' }, st.day === 1 ? `You start at the ${st.ch.startDwelling}${st.ch.items.length ? ` with ${st.ch.items.map(i => nameOf(data, i)).join(', ')}` : ' with no weapon or armor of your own'}. Plan a Trade phase to see what the natives here sell. Plans are fixed once the day starts; an impossible move is simply lost.` : 'Plans are fixed once the day starts. An impossible move is simply lost. Mountains take two Move phases.'),
             ...rows.filter(Boolean),
-            h('button', { class: 'btn primary big', 'data-act': 'start-day', onclick: () => { const slots = d.slots.map(s => s); ui.draft = null; ui.sheet = null; act({ type: 'plan', slots }); } }, filled ? 'Start the day' : 'Start the day (do nothing)')),
+            h('button', { class: 'btn primary big', 'data-act': 'start-day', onclick: () => {
+                // A phase that no longer exists (a move into a cave takes the sunlight phases away) or that a changed day makes extra-only is dropped, not refused.
+                const slots = d.slots.map((s, i) => (!s || i >= total || (i >= base && s.act !== extras[i - base]) ? null : s));
+                ui.draft = null; ui.sheet = null; act({ type: 'plan', slots });
+            } }, filled ? 'Start the day' : 'Start the day (do nothing)')),
             { close: () => { ui.sheet = null; render(); } });
     }
 
