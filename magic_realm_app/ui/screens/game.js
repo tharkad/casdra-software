@@ -15,7 +15,7 @@ import { HELP } from './info.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
 const SAVE_KEY = 'mr-save-v1';
-const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert' };
+const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert', nothing: 'Nothing' };
 const TABLE_LABEL = { peer: 'Peer', locate: 'Locate', loot: 'Loot', ground: 'Ground', sitecard: 'Site card' };
 
 const WELCOME_KEY = 'mr-welcomed-v1';
@@ -166,7 +166,7 @@ export function gameScreen(ctx) {
     }
 
     function describeSlot(s) {
-        if (!s) return 'Do nothing';
+        if (!s || s.act === 'nothing') return 'Do nothing';
         if (s.act === 'move') return `Move to ${nameOfClearing(s.to)}`;
         if (s.act === 'search') return `Search: ${TABLE_LABEL[s.table ?? 'peer']}`;
         return ACT_LABEL[s.act] ?? s.act;
@@ -475,55 +475,56 @@ export function gameScreen(ctx) {
     function phaseChoices(i, at, base, extras, total) {
         const d = ui.draft, s = d.slots[i], only = i >= base ? extras[i - base] : null;
         const out = [h('div', { class: 'chips2 six' },
-            ...(only ? [only] : ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert']).map(a => h('button', { class: `chip${s?.act === a ? ' on' : ''}`, 'data-slot': i, 'data-pick': a, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a])))];
+            ...[...(only ? [only] : ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert']), 'nothing'].map(a => h('button', { class: `chip${s?.act === a ? ' on' : ''}`, 'data-slot': i, 'data-pick': a, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a])))];
         if (ui.pickMove === i || s?.act === 'move') {
             out.push(h('p', { class: 'hint' }, at[i] || st.ch.onRoad ? 'Tap a clearing on the map, or choose here:' : 'You are on a road; move to one of its ends first.'));
             if (ui.pickMove === i || !s?.to) out.push(movePicker(i, at[i]));
         }
         if (ui.pickSearch === i) out.push(h('div', { class: 'chips2' }, ...['peer', 'locate', 'loot', ...((st.abandoned[at[i]] ?? []).length ? ['ground'] : []), ...(st.ch.siteCards?.[at[i]]?.length ? ['sitecard'] : [])]
-            .map(t => h('button', { class: 'chip', onclick: () => { d.slots[i] = { act: 'search', table: t }; ui.pickSearch = null; render(); } }, TABLE_LABEL[t]))));
+            .map(t => h('button', { class: 'chip', onclick: () => { d.slots[i] = { act: 'search', table: t }; ui.pickSearch = null; advance(i + 1); render(); } }, TABLE_LABEL[t]))));
         return out;
     }
 
     function startDay() {
         const d = ui.draft, { total, base, extras } = planInfo();
         // A phase that no longer exists (a move into a cave takes the sunlight phases away) or that a changed day makes extra-only is dropped, not refused.
-        const slots = d.slots.map((s, i) => (!s || i >= total || (i >= base && s.act !== extras[i - base]) ? null : s));
+        const slots = d.slots.map((s, i) => (!s || s.act === 'nothing' || i >= total || (i >= base && s.act !== extras[i - base]) ? null : s));
         ui.draft = null; ui.sheet = null; ui.planStep = 0; ui.planCollapsed = false; ui.peek = false; ui.sel = null;
         act({ type: 'plan', slots });
     }
 
+    // The first phase that has nothing attached yet (null when every phase has an action, or 'Nothing' chosen on purpose).
+    function firstUnset() {
+        const d = ui.draft, { total } = planInfo();
+        for (let i = 0; i < total; i++) if (!d.slots[i]) return i;
+        return null;
+    }
+    const startButton = () => {
+        const open = firstUnset();
+        return open == null
+            ? h('button', { class: 'btn primary', 'data-act': 'start-day', onclick: startDay }, 'Start the day')
+            : h('button', { class: 'btn', 'data-act': 'start-day', 'aria-disabled': 'true', onclick: () => { ui.planStep = open; ui.pickMove = null; ui.pickSearch = null; ui.planCollapsed = false; render(); } }, `Set phase ${open + 1} first`);
+    };
+
     function planPanel() {
         const d = ui.draft, { total, base, extras } = planInfo(), at = planLocations();
-        ui.planView ??= 'step';
         ui.planStep = Math.max(0, Math.min(total - 1, ui.planStep ?? 0));
-        const step = ui.planStep, filled = d.slots.slice(0, total).some(Boolean);
+        const step = ui.planStep;
         const tabs = h('div', { class: 'plan-tabs', role: 'tablist' }, ...Array.from({ length: total }, (_, i) => h('button', { class: `ptab${i === step ? ' on' : ''}${d.slots[i] ? ' set' : ''}`, 'data-tab': i, role: 'tab',
-            onclick: () => { ui.planStep = i; ui.pickMove = null; ui.pickSearch = null; ui.planView = 'step'; render(); } },
-            h('b', {}, i + 1), h('small', {}, d.slots[i] ? (ACT_LABEL[d.slots[i].act] ?? d.slots[i].act) : '–'))));
-        const view = h('div', { class: 'seg3 planview' },
-            h('button', { class: `segb${ui.planView === 'step' ? ' on' : ''}`, 'data-act': 'plan-view-step', onclick: () => { ui.planView = 'step'; render(); } }, 'One at a time'),
-            h('button', { class: `segb${ui.planView === 'all' ? ' on' : ''}`, 'data-act': 'plan-view-all', onclick: () => { ui.planView = 'all'; render(); } }, 'All phases'));
-        const head = h('div', { class: 'plan-head' }, h('b', {}, 'Plan your day'), h('button', { class: 'x', 'aria-label': 'Hide the plan', onclick: () => { ui.planCollapsed = true; render(); } }, '▾'));
-        let body;
-        if (ui.planView === 'all') {
-            body = h('div', { class: 'plan-all' }, ...d.slots.slice(0, total).map((s, i) => h('div', { class: 'slot' },
-                h('div', { class: 'slot-head' }, h('b', {}, `Phase ${i + 1}`), h('span', {}, slotKind(i, base, extras)), h('em', {}, s ? describeSlot(s) : 'not set'),
-                    s ? h('button', { class: 'clearbtn', onclick: () => { d.slots[i] = null; render(); } }, 'Clear') : null),
-                ...phaseChoices(i, at, base, extras, total))));
-        } else {
-            const s = d.slots[step];
-            body = h('div', { class: 'plan-step' },
-                h('div', { class: 'slot-head' }, h('b', {}, `Phase ${step + 1} of ${total}`), h('span', {}, slotKind(step, base, extras)), h('em', {}, s ? describeSlot(s) : 'not set'),
-                    s ? h('button', { class: 'clearbtn', onclick: () => { d.slots[step] = null; render(); } }, 'Clear') : null),
-                at[step] ? h('p', { class: 'hint' }, `You will be at ${nameOfClearing(at[step])}.`) : null,
-                ...phaseChoices(step, at, base, extras, total));
-        }
+            onclick: () => { ui.planStep = i; ui.pickMove = null; ui.pickSearch = null; render(); } },
+            h('b', {}, i + 1), h('small', {}, d.slots[i] ? (ACT_LABEL[d.slots[i].act] ?? d.slots[i].act) : '\u2013'))));
+        const head = h('div', { class: 'plan-head' }, h('b', {}, 'Plan your day'), h('button', { class: 'x', 'aria-label': 'Hide the plan', onclick: () => { ui.planCollapsed = true; render(); } }, '\u25BE'));
+        const s = d.slots[step];
+        const body = h('div', { class: 'plan-step' },
+            h('div', { class: 'slot-head' }, h('b', {}, `Phase ${step + 1} of ${total}`), h('span', {}, slotKind(step, base, extras)), h('em', {}, s ? describeSlot(s) : 'not set'),
+                s ? h('button', { class: 'clearbtn', onclick: () => { d.slots[step] = null; render(); } }, 'Clear') : null),
+            at[step] ? h('p', { class: 'hint' }, `You will be at ${nameOfClearing(at[step])}.`) : null,
+            ...phaseChoices(step, at, base, extras, total));
         const nav = h('div', { class: 'row2 plan-nav' },
-            ui.planView === 'step' ? h('button', { class: 'btn', 'data-act': 'plan-back', disabled: step === 0, onclick: () => { ui.planStep = step - 1; ui.pickMove = null; ui.pickSearch = null; render(); } }, '‹ Back') : null,
-            ui.planView === 'step' && step < total - 1 ? h('button', { class: 'btn', 'data-act': 'plan-next', onclick: () => { ui.planStep = step + 1; ui.pickMove = null; ui.pickSearch = null; render(); } }, 'Next ›') : null,
-            h('button', { class: 'btn primary', 'data-act': 'start-day', onclick: startDay }, filled ? 'Start the day' : 'Start (do nothing)'));
-        return h('div', { class: 'planpanel' }, head, tabs, view, h('div', { class: 'plan-body' }, body), nav);
+            h('button', { class: 'btn', 'data-act': 'plan-back', disabled: step === 0, onclick: () => { ui.planStep = step - 1; ui.pickMove = null; ui.pickSearch = null; render(); } }, '\u2039 Back'),
+            step < total - 1 ? h('button', { class: 'btn', 'data-act': 'plan-next', onclick: () => { ui.planStep = step + 1; ui.pickMove = null; ui.pickSearch = null; render(); } }, 'Next \u203A') : null,
+            startButton());
+        return h('div', { class: 'planpanel' }, head, tabs, h('div', { class: 'plan-body' }, body), nav);
     }
 
     // the plan tucked away so the whole map shows; tap it to bring the plan back
@@ -532,7 +533,7 @@ export function gameScreen(ctx) {
         const parts = d.slots.slice(0, total).map((s, i) => `${i + 1} ${s ? describeSlot(s) : '–'}`);
         return h('div', { class: 'planbar' },
             h('button', { class: 'planbar-main', 'data-act': 'plan-open', onclick: () => { ui.planCollapsed = false; render(); } }, h('b', {}, 'Your plan'), h('small', {}, parts.join(' · '))),
-            h('button', { class: 'btn primary', 'data-act': 'start-day', onclick: startDay }, 'Start'));
+            startButton());
     }
 
     function pick(i, a, at) {
@@ -541,7 +542,16 @@ export function gameScreen(ctx) {
         if (a === 'move') { ui.pickMove = i; render(); return; }
         if (a === 'search') { ui.pickSearch = i; render(); return; }
         d.slots[i] = { act: a };
+        advance(i + 1);
         render();
+    }
+    // after a phase is set, go on to the next one that still has nothing attached
+    function advance(from) {
+        const { total } = planInfo();
+        let n = from;
+        while (n < total && ui.draft.slots[n]) n++;
+        if (n < total) ui.planStep = n;
+        else if (from < total) ui.planStep = Math.min(from, total - 1);
     }
 
     function movePicker(i, at) {
@@ -561,6 +571,7 @@ export function gameScreen(ctx) {
         // a mountain takes two moves in a row: fill the next phase with the same move
         if (isMountain(st, data, to) && i + 1 < 4) d.slots[i + 1] = { act: 'move', to };
         ui.pickMove = null;
+        advance(i + 1);
         render();
     }
 
