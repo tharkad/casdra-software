@@ -342,3 +342,11 @@ button.portrait small { font-size: 13px; }
 .crow { flex-direction: row; align-items: center; gap: 10px; }
 .crow-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .crow .ico { margin-right: 0; }
+/* map chits are small counters on clear spots of the tile; their names show once the map is zoomed in */
+.realm-svg .chitdisc { fill: #1b1d28; stroke: var(--gold); stroke-width: 1.4; }
+.realm-svg .chit.up .chitdisc { fill: #2a2438; stroke: #b9a3ff; }
+.realm-svg .chit.up.warning .chitdisc { stroke: #e0814f; }
+.realm-svg .chit.up.site .chitdisc { stroke: #6fae8a; }
+.realm-svg .chitglyph { fill: var(--text); font: 800 11px var(--font-ui); }
+.realm-svg .chit .nm { display: none; }
+.realm-svg.zoomed .chit .nm { display: inline; }

@@ -1,6 +1,6 @@
 import { sv } from './dom.js';
 import { EDGES, hexCenter, edgeDir, corners, worldEdge } from '../engine/hex.js';
-import { layoutSide } from '../engine/layout.js';
+import { layoutSide, chitSlotsFor } from '../engine/layout.js';
 import { tileName } from '../engine/world.js';
 
 // The pannable, zoomable realm map. It draws whatever model it is given; it knows nothing about the rules.
@@ -91,14 +91,19 @@ export function mountMap(host) {
             });
             tg.append(paths);
             if (!picture) tg.append(sv('text', { class: 'tname', y: S * .8, 'text-anchor': 'middle' }, tileName(p.id).toUpperCase()));
-            // chits lying in the forest: a name once it is known, '?' while it is not
+            // chits lying in the forest: a counter on a clear spot of the picture, with its name once it is known and '?' while it is not
+            const slots = picture ? chitSlotsFor(p.id, side) : null;
             (model.chitsByTile?.[p.id] ?? []).forEach((c, i) => {
                 const label = c.up ? c.name : '?';
-                const w = Math.max(18, label.length * 6.4 + 10);
-                const x = (i === 0 ? -1 : 1) * 0.0 * S, y = (-0.74 + i * 0.13) * S;
-                og.append(sv('g', { class: `chit ${c.up ? 'up' : 'down'}`, transform: `translate(${x} ${y})` },
-                    sv('rect', { x: -w / 2, y: -8, width: w, height: 16, rx: 5, class: 'chitbox' }),
-                    sv('text', { 'text-anchor': 'middle', dy: '.35em' }, label)));
+                let x, y;
+                if (slots?.length) { const s0 = slots[(c.slot ?? i) % slots.length]; [x, y] = rot(s0, a).map(v => v * S); }
+                else { x = 0; y = (-0.74 + i * 0.13) * S; }
+                const w = Math.max(18, label.length * 6.2 + 10);
+                const glyph = c.up ? (c.kind === 'sound' ? '\u266A' : c.kind === 'site' ? '\u25C6' : c.kind === 'warning' ? '!' : '\u2605') : '?';
+                const g2 = sv('g', { class: `chit ${c.up ? 'up' : 'down'} ${c.kind ?? ''}`, transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})` },
+                    sv('circle', { r: 8.5, class: 'chitdisc' }), sv('text', { 'text-anchor': 'middle', dy: '.36em', class: 'chitglyph' }, glyph));
+                if (c.up) g2.append(sv('g', { class: 'nm', transform: 'translate(0 17)' }, sv('rect', { x: -w / 2, y: -7.5, width: w, height: 15, rx: 5, class: 'chitbox' }), sv('text', { 'text-anchor': 'middle', dy: '.35em' }, label)));
+                og.append(g2);
             });
             def.clearings.forEach(c => {
                 const id = p.id + c.n, [x, y] = pos[c.n];
@@ -150,6 +155,7 @@ export function mountMap(host) {
     function apply() {
         const g = svg.querySelector('.world');
         if (g) g.setAttribute('transform', `translate(${view.x.toFixed(1)} ${view.y.toFixed(1)}) scale(${view.k.toFixed(4)})`);
+        svg.classList.toggle('zoomed', view.k >= 1.1);
     }
     function zoomAt(px, py, f, dx = 0, dy = 0) {
         const k = Math.min(6, Math.max(0.2, view.k * f)), real = k / view.k;

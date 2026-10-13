@@ -21,11 +21,12 @@ export function indexData(raw) {
     for (const n of Object.values(d.natives)) n.name = n.name.replace(/^(\w+) \1\b/, '$1');      // "Lancer Lancer 1" reads better as "Lancer 1"
     d.tile = id => d.tiles.find(t => t.id === id);
     d.artpos = raw.artpos?.tiles ?? null;
-    setArtPositions(d.artpos);
+    d.chitslots = raw.chitslots?.tiles ?? null;
+    setArtPositions(d.artpos, d.chitslots);
     return d;
 }
 
-export const FILES = ['tiles', 'monsters', 'natives', 'appearance', 'setupcard', 'tables', 'treasures', 'weapons', 'armor', 'horses', 'characters', 'artpos'];
+export const FILES = ['tiles', 'monsters', 'natives', 'appearance', 'setupcard', 'tables', 'treasures', 'weapons', 'armor', 'horses', 'characters', 'artpos', 'chitslots'];
 
 // Browser loader (the engine itself never fetches).
 export async function loadData(base = 'data/') {

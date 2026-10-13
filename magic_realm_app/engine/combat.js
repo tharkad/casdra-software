@@ -94,7 +94,7 @@ export function nativesIn(st, data, clearing) {
 export function startCombat(st, data, clearing) {
     const c = st.combat = { at: clearing, round: 1, quiet: 0, step: 'start', dens: [], battling: {}, events: [], melee: false, ended: false, ran: false, pays: [], rollFrom: st.rollSeq ?? 0 };
     c.hires = hirelings(st).filter(n => n.loc?.c === clearing).map(n => ({ uid: nextUid(st), id: n.id, dead: false }));
-    for (const m of denizensIn(st, data, clearing)) addDen(st, data, { kind: 'mon', id: m.id });
+    for (const m of denizensIn(st, data, clearing)) { addDen(st, data, { kind: 'mon', id: m.id }); tally(st, `faced.${data.monsters[m.id].name}`); }
     // Natives roll the Meeting Table once per group present, to see whether the group battles him.
     const groups = [...new Set(nativesIn(st, data, clearing).map(n => data.natives[n.id].group))];
     for (const g of groups) rollBattle(st, data, g);
@@ -553,7 +553,7 @@ function denHit(st, data, den, ctx) {
     const c = st.combat, s = denSide(st, data, den);
     const dir = den.box;
     // red side up from an earlier round: kills outright
-    if (den.pickedUp) return killMe(st, `${s.name} crushes you.`);
+    if (den.pickedUp) return killMe(st, `${s.name} crushes you.`, s.name);
     let level = lvl(s.harm), stars = s.stars ?? 0;
     // if his horse was played as the maneuver the blow lands on the horse, not on him
     if (ctx.horse && !ctx.horse.destroyed) {
@@ -587,7 +587,7 @@ function denHit(st, data, den, ctx) {
     let note = '';
     if (s.attack === 'missile') {
         level += missileRoll(st, `${s.name}'s missile roll`, s.type === 'Archer');
-        if (level > 4) return killMe(st, `${s.name}'s shot finds a vital spot; you are slain.`);   // harm above Tremendous ignores armor
+        if (level > 4) return killMe(st, `${s.name}'s shot finds a vital spot; you are slain.`, s.name);   // harm above Tremendous ignores armor
     }
     const L = letterOf(level);
     ctx.log(`${s.name} strikes ${DIRS[dir].toLowerCase()} for ${L} harm${armor ? ` against your ${armor.def.name}` : ''}.`);
@@ -607,10 +607,10 @@ function denHit(st, data, den, ctx) {
         }
         if (level >= lvl('M')) wounded = true;
     } else if (level >= lvl(st.ch.weight)) {
-        return killMe(st, `${s.name} deals ${L} harm; you are slain.`);
+        return killMe(st, `${s.name} deals ${L} harm; you are slain.`, s.name);
     } else if (level >= lvl('L')) wounded = true;
     if (wounded) {
-        c.newWounds = (c.newWounds ?? 0) + 1; tally(st, 'woundsTaken');
+        c.newWounds = (c.newWounds ?? 0) + 1; tally(st, 'woundsTaken'); tally(st, `wounds.${s.name}`);
         c.eventful = true;
         ctx.log('You take a wound.');
     }
@@ -621,8 +621,8 @@ function denHit(st, data, den, ctx) {
     }
 }
 
-function killMe(st, text) {
-    st.ch.dead = true; tally(st, 'deathsInCombat');
+function killMe(st, text, by = null) {
+    st.ch.dead = true; tally(st, 'deathsInCombat'); if (by) tally(st, `slain.${by}`);
     say(st, text, 'combat');
     st.combat.events.push(text);
     st.combat.eventful = true;

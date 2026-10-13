@@ -76,7 +76,9 @@ export function endOfTurn(st, data) {
         const dest = c.kind === 'warning' ? here : tile + c.num;
         for (const m of monstersInBox(st, box.id)) {
             out.arrivals.push({ id: m.id, name: data.monsters[m.id].name, from: null, to: dest, why: `called by ${c.name}${c.kind === 'warning' ? '' : ' ' + c.num}` });
-            if (report[c.id]) { report[c.id].summons.push(data.monsters[m.id].name); report[c.id].dest = dest; }
+            // a chit that was already face up from an earlier day still calls monsters; it shows in the report too
+            const rep = report[c.id] ??= { id: c.id, kind: c.kind, name: c.name, letter: c.letter ?? null, num: c.num ?? null, summons: [], dest: null, already: true };
+            rep.summons.push(data.monsters[m.id].name); rep.dest = dest;
             m.loc = { c: dest };
         }
         say(st, `${c.name}${c.kind === 'warning' ? '' : ' ' + c.num} summons ${monstersInBox(st, box.id).length ? '' : ''}${boxLabel(data, box)} to ${dest === here ? 'you' : 'clearing ' + numOf(dest)}.`, 'monster');
@@ -93,7 +95,7 @@ export function endOfTurn(st, data) {
         out.natives.push({ group: g.id, count: members.length, at: dw.kind });
         say(st, `The ${g.id} appear at the ${dw.kind}.`, 'native');
     }
-    out.chits = flipped.map(c => report[c.id]);
+    out.chits = Object.values(report);
     return out;
 }
 
@@ -113,13 +115,9 @@ export function blockers(st) {
 }
 
 // Midnight housekeeping for chits and monster arrivals.
+// House rule (the owner's, 2026-10-13): a chit that has been turned up stays up, and Sound and Site chits stay in their clearing. The rules
+// turn them face down again at Midnight, but their faces never change, so nothing is gained by hiding them again. Each chit may still call
+// monsters once a day when someone ends a turn in its tile, because `summoned` is cleared here.
 export function resetChitsAtMidnight(st) {
-    for (const c of st.chits) {
-        c.summoned = false;
-        if (c.kind !== 'lost-city' && c.kind !== 'lost-castle' && c.up && !c.pile && !(c.kind === 'warning' && c.letter === 'V')) {
-            // valley warnings were replaced by dwellings at setup; every other chit goes face down again
-            c.up = false;
-            if (c.kind === 'sound' || c.kind === 'site') c.clearing = null;
-        }
-    }
+    for (const c of st.chits) c.summoned = false;
 }

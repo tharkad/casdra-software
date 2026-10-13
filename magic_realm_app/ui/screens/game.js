@@ -52,14 +52,17 @@ export function gameScreen(ctx) {
         const tokens = {}, chitsByTile = {};
         const add = (id, t) => (tokens[id] ??= []).push(t);
         const KINDNAME = { 'lost-city': 'Lost City', 'lost-castle': 'Lost Castle' };
+        // every chit of a tile keeps its own spot on the picture, even while it is shown at its clearing instead
+        const slotOf = {}, nextSlot = {};
+        for (const c of st.chits) if (!c.pile && c.tile && !(c.kind === 'warning' && c.letter === 'V')) slotOf[c.id] = (nextSlot[c.tile] = (nextSlot[c.tile] ?? -1) + 1);
         for (const c of st.chits) {
             if (c.pile || !c.tile) continue;
             if (c.kind === 'warning' && c.letter === 'V') continue;
             const known = c.up || st.ch.seen.includes(c.id);
             const name = KINDNAME[c.kind] ?? c.name;
-            if (c.up && c.clearing && (c.kind === 'sound' || c.kind === 'site')) { add(c.tile + c.clearing, { k: c.kind, label: c.kind === 'sound' ? `${name} (sound)` : `${name} (site)` }); continue; }
-            if (!c.up && c.kind === 'site' && st.ch.discovered.sites.includes(c.id)) { add(c.tile + c.num, { k: 'site', label: `${name} (site)` }); continue; }
-            (chitsByTile[c.tile] ??= []).push({ up: known, name: known ? (c.kind === 'sound' ? `${name} ${c.num}` : name) : '?', id: c.id });
+            if (c.up && c.clearing && (c.kind === 'sound' || c.kind === 'site')) { add(c.tile + c.clearing, { k: c.kind, label: c.kind === 'sound' ? `\u266A ${name}` : `\u25C6 ${name}` }); continue; }
+            if (!c.up && c.kind === 'site' && st.ch.discovered.sites.includes(c.id)) { add(c.tile + c.num, { k: 'site', label: `\u25C6 ${name}` }); continue; }
+            (chitsByTile[c.tile] ??= []).push({ up: known, name: known ? (c.kind === 'sound' ? `${name} ${c.num}` : name) : '?', id: c.id, kind: known ? c.kind : null, slot: slotOf[c.id] });
         }
         for (const d of st.dwellings) {
             const here = d.at === st.ch.at;
@@ -352,7 +355,7 @@ export function gameScreen(ctx) {
         const KIND = { warning: 'warning chit', sound: 'sound chit', site: 'site chit', 'lost-city': 'the Lost City', 'lost-castle': 'the Lost Castle' };
         for (const c of t.chits) {
             const what = c.kind === 'sound' ? `${c.name} (sound, clearing ${c.num})` : c.kind === 'site' ? `${c.name} (site, clearing ${c.num})` : c.kind === 'warning' ? `${c.name} warning` : (KIND[c.kind] ?? c.name);
-            lines.push(h('div', { class: 'crow chit' }, h('b', {}, `Turned up: ${what}`),
+            lines.push(h('div', { class: 'crow chit' }, h('b', {}, `${c.already ? 'Face up here' : 'Turned up'}: ${what}`),
                 h('small', {}, c.summons.length ? `It calls out: ${[...new Set(c.summons)].map(n => `${c.summons.filter(x => x === n).length > 1 ? c.summons.filter(x => x === n).length + ' ' : ''}${n}`).join(', ')}${c.dest === t.at ? ' to your clearing' : c.dest ? ` to clearing ${numOf(c.dest)}` : ''}` : 'It calls nothing out today.')));
         }
         for (const a of t.arrivals.filter(a => a.why === 'prowls in your tile')) lines.push(h('div', { class: 'crow mon' }, h('b', {}, `${a.name} arrives`), h('small', {}, `it was prowling in this tile and comes to your clearing`)));

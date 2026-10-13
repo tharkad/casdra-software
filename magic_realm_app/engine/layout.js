@@ -7,8 +7,10 @@ import { makeRng } from './rng.js';
 const cache = new Map();
 // Where the clearings sit on the original tile pictures (data/src/artpos.json: tile -> side -> number -> [x, y] in tile-radius units).
 // When we have them the pictures are drawn and these positions are the click map; otherwise the schematic below is used.
-let ART = null;
-export function setArtPositions(tiles) { ART = tiles ?? null; cache.clear(); }
+let ART = null, SLOTS = null;
+export function setArtPositions(tiles, chitSlots = null) { ART = tiles ?? null; SLOTS = chitSlots; cache.clear(); }
+// Clear spots on a tile picture where a map chit can sit: [[x, y], ...] in tile-radius units, best first (null when there is no picture data).
+export const chitSlotsFor = (tileId, side) => SLOTS?.[tileId]?.[side]?.map(([x, y]) => [x, y]) ?? null;
 export function layoutSide(tile, sideName) {
     const key = tile.id + ':' + sideName;
     if (cache.has(key)) return cache.get(key);
