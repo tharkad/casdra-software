@@ -23,7 +23,9 @@ export function combatSheet({ st, data, act, ui, render }) {
     const foeEls = foes.map(d => {
         const s = denSide(st, data, d);
         const atk = s.attack === 'none' ? 'no attack' : `${s.harm}${'*'.repeat(s.stars || 0)} speed ${s.atk}`;
+        const pic = d.kind === 'mon' ? data.art?.monsters?.[data.monsters[d.id]?.name] : d.kind === 'nat' ? data.art?.natives?.[d.id] : null;
         return h('div', { class: `foe${d.assigned ? ' on' : ''}${d.pickedUp ? ' held' : ''}${m.target === d.uid ? ' target' : ''}` },
+            pic ? h('img', { class: 'foepic', src: pic, alt: '' }) : null,
             h('b', {}, s.name), h('span', {}, `${s.size ?? ''} · ${atk} · moves ${s.move}`), d.pickedUp ? h('em', {}, 'has seized you') : null,
             d.engagedBy ? h('em', { class: 'ally' }, 'is fighting your hireling') : null);
     });

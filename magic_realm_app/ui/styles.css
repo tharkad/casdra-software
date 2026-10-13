@@ -327,3 +327,10 @@ details summary { cursor: pointer; color: var(--dim); margin: 10px 0 4px; }
 .realm-svg .pill .thumbbg { fill: #efe6d0; stroke: none; }
 .realm-svg .artnum { font-size: 11px; font-weight: 800; fill: #fff; font-family: var(--font-ui); paint-order: stroke; stroke: #000; stroke-width: 2px; }
 .realm-svg .clr:hover .numbadge, .realm-svg .clr.sel .numbadge { stroke: var(--gold); stroke-width: 2.4; }
+.ico { flex: none; width: 38px; height: 38px; object-fit: contain; background: #efe6d0; border-radius: 7px; margin-right: 10px; padding: 2px; }
+.portrait { display: flex; justify-content: center; padding: 4px 0 8px; }
+.portrait img { max-height: 150px; border-radius: 10px; background: #efe6d0; padding: 4px; }
+.tablepic { width: 100%; height: auto; border-radius: 8px; background: #efe6d0; }
+.tables h3 { margin-top: 14px; }
+.foepic { float: right; width: 44px; height: 44px; object-fit: contain; background: #efe6d0; border-radius: 8px; margin-left: 8px; padding: 2px; }
+.btn.row .ico + .rl { flex: 1; }
