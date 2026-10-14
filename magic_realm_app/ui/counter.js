@@ -35,7 +35,12 @@ export function monsterCounter({ s, side = 'light', picture = null, flies = fals
     if (s.fame) svg.append(sv('text', { x: 95, y: ty, 'text-anchor': 'end', 'font-size': 9, 'font-weight': 700, fill: f.text }, `F:${s.fame}`));
     if (flies) svg.append(sv('text', { x: 95, y: 72, 'text-anchor': 'end', 'font-size': 9, 'font-style': 'italic', fill: f.text }, 'flies'));
     // the attack, bottom left: harm letter and time (stars after), weapon length above in brackets
-    if (s.attack !== 'none' && s.harm) {
+    if (s.attack === 'spell') {
+        // a Demon or an Imp does not strike: it casts the Power of the Pit, at its attack time
+        svg.append(sv('text', { x: 6, y: 93, 'font-size': 17, 'font-weight': 800, fill: f.stat }, `Pit${s.atk ?? ''}`));
+        if (s.length) svg.append(sv('text', { x: 6, y: 77, 'font-size': 9.5, 'font-weight': 700, fill: f.stat }, `(${s.length})`));
+        svg.append(sv('text', { x: 6, y: 66, 'font-size': 8, 'font-style': 'italic', fill: f.text }, 'casts'));
+    } else if (s.attack !== 'none' && s.harm) {
         const red = side === 'red';
         const txt = red ? s.harm : `${s.harm}${s.atk ?? ''}`;
         svg.append(sv('text', { x: 6, y: 93, 'font-size': 19, 'font-weight': 800, fill: f.stat, stroke: red ? 'none' : '#00000022', 'stroke-width': 0.4 }, txt));

@@ -30,7 +30,7 @@ export function combatSheet({ st, data, act, ui, render }) {
         if (d.kind === 'nat' || d.kind === 'part') return d.side === 'dark' ? 'light' : 'dark';
         return null;
     };
-    const stat = s => ({ harm: s.attack === 'none' ? 'no attack' : `${s.harm}${'*'.repeat(s.stars || 0)}`, speed: s.attack === 'none' ? '\u2013' : s.atk, moves: s.move ?? '\u2013', vuln: s.vuln ?? '\u2013' });
+    const stat = s => ({ harm: s.attack === 'none' ? 'no attack' : s.attack === 'spell' ? 'Power of the Pit' : `${s.harm}${'*'.repeat(s.stars || 0)}`, speed: s.attack === 'none' ? '\u2013' : s.atk, moves: s.move ?? '\u2013', vuln: s.vuln ?? '\u2013' });
     const foeEls = foes.map(d => {
         const now = denSide(st, data, d), other = otherSide(d);
         const showRev = !!ui.flipped[d.uid] && other && other !== (d.side ?? 'light');
@@ -82,6 +82,17 @@ export function combatSheet({ st, data, act, ui, render }) {
                 h('button', { class: 'btn primary', 'data-act': 'attack-natives', onclick: () => send({ kind: 'choice', fight: true }) }, 'Pick a fight'))));
     } else if (p.type === 'combat-encounter') {
         const o = encounterOptions(st, data);
+        // creatures that cast rather than strike: how the Power of the Pit works, and how likely each result is
+        const casters = foes.filter(d => denSide(st, data, d).attack === 'spell');
+        if (casters.length) {
+            const rows = data.tables?.powerOfThePit?.rows ?? {};
+            const odds = k => `${Math.round((2 * k - 1) / 36 * 100)}%`;
+            body.push(h('details', { class: 'ask pitnote', open: c.round === 1 || null },
+                h('summary', {}, h('b', {}, `${[...new Set(casters.map(d => denSide(st, data, d).name))].join(', ')}: casts the Power of the Pit`)),
+                h('p', {}, `It does not strike a blow. At its attack time it casts a Type ${denSide(st, data, casters[0]).spell ?? 'V'} spell, the Power of the Pit, and the dice decide what happens to whoever it is aimed at. It is aimed like any attack: your maneuver can turn it aside, but armor does not help against it. Roll two dice and the higher counts:`),
+                ...Object.entries(rows).map(([k, r]) => h('p', { class: 'pitrow' }, h('b', {}, `${k} (${odds(Number(k))}) ${r.name}: `), r.effect)),
+                h('p', {}, 'A hidden character is not touched by the Fiery Chasm. Staying hidden keeps a Demon from being set on you at all.')));
+        }
         if (c.round === 1 && c.intro?.length) body.push(h('div', { class: 'ask', role: 'note' }, h('b', {}, 'How this came about'), ...c.intro.map(t => h('p', {}, t))));
         body.push(ask(p.spellOnly ? 'A quiet evening: nothing is fighting you.' : `Round ${c.round}, Encounter step: you may take one action before the melee.`,
             p.spellOnly ? 'Spells are cast in the evening, so the game stops here to let you cast one. You may also do nothing.'
@@ -97,7 +108,7 @@ export function combatSheet({ st, data, act, ui, render }) {
             for (const x of o.casts) {
                 const sp = data.spells?.[x.spell];
                 body.push(h('button', { class: `btn${p.spellOnly && x.useful ? ' primary' : ''}`, 'data-act': 'cast', 'data-spell': x.spell, onclick: () => send({ kind: 'encounter', act: 'cast', spell: x.spell, chit: x.chit }) },
-                    `${x.name} (Type ${sp?.type ?? ''}, ${sp?.color ?? 'any'})`, h('small', {}, ` Magic ${st.ch.chits.find(c => c.id === x.chit)?.numeral}${x.time}${'*'.repeat(x.effort)}${x.useful ? '' : ' \u00B7 nothing to mend'}`)));
+                    h('span', { class: 'col' }, h('b', {}, x.name), h('small', {}, `Type ${sp?.type ?? ''} \u00B7 ${sp?.color ?? 'any'} \u00B7 Magic ${st.ch.chits.find(c => c.id === x.chit)?.numeral}${x.time}${'*'.repeat(x.effort)}${x.useful ? '' : ' \u00B7 nothing to mend'}`))));
                 if (sp?.text) body.push(h('p', { class: 'hint' }, sp.text));
             }
         }

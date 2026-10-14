@@ -477,3 +477,9 @@ button.chit2:disabled { cursor: default; }
 .chit2.sel { background: color-mix(in srgb, var(--gold) 20%, var(--panel2)); }
 .chit2.off { opacity: .35; }
 .restsheet { display: flex; flex-direction: column; gap: 12px; }
+
+.pitnote summary { cursor: pointer; }
+.pitnote .pitrow { font-size: 13.5px; }
+
+.btn .col { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; }
+.btn .col small { font-size: 12.5px; opacity: .8; }
