@@ -552,6 +552,16 @@ export function meleePlay(st, data, p) {
     const key = h => c.round === 1 ? [-h.length, h.time ?? 99] : [h.time ?? 99, -h.length];
     hits.sort((a, b) => { const ka = key(a), kb = key(b); return ka[0] - kb[0] || ka[1] - kb[1]; });
     const sameKey = (a, b) => { const ka = key(a), kb = key(b); return ka[0] === kb[0] && ka[1] === kb[1]; };
+    // The order the blows will fall in, and why: it is the thing a player most wants explained.
+    const blowName = h => (h.who === 'me' ? `your ${weaponName}` : h.who === 'hire' ? `your hireling's blow` : `the ${denSide(st, data, c.dens.find(d => d.uid === h.who)).name}'s ${DIRS[c.dens.find(d => d.uid === h.who).box ?? 0].toLowerCase()}`);
+    const blowText = h => `${blowName(h)} (time ${h.time ?? '?'}${h.length ? `, length ${h.length}` : ''})`;
+    if (hits.length > 1) {
+        const why = c.round === 1 ? 'in the first round the longest weapon strikes first, then the fastest' : 'after the first round the fastest strikes first, then the longest weapon';
+        log(`Order of blows (${why}): ${hits.map((h, k) => `${k + 1}. ${blowText(h)}`).join('; ')}.`,
+            `The blows fall in turn (${why}): ${hits.map(blowText).join(', then ')}.`);
+    } else if (hits.length === 1) {
+        log(`Only one blow can land this round: ${blowText(hits[0])}.`, `Only one blow can land this round: ${blowText(hits[0])}.`);
+    }
     c.newWounds = 0;
     let i = 0, dead = false, delivered = false;
     while (i < hits.length && !st.ch.dead) {
@@ -561,8 +571,12 @@ export function meleePlay(st, data, p) {
         // all hits in a tie are decided against the situation at the start of the tie
         const alive = new Set(c.dens.filter(d => !d.dead).map(d => d.uid));
         const dmg = [];
+        if (group.length > 1) log(`These blows land at the same instant: ${group.map(blowName).join(' and ')}.`, `${group.map(blowName).join(' and ')} land at the same instant: neither can prevent the other.`.replace(/^./, ch => ch.toUpperCase()));
         for (const h of group) {
-            if (h.who === 'me') { if (alive.has(h.on)) dmg.push(() => { delivered = true; myHit(st, data, h, { w, mySide, fight, myDir, notes, log }); }); }
+            if (h.who === 'me') {
+                if (alive.has(h.on)) dmg.push(() => { delivered = true; myHit(st, data, h, { w, mySide, fight, myDir, notes, log }); });
+                else log('Your blow finds its target already dead.', `Your ${weaponName} finds its target already dead: the blow is wasted.`);
+            }
             else if (h.who === 'hire') { if (alive.has(h.den) && !c.hires.find(x => x.uid === h.hire).dead) dmg.push(() => hireStrikes(st, data, h, log)); }
             else if (h.onHire) {
                 const den = c.dens.find(d => d.uid === h.who);
@@ -572,6 +586,7 @@ export function meleePlay(st, data, p) {
                 const den = c.dens.find(d => d.uid === h.who);
                 const ownerAlive = !den.partOf || alive.has(den.partOf);
                 if (alive.has(den.uid) && ownerAlive) dmg.push(() => denHit(st, data, den, { mnvDir, move, shieldDir: p.shieldDir, log, g: c.groupNo, horse: move?.isHorse ? st.ch.items.find(i => i.uid === move.horseUid) : null }));
+                else log(`${denSide(st, data, den).name} is dead before its blow can land.`, `The ${denSide(st, data, den).name} was struck down before its ${DIRS[den.box ?? 0].toLowerCase()} could land: it never gets to strike.`);
             }
         }
         dmg.forEach(f => f());
