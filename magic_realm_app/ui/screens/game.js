@@ -532,7 +532,7 @@ export function gameScreen(ctx) {
         if (bad) return h('button', { class: 'btn', 'data-act': 'start-day', 'aria-disabled': 'true', onclick: () => { ui.toast = bad; render(); setTimeout(() => { ui.toast = null; render(); }, 2600); } }, 'Fix the plan');
         return open == null
             ? h('button', { class: 'btn primary', 'data-act': 'start-day', onclick: startDay }, 'Start the day')
-            : h('button', { class: 'btn', 'data-act': 'start-day', 'aria-disabled': 'true', onclick: () => { ui.planStep = open; ui.pickMove = null; ui.pickSearch = null; ui.planCollapsed = false; render(); } }, `Set phase ${open + 1} first`);
+            : null;                                  // nothing to press until every phase has an action
     };
 
     function planPanel() {
