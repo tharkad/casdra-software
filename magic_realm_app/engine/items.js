@@ -7,6 +7,13 @@ export function makeItem(st, kind, id, extra = {}) {
     return { uid: 'i' + st.uidSeq, kind, id, active: false, alerted: false, damaged: false, destroyed: false, ...extra };
 }
 
+// What he has just come by, for the screen to make a fuss of (display only; the rules never read it).
+export function noteGain(st, it) {
+    st.gainSeq = (st.gainSeq ?? 0) + 1;
+    (st.gains ??= []).push({ n: st.gainSeq, uid: it.uid, day: st.day });
+    if (st.gains.length > 40) st.gains.shift();
+}
+
 export function defOf(data, it) {
     if (it.kind === 'spell') return { name: `Spell card (type ${it.id.replace('spell-', '')})`, weight: 'N', gold: 0 };
     return it.kind === 'weapon' ? data.weapons[it.id] : it.kind === 'armor' ? data.armor[it.id] : it.kind === 'horse' ? data.horses[it.id] : data.treasures[it.id];

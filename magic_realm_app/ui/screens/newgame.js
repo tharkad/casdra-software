@@ -1,14 +1,12 @@
 import { h } from '../dom.js';
 import { ask } from '../ask.js';
 
-// New game: a five-step wizard. Step 1 (game type) is real; later steps are outlined until their rules are digitised.
+// New game: a three-step wizard (game type, optional rules, character and goals).
 // Everything here is a *choice about the rules*, so the facts come from docs/rules/01 and 06 (see the notes beside each option).
 
 export const STEPS = [
     { id: 'type', label: 'Game type' },
-    { id: 'table', label: 'Table' },
     { id: 'realm', label: 'Realm and rules' },
-    { id: 'map', label: 'Map' },
     { id: 'chars', label: 'Characters' },
 ];
 
@@ -73,16 +71,6 @@ function typeStep(g, redraw) {
         ask('Every game uses all the rules for now.', 'This switch is kept for a later version that will teach the game in steps; changing it does not change how this game plays.', { compact: true }),
     ];
 }
-
-// What each later step will decide, from docs/rules/06 section 9.1. Shown as an outline until built.
-const OUTLINES = {
-    table: ['Solo: one phone, you play every character', 'Pass and play: several players share a phone, hidden choices stay hidden',
-        'Host online: a game server keeps secrets safe', 'Play by mail: take your turn when you can'],
-    realm: [],
-    map: ['Build the map for me, or build it together', 'Seasons and weather as one switch', 'Several boards for a bigger realm (later)'],
-    // `preview` below adds a button for this step
-    chars: ['Pick a character and level', 'Pick a starting dwelling', 'Spread the victory points across the five goals'],
-};
 
 const VP_ROWS = [
     { k: 'great', label: 'Great treasures', unit: 1, what: 'treasures' },
@@ -151,7 +139,7 @@ const OPTION_GROUPS = [
     ] },
 ];
 
-function optionsStep(g, redraw) {
+function optionsStep(g, redraw, go) {
     g.options ??= {};
     return [
         h('h2', { class: 'q' }, 'Optional rules'),
@@ -165,15 +153,9 @@ function optionsStep(g, redraw) {
                     h('span', { class: 'choice-line' }, o.text),
                     o.relevant && !o.relevant(g) ? h('span', { class: 'choice-line' }, 'No effect for the character you have chosen.') : null))),
         ]),
-    ];
-}
-
-function outline(step, go) {
-    return [
-        h('h2', { class: 'q' }, STEPS[step].label),
-        h('div', { class: 'note' }, 'Not built yet. This step will cover:'),
-        h('ul', { class: 'outline' }, OUTLINES[STEPS[step].id].map(t => h('li', {}, t))),
-        STEPS[step].id === 'map' ? h('button', { class: 'btn', 'data-act': 'preview', onclick: () => go('realm') }, 'Preview a generated realm') : null,
+        h('h3', { class: 'optgroup' }, 'The realm'),
+        h('p', { class: 'hint' }, 'The map is laid out for you from a random seed when the game begins.'),
+        h('button', { class: 'btn', 'data-act': 'preview', onclick: () => go('realm') }, 'Preview a generated realm'),
     ];
 }
 
@@ -197,7 +179,7 @@ export function newGameScreen(ctx) {
             h('div', { class: 'progress', 'aria-label': `Step ${g.step + 1} of ${STEPS.length}: ${STEPS[g.step].label}` },
                 h('div', { class: 'ticks' }, STEPS.map((s, i) => h('span', { class: `tick${i < g.step ? ' done' : ''}${i === g.step ? ' now' : ''}` }))),
                 h('div', { class: 'where' }, h('b', {}, STEPS[g.step].label), h('span', {}, `Step ${g.step + 1} of ${STEPS.length}`))),
-            h('div', { class: 'body', onscroll: e => { g._scroll = e.target.scrollTop; } }, g.step === 0 ? typeStep(g, redraw) : g.step === STEPS.length - 1 ? charsStep(g, redraw, ctx) : STEPS[g.step].id === 'realm' ? optionsStep(g, redraw) : outline(g.step, ctx.go)),
+            h('div', { class: 'body', onscroll: e => { g._scroll = e.target.scrollTop; } }, g.step === 0 ? typeStep(g, redraw) : g.step === STEPS.length - 1 ? charsStep(g, redraw, ctx) : optionsStep(g, redraw, ctx.go)),
             h('footer', { class: 'dock' },
                 h('div', { class: 'sum' }, summary(g)),
                 h('button', { class: 'btn primary big', 'data-act': last ? 'start' : 'next', disabled: last && Object.values(g.vp).reduce((a, b) => a + b, 0) !== vpTotal(g), onclick: last ? start : next },

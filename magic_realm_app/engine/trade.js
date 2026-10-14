@@ -1,6 +1,6 @@
 import { say } from './core.js';
 import { REL_NAMES } from './tables.js';
-import { defOf, nameOf, priceOf, makeItem, summaryOf, autoEquip } from './items.js';
+import { defOf, nameOf, priceOf, makeItem, summaryOf, autoEquip, noteGain } from './items.js';
 import { hasCurse } from './effects.js';
 import { meetingOutcome, drinksCost } from './meeting.js';
 
@@ -143,6 +143,7 @@ function takeBought(st, data, g, idx) {
     const card = data.treasures[raw.id];
     if (card?.fameReward && card.fameReward.group === g) st.ch.fame -= card.fameReward.points;     // buying it back from its group costs the Fame it paid
     st.ch.items.push(it);
+    noteGain(st, it);
     autoEquip(st, data, it);
     return it;
 }

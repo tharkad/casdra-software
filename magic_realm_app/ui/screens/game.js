@@ -18,7 +18,7 @@ import { VERSION } from '../version.js';
 import { ask } from '../ask.js';
 import { itemFace } from '../counter.js';
 import { cardEl } from '../card.js';
-import { earned, targets, scoreGame, FACTORS, CATS } from '../../engine/score.js';
+import { earned, targets, scoreGame, progress, FACTORS, CATS } from '../../engine/score.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
@@ -64,6 +64,7 @@ export function gameScreen(ctx) {
 
     function commit(next) { st = next; ctx.state = st; saveGame(st); render(); }
     function act(action) {
+        if (action.type !== 'tidy') ui.gainSeen = st.gainSeq ?? 0;          // what he found last time is old news once he does something else
         try {
             const next = apply(st, data, action);
             rec?.moves.push(JSON.parse(JSON.stringify(action)));
@@ -161,8 +162,11 @@ export function gameScreen(ctx) {
                 h('span', { class: 'stat gold' }, `${st.ch.gold}g`),
                 h('span', { class: 'stat' }, `Fame ${st.ch.fame}`),
                 h('span', { class: 'stat' }, `Notor ${st.ch.notoriety}`)),
-            h('button', { class: `vpchip${vpNow() < 0 ? ' neg' : ''}`, 'data-act': 'vp', 'aria-label': 'Victory points: how your score stands', onclick: () => { ui.sheet = ui.sheet === 'score' ? null : 'score'; render(); } },
-                h('small', {}, 'VP'), h('b', {}, vpNow() > 0 ? `+${vpNow()}` : String(vpNow()))));
+            (() => {
+                const over = st.period === 'over', pr = progress(st, data), tot = vpNow();
+                return h('button', { class: `vpchip${over && tot < 0 ? ' neg' : ''}`, 'data-act': 'vp', 'aria-label': over ? 'Final victory points' : `Goals: ${pr.pct} percent of the way there`, onclick: () => { ui.sheet = ui.sheet === 'score' ? null : 'score'; render(); } },
+                    h('small', {}, over ? 'VP' : 'GOALS'), h('b', {}, over ? (tot > 0 ? `+${tot}` : String(tot)) : `${pr.pct}%`));
+            })());
         map.set(mapModel());
         const hero = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at;
         if (hero !== lastHero) { lastHero = hero; map.focus(hero); }
@@ -199,7 +203,17 @@ export function gameScreen(ctx) {
         const p = st.pending;
         const where = nameOfClearing(st.ch.at);
         const info = h('div', { class: 'where2' }, h('span', { class: 'you' }, 'You are at'), h('b', {}, st.ch.onRoad ? 'on the road' : where), st.ch.hidden ? h('em', {}, 'hidden') : h('em', { class: 'seen' }, 'visible'));
-        const recent = [...st.log].reverse().filter(l => l.k !== 'day' && l.k !== 'roll').slice(0, 3).reverse();
+        const recent0 = [...st.log].reverse().filter(l => l.k !== 'day' && l.k !== 'roll').slice(0, 3).reverse();
+        ui.gainSeen ??= st.gainSeq ?? 0;
+        const fresh = (st.gains ?? []).filter(x => x.n > ui.gainSeen && st.ch.items.some(i => i.uid === x.uid)).map(x => st.ch.items.find(i => i.uid === x.uid));
+        const gainBars = fresh.map(it => {
+            const nm = nameOf(data, it);
+            return h('button', { class: 'gainbar', 'data-act': 'gain', 'data-item': it.uid, 'aria-label': `You found ${nm}: tap for details`, onclick: () => { ui.itemUid = it.uid; ui.itemFrom = 'dock'; ui.sheet = 'item'; render(); } },
+                ico(nm), h('span', { class: 'rl' }, h('small', { class: 'gl' }, 'YOU GOT'), h('b', {}, nm), h('small', {}, summaryOf(data, it))),
+                h('em', {}, `${WEIGHT_WORDS[weightOf(data, it)] ?? ''}`), h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A'));
+        });
+        const gainNames = fresh.map(it => nameOf(data, it));
+        const recent = recent0.filter(l => !gainNames.some(n => (l.s ?? l.t).includes(n)));
         const prowl = st.period === 'daylight' && st.prowl ? h('button', { class: 'prowl', 'data-act': 'prowl', onclick: () => { ui.sheet = 'dice'; render(); } },
             h('b', {}, `Monster roll ${st.prowl}`), h('span', {}, prowlers().join(', ') || 'no one stirs')) : null;
         let main;
@@ -218,7 +232,7 @@ export function gameScreen(ctx) {
                     h('button', { class: 'btn', 'data-act': 'all', onclick: () => act({ type: 'next', all: true }) }, 'Play the day')));
         } else if (p.type === 'over') main = h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result');
         else main = h('div', { class: 'note' }, 'Decision needed...');
-        dock.replaceChildren(...[info, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, main].filter(Boolean));
+        dock.replaceChildren(...[info, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, main].filter(Boolean));
     }
 
     function describeSlot(s) {
@@ -423,11 +437,10 @@ export function gameScreen(ctx) {
         const guard = ` ${setupSite(c.name)}`;
         if (!found) return `Not discovered yet: search with Locate to discover it. What it holds is unknown until you do.${guard} ${siteNeeds(c.name)}`;
         const pile = st.sites?.[c.name] ?? [];
-        const great = pile.filter(it => it.kind === 'treasure' && data.treasures[it.id]?.great).length;
         const spells = pile.filter(it => it.kind === 'spell').length;
         const things = pile.length - spells;
         if (!pile.length) return `Discovered. Nothing is left in it.${guard}`;
-        return `Discovered: you may loot it. ${things} treasure${things === 1 ? '' : 's'} left${great ? `, ${great} of them Great` : ', none of them Great'}${spells ? `, and ${spells} spell${spells === 1 ? '' : 's'}` : ''}.${guard} ${siteNeeds(c.name)}`;
+        return `Discovered: you may loot it. ${things} treasure${things === 1 ? '' : 's'} left${spells ? `, and ${spells} spell${spells === 1 ? '' : 's'}` : ''}. Which are Great is not known until they are looted.${guard} ${siteNeeds(c.name)}`;
     }
 
     function clearingSheet() {
@@ -655,26 +668,36 @@ export function gameScreen(ctx) {
         };
         const rows = res.rows ?? [];
         const sign = n => (n > 0 ? `+${n}` : String(n));
-        return modal('Victory points', h('div', { class: 'scoresheet' },
-            ask(`Your score today: ${sign(res.total ?? -100)}${res.dead ? ' (dead characters score -100)' : (res.total >= 0 ? ': you would win' : ': not yet enough')}`,
-                'This is the score the game would give you if it ended now. It is only worked out for real at the end, so it moves as you earn and lose things.'),
-            ...CATS.map(c => {
-                const r = rows.find(x => x.cat === c);
-                return h('div', { class: 'scorerow2' },
-                    h('div', { class: 'sr-head' }, h('b', {}, NAME[c]), h('span', {}, r ? `${sign(r.basic + r.bonus)} points` : '')),
-                    h('div', { class: 'sr-nums' },
-                        h('span', {}, h('em', {}, 'Goal'), ` ${vp[c] ?? 0} VP × ${FACTORS[c]} = ${need[c]}`),
-                        h('span', {}, h('em', {}, 'Earned'), ` ${e[c]}`),
-                        h('span', {}, h('em', {}, r && r.diff < 0 ? 'Short' : 'Over'), ` ${r ? Math.abs(Math.round(r.diff / (r.diff < 0 ? 3 : 1))) : 0}`)),
+        const pr = progress(st, data), over = st.period === 'over';
+        const sumUp = c => { const r = rows.find(x => x.cat === c); return r ? `${sign(r.basic + r.bonus)} points if the game ended now` : ''; };
+        const goalCard = g => {
+            const r = rows.find(x => x.cat === g.cat);
+            return h('div', { class: 'scorerow2' },
+                h('div', { class: 'sr-head' }, h('b', {}, NAME[g.cat]), h('span', {}, `${g.earned} of ${g.need}${g.earned >= g.need ? ' \u2713' : ''}`)),
+                h('div', { class: 'goalbar', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': g.need, 'aria-valuenow': Math.max(0, g.earned) }, h('i', { style: `width:${Math.round(g.frac * 100)}%` })),
+                h('p', { class: 'hint' }, `${g.vp} victory point${g.vp === 1 ? '' : 's'} are riding on this goal. ${how[g.cat]}`),
+                h('details', { class: 'sr-math' }, h('summary', {}, sumUp(g.cat) || 'The arithmetic'),
                     r ? h('p', { class: 'hint' }, r.diff < 0
-                        ? `Short by ${Math.abs(r.diff / 3)}, counted three times (${r.diff}), divided by ${FACTORS[c]} and rounded down: ${r.basic}. Bonus ${r.basic} × ${vp[c] ?? 0} VP = ${r.bonus}.`
-                        : `Over by ${r.diff}, divided by ${FACTORS[c]} and rounded down: ${r.basic}. Bonus ${r.basic} × ${vp[c] ?? 0} VP = ${r.bonus}.`) : null,
-                    h('p', { class: 'hint' }, how[c]));
-            }),
-            h('h3', {}, 'How the score is worked out'),
-            h('p', {}, 'At the start you spread your victory points over five goals. A goal\'s need is its points times its factor: Great Treasures 1, Spells 2, Fame 10, Notoriety 20, Gold 30.'),
-            h('p', {}, 'For each goal: points = (earned − need) ÷ factor, rounded down, and a shortfall is counted three times. The bonus is those points times the victory points you put on that goal. Your total is every goal\'s points plus bonus.'),
-            h('p', {}, 'A total of zero or more is a win. A character who dies scores −100. At the end, belongings too heavy for your strongest Move chit (or horse or boots) are put down before anything is counted.')), { close: () => { ui.sheet = null; render(); } });
+                        ? `Short by ${Math.abs(r.diff / 3)}, counted three times (${r.diff}), divided by ${FACTORS[g.cat]} and rounded down: ${r.basic}. Bonus ${r.basic} \u00D7 ${vp[g.cat] ?? 0} VP = ${r.bonus}.`
+                        : `Over by ${r.diff}, divided by ${FACTORS[g.cat]} and rounded down: ${r.basic}. Bonus ${r.basic} \u00D7 ${vp[g.cat] ?? 0} VP = ${r.bonus}.`) : null));
+        };
+        const idle = CATS.filter(c => !(need[c] > 0));
+        return modal('Your goals', h('div', { class: 'scoresheet' },
+            ask(over ? `Final score: ${sign(res.total ?? -100)}${res.dead ? ' (dead characters score -100)' : (res.total >= 0 ? ': a win' : ': not enough')}`
+                : res.dead ? 'You are dead: a dead character scores -100.' : `You are ${pr.pct}% of the way to your goals.`,
+                over ? 'The game is over; this is how each goal finished.'
+                    : 'Reach every goal by the end of the month to win. Going past a goal earns bonus points; ending short of one costs points, counted three times over.'),
+            ...pr.goals.map(goalCard),
+            idle.length ? h('details', { class: 'sr-idle' }, h('summary', {}, 'Goals you put no points on'),
+                ...idle.map(c => h('p', { class: 'hint' }, `${NAME[c]}: need 0, earned ${e[c]}. ${r0(c)}`))) : null,
+            h('div', { class: 'scorerow2 ifnow' },
+                h('div', { class: 'sr-head' }, h('b', {}, over ? 'Final total' : 'If the game ended right now'), h('span', {}, res.dead ? '-100' : sign(res.total ?? 0))),
+                h('p', { class: 'hint' }, over ? 'Zero or more is a win.' : 'The score is only worked out for real at the end. Early on it is always low, because every goal still counts as short; it rises as you earn.')),
+            h('details', { class: 'sr-math' }, h('summary', {}, 'How the score is worked out'),
+                h('p', {}, 'At the start you spread your victory points over five goals. A goal\'s need is its points times its factor: Great Treasures 1, Spells 2, Fame 10, Notoriety 20, Gold 30.'),
+                h('p', {}, 'For each goal: points = (earned \u2212 need) \u00F7 factor, rounded down, and a shortfall is counted three times. The bonus is those points times the victory points you put on that goal. Your total is every goal\'s points plus bonus.'),
+                h('p', {}, 'A total of zero or more is a win. A character who dies scores \u2212100. At the end, belongings too heavy for your strongest Move chit (or horse or boots) are put down before anything is counted.'))), { close: () => { ui.sheet = null; render(); } });
+        function r0(c) { const r = rows.find(x => x.cat === c); return r ? sumUp(c) + '.' : ''; }
     }
 
     // A spell: its card, with the rules' full description.
@@ -696,7 +719,7 @@ export function gameScreen(ctx) {
     // One belonging: both of its faces drawn as counters, the facts, and the switch.
     function itemSheet() {
         const it = st.ch.items.find(i => i.uid === ui.itemUid);
-        const back = { close: () => { ui.sheet = 'char'; render(); } };
+        const back = { close: () => { ui.sheet = ui.itemFrom === 'dock' ? null : 'char'; ui.itemFrom = null; render(); } };
         if (!it) return modal('Belonging', h('p', { class: 'hint' }, 'You no longer have it.'), back);
         const d = defOf(data, it), name = nameOf(data, it), pic = picOf(name) ?? (d?.name ? picOf(d.name) : null);
         const faces = [], facts = [];
@@ -777,7 +800,7 @@ export function gameScreen(ctx) {
                 ...(result.length ? result.slice(0, 5).map(l => h('p', { class: `j-${l.k}` }, l.t.replace(/ \(rolled [^)]*\)/, ''))) : [h('p', { class: 'hint' }, 'A quiet day: nothing was won or lost.')]),
                 result.length > 5 ? h('p', { class: 'hint' }, `and ${result.length - 5} more: see the overview.`) : null,
                 h('div', { class: 'row2' },
-                    h('button', { class: 'btn', 'data-act': 'report-next', onclick: () => { ui.reportPage = `${day}:overview`; render(); } }, 'Next: how the day went'),
+                    h('button', { class: 'btn', 'data-act': 'report-next', onclick: () => { ui.reportPage = `${day}:overview`; render(); } }, 'Day Overview'),
                     h('button', { class: 'btn primary', 'data-act': 'report-ok', onclick: () => { ui.reportedDay = st.day; render(); } }, 'On to the next day'))));
         }
         // group the day's lines under the phase or the evening they belong to
@@ -788,7 +811,7 @@ export function gameScreen(ctx) {
             else groups.at(-1).kids.push(l);
         }
         const show = groups.filter(g => g.kids.length || /^Phase/.test(g.head));
-        return modal(`Day ${day}: how it went`, h('div', { class: 'reportsheet' },
+        return modal(`Day ${day}: overview`, h('div', { class: 'reportsheet' },
             ...show.map(g => g.kids.length
                 ? h('details', { class: 'repstep' }, h('summary', {}, g.head), ...g.kids.map(l => h('p', { class: `j-${l.k}` }, l.s ?? l.t)))
                 : h('p', { class: 'repstep plain' }, g.head)),

@@ -1,5 +1,5 @@
 import { lvl, say, tally } from './core.js';
-import { makeItem, defOf, nameOf, autoEquip } from './items.js';
+import { makeItem, defOf, nameOf, autoEquip, noteGain } from './items.js';
 import { numOf, tileOf } from './world.js';
 import { rollCurse, hasCurse, pit } from './effects.js';
 import { roll2 } from './core.js';
@@ -50,6 +50,7 @@ function asterisksAvailable(st) {
 function takeInto(st, data, it) {
     convertCard(data, it);
     st.ch.items.push(it);
+    noteGain(st, it);
     autoEquip(st, data, it);
 }
 

@@ -50,3 +50,12 @@ export function scoreGame(st, data) {
     });
     return { total, rows, won: total >= 0, dead: false };
 }
+
+// How far along he is toward the goals he chose, weighted by the victory points he put on each (0..100). Only for display.
+export function progress(st, data) {
+    const e = earned(st, data), need = targets(st), vp = st.ch.vp ?? {};
+    const goals = CATS.filter(c => need[c] > 0).map(c => ({ cat: c, earned: e[c], need: need[c], vp: vp[c] ?? 0, frac: Math.max(0, Math.min(1, e[c] / need[c])) }));
+    const w = goals.reduce((a, g) => a + g.vp, 0);
+    const pct = w ? Math.round(100 * goals.reduce((a, g) => a + g.vp * g.frac, 0) / w) : 100;
+    return { pct, goals };
+}

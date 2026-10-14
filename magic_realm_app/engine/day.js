@@ -3,7 +3,7 @@ import { hides, PEER, LOCATE, meetingResult } from './tables.js';
 import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, tileClearings, graph } from './world.js';
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
 import * as combat from './combat.js';
-import { makeItem, defOf, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem } from './items.js';
+import { makeItem, defOf, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain } from './items.js';
 import { lootFrom, lootSiteCard, groundPileAt, sitesHere, effortOptions, payEffort } from './search.js';
 import { hasCurse, liftCursesAtChapel } from './effects.js';
 import { restartAfterDeath } from './setup.js';
@@ -588,7 +588,7 @@ export function apply(st0, data, action) {
             if (!chest) throw new Error('no chest to open');
             if (!st.ch.items.some(i => i.id === 'lost-keys' && i.active)) throw new Error('The Chest needs the Lost Keys.');
             st.ch.items = st.ch.items.filter(i => i.uid !== chest.uid);
-            for (const l of st.twt.chest.large) st.ch.items.push(makeItem(st, l.kind, l.id));
+            for (const l of st.twt.chest.large) { const got = makeItem(st, l.kind, l.id); st.ch.items.push(got); noteGain(st, got); }
             st.ch.gold += st.twt.chest.gold || 50;
             say(st, 'You open the Chest: two fine treasures and fifty gold.', 'loot');
             st.pending = p;
