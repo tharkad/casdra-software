@@ -16,7 +16,7 @@ export function combatSheet({ st, data, act, ui, render }) {
     ui.melee ??= { target: null, fightChit: null, attackDir: 0, moveChit: null, moveDir: 0, shieldDir: 0, boxes: {} };
     const m = ui.melee;
     const send = a => { ui.melee = null; act({ type: 'combat', ...a }); };
-    const foes = c.dens.filter(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse');
+    const foes = c.dens.filter(d => !d.dead && d.kind !== 'horse');
     const cs = { active: 0, fatigued: 0, wounded: 0 }; st.ch.chits.forEach(x => { cs[x.state]++; });
     const gear = st.ch.items.filter(i => i.kind === 'armor' && i.active).map(i => `${nameOf(data, i)}${i.damaged ? ' (damaged)' : i.destroyed ? ' (destroyed)' : ''}`);
     const header = h('div', { class: 'cb-head' },
@@ -39,7 +39,9 @@ export function combatSheet({ st, data, act, ui, render }) {
         const a = stat(now), b = stat(s);
         const diff = k => (showRev && String(a[k]) !== String(b[k]) ? 'chg' : '');
         const shownSide = showRev ? other : (d.side ?? 'light');
-        const mname = d.kind === 'mon' ? data.monsters[d.id]?.name : d.kind === 'part' ? data.monsters[st.combat.dens.find(o => o.uid === d.partOf)?.id]?.name : null;
+        const ownerDen = d.kind === 'part' ? st.combat.dens.find(o => o.uid === d.partOf) : null;
+        const partDef = ownerDen ? data.monsters[ownerDen.id]?.parts?.find(x => x.id === d.id) : null;
+        const mname = d.kind === 'mon' ? data.monsters[d.id]?.name : ownerDen ? `${data.monsters[ownerDen.id]?.name} ${partDef?.name ?? ''}`.trim() : null;
         const pic = d.kind === 'mon' || d.kind === 'part' ? (data.art?.monstersColor?.[mname] ?? data.art?.monsters?.[mname]) : d.kind === 'nat' ? data.art?.natives?.[d.id] : null;
         const sideTag = SIDE_NAME[shownSide];
         const counter = d.kind === 'mon' || d.kind === 'part'
@@ -80,6 +82,7 @@ export function combatSheet({ st, data, act, ui, render }) {
                 h('button', { class: 'btn primary', 'data-act': 'attack-natives', onclick: () => send({ kind: 'choice', fight: true }) }, 'Pick a fight'))));
     } else if (p.type === 'combat-encounter') {
         const o = encounterOptions(st, data);
+        if (c.round === 1 && c.intro?.length) body.push(h('div', { class: 'ask', role: 'note' }, h('b', {}, 'How this came about'), ...c.intro.map(t => h('p', {}, t))));
         body.push(ask(p.spellOnly ? 'A quiet evening: nothing is fighting you.' : `Round ${c.round}, Encounter step: you may take one action before the melee.`,
             p.spellOnly ? 'Spells are cast in the evening, so the game stops here to let you cast one. You may also do nothing.'
                 : 'Before plays are chosen you may ready your weapon, run from the fight, cast a spell, or simply go on. A chit you play here has to be faster than every creature facing you.'));

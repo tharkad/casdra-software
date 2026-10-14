@@ -468,3 +468,12 @@ button.foe { flex-direction: row; align-items: center; gap: 10px; }
 .card-text { margin: 0; padding: 10px 12px; font-size: 15px; line-height: 1.42; }
 .card-note { margin: 0; padding: 0 12px 10px; font-size: 13.5px; color: #4a4030; font-style: italic; }
 .spellrow .rl small { display: block; font-size: 12px; color: var(--dim); font-weight: 400; }
+
+/* resting by tapping chits */
+.chitgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+button.chit2 { color: inherit; font: inherit; cursor: pointer; padding: 8px 0; }
+button.chit2:disabled { cursor: default; }
+.chit2.pick { box-shadow: 0 0 0 2px var(--gold); border-color: var(--gold); opacity: 1; }
+.chit2.sel { background: color-mix(in srgb, var(--gold) 20%, var(--panel2)); }
+.chit2.off { opacity: .35; }
+.restsheet { display: flex; flex-direction: column; gap: 12px; }

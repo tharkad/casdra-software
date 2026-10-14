@@ -83,8 +83,11 @@
  },
  "monsters": {
   "Tremendous Flying Dragon": "art/monsters/dragon_flying.gif",
+  "Tremendous Flying Dragon head": "art/monsters/dragon_head_flying.gif",
   "Tremendous Dragon": "art/monsters/dragon.gif",
+  "Tremendous Dragon head": "art/monsters/dragon_head.gif",
   "Giant": "art/monsters/giant.gif",
+  "Giant club": "art/monsters/club.gif",
   "Winged Demon": "art/monsters/demon_flying.gif",
   "Demon": "art/monsters/demon.gif",
   "Tremendous Troll": "art/monsters/troll.gif",
@@ -223,8 +226,11 @@
  },
  "monstersColor": {
   "Tremendous Flying Dragon": "art/monsters_c/dragon_flying.gif",
+  "Tremendous Flying Dragon head": "art/monsters_c/dragon_head_flying.gif",
   "Tremendous Dragon": "art/monsters_c/dragon.gif",
+  "Tremendous Dragon head": "art/monsters_c/dragon_head.gif",
   "Giant": "art/monsters_c/giant.gif",
+  "Giant club": "art/monsters_c/club.gif",
   "Winged Demon": "art/monsters_c/demon_flying.gif",
   "Demon": "art/monsters_c/demon.gif",
   "Tremendous Troll": "art/monsters_c/troll.gif",

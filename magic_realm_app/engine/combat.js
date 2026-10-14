@@ -99,9 +99,27 @@ export function startCombat(st, data, clearing) {
     const c = st.combat = { at: clearing, round: 1, quiet: 0, step: 'start', dens: [], battling: {}, events: [], melee: false, ended: false, ran: false, pays: [], rollFrom: st.rollSeq ?? 0 };
     c.hires = hirelings(st).filter(n => n.loc?.c === clearing).map(n => ({ uid: nextUid(st), id: n.id, dead: false }));
     for (const m of denizensIn(st, data, clearing)) { addDen(st, data, { kind: 'mon', id: m.id }); tally(st, `faced.${data.monsters[m.id].name}`); }
+    c.intro = introLines(st, data, c);
     // Natives roll the Meeting Table once per group present, to see whether the group battles him (he may buy drinks first).
     c.meetQueue = [...new Set(nativesIn(st, data, clearing).map(n => data.natives[n.id].group))];
     return nextMeeting(st, data);
+}
+
+// How this fight came about, in the order the player would want it explained: how each creature got here, and how he stood when evening fell.
+function introLines(st, data, c) {
+    const te = st.turnEnd && st.turnEnd.day === st.day ? st.turnEnd : null;
+    const lines = [];
+    const mons = c.dens.filter(d => d.kind === 'mon');
+    for (const d of mons) {
+        const name = denSide(st, data, d).name;
+        const a = te?.arrivals?.find(x => x.id === d.id);
+        if (!a) lines.push(`The ${name} was already in this clearing.`);
+        else if (a.why === 'prowls in your tile') lines.push(`The ${name} was prowling elsewhere in this tile and came to your clearing when your turn ended.`);
+        else lines.push(`The ${name} answered the call of ${a.why.replace(/^called by /, 'the ')}, which turned up when your turn ended.`);
+    }
+    if (te?.blocked) lines.push(te.blockers?.length ? `Your turn was cut short: ${[...new Set(te.blockers)].join(', ')} blocked you.` : 'Your turn was cut short.');
+    lines.push(st.ch.hidden ? 'You are hidden, so creatures cannot be set on you unless you give yourself away.' : 'You are in plain sight, so the creatures here will come for you.');
+    return lines;
 }
 
 function nextMeeting(st, data) {
@@ -183,6 +201,7 @@ function rollBattle(st, data, group, drinks = false) {
     const c = st.combat;
     // Each Meeting roll (and any Trouble or Opportunity re-roll) is noted in the dice tray and the log by meetingOutcome.
     const { res } = meetingOutcome(st, relOf(st, group) + (drinks ? 1 : 0), `Evening meeting with the ${group}`, data);
+    (c.intro ??= []).push(res === 'Block/Battle' ? `The ${group} met you with hostility and will fight.` : res === 'Insult' || res === 'Challenge' ? `The ${group} ${res === 'Insult' ? 'insulted' : 'challenged'} you: pay or fight.` : `The ${group} are here, and let you be.`);
     if (res === 'Block/Battle') return startBattling(st, data, group);
     if (res === 'Insult') c.pays.push({ group, cost: 'notoriety', amount: 5, why: 'Insult' });
     else if (res === 'Challenge') { if ((st.ch.curses ?? []).includes('Disgust')) startBattling(st, data, group); else c.pays.push({ group, cost: 'fame', amount: 5, why: 'Challenge' }); }

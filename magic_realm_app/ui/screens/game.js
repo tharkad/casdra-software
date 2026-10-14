@@ -234,8 +234,7 @@ export function gameScreen(ctx) {
         if (ui.peek && ui.sel && p?.type === 'plan') { out.push(clearingSheet()); return out; }
         if (p?.type === 'turn-end') out.push(turnEndSheet());
         else if (p?.type === 'turn-end') out.push(turnEndSheet());
-        else if (p?.type === 'rest') out.push(modal('Rest', h('div', {}, ask('Your Rest phase: choose a chit to restore.', 'One Rest returns one asterisk of effort: a tired chit becomes ready again, or a wounded chit is healed (a wounded chit with asterisks first comes back tired). A chit worth two asterisks needs change: you tire a one-asterisk chit for it.'), ...p.options.map(o =>
-            h('button', { class: 'btn', onclick: () => act({ type: 'rest', chit: o.chit, change: o.change }) }, o.text)))));
+        else if (p?.type === 'rest') out.push(restSheet(p));
         else if (p?.type === 'search-table') out.push(modal('Search: which table?', h('div', {},
             ask(`You are searching at ${nameOfClearing(st.ch.at)}: choose the table.`, 'Your plan said only Search, and the rules let you name the table when the phase comes. A Search phase is one roll on one table, and each table finds different things, so pick the one that matches what you are after.'),
             ...p.options.map(t => h('button', { class: 'btn', 'data-table': t, onclick: () => act({ type: 'search-table', table: t }) }, h('b', {}, TABLE_LABEL[t]),
@@ -573,6 +572,36 @@ export function gameScreen(ctx) {
                 document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
             } }, `Save it as a file instead (${kb(b.packed.bytes)})`) : null,
             h('div', { class: 'row2' }, h('button', { class: 'btn', 'data-act': 'bug-cancel', disabled: sending || null, onclick: close.close }, 'Cancel'), ok)), close);
+    }
+
+    // Resting: the twelve chits are on the table; tap the one you want back. A chit worth two asterisks needs "change": then tap the ready
+    // one-asterisk chit you give up for it.
+    function restSheet(p) {
+        const mine = new Map();
+        for (const o of p.options) (mine.get(o.chit) ?? mine.set(o.chit, []).get(o.chit)).push(o);
+        const waiting = ui.restChit && mine.has(ui.restChit) ? ui.restChit : null;
+        const changers = new Set(waiting ? mine.get(waiting).map(o => o.change).filter(Boolean) : []);
+        const tile = c => {
+            const label = c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`;
+            const canRest = !waiting && mine.has(c.id), canChange = waiting && changers.has(c.id);
+            const isWaiting = waiting === c.id;
+            const on = canRest || canChange || isWaiting;
+            return h('button', { class: `chit2 ${c.type} ${c.state}${canRest || canChange ? ' pick' : ''}${isWaiting ? ' sel' : ''}${on ? '' : ' off'}`, 'data-rest-chit': c.id, disabled: !(canRest || canChange) || null,
+                onclick: () => {
+                    if (canChange) { const o = mine.get(waiting).find(x => x.change === c.id); ui.restChit = null; act({ type: 'rest', chit: o.chit, change: o.change }); return; }
+                    const opts = mine.get(c.id);
+                    const direct = opts.find(x => x.change == null);
+                    if (direct) { ui.restChit = null; act({ type: 'rest', chit: c.id }); } else { ui.restChit = c.id; render(); }
+                } },
+                h('b', {}, label), h('span', {}, '*'.repeat(c.effort) || ' '), h('small', {}, `${c.type === 'move' ? 'Move' : c.type === 'fight' ? 'Fight' : 'Magic'}${c.state !== 'active' ? ` \u00B7 ${c.state === 'fatigued' ? 'tired' : 'wounded'}` : ''}`));
+        };
+        const target = waiting ? st.ch.chits.find(c => c.id === waiting) : null;
+        return modal('Rest', h('div', { class: 'restsheet' },
+            waiting
+                ? ask(`Making change for ${chitLabel(target)}.`, 'A chit worth two asterisks costs two asterisks of rest. Tap the ready one-asterisk chit you will tire in exchange.')
+                : ask('Your Rest phase: tap the chit you want back.', 'One Rest returns one asterisk of effort: a tired chit becomes ready again, or a wounded chit is healed (one with asterisks comes back tired). Only the chits glowing gold can be rested now.'),
+            h('div', { class: 'chitgrid' }, ...st.ch.chits.map(tile)),
+            waiting ? h('button', { class: 'btn', onclick: () => { ui.restChit = null; render(); } }, 'Choose a different chit') : null));
     }
 
     // A spell: its card, with the rules' full description.
