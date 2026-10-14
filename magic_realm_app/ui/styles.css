@@ -540,3 +540,9 @@ button.chit2:disabled { cursor: default; }
 .gainbar .chev { font-size: 28px; color: #e2c068; flex: none; line-height: 1; }
 @keyframes gain-in { from { transform: scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .gainbar { animation: none; } }
+
+/* a site in the clearing sheet, worded like the printed Setup Card */
+.sitecard { margin-top: 4px; }
+.sitecard .setupline { margin: 4px 0; font-size: 15px; line-height: 1.35; color: var(--text); }
+.sitecard .setupline.card { padding: 6px 8px; border-left: 3px solid #6c5aa8; background: rgba(108, 90, 168, .12); border-radius: 4px; }
+.sitecard .setupline.dim { color: var(--dim); font-size: 14px; }

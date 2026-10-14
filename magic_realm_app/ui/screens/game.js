@@ -406,6 +406,12 @@ export function gameScreen(ctx) {
             h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'cancel' }) }, 'Never mind')));
     }
 
+    // One treasure site the way the printed Setup Card words it; the same sentence heads the site in the clearing sheet.
+    function siteCardText(e) {
+        const g = data.monsters[e.guardian]?.name ?? e.guardian;
+        const special = e.special ? ` Needs: ${e.special.replace('fatigue_asterisk', 'an asterisk of effort').replace('fatigue_t,key', 'a Tremendous-strength chit or the Lost Keys')}.` : '';
+        return `${e.name}: ${e.small} Small, ${e.large} Large${e.spells?.length ? `, spells ${e.spells.join(', ')}` : ''}. Guardian: ${g} (Monster Roll ${e.row}). Chit printed with clearing ${e.chitNumber}.${special}`;
+    }
     // A site: whether you have discovered it and, once you have, what is left in it (how many things, and how many of those are Great Treasures),
     // what looting it demands, and what guards it.
     function siteNeeds(name) {
@@ -418,14 +424,6 @@ export function gameScreen(ctx) {
     }
     // What the printed Treasure Set Up Card tells every player, before anything is discovered.
     const SPELL_WORD = t => `Type ${t}`;
-    function setupSite(name) {
-        const e = data.setupcard?.sites?.find(x => x.name === name);
-        if (!e) return '';
-        const parts = [`${e.small} Small and ${e.large} Large treasure${e.large === 1 ? '' : 's'} (Large on top)`];
-        if (e.spells?.length) parts.push(`spell cards ${e.spells.map(SPELL_WORD).join(', ')} on top`);
-        const g = data.monsters[e.guardian]?.name;
-        return `Setup card: ${parts.join(', ')}. ${g ? `Its guardian is the ${g}, which comes when the Monster Roll is ${e.row}.` : ''} Its chit is printed with clearing ${e.chitNumber}.`;
-    }
     function setupDwelling(kind) {
         const e = data.setupcard?.dwellings?.find(x => x.name === kind || x.rsName === kind);
         if (!e) return '';
@@ -434,15 +432,21 @@ export function gameScreen(ctx) {
     }
     function siteLine(c) {
         const found = st.ch.discovered.sites.includes(c.id);
-        const guard = ` ${setupSite(c.name)}`;
-        if (!found) return `Not discovered yet: search with Locate to discover it. What it holds is unknown until you do.${guard} ${siteNeeds(c.name)}`;
-        const pile = st.sites?.[c.name] ?? [];
-        const spells = pile.filter(it => it.kind === 'spell').length;
-        const treasures = pile.filter(it => it.kind !== 'spell');
-        const small = treasures.filter(it => (data.treasures[it.id]?.kind ?? 'small') === 'small').length, large = treasures.length - small;
-        if (!pile.length) return `Discovered. Nothing is left in it.${guard}`;
-        const left = [small ? `${small} Small` : '', large ? `${large} Large` : ''].filter(Boolean).join(' and ');
-        return `Discovered: you may loot it. ${left ? `${left} treasure${treasures.length === 1 ? '' : 's'} left` : 'No treasure left'}${spells ? `${left ? ', and' : ''} ${spells} spell${spells === 1 ? '' : 's'}` : ''}. Which are Great is not known until they are looted.${guard} ${siteNeeds(c.name)}`;
+        const e = data.setupcard?.sites?.find(x => x.name === c.name);
+        const needs = siteNeeds(c.name);
+        const status = [];
+        if (!found) status.push(h('p', { class: 'setupline' }, h('b', {}, 'Not discovered yet. '), 'Search with Locate to discover it. What it holds is unknown until you do.'));
+        else {
+            const pile = st.sites?.[c.name] ?? [];
+            const spells = pile.filter(it => it.kind === 'spell').length;
+            const treasures = pile.filter(it => it.kind !== 'spell');
+            const small = treasures.filter(it => (data.treasures[it.id]?.kind ?? 'small') === 'small').length, large = treasures.length - small;
+            const left = pile.length ? [`${small} Small`, `${large} Large`, ...(spells ? [`${spells} spell${spells === 1 ? '' : 's'}`] : [])].join(', ') : 'nothing';
+            status.push(h('p', { class: 'setupline' }, h('b', {}, pile.length ? 'Discovered: you may loot it. ' : 'Discovered, and empty. '), pile.length ? `Left: ${left}.` : ''));
+            if (pile.length) status.push(h('p', { class: 'setupline dim' }, 'Which are Great is not known until they are looted.'));
+        }
+        status.push(h('p', { class: 'setupline dim' }, needs));
+        return h('div', { class: 'sitecard' }, e ? h('p', { class: 'setupline card' }, siteCardText(e)) : null, ...status);
     }
 
     function clearingSheet() {
@@ -450,7 +454,7 @@ export function gameScreen(ctx) {
         const cdef = data.tile(tile).sides.normal.clearings.find(c => c.n === n);
         const here = st.ch.at === id && !st.ch.onRoad;
         const sections = [];
-        const row = (k, text, sub, img) => h('div', { class: `crow ${k}` }, img ? h('img', { class: 'ico', src: img, alt: '' }) : null, h('div', { class: 'crow-t' }, h('b', {}, text), sub ? h('small', {}, sub) : null));
+        const row = (k, text, sub, img) => h('div', { class: `crow ${k}` }, img ? h('img', { class: 'ico', src: img, alt: '' }) : null, h('div', { class: 'crow-t' }, h('b', {}, text), sub ? (typeof sub === 'string' ? h('small', {}, sub) : sub) : null));
         // you
         if (here) sections.push(['You', [row('me', st.ch.name, st.ch.hidden ? 'hidden: monsters cannot block you' : 'in plain sight')]]);
         // dwelling and the people who live there
@@ -778,7 +782,7 @@ export function gameScreen(ctx) {
         const section = (title, rows) => [h('h3', {}, title), ...rows.map(r => h('p', { class: 'setupline' }, r))];
         return modal('The Setup Card', h('div', { class: 'setupcard' },
             h('p', { class: 'hint' }, 'What the printed card says, true in every game. What is in a pile, and in which order, is hidden until it is looted.'),
-            ...section('Treasure sites', (c.sites ?? []).map(e => `${e.name}: ${e.small} Small, ${e.large} Large${e.spells?.length ? `, spells ${e.spells.join(', ')}` : ''}. Guardian: ${guard(e.guardian)} (Monster Roll ${e.row}). Chit printed with clearing ${e.chitNumber}.${e.special ? ` Needs: ${e.special.replace('fatigue_asterisk', 'an asterisk of effort').replace('fatigue_t,key', 'a Tremendous-strength chit or the Lost Keys')}.` : ''}`)),
+            ...section('Treasure sites', (c.sites ?? []).map(siteCardText)),
             ...section('Dwellings', (c.dwellings ?? []).map(e => `${e.name} (${e.group}${e.virtual ? ', appears with the group' : ''}): ${e.nativeCounters} native counters, ${e.treasures?.small ?? 0} Small treasures. Goods: ${Object.entries(e.treasures?.counters ?? {}).map(([n, k]) => `${n}${k > 1 ? ` \u00D7${k}` : ''}`).join(', ') || 'none'}.`)),
             ...section('Treasures within Treasures', (c.twt ?? []).map(e => `${e.name}: ${e.largeTreasures} Large treasure${e.largeTreasures === 1 ? '' : 's'}${e.goldReward ? `, ${e.goldReward} gold` : ''}${e.needsKey ? ', needs the Lost Keys' : ''}${e.curse ? ', carries a curse' : ''}${e.siteCard ? ', a place that can be searched with its own table' : ''}.`)),
             ...section('Visitors', (c.visitors ?? []).map(e => `${e.name}: ${e.small} Small treasures${e.spells?.length ? `, spells ${e.spells.join(', ')}` : ''}.`)),
@@ -883,13 +887,16 @@ export function gameScreen(ctx) {
     // the choices for one phase: what to do, and where or how
     function phaseChoices(i, at, base, extras, total) {
         const d = ui.draft, s = d.slots[i];
-        // an extra phase (a Rest phase of the Health advantage, a Hide phase from a Cloak of Mist...) can be used for that one activity only
-        const only = i >= base ? extras[i - base] : null;
+        // Extra phases (a Rest phase of the Health advantage, a Hide phase from a Cloak of Mist, a Move from boots...) are not tied to a place in the day:
+        // any phase may be filled with anything, and an action is dimmed only when the other phases have already used up what it would need.
+        const over = slots => planKinds(st, data, slots).kinds.filter(k => k === 'over').length;
+        const others = d.slots.map((x, j) => (j === i ? null : x));
+        const baseOver = over(others);
         const out = [];
-        if (only) out.push(h('p', { class: 'hint' }, `This is an extra phase: it can only be used to ${ACT_LABEL[only]?.toLowerCase() ?? only}.`));
+        if (extras.length) out.push(h('p', { class: 'hint' }, `${base} ordinary phases take any action; the extra phases (${[...new Set(extras)].map(x => ACT_LABEL[x]?.toLowerCase() ?? x).join(', ')}) can fall anywhere in the day, but only for their own action.`));
         out.push(h('div', { class: 'chips2 six' },
             ...['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', 'nothing'].map(a => {
-                const dim = !!only && a !== only && a !== 'nothing';
+                const dim = a !== 'nothing' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver;
                 return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a]);
             })));
         if (ui.pickMove === i || s?.act === 'move') {
@@ -931,7 +938,7 @@ export function gameScreen(ctx) {
         const head = h('div', { class: 'plan-head' }, h('b', {}, 'Plan your day'), h('button', { class: 'x', 'aria-label': 'Hide the plan', onclick: () => { ui.planCollapsed = true; render(); } }, '\u25BE'));
         const s = d.slots[step];
         const body = h('div', { class: 'plan-step' },
-            step === 0 ? ask(`Day ${st.day}: choose what you will do in each phase.`, 'Your plan is secret and fixed once you start the day. Some phases are extra and can only be used for one action.', { compact: true }) : null,
+            step === 0 ? ask(`Day ${st.day}: choose what you will do in each phase.`, 'Your plan is secret and fixed once you start the day. Fill the phases in any order: extra phases may fall anywhere, and an action is greyed out only when the others have used up what it needs.', { compact: true }) : null,
             h('div', { class: 'slot-head' }, h('b', {}, `Phase ${step + 1} of ${total}`), h('span', {}, slotKind(step, base, extras)), h('em', {}, s ? describeSlot(s) : 'not set'),
                 s ? h('button', { class: 'clearbtn', onclick: () => { d.slots[step] = null; render(); } }, 'Clear') : null),
             at[step] ? h('p', { class: 'hint' }, `You will be at ${nameOfClearing(at[step])}.`) : null,
@@ -973,7 +980,7 @@ export function gameScreen(ctx) {
         const d = ui.draft;
         d.slots[i] = { act: 'move', to };
         // a mountain takes two moves in a row: fill the next phase with the same move
-        if (isMountain(st, data, to) && i + 1 < 4) d.slots[i + 1] = { act: 'move', to };
+        if (isMountain(st, data, to) && i + 1 < planInfo().total && !d.slots[i + 1]) d.slots[i + 1] = { act: 'move', to };
         ui.pickMove = null;
         advance(i + 1);
         render();
