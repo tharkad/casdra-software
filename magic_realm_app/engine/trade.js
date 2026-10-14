@@ -82,7 +82,7 @@ export function tradeAction(st, data, p, a) {
         if (k < 0) throw new Error(`you owe the ${g} no boon`);
         if (hasCurse(st, 'Ashes')) throw new Error('Your gold is worthless under the Ashes curse: nobody will deal.');
         const b = debts[k];
-        const { res, r, note, rolls } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0), `Meeting roll: repaying the ${g}`);
+        const { res, r, note, rolls } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0), `Meeting roll: repaying the ${g}`, data);
         const why = `${note}rolled ${r.dice.join('+')}: ${res}`;
         st.ch.hiddenAfterBlock = false;
         if (res.startsWith('Price') || res === 'Boon') {
@@ -106,7 +106,7 @@ export function tradeAction(st, data, p, a) {
         if (hasCurse(st, 'Ashes')) throw new Error('Your gold is worthless under the Ashes curse: nobody will sell to you.');
         const base = priceOf(data, it);
         // Resolve the meeting roll (with the friendly/trouble re-rolls); drinks make the group one level friendlier.
-        const { res, r, note, rolls } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0), `Meeting roll: buying from the ${g}`);
+        const { res, r, note, rolls } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0), `Meeting roll: buying from the ${g}`, data);
         st.ch.hiddenAfterBlock = false;
         if (res.startsWith('Price')) {
             const mult = Number(res.split('x')[1]);

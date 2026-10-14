@@ -31,6 +31,10 @@ export function cardChits(st, type) {
 
 export const effortLimit = st => (treasureIds(st).includes('girtle-of-energy') ? 3 : 2);
 
+// The six tiles whose names end in "Woods" (Deep, Linden, Maple, Nut, Oak, Pine). The Deep Woods is a mountain tile for chits and climbing,
+// so this goes by name, not by the tile's group.
+export const isTrackingTile = (data, where) => /Woods$/.test(data.tile(where.slice(0, 2))?.name ?? '');
+
 // Tables are normally rolled with two dice, taking the higher. Some cards let him roll one.
 import { clearingType as clearingKind } from './world.js';
 export function oneDie(st, kind, where = null, data = null) {
@@ -41,9 +45,8 @@ export function oneDie(st, kind, where = null, data = null) {
     // character advantages: one die on Search, Hide and Meeting tables in the Woods tiles (Woods Girl's Tracking) or in cave clearings (the Dwarf's
     // Cave Knowledge), and the Druid's Concealment on the Hide table
     const adv = st.ch.adv ?? [];
-    if (where && data && (kind === 'search' || kind === 'hide' || kind === 'meeting')) {
-        const tile = data.tile(where.slice(0, 2));
-        if (adv.includes('tracking') && tile?.group === 'woods') return true;
+    if (where && data && (kind === 'search' || kind === 'hide' || kind === 'meeting' || kind === 'loot')) {
+        if (adv.includes('tracking') && isTrackingTile(data, where)) return true;
         if (adv.includes('cave-knowledge') && clearingKind(st, data, where) === 'cave') return true;
     }
     if (kind === 'hide' && adv.includes('concealment')) return true;

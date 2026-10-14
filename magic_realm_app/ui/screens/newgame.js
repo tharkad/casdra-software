@@ -94,12 +94,17 @@ const VP_ROWS = [
 const DWELLING_LINE = {
     Inn: 'The Rogues live here: they sell workhorses and trinkets.',
     Chapel: 'The Order live here: they sell suits of armor, warhorses, crossbows, great swords, great axes and morning stars.',
+    House: 'The Soldiers live here, and they dislike her. The Woodfolk may turn up on a day their row prowls.',
 };
+// Each card file is named by its picture; the cards that do not follow the id are listed.
+const CARD_FILE = { 'woods-girl': 'woodsgirl' };
 export const CHARACTERS = [
     { id: 'black-knight', name: 'Black Knight', weight: 'Medium weight', starts: ['Inn'], gear: 'Mace, Suit of Armor and Shield',
       line: 'Allied with the Company, friendly with Soldiers; the Guard are his enemies. Fear: one die on the Meeting Table. Aim with missiles.' },
     { id: 'white-knight', name: 'White Knight', weight: 'Heavy weight', starts: ['Inn', 'Chapel'], gear: 'Great Sword and Suit of Armor',
       line: 'Allied with the Order, friendly with Lancers; the Company are his enemies. Health: an extra Rest phase a day. Honor: one less on every Meeting die. His Type I spell cannot be cast in this build yet.' },
+    { id: 'woods-girl', name: 'Woods Girl', weight: 'Light weight', starts: ['Inn', 'House'], gear: 'Light Bow', her: true,
+      line: 'Allied with the Woodfolk, friendly with Lancers; the Bashkars are her enemies. Tracking: one die on Hide, Search and Meeting in the six Woods tiles. Archer: one die on the Missile Table with a bow. Her Type VII spell cannot be cast in this build yet.' },
 ];
 
 function charsStep(g, redraw, ctx) {
@@ -111,14 +116,14 @@ function charsStep(g, redraw, ctx) {
             onclick: () => { g.character = c.id; if (!c.starts.includes(g.dwelling)) g.dwelling = c.starts[0]; redraw(); } },
             h('span', { class: 'dot' }),
             h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, c.name, h('em', {}, c.weight)), h('span', { class: 'choice-line' }, c.line))))),
-        h('p', { class: 'hint' }, `He begins with his ${who.gear}, taken from the natives' stock as the rules say. More characters will come.`),
-        h('img', { class: 'cardpic', src: `art/characterdetail/${who.id.replace('-', '_')}.jpg`, alt: `${who.name} character card`, onerror: e => e.target.remove() }),
-        h('h2', { class: 'q' }, who.starts.length > 1 ? 'Where do you start?' : 'Where he starts'),
+        h('p', { class: 'hint' }, `${who.her ? 'She begins with her' : 'He begins with his'} ${who.gear}, taken from the natives' stock as the rules say. More characters will come.`),
+        h('img', { class: 'cardpic', src: `art/characterdetail/${CARD_FILE[who.id] ?? who.id.replace('-', '_')}.jpg`, alt: `${who.name} character card`, onerror: e => e.target.remove() }),
+        h('h2', { class: 'q' }, who.starts.length > 1 ? 'Where do you start?' : `Where ${who.her ? 'she' : 'he'} starts`),
         h('div', { class: 'choices', role: 'radiogroup' }, ...who.starts.map(d => h('button', { class: `choice${g.dwelling === d ? ' on' : ''}`, role: 'radio', 'aria-checked': g.dwelling === d, 'data-dwelling': d,
             onclick: () => { g.dwelling = d; redraw(); } },
             h('span', { class: 'dot' }),
             h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, d), h('span', { class: 'choice-line' }, DWELLING_LINE[d]))))),
-        who.starts.length === 1 ? h('p', { class: 'hint' }, `The ${who.name} has only the ${who.starts[0]} on his character card.`) : null,
+        who.starts.length === 1 ? h('p', { class: 'hint' }, `The ${who.name} has only the ${who.starts[0]} on ${who.her ? 'her' : 'his'} character card.`) : null,
         h('h2', { class: 'q' }, `Spend your ${total} victory points`),
         h('p', { class: 'hint' }, 'Each point sets a goal. Miss a goal and the shortfall counts triple; beat it and each point you put there pays a bonus.'),
         ...VP_ROWS.map(r => h('div', { class: 'vprow' },

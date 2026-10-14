@@ -75,7 +75,7 @@ export function hireAction(st, data, p, a) {
         st.ch.gold -= cost; drinks = true;
         say(st, `You buy drinks for the ${g} (${cost} gold): they warm to you.`, 'trade');
     }
-    const { res, r, note, rolls } = meetingOutcome(st, (st.ch.rel?.[g] ?? 0) + (drinks ? 1 : 0), `Meeting roll: hiring from the ${g}`);
+    const { res, r, note, rolls } = meetingOutcome(st, (st.ch.rel?.[g] ?? 0) + (drinks ? 1 : 0), `Meeting roll: hiring from the ${g}`, data);
     const why = `${drinks ? 'Drinks; ' : ''}${note}rolled ${r.dice.join('+')}: ${res}`;
     if (res.startsWith('Price')) {
         const mult = Number(res.split('x')[1]);

@@ -2,7 +2,7 @@ import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll, tally } from '.
 import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './tables.js';
 import { pit } from './effects.js';
 import { hirelings } from './hire.js';
-import { cardChits, effortLimit } from './modifiers.js';
+import { cardChits, effortLimit, oneDie } from './modifiers.js';
 import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
 import { makeItem, autoEquip, toggleItem, activeHorse } from './items.js';
 import { isCave, roadsFrom } from './world.js';
@@ -172,7 +172,7 @@ function missileRoll(st, what, archer) {
 function rollBattle(st, data, group, drinks = false) {
     const c = st.combat;
     // Each Meeting roll (and any Trouble or Opportunity re-roll) is noted in the dice tray and the log by meetingOutcome.
-    const { res } = meetingOutcome(st, relOf(st, group) + (drinks ? 1 : 0), `Evening meeting with the ${group}`);
+    const { res } = meetingOutcome(st, relOf(st, group) + (drinks ? 1 : 0), `Evening meeting with the ${group}`, data);
     if (res === 'Block/Battle') return startBattling(st, data, group);
     if (res === 'Insult') c.pays.push({ group, cost: 'notoriety', amount: 5, why: 'Insult' });
     else if (res === 'Challenge') { if ((st.ch.curses ?? []).includes('Disgust')) startBattling(st, data, group); else c.pays.push({ group, cost: 'fame', amount: 5, why: 'Challenge' }); }
@@ -569,7 +569,8 @@ function myHit(st, data, h, ctx) {
     level += stars;
     let note = '';
     if (side.missile) {
-        const r = hasAdv(st, 'archer') ? (() => { const d1 = die(st); return { dice: [d1], value: d1 }; })() : roll2(st);
+        const bow = /bow$/i.test(ctx.w ? data.weapons[ctx.w.item.id]?.name ?? '' : '');
+        const r = (hasAdv(st, 'archer') && bow) || oneDie(st, 'missile') ? (() => { const d1 = die(st); return { dice: [d1], value: d1 }; })() : roll2(st);
         const aim = hasAdv(st, 'aim') ? 1 : 0;
         const v = clamp6(r.value - aim);
         level += MISSILE[v - 1];
