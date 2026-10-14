@@ -13,7 +13,7 @@ const DIRS = ['Thrust', 'Swing', 'Smash'], MNV = ['Charge', 'Dodge', 'Duck'];
 
 export function combatSheet({ st, data, act, ui, render }) {
     const p = st.pending, c = st.combat;
-    ui.melee ??= { target: null, fightChit: null, attackDir: 0, moveChit: null, moveDir: 0, shieldDir: 0, boxes: {} };
+    ui.melee ??= { target: c.dens.find(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse')?.uid ?? null, fightChit: null, attackDir: 0, moveChit: null, moveDir: 0, shieldDir: 0, boxes: {} };
     const m = ui.melee;
     const send = a => { ui.melee = null; act({ type: 'combat', ...a }); };
     const foes = c.dens.filter(d => !d.dead && d.kind !== 'horse');
@@ -162,7 +162,8 @@ export function combatSheet({ st, data, act, ui, render }) {
         const ast = o.asterisksPlayed + [m.fightChit, m.moveChit].map(id => st.ch.chits.find(x => x.id === id)?.effort ?? 0).reduce((a, b) => a + b, 0);
         body.push(h('div', { class: 'cb-go' },
             h('span', { class: ast > 2 ? 'bad' : '' }, `Effort ${ast}/2`),
-            h('button', { class: 'btn primary big', 'data-act': 'commit', disabled: ast > 2, onclick: () => {
+            m.fightChit && !m.target ? h('span', { class: 'bad' }, 'Pick whom to strike, or play no Fight chit') : null,
+            h('button', { class: 'btn primary big', 'data-act': 'commit', disabled: ast > 2 || (m.fightChit && !m.target) || null, onclick: () => {
                 const boxes = {}; o.boxable.forEach((d, i) => { boxes[d.uid] = m.boxes[d.uid] ?? (i % 3); });
                 send({ kind: 'melee', target: m.target, fightChit: m.fightChit, attackDir: m.attackDir, moveChit: m.moveChit, moveDir: m.moveDir, shieldDir: o.shield ? m.shieldDir : null, boxes });
             } }, 'Commit and roll')));

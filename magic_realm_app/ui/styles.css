@@ -501,3 +501,13 @@ button.chit2:disabled { cursor: default; }
 .daybox small { font-size: .7em; }
 .stat { white-space: nowrap; }
 @media (max-width: 380px) { .stats { gap: 6px; font-size: 12.5px; } .status { gap: 6px; } }
+
+/* the morning review: result first, then the day in triangles */
+.reportsheet .repchips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.repchip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line, #3a3f55); font-weight: 600; }
+.repchip.up { color: #e6c36a; border-color: #e6c36a; }
+.repchip.down { color: #e08a7a; border-color: #e08a7a; }
+.repstep { border-top: 1px solid var(--line, #2b3045); padding: 6px 0; }
+.repstep summary { cursor: pointer; margin: 0; padding: 6px 0; color: inherit; }
+.repstep p { margin: 4px 0 4px 14px; font-size: 14px; opacity: .88; }
+.repstep.plain { padding: 10px 0; }

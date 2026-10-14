@@ -564,6 +564,18 @@ export function meleePlay(st, data, p) {
     const key = h => c.round === 1 ? [-h.length, h.time ?? 99] : [h.time ?? 99, -h.length];
     hits.sort((a, b) => { const ka = key(a), kb = key(b); return ka[0] - kb[0] || ka[1] - kb[1]; });
     const sameKey = (a, b) => { const ka = key(a), kb = key(b); return ka[0] === kb[0] && ka[1] === kb[1]; };
+    // When nothing happens, say why: a Fight chit with no one named, a hidden hero nobody can reach, a round with no blows at all.
+    if (!hits.length) {
+        const chit = c => `${c.type === 'move' ? 'Move' : 'Fight'} ${c.strength}${c.time}${'*'.repeat(c.effort ?? 0)}`;
+        const bits = [];
+        if (fight && !target) bits.push(`You played ${chit(fight)} but named no one to strike, so the effort bought nothing.`);
+        else if (!fight && target) bits.push('You named a target but played no Fight chit, so there was no attack.');
+        else if (!target) bits.push('You attacked no one.');
+        if (st.ch.hidden) bits.push('You are still hidden, so no creature can be set on you: nothing happens this round.');
+        else bits.push('No creature could strike you either, so no blow lands this round.');
+        const text = bits.join(' ');
+        log(text, text);
+    }
     // The order the blows will fall in, and why: it is the thing a player most wants explained.
     const blowName = h => (h.who === 'me' ? `your ${weaponName}` : h.who === 'hire' ? `your hireling's blow` : `the ${denSide(st, data, c.dens.find(d => d.uid === h.who)).name}'s ${DIRS[c.dens.find(d => d.uid === h.who).box ?? 0].toLowerCase()}`);
     const blowText = h => `${blowName(h)} (time ${h.time ?? '?'}${h.length ? `, length ${h.length}` : ''})`;

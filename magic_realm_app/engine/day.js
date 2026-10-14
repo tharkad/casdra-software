@@ -27,6 +27,9 @@ export function beginDay(st, data) {
     st.turn = null;
     st.ch.hiddenEnemies = false;
     st.ch.killsToday = 0;
+    // What the day just ended changed, for the morning review (the report reads st.report; nothing in the rules does).
+    if (st.mark) st.report = { day: st.mark.day, fame: st.ch.fame - st.mark.fame, notoriety: st.ch.notoriety - st.mark.notoriety, gold: st.ch.gold - st.mark.gold };
+    st.mark = { day: st.day, fame: st.ch.fame, notoriety: st.ch.notoriety, gold: st.ch.gold };
     say(st, `Day ${st.day} begins.`, 'day');
     st.pending = { type: 'plan' };
 }

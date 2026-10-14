@@ -243,10 +243,7 @@ export function gameScreen(ctx) {
             ...p.options.map(t => h('button', { class: 'btn', 'data-table': t, onclick: () => act({ type: 'search-table', table: t }) }, h('b', {}, TABLE_LABEL[t]),
                 h('small', {}, { peer: 'look for clues, hidden enemies and hidden paths', locate: 'find passages, clues and sites in this clearing', loot: 'take treasure from a site you have discovered here',
                     ground: 'pick up what lies on the ground here', sitecard: 'search the place you found with a treasure card' }[t] ?? ''))))));
-        else if (p?.type === 'effort-cost') out.push(modal(`${p.site}: pay with effort`, h('div', {},
-            ask(p.site === 'Cairns' ? 'The Cairns take an asterisk of effort for every Loot roll, found or not.' : 'The Pool takes an asterisk of effort each time something is taken from it.',
-                'Choose which chit pays: it is tired until you rest it. A chit with two asterisks may pay and return a tired one-asterisk chit of the same kind ("change").'),
-            ...p.options.map((o, n) => h('button', { class: 'btn', 'data-effort': n, onclick: () => act({ type: 'effort-cost', n }) }, o.text)))));
+        else if (p?.type === 'effort-cost') out.push(effortSheet(p));
         else if (p?.type === 'search-choice') out.push(modal(`${TABLE_LABEL[p.table]}: your choice`, h('div', {}, latestRoll(st) ? rollRow(latestRoll(st)) : null, ask(`You rolled ${p.roll.join('+')}: the table gives you a choice.`, 'This result lets you pick whichever entry of the table you want instead of the one the dice name. Choose the one that helps you most.'),
             ...p.options.map(r => h('button', { class: 'btn', onclick: () => act({ type: 'search-choice', result: r }) }, r)))));
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));
@@ -580,6 +577,41 @@ export function gameScreen(ctx) {
 
     // Resting: the twelve chits are on the table; tap the one you want back. A chit worth two asterisks needs "change": then tap the ready
     // one-asterisk chit you give up for it.
+    // Cairns / Pool: tap the chit that pays an asterisk of effort (a two-asterisk chit may make change for a tired one-asterisk chit).
+    function effortSheet(p) {
+        const sameKind = (a, b) => a.type === b.type && (a.strength ?? a.numeral) === (b.strength ?? b.numeral) && a.time === b.time && a.effort === b.effort;
+        const chits = st.ch.chits;
+        const optIdx = p.options.map((o, n) => ({ o, n }));
+        const payer = id => { const c = chits.find(x => x.id === id); return optIdx.filter(({ o }) => sameKind(chits.find(x => x.id === o.chit), c)); };
+        const waiting = ui.effortChit && payer(ui.effortChit).length ? chits.find(c => c.id === ui.effortChit) : null;
+        const backs = waiting ? payer(waiting.id).filter(({ o }) => o.back) : [];
+        const tile = c => {
+            const label = c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`;
+            const opts = payer(c.id);
+            const canPay = !waiting && opts.length > 0;
+            const canBack = !!waiting && backs.some(({ o }) => sameKind(chits.find(x => x.id === o.back), c));
+            const isWaiting = waiting?.id === c.id;
+            return h('button', { class: `chit2 ${c.type} ${c.state}${canPay || canBack ? ' pick' : ''}${isWaiting ? ' sel' : ''}${canPay || canBack || isWaiting ? '' : ' off'}`, 'data-effort-chit': c.id, disabled: !(canPay || canBack) || null,
+                onclick: () => {
+                    if (canBack) { const hit = backs.find(({ o }) => sameKind(chits.find(x => x.id === o.back), c)); ui.effortChit = null; act({ type: 'effort-cost', n: hit.n }); return; }
+                    const plain = opts.find(({ o }) => !o.back);
+                    if (plain && !opts.some(({ o }) => o.back)) { ui.effortChit = null; act({ type: 'effort-cost', n: plain.n }); return; }
+                    ui.effortChit = c.id; render();
+                } },
+                h('b', {}, label), h('span', {}, '*'.repeat(c.effort) || ' '), h('small', {}, `${c.type === 'move' ? 'Move' : c.type === 'fight' ? 'Fight' : 'Magic'}${c.state !== 'active' ? ` \u00B7 ${c.state === 'fatigued' ? 'tired' : 'wounded'}` : ''}`));
+        };
+        const plainOpt = waiting ? payer(waiting.id).find(({ o }) => !o.back) : null;
+        return modal(`${p.site}: pay with effort`, h('div', { class: 'restsheet' },
+            waiting
+                ? ask(`Paying with ${chitLabel(waiting)}.`, 'It has two asterisks. Tap a tired one-asterisk chit to bring it back ready (making change), or pay with it outright.')
+                : ask(p.site === 'Cairns' ? 'The Cairns take an asterisk of effort for every Loot roll, found or not: tap the chit that pays.' : 'The Pool takes an asterisk of effort each time something is taken from it: tap the chit that pays.',
+                    'The chit you tap is tired until you rest it. Only the chits glowing gold can pay now.'),
+            h('div', { class: 'chitgrid' }, ...chits.map(tile)),
+            waiting ? h('div', { class: 'row2' },
+                plainOpt ? h('button', { class: 'btn primary', 'data-act': 'effort-plain', onclick: () => { ui.effortChit = null; act({ type: 'effort-cost', n: plainOpt.n }); } }, 'Just tire it') : null,
+                h('button', { class: 'btn', onclick: () => { ui.effortChit = null; render(); } }, 'Choose a different chit')) : null));
+    }
+
     function restSheet(p) {
         const mine = new Map();
         for (const o of p.options) (mine.get(o.chit) ?? mine.set(o.chit, []).get(o.chit)).push(o);
@@ -729,12 +761,40 @@ export function gameScreen(ctx) {
             h('p', { class: 'hint' }, c.notes ?? '')), { close: () => { ui.sheet = 'menu'; render(); } });
     }
 
+    // The morning review: first the result alone, then (after Next) the day step by step, each step a triangle holding its explanation.
     function reportSheet() {
-        const prev = st.log.filter(l => l.day === st.day - 1 && l.k !== 'day');
-        const key = prev.filter(l => ['combat', 'monster', 'loot', 'trade', 'curse', 'block', 'discover', 'native', 'phase'].includes(l.k));
-        return modal(`Day ${st.day - 1} in review`, h('div', {},
-            ...(key.length ? key.map(l => h('p', { class: `j-${l.k}` }, l.s ?? l.t)) : [h('p', { class: 'hint' }, 'A quiet day.')]),
-            h('div', { class: 'row2' }, h('button', { class: 'btn primary', 'data-act': 'report-ok', onclick: () => { ui.reportedDay = st.day; render(); } }, 'On to the next day'))));
+        const day = st.day - 1;
+        const prev = st.log.filter(l => l.day === day && l.k !== 'day' || (l.day === day && /sun sets/.test(l.t)));
+        const rep = st.report?.day === day ? st.report : null;
+        const sign = n => (n > 0 ? `+${n}` : String(n));
+        const chips = rep ? [['Fame', rep.fame], ['Notoriety', rep.notoriety], ['Gold', rep.gold]].filter(x => x[1]) : [];
+        const heads = prev.filter(l => /^You kill |^You die|^Every action chit|^You wound |dies\b|^Loot \(|^You take|^You buy|^You pay|curse/i.test(l.t) || ['loot', 'curse', 'discover'].includes(l.k));
+        const seen = new Set(), result = [];
+        for (const l of heads) { const t = (l.s ?? l.t).trim(); if (!seen.has(t)) { seen.add(t); result.push(l); } }
+        if (ui.reportPage !== day + ':overview') {
+            return modal(`Day ${day}: the result`, h('div', { class: 'reportsheet' },
+                h('div', { class: 'repchips' }, ...(chips.length ? chips.map(([n, v]) => h('span', { class: `repchip ${v > 0 ? 'up' : 'down'}` }, `${n} ${sign(v)}`)) : [h('span', { class: 'repchip' }, 'No change in Fame, Notoriety or gold')])),
+                ...(result.length ? result.slice(0, 5).map(l => h('p', { class: `j-${l.k}` }, l.t.replace(/ \(rolled [^)]*\)/, ''))) : [h('p', { class: 'hint' }, 'A quiet day: nothing was won or lost.')]),
+                result.length > 5 ? h('p', { class: 'hint' }, `and ${result.length - 5} more: see the overview.`) : null,
+                h('div', { class: 'row2' },
+                    h('button', { class: 'btn', 'data-act': 'report-next', onclick: () => { ui.reportPage = `${day}:overview`; render(); } }, 'Next: how the day went'),
+                    h('button', { class: 'btn primary', 'data-act': 'report-ok', onclick: () => { ui.reportedDay = st.day; render(); } }, 'On to the next day'))));
+        }
+        // group the day's lines under the phase or the evening they belong to
+        const groups = [];
+        for (const l of prev) {
+            if (l.k === 'phase') groups.push({ head: l.s ?? l.t, kids: [] });
+            else if (/sun sets/.test(l.t) || !groups.length) groups.push({ head: /sun sets/.test(l.t) ? 'The evening' : 'Morning', kids: [] });
+            else groups.at(-1).kids.push(l);
+        }
+        const show = groups.filter(g => g.kids.length || /^Phase/.test(g.head));
+        return modal(`Day ${day}: how it went`, h('div', { class: 'reportsheet' },
+            ...show.map(g => g.kids.length
+                ? h('details', { class: 'repstep' }, h('summary', {}, g.head), ...g.kids.map(l => h('p', { class: `j-${l.k}` }, l.s ?? l.t)))
+                : h('p', { class: 'repstep plain' }, g.head)),
+            h('div', { class: 'row2' },
+                h('button', { class: 'btn', onclick: () => { ui.reportPage = null; render(); } }, 'Back to the result'),
+                h('button', { class: 'btn primary', 'data-act': 'report-ok', onclick: () => { ui.reportedDay = st.day; render(); } }, 'On to the next day'))));
     }
 
     function logSheet() {
