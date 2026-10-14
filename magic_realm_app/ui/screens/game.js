@@ -18,6 +18,7 @@ import { VERSION } from '../version.js';
 import { ask } from '../ask.js';
 import { itemFace } from '../counter.js';
 import { cardEl } from '../card.js';
+import { earned, targets, scoreGame, FACTORS, CATS } from '../../engine/score.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
@@ -155,11 +156,13 @@ export function gameScreen(ctx) {
         strip.replaceChildren(
             h('button', { class: 'back', 'aria-label': 'Menu', onclick: () => { ui.sheet = ui.sheet === 'menu' ? null : 'menu'; render(); } }, '☰'),
             h('button', { class: 'bugbtn', 'aria-label': 'Report a problem', 'data-act': 'bug', onclick: () => { ui.sheet = 'bug'; render(); } }, '\u{1F41E}'),
-            h('div', { class: 'daybox' }, h('b', {}, `Day ${st.day}`, h('small', {}, st.mode === 'endless' ? '' : ` of ${st.lastDay ?? 28}`)), h('span', {}, `${st.period === 'over' ? 'finished' : st.period}`)),
+            h('div', { class: 'daybox' }, h('b', {}, `Day ${st.day}`, h('small', {}, st.mode === 'endless' ? '' : `/${st.lastDay ?? 28}`)), h('span', {}, `${st.period === 'over' ? 'finished' : st.period}`)),
             h('button', { class: 'stats', onclick: () => { ui.sheet = ui.sheet === 'char' ? null : 'char'; render(); } },
                 h('span', { class: 'stat gold' }, `${st.ch.gold}g`),
                 h('span', { class: 'stat' }, `Fame ${st.ch.fame}`),
-                h('span', { class: 'stat' }, `Notor ${st.ch.notoriety}`)));
+                h('span', { class: 'stat' }, `Notor ${st.ch.notoriety}`)),
+            h('button', { class: `vpchip${vpNow() < 0 ? ' neg' : ''}`, 'data-act': 'vp', 'aria-label': 'Victory points: how your score stands', onclick: () => { ui.sheet = ui.sheet === 'score' ? null : 'score'; render(); } },
+                h('small', {}, 'VP'), h('b', {}, vpNow() > 0 ? `+${vpNow()}` : String(vpNow()))));
         map.set(mapModel());
         const hero = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at;
         if (hero !== lastHero) { lastHero = hero; map.focus(hero); }
@@ -269,6 +272,7 @@ export function gameScreen(ctx) {
         else if (ui.sheet === 'setupcard') out.push(setupCardSheet());
         else if (ui.sheet === 'item') out.push(itemSheet());
         else if (ui.sheet === 'spell') out.push(spellSheet());
+        else if (ui.sheet === 'score') out.push(scoreSheet());
         else if (ui.sheet === 'key') out.push(modal('Map key', h('div', { class: 'key' },
             ...[['I H C G', 'Dwellings: Inn, House, Chapel, Guard house; the number beside it is the natives there'],
                 ['\u25C6', 'A site you have found: treasure lies there'], ['\u266A', 'A sound chit that has turned up: monsters stir in that clearing'],
@@ -602,6 +606,43 @@ export function gameScreen(ctx) {
                 : ask('Your Rest phase: tap the chit you want back.', 'One Rest returns one asterisk of effort: a tired chit becomes ready again, or a wounded chit is healed (one with asterisks comes back tired). Only the chits glowing gold can be rested now.'),
             h('div', { class: 'chitgrid' }, ...st.ch.chits.map(tile)),
             waiting ? h('button', { class: 'btn', onclick: () => { ui.restChit = null; render(); } }, 'Choose a different chit') : null));
+    }
+
+    // The score as it stands today, worked the way the game works it out at the end.
+    function vpNow() { try { return st.period === 'over' && st.ch.dead ? -100 : scoreGame(st, data).total; } catch { return 0; } }
+    function scoreSheet() {
+        const res = scoreGame(st, data), e = earned(st, data), need = targets(st), vp = st.ch.vp ?? {};
+        const NAME = { great: 'Great Treasures', spells: 'Spells', fame: 'Fame', notoriety: 'Notoriety', gold: 'Gold' };
+        const belong = (key) => st.ch.items.filter(i => !i.destroyed).map(i => { const d = defOf(data, i); const t = i.card ? data.treasures[i.card] : d; return { name: nameOf(data, i), v: (t?.[key] ?? d?.[key] ?? 0) }; }).filter(x => x.v);
+        const how = {
+            great: `Great Treasures you own and can carry (${e.great}). Each is worth one point of the goal.`,
+            spells: 'Spells learned from cards during the game count (starting spells do not). None can be learned in this build yet.',
+            fame: `Recorded Fame ${st.ch.fame} plus the Fame of what you own${belong('fame').length ? ` (${belong('fame').map(x => `${x.name} ${x.v > 0 ? '+' : ''}${x.v}`).join(', ')})` : ''}.`,
+            notoriety: `Recorded Notoriety ${st.ch.notoriety} plus the Notoriety of what you own${belong('notoriety').length ? ` (${belong('notoriety').map(x => `${x.name} ${x.v > 0 ? '+' : ''}${x.v}`).join(', ')})` : ''}.`,
+            gold: `Recorded gold ${st.ch.gold} minus your starting value ${st.ch.startValue ?? 10} (your starting gold and the price of the gear you began with). Only gold counts, not the price of things you own.`,
+        };
+        const rows = res.rows ?? [];
+        const sign = n => (n > 0 ? `+${n}` : String(n));
+        return modal('Victory points', h('div', { class: 'scoresheet' },
+            ask(`Your score today: ${sign(res.total ?? -100)}${res.dead ? ' (dead characters score -100)' : (res.total >= 0 ? ': you would win' : ': not yet enough')}`,
+                'This is the score the game would give you if it ended now. It is only worked out for real at the end, so it moves as you earn and lose things.'),
+            ...CATS.map(c => {
+                const r = rows.find(x => x.cat === c);
+                return h('div', { class: 'scorerow2' },
+                    h('div', { class: 'sr-head' }, h('b', {}, NAME[c]), h('span', {}, r ? `${sign(r.basic + r.bonus)} points` : '')),
+                    h('div', { class: 'sr-nums' },
+                        h('span', {}, h('em', {}, 'Goal'), ` ${vp[c] ?? 0} VP × ${FACTORS[c]} = ${need[c]}`),
+                        h('span', {}, h('em', {}, 'Earned'), ` ${e[c]}`),
+                        h('span', {}, h('em', {}, r && r.diff < 0 ? 'Short' : 'Over'), ` ${r ? Math.abs(Math.round(r.diff / (r.diff < 0 ? 3 : 1))) : 0}`)),
+                    r ? h('p', { class: 'hint' }, r.diff < 0
+                        ? `Short by ${Math.abs(r.diff / 3)}, counted three times (${r.diff}), divided by ${FACTORS[c]} and rounded down: ${r.basic}. Bonus ${r.basic} × ${vp[c] ?? 0} VP = ${r.bonus}.`
+                        : `Over by ${r.diff}, divided by ${FACTORS[c]} and rounded down: ${r.basic}. Bonus ${r.basic} × ${vp[c] ?? 0} VP = ${r.bonus}.`) : null,
+                    h('p', { class: 'hint' }, how[c]));
+            }),
+            h('h3', {}, 'How the score is worked out'),
+            h('p', {}, 'At the start you spread your victory points over five goals. A goal\'s need is its points times its factor: Great Treasures 1, Spells 2, Fame 10, Notoriety 20, Gold 30.'),
+            h('p', {}, 'For each goal: points = (earned − need) ÷ factor, rounded down, and a shortfall is counted three times. The bonus is those points times the victory points you put on that goal. Your total is every goal\'s points plus bonus.'),
+            h('p', {}, 'A total of zero or more is a win. A character who dies scores −100. At the end, belongings too heavy for your strongest Move chit (or horse or boots) are put down before anything is counted.')), { close: () => { ui.sheet = null; render(); } });
     }
 
     // A spell: its card, with the rules' full description.

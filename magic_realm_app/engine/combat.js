@@ -109,13 +109,25 @@ export function startCombat(st, data, clearing) {
 function introLines(st, data, c) {
     const te = st.turnEnd && st.turnEnd.day === st.day ? st.turnEnd : null;
     const lines = [];
-    const mons = c.dens.filter(d => d.kind === 'mon');
-    for (const d of mons) {
-        const name = denSide(st, data, d).name;
+    // creatures that came the same way are told together: "The two Heavy Flying Dragons (#1 and #2) answered the call of the Smoke ..."
+    const groups = new Map();
+    for (const d of c.dens.filter(x => x.kind === 'mon')) {
         const a = te?.arrivals?.find(x => x.id === d.id);
-        if (!a) lines.push(`The ${name} was already in this clearing.`);
-        else if (a.why === 'prowls in your tile') lines.push(`The ${name} was prowling elsewhere in this tile and came to your clearing when your turn ended.`);
-        else lines.push(`The ${name} answered the call of ${a.why.replace(/^called by /, 'the ')}, which turned up when your turn ended.`);
+        const cause = !a ? 'was already in this clearing'
+            : a.why === 'prowls in your tile' ? 'was prowling elsewhere in this tile and came to your clearing when your turn ended'
+                : `answered the call of ${a.why.replace(/^called by /, 'the ')}, which turned up when your turn ended`;
+        (groups.get(cause) ?? groups.set(cause, []).get(cause)).push(d);
+    }
+    const NUM = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+    const plural = n => (/wolf$/i.test(n) ? n.replace(/wolf$/i, 'Wolves') : /s$/i.test(n) ? n : `${n}s`);
+    for (const [cause, list] of groups) {
+        const plain = list.map(d => denSide(st, data, d).name);
+        const bases = [...new Set(list.map(d => data.monsters[d.id].name))];
+        let subject;
+        if (list.length === 1) subject = `The ${plain[0]}`;
+        else if (bases.length === 1) subject = `The ${NUM[list.length] ?? list.length} ${plural(bases[0])} (${list.map(d => `#${d.tag}`).join(' and ').replace(/ and (?=#\d+ and )/g, ', ')})`;
+        else subject = `The ${plain.join(', ').replace(/, ([^,]+)$/, ' and $1')}`;
+        lines.push(`${subject} ${list.length > 1 ? cause.replace(/^was /, 'were ').replace(/^answered/, 'answered') : cause}.`);
     }
     if (te?.blocked) lines.push(te.blockers?.length ? `Your turn was cut short: ${[...new Set(te.blockers)].join(', ')} blocked you.` : 'Your turn was cut short.');
     lines.push(st.ch.hidden ? 'You are hidden, so creatures cannot be set on you unless you give yourself away.' : 'You are in plain sight, so the creatures here will come for you.');

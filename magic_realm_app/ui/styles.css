@@ -483,3 +483,21 @@ button.chit2:disabled { cursor: default; }
 
 .btn .col { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; }
 .btn .col small { font-size: 12.5px; opacity: .8; }
+
+.vpchip { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 46px; height: 40px; padding: 0 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; line-height: 1.05; flex: none; }
+.vpchip small { font-size: 10px; letter-spacing: .08em; color: var(--dim); }
+.vpchip b { font-size: 16px; }
+.vpchip.neg b { color: #e88; }
+.status { gap: 8px; }
+.stats { gap: 8px; font-size: 14.5px; }
+.scoresheet { display: flex; flex-direction: column; gap: 10px; }
+.scorerow2 { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
+.sr-head { display: flex; justify-content: space-between; }
+.sr-nums { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 14px; margin-top: 2px; }
+.sr-nums em { font-style: normal; color: var(--dim); }
+.scorerow2 .hint { margin: 4px 0 0; font-size: 13px; }
+
+.daybox, .daybox b, .daybox span { white-space: nowrap; }
+.daybox small { font-size: .7em; }
+.stat { white-space: nowrap; }
+@media (max-width: 380px) { .stats { gap: 6px; font-size: 12.5px; } .status { gap: 6px; } }
