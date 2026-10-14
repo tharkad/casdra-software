@@ -445,3 +445,14 @@ button.foe { flex-direction: row; align-items: center; gap: 10px; }
 
 /* a label that belongs to a clearing opens that clearing, like the clearing itself */
 .realm-svg .names .pill[data-clearing], .realm-svg .names .pill[data-clearing] * { pointer-events: auto; cursor: pointer; }
+
+/* belongings */
+.itemrow { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: stretch; }
+.switch { min-width: 62px; border-radius: 22px; border: 1px solid var(--line); background: var(--panel); color: var(--dim); font-weight: 700; font-size: 15px; cursor: pointer; }
+.switch.on { background: color-mix(in srgb, var(--gold) 22%, var(--panel)); color: var(--gold); border-color: var(--gold); }
+.switch:disabled { opacity: .45; cursor: default; }
+.switch.big { min-height: 48px; padding: 0 14px; }
+.itemsheet { display: flex; flex-direction: column; gap: 10px; }
+.itemsheet .faces { display: flex; gap: 12px; justify-content: center; }
+.itemsheet p { margin: 0; }
+.itemrow .rl small { display: block; font-size: 12px; color: var(--dim); font-weight: 400; }

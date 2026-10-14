@@ -57,3 +57,25 @@ export function monsterCounter({ s, side = 'light', picture = null, flies = fals
     }
     return svg;
 }
+
+// One face of a belonging, drawn like a counter: the picture, a ribbon naming the face, the main figure (harm and time, toughness, strength and moves)
+// at the bottom left, and a second figure in a circle at the bottom right. `dim` marks a face that is not the one showing now.
+export function itemFace({ name, picture = null, face, big = '', stars = 0, circle = null, circleTone = 'blue', corner = null, current = false, size = 108 }) {
+    const f = current ? FACE.light : { fill: '#d8cfb4', edge: '#6b5d3a', text: '#1d1a12', stat: '#8a4a12' };
+    const svg = sv('svg', { viewBox: '0 0 100 100', width: size, height: size, class: `counter item${current ? ' now' : ''}`, role: 'img', 'aria-label': `${name}, ${face} side` });
+    svg.append(sv('rect', { x: 1.5, y: 1.5, width: 97, height: 97, rx: 9, fill: f.fill, stroke: current ? '#c9a24a' : f.edge, 'stroke-width': current ? 4 : 3 }));
+    if (picture) svg.append(sv('image', { href: picture, x: 17, y: 20, width: 66, height: 56, preserveAspectRatio: 'xMidYMid meet' }));
+    svg.append(sv('rect', { x: 6, y: 6, width: 88, height: 15, rx: 5, fill: current ? '#2a2438' : '#4a4438' }));
+    svg.append(sv('text', { x: 50, y: 13.5, 'text-anchor': 'middle', dy: '.36em', 'font-size': 9.5, 'font-weight': 700, fill: '#f4ecd6', 'letter-spacing': '.06em' }, face.toUpperCase()));
+    if (big) {
+        svg.append(sv('text', { x: 7, y: 93, 'font-size': 19, 'font-weight': 800, fill: f.stat }, big));
+        const x0 = 9 + String(big).length * 11.5;
+        for (let i = 0; i < stars; i++) svg.append(sv('polygon', { points: star(x0 + 5 + i * 11, 86, 5.5), fill: f.stat }));
+    }
+    if (corner) svg.append(sv('text', { x: 7, y: 76, 'font-size': 9.5, 'font-weight': 700, fill: f.text }, corner));
+    if (circle != null) {
+        svg.append(sv('circle', { cx: 85, cy: 85, r: 11.5, fill: circleTone === 'blue' ? '#1f4fb4' : '#8a2d2d', stroke: '#0c2a6b', 'stroke-width': 1.2 }));
+        svg.append(sv('text', { x: 85, y: 85, 'text-anchor': 'middle', dy: '.36em', 'font-size': 13, 'font-weight': 800, fill: '#fff' }, String(circle)));
+    }
+    return svg;
+}

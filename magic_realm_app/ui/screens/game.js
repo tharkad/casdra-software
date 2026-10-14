@@ -16,6 +16,7 @@ import { newRecord, daySnapshot, finalize } from '../../engine/gamerecord.js';
 import { putRecord, getRecord } from '../gamestore.js';
 import { VERSION } from '../version.js';
 import { ask } from '../ask.js';
+import { itemFace } from '../counter.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
@@ -266,6 +267,7 @@ export function gameScreen(ctx) {
                 .flatMap(([t, k]) => [h('h3', {}, t), h('img', { class: 'tablepic', src: data.art.misc[k], alt: t })])), { close: () => { ui.sheet = null; render(); } }));
         else if (ui.sheet === 'log') out.push(logSheet());
         else if (ui.sheet === 'setupcard') out.push(setupCardSheet());
+        else if (ui.sheet === 'item') out.push(itemSheet());
         else if (ui.sheet === 'key') out.push(modal('Map key', h('div', { class: 'key' },
             ...[['I H C G', 'Dwellings: Inn, House, Chapel, Guard house; the number beside it is the natives there'],
                 ['\u25C6', 'A site you have found: treasure lies there'], ['\u266A', 'A sound chit that has turned up: monsters stir in that clearing'],
@@ -503,9 +505,16 @@ export function gameScreen(ctx) {
             h('p', { class: 'hint' }, 'Gold, Fame and Notoriety are shown on the top bar. Fatigued chits are dim; wounded chits are crossed out.'),
             ch.spells?.length || (data.characters[ch.id].stage4.spellsKnown ?? 0) ? h('p', { class: 'hint' }, `Spells: ${(ch.spells ?? []).map(id => data.spells?.[id]?.name ?? id).join(', ') || `one of type ${(data.characters[ch.id].stage4.spellTypes ?? []).join('/')} (not castable in this build yet)`}.`) : null,
             h('h3', {}, 'Carrying'),
-            ...ch.items.map(it => h('div', { class: 'itemrow' }, h('button', { class: `btn row${it.active ? ' on' : ''}`, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid }); } },
-                ico(nameOf(data, it)), h('span', { class: 'rl' }, h('b', {}, nameOf(data, it) + (it.damaged ? ' (damaged)' : '') + (it.destroyed ? ' (destroyed)' : ''))), h('em', {}, `${WEIGHT_WORDS[weightOf(data, it)] ?? ''}${it.active ? ' · in use' : ''}`)),
-                h('button', { class: 'leavebtn', 'aria-label': `Leave the ${nameOf(data, it)} behind`, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid, drop: true }); } }, 'Leave'))),
+            ...ch.items.map(it => {
+                const canSwitch = st.pending?.type === 'phase' || st.pending?.type === 'plan';
+                return h('div', { class: 'itemrow' },
+                    h('button', { class: `btn row${it.active ? ' on' : ''}`, 'data-item': it.uid, 'aria-label': `About the ${nameOf(data, it)}`, onclick: () => { ui.itemUid = it.uid; ui.sheet = 'item'; render(); } },
+                        ico(nameOf(data, it)), h('span', { class: 'rl' }, h('b', {}, nameOf(data, it) + (it.damaged ? ' (damaged)' : '') + (it.destroyed ? ' (destroyed)' : '')), h('small', {}, summaryOf(data, it))),
+                        h('em', {}, `${WEIGHT_WORDS[weightOf(data, it)] ?? ''}`)),
+                    h('button', { class: `switch${it.active ? ' on' : ''}`, role: 'switch', 'aria-checked': it.active ? 'true' : 'false', 'data-switch': it.uid, disabled: !canSwitch || it.destroyed || null,
+                        'aria-label': `${nameOf(data, it)}: ${it.active ? 'in use' : 'put away'}`, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid }); } }, it.active ? 'On' : 'Off'),
+                    h('button', { class: 'leavebtn', 'aria-label': `Leave the ${nameOf(data, it)} behind`, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid, drop: true }); } }, 'Leave'));
+            }),
             ch.items.length ? null : h('p', { class: 'hint' }, 'Nothing.'),
             ...(() => { const hs = st.nats.filter(n => n.hired && !n.dead); return hs.length ? [h('h3', {}, 'Hirelings'),
                 ...hs.map(n => h('p', {}, `${data.natives[n.id].name} \u2014 term ends at midnight of day ${n.hiredUntil}`))] : []; })(),
@@ -559,6 +568,54 @@ export function gameScreen(ctx) {
                 document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
             } }, `Save it as a file instead (${kb(b.packed.bytes)})`) : null,
             h('div', { class: 'row2' }, h('button', { class: 'btn', 'data-act': 'bug-cancel', disabled: sending || null, onclick: close.close }, 'Cancel'), ok)), close);
+    }
+
+    // One belonging: both of its faces drawn as counters, the facts, and the switch.
+    function itemSheet() {
+        const it = st.ch.items.find(i => i.uid === ui.itemUid);
+        const back = { close: () => { ui.sheet = 'char'; render(); } };
+        if (!it) return modal('Belonging', h('p', { class: 'hint' }, 'You no longer have it.'), back);
+        const d = defOf(data, it), name = nameOf(data, it), pic = picOf(name) ?? (d?.name ? picOf(d.name) : null);
+        const faces = [], facts = [];
+        const fmtT = t => (t == null ? '\u2013' : t);
+        if (it.kind === 'weapon') {
+            const u = d.unalerted, a = d.alerted;
+            faces.push(itemFace({ name, picture: pic, face: 'Not alerted', big: `${u.harm}${fmtT(u.attackTime)}`, stars: u.stars ?? 0, corner: `(${d.length})`, current: !it.alerted && !it.destroyed }));
+            faces.push(itemFace({ name, picture: pic, face: 'Alerted', big: `${a.harm}${a.attackTime == null ? '' : a.attackTime}`, stars: a.stars ?? 0, corner: `(${d.length})${a.attackTime == null ? ' time: your chit' : ''}`, current: it.alerted && !it.destroyed }));
+            facts.push(`${d.missile ? 'A missile weapon' : 'A striking weapon'}, length ${d.length}, weight ${WEIGHT_WORDS[d.weight]}.`);
+            facts.push(`Not alerted: harm ${u.harm}${'*'.repeat(u.stars ?? 0)}, attack time ${fmtT(u.attackTime)}.`);
+            facts.push(`Alerted: harm ${a.harm}${'*'.repeat(a.stars ?? 0)}, ${a.attackTime == null ? 'no printed attack time: the Fight chit you play gives the time' : `attack time ${a.attackTime}`}.`);
+            facts.push('Alert it in an Alert phase, or as your Encounter action in a fight; it goes back to not alerted at Midnight and after a blow that lands.');
+        } else if (it.kind === 'armor') {
+            const dir = (d.protects ?? []).join(', ');
+            faces.push(itemFace({ name, picture: pic, face: 'Whole', big: d.toughness ?? '', corner: dir ? '' : null, circle: d.priceIntact ?? null, current: !it.damaged && !it.destroyed }));
+            faces.push(itemFace({ name, picture: pic, face: 'Damaged', big: d.toughness ?? '', circle: d.priceDamaged ?? null, circleTone: 'red', current: it.damaged && !it.destroyed }));
+            facts.push(`${((d.type ?? 'armor')[0]).toUpperCase()}${(d.type ?? 'armor').slice(1)}, weight ${WEIGHT_WORDS[d.weight]}, toughness ${d.toughness}.`);
+            facts.push(`Guards against: ${dir || 'nothing listed'}${d.chooseOneDirection ? ' (you choose one direction each round)' : ''}.`);
+            facts.push(`A blow as strong as its toughness damages it; the next such blow destroys it. Worth ${d.priceIntact ?? '?'} gold whole, ${d.priceDamaged ?? '?'} damaged.`);
+        } else if (it.kind === 'horse') {
+            faces.push(itemFace({ name, picture: pic, face: 'Walking', big: `${d.walk.strength}${d.walk.moves}`, corner: `vuln ${d.vulnerability}`, circle: d.walk.moves, current: true }));
+            faces.push(itemFace({ name, picture: pic, face: 'Galloping', big: `${d.gallop.strength}${d.gallop.moves}`, corner: `vuln ${d.vulnerability}`, circle: d.gallop.moves }));
+            facts.push(`${d.kind ?? 'Horse'}${d.armored ? ', armored' : ''}, vulnerability ${d.vulnerability}.`);
+            facts.push(`Walking: strength ${d.walk.strength}, moves ${d.walk.moves}. Galloping: strength ${d.gallop.strength}, moves ${d.gallop.moves}. In a fight it is played like a Move chit, either side, once a round.`);
+            facts.push('It cannot be ridden in a cave.');
+        } else {
+            faces.push(itemFace({ name, picture: pic, face: d?.great ? 'Great treasure' : 'Treasure', big: d?.weight ?? '', corner: d?.gold != null ? `${d.gold}g` : null, current: true }));
+            facts.push(`${d?.kind === 'large' ? 'A Large' : d?.kind === 'small' ? 'A Small' : 'A'} treasure, weight ${WEIGHT_WORDS[d?.weight] ?? '?'}, worth ${d?.gold ?? '?'} gold.`);
+            if (d?.great) facts.push('A Great Treasure: it counts toward the Great Treasures goal while you keep it.');
+            if (d?.fame || d?.notoriety) facts.push(`While you own it: Fame ${d.fame >= 0 ? '+' : ''}${d.fame ?? 0}, Notoriety ${d.notoriety >= 0 ? '+' : ''}${d.notoriety ?? 0}.`);
+            if (d?.fameReward) facts.push(`Sold to the ${d.fameReward.group} it earns ${d.fameReward.points} Fame.`);
+            if (d?.effectText) facts.push(d.effectText);
+        }
+        const canSwitch = (st.pending?.type === 'phase' || st.pending?.type === 'plan') && !it.destroyed;
+        return modal(name, h('div', { class: 'itemsheet' },
+            h('div', { class: 'faces' }, ...faces),
+            h('p', { class: 'hint' }, `${it.destroyed ? 'Destroyed. ' : ''}${it.active ? 'In use' : 'Put away'}${it.kind === 'weapon' ? (it.alerted ? ', alerted' : ', not alerted') : ''}${it.kind === 'armor' ? (it.damaged ? ', damaged' : ', whole') : ''}.`),
+            ...facts.map(t => h('p', {}, t)),
+            h('div', { class: 'row2' },
+                h('button', { class: `switch big${it.active ? ' on' : ''}`, role: 'switch', 'aria-checked': it.active ? 'true' : 'false', 'data-act': 'item-switch', disabled: !canSwitch || null, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid }); } }, it.active ? 'In use: put it away' : 'Put it in use'),
+                h('button', { class: 'btn', onclick: back.close }, 'Back')),
+            canSwitch ? null : h('p', { class: 'hint' }, 'Gear can be changed between phases, not in the middle of one.')), back);
     }
 
     // The printed Treasure Set Up Card in full: it is the same for every game, so every player may read it.
