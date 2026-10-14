@@ -14,6 +14,35 @@ export function sitesHere(st) {
     return st.chits.filter(c => c.kind === 'site' && c.tile === tile && c.num === n && !c.pile && st.ch.discovered.sites.includes(c.id));
 }
 
+const chitName = c => (c.type === 'magic' ? `Magic ${c.numeral ?? ''}${c.time}` : `${c.type === 'move' ? 'Move' : 'Fight'} ${c.strength}${c.time}`) + '*'.repeat(c.effort ?? 0);
+
+// The ways he can pay one asterisk of effort (Cairns, Pool): tire any ready chit that has an asterisk. A chit worth two may also "make change":
+// it is tired and a tired one-asterisk chit of the same type is brought back (rule 4.2.4). Identical chits are offered once.
+export function effortOptions(st) {
+    const out = [], seen = new Set();
+    const key = c => `${c.type}${c.strength ?? c.numeral}${c.time}${c.effort}`;
+    for (const c of st.ch.chits) {
+        if (c.state !== 'active' || !(c.effort > 0) || seen.has(key(c))) continue;
+        seen.add(key(c));
+        out.push({ chit: c.id, text: `Tire ${chitName(c)}` });
+        if (c.effort === 2) {
+            const seenBack = new Set();
+            for (const b of st.ch.chits) {
+                if (b.state !== 'fatigued' || b.effort !== 1 || b.type !== c.type || seenBack.has(key(b))) continue;
+                seenBack.add(key(b));
+                out.push({ chit: c.id, back: b.id, text: `Tire ${chitName(c)} and bring back ${chitName(b)} (change)` });
+            }
+        }
+    }
+    return out;
+}
+export function payEffort(st, o) {
+    const c = st.ch.chits.find(x => x.id === o.chit);
+    c.state = 'fatigued';
+    if (o.back) st.ch.chits.find(x => x.id === o.back).state = 'active';
+    return `You ${o.text.charAt(0).toLowerCase()}${o.text.slice(1)}.`;
+}
+
 function asterisksAvailable(st) {
     return st.ch.chits.filter(c => c.state === 'active' && c.effort > 0).sort((a, b) => a.effort - b.effort);
 }
@@ -24,7 +53,7 @@ function takeInto(st, data, it) {
     autoEquip(st, data, it);
 }
 
-export function lootFrom(st, data, r, groundOnly = false) {
+export function lootFrom(st, data, r, groundOnly = false, { paid = false } = {}) {
     const here = st.ch.at;
     const sites = groundOnly ? [] : sitesHere(st);
     const site = sites[0];
@@ -32,11 +61,7 @@ export function lootFrom(st, data, r, groundOnly = false) {
     if (!pileList) return `Loot (${r.dice.join('+')}): there is nothing here to loot. You need to discover a site first.`;
     const label = site ? site.name : 'the things on the ground';
     // Conditions at the more dangerous sites.
-    if (site?.name === 'Cairns') {
-        const c = asterisksAvailable(st)[0];
-        if (!c) return 'The Cairns demand effort and you have none to give.';
-        c.state = 'fatigued';
-    }
+    // (the Cairns' toll is paid before the roll is made: see doSearch)
     if (site?.name === 'Vault' && !st.sitesOpen?.Vault) {
         const strong = st.ch.chits.some(c => c.state === 'active' && lvl(c.strength) >= 4);
         const keys = st.ch.items.some(i => i.id === 'lost-keys' && i.active);
@@ -46,10 +71,12 @@ export function lootFrom(st, data, r, groundOnly = false) {
     const idx = r.value - 1;
     const it = pileList[idx];
     if (!it) return `Loot (${r.dice.join('+')}) at ${label}: nothing at that depth.`;
-    if (site?.name === 'Pool') {
-        const c = asterisksAvailable(st)[0];
-        if (!c) return 'You are too exhausted to wade into the Pool.';
-        c.state = 'fatigued';
+    if (site?.name === 'Pool' && !paid) {
+        // an asterisk is paid each time something is actually taken, and he picks the chit
+        const opts = effortOptions(st);
+        if (!opts.length) return 'You are too exhausted to wade into the Pool.';
+        if (opts.length === 1) say(st, payEffort(st, opts[0]), 'info');
+        else { st.pending = { type: 'effort-cost', site: 'Pool', options: opts, resume: 'loot', r, ground: groundOnly }; return 'wait'; }
     }
     pileList.splice(idx, 1);
     const card = it.kind === 'treasure' ? data.treasures[it.id] : null;

@@ -239,6 +239,10 @@ export function gameScreen(ctx) {
             ...p.options.map(t => h('button', { class: 'btn', 'data-table': t, onclick: () => act({ type: 'search-table', table: t }) }, h('b', {}, TABLE_LABEL[t]),
                 h('small', {}, { peer: 'look for clues, hidden enemies and hidden paths', locate: 'find passages, clues and sites in this clearing', loot: 'take treasure from a site you have discovered here',
                     ground: 'pick up what lies on the ground here', sitecard: 'search the place you found with a treasure card' }[t] ?? ''))))));
+        else if (p?.type === 'effort-cost') out.push(modal(`${p.site}: pay with effort`, h('div', {},
+            ask(p.site === 'Cairns' ? 'The Cairns take an asterisk of effort for every Loot roll, found or not.' : 'The Pool takes an asterisk of effort each time something is taken from it.',
+                'Choose which chit pays: it is tired until you rest it. A chit with two asterisks may pay and return a tired one-asterisk chit of the same kind ("change").'),
+            ...p.options.map((o, n) => h('button', { class: 'btn', 'data-effort': n, onclick: () => act({ type: 'effort-cost', n }) }, o.text)))));
         else if (p?.type === 'search-choice') out.push(modal(`${TABLE_LABEL[p.table]}: your choice`, h('div', {}, latestRoll(st) ? rollRow(latestRoll(st)) : null, ask(`You rolled ${p.roll.join('+')}: the table gives you a choice.`, 'This result lets you pick whichever entry of the table you want instead of the one the dice name. Choose the one that helps you most.'),
             ...p.options.map(r => h('button', { class: 'btn', onclick: () => act({ type: 'search-choice', result: r }) }, r)))));
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));

@@ -4,7 +4,7 @@ import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, 
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
 import * as combat from './combat.js';
 import { makeItem, defOf, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem } from './items.js';
-import { lootFrom, lootSiteCard, groundPileAt } from './search.js';
+import { lootFrom, lootSiteCard, groundPileAt, sitesHere, effortOptions, payEffort } from './search.js';
 import { hasCurse, liftCursesAtChapel } from './effects.js';
 import { restartAfterDeath } from './setup.js';
 import { activeHorse } from './items.js';
@@ -399,6 +399,13 @@ function doSearch(st, data, slot) {
         return 'wait';
     }
     const table = slot.table;
+    // Searching the Cairns costs an asterisk of effort for every Loot roll, found or not, paid before the roll; the player picks the chit.
+    if (table === 'loot' && !slot.paid && sitesHere(st)[0]?.name === 'Cairns') {
+        const opts = effortOptions(st);
+        if (!opts.length) return 'The Cairns demand an asterisk of effort for every roll, and you have none to give: you cannot search them.';
+        if (opts.length === 1) say(st, payEffort(st, opts[0]), 'info');
+        else { st.pending = { type: 'effort-cost', site: 'Cairns', options: opts, resume: 'search', slot: { act: 'search', table: 'loot' } }; return 'wait'; }
+    }
     let r;
     if (oneDie(st, table === 'loot' || table === 'ground' || table === 'sitecard' ? 'loot' : 'search', st.ch.at, data)) { const d1 = die(st); r = { dice: [d1], value: d1 }; } else r = roll2(st);
     const rawDice = [...r.dice];
@@ -490,6 +497,17 @@ export function apply(st0, data, action) {
             const text = doSearch(st, data, { act: 'search', table: action.table });
             if (text === 'wait') return st;                          // a Choice result is waiting for its own answer
             say(st, text, 'info');
+            finishPhase(st, data, text);
+            return settle(st, data, st.turn?.auto);
+        }
+        case 'effort-cost': {
+            if (p.type !== 'effort-cost') throw new Error('nothing is asking for effort');
+            const o = p.options[action.n ?? 0];
+            if (!o) throw new Error('choose one of the ways to pay');
+            st.pending = null;
+            say(st, payEffort(st, o), 'info');
+            const text = p.resume === 'search' ? doSearch(st, data, { ...p.slot, paid: true }) : lootFrom(st, data, p.r, p.ground, { paid: true });
+            if (text === 'wait') return st;
             finishPhase(st, data, text);
             return settle(st, data, st.turn?.auto);
         }
