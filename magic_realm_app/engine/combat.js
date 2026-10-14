@@ -1,4 +1,4 @@
-import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll, tally } from './core.js';
+import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll, tally, WEIGHT_WORDS } from './core.js';
 import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './tables.js';
 import { pit } from './effects.js';
 import { hirelings } from './hire.js';
@@ -781,14 +781,14 @@ function denHit(st, data, den, ctx) {
     level += stars + missile;
     const L = letterOf(level);
     ctx.log(`${s.name} strikes ${DIRS[dir].toLowerCase()} for ${L} harm${armor ? ` against your ${armor.def.name}` : ''}.`, tell.strike(st, s.name, DIRS[dir].toLowerCase(), L, armor?.def.name));
-    let wounded = false;
+    let wounded = false, changed = false;
     if (armor) {
         const tough = lvl(armor.def.toughness ?? armor.def.weight);
         if (level >= tough) {
             const card = !!armor.def.card;
-            if (!card && level === tough && !armor.item.damaged && !armor.item.destroyed) { armor.item.damaged = true; tally(st, 'armorDamaged'); ctx.log(`Your ${armor.def.name} is damaged.`, tell.damaged(st, armor.def.name)); c.eventful = true; }
+            if (!card && level === tough && !armor.item.damaged && !armor.item.destroyed) { armor.item.damaged = true; changed = true; tally(st, 'armorDamaged'); ctx.log(`Your ${armor.def.name} is damaged.`, tell.damaged(st, armor.def.name)); c.eventful = true; }
             else if (!armor.item.destroyed) {
-                armor.item.destroyed = true; armor.item.active = false; armor.item.destroyedGroup = ctx.g; tally(st, 'armorDestroyed');
+                armor.item.destroyed = true; armor.item.active = false; armor.item.destroyedGroup = ctx.g; changed = true; tally(st, 'armorDestroyed');
                 const gold = !armor.def.native ? (armor.def.priceDestroyed ?? 0) : 0;
                 if (gold) st.ch.gold += gold;
                 ctx.log(`Your ${armor.def.name} is destroyed${gold ? ` (worth ${gold} gold to you)` : ''}.`, tell.destroyed(st, armor.def.name, gold));
@@ -803,6 +803,12 @@ function denHit(st, data, den, ctx) {
         c.newWounds = (c.newWounds ?? 0) + 1; tally(st, 'woundsTaken'); tally(st, `wounds.${s.name}`);
         c.eventful = true;
         ctx.log('You take a wound.', tell.wound(st));
+    } else if (!changed && !st.ch.dead) {
+        // nothing came of it, and the player should be told why
+        const why = armor
+            ? `${WEIGHT_WORDS[L] ?? L} harm is not enough to hurt your ${armor.def.name} (toughness ${WEIGHT_WORDS[armor.def.toughness ?? armor.def.weight] ?? armor.def.toughness}), and it is too light to hurt you through it.`
+            : `${WEIGHT_WORDS[L] ?? L} harm is too light to wound you.`;
+        ctx.log(`No effect: ${why}`, tell.noEffect(st, WEIGHT_WORDS[L] ?? L, armor?.def.name, armor ? (WEIGHT_WORDS[armor.def.toughness ?? armor.def.weight] ?? armor.def.toughness) : null));
     }
     // a tremendous monster that hurts him and leaves him alive will pick him up when the round ends
     if (!st.ch.dead) {

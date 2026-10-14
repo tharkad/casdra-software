@@ -22,6 +22,9 @@ export const tell = {
     connectUnder: (st, name, dir, atk, mine) => `Quick as thought, ${the(name)}'s ${dir} slips beneath your guard (its ${atk} against your ${mine}).`,
     avoid: (st, name, dir, aimed, mnv) => `${The(name)}'s ${dir} sweeps toward your ${aimed}, but your ${mnv} carries you clear.`,
     strike: (st, name, dir, L, armor) => `${The(name)}'s ${dir} ${harmWord(L)} ${armor ? `your ${armor}` : 'you'}${armor ? '' : v(st, [' without anything to turn it', ' through bare flesh'], 2)}.`,
+    noEffect: (st, harm, armor, tough) => (armor
+        ? `It does nothing: ${harm.toLowerCase()} harm cannot dent your ${armor} (it takes ${tough} harm to damage it), and it is too light to hurt you through it.`
+        : `It does nothing: ${harm.toLowerCase()} harm is too light to wound you.`),
     damaged: (st, armor) => v(st, [`Metal shrieks: your ${armor} is dented and damaged.`, `Your ${armor} takes the blow and is damaged.`]),
     destroyed: (st, armor, gold) => `With a crack your ${armor} gives way and is destroyed${gold ? ` (worth ${gold} gold to you)` : ''}.`,
     wound: st => v(st, ['The blow finds a gap: you are wounded.', 'You stagger as the blow gets through: a wound.']),
