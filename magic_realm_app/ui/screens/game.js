@@ -383,16 +383,28 @@ export function gameScreen(ctx) {
             h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'cancel' }) }, 'Never mind')));
     }
 
-    // A site: whether you have discovered it and, once you have, what is left in it (how many things, and how many of those are Great Treasures).
+    // A site: whether you have discovered it and, once you have, what is left in it (how many things, and how many of those are Great Treasures),
+    // what looting it demands, and what guards it.
+    const SITE_GUARD = { Hoard: 'a Tremendous Flying Dragon', Lair: 'a Tremendous Dragon', Altar: 'a Demon', Shrine: 'a Winged Demon', Pool: 'an Octopus', Vault: 'a Tremendous Troll',
+        Cairns: 'a Tremendous Spider', Statue: 'an Imp' };
+    function siteNeeds(name) {
+        const asterisk = st.ch.chits.some(x => x.state === 'active' && x.effort > 0);
+        const tChit = st.ch.chits.some(x => x.state === 'active' && lvl(x.strength) >= 4) || st.ch.items.some(i => i.id === 'lost-keys' && i.active);
+        if (name === 'Cairns') return `Needs: one asterisk of effort for every Loot roll, found or not (a chit with an asterisk is tired). ${asterisk ? 'You have one ready.' : 'You have none ready now, so you could not loot it.'}`;
+        if (name === 'Pool') return `Needs: one asterisk of effort each time something is actually taken. ${asterisk ? 'You have one ready.' : 'You have none ready now.'}`;
+        if (name === 'Vault') return st.sitesOpen?.Vault ? 'The Vault is open: it stays open for everyone.' : `Needs: the Vault is sealed until it is opened with a Tremendous-strength chit, or the Lost Keys. ${tChit ? 'You can open it.' : 'You cannot open it now.'}`;
+        return 'Needs: nothing to loot it.';
+    }
     function siteLine(c) {
         const found = st.ch.discovered.sites.includes(c.id);
-        if (!found) return 'Not discovered yet: search with Locate to discover it. What it holds is unknown until you do.';
+        const guard = SITE_GUARD[c.name] ? ` Guarded by ${SITE_GUARD[c.name]}.` : '';
+        if (!found) return `Not discovered yet: search with Locate to discover it. What it holds is unknown until you do.${guard} ${siteNeeds(c.name)}`;
         const pile = st.sites?.[c.name] ?? [];
         const great = pile.filter(it => it.kind === 'treasure' && data.treasures[it.id]?.great).length;
         const spells = pile.filter(it => it.kind === 'spell').length;
         const things = pile.length - spells;
-        if (!pile.length) return 'Discovered. Nothing is left in it.';
-        return `Discovered: you may loot it. ${things} treasure${things === 1 ? '' : 's'} left${great ? `, ${great} of them Great` : ', none of them Great'}${spells ? `, and ${spells} spell${spells === 1 ? '' : 's'}` : ''}.`;
+        if (!pile.length) return `Discovered. Nothing is left in it.${guard}`;
+        return `Discovered: you may loot it. ${things} treasure${things === 1 ? '' : 's'} left${great ? `, ${great} of them Great` : ', none of them Great'}${spells ? `, and ${spells} spell${spells === 1 ? '' : 's'}` : ''}.${guard} ${siteNeeds(c.name)}`;
     }
 
     function clearingSheet() {
