@@ -261,6 +261,7 @@ export function gameScreen(ctx) {
             ...[['Meeting Table', 'meetingTable'], ['Search table', 'searchTable'], ['Missile table', 'missileTable'], ['Power of the Pit', 'pitTable']].filter(([, k]) => data.art?.misc?.[k])
                 .flatMap(([t, k]) => [h('h3', {}, t), h('img', { class: 'tablepic', src: data.art.misc[k], alt: t })])), { close: () => { ui.sheet = null; render(); } }));
         else if (ui.sheet === 'log') out.push(logSheet());
+        else if (ui.sheet === 'setupcard') out.push(setupCardSheet());
         else if (ui.sheet === 'key') out.push(modal('Map key', h('div', { class: 'key' },
             ...[['I H C G', 'Dwellings: Inn, House, Chapel, Guard house; the number beside it is the natives there'],
                 ['\u25C6', 'A site you have found: treasure lies there'], ['\u266A', 'A sound chit that has turned up: monsters stir in that clearing'],
@@ -385,8 +386,6 @@ export function gameScreen(ctx) {
 
     // A site: whether you have discovered it and, once you have, what is left in it (how many things, and how many of those are Great Treasures),
     // what looting it demands, and what guards it.
-    const SITE_GUARD = { Hoard: 'a Tremendous Flying Dragon', Lair: 'a Tremendous Dragon', Altar: 'a Demon', Shrine: 'a Winged Demon', Pool: 'an Octopus', Vault: 'a Tremendous Troll',
-        Cairns: 'a Tremendous Spider', Statue: 'an Imp' };
     function siteNeeds(name) {
         const asterisk = st.ch.chits.some(x => x.state === 'active' && x.effort > 0);
         const tChit = st.ch.chits.some(x => x.state === 'active' && lvl(x.strength) >= 4) || st.ch.items.some(i => i.id === 'lost-keys' && i.active);
@@ -395,9 +394,25 @@ export function gameScreen(ctx) {
         if (name === 'Vault') return st.sitesOpen?.Vault ? 'The Vault is open: it stays open for everyone.' : `Needs: the Vault is sealed until it is opened with a Tremendous-strength chit, or the Lost Keys. ${tChit ? 'You can open it.' : 'You cannot open it now.'}`;
         return 'Needs: nothing to loot it.';
     }
+    // What the printed Treasure Set Up Card tells every player, before anything is discovered.
+    const SPELL_WORD = t => `Type ${t}`;
+    function setupSite(name) {
+        const e = data.setupcard?.sites?.find(x => x.name === name);
+        if (!e) return '';
+        const parts = [`${e.small} Small and ${e.large} Large treasure${e.large === 1 ? '' : 's'} (Large on top)`];
+        if (e.spells?.length) parts.push(`spell cards ${e.spells.map(SPELL_WORD).join(', ')} on top`);
+        const g = data.monsters[e.guardian]?.name;
+        return `Setup card: ${parts.join(', ')}. ${g ? `Its guardian is the ${g}, which comes when the Monster Roll is ${e.row}.` : ''} Its chit is printed with clearing ${e.chitNumber}.`;
+    }
+    function setupDwelling(kind) {
+        const e = data.setupcard?.dwellings?.find(x => x.name === kind || x.rsName === kind);
+        if (!e) return '';
+        const goods = Object.entries(e.treasures?.counters ?? {}).map(([n, k]) => `${n}${k > 1 ? ` \u00D7${k}` : ''}`).join(', ');
+        return `Setup card: the ${e.group} live here (${e.nativeCounters} native counters). They keep ${e.treasures?.small ?? 0} Small treasures${goods ? ` and: ${goods}` : ''}.`;
+    }
     function siteLine(c) {
         const found = st.ch.discovered.sites.includes(c.id);
-        const guard = SITE_GUARD[c.name] ? ` Guarded by ${SITE_GUARD[c.name]}.` : '';
+        const guard = ` ${setupSite(c.name)}`;
         if (!found) return `Not discovered yet: search with Locate to discover it. What it holds is unknown until you do.${guard} ${siteNeeds(c.name)}`;
         const pile = st.sites?.[c.name] ?? [];
         const great = pile.filter(it => it.kind === 'treasure' && data.treasures[it.id]?.great).length;
@@ -423,7 +438,7 @@ export function gameScreen(ctx) {
         const REL = { '-2': 'enemy', '-1': 'unfriendly', '0': 'neutral', '1': 'friendly', '2': 'ally' };
         const people = Object.entries(byGroup).map(([g, list]) => row('nat', `${g}: ${list.length} native${list.length === 1 ? '' : 's'}`,
             `${REL[String(st.ch.rel?.[g] ?? 0)]} to you; ${list.map(x => x.name.replace(/^\w+ /, '')).join(', ')}`, data.art?.natives?.[(list.find(x => x.leader) ?? list[0]).id]));
-        if (dw.length || people.length) sections.push(['Dwellings and natives', [...dw.map(d => row('dwelling', d.kind, 'a dwelling: natives live and trade here', data.art?.dwellings?.[d.kind])), ...people]]);
+        if (dw.length || people.length) sections.push(['Dwellings and natives', [...dw.map(d => row('dwelling', d.kind, `${setupDwelling(d.kind) || 'a dwelling: natives live and trade here'}`, data.art?.dwellings?.[d.kind])), ...people]]);
         // monsters
         const mons = {};
         for (const m of st.mons.filter(m => !m.dead && m.loc?.c === id)) (mons[data.monsters[m.id].name] ??= []).push(m);
@@ -500,6 +515,7 @@ export function gameScreen(ctx) {
             h('button', { class: 'btn', onclick: () => { ui.sheet = 'log'; render(); } }, 'Journal'),
             h('button', { class: 'btn', onclick: () => { ui.sheet = 'help'; render(); } }, 'How to play'),
             h('button', { class: 'btn', onclick: () => { ui.sheet = 'key'; render(); } }, 'Map key'),
+            h('button', { class: 'btn', 'data-act': 'setup-card', onclick: () => { ui.sheet = 'setupcard'; render(); } }, 'The Setup Card (what the printed card tells you)'),
             data.art?.misc?.meetingTable ? h('button', { class: 'btn', onclick: () => { ui.sheet = 'tables'; render(); } }, 'Tables (Meeting, Search, Missile, Pit)') : null,
             h('button', { class: 'btn', onclick: () => { ui.sheet = null; map.fit(); render(); } }, 'Show the whole realm'),
             h('button', { class: 'btn', onclick: () => ctx.go('title') }, 'Back to the title screen'),
@@ -539,6 +555,21 @@ export function gameScreen(ctx) {
                 document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
             } }, `Save it as a file instead (${kb(b.packed.bytes)})`) : null,
             h('div', { class: 'row2' }, h('button', { class: 'btn', 'data-act': 'bug-cancel', disabled: sending || null, onclick: close.close }, 'Cancel'), ok)), close);
+    }
+
+    // The printed Treasure Set Up Card in full: it is the same for every game, so every player may read it.
+    function setupCardSheet() {
+        const c = data.setupcard;
+        const guard = id => data.monsters[id]?.name ?? id;
+        const section = (title, rows) => [h('h3', {}, title), ...rows.map(r => h('p', { class: 'setupline' }, r))];
+        return modal('The Setup Card', h('div', { class: 'setupcard' },
+            h('p', { class: 'hint' }, 'What the printed card says, true in every game. What is in a pile, and in which order, is hidden until it is looted.'),
+            ...section('Treasure sites', (c.sites ?? []).map(e => `${e.name}: ${e.small} Small, ${e.large} Large${e.spells?.length ? `, spells ${e.spells.join(', ')}` : ''}. Guardian: ${guard(e.guardian)} (Monster Roll ${e.row}). Chit printed with clearing ${e.chitNumber}.${e.special ? ` Needs: ${e.special.replace('fatigue_asterisk', 'an asterisk of effort').replace('fatigue_t,key', 'a Tremendous-strength chit or the Lost Keys')}.` : ''}`)),
+            ...section('Dwellings', (c.dwellings ?? []).map(e => `${e.name} (${e.group}${e.virtual ? ', appears with the group' : ''}): ${e.nativeCounters} native counters, ${e.treasures?.small ?? 0} Small treasures. Goods: ${Object.entries(e.treasures?.counters ?? {}).map(([n, k]) => `${n}${k > 1 ? ` \u00D7${k}` : ''}`).join(', ') || 'none'}.`)),
+            ...section('Treasures within Treasures', (c.twt ?? []).map(e => `${e.name}: ${e.largeTreasures} Large treasure${e.largeTreasures === 1 ? '' : 's'}${e.goldReward ? `, ${e.goldReward} gold` : ''}${e.needsKey ? ', needs the Lost Keys' : ''}${e.curse ? ', carries a curse' : ''}${e.siteCard ? ', a place that can be searched with its own table' : ''}.`)),
+            ...section('Visitors', (c.visitors ?? []).map(e => `${e.name}: ${e.small} Small treasures${e.spells?.length ? `, spells ${e.spells.join(', ')}` : ''}.`)),
+            ...section('Spell books and artifacts', (c.spellContainers ?? []).map(e => `${e.name} (${e.kind}): spells ${e.spells.join(', ')}.`)),
+            h('p', { class: 'hint' }, c.notes ?? '')), { close: () => { ui.sheet = 'menu'; render(); } });
     }
 
     function reportSheet() {
