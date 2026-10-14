@@ -15,6 +15,7 @@ import { HELP } from './info.js';
 import { newRecord, daySnapshot, finalize } from '../../engine/gamerecord.js';
 import { putRecord, getRecord } from '../gamestore.js';
 import { VERSION } from '../version.js';
+import { collect as collectReport, send as sendReport } from '../bugreport.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
 const SAVE_KEY = 'mr-save-v1';
@@ -150,6 +151,7 @@ export function gameScreen(ctx) {
     function render() {
         strip.replaceChildren(
             h('button', { class: 'back', 'aria-label': 'Menu', onclick: () => { ui.sheet = ui.sheet === 'menu' ? null : 'menu'; render(); } }, '☰'),
+            h('button', { class: 'bugbtn', 'aria-label': 'Report a problem', 'data-act': 'bug', onclick: () => { ui.sheet = 'bug'; render(); } }, '\u{1F41E}'),
             h('div', { class: 'daybox' }, h('b', {}, `Day ${st.day}`, h('small', {}, st.mode === 'endless' ? '' : ` of ${st.lastDay ?? 28}`)), h('span', {}, `${st.period === 'over' ? 'finished' : st.period}`)),
             h('button', { class: 'stats', onclick: () => { ui.sheet = ui.sheet === 'char' ? null : 'char'; render(); } },
                 h('span', { class: 'stat gold' }, `${st.ch.gold}g`),
@@ -214,6 +216,7 @@ export function gameScreen(ctx) {
     function sheets() {
         const out = [];
         const p = st.pending;
+        if (ui.sheet === 'bug') { out.push(bugSheet()); return out; }
         if (p?.type?.startsWith('combat')) { out.push(combatSheet({ st, data, act, ui, render })); return out; }
         if (ui.peek && ui.sel && p?.type === 'plan') { out.push(clearingSheet()); return out; }
         if (p?.type === 'turn-end') out.push(turnEndSheet());
@@ -458,6 +461,39 @@ export function gameScreen(ctx) {
             h('button', { class: 'btn', onclick: () => { persist(true); ctx.go('history', { id: st.session?.id, back: 'game' }); } }, 'This game\'s record'),
             h('button', { class: 'btn', onclick: abandon }, 'Abandon this game')),
             { close: () => { ui.sheet = null; render(); } });
+    }
+
+    // ---- "Report a problem": a description, and the game's record and state sent to the server ----
+    function bugSheet() {
+        const b = ui.bug ??= { text: '', status: 'idle', id: null, error: null, packed: null };
+        const close = { close: () => { ui.sheet = null; if (b.status === 'sent') ui.bug = null; render(); } };
+        const kb = n => (n < 1024 ? `${n} bytes` : `${Math.round(n / 1024)} KB`);
+        if (b.status === 'sent') return modal('Report sent', h('div', { class: 'bugform' },
+            h('p', {}, `Thank you. Your report is number ${b.id}. It has your description, this game's record and log, and its current state.`),
+            h('button', { class: 'btn primary', 'data-act': 'bug-done', onclick: close.close }, 'Done')), close);
+        const sending = b.status === 'sending';
+        const area = h('textarea', { class: 'bugtext', rows: 5, placeholder: 'What happened, and what did you expect? (Which screen, which action.)', 'data-bug-text': '', disabled: sending || null,
+            oninput: e => { b.text = e.target.value; ok.disabled = !b.text.trim() || sending; } });
+        area.value = b.text;
+        const ok = h('button', { class: 'btn primary', 'data-act': 'bug-send', disabled: !b.text.trim() || sending || null, onclick: async () => {
+            b.status = 'sending'; b.error = null; render();
+            try {
+                b.packed = await collectReport({ st, rec, version: VERSION, ui });
+                b.id = await sendReport(b.text.trim(), b.packed);
+                b.status = 'sent';
+            } catch (e) { b.status = 'failed'; b.error = e.message; }
+            render();
+        } }, sending ? 'Sending\u2026' : b.status === 'failed' ? 'Try again' : 'OK, send it');
+        return modal('Report a problem', h('div', { class: 'bugform' },
+            h('p', { class: 'hint' }, 'Describe what went wrong. Saying OK sends your description with this game\'s record (every action and the whole log), its current state, your other recorded games, and your browser and screen size to the server.'),
+            area,
+            b.status === 'failed' ? h('p', { class: 'chk-bad' }, `Could not send: ${b.error}`) : null,
+            b.status === 'failed' && b.packed ? h('button', { class: 'btn', 'data-act': 'bug-save', onclick: () => {
+                const url = URL.createObjectURL(new Blob([b.packed.text], { type: 'application/json' }));
+                const a = Object.assign(document.createElement('a'), { href: url, download: `magic-realm-report-${Date.now()}.json` });
+                document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
+            } }, `Save it as a file instead (${kb(b.packed.bytes)})`) : null,
+            h('div', { class: 'row2' }, h('button', { class: 'btn', 'data-act': 'bug-cancel', disabled: sending || null, onclick: close.close }, 'Cancel'), ok)), close);
     }
 
     function reportSheet() {

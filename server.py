@@ -20,6 +20,20 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "casdra.db")
 WEB_MODE = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("WEB_MODE"))
 ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "casdra-admin-local")
 
+MR_BUG_TABLE_SQL = """
+    CREATE TABLE IF NOT EXISTS magic_realm_bug_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT DEFAULT (datetime('now')),
+        description TEXT NOT NULL,
+        version TEXT, seed TEXT, character TEXT, day INTEGER, result TEXT,
+        user_agent TEXT, ip TEXT,
+        encoding TEXT DEFAULT 'gzip',
+        payload BLOB,
+        status TEXT DEFAULT 'open',
+        notes TEXT DEFAULT ''
+    )
+"""
+
 def _check_admin(handler):
     """Check if request has valid admin secret. Returns True if authorized."""
     from urllib.parse import parse_qs, urlparse
@@ -7931,6 +7945,38 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/cant-stop":
             self.send_html(build_cant_stop_page())
 
+        elif path == "/magic-realm/api/bug-reports" or path.startswith("/magic-realm/api/bug-reports/"):
+            # Reports sent from the app's "Report a problem" button. Needs the admin token (?token= or X-Admin-Token).
+            if not _check_admin(self) or (WEB_MODE and ADMIN_SECRET == "casdra-admin-local"):      # never on the public site with the default secret
+                self.send_json({"error": "Not authorized"}, 403)
+                return
+            conn = get_db()
+            conn.execute(MR_BUG_TABLE_SQL)
+            if path == "/magic-realm/api/bug-reports":
+                rows = conn.execute("SELECT id, created_at, version, seed, character, day, result, status, substr(description, 1, 200) AS description, length(payload) AS bytes "
+                                    "FROM magic_realm_bug_reports ORDER BY id DESC LIMIT 200").fetchall()
+                conn.close()
+                self.send_json([dict(r) for r in rows])
+            else:
+                try:
+                    rid = int(path.rsplit("/", 1)[1])
+                except ValueError:
+                    conn.close()
+                    self.send_json({"error": "bad id"}, 400)
+                    return
+                row = conn.execute("SELECT * FROM magic_realm_bug_reports WHERE id=?", (rid,)).fetchone()
+                conn.close()
+                if not row:
+                    self.send_json({"error": "not found"}, 404)
+                    return
+                import gzip as _gzip
+                out = dict(row)
+                try:
+                    out["payload"] = json.loads(_gzip.decompress(out["payload"]).decode("utf-8"))
+                except Exception:  # noqa: BLE001
+                    out["payload"] = None
+                self.send_json(out)
+
         elif path == "/magic-realm":
             # Trailing-slash redirect: relative module imports in index.html must resolve under /magic-realm/.
             self.send_response(301)
@@ -8466,7 +8512,7 @@ class Handler(BaseHTTPRequestHandler):
             self.path = "/song-burst" + self.path[len("/chartburst"):]
 
         # In web mode, block internal POST routes (allow song-burst + dice)
-        if WEB_MODE and not (self.path.startswith("/song-burst") or self.path.startswith("/dice")):
+        if WEB_MODE and not (self.path.startswith("/song-burst") or self.path.startswith("/dice") or self.path.startswith("/magic-realm/bug-report")):
             self.send_response(404)
             self.end_headers()
             return
@@ -9077,6 +9123,46 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
             self.send_json({"ok": True})
+
+        elif path == "/magic-realm/bug-report":
+            # Magic Realm "Report a problem": a description plus the game's record and state, kept for later analysis.
+            if not _rate_check(self.client_address[0], 'mr_bug_report', 5):
+                self.send_json({"ok": False, "error": "Too many reports. Try again in a minute."}, 429)
+                return
+            try:
+                data = json.loads(body) if body.startswith("{") else {}
+            except (json.JSONDecodeError, ValueError):
+                data = {}
+            description = (data.get("description") or "").strip()[:4000]
+            if not description:
+                self.send_json({"ok": False, "error": "Please say what went wrong."}, 400)
+                return
+            import base64 as _b64
+            import gzip as _gzip
+            try:
+                if data.get("encoding") == "gzip-base64":
+                    blob = _b64.b64decode(data.get("payload") or "")
+                    _gzip.decompress(blob)                        # must be a valid gzip stream
+                else:
+                    blob = _gzip.compress((data.get("payload") or "").encode("utf-8"))
+            except Exception:  # noqa: BLE001
+                self.send_json({"ok": False, "error": "The report data could not be read."}, 400)
+                return
+            if len(blob) > 900_000:
+                self.send_json({"ok": False, "error": "The report is too large."}, 413)
+                return
+            summary = data.get("summary") or {}
+            conn = get_db()
+            conn.execute(MR_BUG_TABLE_SQL)
+            cur = conn.execute(
+                "INSERT INTO magic_realm_bug_reports (description, version, seed, character, day, result, user_agent, ip, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (description, str(summary.get("version") or "")[:20], str(summary.get("seed") or "")[:20], str(summary.get("character") or "")[:40],
+                 int(summary["day"]) if str(summary.get("day", "")).isdigit() else None, str(summary.get("result") or "")[:20],
+                 (self.headers.get("User-Agent") or "")[:300], self.client_address[0], blob))
+            conn.commit()
+            rid = cur.lastrowid
+            conn.close()
+            self.send_json({"ok": True, "id": rid})
 
         elif path == "/dice/bug":
             if not _rate_check(self.client_address[0], 'bug_report', 5):

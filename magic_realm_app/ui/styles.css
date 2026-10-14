@@ -417,3 +417,7 @@ button.portrait small { font-size: 13px; }
 .chk-ok { color: var(--moss, #6fae8a); } .chk-bad { color: #e88; }
 .hist-checks .err { margin: 4px 0; font-size: 14px; } .hist-checks .err.bug { color: #e88; }
 .hist-filters { margin: 0; }
+
+.bugbtn { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); font-size: 20px; line-height: 1; padding: 0; cursor: pointer; flex: none; }
+.bugform { display: flex; flex-direction: column; gap: 12px; }
+.bugtext { width: 100%; box-sizing: border-box; min-height: 120px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; font-size: 16px; padding: 10px 12px; resize: vertical; }
