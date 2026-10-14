@@ -384,3 +384,5 @@ button.portrait small { font-size: 13px; }
 .realm-svg .pill.more rect { fill: #3a3d4e; }
 .realm-svg .chit.nm { display: none; }
 .realm-svg.zoomed .chit.nm { display: inline; }
+.realm-svg .pill.warning rect { fill: #8a4a24; } .realm-svg .pill.star rect { fill: #5b4d86; }
+.realm-svg .pill.lost-city rect, .realm-svg .pill.lost-castle rect { fill: #5b4d86; }

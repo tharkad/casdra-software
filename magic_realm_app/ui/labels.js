@@ -11,7 +11,7 @@
 
 const GAP = 2;          // between the pills of one group
 const MARGIN = 1.5;     // clear space kept around every placed box
-const SIDES = ['right', 'below-right', 'above-right', 'left', 'below-left', 'above-left', 'below', 'above'];
+const SIDES = ['center', 'right', 'below-right', 'above-right', 'left', 'below-left', 'above-left', 'below', 'above'];
 
 const overlapArea = (a, b) => {
     const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
@@ -24,6 +24,7 @@ const grow = (r, m) => ({ x: r.x - m, y: r.y - m, w: r.w + 2 * m, h: r.h + 2 * m
 function corner(side, ax, ay, r, W, H, h0) {
     const d = r * 0.72;
     switch (side) {
+        case 'center': return [ax - W / 2, ay - H / 2];
         case 'right': return [ax + r, ay - h0 / 2];
         case 'left': return [ax - r - W, ay - h0 / 2];
         case 'below': return [ax - W / 2, ay + r];

@@ -102,16 +102,19 @@ export function mountMap(host) {
                 if (slots?.length) { const s0 = slots[(c.slot ?? i) % slots.length]; [x, y] = rot(s0, a).map(v => v * S); }
                 else { x = 0; y = (-0.74 + i * 0.13) * S; }
                 const wx = cx + x, wy = cy + y;
-                const glyph = c.up ? (c.kind === 'sound' ? '\u266A' : c.kind === 'site' ? '\u25C6' : c.kind === 'warning' ? '!' : '\u2605') : '?';
-                og.append(sv('g', { class: `chit ${c.up ? 'up' : 'down'} ${c.kind ?? ''}`, transform: `translate(${wx.toFixed(1)} ${wy.toFixed(1)})` },
-                    sv('circle', { r: CHIT_R, class: 'chitdisc' }), sv('text', { 'text-anchor': 'middle', dy: '.36em', class: 'chitglyph' }, glyph)));
-                obstacles.push({ x: wx, y: wy, r: CHIT_R + 0.5 });
-                if (c.up) {
-                    const id = `chit:${c.id ?? p.id + i}`, w = pillWidth(label, { size: 9 });
-                    groups.push({ id, ax: wx, ay: wy, ar: CHIT_R, prio: 3, prefer: ['below', 'above', 'right', 'left'], boxes: [{ w, h: 13 }] });
-                    makeLabel.set(id, (box) => sv('g', { class: 'chit up nm', transform: `translate(${box.x.toFixed(1)} ${box.y.toFixed(1)})`, 'pointer-events': 'none' },
-                        sv('rect', { width: box.w, height: box.h, rx: 5, class: 'chitbox' }), sv('text', { x: box.w / 2, y: box.h / 2, 'text-anchor': 'middle', dy: '.35em' }, label)));
+                if (!c.up) {
+                    // not yet known: a small counter with a question mark
+                    og.append(sv('g', { class: 'chit down', transform: `translate(${wx.toFixed(1)} ${wy.toFixed(1)})` },
+                        sv('circle', { r: CHIT_R, class: 'chitdisc' }), sv('text', { 'text-anchor': 'middle', dy: '.36em', class: 'chitglyph' }, '?')));
+                    obstacles.push({ x: wx, y: wy, r: CHIT_R + 0.5 });
+                    return;
                 }
+                // known: the glyph is part of the name, as for a sound in a clearing: one pill, on the chit's own clear spot
+                const glyph = c.kind === 'sound' ? '\u266A' : c.kind === 'site' ? '\u25C6' : c.kind === 'warning' ? '!' : '\u2605';
+                const text = `${glyph} ${label}`, id = `chit:${c.id ?? p.id + i}`;
+                groups.push({ id, ax: wx, ay: wy, ar: 3, prio: 3, prefer: ['center', 'below', 'above', 'right', 'left'], boxes: [{ w: pillWidth(text), h: PILL_H }] });
+                makeLabel.set(id, box => sv('g', { class: `pill chitpill ${c.kind ?? 'star'}`, transform: `translate(${box.x.toFixed(1)} ${box.y.toFixed(1)})`, 'pointer-events': 'none' },
+                    sv('rect', { width: box.w, height: box.h, rx: 6 }), sv('text', { x: 4, y: box.h / 2, dy: '.35em' }, text)));
             });
             def.clearings.forEach(c => {
                 const id = p.id + c.n, [x, y] = pos[c.n];
