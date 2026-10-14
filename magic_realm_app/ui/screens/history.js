@@ -44,13 +44,13 @@ export function historyScreen(ctx) {
                 h('span', { class: 'hr-main' }, h('b', {}, m.name ?? r.params?.character ?? 'Game'), h('small', {}, `${when(r.startedAt)} · seed ${r.params?.seed ?? '?'} · v${r.version}`)),
                 h('span', { class: 'hr-res' }, h('b', {}, resultLabel(m) || 'In progress'), h('small', {}, `Fame ${m.fame ?? 0} · Notor ${m.notoriety ?? 0} · ${m.gold ?? 0}g${r.errors?.length ? ` · ${r.errors.length} refused` : ''}`)));
         });
-        root.replaceChildren(top('Game history', back),
+        root.replaceChildren(...[top('Game history', back),
             h('div', { class: 'tiles' }, tile(recs.length, 'games'), tile(finished.length, 'finished'), tile(died.length, 'died'), tile(avg == null ? '–' : sign(avg), 'average score'),
                 tile(recs.reduce((a, r) => a + (r.meta?.kills ?? 0), 0), 'kills'), tile(recs.reduce((a, r) => a + (r.meta?.day ?? 0), 0), 'days played')),
             recs.length ? h('div', { class: 'hist-tools' },
                 h('button', { class: 'btn', 'data-act': 'save-all', onclick: async e => { const b = e.currentTarget; const how = await deliver(bundle(await allRecords()), `magic-realm-games-${new Date().toISOString().slice(0, 10)}.json`, { download: true, type: 'application/json' }); flash(b, `${how} ✓`, 'Save all games (.json)'); } }, 'Save all games (.json)')) : null,
             recs.length ? h('div', { class: 'histlist' }, ...rows) : h('p', { class: 'hint' }, 'No games recorded yet. Every game you play from now on is kept here, with its log.'),
-            h('p', { class: 'fine' }, `Records are kept on this device. Version ${VERSION}.`));
+            h('p', { class: 'fine' }, `Records are kept on this device. Version ${VERSION}.`)].filter(Boolean));
     }
 
     async function showDetail(id) {

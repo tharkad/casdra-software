@@ -17,7 +17,7 @@ export function titleScreen(ctx) {
                 h('span', { class: 'col' }, 'Continue', h('small', {}, `${last.character} · Day ${last.day}`))) : null,
             h('button', { class: `btn ${last ? '' : 'primary'} big`, 'data-act': 'new', onclick: () => ctx.go('newgame') }, 'New game'),
             h('button', { class: 'btn big', 'data-act': 'join', onclick: () => ctx.go('join') }, 'Join a game'),
-            h('div', { class: 'row2' },
+            h('div', { class: 'row3' },
                 h('button', { class: 'btn', 'data-act': 'rules', onclick: () => ctx.go('rules') }, 'Rules'),
                 h('button', { class: 'btn', 'data-act': 'history', onclick: () => ctx.go('history') }, 'History'),
                 h('button', { class: 'btn', 'data-act': 'settings', onclick: () => ctx.go('settings') }, 'Settings'))),
