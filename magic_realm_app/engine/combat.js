@@ -424,19 +424,6 @@ export function meleePlay(st, data, p) {
     if (fight) playChit(st, fight);
     if (move) playChit(st, move);
     resolveSpells(st, data, log);
-    // --- the plain-English account of what was played (this build narrates every round in full) ---
-    const wname = w ? nameOfItem(st, data, w.item) : 'bare hands';
-    const chitName = ch => (ch.isHorse ? ch.name : `${ch.type === 'move' ? 'Move' : 'Fight'} ${ch.strength}${ch.time}${'*'.repeat(ch.effort ?? 0)}`);
-    const wSide0 = weaponSide(w), atkTime0 = fight ? (wSide0.time ?? fight.time) : null;
-    log(`Round ${c.round}: your plays.`);
-    if (fight && p.target) log(`  Attack: ${chitName(fight)} with your ${wname}${w?.item.alerted ? ' (alerted side)' : ''}, a ${DIRS[p.attackDir].toLowerCase()} at attack time ${atkTime0}.`);
-    else if (fight) log(`  You played ${chitName(fight)} but named no target, so there is no attack.`);
-    else if (p.target) log('  You named a target but played no Fight chit, so you make no attack.');
-    else log('  No attack this round.');
-    if (move) log(`  Maneuver: ${chitName(move)} as ${MANEUVERS[p.moveDir]}, maneuver time ${move.time}.`);
-    else log('  No maneuver: any creature that attacks you will connect.');
-    if (p.shieldDir != null && activeArmor(st, data).some(a => isShield(a.def))) log(`  Your shield guards against ${DIRS[p.shieldDir].toLowerCase()}s.`);
-
     // --- target and unhide ---
     let target = p.target ? c.dens.find(d => d.uid === p.target && !d.dead) : null;
     const wasHidden = st.ch.hidden;
@@ -459,7 +446,6 @@ export function meleePlay(st, data, p) {
     // --- place denizens in the three red boxes (he chooses, then the dice move them) ---
     const boxable = boxableNow;
     placeInBoxes(st, data, boxable, p.boxes ?? {});
-    const boxLine = list => list.map(d => `${denSide(st, data, d).name} in the ${MANEUVERS[d.box]} box (it attacks ${DIRS[d.box].toLowerCase()})`).join('; ');
     // native horses sit in a box other than their rider's
     for (const h of c.dens.filter(d => d.kind === 'horse' && !d.dead)) {
         const owner = c.dens.find(d => d.uid === h.partOf);
@@ -468,8 +454,6 @@ export function meleePlay(st, data, p) {
     }
 
     for (const d of c.dens) if (d.engagedBy && !d.dead) d.box = (die(st) - 1) % 3;   // creatures fighting hirelings sit in a random box
-    const placed = c.dens.filter(d => !d.dead && d.box != null && d.kind !== 'horse' && (d.assigned || d.partOf));
-    if (placed.length) log(`Boxes as you set them: ${boxLine(placed)}.`);
     const boxBefore = new Map(c.dens.map(d => [d.uid, d.box]));
     // --- reposition and change tactics ---
     const rr = die(st), perm = REPOSITION[rr];
@@ -480,9 +464,7 @@ export function meleePlay(st, data, p) {
     log(`Repositioning roll: ${rr}${rr === 4 ? ' (no change)' : ''}.`);
     {
         const moved = c.dens.filter(d => !d.dead && d.box != null && boxBefore.get(d.uid) != null && boxBefore.get(d.uid) !== d.box && d.kind !== 'horse');
-        if (rr === 4) log('  Result 4: nothing moves.');
-        else if (!moved.length) log(`  Result ${rr}: the boxes are swapped, but nobody was standing in the ones that moved.`);
-        else for (const d of moved) log(`  ${denSide(st, data, d).name} moves from the ${MANEUVERS[boxBefore.get(d.uid)]} box to the ${MANEUVERS[d.box]} box (it now attacks ${DIRS[d.box].toLowerCase()}).`);
+        if (moved.length) log(`  ${moved.map(d => `${denSide(st, data, d).name} ${MANEUVERS[boxBefore.get(d.uid)]} \u2192 ${MANEUVERS[d.box]}`).join('; ')}.`);
     }
     for (let b = 0; b < 3; b++) {
         const here = c.dens.filter(d => !d.dead && d.box === b && canFlip(st, data, d));
@@ -507,14 +489,11 @@ export function meleePlay(st, data, p) {
         const inBox = def.box != null && def.box === myDir;
         const fast = attackTime != null && defSide.move != null && attackTime < defSide.move;
         const hitsIt = inBox || fast;
-        const aimed = `Your ${DIRS[myDir].toLowerCase()} is aimed at the ${MANEUVERS[myDir]} box`;
+        const nm = defSide.name, where = def.box != null ? MANEUVERS[def.box] : '?';
         if (hitsIt) {
             hits.push({ who: 'me', time: attackTime, length: mySide.length, on: def.uid, owner: target.uid });
-            if (inBox) log(`Your attack: ${aimed}, and the ${defSide.name} is standing there: it connects.`);
-            else log(`Your attack: ${aimed}, but the ${defSide.name} is in the ${MANEUVERS[def.box]} box. Your attack time ${attackTime} is faster than its move time ${defSide.move}, so you undercut it and hit anyway.`);
-        } else {
-            log(`Your attack: ${aimed}, but the ${defSide.name} is in the ${def.box != null ? MANEUVERS[def.box] : 'no'} box, so the aim is wrong, and ${defSide.move == null ? 'it has no move time to undercut' : `its move time ${defSide.move} is as fast or faster than your attack time ${attackTime}, so you cannot undercut it`}: you miss.`);
-        }
+            log(inBox ? `You: ${DIRS[myDir]} at ${nm} (${where} box): hit.` : `You: ${DIRS[myDir]} at ${nm} (${where} box): hit by undercutting (your time ${attackTime} beats its ${defSide.move}).`);
+        } else log(`You: ${DIRS[myDir]} at ${nm} (${where} box): miss (${DIRS[myDir]} hits ${MANEUVERS[myDir]}${defSide.move != null ? `; its time ${defSide.move} is not slower than your ${attackTime}` : ''}).`);
     }
     const mnvTime = move ? move.time : null;
     for (const d of c.dens.filter(x => !x.dead && x.kind !== 'horse' && x.box != null)) {
@@ -522,16 +501,16 @@ export function meleePlay(st, data, p) {
         if (s.attack === 'none' || s.atk == null) continue;
         const owner = d.partOf ? c.dens.find(x => x.uid === d.partOf) : d;
         if (!owner.assigned) continue;
-        if (owner.noRetaliation) { log(`${s.name} cannot strike back this round: ${owner.noWhy === 'hidden' ? 'you attacked from hiding, so it was not on your sheet and you strike first' : 'its group only joins the fight against you next round'}.`); continue; }
+        if (owner.noRetaliation) { log(`${s.name} cannot strike back this round (${owner.noWhy === 'hidden' ? 'you struck from hiding' : 'its group joins next round'}).`); continue; }
         const dir = d.box;
         const meets = mnvDir != null && mnvDir === dir && move;
         const under = mnvTime != null ? s.atk < mnvTime : false;
         const noMove = !move;
-        const aimedAt = `${s.name}'s ${DIRS[dir].toLowerCase()} (attack time ${s.atk}) is aimed at your ${MANEUVERS[dir]}`;
-        if (noMove) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${aimedAt}, and you played no maneuver: it connects.`); }
-        else if (meets) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${aimedAt}, and that is the maneuver you played: it connects.`); }
-        else if (under) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${aimedAt}; you played ${MANEUVERS[mnvDir]}, which dodges the aim, but its attack time ${s.atk} is faster than your maneuver time ${mnvTime}, so it gets in under your guard.`); }
-        else log(`${aimedAt}; you played ${MANEUVERS[mnvDir]}, and your maneuver time ${mnvTime} is as fast or faster than its attack time ${s.atk}: its ${DIRS[dir].toLowerCase()} misses you.`);
+        const at = `${s.name}'s ${DIRS[dir].toLowerCase()}`;
+        if (noMove) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} is aimed true (you played no maneuver).`); }
+        else if (meets) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} is aimed at your ${MANEUVERS[mnvDir]}: it connects.`); }
+        else if (under) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} gets under your maneuver (its time ${s.atk} beats your ${mnvTime}).`); }
+        else log(`${at} misses you (your ${MANEUVERS[mnvDir]} avoids it).`);
     }
     // hirelings against the creatures they were sent at
     for (const hire of (c.hires ?? []).filter(x => !x.dead)) {
@@ -545,11 +524,6 @@ export function meleePlay(st, data, p) {
     const key = h => c.round === 1 ? [-h.length, h.time ?? 99] : [h.time ?? 99, -h.length];
     hits.sort((a, b) => { const ka = key(a), kb = key(b); return ka[0] - kb[0] || ka[1] - kb[1]; });
     const sameKey = (a, b) => { const ka = key(a), kb = key(b); return ka[0] === kb[0] && ka[1] === kb[1]; };
-    if (hits.length) {
-        const who = h => (h.who === 'me' ? 'You' : h.who === 'hire' ? `Your hireling ${data.natives[c.hires.find(x => x.uid === h.hire)?.id]?.name ?? ''}` : h.onHire ? denSide(st, data, c.dens.find(d => d.uid === h.who)).name : denSide(st, data, c.dens.find(d => d.uid === h.who)).name);
-        const tail = hits.map((h, k) => `${k + 1}. ${who(h)} (time ${h.time ?? '?'}, length ${h.length ?? 0})`).join('; ');
-        log(`Order of blows (${c.round === 1 ? 'first round: the longest weapon strikes first, then the fastest' : 'after the first round: the fastest strikes first, then the longest weapon'}): ${tail}.`);
-    } else log('No blows land this round.');
     c.newWounds = 0;
     let i = 0, dead = false, delivered = false;
     while (i < hits.length && !st.ch.dead) {
@@ -661,7 +635,6 @@ function myHit(st, data, h, ctx) {
     else if (ctx.fight && !ctx.w) level += 1;
     const finalL = letterOf(level);
     const vuln = lvl(s.vuln);
-    ctx.log(`  Your harm: ${side.harm}${side.stars ? ` with ${side.stars} star${side.stars === 1 ? '' : 's'}${s.armored ? ' (one star is lost against armor)' : ''}` : ''}${note ? ` ${note.trim()}` : ''} = ${finalL}; the ${s.name} has vulnerability ${s.vuln}. ${level >= vuln ? 'Harm reaches its vulnerability.' : 'Harm falls short of its vulnerability.'}`);
     if (den.kind === 'horse') {
         if (level >= vuln) {
             den.dead = true;
