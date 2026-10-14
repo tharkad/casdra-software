@@ -267,10 +267,10 @@ button { font: inherit; color: inherit; }
 
 /* ---- map pills, YOU marker, clearer sheets ---- */
 .realm-svg .pill rect { stroke: #0c0e14; stroke-width: 1; }
-.realm-svg .pill text { font-size: 10px; font-weight: 700; fill: #fff; font-family: var(--font-ui); }
+.realm-svg .pill text { font-size: 9px; font-weight: 700; fill: #fff; font-family: var(--font-ui); }
 .realm-svg .pill.mon rect { fill: #a33; } .realm-svg .pill.nat rect { fill: #3d6fb8; } .realm-svg .pill.ally rect { fill: #2f8f6a; }
 .realm-svg .pill.dwelling rect { fill: #8a6d2c; } .realm-svg .pill.site rect { fill: #6a4fa8; } .realm-svg .pill.sound rect { fill: #7a5a2e; }
-.realm-svg .chit text { font-size: 10px; font-weight: 700; }
+.realm-svg .chit text { font-size: 9px; font-weight: 700; }
 .realm-svg .me .halo { fill: rgba(217, 180, 90, .18); stroke: var(--gold); stroke-width: 3; }
 .realm-svg .me.hid .halo { stroke-dasharray: 4 3; fill: none; }
 .realm-svg .me rect { fill: var(--gold); stroke: #1b1405; stroke-width: 1.4; }
@@ -347,9 +347,7 @@ button.portrait small { font-size: 13px; }
 .realm-svg .chit.up .chitdisc { fill: #2a2438; stroke: #b9a3ff; }
 .realm-svg .chit.up.warning .chitdisc { stroke: #e0814f; }
 .realm-svg .chit.up.site .chitdisc { stroke: #6fae8a; }
-.realm-svg .chitglyph { fill: var(--text); font: 800 11px var(--font-ui); }
-.realm-svg .chit .nm { display: none; }
-.realm-svg.zoomed .chit .nm { display: inline; }
+.realm-svg .chitglyph { fill: var(--text); font: 800 9px var(--font-ui); }
 
 /* ---- planning: a panel under the map, the map stays live above it ---- */
 .planpanel { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; min-height: 0; }
@@ -381,3 +379,8 @@ button.portrait small { font-size: 13px; }
 .cb-last p.sub { padding-left: 14px; opacity: .85; }
 .cb-last p.hd { font-weight: 600; margin-top: 8px; }
 .realm-svg .targetring { fill: none; stroke: var(--gold); stroke-width: 2.5; stroke-dasharray: 5 4; pointer-events: none; }
+
+.realm-svg .leader { stroke: rgba(240, 232, 208, .85); stroke-width: 1.3; stroke-dasharray: 3 2; }
+.realm-svg .pill.more rect { fill: #3a3d4e; }
+.realm-svg .chit.nm { display: none; }
+.realm-svg.zoomed .chit.nm { display: inline; }

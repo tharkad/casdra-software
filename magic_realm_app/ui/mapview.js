@@ -2,12 +2,14 @@ import { sv } from './dom.js';
 import { EDGES, hexCenter, edgeDir, corners, worldEdge } from '../engine/hex.js';
 import { layoutSide, chitSlotsFor } from '../engine/layout.js';
 import { tileName } from '../engine/world.js';
+import { layoutLabels, pillWidth, PILL_H } from './labels.js';
 
 // The pannable, zoomable realm map. It draws whatever model it is given; it knows nothing about the rules.
 // model = { tiles, placements, side, showHidden, discovered:Set(pathKeys), chitsByTile:{tile:[chit]}, dwellings:[{kind,at}], tokens:{clearing:[{k,label}]},
 //           hero, selected, plan:[clearing...], targets:[clearing...], onTap(clearingId), onBackground() }
 
 const S = 100;
+const CHIT_R = 6.5;          // radius of a counter on the map; names sit beside it, never over it
 const GROUP = { valley: '#26382f', woods: '#1f3a2a', mountain: '#3a3530', cave: '#2c2a3a' };
 const CLEARING = { woods: '#3f7a52', mountain: '#8d7a62', cave: '#5a4f7a' };
 const MAGIC = { grey: '#aeb4bd', gold: '#e8c868', purple: '#b08cf0' };
@@ -45,6 +47,8 @@ export function mountMap(host) {
         const { tiles, placements, side } = model;
         const g = sv('g', { class: 'world' });
         const top = sv('g', { class: 'top' });          // labels sit above every tile
+        const og = sv('g', { class: 'labels' });         // in world coordinates: positions are decided across tiles
+        const groups = [], obstacles = [], makeLabel = new Map();
         let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
         const tileDefs = Object.fromEntries(tiles.map(t => [t.id, t]));
         for (const p of placements) {
@@ -54,7 +58,6 @@ export function mountMap(host) {
             const pos = Object.fromEntries(def.clearings.map(c => [c.n, rot(lay.pos[c.n], a).map(v => v * S)]));
             for (const c of def.clearings) posOf.set(p.id + c.n, [cx + pos[c.n][0], cy + pos[c.n][1]]);
             const tg = sv('g', { transform: `translate(${cx.toFixed(1)} ${cy.toFixed(1)})` });
-            const og = sv('g', { transform: `translate(${cx.toFixed(1)} ${cy.toFixed(1)})` });
             const picture = lay.art ? model.art?.tiles?.[tile.id]?.[side] : null;
             tg.append(sv('polygon', { class: 'hex', points: corners(S - (picture ? 0.5 : 1.5)).map(c => c.join(',')).join(' '), fill: GROUP[tile.group] }));
             // The original tile picture, turned with the tile. The roads, caves and numbers are all in it; we draw only what changes.
@@ -98,12 +101,17 @@ export function mountMap(host) {
                 let x, y;
                 if (slots?.length) { const s0 = slots[(c.slot ?? i) % slots.length]; [x, y] = rot(s0, a).map(v => v * S); }
                 else { x = 0; y = (-0.74 + i * 0.13) * S; }
-                const w = Math.max(18, label.length * 6.2 + 10);
+                const wx = cx + x, wy = cy + y;
                 const glyph = c.up ? (c.kind === 'sound' ? '\u266A' : c.kind === 'site' ? '\u25C6' : c.kind === 'warning' ? '!' : '\u2605') : '?';
-                const g2 = sv('g', { class: `chit ${c.up ? 'up' : 'down'} ${c.kind ?? ''}`, transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})` },
-                    sv('circle', { r: 8.5, class: 'chitdisc' }), sv('text', { 'text-anchor': 'middle', dy: '.36em', class: 'chitglyph' }, glyph));
-                if (c.up) g2.append(sv('g', { class: 'nm', transform: 'translate(0 17)' }, sv('rect', { x: -w / 2, y: -7.5, width: w, height: 15, rx: 5, class: 'chitbox' }), sv('text', { 'text-anchor': 'middle', dy: '.35em' }, label)));
-                og.append(g2);
+                og.append(sv('g', { class: `chit ${c.up ? 'up' : 'down'} ${c.kind ?? ''}`, transform: `translate(${wx.toFixed(1)} ${wy.toFixed(1)})` },
+                    sv('circle', { r: CHIT_R, class: 'chitdisc' }), sv('text', { 'text-anchor': 'middle', dy: '.36em', class: 'chitglyph' }, glyph)));
+                obstacles.push({ x: wx, y: wy, r: CHIT_R + 0.5 });
+                if (c.up) {
+                    const id = `chit:${c.id ?? p.id + i}`, w = pillWidth(label, { size: 9 });
+                    groups.push({ id, ax: wx, ay: wy, ar: CHIT_R, prio: 3, prefer: ['below', 'above', 'right', 'left'], boxes: [{ w, h: 13 }] });
+                    makeLabel.set(id, (box) => sv('g', { class: 'chit up nm', transform: `translate(${box.x.toFixed(1)} ${box.y.toFixed(1)})`, 'pointer-events': 'none' },
+                        sv('rect', { width: box.w, height: box.h, rx: 5, class: 'chitbox' }), sv('text', { x: box.w / 2, y: box.h / 2, 'text-anchor': 'middle', dy: '.35em' }, label)));
+                }
             });
             def.clearings.forEach(c => {
                 const id = p.id + c.n, [x, y] = pos[c.n];
@@ -124,20 +132,42 @@ export function mountMap(host) {
                 // where he stands: a dotted ring drawn just above the tile picture and under every number, label and chit
                 if (model.hero === id) tg.append(sv('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 24, class: `youring${model.heroHidden ? ' hid' : ''}`, 'pointer-events': 'none' }));
                 tg.append(cg);
-                // things standing in this clearing, each with its name
+                // things standing in this clearing, each with its name; where they go is decided by layoutLabels once every tile is known
+                obstacles.push({ x: cx + x, y: cy + y, r: picture ? 10.5 : 13 });
                 const toks = model.tokens?.[id] ?? [];
-                toks.slice(0, 5).forEach((t, i) => {
-                    const th = t.img ? 15 : 0, w = t.label.length * 6.1 + 10 + th, tx = x + 16, ty = y - 9 + i * (t.img ? 18 : 15);
-                    og.append(sv('g', { transform: `translate(${tx.toFixed(1)} ${ty.toFixed(1)})`, class: `pill ${t.k}`, 'pointer-events': 'none' },
-                        sv('rect', { x: 0, y: -8.5, width: w, height: 17, rx: 6 }),
-                        t.img ? sv('rect', { x: 1.5, y: -7, width: 14, height: 14, rx: 3, class: 'thumbbg' }) : null,
-                        t.img ? sv('image', { href: t.img, x: 1.5, y: -7, width: 14, height: 14, preserveAspectRatio: 'xMidYMid meet' }) : null,
-                        sv('text', { x: 5 + th, dy: '.35em' }, t.label)));
-                });
+                if (toks.length) {
+                    const shown = toks.length > 5 ? [...toks.slice(0, 4), { k: 'more', label: `+${toks.length - 4}` }] : toks;
+                    const gid = `clr:${id}`;
+                    const prio = Math.min(...shown.map(t => ({ mon: 1, nat: 1, ally: 2, dwelling: 2, site: 3, sound: 3, more: 4 }[t.k] ?? 3)));
+                    groups.push({ id: gid, ax: cx + x, ay: cy + y, ar: picture ? 10.5 : 13, prio, prefer: ['right', 'left'],
+                        boxes: shown.map(t => ({ w: pillWidth(t.label, { img: !!t.img }), h: t.img ? 17 : PILL_H })) });
+                    makeLabel.set(gid, (box, i) => {
+                        const t = shown[i], th = t.img ? 15 : 0;
+                        return sv('g', { transform: `translate(${box.x.toFixed(1)} ${box.y.toFixed(1)})`, class: `pill ${t.k}`, 'pointer-events': 'none' },
+                            sv('rect', { width: box.w, height: box.h, rx: 6 }),
+                            t.img ? sv('rect', { x: 1.5, y: (box.h - 14) / 2, width: 14, height: 14, rx: 3, class: 'thumbbg' }) : null,
+                            t.img ? sv('image', { href: t.img, x: 1.5, y: (box.h - 14) / 2, width: 14, height: 14, preserveAspectRatio: 'xMidYMid meet' }) : null,
+                            sv('text', { x: 4 + th, y: box.h / 2, dy: '.35em' }, t.label));
+                    });
+                }
             });
             g.append(tg);
-            top.append(og);
         }
+        // names last, once every counter and number is known: nothing may cover anything else
+        const placed = layoutLabels(groups, obstacles);
+        const leaders = sv('g', { class: 'leaders', 'pointer-events': 'none' });
+        const names = sv('g', { class: 'names', 'pointer-events': 'none' });
+        for (const gr of groups) {
+            const r = placed.get(gr.id), make = makeLabel.get(gr.id);
+            r.boxes.forEach((box, i) => names.append(make(box, i)));
+            if (r.leader) {
+                const b = r.boxes[0];
+                const tx = Math.max(b.x, Math.min(gr.ax, b.x + b.w)), ty = Math.max(b.y, Math.min(gr.ay, b.y + b.h));
+                leaders.append(sv('line', { x1: gr.ax.toFixed(1), y1: gr.ay.toFixed(1), x2: tx.toFixed(1), y2: ty.toFixed(1), class: 'leader' }));
+            }
+        }
+        og.append(leaders, names);
+        top.append(og);
         g.append(top);
         bounds = { minX, minY, maxX, maxY };
         svg.replaceChildren(g);
