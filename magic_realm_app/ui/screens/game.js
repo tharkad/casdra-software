@@ -438,9 +438,11 @@ export function gameScreen(ctx) {
         if (!found) return `Not discovered yet: search with Locate to discover it. What it holds is unknown until you do.${guard} ${siteNeeds(c.name)}`;
         const pile = st.sites?.[c.name] ?? [];
         const spells = pile.filter(it => it.kind === 'spell').length;
-        const things = pile.length - spells;
+        const treasures = pile.filter(it => it.kind !== 'spell');
+        const small = treasures.filter(it => (data.treasures[it.id]?.kind ?? 'small') === 'small').length, large = treasures.length - small;
         if (!pile.length) return `Discovered. Nothing is left in it.${guard}`;
-        return `Discovered: you may loot it. ${things} treasure${things === 1 ? '' : 's'} left${spells ? `, and ${spells} spell${spells === 1 ? '' : 's'}` : ''}. Which are Great is not known until they are looted.${guard} ${siteNeeds(c.name)}`;
+        const left = [small ? `${small} Small` : '', large ? `${large} Large` : ''].filter(Boolean).join(' and ');
+        return `Discovered: you may loot it. ${left ? `${left} treasure${treasures.length === 1 ? '' : 's'} left` : 'No treasure left'}${spells ? `${left ? ', and' : ''} ${spells} spell${spells === 1 ? '' : 's'}` : ''}. Which are Great is not known until they are looted.${guard} ${siteNeeds(c.name)}`;
     }
 
     function clearingSheet() {
