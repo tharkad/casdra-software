@@ -574,6 +574,7 @@ export function apply(st0, data, action) {
                 st.ch.items.filter(o => o.kind === 'horse').forEach(o => { o.active = false; });
             }
             toggleItem(st, data, it);
+            say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOf(data, it)}.`, 'info');
             st.pending = p;
             return st;
         }

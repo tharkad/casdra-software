@@ -512,7 +512,7 @@ export function gameScreen(ctx) {
                         ico(nameOf(data, it)), h('span', { class: 'rl' }, h('b', {}, nameOf(data, it) + (it.damaged ? ' (damaged)' : '') + (it.destroyed ? ' (destroyed)' : '')), h('small', {}, summaryOf(data, it))),
                         h('em', {}, `${WEIGHT_WORDS[weightOf(data, it)] ?? ''}`)),
                     h('button', { class: `switch${it.active ? ' on' : ''}`, role: 'switch', 'aria-checked': it.active ? 'true' : 'false', 'data-switch': it.uid, disabled: !canSwitch || it.destroyed || null,
-                        'aria-label': `${nameOf(data, it)}: ${it.active ? 'in use' : 'put away'}`, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid }); } }, it.active ? 'On' : 'Off'),
+                        'aria-label': `${nameOf(data, it)}: ${it.active ? 'active' : 'inactive'}`, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid }); } }, it.active ? 'Active' : 'Inactive'),
                     h('button', { class: 'leavebtn', 'aria-label': `Leave the ${nameOf(data, it)} behind`, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid, drop: true }); } }, 'Leave'));
             }),
             ch.items.length ? null : h('p', { class: 'hint' }, 'Nothing.'),
@@ -610,10 +610,10 @@ export function gameScreen(ctx) {
         const canSwitch = (st.pending?.type === 'phase' || st.pending?.type === 'plan') && !it.destroyed;
         return modal(name, h('div', { class: 'itemsheet' },
             h('div', { class: 'faces' }, ...faces),
-            h('p', { class: 'hint' }, `${it.destroyed ? 'Destroyed. ' : ''}${it.active ? 'In use' : 'Put away'}${it.kind === 'weapon' ? (it.alerted ? ', alerted' : ', not alerted') : ''}${it.kind === 'armor' ? (it.damaged ? ', damaged' : ', whole') : ''}.`),
+            h('p', { class: 'hint' }, `${it.destroyed ? 'Destroyed. ' : ''}${it.active ? 'Active' : 'Inactive'}${it.kind === 'weapon' ? (it.alerted ? ', alerted' : ', not alerted') : ''}${it.kind === 'armor' ? (it.damaged ? ', damaged' : ', whole') : ''}.`),
             ...facts.map(t => h('p', {}, t)),
             h('div', { class: 'row2' },
-                h('button', { class: `switch big${it.active ? ' on' : ''}`, role: 'switch', 'aria-checked': it.active ? 'true' : 'false', 'data-act': 'item-switch', disabled: !canSwitch || null, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid }); } }, it.active ? 'In use: put it away' : 'Put it in use'),
+                h('button', { class: `switch big${it.active ? ' on' : ''}`, role: 'switch', 'aria-checked': it.active ? 'true' : 'false', 'data-act': 'item-switch', disabled: !canSwitch || null, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid }); } }, it.active ? 'Active: deactivate it' : 'Inactive: activate it'),
                 h('button', { class: 'btn', onclick: back.close }, 'Back')),
             canSwitch ? null : h('p', { class: 'hint' }, 'Gear can be changed between phases, not in the middle of one.')), back);
     }

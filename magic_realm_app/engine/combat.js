@@ -316,7 +316,7 @@ export function encounterAction(st, data, a) {
             const it = st.ch.items.find(i => i.uid === a.item);
             if (!it) throw new Error('no such item');
             toggleItem(st, data, it);
-            say(st, `${it.active ? 'Equipped' : 'Put away'} ${nameOfItem(st, data, it)}.`, 'combat');
+            say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOfItem(st, data, it)}.`, 'combat');
             return;
         }
         if (a.act === 'cast') { castSpell(st, data, a.spell, a.chit); resolveSpells(st, data); }
@@ -338,7 +338,7 @@ export function encounterAction(st, data, a) {
         const it = st.ch.items.find(i => i.uid === a.item);
         if (!it) throw new Error('no such item');
         toggleItem(st, data, it);
-        say(st, `${it.active ? 'Equipped' : 'Put away'} ${nameOfItem(st, data, it)}.`, 'combat');
+        say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOfItem(st, data, it)}.`, 'combat');
     } else if (a.act === 'alert') {
         const chit = opt.alertChits.find(x => x.id === a.chit);
         if (!opt.weapon || !chit) throw new Error('cannot flip the weapon with that chit');
