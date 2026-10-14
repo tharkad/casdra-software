@@ -17,6 +17,7 @@ import { putRecord, getRecord } from '../gamestore.js';
 import { VERSION } from '../version.js';
 import { ask } from '../ask.js';
 import { itemFace } from '../counter.js';
+import { cardEl } from '../card.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
@@ -268,6 +269,7 @@ export function gameScreen(ctx) {
         else if (ui.sheet === 'log') out.push(logSheet());
         else if (ui.sheet === 'setupcard') out.push(setupCardSheet());
         else if (ui.sheet === 'item') out.push(itemSheet());
+        else if (ui.sheet === 'spell') out.push(spellSheet());
         else if (ui.sheet === 'key') out.push(modal('Map key', h('div', { class: 'key' },
             ...[['I H C G', 'Dwellings: Inn, House, Chapel, Guard house; the number beside it is the natives there'],
                 ['\u25C6', 'A site you have found: treasure lies there'], ['\u266A', 'A sound chit that has turned up: monsters stir in that clearing'],
@@ -503,7 +505,10 @@ export function gameScreen(ctx) {
             portrait ? h('button', { class: 'portrait', 'aria-label': 'Show the character card', onclick: () => { ui.sheet = 'card'; render(); } }, h('img', { src: portrait, alt: ch.name }), data.art?.cards?.[ch.id] ? h('small', {}, 'Tap for the character card') : null) : null,
             h('div', { class: 'chits' }, ch.chits.map(chitEl)),
             h('p', { class: 'hint' }, 'Gold, Fame and Notoriety are shown on the top bar. Fatigued chits are dim; wounded chits are crossed out.'),
-            ch.spells?.length || (data.characters[ch.id].stage4.spellsKnown ?? 0) ? h('p', { class: 'hint' }, `Spells: ${(ch.spells ?? []).map(id => data.spells?.[id]?.name ?? id).join(', ') || `one of type ${(data.characters[ch.id].stage4.spellTypes ?? []).join('/')} (not castable in this build yet)`}.`) : null,
+            ...(ch.spells?.length ? [h('h3', {}, 'Spells'), ...ch.spells.map(id => h('div', { class: 'itemrow spellrow' }, h('button', { class: 'btn row', 'data-spell': id, onclick: () => { ui.spellId = id; ui.sheet = 'spell'; render(); } },
+                h('span', { class: 'rl' }, h('b', {}, data.spells?.[id]?.name ?? id), h('small', {}, `Type ${data.spells?.[id]?.type ?? '?'} \u00B7 ${data.spells?.[id]?.color ?? 'any colour'} \u00B7 ${data.spells?.[id]?.duration ?? ''}`)),
+                h('em', {}, data.spells?.[id]?.implemented ? 'castable' : 'not yet'))))]
+                : (data.characters[ch.id].stage4.spellsKnown ?? 0) ? [h('p', { class: 'hint' }, `Spells: one of type ${(data.characters[ch.id].stage4.spellTypes ?? []).join('/')} (not castable in this build yet).`)] : []),
             h('h3', {}, 'Carrying'),
             ...ch.items.map(it => {
                 const canSwitch = st.pending?.type === 'phase' || st.pending?.type === 'plan';
@@ -570,6 +575,22 @@ export function gameScreen(ctx) {
             h('div', { class: 'row2' }, h('button', { class: 'btn', 'data-act': 'bug-cancel', disabled: sending || null, onclick: close.close }, 'Cancel'), ok)), close);
     }
 
+    // A spell: its card, with the rules' full description.
+    function spellSheet() {
+        const sp = data.spells?.[ui.spellId];
+        const back = { close: () => { ui.sheet = 'char'; render(); } };
+        if (!sp) return modal('Spell', h('p', { class: 'hint' }, 'Unknown spell.'), back);
+        const full = data.cardtext?.spells?.[sp.id] ?? '';
+        const m = /^[^(]+\([^)]*\),\s*(.*?),\s*(Instant|Day|Combat|Permanent|Attack|Fly|Phase)\s*:\s*(.*)$/s.exec(full);
+        const target = m?.[1], body = m?.[3] ?? full;
+        const color = sp.color ?? 'any';
+        return modal(sp.name, h('div', { class: 'itemsheet' },
+            cardEl({ title: sp.name, kind: sp.color ?? 'any', tag: `Type ${sp.type} spell \u00B7 ${color === 'any' ? 'any colour of magic' : `${color} magic`} \u00B7 ${sp.duration}`,
+                stats: [...(target ? [['Target', target]] : []), ['Cast with', `a Magic chit of type ${sp.type}`], ['Colour needed', color === 'any' ? 'any' : color]], text: body,
+                notes: [sp.implemented ? 'You can cast this in this build: in the Encounter step of an evening fight, where its colour of magic is present.' : 'This spell cannot be cast in this build yet.'] }),
+            h('button', { class: 'btn', onclick: back.close }, 'Back')), back);
+    }
+
     // One belonging: both of its faces drawn as counters, the facts, and the switch.
     function itemSheet() {
         const it = st.ch.items.find(i => i.uid === ui.itemUid);
@@ -577,6 +598,7 @@ export function gameScreen(ctx) {
         if (!it) return modal('Belonging', h('p', { class: 'hint' }, 'You no longer have it.'), back);
         const d = defOf(data, it), name = nameOf(data, it), pic = picOf(name) ?? (d?.name ? picOf(d.name) : null);
         const faces = [], facts = [];
+        let card = null;
         const fmtT = t => (t == null ? '\u2013' : t);
         if (it.kind === 'weapon') {
             const u = d.unalerted, a = d.alerted;
@@ -600,16 +622,20 @@ export function gameScreen(ctx) {
             facts.push(`Walking: strength ${d.walk.strength}, moves ${d.walk.moves}. Galloping: strength ${d.gallop.strength}, moves ${d.gallop.moves}. In a fight it is played like a Move chit, either side, once a round.`);
             facts.push('It cannot be ridden in a cave.');
         } else {
-            faces.push(itemFace({ name, picture: pic, face: d?.great ? 'Great treasure' : 'Treasure', big: d?.weight ?? '', corner: d?.gold != null ? `${d.gold}g` : null, current: true }));
-            facts.push(`${d?.kind === 'large' ? 'A Large' : d?.kind === 'small' ? 'A Small' : 'A'} treasure, weight ${WEIGHT_WORDS[d?.weight] ?? '?'}, worth ${d?.gold ?? '?'} gold.`);
-            if (d?.great) facts.push('A Great Treasure: it counts toward the Great Treasures goal while you keep it.');
-            if (d?.fame || d?.notoriety) facts.push(`While you own it: Fame ${d.fame >= 0 ? '+' : ''}${d.fame ?? 0}, Notoriety ${d.notoriety >= 0 ? '+' : ''}${d.notoriety ?? 0}.`);
-            if (d?.fameReward) facts.push(`Sold to the ${d.fameReward.group} it earns ${d.fameReward.points} Fame.`);
-            if (d?.effectText) facts.push(d.effectText);
+            const key = it.card ?? it.id;
+            const text = data.cardtext?.treasures?.[key] ?? data.cardtext?.treasures?.[it.id] ?? d?.effectText ?? '';
+            const td = data.treasures[key] ?? d;
+            const stats = [['Weight', WEIGHT_WORDS[td?.weight] ?? '?'], ['Price', `${td?.gold ?? '?'} gold`]];
+            if (td?.fame) stats.push(['Fame', `${td.fame > 0 ? '+' : ''}${td.fame}`]);
+            if (td?.notoriety) stats.push(['Notoriety', `${td.notoriety > 0 ? '+' : ''}${td.notoriety}`]);
+            const notes = [];
+            if (td?.great) notes.push('A Great Treasure: it counts toward the Great Treasures goal while you keep it.');
+            if (td?.fameReward) notes.push(`Sold to the ${td.fameReward.group} it earns ${td.fameReward.points} Fame.`);
+            card = cardEl({ title: td?.name ?? name, kind: td?.great ? 'great' : 'treasure', tag: `${td?.great ? 'Great treasure' : td?.kind === 'large' ? 'Large treasure' : td?.kind === 'small' ? 'Small treasure' : 'Treasure'}${td?.magic ? ` \u00B7 magic ${td.magic}` : ''}`, stats, text, notes, picture: pic });
         }
         const canSwitch = (st.pending?.type === 'phase' || st.pending?.type === 'plan') && !it.destroyed;
         return modal(name, h('div', { class: 'itemsheet' },
-            h('div', { class: 'faces' }, ...faces),
+            card ?? h('div', { class: 'faces' }, ...faces),
             h('p', { class: 'hint' }, `${it.destroyed ? 'Destroyed. ' : ''}${it.active ? 'Active' : 'Inactive'}${it.kind === 'weapon' ? (it.alerted ? ', alerted' : ', not alerted') : ''}${it.kind === 'armor' ? (it.damaged ? ', damaged' : ', whole') : ''}.`),
             ...facts.map(t => h('p', {}, t)),
             h('div', { class: 'row2' },

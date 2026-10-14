@@ -56,14 +56,15 @@ export function denSide(st, data, den) {
     if (den.kind === 'mon') {
         const m = data.monsters[den.id];
         const s = den.side === 'red' && m.red ? { ...m.red, length: m.red.length ?? 0, attack: 'weapon' } : (den.side === 'dark' && m.dark ? m.dark : m.light);
-        return { name: m.name, size: m.size, vuln: m.vulnerability, armored: !!m.armored, harm: s.harm, stars: s.stars ?? 0, atk: s.attackTime, move: s.moveTime,
+        return { name: m.name + (den.tag ? ` #${den.tag}` : ''), size: m.size, vuln: m.vulnerability, armored: !!m.armored, harm: s.harm, stars: s.stars ?? 0, atk: s.attackTime, move: s.moveTime,
             length: s.length ?? m.light.length ?? 0, attack: s.attack ?? 'weapon', spell: s.spell, fame: m.fame ?? 0, notor: m.notoriety ?? 0, gold: 0, tremendous: !!m.red };
     }
     if (den.kind === 'part') {
         const owner = st.combat.dens.find(d => d.uid === den.partOf);
         const m = data.monsters[owner.id], p = m.parts.find(x => x.id === den.id);
         const s = p[den.side === 'dark' ? 'dark' : 'light'];
-        return { name: p.name ? `${m.name} ${p.name}` : m.name, size: m.size, vuln: null, armored: false, harm: s.harm, stars: s.stars ?? 0, atk: s.attackTime,
+        const tag = owner.tag ? ` #${owner.tag}` : '';
+        return { name: (p.name ? `${m.name}${tag} ${p.name}` : `${m.name}${tag}`), size: m.size, vuln: null, armored: false, harm: s.harm, stars: s.stars ?? 0, atk: s.attackTime,
             move: null, length: s.length ?? 0, attack: 'weapon', part: true };
     }
     if (den.kind === 'nat') {
@@ -150,9 +151,12 @@ export function choiceAction(st, data, fight) {
 }
 
 function addDen(st, data, d) {
-    const den = { uid: nextUid(st), kind: d.kind, id: d.id, side: 'light', box: null, assigned: false, dead: false, pickedUp: false, partOf: d.partOf ?? null, owner: d.owner ?? null };
+    const den = { uid: nextUid(st), kind: d.kind, id: d.id, side: 'light', box: null, assigned: false, dead: false, pickedUp: false, partOf: d.partOf ?? null, owner: d.owner ?? null, tag: null };
     st.combat.dens.push(den);
     if (d.kind === 'mon') {
+        // several of the same creature: "Heavy Spider #1", "Heavy Spider #2", so they can be told apart everywhere they are named
+        const same = st.combat.dens.filter(x => x.kind === 'mon' && data.monsters[x.id].name === data.monsters[d.id].name);
+        if (same.length > 1) same.forEach((x, i) => { x.tag = i + 1; });
         const m = data.monsters[d.id];
         for (const p of m.parts ?? []) addDen(st, data, { kind: 'part', id: p.id, partOf: den.uid });
     }

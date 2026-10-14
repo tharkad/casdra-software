@@ -18,6 +18,7 @@ export function indexData(raw) {
         horses: byId(raw.horses.horses),
         characters: byId(raw.characters.characters),
         spells: byId(raw.spells?.spells),
+        cardtext: raw.cardtext ?? { treasures: {}, spells: {} },
     };
     for (const n of Object.values(d.natives)) n.name = n.name.replace(/^(\w+) \1\b/, '$1');      // "Lancer Lancer 1" reads better as "Lancer 1"
     d.tile = id => d.tiles.find(t => t.id === id);
@@ -27,7 +28,7 @@ export function indexData(raw) {
     return d;
 }
 
-export const FILES = ['tiles', 'monsters', 'natives', 'appearance', 'setupcard', 'tables', 'treasures', 'weapons', 'armor', 'horses', 'characters', 'spells', 'artpos', 'chitslots'];
+export const FILES = ['tiles', 'monsters', 'natives', 'appearance', 'setupcard', 'tables', 'treasures', 'weapons', 'armor', 'horses', 'characters', 'spells', 'cardtext', 'artpos', 'chitslots'];
 
 // Browser loader (the engine itself never fetches).
 export async function loadData(base = 'data/') {
