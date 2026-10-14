@@ -158,6 +158,7 @@ export function combatSheet({ st, data, act, ui, render }) {
     } else if (p.type === 'combat-fatigue') {
         ui.pickChits ??= [];
         body.push(h('h3', {}, `Fatigue ${p.need} asterisk${p.need === 1 ? '' : 's'}`));
+        if (p.why) body.push(h('p', { class: 'hint' }, p.why));
         body.push(h('div', { class: 'chitrow' }, ...p.chits.map(id => { const ch = st.ch.chits.find(x => x.id === id); return chitBtn(ch, ui.pickChits.includes(id), () => { const i = ui.pickChits.indexOf(id); if (i >= 0) ui.pickChits.splice(i, 1); else ui.pickChits.push(id); render(); }); })));
         const sum = ui.pickChits.reduce((s, id) => s + st.ch.chits.find(x => x.id === id).effort, 0);
         body.push(h('button', { class: 'btn primary', disabled: sum < p.need || sum - p.need > 1, onclick: () => { const ids = ui.pickChits; ui.pickChits = null; send({ kind: 'fatigue', chits: ids }); } }, 'Fatigue these'));

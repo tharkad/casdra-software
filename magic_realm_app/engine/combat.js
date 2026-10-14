@@ -848,7 +848,11 @@ function toFatigue(st, data) {
         return resolveWounds(st, data);
     }
     c.step = 'fatigue';
-    st.pending = { type: 'combat-fatigue', need, chits: pool.map(x => x.id), kinds };
+    // say which of his plays cost the effort, so the question is not a mystery
+    const lab = ch => `${ch.type === 'move' ? 'Move' : ch.type === 'magic' ? 'Magic' : 'Fight'} ${ch.type === 'magic' ? (ch.numeral ?? '') : (ch.strength ?? '')}${ch.time}${'*'.repeat(ch.effort ?? 0)}`;
+    const playedCosting = st.ch.chits.filter(x => c.played?.[x.id] && x.effort > 0);
+    const why = `You played ${playedCosting.map(lab).join(' and ') || 'chits with asterisks'}: ${c.asterisks.move + c.asterisks.fight} asterisk${c.asterisks.move + c.asterisks.fight === 1 ? '' : 's'} of effort. The first is free; each one after it is paid by tiring a ${kinds.join(' or ')} chit that has asterisks (any such chit, not only the one you played).`;
+    st.pending = { type: 'combat-fatigue', need, chits: pool.map(x => x.id), kinds, why };
 }
 
 export function chooseFatigue(st, data, ids) {
