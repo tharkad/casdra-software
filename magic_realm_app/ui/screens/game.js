@@ -15,6 +15,7 @@ import { HELP } from './info.js';
 import { newRecord, daySnapshot, finalize } from '../../engine/gamerecord.js';
 import { putRecord, getRecord } from '../gamestore.js';
 import { VERSION } from '../version.js';
+import { ask } from '../ask.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
@@ -199,10 +200,13 @@ export function gameScreen(ctx) {
         let main;
         if (!p) main = h('div', { class: 'note' }, 'Working...');
         else if (p.type === 'plan' && ui.sheet === 'plan' && ui.draft) { dock.replaceChildren(ui.planCollapsed ? planBar() : planPanel()); return; }
-        else if (p.type === 'plan') main = h('button', { class: 'btn primary big', 'data-act': 'plan', onclick: () => { ui.draft ??= { slots: Array(9).fill(null) }; ui.sheet = 'plan'; ui.planCollapsed = false; render(); } }, 'Plan your day');
+        else if (p.type === 'plan') main = h('div', { class: 'dock-ask' },
+            ask(`Day ${st.day}, Birdsong: plan your day.`, `You choose one action for each of your ${phasesFor(st, data, []).total} phases now, in secret; they are then played in order after the Monster Roll.`, { compact: true }),
+            h('button', { class: 'btn primary big', 'data-act': 'plan', onclick: () => { ui.draft ??= { slots: Array(9).fill(null) }; ui.sheet = 'plan'; ui.planCollapsed = false; render(); } }, 'Plan your day'));
         else if (p.type === 'phase') {
             const slot = st.plan[p.i];
             main = h('div', { class: 'phase' },
+                ask(`Phase ${p.i + 1} of ${st.plan.length}: ${describeSlot(slot)}.`, 'This is the action you planned. Press it to carry it out; "Play the day" carries out every phase that is left. Anything that needs your decision will stop and ask.', { compact: true }),
                 h('div', { class: 'phase-info' }, h('b', {}, `Phase ${p.i + 1} of ${st.plan.length}`), h('span', {}, describeSlot(slot))),
                 h('div', { class: 'row2' },
                     h('button', { class: 'btn primary', 'data-act': 'next', onclick: () => act({ type: 'next' }) }, describeSlot(slot)),
@@ -228,14 +232,14 @@ export function gameScreen(ctx) {
         if (ui.peek && ui.sel && p?.type === 'plan') { out.push(clearingSheet()); return out; }
         if (p?.type === 'turn-end') out.push(turnEndSheet());
         else if (p?.type === 'turn-end') out.push(turnEndSheet());
-        else if (p?.type === 'rest') out.push(modal('Rest', h('div', {}, h('p', { class: 'hint' }, 'You may regain one asterisk of effort. Choose a chit:'), ...p.options.map(o =>
+        else if (p?.type === 'rest') out.push(modal('Rest', h('div', {}, ask('Your Rest phase: choose a chit to restore.', 'One Rest returns one asterisk of effort: a tired chit becomes ready again, or a wounded chit is healed (a wounded chit with asterisks first comes back tired). A chit worth two asterisks needs change: you tire a one-asterisk chit for it.'), ...p.options.map(o =>
             h('button', { class: 'btn', onclick: () => act({ type: 'rest', chit: o.chit, change: o.change }) }, o.text)))));
         else if (p?.type === 'search-table') out.push(modal('Search: which table?', h('div', {},
-            h('p', { class: 'hint' }, 'Name the table you will roll on. One roll, one table.'),
+            ask(`You are searching at ${nameOfClearing(st.ch.at)}: choose the table.`, 'Your plan said only Search, and the rules let you name the table when the phase comes. A Search phase is one roll on one table, and each table finds different things, so pick the one that matches what you are after.'),
             ...p.options.map(t => h('button', { class: 'btn', 'data-table': t, onclick: () => act({ type: 'search-table', table: t }) }, h('b', {}, TABLE_LABEL[t]),
                 h('small', {}, { peer: 'look for clues, hidden enemies and hidden paths', locate: 'find passages, clues and sites in this clearing', loot: 'take treasure from a site you have discovered here',
                     ground: 'pick up what lies on the ground here', sitecard: 'search the place you found with a treasure card' }[t] ?? ''))))));
-        else if (p?.type === 'search-choice') out.push(modal(`${TABLE_LABEL[p.table]}: your choice`, h('div', {}, latestRoll(st) ? rollRow(latestRoll(st)) : null, h('p', { class: 'hint' }, `You rolled ${p.roll.join('+')}: take any result of the table.`),
+        else if (p?.type === 'search-choice') out.push(modal(`${TABLE_LABEL[p.table]}: your choice`, h('div', {}, latestRoll(st) ? rollRow(latestRoll(st)) : null, ask(`You rolled ${p.roll.join('+')}: the table gives you a choice.`, 'This result lets you pick whichever entry of the table you want instead of the one the dice name. Choose the one that helps you most.'),
             ...p.options.map(r => h('button', { class: 'btn', onclick: () => act({ type: 'search-choice', result: r }) }, r)))));
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));
         else if (p?.type === 'hire' || p?.type === 'hire-offer') out.push(hireSheet(p));
@@ -305,6 +309,8 @@ export function gameScreen(ctx) {
             const goldDue = Math.max(0, p.price - worth), ok = st.ch.gold >= goldDue;
             const short = goldDue - st.ch.gold;
             return modal(p.repay != null ? `Win back ${p.name}` : `Buy ${p.name}`, h('div', { class: 'trade' },
+                ask(p.repay != null ? `The ${p.group} will sell back their goodwill for ${p.price} gold.` : `The ${p.group} will sell you ${p.name} for ${p.price} gold.`,
+                    'That price came from your roll on the Meeting Table. Accept to pay it (in gold, or with things you hand over), or say no thanks and keep what you have.'),
                 offerDice(p) ?? h('p', {}, p.rollNote),
                 h('p', { class: 'bigline' }, `${p.price} gold`, h('small', {}, ` (${p.base} x ${p.mult})`)),
                 p.repay != null ? h('p', { class: 'hint' }, `This is your one chance to buy back the level the boon cost you: pay now, or it is lost for good.`) : null,
@@ -326,6 +332,7 @@ export function gameScreen(ctx) {
         }
         const goods = stockOf(st, data, p.group), mine = sellable(st, data);
         return modal(`Trade with the ${p.group}`, h('div', { class: 'trade' },
+            ask(`Trade phase with the ${p.group} at ${nameOfClearing(st.ch.at)}.`, 'Sell your things at their basic price, or choose one thing to buy: a purchase is priced by a roll on the Meeting Table, so how they feel about you matters. Press Done when you have finished.'),
             h('p', { class: 'hint' }, `Relationship: ${REL_NAMES[String(st.ch.rel?.[p.group] ?? 0)]}. You have ${st.ch.gold} gold. In one Trade phase you may sell any number of things, or buy one.${(st.ch.rel?.[p.group] ?? 0) <= -2 ? ' They are your enemies: expect an insult or a fight, not a price.' : ''}`),
             ...(() => {
                 const cost = drinksCost(st, data, p.group), owed = (st.ch.boons ?? []).map((b, n) => ({ ...b, n })).filter(b => b.group === p.group);
@@ -355,6 +362,7 @@ export function gameScreen(ctx) {
                 h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'pay' }) }, `Pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'}`),
                 h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'fight' }) }, 'Refuse')));
             return modal(`Hire ${p.names.length === 1 ? p.names[0] : 'the ' + p.group}`, h('div', {},
+                ask(`${p.names.length === 1 ? p.names[0] : 'The ' + p.group} will join you for ${p.price} gold.`, 'That is their wages times your Meeting Table roll. Hire them to pay it now, or say no thanks and keep your gold.'),
                 offerDice(p) ?? h('p', {}, p.why),
                 h('p', { class: 'bigline' }, `${p.price} gold`, h('small', {}, ` (wages ${p.wage} x ${p.mult})`)),
                 p.boon ? h('div', {},
@@ -366,6 +374,7 @@ export function gameScreen(ctx) {
                     h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'decline' }) }, 'No thanks'))));
         }
         return modal('Hire', h('div', {},
+            ask(`Hire phase at ${nameOfClearing(st.ch.at)}: choose whom to ask.`, 'Hired natives follow you and fight beside you for 14 days. You pay their wages multiplied by a roll on the Meeting Table, so you see the price only after you choose a group.'),
             h('p', { class: 'hint' }, `You have ${st.ch.gold} gold. The price is the wages times a roll on the Meeting Table. Relationships: ${p.options.map(o => `${o.group} ${REL_NAMES[String(st.ch.rel?.[o.group] ?? 0)]}`).join(', ')}.`),
             h('button', { class: 'btn row' + (ui.drinks ? ' on' : ''), 'data-act': 'drinks-toggle', onclick: () => { ui.drinks = !ui.drinks; render(); } },
                 h('span', { class: 'rl' }, h('b', {}, `${ui.drinks ? '\u2713 ' : ''}Buy drinks first`), h('small', {}, 'one gold for each of them here, hired or not; one level friendlier for the roll')), h('em', {}, ui.drinks ? 'on' : 'off')),
@@ -435,6 +444,7 @@ export function gameScreen(ctx) {
         if (t.blocked) lines.push(h('div', { class: 'crow mon' }, h('b', {}, t.blockers.length ? `Blocked by ${[...new Set(t.blockers)].join(', ')}` : 'Your turn was cut short'), h('small', {}, 'the rest of your turn was lost and you are seen')));
         const summary = t.plan?.length ? h('details', {}, h('summary', {}, 'What you did today'), ...t.plan.map((r, i) => h('p', { class: 'hint' }, `Phase ${i + 1}: ${r ?? '-'}`))) : null;
         return modal(`End of your turn at ${nameOfClearing(t.at)}`, h('div', { class: 'clearing' },
+            ask('Your turn is over: this is what happened at the end of it.', 'Chits in your tile turn up and may call monsters; creatures prowling in this tile come to you. There is nothing to decide here: continue to the evening, when fights are held.'),
             ...(lines.length ? lines : [h('p', { class: 'hint' }, 'Nothing stirred.')]),
             summary,
             h('button', { class: 'btn primary', 'data-act': 'turn-ok', onclick: () => act({ type: 'continue' }) }, 'Continue to the evening')));
@@ -539,6 +549,7 @@ export function gameScreen(ctx) {
         const used = Object.values(v).reduce((a, b) => a + b, 0);
         const rows = [['fame', 'Fame', 10], ['notoriety', 'Notoriety', 20], ['gold', 'Gold', 30], ['great', 'Great treasures', 1]];
         return modal(`A new ${st.ch.name}`, h('div', {},
+            ask('Your character is dead: set the goals for the next one.', 'A new character arrives at the Inn tomorrow with fresh chits and gear. The goals you set now are what he will be scored against at the end of the game.'),
             h('p', {}, `He arrives at the Inn tomorrow. With ${weeks} week${weeks === 1 ? '' : 's'} left he has ${total} victory points to spend.`),
             ...rows.map(([k, label, f]) => h('div', { class: 'vprow' },
                 h('div', { class: 'vp-l' }, h('b', {}, label), h('small', {}, v[k] ? `goal: ${v[k] * f}` : 'no goal')),
@@ -623,6 +634,7 @@ export function gameScreen(ctx) {
         const head = h('div', { class: 'plan-head' }, h('b', {}, 'Plan your day'), h('button', { class: 'x', 'aria-label': 'Hide the plan', onclick: () => { ui.planCollapsed = true; render(); } }, '\u25BE'));
         const s = d.slots[step];
         const body = h('div', { class: 'plan-step' },
+            step === 0 ? ask(`Day ${st.day}: choose what you will do in each phase.`, 'Your plan is secret and fixed once you start the day. Some phases are extra and can only be used for one action.', { compact: true }) : null,
             h('div', { class: 'slot-head' }, h('b', {}, `Phase ${step + 1} of ${total}`), h('span', {}, slotKind(step, base, extras)), h('em', {}, s ? describeSlot(s) : 'not set'),
                 s ? h('button', { class: 'clearbtn', onclick: () => { d.slots[step] = null; render(); } }, 'Clear') : null),
             at[step] ? h('p', { class: 'hint' }, `You will be at ${nameOfClearing(at[step])}.`) : null,

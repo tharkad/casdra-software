@@ -436,3 +436,9 @@ button.foe { flex-direction: row; align-items: center; gap: 10px; }
 .foe.rev svg.counter { outline: 2px solid var(--gold); border-radius: 10px; }
 .cb-foes { grid-template-columns: 1fr; }                 /* a counter and its words need the full width */
 .cb-foes .foe .foe-text { font-size: 14px; }
+
+/* "what is happening and why you are being asked" blocks */
+.ask { border-left: 3px solid var(--gold); background: color-mix(in srgb, var(--gold) 9%, transparent); border-radius: 0 10px 10px 0; padding: 8px 12px; display: flex; flex-direction: column; gap: 3px; }
+.ask b { font-size: 15px; }
+.ask p { margin: 0; font-size: 13.5px; color: var(--dim); line-height: 1.35; }
+.ask.compact { padding: 6px 10px; } .ask.compact b { font-size: 14px; } .ask.compact p { font-size: 12.5px; }

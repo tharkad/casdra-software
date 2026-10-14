@@ -1,5 +1,6 @@
 import { rollRow } from '../dice.js';
 import { monsterCounter } from '../counter.js';
+import { ask } from '../ask.js';
 import { h } from '../dom.js';
 import { encounterOptions, meleeOptions, denSide } from '../../engine/combat.js';
 import { roadsFrom, nameOfClearing } from '../../engine/world.js';
@@ -79,8 +80,9 @@ export function combatSheet({ st, data, act, ui, render }) {
                 h('button', { class: 'btn primary', 'data-act': 'attack-natives', onclick: () => send({ kind: 'choice', fight: true }) }, 'Pick a fight'))));
     } else if (p.type === 'combat-encounter') {
         const o = encounterOptions(st, data);
-        body.push(h('h3', {}, p.spellOnly ? 'A quiet evening' : 'Encounter: one action'));
-        body.push(h('p', { class: 'hint' }, p.spellOnly ? 'Nothing is fighting you, but the evening is when spells are cast.' : 'Chits you play must be faster than the creatures facing you. Or simply wait.'));
+        body.push(ask(p.spellOnly ? 'A quiet evening: nothing is fighting you.' : `Round ${c.round}, Encounter step: you may take one action before the melee.`,
+            p.spellOnly ? 'Spells are cast in the evening, so the game stops here to let you cast one. You may also do nothing.'
+                : 'Before plays are chosen you may ready your weapon, run from the fight, cast a spell, or simply go on. A chit you play here has to be faster than every creature facing you.'));
         if (o.canStay && !p.spellOnly) {
             body.push(h('p', { class: 'hint' }, 'You are hidden. Creatures cannot be set on a hidden character, so nothing here can attack you. You may stay hidden and let the evening pass, or strike from hiding: you get the first blow, but you are revealed.'));
             body.push(h('button', { class: 'btn primary', 'data-act': 'stay-hidden', onclick: () => send({ kind: 'encounter', act: 'stay' }) }, 'Stay hidden: let the evening pass'));
@@ -113,7 +115,8 @@ export function combatSheet({ st, data, act, ui, render }) {
         const o = meleeOptions(st, data);
         const w = o.weapon;
         const wname = w ? nameOf(data, w.item) + (w.item.alerted ? ' (alerted)' : '') : 'bare hands';
-        body.push(h('h3', {}, 'Melee: your secret plays'));
+        body.push(ask(`Round ${c.round}, Melee: choose your plays.`,
+            'Pick whom you strike and in which direction, the maneuver that defends you, and where the creatures stand in the three boxes. Plays are chosen together; then the dice shuffle the creatures and the blows land. You may play at most two asterisks of effort.'));
         // the three lanes: where the creatures stand (before the dice move them) and which way you attack, maneuver and guard
         body.push(h('div', { class: 'board' }, ...[0, 1, 2].map(b => h('div', { class: 'lane' },
             h('div', { class: 'lane-h' }, h('b', {}, MNV[b]), h('small', {}, DIRS[b])),
@@ -151,8 +154,8 @@ export function combatSheet({ st, data, act, ui, render }) {
             } }, 'Commit and roll')));
     } else if (p.type === 'combat-wounds') {
         ui.pickChits ??= [];
-        body.push(h('h3', {}, `Choose ${p.count} chit${p.count === 1 ? '' : 's'} to wound`));
-        body.push(h('p', { class: 'hint' }, 'Wounded chits are out of play until you rest them back.'));
+        body.push(ask(`You took ${p.count} wound${p.count === 1 ? '' : 's'}: choose ${p.count === 1 ? 'the chit' : 'the chits'} to wound.`,
+            'Each wound puts one of your action chits out of play until you rest it back. The choice is yours, so give up the chits you will miss least.'));
         body.push(h('div', { class: 'chitrow' }, ...p.chits.map(id => { const ch = st.ch.chits.find(x => x.id === id); return chitBtn(ch, ui.pickChits.includes(id), () => { const i = ui.pickChits.indexOf(id); if (i >= 0) ui.pickChits.splice(i, 1); else ui.pickChits.push(id); render(); }); })));
         body.push(h('button', { class: 'btn primary', disabled: ui.pickChits.length !== p.count, onclick: () => { const ids = ui.pickChits; ui.pickChits = null; send({ kind: 'wounds', chits: ids }); } }, 'Wound these'));
     } else if (p.type === 'combat-fatigue') {

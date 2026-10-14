@@ -1,4 +1,5 @@
 import { h } from '../dom.js';
+import { ask } from '../ask.js';
 
 // New game: a five-step wizard. Step 1 (game type) is real; later steps are outlined until their rules are digitised.
 // Everything here is a *choice about the rules*, so the facts come from docs/rules/01 and 06 (see the notes beside each option).
@@ -62,12 +63,14 @@ function typeStep(g, redraw) {
     const depth = DEPTHS.find(d => d.id === g.depth);
     return [
         h('h2', { class: 'q' }, 'How long is the game?'),
+        ask('Choose how long you will play.', 'The length decides when the game ends and how many victory points you get to spend on goals in the last step: one for each week, plus one.', { compact: true }),
         h('div', { class: 'choices', role: 'radiogroup', 'aria-label': 'Game length' }, LENGTHS.map(o => lengthCard(g, o, redraw))),
         h('h2', { class: 'q' }, 'How much of the game?'),
         h('div', { class: 'seg', role: 'radiogroup', 'aria-label': 'Rules depth' },
             DEPTHS.map(d => h('button', { class: `seg-btn${d.id === g.depth ? ' on' : ''}`, role: 'radio', 'aria-checked': d.id === g.depth, 'data-depth': d.id,
                 onclick: () => { g.depth = d.id; redraw(); } }, d.label))),
         h('p', { class: 'depth-text' }, depth.text),
+        ask('Every game uses all the rules for now.', 'This switch is kept for a later version that will teach the game in steps; changing it does not change how this game plays.', { compact: true }),
     ];
 }
 
@@ -112,6 +115,7 @@ function charsStep(g, redraw, ctx) {
     const who = CHARACTERS.find(c => c.id === g.character) ?? CHARACTERS[0];
     return [
         h('h2', { class: 'q' }, 'Your character'),
+        ask('Choose who you will play and where the first day begins.', 'Each character has different chits, gear and friends among the natives. The starting place decides who is near you on day 1.', { compact: true }),
         h('div', { class: 'choices', role: 'radiogroup' }, ...CHARACTERS.map(c => h('button', { class: `choice${g.character === c.id ? ' on' : ''}`, role: 'radio', 'aria-checked': g.character === c.id, 'data-char': c.id,
             onclick: () => { g.character = c.id; if (!c.starts.includes(g.dwelling)) g.dwelling = c.starts[0]; redraw(); } },
             h('span', { class: 'dot' }),
@@ -125,6 +129,7 @@ function charsStep(g, redraw, ctx) {
             h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, d), h('span', { class: 'choice-line' }, DWELLING_LINE[d]))))),
         who.starts.length === 1 ? h('p', { class: 'hint' }, `The ${who.name} has only the ${who.starts[0]} on ${who.her ? 'her' : 'his'} character card.`) : null,
         h('h2', { class: 'q' }, `Spend your ${total} victory points`),
+        ask('Set the goals you will be scored against.', 'You must spend every point. Points on a goal raise what you need to reach; the bigger the goal you meet, the bigger the bonus.', { compact: true }),
         h('p', { class: 'hint' }, 'Each point sets a goal. Miss a goal and the shortfall counts triple; beat it and each point you put there pays a bonus.'),
         ...VP_ROWS.map(r => h('div', { class: 'vprow' },
             h('div', { class: 'vp-l' }, h('b', {}, r.label), h('small', {}, g.vp[r.k] ? `goal: ${g.vp[r.k] * r.unit} ${r.what}` : 'no goal')),
