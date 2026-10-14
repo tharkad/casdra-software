@@ -1,4 +1,5 @@
 import { rollRow } from '../dice.js';
+import { monsterCounter } from '../counter.js';
 import { h } from '../dom.js';
 import { encounterOptions, meleeOptions, denSide } from '../../engine/combat.js';
 import { roadsFrom, nameOfClearing } from '../../engine/world.js';
@@ -36,18 +37,24 @@ export function combatSheet({ st, data, act, ui, render }) {
         const s = showRev ? denSide(st, data, view) : now;
         const a = stat(now), b = stat(s);
         const diff = k => (showRev && String(a[k]) !== String(b[k]) ? 'chg' : '');
-        const pic = d.kind === 'mon' ? data.art?.monsters?.[data.monsters[d.id]?.name] : d.kind === 'nat' ? data.art?.natives?.[d.id] : null;
-        const sideTag = SIDE_NAME[showRev ? other : (d.side ?? 'light')];
+        const shownSide = showRev ? other : (d.side ?? 'light');
+        const mname = d.kind === 'mon' ? data.monsters[d.id]?.name : d.kind === 'part' ? data.monsters[st.combat.dens.find(o => o.uid === d.partOf)?.id]?.name : null;
+        const pic = d.kind === 'mon' || d.kind === 'part' ? (data.art?.monstersColor?.[mname] ?? data.art?.monsters?.[mname]) : d.kind === 'nat' ? data.art?.natives?.[d.id] : null;
+        const sideTag = SIDE_NAME[shownSide];
+        const counter = d.kind === 'mon' || d.kind === 'part'
+            ? monsterCounter({ s, side: shownSide, picture: pic, flies: d.kind === 'mon' && !!data.monsters[d.id]?.flies, size: 92 })
+            : (pic ? h('img', { class: 'foepic', src: pic, alt: '' }) : null);
         return h('button', { class: `foe${d.assigned ? ' on' : ''}${d.pickedUp ? ' held' : ''}${m.target === d.uid ? ' target' : ''}${showRev ? ' rev' : ''}`, 'data-foe': d.uid, 'aria-pressed': showRev ? 'true' : 'false',
             'aria-label': `${s.name}: tap to turn the counter over`, onclick: () => { ui.flipped[d.uid] = !ui.flipped[d.uid]; render(); } },
-            pic ? h('img', { class: 'foepic', src: pic, alt: '' }) : null,
-            h('b', {}, s.name), h('em', { class: 'sidetag' }, other ? (showRev ? `reverse: ${sideTag}` : sideTag) : ''),
-            h('span', {}, `${s.size ?? ''} \u00B7 vuln `, h('i', { class: diff('vuln') }, b.vuln), ' \u00B7 harm ', h('i', { class: diff('harm') }, b.harm), ' \u00B7 speed ', h('i', { class: diff('speed') }, b.speed),
-                ' \u00B7 moves ', h('i', { class: diff('moves') }, b.moves)),
-            ui.flipped[d.uid] && !showRev ? h('small', { class: 'was' }, 'This counter has no other side.') : null,
-            showRev ? h('small', { class: 'was' }, `now: harm ${a.harm} \u00B7 speed ${a.speed} \u00B7 moves ${a.moves}${a.vuln !== b.vuln ? ` \u00B7 vuln ${a.vuln}` : ''}`) : null,
-            d.pickedUp ? h('em', {}, 'has seized you') : null,
-            d.engagedBy ? h('em', { class: 'ally' }, 'is fighting your hireling') : null);
+            counter,
+            h('div', { class: 'foe-text' },
+                h('b', {}, s.name), h('em', { class: 'sidetag' }, other ? (showRev ? `reverse: ${sideTag}` : sideTag) : ''),
+                h('span', {}, `${s.size ?? ''} \u00B7 vuln `, h('i', { class: diff('vuln') }, b.vuln), ' \u00B7 harm ', h('i', { class: diff('harm') }, b.harm), ' \u00B7 speed ', h('i', { class: diff('speed') }, b.speed),
+                    ' \u00B7 moves ', h('i', { class: diff('moves') }, b.moves)),
+                ui.flipped[d.uid] && !showRev ? h('small', { class: 'was' }, 'This counter has no other side.') : null,
+                showRev ? h('small', { class: 'was' }, `now: harm ${a.harm} \u00B7 speed ${a.speed} \u00B7 moves ${a.moves}${a.vuln !== b.vuln ? ` \u00B7 vuln ${a.vuln}` : ''}`) : null,
+                d.pickedUp ? h('em', {}, 'has seized you') : null,
+                d.engagedBy ? h('em', { class: 'ally' }, 'is fighting your hireling') : null));
     });
     const dice = (st.rolls ?? []).filter(r => r.n > (c.rollFrom ?? 0)).slice(-4);
     const diceBlock = dice.length ? h('div', { class: 'cb-dice' }, ...dice.map(r => rollRow(r, { compact: true }))) : null;

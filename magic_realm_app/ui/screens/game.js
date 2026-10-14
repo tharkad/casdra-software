@@ -394,7 +394,11 @@ export function gameScreen(ctx) {
         // monsters
         const mons = {};
         for (const m of st.mons.filter(m => !m.dead && m.loc?.c === id)) (mons[data.monsters[m.id].name] ??= []).push(m);
-        const monRows = Object.entries(mons).map(([name, l]) => row('mon', `${name}${l.length > 1 ? ` x${l.length}` : ''}`, 'a monster: it will block you if you are seen', data.art?.monsters?.[name]));
+        const monRows = Object.entries(mons).map(([name, l]) => {
+            const md = data.monsters[l[0].id], ls = md.light;
+            const stats = `vuln ${md.vulnerability}${md.armored ? ' (armored)' : ''} \u00B7 harm ${ls.harm}${'*'.repeat(ls.stars || 0)} at ${ls.attackTime} \u00B7 moves ${ls.moveTime}${md.flies ? ' \u00B7 flies' : ''}`;
+            return row('mon', `${name}${l.length > 1 ? ` x${l.length}` : ''}`, `${stats}. It will block you if you are seen.`, data.art?.monstersColor?.[name] ?? data.art?.monsters?.[name]);
+        });
         if (monRows.length) sections.push(['Monsters', monRows]);
         // chits
         const chitRows = [];
