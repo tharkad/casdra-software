@@ -57,7 +57,7 @@ export function combatSheet({ st, data, act, ui, render }) {
                 d.pickedUp ? h('em', {}, 'has seized you') : null,
                 d.engagedBy ? h('em', { class: 'ally' }, 'is fighting your hireling') : null));
     });
-    const dice = (st.rolls ?? []).filter(r => r.n > (c.rollFrom ?? 0)).slice(-4);
+    const dice = (st.rolls ?? []).filter(r => r.n > (c.roundRollFrom ?? c.rollFrom ?? 0)).slice(-8);
     const diceBlock = dice.length ? h('div', { class: 'cb-dice' }, ...dice.map(r => rollRow(r, { compact: true }))) : null;
     const last = c.events?.length ? h('div', { class: 'cb-last' }, h('b', {}, 'Last round'), ...c.events.map(e => h('p', { class: e.startsWith('  ') ? 'sub' : /^(Round \d+:|Order of blows|Boxes as|Repositioning)/.test(e) ? 'hd' : '' }, e.trim()))) : null;
     const body = [];

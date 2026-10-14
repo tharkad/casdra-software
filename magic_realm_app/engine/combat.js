@@ -405,6 +405,7 @@ export function meleePlay(st, data, p) {
     if (c.step !== 'melee') throw new Error('not in the melee step');
     const o = meleeOptions(st, data);
     const w = o.weapon, notes = [];
+    c.roundRollFrom = st.rollSeq ?? 0;            // the dice tray in the fight shows this round's rolls only
     const ev = c.events = [];
     const log = t => { ev.push(t); say(st, t, 'combat'); };
     // --- validate and apply chit plays ---
