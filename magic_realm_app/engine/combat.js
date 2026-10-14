@@ -302,7 +302,9 @@ export function encounterOptions(st, data) {
     const fight = activeChits(st, 'fight', data).filter(x => x.time < slowest && lvl(x.strength) >= wlvl);
     const load = carriedWeight(st, data);
     const move = activeChits(st, 'move', data).filter(x => x.time < slowest && lvl(x.strength) >= (x.isHorse ? Math.max(load, lvl(st.ch.weight)) : load));
-    return { casts: castOptions(st, data), canAlert: !!w && fight.length > 0, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data) };
+    // hidden, and nothing is on his sheet (denizens cannot be assigned to a hidden character): nothing can attack him, so he may simply let the evening pass
+    const canStay = !!st.ch.hidden && !c.dens.some(d => !d.dead && (d.assigned || d.engagedBy || d.pickedUp)) && !(c.hires ?? []).some(x => !x.dead);
+    return { canStay, casts: castOptions(st, data), canAlert: !!w && fight.length > 0, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data) };
 }
 
 export function encounterAction(st, data, a) {
@@ -325,6 +327,11 @@ export function encounterAction(st, data, a) {
     if (a.act === 'cast') {
         castSpell(st, data, a.spell, a.chit);
         return enterMelee(st, data);
+    }
+    if (a.act === 'stay') {
+        if (!opt.canStay) throw new Error('you are not hidden from everything here');
+        say(st, 'You stay hidden. Nothing here can find you, and the evening passes without a blow.', 'combat');
+        return endCombat(st, data, 'quiet');
     }
     if (a.act === 'gear') {
         // Without playing a chit he may switch one item on or off.

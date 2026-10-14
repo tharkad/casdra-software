@@ -489,8 +489,15 @@ export function gameScreen(ctx) {
     // the choices for one phase: what to do, and where or how
     function phaseChoices(i, at, base, extras, total) {
         const d = ui.draft, s = d.slots[i];
-        const out = [h('div', { class: 'chips2 six' },
-            ...['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', 'nothing'].map(a => h('button', { class: `chip${s?.act === a ? ' on' : ''}`, 'data-slot': i, 'data-pick': a, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a])))];
+        // an extra phase (a Rest phase of the Health advantage, a Hide phase from a Cloak of Mist...) can be used for that one activity only
+        const only = i >= base ? extras[i - base] : null;
+        const out = [];
+        if (only) out.push(h('p', { class: 'hint' }, `This is an extra phase: it can only be used to ${ACT_LABEL[only]?.toLowerCase() ?? only}.`));
+        out.push(h('div', { class: 'chips2 six' },
+            ...['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', 'nothing'].map(a => {
+                const dim = !!only && a !== only && a !== 'nothing';
+                return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a]);
+            })));
         if (ui.pickMove === i || s?.act === 'move') {
             out.push(h('p', { class: 'hint' }, at[i] || st.ch.onRoad ? 'Tap a clearing on the map, or choose here:' : 'You are on a road; move to one of its ends first.'));
             if (ui.pickMove === i || !s?.to) out.push(movePicker(i, at[i]));

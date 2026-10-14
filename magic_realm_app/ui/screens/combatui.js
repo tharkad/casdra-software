@@ -54,7 +54,11 @@ export function combatSheet({ st, data, act, ui, render }) {
         const o = encounterOptions(st, data);
         body.push(h('h3', {}, p.spellOnly ? 'A quiet evening' : 'Encounter: one action'));
         body.push(h('p', { class: 'hint' }, p.spellOnly ? 'Nothing is fighting you, but the evening is when spells are cast.' : 'Chits you play must be faster than the creatures facing you. Or simply wait.'));
-        body.push(h('button', { class: `btn${p.spellOnly && o.casts.some(x => x.useful) ? '' : ' primary'}`, 'data-act': 'pass', onclick: () => send({ kind: 'encounter', act: 'pass' }) }, p.spellOnly ? 'Do nothing' : 'Go on to the fight'));
+        if (o.canStay && !p.spellOnly) {
+            body.push(h('p', { class: 'hint' }, 'You are hidden. Creatures cannot be set on a hidden character, so nothing here can attack you. You may stay hidden and let the evening pass, or strike from hiding: you get the first blow, but you are revealed.'));
+            body.push(h('button', { class: 'btn primary', 'data-act': 'stay-hidden', onclick: () => send({ kind: 'encounter', act: 'stay' }) }, 'Stay hidden: let the evening pass'));
+        }
+        body.push(h('button', { class: `btn${(p.spellOnly && o.casts.some(x => x.useful)) || (o.canStay && !p.spellOnly) ? '' : ' primary'}`, 'data-act': 'pass', onclick: () => send({ kind: 'encounter', act: 'pass' }) }, p.spellOnly ? 'Do nothing' : o.canStay ? 'Strike from hiding' : 'Go on to the fight'));
         if (o.casts.length) {
             body.push(h('h3', {}, 'Cast a spell'));
             body.push(h('p', { class: 'hint' }, 'The Magic chit you play is the spell\'s cost; it counts toward the two asterisks of the round and is tired afterwards.'));
