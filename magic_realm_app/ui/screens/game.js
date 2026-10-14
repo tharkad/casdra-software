@@ -384,7 +384,7 @@ export function gameScreen(ctx) {
         for (const c of t.chits) {
             const what = c.kind === 'sound' ? `${c.name} (sound, clearing ${c.num})` : c.kind === 'site' ? `${c.name} (site, clearing ${c.num})` : c.kind === 'warning' ? `${c.name} warning` : (KIND[c.kind] ?? c.name);
             lines.push(h('div', { class: 'crow chit' }, h('b', {}, `${c.already ? 'Face up here' : 'Turned up'}: ${what}`),
-                h('small', {}, c.summons.length ? `It calls out: ${[...new Set(c.summons)].map(n => `${c.summons.filter(x => x === n).length > 1 ? c.summons.filter(x => x === n).length + ' ' : ''}${n}`).join(', ')}${c.dest === t.at ? ' to your clearing' : c.dest ? ` to clearing ${numOf(c.dest)}` : ''}` : 'It calls nothing out today.')));
+                h('small', {}, c.summons.length ? `It calls out: ${[...new Set(c.summons)].map(n => `${c.summons.filter(x => x === n).length > 1 ? c.summons.filter(x => x === n).length + ' ' : ''}${n}`).join(', ')}${c.dest === t.at ? ' to your clearing' : c.dest ? ` to clearing ${numOf(c.dest)}` : ''}` : `It calls nothing out today${c.why ? `: ${c.why}` : ''}.`)));
         }
         for (const a of t.arrivals.filter(a => a.why === 'prowls in your tile')) lines.push(h('div', { class: 'crow mon' }, h('b', {}, `${a.name} arrives`), h('small', {}, `it was prowling in this tile and comes to your clearing`)));
         for (const nn of t.natives) lines.push(h('div', { class: 'crow nat' }, h('b', {}, `The ${nn.group} appear`), h('small', {}, `${nn.count} of them, at the ${nn.at}`)));

@@ -70,11 +70,21 @@ export function endOfTurn(st, data) {
     // 3. chits summon: warnings first, then sounds and sites in number order
     const rank = c => (c.kind === 'warning' ? 0 : 1) * 100 + (c.num ?? 0);
     const letter = tileLetter(data, tile);
-    if (!quiet) for (const c of [...st.chits.filter(x => x.tile === tile && x.up && !x.summoned && x.kind !== 'lost-city' && x.kind !== 'lost-castle')].sort((a, b) => rank(a) - rank(b))) {
+    // every face-up chit of the tile is named in the report, with what it did and why when it did nothing
+    const faceUp = c => c.tile === tile && c.up && c.kind !== 'lost-city' && c.kind !== 'lost-castle';
+    if (!quiet) for (const c of st.chits.filter(x => faceUp(x) && x.summoned)) {
+        report[c.id] ??= { id: c.id, kind: c.kind, name: c.name, letter: c.letter ?? null, num: c.num ?? null, summons: [], dest: null, already: true, why: 'it has already called out today' };
+    }
+    if (!quiet) for (const c of [...st.chits.filter(x => faceUp(x) && !x.summoned)].sort((a, b) => rank(a) - rank(b))) {
         const row = boxesOfRow(data, st.prowl);
-        const box = row.find(b => boxMatches(b, c, letter) && monstersInBox(st, b.id).length);
+        const matching = row.filter(b => boxMatches(b, c, letter));
+        const box = matching.find(b => monstersInBox(st, b.id).length);
         c.summoned = true;
-        if (!box) continue;
+        if (!box) {
+            const why = matching.length ? 'the creatures it calls are not waiting to come today' : `its row is not the one prowling (the Monster Roll was ${st.prowl})`;
+            (report[c.id] ??= { id: c.id, kind: c.kind, name: c.name, letter: c.letter ?? null, num: c.num ?? null, summons: [], dest: null, already: true }).why = why;
+            continue;
+        }
         const dest = c.kind === 'warning' ? here : tile + c.num;
         for (const m of monstersInBox(st, box.id)) {
             out.arrivals.push({ id: m.id, name: data.monsters[m.id].name, from: null, to: dest, why: `called by ${c.name}${c.kind === 'warning' ? '' : ' ' + c.num}` });
