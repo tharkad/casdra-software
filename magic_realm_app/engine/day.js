@@ -11,6 +11,7 @@ import { activeHorse } from './items.js';
 import { extraActs, oneDie, locateMod } from './modifiers.js';
 import { beginTrade, tradeAction } from './trade.js';
 import { scoreGame } from './score.js';
+import { canCastUsefully } from './spells.js';
 import { beginHire, hireAction, followHero, expireHires } from './hire.js';
 
 // The day loop (rules digest 01 section 4): Birdsong plan, Sunrise, Daylight phases, Sunset, Evening combat, Midnight.
@@ -175,7 +176,7 @@ function hostilesHere(st, data) {
     const here = st.ch.at;
     const mons = st.mons.some(m => !m.dead && !m.hired && m.loc?.c === here);
     const nats = st.nats.some(n => !n.dead && !n.hired && n.loc?.c === here);
-    return mons || nats;
+    return mons || nats || canCastUsefully(st, data);
 }
 
 function evening(st, data) {

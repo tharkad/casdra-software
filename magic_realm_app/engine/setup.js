@@ -141,6 +141,12 @@ function knightsRel(st, id, rel) {
     return {};
 }
 
+// The spells he starts with: the card says how many and of which types; of those, the ones this build can cast (data/src/spells.json).
+function startingSpells(data, c) {
+    const want = c.stage4?.spellsKnown ?? 0, types = c.stage4?.spellTypes ?? [];
+    return Object.values(data.spells ?? {}).filter(s => s.implemented && types.includes(s.type)).slice(0, want).map(s => s.id);
+}
+
 export function makeCharacter(st, data, id, vp, opt = {}) {
     const c = data.characters[id];
     const ch = {
@@ -148,7 +154,7 @@ export function makeCharacter(st, data, id, vp, opt = {}) {
         chits: c.chits.map((x, i) => ({ id: `${id}-${i + 1}`, type: x.type, strength: x.strength, time: x.time, effort: x.effort ?? 0, state: 'active', stage: x.stage, numeral: x.magicNumeral ?? null })),
         items: [], rel: { ...c.relationships, ...knightsRel(st, id, c.relationships) }, discovered: { paths: [], sites: [] }, seen: [], hiddenEnemies: false, killsToday: 0,
         vp: vp ?? { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 }, onRoad: null, startDwelling: opt.dwelling ?? c.startDwellings[0], startValue: 10,
-        adv: (c.advantages ?? []).map(a => a.key), spells: [],
+        adv: (c.advantages ?? []).map(a => a.key), spells: startingSpells(data, c),
     };
     // The starting weapon and armor are taken from the native group that owns them (never bought). A counter exists once: look in the
     // natives' stock, then lying on the ground; failing both he gets its price in gold instead.

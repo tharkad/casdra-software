@@ -396,7 +396,7 @@ export function gameScreen(ctx) {
             portrait ? h('button', { class: 'portrait', 'aria-label': 'Show the character card', onclick: () => { ui.sheet = 'card'; render(); } }, h('img', { src: portrait, alt: ch.name }), data.art?.cards?.[ch.id] ? h('small', {}, 'Tap for the character card') : null) : null,
             h('div', { class: 'chits' }, ch.chits.map(chitEl)),
             h('p', { class: 'hint' }, 'Gold, Fame and Notoriety are shown on the top bar. Fatigued chits are dim; wounded chits are crossed out.'),
-            ch.spells?.length || (data.characters[ch.id].stage4.spellsKnown ?? 0) ? h('p', { class: 'hint' }, `Spell: one of type ${(data.characters[ch.id].stage4.spellTypes ?? []).join('/')} (spells cannot be cast in this build yet).`) : null,
+            ch.spells?.length || (data.characters[ch.id].stage4.spellsKnown ?? 0) ? h('p', { class: 'hint' }, `Spells: ${(ch.spells ?? []).map(id => data.spells?.[id]?.name ?? id).join(', ') || `one of type ${(data.characters[ch.id].stage4.spellTypes ?? []).join('/')} (not castable in this build yet)`}.`) : null,
             h('h3', {}, 'Carrying'),
             ...ch.items.map(it => h('div', { class: 'itemrow' }, h('button', { class: `btn row${it.active ? ' on' : ''}`, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid }); } },
                 ico(nameOf(data, it)), h('span', { class: 'rl' }, h('b', {}, nameOf(data, it) + (it.damaged ? ' (damaged)' : '') + (it.destroyed ? ' (destroyed)' : ''))), h('em', {}, `${WEIGHT_WORDS[weightOf(data, it)] ?? ''}${it.active ? ' · in use' : ''}`)),

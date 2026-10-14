@@ -3,6 +3,7 @@ import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './t
 import { pit } from './effects.js';
 import { hirelings } from './hire.js';
 import { cardChits, effortLimit, oneDie } from './modifiers.js';
+import { castOptions, castSpell, resolveSpells, canCastUsefully } from './spells.js';
 import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
 import { makeItem, autoEquip, toggleItem, activeHorse } from './items.js';
 import { isCave, roadsFrom } from './world.js';
@@ -140,7 +141,11 @@ export function choiceAction(st, data, fight) {
     const c = st.combat;
     if (c.step !== 'choice') throw new Error('there is no choice to make');
     c.choiceMade = true;
-    if (!fight) { c.ended = true; c.why = 'quiet'; c.step = 'done'; st.pending = null; say(st, 'You let the natives be.', 'combat'); return; }
+    if (!fight) {
+        say(st, 'You let the natives be.', 'combat');
+        if (canCastUsefully(st, data)) return enterSpellOnly(st, data);
+        c.ended = true; c.why = 'quiet'; c.step = 'done'; st.pending = null; return;
+    }
     enterEncounter(st, data);
 }
 
@@ -228,6 +233,7 @@ function enterEncounter(st, data) {
     const c = st.combat;
     const live = c.dens.filter(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse');
     if (!live.length) {
+        if (canCastUsefully(st, data)) return enterSpellOnly(st, data);
         c.ended = true; c.why = 'quiet'; c.step = 'done'; st.pending = null;
         say(st, 'Nothing here wants a fight.', 'combat');
         return;
@@ -239,11 +245,22 @@ function enterEncounter(st, data) {
     }
     c.melee = false;
     c.played = {};
-    c.asterisks = { move: 0, fight: 0 };
+    c.asterisks = { move: 0, fight: 0, magic: 0 };
+    c.casts = [];
     c.step = 'encounter';
     assignAll(st, data);
     deployHires(st, data);
     st.pending = { type: 'combat-encounter', round: c.round };
+}
+
+// Nothing is fighting him, but there is a spell worth casting: the Encounter step is held so that he may cast it (rule 8.8.3: combat is held
+// every evening a spell could be cast). Casting, or passing, ends it.
+function enterSpellOnly(st, data) {
+    const c = st.combat;
+    c.melee = false; c.played = {}; c.asterisks = { move: 0, fight: 0, magic: 0 }; c.casts = [];
+    c.spellOnly = true;
+    c.step = 'encounter';
+    st.pending = { type: 'combat-encounter', round: c.round, spellOnly: true };
 }
 
 // Hirelings go for the most dangerous creature; a creature set on by a hireling fights it instead of the character.
@@ -285,13 +302,30 @@ export function encounterOptions(st, data) {
     const fight = activeChits(st, 'fight', data).filter(x => x.time < slowest && lvl(x.strength) >= wlvl);
     const load = carriedWeight(st, data);
     const move = activeChits(st, 'move', data).filter(x => x.time < slowest && lvl(x.strength) >= (x.isHorse ? Math.max(load, lvl(st.ch.weight)) : load));
-    return { canAlert: !!w && fight.length > 0, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data) };
+    return { casts: castOptions(st, data), canAlert: !!w && fight.length > 0, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data) };
 }
 
 export function encounterAction(st, data, a) {
     const c = st.combat;
     if (c.step !== 'encounter') throw new Error('not in the encounter step');
+    if (c.spellOnly) {
+        // only a spell can be cast; anything else is a pass
+        if (a.act === 'gear') {
+            const it = st.ch.items.find(i => i.uid === a.item);
+            if (!it) throw new Error('no such item');
+            toggleItem(st, data, it);
+            say(st, `${it.active ? 'Equipped' : 'Put away'} ${nameOfItem(st, data, it)}.`, 'combat');
+            return;
+        }
+        if (a.act === 'cast') { castSpell(st, data, a.spell, a.chit); resolveSpells(st, data); }
+        c.spellOnly = false;
+        return endCombat(st, data, 'quiet');
+    }
     const opt = encounterOptions(st, data);
+    if (a.act === 'cast') {
+        castSpell(st, data, a.spell, a.chit);
+        return enterMelee(st, data);
+    }
     if (a.act === 'gear') {
         // Without playing a chit he may switch one item on or off.
         const it = st.ch.items.find(i => i.uid === a.item);
@@ -353,7 +387,7 @@ export function meleeOptions(st, data) {
         moveOk: ch => lvl(ch.strength) >= (ch.isHorse ? Math.max(load, lvl(st.ch.weight)) : load),
         shield: activeArmor(st, data).find(a => isShield(a.def)) ?? null,
         weapon: w,
-        asterisksPlayed: c.asterisks.move + c.asterisks.fight,
+        asterisksPlayed: c.asterisks.move + c.asterisks.fight + (c.asterisks.magic ?? 0),
         // everything that will sit in the red boxes: assigned denizens and their parts
         boxable: c.dens.filter(d => !d.dead && d.kind !== 'horse' && (d.assigned || (d.partOf && c.dens.find(o => o.uid === d.partOf)?.assigned))),
     };
@@ -382,6 +416,7 @@ export function meleePlay(st, data, p) {
     if (ast > effortLimit(st)) throw new Error(`at most ${effortLimit(st)} effort asterisks may be played in a round`);
     if (fight) playChit(st, fight);
     if (move) playChit(st, move);
+    resolveSpells(st, data, log);
 
     // --- target and unhide ---
     let target = p.target ? c.dens.find(d => d.uid === p.target && !d.dead) : null;

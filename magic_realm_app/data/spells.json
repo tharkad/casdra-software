@@ -1,0 +1,386 @@
+{
+ "meta": {
+  "source": "3rd edition rules 3.1 list of spells; digest docs/rules/04 section 2.5",
+  "note": "Only spells marked implemented are castable in this build"
+ },
+ "spells": [
+  {
+   "id": "exorcise",
+   "name": "Exorcise",
+   "type": "I",
+   "color": "White",
+   "duration": "Instant",
+   "implemented": false
+  },
+  {
+   "id": "make-whole",
+   "name": "Make Whole",
+   "type": "I",
+   "color": "White",
+   "duration": "Instant",
+   "implemented": true,
+   "target": "one character",
+   "text": "Every fatigued and wounded Action chit of the target becomes active again, and all of the target's damaged armor is repaired (damage taken in the round in which it is cast is not). The casting chit then fatigues."
+  },
+  {
+   "id": "peace",
+   "name": "Peace",
+   "type": "I",
+   "color": "White",
+   "duration": "Combat",
+   "implemented": false
+  },
+  {
+   "id": "small-blessing",
+   "name": "Small Blessing",
+   "type": "I",
+   "color": "White",
+   "duration": "Instant",
+   "implemented": false
+  },
+  {
+   "id": "blend-into-background",
+   "name": "Blend Into Background",
+   "type": "II",
+   "color": "Grey",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "fog",
+   "name": "Fog",
+   "type": "II",
+   "color": "Grey",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "prophecy",
+   "name": "Prophecy",
+   "type": "II",
+   "color": "Purple",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "stones-fly",
+   "name": "Stones Fly",
+   "type": "II",
+   "color": "Grey",
+   "duration": "Attack",
+   "implemented": false
+  },
+  {
+   "id": "talk-to-wise-bird",
+   "name": "Talk to Wise Bird",
+   "type": "II",
+   "color": "Gold",
+   "duration": "Instant",
+   "implemented": false
+  },
+  {
+   "id": "witch-s-brew",
+   "name": "Witch's Brew",
+   "type": "II",
+   "color": "Grey",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "elven-grace",
+   "name": "Elven Grace",
+   "type": "III",
+   "color": "Gold",
+   "duration": "Combat",
+   "implemented": false
+  },
+  {
+   "id": "faerie-lights",
+   "name": "Faerie Lights",
+   "type": "III",
+   "color": "Gold",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "illusion",
+   "name": "Illusion",
+   "type": "III",
+   "color": "Gold",
+   "duration": "Permanent",
+   "implemented": false
+  },
+  {
+   "id": "lost",
+   "name": "Lost",
+   "type": "III",
+   "color": "Gold",
+   "duration": "Permanent",
+   "implemented": false
+  },
+  {
+   "id": "persuade",
+   "name": "Persuade",
+   "type": "III",
+   "color": "Gold",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "see-hidden-signs",
+   "name": "See Hidden Signs",
+   "type": "III",
+   "color": "Gold",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "blazing-light",
+   "name": "Blazing Light",
+   "type": "IV",
+   "color": "Purple",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "elemental-spirit",
+   "name": "Elemental Spirit",
+   "type": "IV",
+   "color": "Purple",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "fiery-blast",
+   "name": "Fiery Blast",
+   "type": "IV",
+   "color": "Purple",
+   "duration": "Attack",
+   "implemented": false
+  },
+  {
+   "id": "hurricane-winds",
+   "name": "Hurricane Winds",
+   "type": "IV",
+   "color": "Purple",
+   "duration": "Fly",
+   "implemented": false
+  },
+  {
+   "id": "lightning-bolt",
+   "name": "Lightning Bolt",
+   "type": "IV",
+   "color": "Purple",
+   "duration": "Attack",
+   "implemented": false
+  },
+  {
+   "id": "roof-collapses",
+   "name": "Roof Collapses",
+   "type": "IV",
+   "color": "Purple",
+   "duration": "Attack",
+   "implemented": false
+  },
+  {
+   "id": "violent-storm",
+   "name": "Violent Storm",
+   "type": "IV",
+   "color": "Purple",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "absorb-essence",
+   "name": "Absorb Essence",
+   "type": "V",
+   "color": "Black",
+   "duration": "Permanent",
+   "implemented": false
+  },
+  {
+   "id": "ask-demon",
+   "name": "Ask Demon",
+   "type": "V",
+   "color": "Black",
+   "duration": "Instant",
+   "implemented": false
+  },
+  {
+   "id": "broomstick",
+   "name": "Broomstick",
+   "type": "V",
+   "color": "Black",
+   "duration": "Fly",
+   "implemented": false
+  },
+  {
+   "id": "curse",
+   "name": "Curse",
+   "type": "V",
+   "color": "Grey",
+   "duration": "Instant",
+   "implemented": false
+  },
+  {
+   "id": "pentangle",
+   "name": "Pentangle",
+   "type": "V",
+   "color": "Black",
+   "duration": "Combat",
+   "implemented": false
+  },
+  {
+   "id": "power-of-the-pit",
+   "name": "Power of the Pit",
+   "type": "V",
+   "color": "Black",
+   "duration": "Instant",
+   "implemented": false
+  },
+  {
+   "id": "dissolve-spell",
+   "name": "Dissolve Spell",
+   "type": "VI",
+   "color": "Purple",
+   "duration": "Instant",
+   "implemented": false
+  },
+  {
+   "id": "enchant-artifact",
+   "name": "Enchant Artifact",
+   "type": "VI",
+   "color": "Purple",
+   "duration": "Permanent",
+   "implemented": false
+  },
+  {
+   "id": "melt-into-mist",
+   "name": "Melt into Mist",
+   "type": "VI",
+   "color": "Purple",
+   "duration": "Permanent",
+   "implemented": false
+  },
+  {
+   "id": "phantasm",
+   "name": "Phantasm",
+   "type": "VI",
+   "color": "Purple",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "transform",
+   "name": "Transform",
+   "type": "VI",
+   "color": "Purple",
+   "duration": "Permanent",
+   "implemented": false
+  },
+  {
+   "id": "unleash-power",
+   "name": "Unleash Power",
+   "type": "VI",
+   "color": "Purple",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "world-fades",
+   "name": "World Fades",
+   "type": "VI",
+   "color": "Black",
+   "duration": "Permanent",
+   "implemented": false
+  },
+  {
+   "id": "control-bats",
+   "name": "Control Bats",
+   "type": "VII",
+   "color": null,
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "peace-with-nature",
+   "name": "Peace with Nature",
+   "type": "VII",
+   "color": "Gold",
+   "duration": "Permanent",
+   "implemented": false
+  },
+  {
+   "id": "premonition",
+   "name": "Premonition",
+   "type": "VII",
+   "color": "Grey",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "protection-from-magic",
+   "name": "Protection from Magic",
+   "type": "VII",
+   "color": "Gold",
+   "duration": "Phase",
+   "implemented": false
+  },
+  {
+   "id": "sense-danger",
+   "name": "Sense Danger",
+   "type": "VII",
+   "color": "Purple",
+   "duration": "Permanent",
+   "implemented": false
+  },
+  {
+   "id": "bad-luck",
+   "name": "Bad Luck",
+   "type": "VIII",
+   "color": null,
+   "duration": "Permanent",
+   "implemented": false
+  },
+  {
+   "id": "deal-with-goblins",
+   "name": "Deal with Goblins",
+   "type": "VIII",
+   "color": "Black",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "guide-spider-or-octopus",
+   "name": "Guide Spider or Octopus",
+   "type": "VIII",
+   "color": "Grey",
+   "duration": "Day",
+   "implemented": false
+  },
+  {
+   "id": "poison",
+   "name": "Poison",
+   "type": "VIII",
+   "color": "Grey",
+   "duration": "Combat",
+   "implemented": false
+  },
+  {
+   "id": "remedy",
+   "name": "Remedy",
+   "type": "VIII",
+   "color": "Grey",
+   "duration": "Instant",
+   "implemented": false
+  },
+  {
+   "id": "whistle-for-monsters",
+   "name": "Whistle for Monsters",
+   "type": "VIII",
+   "color": "Purple",
+   "duration": "Instant",
+   "implemented": false
+  }
+ ]
+}

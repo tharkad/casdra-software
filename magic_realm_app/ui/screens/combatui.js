@@ -52,14 +52,24 @@ export function combatSheet({ st, data, act, ui, render }) {
                 h('button', { class: 'btn primary', 'data-act': 'attack-natives', onclick: () => send({ kind: 'choice', fight: true }) }, 'Pick a fight'))));
     } else if (p.type === 'combat-encounter') {
         const o = encounterOptions(st, data);
-        body.push(h('h3', {}, 'Encounter: one action'));
-        body.push(h('p', { class: 'hint' }, 'Chits you play must be faster than the creatures facing you. Or simply wait.'));
-        body.push(h('button', { class: 'btn primary', 'data-act': 'pass', onclick: () => send({ kind: 'encounter', act: 'pass' }) }, 'Go on to the fight'));
-        if (o.weapon && o.alertChits.length) {
+        body.push(h('h3', {}, p.spellOnly ? 'A quiet evening' : 'Encounter: one action'));
+        body.push(h('p', { class: 'hint' }, p.spellOnly ? 'Nothing is fighting you, but the evening is when spells are cast.' : 'Chits you play must be faster than the creatures facing you. Or simply wait.'));
+        body.push(h('button', { class: `btn${p.spellOnly && o.casts.some(x => x.useful) ? '' : ' primary'}`, 'data-act': 'pass', onclick: () => send({ kind: 'encounter', act: 'pass' }) }, p.spellOnly ? 'Do nothing' : 'Go on to the fight'));
+        if (o.casts.length) {
+            body.push(h('h3', {}, 'Cast a spell'));
+            body.push(h('p', { class: 'hint' }, 'The Magic chit you play is the spell\'s cost; it counts toward the two asterisks of the round and is tired afterwards.'));
+            for (const x of o.casts) {
+                const sp = data.spells?.[x.spell];
+                body.push(h('button', { class: `btn${p.spellOnly && x.useful ? ' primary' : ''}`, 'data-act': 'cast', 'data-spell': x.spell, onclick: () => send({ kind: 'encounter', act: 'cast', spell: x.spell, chit: x.chit }) },
+                    `${x.name} (Type ${sp?.type ?? ''}, ${sp?.color ?? 'any'})`, h('small', {}, ` Magic ${st.ch.chits.find(c => c.id === x.chit)?.numeral}${x.time}${'*'.repeat(x.effort)}${x.useful ? '' : ' \u00B7 nothing to mend'}`)));
+                if (sp?.text) body.push(h('p', { class: 'hint' }, sp.text));
+            }
+        }
+        if (!p.spellOnly && o.weapon && o.alertChits.length) {
             body.push(h('h3', {}, o.weapon.item.alerted ? 'Put your weapon away (unalert)' : 'Ready your weapon (alert)'));
             body.push(h('div', { class: 'chitrow' }, ...o.alertChits.map(ch => chitBtn(ch, false, () => send({ kind: 'encounter', act: 'alert', chit: ch.id })))));
         }
-        if (o.canRun) {
+        if (!p.spellOnly && o.canRun) {
             const roads = o.runTo.map(to => ({ to }));
             body.push(h('h3', {}, 'Run for it'));
             body.push(h('p', { class: 'hint' }, 'You leave the fight and end the day on a road. Pick a Move chit; the road goes to the clearing you choose.'));
@@ -67,7 +77,7 @@ export function combatSheet({ st, data, act, ui, render }) {
                 body.push(h('div', { class: 'runrow' }, h('span', {}, `toward ${nameOfClearing(r.to)}`),
                     h('div', { class: 'chitrow' }, ...o.runChits.map(ch => chitBtn(ch, false, () => send({ kind: 'encounter', act: 'run', chit: ch.id, to: r.to }))))));
             }
-        } else if (o.pickedUp) body.push(h('p', { class: 'hint' }, 'You are seized and cannot run.'));
+        } else if (!p.spellOnly && o.pickedUp) body.push(h('p', { class: 'hint' }, 'You are seized and cannot run.'));
     } else if (p.type === 'combat-melee') {
         const o = meleeOptions(st, data);
         const w = o.weapon;
