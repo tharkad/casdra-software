@@ -162,7 +162,14 @@ export function gameScreen(ctx) {
         if (hero !== lastHero) { lastHero = hero; map.focus(hero); }
         renderTray();
         renderDock();
+        // Sheets are rebuilt on every change; keep each scrolling area where it was while the same question is still on screen
+        // (tapping a chit or a target must not throw the view back to the top). A new question starts at the top.
+        const viewKey = `${st.pending?.type ?? ''}|${st.combat?.round ?? ''}|${ui.sheet ?? ''}`;
+        const scrolled = new Map();
+        if (ui.scrollKey === viewKey) layer.querySelectorAll('.cb-scroll, .sheet2, .plan-body, .journal').forEach(el => scrolled.set(el.className, el.scrollTop));
         layer.replaceChildren(...sheets());
+        ui.scrollKey = viewKey;
+        if (scrolled.size) layer.querySelectorAll('.cb-scroll, .sheet2, .plan-body, .journal').forEach(el => { const t = scrolled.get(el.className); if (t) el.scrollTop = t; });
         if (ui.toast) layer.append(h('div', { class: 'toast' }, ui.toast));
     }
 
