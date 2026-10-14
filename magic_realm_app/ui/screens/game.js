@@ -79,9 +79,17 @@ export function gameScreen(ctx) {
         const hires = st.nats.filter(n => n.hired && !n.dead);
         if (hires.length && st.ch.at) add(st.ch.at, { k: 'ally', label: `Your hirelings x${hires.length}` });
         const planPath = ui.draft ? plannedClearings() : [];
+        // while a Move phase is being set, the clearings he can walk to are ringed on the map: the map is where moves are chosen
+        ui.moveTargets = [];
+        if (ui.sheet === 'plan' && st.pending?.type === 'plan' && ui.draft) {
+            const i = ui.planStep ?? 0, from = planLocations()[i];
+            if (ui.pickMove === i || ui.draft.slots[i]?.act === 'move') {
+                ui.moveTargets = st.ch.onRoad && i === 0 ? [st.ch.onRoad.from, st.ch.onRoad.to] : from ? roadsFrom(st, data, from).filter(r => r.usable).map(r => r.to) : [];
+            }
+        }
         return {
             tiles: data.tiles, art: data.art, placements: st.placements, side: 'normal', showHidden: false, discovered: new Set(st.ch.discovered.paths),
-            chitsByTile, tokens, hero: st.ch.onRoad ? null : st.ch.at, heroHidden: st.ch.hidden, selected: ui.sel, plan: planPath,
+            chitsByTile, tokens, hero: st.ch.onRoad ? null : st.ch.at, heroHidden: st.ch.hidden, selected: ui.sel, plan: planPath, targets: ui.moveTargets,
             onTap: id => {
                 if (ui.sheet === 'plan' && st.pending?.type === 'plan' && ui.draft) {
                     // planning: a tap on a clearing next to where this phase starts sets the move; any other tap just looks at that clearing
@@ -499,8 +507,7 @@ export function gameScreen(ctx) {
                 return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a]);
             })));
         if (ui.pickMove === i || s?.act === 'move') {
-            out.push(h('p', { class: 'hint' }, at[i] || st.ch.onRoad ? 'Tap a clearing on the map, or choose here:' : 'You are on a road; move to one of its ends first.'));
-            if (ui.pickMove === i || !s?.to) out.push(movePicker(i, at[i]));
+            out.push(h('p', { class: 'hint' }, at[i] || st.ch.onRoad ? 'Tap a ringed clearing on the map to go there.' : 'You are on a road; move to one of its ends first.'));
         }
         return out;
     }
@@ -573,17 +580,6 @@ export function gameScreen(ctx) {
         while (n < total && ui.draft.slots[n]) n++;
         if (n < total) ui.planStep = n;
         else if (from < total) ui.planStep = Math.min(from, total - 1);
-    }
-
-    function movePicker(i, at) {
-        if (st.ch.onRoad && i === 0) {
-            const r = st.ch.onRoad;
-            return h('div', { class: 'chips2' }, ...[r.from, r.to].map(c => h('button', { class: 'chip', onclick: () => setMove(i, c) }, nameOfClearing(c))));
-        }
-        if (!at) return h('p', { class: 'hint' }, 'You are on a road; move to one of its ends first.');
-        const roads = roadsFrom(st, data, at).filter(r => r.usable);
-        return h('div', { class: 'chips2' }, ...roads.map(r => h('button', { class: 'chip', 'data-to': r.to, onclick: () => setMove(i, r.to) },
-            `${nameOfClearing(r.to)}${isMountain(st, data, r.to) ? ' ▲' : ''}${isCave(st, data, r.to) ? ' ●' : ''}`)));
     }
 
     function setMove(i, to) {

@@ -5,7 +5,7 @@ import { tileName } from '../engine/world.js';
 
 // The pannable, zoomable realm map. It draws whatever model it is given; it knows nothing about the rules.
 // model = { tiles, placements, side, showHidden, discovered:Set(pathKeys), chitsByTile:{tile:[chit]}, dwellings:[{kind,at}], tokens:{clearing:[{k,label}]},
-//           hero, selected, plan:[clearing...], onTap(clearingId), onBackground() }
+//           hero, selected, plan:[clearing...], targets:[clearing...], onTap(clearingId), onBackground() }
 
 const S = 100;
 const GROUP = { valley: '#26382f', woods: '#1f3a2a', mountain: '#3a3530', cave: '#2c2a3a' };
@@ -107,11 +107,12 @@ export function mountMap(host) {
             });
             def.clearings.forEach(c => {
                 const id = p.id + c.n, [x, y] = pos[c.n];
-                const sel = model.selected === id, onPlan = model.plan?.includes(id);
+                const sel = model.selected === id, onPlan = model.plan?.includes(id), isTarget = model.targets?.includes(id);
                 const ring = c.magic?.length ? MAGIC[c.magic[0]] : null;
                 const cg = sv('g', { class: `clr${sel ? ' sel' : ''}${onPlan ? ' plan' : ''}`, transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})`, 'data-clearing': id });
                 cg.append(sv('circle', { r: 19, fill: 'transparent' }));
                 if (onPlan) cg.append(sv('circle', { r: 17, class: 'planring' }));
+                if (isTarget) cg.append(sv('circle', { r: 20, class: 'targetring' }));
                 if (picture) {
                     // an upright number over the printed one, so it reads whichever way the tile is turned
                     cg.append(sv('circle', { r: 9, class: 'numbadge', fill: 'rgba(12,14,20,.82)', stroke: ring ?? 'rgba(255,255,255,.55)', 'stroke-width': ring ? 2.4 : 1 }));
