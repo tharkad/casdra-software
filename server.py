@@ -20,6 +20,7 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "casdra.db")
 WEB_MODE = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("WEB_MODE"))
 ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "casdra-admin-local")
 
+# MR-BUG-API v2 begin
 MR_BUG_TABLE_SQL = """
     CREATE TABLE IF NOT EXISTS magic_realm_bug_reports (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,6 +34,26 @@ MR_BUG_TABLE_SQL = """
         notes TEXT DEFAULT ''
     )
 """
+MR_BUG_MAX_REPORTS = 3000          # a public endpoint: never let it fill the disk
+
+
+def _mr_reports_dir():
+    return os.environ.get("MR_REPORTS_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or os.path.dirname(os.path.abspath(__file__))
+
+
+def _mr_reports_persistent():
+    """False on Railway until a Volume is attached: the container's file system is replaced by every deploy."""
+    return bool(os.environ.get("MR_REPORTS_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH")) or not WEB_MODE
+
+
+def _mr_reports_db():
+    base = _mr_reports_dir()
+    os.makedirs(base, exist_ok=True)
+    conn = sqlite3.connect(os.path.join(base, "magic_realm_reports.db"))
+    conn.row_factory = sqlite3.Row
+    conn.execute(MR_BUG_TABLE_SQL)
+    return conn
+# MR-BUG-API v2 end
 
 def _check_admin(handler):
     """Check if request has valid admin secret. Returns True if authorized."""
@@ -7945,16 +7966,20 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/cant-stop":
             self.send_html(build_cant_stop_page())
 
+        # MR-BUG-API v2 begin
         elif path == "/magic-realm/api/bug-reports" or path.startswith("/magic-realm/api/bug-reports/"):
             # Reports sent from the app's "Report a problem" button. Needs the admin token (?token= or X-Admin-Token).
             if not _check_admin(self) or (WEB_MODE and ADMIN_SECRET == "casdra-admin-local"):      # never on the public site with the default secret
                 self.send_json({"error": "Not authorized"}, 403)
                 return
-            conn = get_db()
-            conn.execute(MR_BUG_TABLE_SQL)
-            if path == "/magic-realm/api/bug-reports":
+            conn = _mr_reports_db()
+            if path == "/magic-realm/api/bug-reports/status":
+                n = conn.execute("SELECT COUNT(*) FROM magic_realm_bug_reports").fetchone()[0]
+                conn.close()
+                self.send_json({"reports": n, "persistent": _mr_reports_persistent(), "dir": _mr_reports_dir(), "web_mode": bool(WEB_MODE)})
+            elif path == "/magic-realm/api/bug-reports":
                 rows = conn.execute("SELECT id, created_at, version, seed, character, day, result, status, substr(description, 1, 200) AS description, length(payload) AS bytes "
-                                    "FROM magic_realm_bug_reports ORDER BY id DESC LIMIT 200").fetchall()
+                                    "FROM magic_realm_bug_reports ORDER BY id DESC LIMIT 500").fetchall()
                 conn.close()
                 self.send_json([dict(r) for r in rows])
             else:
@@ -7976,6 +8001,7 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception:  # noqa: BLE001
                     out["payload"] = None
                 self.send_json(out)
+        # MR-BUG-API v2 end
 
         elif path == "/magic-realm":
             # Trailing-slash redirect: relative module imports in index.html must resolve under /magic-realm/.
@@ -9124,6 +9150,7 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
             self.send_json({"ok": True})
 
+        # MR-BUG-API v2 begin
         elif path == "/magic-realm/bug-report":
             # Magic Realm "Report a problem": a description plus the game's record and state, kept for later analysis.
             if not _rate_check(self.client_address[0], 'mr_bug_report', 5):
@@ -9152,8 +9179,11 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"ok": False, "error": "The report is too large."}, 413)
                 return
             summary = data.get("summary") or {}
-            conn = get_db()
-            conn.execute(MR_BUG_TABLE_SQL)
+            conn = _mr_reports_db()
+            if conn.execute("SELECT COUNT(*) FROM magic_realm_bug_reports").fetchone()[0] >= MR_BUG_MAX_REPORTS:
+                conn.close()
+                self.send_json({"ok": False, "error": "The report box is full. Please try again later."}, 503)
+                return
             cur = conn.execute(
                 "INSERT INTO magic_realm_bug_reports (description, version, seed, character, day, result, user_agent, ip, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (description, str(summary.get("version") or "")[:20], str(summary.get("seed") or "")[:20], str(summary.get("character") or "")[:40],
@@ -9163,6 +9193,7 @@ class Handler(BaseHTTPRequestHandler):
             rid = cur.lastrowid
             conn.close()
             self.send_json({"ok": True, "id": rid})
+        # MR-BUG-API v2 end
 
         elif path == "/dice/bug":
             if not _rate_check(self.client_address[0], 'bug_report', 5):
