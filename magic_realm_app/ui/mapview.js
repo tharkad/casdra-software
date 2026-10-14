@@ -9,6 +9,7 @@ import { layoutLabels, pillWidth, PILL_H } from './labels.js';
 //           hero, selected, plan:[clearing...], targets:[clearing...], onTap(clearingId), onBackground() }
 
 const S = 100;
+const NUM_W = 17;            // room at the start of a clearing's pill for the circle with its number
 const CHIT_R = 6.5;          // radius of a counter on the map; names sit beside it, never over it
 const GROUP = { valley: '#26382f', woods: '#1f3a2a', mountain: '#3a3530', cave: '#2c2a3a' };
 const CLEARING = { woods: '#3f7a52', mountain: '#8d7a62', cave: '#5a4f7a' };
@@ -143,14 +144,17 @@ export function mountMap(host) {
                     const gid = `clr:${id}`;
                     const prio = Math.min(...shown.map(t => ({ mon: 1, nat: 1, ally: 2, dwelling: 2, site: 3, sound: 3, more: 4 }[t.k] ?? 3)));
                     groups.push({ id: gid, ax: cx + x, ay: cy + y, ar: picture ? 10.5 : 13, prio, prefer: ['right', 'left'],
-                        boxes: shown.map(t => ({ w: pillWidth(t.label, { img: !!t.img }), h: t.img ? 17 : PILL_H })) });
+                        boxes: shown.map(t => ({ w: pillWidth(t.label, { img: !!t.img }) + NUM_W, h: t.img ? 17 : PILL_H })) });
                     makeLabel.set(gid, (box, i) => {
                         const t = shown[i], th = t.img ? 15 : 0;
+                        // a circle with the clearing's number leads the pill, so a name that had to move still says where it belongs
                         return sv('g', { transform: `translate(${box.x.toFixed(1)} ${box.y.toFixed(1)})`, class: `pill ${t.k}`, 'pointer-events': 'none' },
                             sv('rect', { width: box.w, height: box.h, rx: 6 }),
-                            t.img ? sv('rect', { x: 1.5, y: (box.h - 14) / 2, width: 14, height: 14, rx: 3, class: 'thumbbg' }) : null,
-                            t.img ? sv('image', { href: t.img, x: 1.5, y: (box.h - 14) / 2, width: 14, height: 14, preserveAspectRatio: 'xMidYMid meet' }) : null,
-                            sv('text', { x: 4 + th, y: box.h / 2, dy: '.35em' }, t.label));
+                            sv('circle', { cx: 8, cy: box.h / 2, r: 6, class: 'pillnum' }),
+                            sv('text', { x: 8, y: box.h / 2, dy: '.35em', 'text-anchor': 'middle', class: 'pillnumtxt' }, String(c.n)),
+                            t.img ? sv('rect', { x: NUM_W - 0.5, y: (box.h - 14) / 2, width: 14, height: 14, rx: 3, class: 'thumbbg' }) : null,
+                            t.img ? sv('image', { href: t.img, x: NUM_W - 0.5, y: (box.h - 14) / 2, width: 14, height: 14, preserveAspectRatio: 'xMidYMid meet' }) : null,
+                            sv('text', { x: NUM_W - 2 + th + 2, y: box.h / 2, dy: '.35em' }, t.label));
                     });
                 }
             });
