@@ -442,3 +442,6 @@ button.foe { flex-direction: row; align-items: center; gap: 10px; }
 .ask b { font-size: 15px; }
 .ask p { margin: 0; font-size: 13.5px; color: var(--dim); line-height: 1.35; }
 .ask.compact { padding: 6px 10px; } .ask.compact b { font-size: 14px; } .ask.compact p { font-size: 12.5px; }
+
+/* a label that belongs to a clearing opens that clearing, like the clearing itself */
+.realm-svg .names .pill[data-clearing], .realm-svg .names .pill[data-clearing] * { pointer-events: auto; cursor: pointer; }

@@ -383,6 +383,18 @@ export function gameScreen(ctx) {
             h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'cancel' }) }, 'Never mind')));
     }
 
+    // A site: whether you have discovered it and, once you have, what is left in it (how many things, and how many of those are Great Treasures).
+    function siteLine(c) {
+        const found = st.ch.discovered.sites.includes(c.id);
+        if (!found) return 'Not discovered yet: search with Locate to discover it. What it holds is unknown until you do.';
+        const pile = st.sites?.[c.name] ?? [];
+        const great = pile.filter(it => it.kind === 'treasure' && data.treasures[it.id]?.great).length;
+        const spells = pile.filter(it => it.kind === 'spell').length;
+        const things = pile.length - spells;
+        if (!pile.length) return 'Discovered. Nothing is left in it.';
+        return `Discovered: you may loot it. ${things} treasure${things === 1 ? '' : 's'} left${great ? `, ${great} of them Great` : ', none of them Great'}${spells ? `, and ${spells} spell${spells === 1 ? '' : 's'}` : ''}.`;
+    }
+
     function clearingSheet() {
         const id = ui.sel, tile = tileOf(id), n = numOf(id);
         const cdef = data.tile(tile).sides.normal.clearings.find(c => c.n === n);
@@ -413,8 +425,8 @@ export function gameScreen(ctx) {
         const chitRows = [];
         for (const c of st.chits) {
             if (c.pile || c.tile !== tile) continue;
-            if (c.clearing === n && c.up) chitRows.push(row(c.kind, c.kind === 'sound' ? `${c.name} (sound ${c.num})` : `${c.name} (site ${c.num})`, c.kind === 'site' ? (st.ch.discovered.sites.includes(c.id) ? 'discovered: you may loot it' : 'seen but not discovered: search with Locate to discover it') : 'monsters stir here'));
-            else if (!c.up && c.kind === 'site' && c.num === n && st.ch.discovered.sites.includes(c.id)) chitRows.push(row('site', `${c.name} (site)`, 'you found it: you may loot it'));
+            if (c.clearing === n && c.up) chitRows.push(row(c.kind, c.kind === 'sound' ? `${c.name} (sound ${c.num})` : `${c.name} (site ${c.num})`, c.kind === 'site' ? siteLine(c) : 'monsters stir here'));
+            else if (!c.up && c.kind === 'site' && c.num === n && st.ch.discovered.sites.includes(c.id)) chitRows.push(row('site', `${c.name} (site ${c.num})`, siteLine(c)));
         }
         if (chitRows.length) sections.push(['Chits and sites', chitRows]);
         const ground = (st.abandoned[id] ?? []);
