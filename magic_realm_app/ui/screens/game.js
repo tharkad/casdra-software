@@ -215,7 +215,7 @@ export function gameScreen(ctx) {
                     h('button', { class: 'btn', 'data-act': 'all', onclick: () => act({ type: 'next', all: true }) }, 'Play the day')));
         } else if (p.type === 'over') main = h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result');
         else main = h('div', { class: 'note' }, 'Decision needed...');
-        dock.replaceChildren(...[info, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.t))) : null, main].filter(Boolean));
+        dock.replaceChildren(...[info, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, main].filter(Boolean));
     }
 
     function describeSlot(s) {
@@ -663,12 +663,12 @@ export function gameScreen(ctx) {
         const prev = st.log.filter(l => l.day === st.day - 1 && l.k !== 'day');
         const key = prev.filter(l => ['combat', 'monster', 'loot', 'trade', 'curse', 'block', 'discover', 'native', 'phase'].includes(l.k));
         return modal(`Day ${st.day - 1} in review`, h('div', {},
-            ...(key.length ? key.map(l => h('p', { class: `j-${l.k}` }, l.t)) : [h('p', { class: 'hint' }, 'A quiet day.')]),
+            ...(key.length ? key.map(l => h('p', { class: `j-${l.k}` }, l.s ?? l.t)) : [h('p', { class: 'hint' }, 'A quiet day.')]),
             h('div', { class: 'row2' }, h('button', { class: 'btn primary', 'data-act': 'report-ok', onclick: () => { ui.reportedDay = st.day; render(); } }, 'On to the next day'))));
     }
 
     function logSheet() {
-        return modal('Journal', h('div', { class: 'journal' }, [...st.log].reverse().slice(0, 80).map(l => h('p', { class: `j-${l.k}` }, h('small', {}, `Day ${l.day}`), ' ', l.t))),
+        return modal('Journal', h('div', { class: 'journal' }, [...st.log].reverse().slice(0, 80).map(l => h('p', { class: `j-${l.k}` }, h('small', {}, `Day ${l.day}`), ' ', l.s ?? l.t))),
             { close: () => { ui.sheet = null; render(); } });
     }
 

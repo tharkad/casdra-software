@@ -4,6 +4,7 @@ import { pit } from './effects.js';
 import { hirelings } from './hire.js';
 import { cardChits, effortLimit, oneDie } from './modifiers.js';
 import { castOptions, castSpell, resolveSpells, canCastUsefully } from './spells.js';
+import { tell } from './story.js';
 import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
 import { makeItem, autoEquip, toggleItem, activeHorse } from './items.js';
 import { isCave, roadsFrom } from './world.js';
@@ -411,7 +412,8 @@ export function meleePlay(st, data, p) {
     const w = o.weapon, notes = [];
     c.roundRollFrom = st.rollSeq ?? 0;            // the dice tray in the fight shows this round's rolls only
     const ev = c.events = [];
-    const log = t => { ev.push(t); say(st, t, 'combat'); };
+    const log = (t, story) => { ev.push(story ?? t); say(st, t, 'combat', story ?? null); };
+    const weaponName = w ? nameOfItem(st, data, w.item) : 'bare hands';
     // --- validate and apply chit plays ---
     let fight = null, move = null;
     if (p.fightChit) {
@@ -433,7 +435,7 @@ export function meleePlay(st, data, p) {
     let target = p.target ? c.dens.find(d => d.uid === p.target && !d.dead) : null;
     const wasHidden = st.ch.hidden;
     c.toRed = [];
-    if (st.ch.hidden && target) { st.ch.hidden = false; log('You strike from hiding and are revealed.'); }
+    if (st.ch.hidden && target) { st.ch.hidden = false; log('You strike from hiding and are revealed.', tell.ambush(st)); }
     if (target && !target.assigned) {
         // attacking an unassigned denizen makes it fight back; attacking a native brings its whole group in
         if (target.kind === 'nat') {
@@ -466,10 +468,10 @@ export function meleePlay(st, data, p) {
     const inBox = b => c.dens.filter(d => !d.dead && d.box === b);
     const old = [inBox(0), inBox(1), inBox(2)];
     for (let nb = 0; nb < 3; nb++) for (const d of old[perm[nb]]) d.box = nb;
-    log(`Repositioning roll: ${rr}${rr === 4 ? ' (no change)' : ''}.`);
+    log(`Repositioning roll: ${rr}${rr === 4 ? ' (no change)' : ''}.`, rr === 4 ? tell.hold(st) : tell.shuffle(st));
     {
         const moved = c.dens.filter(d => !d.dead && d.box != null && boxBefore.get(d.uid) != null && boxBefore.get(d.uid) !== d.box && d.kind !== 'horse');
-        if (moved.length) log(`  ${moved.map(d => `${denSide(st, data, d).name} ${MANEUVERS[boxBefore.get(d.uid)]} \u2192 ${MANEUVERS[d.box]}`).join('; ')}.`);
+        moved.forEach((d, i) => log(`  ${denSide(st, data, d).name} ${MANEUVERS[boxBefore.get(d.uid)]} \u2192 ${MANEUVERS[d.box]}.`, tell.moved(st, denSide(st, data, d).name, MANEUVERS[boxBefore.get(d.uid)], MANEUVERS[d.box], i)));
     }
     for (let b = 0; b < 3; b++) {
         const here = c.dens.filter(d => !d.dead && d.box === b && canFlip(st, data, d));
@@ -478,7 +480,7 @@ export function meleePlay(st, data, p) {
         noteRoll(st, `Tactics roll (${MANEUVERS[b]} box)`, t.dice, t.value, t.dice.includes(6) ? 'a 6: they switch sides' : 'no change');
         if (t.dice.includes(6)) {
             for (const d of here) d.side = d.side === 'light' ? 'dark' : 'light';
-            log(`Tactics change in the ${MANEUVERS[b]} box (rolled ${t.dice.join('+')}): ${here.map(d => denSide(st, data, d).name).join(', ')} switch sides.`);
+            log(`Tactics change in the ${MANEUVERS[b]} box (rolled ${t.dice.join('+')}): ${here.map(d => denSide(st, data, d).name).join(', ')} switch sides.`, tell.flipped(st, MANEUVERS[b], here.map(d => denSide(st, data, d).name).join(' and ')));
         }
     }
 
@@ -497,8 +499,10 @@ export function meleePlay(st, data, p) {
         const nm = defSide.name, where = def.box != null ? MANEUVERS[def.box] : '?';
         if (hitsIt) {
             hits.push({ who: 'me', time: attackTime, length: mySide.length, on: def.uid, owner: target.uid });
-            log(inBox ? `You: ${DIRS[myDir]} at ${nm} (${where} box): hit.` : `You: ${DIRS[myDir]} at ${nm} (${where} box): hit by undercutting (your time ${attackTime} beats its ${defSide.move}).`);
-        } else log(`You: ${DIRS[myDir]} at ${nm} (${where} box): miss (${DIRS[myDir]} hits ${MANEUVERS[myDir]}${defSide.move != null ? `; its time ${defSide.move} is not slower than your ${attackTime}` : ''}).`);
+            log(inBox ? `You: ${DIRS[myDir]} at ${nm} (${where} box): hit.` : `You: ${DIRS[myDir]} at ${nm} (${where} box): hit by undercutting (your time ${attackTime} beats its ${defSide.move}).`,
+                inBox ? tell.myHitBox(st, weaponName, DIRS[myDir].toLowerCase(), nm) : tell.myHitFast(st, weaponName, DIRS[myDir].toLowerCase(), nm, where, attackTime, defSide.move));
+        } else log(`You: ${DIRS[myDir]} at ${nm} (${where} box): miss (${DIRS[myDir]} hits ${MANEUVERS[myDir]}${defSide.move != null ? `; its time ${defSide.move} is not slower than your ${attackTime}` : ''}).`,
+            tell.myMiss(st, weaponName, DIRS[myDir].toLowerCase(), nm, where, attackTime, defSide.move));
     }
     const mnvTime = move ? move.time : null;
     for (const d of c.dens.filter(x => !x.dead && x.kind !== 'horse' && x.box != null)) {
@@ -506,16 +510,16 @@ export function meleePlay(st, data, p) {
         if (s.attack === 'none' || s.atk == null) continue;
         const owner = d.partOf ? c.dens.find(x => x.uid === d.partOf) : d;
         if (!owner.assigned) continue;
-        if (owner.noRetaliation) { log(`${s.name} cannot strike back this round (${owner.noWhy === 'hidden' ? 'you struck from hiding' : 'its group joins next round'}).`); continue; }
+        if (owner.noRetaliation) { log(`${s.name} cannot strike back this round (${owner.noWhy === 'hidden' ? 'you struck from hiding' : 'its group joins next round'}).`, tell.notBack(st, s.name, owner.noWhy === 'hidden')); continue; }
         const dir = d.box;
         const meets = mnvDir != null && mnvDir === dir && move;
         const under = mnvTime != null ? s.atk < mnvTime : false;
         const noMove = !move;
         const at = `${s.name}'s ${DIRS[dir].toLowerCase()}`;
-        if (noMove) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} is aimed true (you played no maneuver).`); }
-        else if (meets) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} is aimed at your ${MANEUVERS[mnvDir]}: it connects.`); }
-        else if (under) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} gets under your maneuver (its time ${s.atk} beats your ${mnvTime}).`); }
-        else log(`${at} misses you (your ${MANEUVERS[mnvDir]} avoids it).`);
+        if (noMove) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} is aimed true (you played no maneuver).`, tell.connectNoMove(st, s.name, DIRS[dir].toLowerCase())); }
+        else if (meets) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} is aimed at your ${MANEUVERS[mnvDir]}: it connects.`, tell.connectMeets(st, s.name, DIRS[dir].toLowerCase(), MANEUVERS[mnvDir])); }
+        else if (under) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} gets under your maneuver (its time ${s.atk} beats your ${mnvTime}).`, tell.connectUnder(st, s.name, DIRS[dir].toLowerCase(), s.atk, mnvTime)); }
+        else log(`${at} misses you (your ${MANEUVERS[mnvDir]} avoids it).`, tell.avoid(st, s.name, DIRS[dir].toLowerCase(), MANEUVERS[dir], MANEUVERS[mnvDir]));
     }
     // hirelings against the creatures they were sent at
     for (const hire of (c.hires ?? []).filter(x => !x.dead)) {
@@ -660,11 +664,11 @@ function myHit(st, data, h, ctx) {
         if (den.kind === 'mon') { const m = st.mons.find(x => x.id === den.id); m.dead = true; m.loc = null; }
         else if (den.kind === 'nat') { const n = st.nats.find(x => x.id === den.id); n.dead = true; n.loc = null; dropNativeGoods(st, data, n); }
         tally(st, 'kills'); tally(st, `kill.${s.name}`);
-        ctx.log(`You kill the ${s.name} with ${finalL} harm${note}${reward}.`);
+        ctx.log(`You kill the ${s.name} with ${finalL} harm${note}${reward}.`, tell.kill(st, ctx.w ? nameOfItem(st, data, ctx.w.item) : 'bare hands', s.name, reward));
         c.eventful = true;
     } else {
         tally(st, 'hitsNotKilling');
-        ctx.log(`You hit the ${s.name} for ${finalL} harm${note}; it has vulnerability ${s.vuln} and survives.`);
+        ctx.log(`You hit the ${s.name} for ${finalL} harm${note}; it has vulnerability ${s.vuln} and survives.`, tell.tough(st, ctx.w ? nameOfItem(st, data, ctx.w.item) : 'bare hands', s.name, finalL, s.vuln));
         // a harmless hit still turns the weapon unalerted (handled by caller)
     }
 }
@@ -730,18 +734,18 @@ function denHit(st, data, den, ctx) {
     if (armor) stars = Math.max(0, stars - 1);
     level += stars + missile;
     const L = letterOf(level);
-    ctx.log(`${s.name} strikes ${DIRS[dir].toLowerCase()} for ${L} harm${armor ? ` against your ${armor.def.name}` : ''}.`);
+    ctx.log(`${s.name} strikes ${DIRS[dir].toLowerCase()} for ${L} harm${armor ? ` against your ${armor.def.name}` : ''}.`, tell.strike(st, s.name, DIRS[dir].toLowerCase(), L, armor?.def.name));
     let wounded = false;
     if (armor) {
         const tough = lvl(armor.def.toughness ?? armor.def.weight);
         if (level >= tough) {
             const card = !!armor.def.card;
-            if (!card && level === tough && !armor.item.damaged && !armor.item.destroyed) { armor.item.damaged = true; tally(st, 'armorDamaged'); ctx.log(`Your ${armor.def.name} is damaged.`); c.eventful = true; }
+            if (!card && level === tough && !armor.item.damaged && !armor.item.destroyed) { armor.item.damaged = true; tally(st, 'armorDamaged'); ctx.log(`Your ${armor.def.name} is damaged.`, tell.damaged(st, armor.def.name)); c.eventful = true; }
             else if (!armor.item.destroyed) {
                 armor.item.destroyed = true; armor.item.active = false; armor.item.destroyedGroup = ctx.g; tally(st, 'armorDestroyed');
                 const gold = !armor.def.native ? (armor.def.priceDestroyed ?? 0) : 0;
                 if (gold) st.ch.gold += gold;
-                ctx.log(`Your ${armor.def.name} is destroyed${gold ? ` (worth ${gold} gold to you)` : ''}.`);
+                ctx.log(`Your ${armor.def.name} is destroyed${gold ? ` (worth ${gold} gold to you)` : ''}.`, tell.destroyed(st, armor.def.name, gold));
                 c.eventful = true;
             }
         }
@@ -752,7 +756,7 @@ function denHit(st, data, den, ctx) {
     if (wounded) {
         c.newWounds = (c.newWounds ?? 0) + 1; tally(st, 'woundsTaken'); tally(st, `wounds.${s.name}`);
         c.eventful = true;
-        ctx.log('You take a wound.');
+        ctx.log('You take a wound.', tell.wound(st));
     }
     // a tremendous monster that hurts him and leaves him alive will pick him up when the round ends
     if (!st.ch.dead) {
@@ -812,7 +816,7 @@ function resolveWounds(st, data) {
         if (pool.length <= c.newWounds) {
             pool.forEach(x => { x.state = 'wounded'; });
             c.newWounds -= pool.length;
-            say(st, `You wound ${pool.length} action chit${pool.length === 1 ? '' : 's'}.`, 'combat');
+            say(st, `You wound ${pool.length} action chit${pool.length === 1 ? '' : 's'}.`, 'combat', tell.wounded(st, pool.length));
             continue;
         }
         c.step = 'wounds';
@@ -831,7 +835,7 @@ export function chooseWounds(st, data, ids) {
     if (uniq.length !== need || uniq.some(id => !eligible.includes(id))) throw new Error(`choose ${need} chit${need === 1 ? '' : 's'} to wound`);
     for (const id of uniq) st.ch.chits.find(x => x.id === id).state = 'wounded';
     c.newWounds = 0;
-    say(st, `You wound ${uniq.length} action chit${uniq.length === 1 ? '' : 's'}.`, 'combat');
+    say(st, `You wound ${uniq.length} action chit${uniq.length === 1 ? '' : 's'}.`, 'combat', tell.wounded(st, uniq.length));
     return resolveWounds(st, data);
 }
 
@@ -849,7 +853,7 @@ function toFatigue(st, data) {
     const total = pool.reduce((s, x) => s + x.effort, 0);
     if (total <= need) {
         pool.forEach(x => { x.state = 'fatigued'; });
-        if (pool.length) { say(st, `You fatigue ${pool.length} chit${pool.length === 1 ? '' : 's'}.`, 'combat'); c.eventful = true; }
+        if (pool.length) { say(st, `You fatigue ${pool.length} chit${pool.length === 1 ? '' : 's'}.`, 'combat', tell.spent(st, pool.length)); c.eventful = true; }
         return resolveWounds(st, data);
     }
     c.step = 'fatigue';
@@ -874,7 +878,7 @@ export function chooseFatigue(st, data, ids) {
         const back = st.ch.chits.find(x => x.state === 'fatigued' && x.effort === 1 && !chosen.includes(x) && c.fatigueKinds.includes(x.type));
         if (back) { back.state = 'active'; say(st, 'You make change for the extra asterisk.', 'combat'); }
     }
-    say(st, `You fatigue ${chosen.length} chit${chosen.length === 1 ? '' : 's'}.`, 'combat');
+    say(st, `You fatigue ${chosen.length} chit${chosen.length === 1 ? '' : 's'}.`, 'combat', tell.spent(st, chosen.length));
     c.eventful = true;
     return resolveWounds(st, data);
 }
@@ -915,7 +919,7 @@ function endCombat(st, data, why) {
     st.ch.items = st.ch.items.filter(i => !i.destroyed);
     st.pending = null;
     const text = { won: 'Combat is over: nothing hostile is left.', quiet: 'The fighting dies down.', ran: 'You are out of the fight.', died: 'You have died.' }[why];
-    say(st, text, 'combat');
+    say(st, text, 'combat', why === 'quiet' ? tell.dieDown(st) : why === 'won' ? tell.won(st) : why === 'ran' ? tell.ran(st) : null);
 }
 
 // ---- hirelings ----

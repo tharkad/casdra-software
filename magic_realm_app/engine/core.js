@@ -28,7 +28,8 @@ export function shuffle(st, arr) {
 export function roll2(st) { const a = die(st), b = die(st); return { dice: [a, b], value: Math.max(a, b) }; }
 
 // ---- log ----
-export function say(st, text, kind = 'info') { st.log.push({ day: st.day, t: text, k: kind }); }
+// `story` is the same event in prose (engine/story.js); the plain text `t` stays exact for tools and tests.
+export function say(st, text, kind = 'info', story = null) { st.log.push(story ? { day: st.day, t: text, k: kind, s: story } : { day: st.day, t: text, k: kind }); }
 
 // Counters for the grind statistics: st.stats[key] += n. Never read by the rules.
 export function tally(st, key, n = 1) { const t = (st.stats ??= {}); t[key] = (t[key] ?? 0) + n; }
