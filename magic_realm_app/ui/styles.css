@@ -377,3 +377,4 @@ button.portrait small { font-size: 13px; }
 .itemrow { display: flex; gap: 8px; align-items: stretch; }
 .itemrow .btn.row { flex: 1; min-width: 0; }
 .leavebtn { flex: none; min-width: 64px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); color: var(--dim); font-size: 14px; margin-top: 8px; cursor: pointer; }
+.optgroup { margin: 14px 0 4px; font-family: var(--font-display); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }

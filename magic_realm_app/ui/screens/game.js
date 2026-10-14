@@ -596,7 +596,7 @@ export function gameScreen(ctx) {
             ctx.data = data;
             if (ctx.params?.fresh || !loadSaved()) {
                 st = newGame(data, { seed: ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: ctx.params?.character ?? 'white-knight', vp: ctx.params?.vp, mode: ctx.params?.mode, lastDay: ctx.params?.lastDay,
-                    startDwelling: ctx.params?.startDwelling, startGear: ctx.params?.startGear });
+                    startDwelling: ctx.params?.startDwelling, startGear: ctx.params?.startGear, options: ctx.params?.options });
                 saveGame(st);
             } else st = loadSaved();
             ctx.state = st;

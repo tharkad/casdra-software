@@ -393,7 +393,8 @@ export function meleePlay(st, data, p) {
         if (target.kind === 'nat') {
             // the group begins to battle him at once, but nobody was assigned to answer this round: no blow comes back until the next
             startBattling(st, data, data.natives[target.id].group);
-            for (const d of c.dens) if (d.kind === 'nat' && data.natives[d.id].group === data.natives[target.id].group || d.partOf === target.uid) d.noRetaliation = true;
+            // (with the optional Watchful Natives rule, 10.B.4, the group answers in the same round)
+            if (!st.options?.watchfulNatives) for (const d of c.dens) if (d.kind === 'nat' && data.natives[d.id].group === data.natives[target.id].group || d.partOf === target.uid) d.noRetaliation = true;
         }
         target.assigned = true;
         if (wasHidden) target.noRetaliation = true;          // a hidden character gets a free first blow

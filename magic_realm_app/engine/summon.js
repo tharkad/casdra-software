@@ -36,9 +36,11 @@ export function endOfTurn(st, data) {
         const row = monRow(data, m.id);
         if (row === ROW_ALWAYS || row === st.prowl) { out.arrivals.push({ id: m.id, name: data.monsters[m.id].name, from: m.loc.c, to: here, why: 'prowls in your tile' }); m.loc = { c: here }; }
     }
-    // 2. chits in the tile turn face up
+    // 2. chits in the tile turn face up (with the optional Quiet Monsters rule, 10.B.1, not if he is hidden: they stay down and call no one)
+    const quiet = !!st.options?.quietMonsters && st.ch.hidden;
     const flipped = [];
     for (const c of st.chits) {
+        if (quiet) break;
         if (c.tile !== tile || c.up || c.pile) continue;
         if (c.kind === 'warning' && c.letter === 'V') continue;       // valley warnings were exchanged for dwellings at setup
         c.up = true;
@@ -68,7 +70,7 @@ export function endOfTurn(st, data) {
     // 3. chits summon: warnings first, then sounds and sites in number order
     const rank = c => (c.kind === 'warning' ? 0 : 1) * 100 + (c.num ?? 0);
     const letter = tileLetter(data, tile);
-    for (const c of [...st.chits.filter(x => x.tile === tile && x.up && !x.summoned && x.kind !== 'lost-city' && x.kind !== 'lost-castle')].sort((a, b) => rank(a) - rank(b))) {
+    if (!quiet) for (const c of [...st.chits.filter(x => x.tile === tile && x.up && !x.summoned && x.kind !== 'lost-city' && x.kind !== 'lost-castle')].sort((a, b) => rank(a) - rank(b))) {
         const row = boxesOfRow(data, st.prowl);
         const box = row.find(b => boxMatches(b, c, letter) && monstersInBox(st, b.id).length);
         c.summoned = true;

@@ -27,7 +27,7 @@ export const DEPTHS = [
     { id: 'magic', label: 'Magic', text: 'The whole game: magic chits, spells, enchanting and the colours of magic.' },
 ];
 
-export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, depth: 'magic', character: 'white-knight', dwelling: 'Inn', vp: { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 } });
+export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, depth: 'magic', character: 'white-knight', dwelling: 'Inn', vp: { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 }, options: { knightsAdjustment: false, watchfulNatives: false, quietMonsters: false } });
 
 export const vpTotal = g => g.length === 'month' ? 5 : g.length === 'custom' ? g.weeks + 1 : g.length === 'sudden' ? g.suddenVp : 5;
 
@@ -75,7 +75,7 @@ function typeStep(g, redraw) {
 const OUTLINES = {
     table: ['Solo: one phone, you play every character', 'Pass and play: several players share a phone, hidden choices stay hidden',
         'Host online: a game server keeps secrets safe', 'Play by mail: take your turn when you can'],
-    realm: ['The realm: the original game (others later)', 'Rules preset: Standard / Advanced / Custom', 'Optional rules sit behind a Rules list, not on this page'],
+    realm: [],
     map: ['Build the map for me, or build it together', 'Seasons and weather as one switch', 'Several boards for a bigger realm (later)'],
     // `preview` below adds a button for this step
     chars: ['Pick a character and level', 'Pick a starting dwelling', 'Spread the victory points across the five goals'],
@@ -128,6 +128,36 @@ function charsStep(g, redraw, ctx) {
     ].filter(Boolean);
 }
 
+// Optional rules (3.1 section 10). Everything is off until switched on, as printed; each rule names its section.
+const OPTION_GROUPS = [
+    { title: 'Characters (rule 10.A.6)', items: [
+        { k: 'knightsAdjustment', title: "Knights' Adjustment", rule: '10.A.6.8',
+          text: 'The White Knight is only Friendly with the Order, and the Black Knight Friendly with the Company, instead of Allies. It tames their trading advantage.',
+          relevant: g => g.character === 'white-knight' || g.character === 'black-knight' },
+    ] },
+    { title: 'Denizens (rule 10.B)', items: [
+        { k: 'quietMonsters', title: 'Quiet Monsters', rule: '10.B.1', text: 'A character who is hidden when his turn ends does not turn up the chits in his tile, and monsters from the Appearance Chart do not come.' },
+        { k: 'watchfulNatives', title: 'Watchful Natives', rule: '10.B.4', text: 'Natives you strike surprise you back: the whole group fights you in the same round, not the next.' },
+    ] },
+];
+
+function optionsStep(g, redraw) {
+    g.options ??= {};
+    return [
+        h('h2', { class: 'q' }, 'Optional rules'),
+        h('p', { class: 'hint' }, 'The printed rules are the default. Switch on only what you want; you cannot change these once the game has begun.'),
+        ...OPTION_GROUPS.flatMap(grp => [
+            h('h3', { class: 'optgroup' }, grp.title),
+            ...grp.items.map(o => h('button', { class: `choice${g.options[o.k] ? ' on' : ''}`, role: 'switch', 'aria-checked': g.options[o.k] ? 'true' : 'false', 'data-option': o.k,
+                onclick: () => { g.options[o.k] = !g.options[o.k]; redraw(); } },
+                h('span', { class: 'dot' }),
+                h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, o.title, h('em', {}, `rule ${o.rule}`)),
+                    h('span', { class: 'choice-line' }, o.text),
+                    o.relevant && !o.relevant(g) ? h('span', { class: 'choice-line' }, 'No effect for the character you have chosen.') : null))),
+        ]),
+    ];
+}
+
 function outline(step, go) {
     return [
         h('h2', { class: 'q' }, STEPS[step].label),
@@ -144,7 +174,7 @@ export function newGameScreen(ctx) {
     const back = () => { if (g.step === 0) { ctx.go('title'); } else { g.step -= 1; redraw(); } };
     const start = () => {
         const lastDay = g.length === 'custom' ? g.weeks * 7 : 28;
-        ctx.go('game', { fresh: true, character: g.character, vp: { ...g.vp }, startDwelling: g.dwelling, lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month' });
+        ctx.go('game', { fresh: true, character: g.character, vp: { ...g.vp }, options: { ...g.options }, startDwelling: g.dwelling, lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month' });
     };
     const next = () => { if (g.step < STEPS.length - 1) { g.step += 1; g._scroll = 0; redraw(); } };
 
@@ -157,7 +187,7 @@ export function newGameScreen(ctx) {
             h('div', { class: 'progress', 'aria-label': `Step ${g.step + 1} of ${STEPS.length}: ${STEPS[g.step].label}` },
                 h('div', { class: 'ticks' }, STEPS.map((s, i) => h('span', { class: `tick${i < g.step ? ' done' : ''}${i === g.step ? ' now' : ''}` }))),
                 h('div', { class: 'where' }, h('b', {}, STEPS[g.step].label), h('span', {}, `Step ${g.step + 1} of ${STEPS.length}`))),
-            h('div', { class: 'body', onscroll: e => { g._scroll = e.target.scrollTop; } }, g.step === 0 ? typeStep(g, redraw) : g.step === STEPS.length - 1 ? charsStep(g, redraw, ctx) : outline(g.step, ctx.go)),
+            h('div', { class: 'body', onscroll: e => { g._scroll = e.target.scrollTop; } }, g.step === 0 ? typeStep(g, redraw) : g.step === STEPS.length - 1 ? charsStep(g, redraw, ctx) : STEPS[g.step].id === 'realm' ? optionsStep(g, redraw) : outline(g.step, ctx.go)),
             h('footer', { class: 'dock' },
                 h('div', { class: 'sum' }, summary(g)),
                 h('button', { class: 'btn primary big', 'data-act': last ? 'start' : 'next', disabled: last && Object.values(g.vp).reduce((a, b) => a + b, 0) !== vpTotal(g), onclick: last ? start : next },

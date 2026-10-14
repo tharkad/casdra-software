@@ -26,6 +26,7 @@ export function newGame(data, opts = {}) {
     revealValleys(st, data);
     placeDenizens(st, data);
     setupTreasure(st, data);
+    st.options = { knightsAdjustment: !!opts.options?.knightsAdjustment, watchfulNatives: !!opts.options?.watchfulNatives, quietMonsters: !!opts.options?.quietMonsters };
     st.startGear = { weapon: opts.startGear?.weapon ?? true, armor: opts.startGear?.armor ?? true };
     st.ch = makeCharacter(st, data, opts.character ?? 'black-knight', opts.vp, { gear: st.startGear, dwelling: opts.startDwelling });
     st.ch.at = chooseStart(st, data, st.ch);
@@ -132,12 +133,20 @@ function setupTreasure(st, data) {
 }
 
 // ---- character ----
+// Optional rule 10.A.6.8 (Knights' Adjustment): the White Knight is only Friendly with the Order, the Black Knight with the Company.
+function knightsRel(st, id, rel) {
+    if (!st.options?.knightsAdjustment) return {};
+    if (id === 'white-knight' && (rel.Order ?? 0) > 1) return { Order: 1 };
+    if (id === 'black-knight' && (rel.Company ?? 0) > 1) return { Company: 1 };
+    return {};
+}
+
 export function makeCharacter(st, data, id, vp, opt = {}) {
     const c = data.characters[id];
     const ch = {
         id, name: c.name, weight: c.weight, at: null, hidden: true, dead: false, gold: c.startGold ?? 10, fame: 0, notoriety: 0,
         chits: c.chits.map((x, i) => ({ id: `${id}-${i + 1}`, type: x.type, strength: x.strength, time: x.time, effort: x.effort ?? 0, state: 'active', stage: x.stage, numeral: x.magicNumeral ?? null })),
-        items: [], rel: { ...c.relationships }, discovered: { paths: [], sites: [] }, seen: [], hiddenEnemies: false, killsToday: 0,
+        items: [], rel: { ...c.relationships, ...knightsRel(st, id, c.relationships) }, discovered: { paths: [], sites: [] }, seen: [], hiddenEnemies: false, killsToday: 0,
         vp: vp ?? { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 }, onRoad: null, startDwelling: opt.dwelling ?? c.startDwellings[0], startValue: 10,
         adv: (c.advantages ?? []).map(a => a.key), spells: [],
     };
