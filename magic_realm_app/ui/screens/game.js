@@ -12,6 +12,9 @@ import { drinksCost } from '../../engine/meeting.js';
 import { rollRow, rollsByIds, latestRoll, diceOf } from '../dice.js';
 import { combatSheet } from './combatui.js';
 import { HELP } from './info.js';
+import { newRecord, daySnapshot, finalize } from '../../engine/gamerecord.js';
+import { putRecord, getRecord } from '../gamestore.js';
+import { VERSION } from '../version.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
 const SAVE_KEY = 'mr-save-v1';
@@ -40,10 +43,37 @@ export function gameScreen(ctx) {
     root.append(strip, mapBox, tray, dock, layer);
     let lastHero = null, st = null, data = null, map = null, ui = { sheet: null, sel: null, draft: null, toast: null };
 
+    // The game record (engine/gamerecord.js): every action taken and what the game said, kept on the device so a game can be listed, read and replayed.
+    let rec = null, persistTimer = null;
+    function persist(now = false) {
+        if (!rec || !st) return;
+        clearTimeout(persistTimer);
+        const write = () => { finalize(rec, st); putRecord(rec); };
+        if (now) write(); else persistTimer = setTimeout(write, 700);
+    }
+    function noteError(action, e, kind) {
+        rec?.errors.push({ day: st?.day, period: st?.period, pending: st?.pending?.type ?? null, action: action ? JSON.parse(JSON.stringify(action)) : null, message: String(e?.message ?? e), kind,
+            bug: /^(TypeError|ReferenceError|RangeError)$/.test(e?.name ?? '') });
+        persist();
+    }
+
     function commit(next) { st = next; ctx.state = st; saveGame(st); render(); }
     function act(action) {
-        try { commit(apply(st, data, action)); }
-        catch (e) { ui.toast = e.message; render(); setTimeout(() => { ui.toast = null; render(); }, 2600); }
+        try {
+            const next = apply(st, data, action);
+            rec?.moves.push(JSON.parse(JSON.stringify(action)));
+            const newDay = next.day !== st.day;
+            commit(next);
+            if (newDay) rec?.days.push(daySnapshot(next));
+            persist(next.period === 'over');
+        } catch (e) {
+            noteError(action, e, 'rejected');
+            ui.toast = e.message; render(); setTimeout(() => { ui.toast = null; render(); }, 2600);
+        }
+    }
+    function abandon() {
+        if (rec && st) { finalize(rec, st); rec.meta.result = 'abandoned'; clearTimeout(persistTimer); putRecord(rec); }
+        clearSaved(); ctx.go('title');
     }
 
     // ---- model for the map ----
@@ -425,7 +455,8 @@ export function gameScreen(ctx) {
             data.art?.misc?.meetingTable ? h('button', { class: 'btn', onclick: () => { ui.sheet = 'tables'; render(); } }, 'Tables (Meeting, Search, Missile, Pit)') : null,
             h('button', { class: 'btn', onclick: () => { ui.sheet = null; map.fit(); render(); } }, 'Show the whole realm'),
             h('button', { class: 'btn', onclick: () => ctx.go('title') }, 'Back to the title screen'),
-            h('button', { class: 'btn', onclick: () => { clearSaved(); ctx.go('title'); } }, 'Abandon this game')),
+            h('button', { class: 'btn', onclick: () => { persist(true); ctx.go('history', { id: st.session?.id, back: 'game' }); } }, 'This game\'s record'),
+            h('button', { class: 'btn', onclick: abandon }, 'Abandon this game')),
             { close: () => { ui.sheet = null; render(); } });
     }
 
@@ -597,12 +628,22 @@ export function gameScreen(ctx) {
         try {
             data = await loadData('data/');
             ctx.data = data;
+            let fresh = null;
             if (ctx.params?.fresh || !loadSaved()) {
-                st = newGame(data, { seed: ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: ctx.params?.character ?? 'white-knight', vp: ctx.params?.vp, mode: ctx.params?.mode, lastDay: ctx.params?.lastDay,
-                    startDwelling: ctx.params?.startDwelling, startGear: ctx.params?.startGear, options: ctx.params?.options });
+                fresh = { seed: ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: ctx.params?.character ?? 'white-knight', vp: ctx.params?.vp, mode: ctx.params?.mode, lastDay: ctx.params?.lastDay,
+                    startDwelling: ctx.params?.startDwelling, startGear: ctx.params?.startGear, options: ctx.params?.options };
+                st = newGame(data, fresh);
+                st.session = { id: String(Date.now()), started: new Date().toISOString(), version: VERSION, params: JSON.parse(JSON.stringify(fresh)) };
                 saveGame(st);
             } else st = loadSaved();
             ctx.state = st;
+            // a game saved before records existed gets one now; its earlier moves are unknown, so it cannot be replayed
+            st.session ??= { id: String(Date.now()), started: new Date().toISOString(), version: VERSION, params: null };
+            rec = (await getRecord(st.session.id).catch(() => null)) ?? newRecord({ id: st.session.id, version: st.session.version, params: st.session.params, startedAt: st.session.started, replayable: !!st.session.params });
+            if (!rec.days.length) rec.days.push(daySnapshot(st));
+            persist(true);
+            window.addEventListener('error', e => noteError(null, e.error ?? e.message, 'js'));
+            window.addEventListener('pagehide', () => persist(true));
             map = mountMap(mapBox);
             window.__mr.game = { get st() { return st; }, act, data, ui, render };
             map.set(mapModel(), { refit: true });

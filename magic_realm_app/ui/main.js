@@ -4,10 +4,11 @@ import { newGameScreen } from './screens/newgame.js';
 import { realmScreen } from './screens/realm.js';
 import { gameScreen, loadSaved } from './screens/game.js';
 import { helpScreen, stub } from './screens/info.js';
+import { historyScreen } from './screens/history.js';
 
 // A very small router: the app is a stack of full-screen views. Each screen is a function (ctx) -> element.
 const app = document.getElementById('app');
-const SCREENS = { title: titleScreen, newgame: newGameScreen, realm: realmScreen, game: gameScreen, rules: helpScreen,
+const SCREENS = { title: titleScreen, newgame: newGameScreen, realm: realmScreen, game: gameScreen, rules: helpScreen, history: historyScreen,
     join: stub('Join a game', 'Joining other players\' games (RealmSpeak or by mail) is planned. This build plays one character alone.'),
     settings: stub('Settings', 'No settings yet. Your game saves itself on this device after every step.') };
 

@@ -19,6 +19,7 @@ export function titleScreen(ctx) {
             h('button', { class: 'btn big', 'data-act': 'join', onclick: () => ctx.go('join') }, 'Join a game'),
             h('div', { class: 'row2' },
                 h('button', { class: 'btn', 'data-act': 'rules', onclick: () => ctx.go('rules') }, 'Rules'),
+                h('button', { class: 'btn', 'data-act': 'history', onclick: () => ctx.go('history') }, 'History'),
                 h('button', { class: 'btn', 'data-act': 'settings', onclick: () => ctx.go('settings') }, 'Settings'))),
         h('footer', { class: 'fine' }, 'An unofficial fan project. ', h('b', {}, 'Magic Realm'), ' belongs to its owners. ', h('span', { class: 'ver' }, `v${VERSION}`)));
 }
