@@ -20,13 +20,33 @@ export function combatSheet({ st, data, act, ui, render }) {
     const header = h('div', { class: 'cb-head' },
         h('b', {}, `Evening at ${nameOfClearing(c.at)}`), h('span', {}, `Round ${c.round}`));
     const state = h('div', { class: 'cb-state' }, h('span', {}, `Chits: ${cs.active} ready \u00B7 ${cs.fatigued} tired \u00B7 ${cs.wounded} wounded`), h('span', {}, gear.join(', ') || 'no armor'));
+    // A tap on a creature turns its counter over: the other side, with its own numbers, and what changed.
+    ui.flipped ??= {};
+    const SIDE_NAME = { light: 'light side', dark: 'dark side', red: 'red side' };
+    const otherSide = d => {
+        if (d.kind === 'mon') { const m = data.monsters[d.id]; const order = ['light', ...(m.dark ? ['dark'] : []), ...(m.red ? ['red'] : [])]; return order[(order.indexOf(d.side ?? 'light') + 1) % order.length]; }
+        if (d.kind === 'nat' || d.kind === 'part') return d.side === 'dark' ? 'light' : 'dark';
+        return null;
+    };
+    const stat = s => ({ harm: s.attack === 'none' ? 'no attack' : `${s.harm}${'*'.repeat(s.stars || 0)}`, speed: s.attack === 'none' ? '\u2013' : s.atk, moves: s.move ?? '\u2013', vuln: s.vuln ?? '\u2013' });
     const foeEls = foes.map(d => {
-        const s = denSide(st, data, d);
-        const atk = s.attack === 'none' ? 'no attack' : `${s.harm}${'*'.repeat(s.stars || 0)} speed ${s.atk}`;
+        const now = denSide(st, data, d), other = otherSide(d);
+        const showRev = !!ui.flipped[d.uid] && other && other !== (d.side ?? 'light');
+        const view = showRev ? { ...d, side: other } : d;
+        const s = showRev ? denSide(st, data, view) : now;
+        const a = stat(now), b = stat(s);
+        const diff = k => (showRev && String(a[k]) !== String(b[k]) ? 'chg' : '');
         const pic = d.kind === 'mon' ? data.art?.monsters?.[data.monsters[d.id]?.name] : d.kind === 'nat' ? data.art?.natives?.[d.id] : null;
-        return h('div', { class: `foe${d.assigned ? ' on' : ''}${d.pickedUp ? ' held' : ''}${m.target === d.uid ? ' target' : ''}` },
+        const sideTag = SIDE_NAME[showRev ? other : (d.side ?? 'light')];
+        return h('button', { class: `foe${d.assigned ? ' on' : ''}${d.pickedUp ? ' held' : ''}${m.target === d.uid ? ' target' : ''}${showRev ? ' rev' : ''}`, 'data-foe': d.uid, 'aria-pressed': showRev ? 'true' : 'false',
+            'aria-label': `${s.name}: tap to turn the counter over`, onclick: () => { ui.flipped[d.uid] = !ui.flipped[d.uid]; render(); } },
             pic ? h('img', { class: 'foepic', src: pic, alt: '' }) : null,
-            h('b', {}, s.name), h('span', {}, `${s.size ?? ''} · ${atk} · moves ${s.move}`), d.pickedUp ? h('em', {}, 'has seized you') : null,
+            h('b', {}, s.name), h('em', { class: 'sidetag' }, other ? (showRev ? `reverse: ${sideTag}` : sideTag) : ''),
+            h('span', {}, `${s.size ?? ''} \u00B7 vuln `, h('i', { class: diff('vuln') }, b.vuln), ' \u00B7 harm ', h('i', { class: diff('harm') }, b.harm), ' \u00B7 speed ', h('i', { class: diff('speed') }, b.speed),
+                ' \u00B7 moves ', h('i', { class: diff('moves') }, b.moves)),
+            ui.flipped[d.uid] && !showRev ? h('small', { class: 'was' }, 'This counter has no other side.') : null,
+            showRev ? h('small', { class: 'was' }, `now: harm ${a.harm} \u00B7 speed ${a.speed} \u00B7 moves ${a.moves}${a.vuln !== b.vuln ? ` \u00B7 vuln ${a.vuln}` : ''}`) : null,
+            d.pickedUp ? h('em', {}, 'has seized you') : null,
             d.engagedBy ? h('em', { class: 'ally' }, 'is fighting your hireling') : null);
     });
     const dice = (st.rolls ?? []).filter(r => r.n > (c.rollFrom ?? 0)).slice(-4);
