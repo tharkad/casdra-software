@@ -6,6 +6,7 @@ import * as combat from './combat.js';
 import { makeItem, defOf, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain } from './items.js';
 import { lootFrom, lootSiteCard, groundPileAt, sitesHere, effortOptions, payEffort } from './search.js';
 import { hasCurse, liftCursesAtChapel } from './effects.js';
+import { runesTargets, readRunes, learnSpell } from './runes.js';
 import { restartAfterDeath } from './setup.js';
 import { activeHorse } from './items.js';
 import { extraActs, oneDie, locateMod } from './modifiers.js';
@@ -389,16 +390,16 @@ function applyRest(st, o) {
 }
 
 // Which tables he may search on where he stands (rule 7.5: he records only "S" at Birdsong and names the table when he does it).
-export function searchTables(st) {
+export function searchTables(st, data = null) {
     const here = st.ch.at;
-    return ['peer', 'locate', 'loot', ...((st.abandoned[here] ?? []).length ? ['ground'] : []), ...(st.ch.siteCards?.[here]?.length ? ['sitecard'] : [])];
+    return ['peer', 'locate', 'loot', ...((st.abandoned[here] ?? []).length ? ['ground'] : []), ...(st.ch.siteCards?.[here]?.length ? ['sitecard'] : []), ...(data && runesTargets(st, data).length ? ['runes'] : [])];
 }
 
 function doSearch(st, data, slot) {
     if (hasCurse(st, 'Eyemist')) return 'The Eyemist curse blinds you: you cannot search.';
     if (!slot.table) {
         // no table was named in the plan: ask when the phase comes
-        st.pending = { type: 'search-table', options: searchTables(st) };
+        st.pending = { type: 'search-table', options: searchTables(st, data) };
         return 'wait';
     }
     const table = slot.table;
@@ -409,6 +410,7 @@ function doSearch(st, data, slot) {
         if (opts.length === 1) say(st, payEffort(st, opts[0]), 'info');
         else { st.pending = { type: 'effort-cost', site: 'Cairns', options: opts, resume: 'search', slot: { act: 'search', table: 'loot' } }; return 'wait'; }
     }
+    if (table === 'runes') return readRunes(st, data, slot.target ?? null);
     let r;
     if (oneDie(st, table === 'loot' || table === 'ground' || table === 'sitecard' ? 'loot' : 'search', st.ch.at, data)) { const d1 = die(st); r = { dice: [d1], value: d1 }; } else r = roll2(st);
     const rawDice = [...r.dice];
@@ -511,6 +513,23 @@ export function apply(st0, data, action) {
             say(st, payEffort(st, o), 'info');
             const text = p.resume === 'search' ? doSearch(st, data, { ...p.slot, paid: true }) : lootFrom(st, data, p.r, p.ground, { paid: true });
             if (text === 'wait') return st;
+            finishPhase(st, data, text);
+            return settle(st, data, st.turn?.auto);
+        }
+        case 'runes-target': {
+            if (p.type !== 'runes-target') throw new Error('nothing to read');
+            if (!p.options.some(o => o.key === action.target)) throw new Error('read the runes of one of the things offered');
+            st.pending = null;
+            const text = readRunes(st, data, action.target);
+            if (text === 'wait') return st;
+            say(st, text, 'info');
+            finishPhase(st, data, text);
+            return settle(st, data, st.turn?.auto);
+        }
+        case 'learn-spell': {
+            if (p.type !== 'learn-spell') throw new Error('no spell is being offered');
+            st.pending = null;
+            const text = learnSpell(st, data, !!action.learn, p);
             finishPhase(st, data, text);
             return settle(st, data, st.turn?.auto);
         }

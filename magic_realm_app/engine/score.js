@@ -27,7 +27,7 @@ export function earned(st, data) {
         fame += d.fame ?? 0;
         notor += d.notoriety ?? 0;
     }
-    return { great, spells: 0, fame, notoriety: notor, gold: (cursed('Ashes') ? -1 : ch.gold) - (ch.startValue ?? 10) };
+    return { great, spells: (ch.learned ?? []).length, fame, notoriety: notor, gold: (cursed('Ashes') ? -1 : ch.gold) - (ch.startValue ?? 10) };
 }
 
 export function targets(st) {

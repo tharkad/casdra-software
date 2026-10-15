@@ -50,6 +50,7 @@ export function oneDie(st, kind, where = null, data = null) {
         if (adv.includes('cave-knowledge') && clearingKind(st, data, where) === 'cave') return true;
     }
     if (kind === 'hide' && adv.includes('concealment')) return true;
+    if (kind === 'runes' && adv.includes('lore')) return true;                   // the Wizard rolls one die when Reading Runes
     return false;
 }
 

@@ -25,7 +25,7 @@ import { collect as collectReport, send as sendReport } from '../bugreport.js';
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
 const SAVE_KEY = 'mr-save-v1';
 const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert', nothing: 'Nothing' };
-const TABLE_LABEL = { peer: 'Peer', locate: 'Locate', loot: 'Loot', ground: 'Ground', sitecard: 'Site card' };
+const TABLE_LABEL = { peer: 'Peer', locate: 'Locate', loot: 'Loot', ground: 'Ground', sitecard: 'Site card', runes: 'Read runes' };
 
 const WELCOME_KEY = 'mr-welcomed-v1';
 const welcomed = () => { try { return !!localStorage.getItem(WELCOME_KEY); } catch { return true; } };
@@ -276,8 +276,12 @@ export function gameScreen(ctx) {
             ask(`You are searching at ${nameOfClearing(st.ch.at)}: choose the table.`, 'Your plan said only Search, and the rules let you name the table when the phase comes. A Search phase is one roll on one table, and each table finds different things, so pick the one that matches what you are after.'),
             ...p.options.map(t => h('button', { class: 'btn', 'data-table': t, onclick: () => act({ type: 'search-table', table: t }) }, h('b', {}, TABLE_LABEL[t]),
                 h('small', {}, { peer: 'look for clues, hidden enemies and hidden paths', locate: 'find passages, clues and sites in this clearing', loot: 'take treasure from a site you have discovered here',
-                    ground: 'pick up what lies on the ground here', sitecard: 'search the place you found with a treasure card' }[t] ?? ''))))));
+                    ground: 'pick up what lies on the ground here', sitecard: 'search the place you found with a treasure card', runes: 'learn a spell from a site here or an artifact or book you carry' }[t] ?? ''))))));
         else if (p?.type === 'effort-cost') out.push(effortSheet(p));
+        else if (p?.type === 'runes-target') out.push(modal('Read runes: which?', h('div', {},
+            ask('Which runes will you read?', 'A Reading Runes search needs one target: a discovered site here that holds spell cards, or an artifact or book you carry and have active.'),
+            ...p.options.map(o => h('button', { class: 'btn', 'data-target': o.key, onclick: () => act({ type: 'runes-target', target: o.key }) }, o.label)))));
+        else if (p?.type === 'learn-spell') out.push(learnSheet(p));
         else if (p?.type === 'search-choice') out.push(modal(`${TABLE_LABEL[p.table]}: your choice`, h('div', {}, latestRoll(st) ? rollRow(latestRoll(st)) : null, ask(`You rolled ${p.roll.join('+')}: the table gives you a choice.`, 'This result lets you pick whichever entry of the table you want instead of the one the dice name. Choose the one that helps you most.'),
             ...p.options.map(r => h('button', { class: 'btn', onclick: () => act({ type: 'search-choice', result: r }) }, r)))));
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));
@@ -459,7 +463,7 @@ export function gameScreen(ctx) {
         if (!found) status.push(h('p', { class: 'setupline' }, h('b', {}, 'Not discovered yet. '), 'Search with Locate to discover it. What it holds is unknown until you do.'));
         else {
             const pile = st.sites?.[c.name] ?? [];
-            const spells = pile.filter(it => it.kind === 'spell').length;
+            const spells = st.spellBox?.sites?.[c.name]?.length ?? 0;                  // spell cards stay in their box: only readable with runes
             const treasures = pile.filter(it => it.kind !== 'spell');
             const small = treasures.filter(it => (data.treasures[it.id]?.kind ?? 'small') === 'small').length, large = treasures.length - small;
             const left = pile.length ? [`${small} Small`, `${large} Large`, ...(spells ? [`${spells} spell${spells === 1 ? '' : 's'}`] : [])].join(', ') : 'nothing';
@@ -776,19 +780,32 @@ export function gameScreen(ctx) {
     }
 
     // A spell: its card, with the rules' full description.
-    function spellSheet() {
-        const sp = data.spells?.[ui.spellId];
-        const back = { close: () => { ui.sheet = 'char'; render(); } };
-        if (!sp) return modal('Spell', h('p', { class: 'hint' }, 'Unknown spell.'), back);
+    // A spell card as printed: the card art with its colour, type, duration, target and the rules' full description.
+    function spellCard(sp) {
         const full = data.cardtext?.spells?.[sp.id] ?? '';
         const m = /^[^(]+\([^)]*\),\s*(.*?),\s*(Instant|Day|Combat|Permanent|Attack|Fly|Phase)\s*:\s*(.*)$/s.exec(full);
         const target = m?.[1], body = m?.[3] ?? full;
         const color = sp.color ?? 'any';
-        return modal(sp.name, h('div', { class: 'itemsheet' },
-            cardEl({ title: sp.name, kind: sp.color ?? 'any', tag: `Type ${sp.type} spell \u00B7 ${color === 'any' ? 'any colour of magic' : `${color} magic`} \u00B7 ${sp.duration}`,
-                stats: [...(target ? [['Target', target]] : []), ['Cast with', `a Magic chit of type ${sp.type}`], ['Colour needed', color === 'any' ? 'any' : color]], text: body,
-                notes: [sp.implemented ? 'You can cast this in this build: in the Encounter step of an evening fight, where its colour of magic is present.' : 'This spell cannot be cast in this build yet.'] }),
+        return cardEl({ title: sp.name, kind: sp.color ?? 'any', tag: `Type ${sp.type} spell \u00B7 ${color === 'any' ? 'any colour of magic' : `${color} magic`} \u00B7 ${sp.duration}`,
+            stats: [...(target ? [['Target', target]] : []), ['Cast with', `a Magic chit of type ${sp.type}`], ['Colour needed', color === 'any' ? 'any' : color]], text: body,
+            notes: [sp.implemented ? 'You can cast this in this build: in the Encounter step of an evening fight, where its colour of magic is present.' : 'This spell cannot be cast in this build yet.'] });
+    }
+    function spellSheet() {
+        const sp = data.spells?.[ui.spellId];
+        const back = { close: () => { ui.sheet = 'char'; render(); } };
+        if (!sp) return modal('Spell', h('p', { class: 'hint' }, 'Unknown spell.'), back);
+        return modal(sp.name, h('div', { class: 'itemsheet' }, spellCard(sp),
             h('button', { class: 'btn', onclick: back.close }, 'Back')), back);
+    }
+    // Reading Runes found a card he can learn.
+    function learnSheet(p) {
+        const sp = data.spells?.[p.spell];
+        return modal('Read the runes', h('div', { class: 'itemsheet' },
+            ask(`${p.from}: the runes show a spell.`, `You hold a Type ${sp?.type} Magic chit, so you may write it on your sheet. The card stays where it is.`),
+            sp ? spellCard(sp) : null,
+            h('div', { class: 'row2' },
+                h('button', { class: 'btn primary', 'data-act': 'learn', onclick: () => act({ type: 'learn-spell', learn: true }) }, 'Learn it'),
+                h('button', { class: 'btn', 'data-act': 'leave', onclick: () => act({ type: 'learn-spell', learn: false }) }, 'Leave it'))));
     }
 
     // One belonging: both of its faces drawn as counters, the facts, and the switch.

@@ -4,6 +4,7 @@ import { shuffle, int, die, say } from './core.js';
 import { makeItem, defOf, priceOf } from './items.js';
 import { tileLetter } from './summon.js';
 import { beginDay } from './day.js';
+import { dealSpells } from './runes.js';
 
 // Building a new game (rules digest 01 section 3): map, chits, dwellings, denizens, treasure, then the character.
 
@@ -115,7 +116,6 @@ function setupTreasure(st, data) {
         const larges = largePool.splice(0, site.large ?? 0).map(treasure);
         // The card pile is listed top first: large treasures lie above small ones.
         st.sites[site.name] = [...larges, ...smalls];
-        for (const sp of site.spells ?? []) st.sites[site.name].unshift({ kind: 'spell', id: 'spell-' + sp });
     }
     // Each dwelling holds counters and two small treasures, and its natives sell them.
     for (const g of Object.values(data.groups)) st.stock[g.id] = [];
@@ -130,6 +130,7 @@ function setupTreasure(st, data) {
         for (let i = 0; i < (dw.treasures?.small ?? 0); i++) list.push(treasure(small.shift()));
     }
     st.scholarGoods = small.splice(0, 3).map(treasure);
+    dealSpells(st, data, shuffle);
 }
 
 // ---- character ----
