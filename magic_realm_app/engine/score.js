@@ -57,5 +57,6 @@ export function progress(st, data) {
     const goals = CATS.filter(c => need[c] > 0).map(c => ({ cat: c, earned: e[c], need: need[c], vp: vp[c] ?? 0, frac: Math.max(0, Math.min(1, e[c] / need[c])) }));
     const w = goals.reduce((a, g) => a + g.vp, 0);
     const pct = w ? Math.round(100 * goals.reduce((a, g) => a + g.vp * g.frac, 0) / w) : 100;
-    return { pct, goals };
+    const met = goals.filter(g => g.earned >= g.need).length;
+    return { pct, goals, met, count: goals.length };
 }
