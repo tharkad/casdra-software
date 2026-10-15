@@ -661,10 +661,9 @@ button.daybox { min-width: 0; overflow: hidden; padding: 0 2px; }
 @media (max-width: 400px) { .bugbtn { display: none; } }
 @media (max-width: 380px) { .vpchip { min-width: 40px; padding: 0 5px; } }
 
-/* the connector from a displaced name to its clearing */
-.realm-svg .leader { stroke-width: 2.6; stroke-dasharray: none; stroke-linecap: round; opacity: .95; }
-.realm-svg .leaderring { fill: none; stroke-width: 2.4; opacity: .95; }
-.realm-svg .leader.dwelling, .realm-svg .leaderring.dwelling { stroke: #e2c068; }
-.realm-svg .leader.nat, .realm-svg .leaderring.nat, .realm-svg .leader.ally, .realm-svg .leaderring.ally { stroke: #6f9be8; }
-.realm-svg .leader.mon, .realm-svg .leaderring.mon { stroke: #e0705c; }
-.realm-svg .leader.site, .realm-svg .leaderring.site, .realm-svg .leader.sound, .realm-svg .leaderring.sound, .realm-svg .leader.more, .realm-svg .leaderring.more { stroke: #b49bdc; }
+/* the connector from a displaced name to its clearing: thin, from the edge of the circle */
+.realm-svg .leader { stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: round; opacity: .95; }
+.realm-svg .leader.dwelling { stroke: #e9d28a; }
+.realm-svg .leader.nat, .realm-svg .leader.ally { stroke: #a9c2f2; }
+.realm-svg .leader.mon { stroke: #f0a090; }
+.realm-svg .leader.site, .realm-svg .leader.sound, .realm-svg .leader.more { stroke: #d2c2ee; }

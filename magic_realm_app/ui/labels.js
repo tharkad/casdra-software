@@ -83,16 +83,18 @@ export function layoutLabels(groups, obstacles = [], { rings = 12, step = 9, anc
     for (const g of order) {
         let best = search(g, g.boxes);
         let boxes = best.rects, side = best.side, ring = best.ring, area = best.area, far = best.dist > g.ar + Math.max(best.W, best.H) + 4;
-        if (best.area > 0 && g.boxes.length > 1) {
-            // the stack does not fit anywhere: place its pills one by one, each wherever there is room
-            const lone = []; let worst = 0, maxRing = 0;
+        if (g.boxes.length > 1 && (best.area > 0 || best.owned === false || best.dist > g.ar + 40)) {
+            // the stack does not fit, or only fits far off or on a neighbour's side: try its pills one by one, each wherever there is room nearest
+            const lone = []; let worst = 0, maxRing = 0, allOwned = true, far2 = 0;
             for (const b of g.boxes) {
                 const r = search(g, [b]);
                 for (const rc of r.rects) placed.push(grow(rc, MARGIN));
                 lone.push(r.rects[0]); worst += r.area; maxRing = Math.max(maxRing, r.ring);
+                allOwned = allOwned && r.owned !== false; far2 = Math.max(far2, r.dist);
             }
             placed.length -= g.boxes.length;                       // they are re-added below with the rest of the bookkeeping
-            if (worst < best.area) { boxes = lone; side = 'split'; ring = maxRing; area = worst; far = true; }
+            const better = worst < best.area || (worst === best.area && ((best.owned === false && allOwned) || far2 + 8 < best.dist));
+            if (better) { boxes = lone; side = 'split'; ring = maxRing; area = worst; far = true; best = { ...best, owned: allOwned }; }
         }
         for (const r of boxes) placed.push(grow(r, MARGIN));
         out.set(g.id, { boxes, side, ring, overlap: area, leader: ring > 0 || far || best.owned === false });

@@ -171,10 +171,10 @@ export function mountMap(host) {
             if (r.leader) {
                 const b = r.boxes[0];
                 const tx = Math.max(b.x, Math.min(gr.ax, b.x + b.w)), ty = Math.max(b.y, Math.min(gr.ay, b.y + b.h));
-                // a solid connector in the pills' own colour, and a ring on the clearing they belong to: no doubt which clearing a displaced name is for
+                // a thin connector from the edge of the clearing's circle to the nearest pill, in that pill's colour
                 const kind = gr.kind ?? 'site';
-                leaders.append(sv('circle', { cx: gr.ax.toFixed(1), cy: gr.ay.toFixed(1), r: (gr.ar + 4).toFixed(1), class: `leaderring ${kind}` }),
-                    sv('line', { x1: gr.ax.toFixed(1), y1: gr.ay.toFixed(1), x2: tx.toFixed(1), y2: ty.toFixed(1), class: `leader ${kind}` }));
+                const dx = tx - gr.ax, dy = ty - gr.ay, len = Math.hypot(dx, dy) || 1, k = Math.min(1, (gr.ar + 1) / len);
+                leaders.append(sv('line', { x1: (gr.ax + dx * k).toFixed(1), y1: (gr.ay + dy * k).toFixed(1), x2: tx.toFixed(1), y2: ty.toFixed(1), class: `leader ${kind}` }));
             }
         }
         og.append(leaders, names);
