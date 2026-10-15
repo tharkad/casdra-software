@@ -3,7 +3,7 @@ import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './t
 import { pit } from './effects.js';
 import { hirelings } from './hire.js';
 import { cardChits, effortLimit, oneDie } from './modifiers.js';
-import { castOptions, castSpell, resolveSpells, canCastUsefully } from './spells.js';
+import { blockedSpells, castOptions, castSpell, resolveSpells, canCastUsefully } from './spells.js';
 import { tell } from './story.js';
 import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
 import { makeItem, autoEquip, toggleItem, activeHorse } from './items.js';
@@ -340,7 +340,7 @@ export function encounterOptions(st, data) {
     const move = activeChits(st, 'move', data).filter(x => x.time < slowest && lvl(x.strength) >= (x.isHorse ? Math.max(load, lvl(st.ch.weight)) : load));
     // hidden, and nothing is on his sheet (denizens cannot be assigned to a hidden character): nothing can attack him, so he may simply let the evening pass
     const canStay = !!st.ch.hidden && !c.dens.some(d => !d.dead && (d.assigned || d.engagedBy || d.pickedUp)) && !(c.hires ?? []).some(x => !x.dead);
-    return { canStay, casts: castOptions(st, data), canAlert: !!w && fight.length > 0, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data) };
+    return { canStay, casts: castOptions(st, data), blocked: blockedSpells(st, data), canAlert: !!w && fight.length > 0, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data) };
 }
 
 export function encounterAction(st, data, a) {

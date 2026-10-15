@@ -19,6 +19,7 @@ import { ask } from '../ask.js';
 import { itemFace } from '../counter.js';
 import { cardEl } from '../card.js';
 import { earned, targets, scoreGame, progress, FACTORS, CATS } from '../../engine/score.js';
+import { COLORS, COLOR_MEANING, dayColors, isMagicDay, colorSources } from '../../engine/spells.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
@@ -158,7 +159,9 @@ export function gameScreen(ctx) {
         strip.replaceChildren(
             h('button', { class: 'back', 'aria-label': 'Menu', onclick: () => { ui.sheet = ui.sheet === 'menu' ? null : 'menu'; render(); } }, '☰'),
             h('button', { class: 'bugbtn', 'aria-label': 'Report a problem', 'data-act': 'bug', onclick: () => { ui.sheet = 'bug'; render(); } }, '\u{1F41E}'),
-            h('div', { class: 'daybox' }, h('b', {}, `Day ${st.day}`, h('small', {}, st.mode === 'endless' ? '' : `/${st.lastDay ?? 28}`)), h('span', {}, `${st.period === 'over' ? 'finished' : st.period}`)),
+            h('button', { class: `daybox${isMagicDay(st.day) ? ' magic' : ''}`, 'data-act': 'calendar', 'aria-label': 'Calendar and the colours of magic', onclick: () => { ui.sheet = ui.sheet === 'calendar' ? null : 'calendar'; render(); } },
+                h('b', {}, `Day ${st.day}`, h('small', {}, st.mode === 'endless' ? '' : `/${st.lastDay ?? 28}`)),
+                h('span', {}, isMagicDay(st.day) ? `${dayColors(st.day).join(' & ')} magic` : `${st.period === 'over' ? 'finished' : st.period}`)),
             h('button', { class: 'stats', onclick: () => { ui.sheet = ui.sheet === 'char' ? null : 'char'; render(); } },
                 h('span', { class: 'stat gold' }, `${st.ch.gold}g`),
                 h('span', { class: 'stat' }, `Fame ${st.ch.fame}`),
@@ -203,6 +206,9 @@ export function gameScreen(ctx) {
     function renderDock() {
         const p = st.pending;
         const where = nameOfClearing(st.ch.at);
+        const magicNow = dayColors(st.day);
+        const magicBar = magicNow.length ? h('button', { class: 'magicbar', 'data-act': 'magic-day', onclick: () => { ui.sheet = 'calendar'; render(); } },
+            h('span', {}, 'The land is filled with'), ...magicNow.map(c => colorChip(c)), h('span', { class: 'until' }, 'until midnight')) : null;
         const info = h('div', { class: 'where2' }, h('span', { class: 'you' }, 'You are at'), h('b', {}, st.ch.onRoad ? 'on the road' : where), st.ch.hidden ? h('em', {}, 'hidden') : h('em', { class: 'seen' }, 'visible'));
         const recent0 = [...st.log].reverse().filter(l => l.k !== 'day' && l.k !== 'roll').slice(0, 3).reverse();
         ui.gainSeen ??= st.gainSeq ?? 0;
@@ -233,7 +239,7 @@ export function gameScreen(ctx) {
                     h('button', { class: 'btn', 'data-act': 'all', onclick: () => act({ type: 'next', all: true }) }, 'Play the day')));
         } else if (p.type === 'over') main = h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result');
         else main = h('div', { class: 'note' }, 'Decision needed...');
-        dock.replaceChildren(...[info, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, main].filter(Boolean));
+        dock.replaceChildren(...[magicBar, info, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, main].filter(Boolean));
     }
 
     function describeSlot(s) {
@@ -287,6 +293,7 @@ export function gameScreen(ctx) {
         else if (ui.sheet === 'char') out.push(charSheet());
         else if (ui.sheet === 'clearing' && ui.sel) out.push(clearingSheet());
         else if (ui.sheet === 'menu') out.push(menuSheet());
+        else if (ui.sheet === 'calendar') out.push(calendarSheet());
         else if (ui.sheet === 'over' || ui.restartVp) out.push(overSheet());
         else if (ui.sheet === 'card') out.push(modal(st.ch.name, h('div', {}, data.art?.cards?.[st.ch.id] ? h('img', { class: 'cardpic', src: data.art.cards[st.ch.id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { ui.sheet = 'char'; render(); } }));
         else if (ui.sheet === 'dice') out.push(diceSheet());
@@ -470,6 +477,8 @@ export function gameScreen(ctx) {
         const sections = [];
         const row = (k, text, sub, img) => h('div', { class: `crow ${k}` }, img ? (typeof img === 'string' ? h('img', { class: 'ico', src: img, alt: '' }) : img) : null, h('div', { class: 'crow-t' }, h('b', {}, text), sub ? (typeof sub === 'string' ? h('small', {}, sub) : sub) : null));
         // you
+        const srcs = colorSources(st, data, id);
+        if (srcs.length) sections.push(['Magic here', srcs.map(x => row('magic', x.color, x.why, colorChip(x.color)))]);
         if (here) sections.push(['You', [row('me', st.ch.name, st.ch.hidden ? 'hidden: monsters cannot block you' : 'in plain sight')]]);
         // dwelling and the people who live there
         const dw = st.dwellings.filter(d => d.at === id);
@@ -535,9 +544,12 @@ export function gameScreen(ctx) {
         for (const nn of t.natives) lines.push(h('div', { class: 'crow nat' }, h('b', {}, `The ${nn.group} appear`), h('small', {}, `${nn.count} of them, at the ${nn.at}`)));
         if (t.blocked) lines.push(h('div', { class: 'crow mon' }, h('b', {}, t.blockers.length ? `Blocked by ${[...new Set(t.blockers)].join(', ')}` : 'Your turn was cut short'), h('small', {}, 'the rest of your turn was lost')));
         const hide = r => /hide|hidden|seen/i.test(r ?? '');
+        // Blocked: the phases still to come, extra ones included, are lost with the rest of the turn.
+        const lostPhases = (t.blocked ? (st.plan ?? []).map((s, i) => ({ i, s })).filter(x => x.i >= (t.plan?.length ?? 0) && x.s && x.s.act !== 'nothing').map(x => ({ i: x.i, what: describeSlot(x.s) })) : []);
         const summary = t.plan?.length ? h('details', { class: 'daydid', open: true }, h('summary', {}, 'What you did today'),
-            ...t.plan.map((r, i) => h('p', { class: `daydid-row${hide(r) ? ' hide' : ''}` }, h('b', {}, `Phase ${i + 1}`), ` ${(r ?? 'nothing').replace(/^Phase \d+:\s*/, '')}`))) : null;
-        const why = t.blocked ? `${t.blockers.length ? [...new Set(t.blockers)].join(', ') + ' closed in' : 'Your turn was cut short'}, so you are seen.`
+            ...t.plan.map((r, i) => h('p', { class: `daydid-row${hide(r) ? ' hide' : ''}` }, h('b', {}, `Phase ${i + 1}`), ` ${(r ?? 'nothing').replace(/^Phase \d+:\s*/, '')}`)),
+            ...lostPhases.map(l => h('p', { class: 'daydid-row lost' }, h('b', {}, `Phase ${l.i + 1}`), ` ${l.what}: lost, because you were blocked.`))) : null;
+        const why = t.blocked ? `${t.blockers.length ? [...new Set(t.blockers)].join(', ') + ' closed in' : 'Your turn was cut short'}, so you are seen${lostPhases.length ? ` and your remaining ${lostPhases.length === 1 ? 'phase is' : 'phases are'} lost` : ''}.`
             : t.hidden ? 'Nothing here can be set on you this evening unless you strike first.' : 'Whatever shares your clearing will fight you this evening.';
         const status = h('div', { class: `endstatus ${t.hidden ? 'hidden' : 'seen'}` }, h('b', {}, t.hidden ? 'You are hidden' : 'You are in plain sight'), h('small', {}, why));
         const callouts = lines.length ? [h('h3', {}, 'At the end of your turn'), ...lines] : [];
@@ -577,8 +589,35 @@ export function gameScreen(ctx) {
             { close: () => { ui.sheet = null; render(); } });
     }
 
+    // ---- the colours of magic ----
+    const COLOR_ART = { White: 'white', Black: 'black', Grey: 'gray', Purple: 'purple', Gold: 'gold' };
+    const colorChip = (name, { big = false } = {}) => h('span', { class: `mcolor ${name.toLowerCase()}${big ? ' big' : ''}` },
+        h('img', { src: `art/colormagic/${COLOR_ART[name]}.gif`, alt: '', onerror: e => e.target.remove() }), h('b', {}, name));
+    function calendarSheet() {
+        const last = st.lastDay ?? 28, weeks = Math.ceil(last / 7);
+        const cell = d => {
+            const cols = dayColors(d);
+            return h('div', { class: `calday${d === st.day ? ' today' : ''}${d < st.day ? ' past' : ''}${cols.length ? ' magic' : ''}` },
+                h('b', {}, String(d)), ...cols.map(c => h('i', { class: `dot ${c.toLowerCase()}`, title: c })));
+        };
+        const here = colorSources(st, data, st.ch.at);
+        return modal('Calendar and magic', h('div', { class: 'calendar' },
+            ask(isMagicDay(st.day) ? `Today the land is filled with ${dayColors(st.day).join(' and ')} magic.` : `Day ${st.day} of ${last}: an ordinary day for magic.`,
+                'On the seventh day of each week one colour of magic fills the whole realm, from sunrise to midnight, in every clearing. Spells of that colour can be cast anywhere that evening.'),
+            h('div', { class: 'calgrid' }, ...Array.from({ length: weeks }, (_, w) => h('div', { class: 'calweek' }, h('small', {}, `Week ${w + 1}`), ...Array.from({ length: 7 }, (_, k) => cell(w * 7 + k + 1))))),
+            h('h3', {}, 'The week\'s colours'),
+            ...Array.from({ length: weeks }, (_, w) => h('p', { class: 'calrow' }, h('b', {}, `Day ${(w + 1) * 7}`), ...dayColors((w + 1) * 7).map(c => colorChip(c)))),
+            h('h3', {}, 'What each colour is'),
+            ...COLORS.map(c => h('p', { class: 'calrow' }, colorChip(c), h('span', {}, COLOR_MEANING[c]))),
+            h('h3', {}, `In your clearing (${nameOfClearing(st.ch.at)})`),
+            here.length ? h('div', {}, ...here.map(x => h('p', { class: 'calrow' }, colorChip(x.color), h('span', {}, x.why)))) : h('p', { class: 'hint' }, 'No colour of magic is present here today.'),
+            h('p', { class: 'hint' }, 'In this build the colours come from the seventh day and from a Chapel (White). Enchanted tiles and cards will add more once Enchant is built.')),
+            { close: () => { ui.sheet = null; render(); } });
+    }
+
     function menuSheet() {
         return modal('Menu', h('div', {},
+            h('button', { class: 'btn', 'data-act': 'open-calendar', onclick: () => { ui.sheet = 'calendar'; render(); } }, 'Calendar and magic'),
             h('button', { class: 'btn', onclick: () => { ui.sheet = 'log'; render(); } }, 'Journal'),
             h('button', { class: 'btn', onclick: () => { ui.sheet = 'help'; render(); } }, 'How to play'),
             h('button', { class: 'btn', onclick: () => { ui.sheet = 'key'; render(); } }, 'Map key'),

@@ -106,6 +106,10 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             body.push(h('button', { class: 'btn primary', 'data-act': 'stay-hidden', onclick: () => send({ kind: 'encounter', act: 'stay' }) }, 'Stay hidden: let the evening pass'));
         }
         body.push(h('button', { class: `btn${(p.spellOnly && o.casts.some(x => x.useful)) || (o.canStay && !p.spellOnly) ? '' : ' primary'}`, 'data-act': 'pass', onclick: () => send({ kind: 'encounter', act: 'pass' }) }, p.spellOnly ? 'Do nothing' : o.canStay ? 'Strike from hiding' : 'Go on to the fight'));
+        if (o.blocked?.length && !o.casts.length) {
+            body.push(h('h3', {}, 'Spells you know'));
+            for (const x of o.blocked) body.push(h('p', { class: 'hint' }, h('b', {}, `${x.name}: `), x.why));
+        }
         if (o.casts.length) {
             body.push(h('h3', {}, 'Cast a spell'));
             body.push(h('p', { class: 'hint' }, 'The Magic chit you play is the spell\'s cost; it counts toward the two asterisks of the round and is tired afterwards.'));
