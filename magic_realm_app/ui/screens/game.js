@@ -507,13 +507,17 @@ export function gameScreen(ctx) {
         }
         for (const a of t.arrivals.filter(a => a.why === 'prowls in your tile')) lines.push(h('div', { class: 'crow mon' }, h('b', {}, `${a.name} arrives`), h('small', {}, `it was prowling in this tile and comes to your clearing`)));
         for (const nn of t.natives) lines.push(h('div', { class: 'crow nat' }, h('b', {}, `The ${nn.group} appear`), h('small', {}, `${nn.count} of them, at the ${nn.at}`)));
-        if (t.blocked) lines.push(h('div', { class: 'crow mon' }, h('b', {}, t.blockers.length ? `Blocked by ${[...new Set(t.blockers)].join(', ')}` : 'Your turn was cut short'), h('small', {}, 'the rest of your turn was lost and you are seen')));
-        const summary = t.plan?.length ? h('details', {}, h('summary', {}, 'What you did today'), ...t.plan.map((r, i) => h('p', { class: 'hint' }, `Phase ${i + 1}: ${r ?? '-'}`))) : null;
+        if (t.blocked) lines.push(h('div', { class: 'crow mon' }, h('b', {}, t.blockers.length ? `Blocked by ${[...new Set(t.blockers)].join(', ')}` : 'Your turn was cut short'), h('small', {}, 'the rest of your turn was lost')));
+        const hide = r => /hide|hidden|seen/i.test(r ?? '');
+        const summary = t.plan?.length ? h('details', { class: 'daydid', open: true }, h('summary', {}, 'What you did today'),
+            ...t.plan.map((r, i) => h('p', { class: `daydid-row${hide(r) ? ' hide' : ''}` }, h('b', {}, `Phase ${i + 1}`), ` ${(r ?? 'nothing').replace(/^Phase \d+:\s*/, '')}`))) : null;
+        const why = t.blocked ? `${t.blockers.length ? [...new Set(t.blockers)].join(', ') + ' closed in' : 'Your turn was cut short'}, so you are seen.`
+            : t.hidden ? 'Nothing here can be set on you this evening unless you strike first.' : 'Whatever shares your clearing will fight you this evening.';
+        const status = h('div', { class: `endstatus ${t.hidden ? 'hidden' : 'seen'}` }, h('b', {}, t.hidden ? 'You are hidden' : 'You are in plain sight'), h('small', {}, why));
+        const callouts = lines.length ? [h('h3', {}, 'At the end of your turn'), ...lines] : [];
         return modal(`End of your turn at ${nameOfClearing(t.at)}`, h('div', { class: 'clearing' },
-            ask('Your turn is over: this is what happened at the end of it.', 'Chits in your tile turn up and may call monsters; creatures prowling in this tile come to you. There is nothing to decide here: continue to the evening, when fights are held.'),
-            ...(lines.length ? lines : [h('p', { class: 'hint' }, 'Nothing stirred.')]),
-            summary,
-            h('button', { class: 'btn primary', 'data-act': 'turn-ok', onclick: () => act({ type: 'continue' }) }, 'Continue to the evening')));
+            status, summary, ...callouts,
+            h('button', { class: 'btn primary', 'data-act': 'turn-ok', onclick: () => act({ type: 'continue' }) }, 'End turn')));
     }
 
     function charSheet() {

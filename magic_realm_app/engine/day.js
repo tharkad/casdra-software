@@ -159,10 +159,10 @@ function endDaylight(st, data) {
         say(st, `${bl.map(m => data.monsters[m.id].name).join(', ')} close in on you.`, 'block');
     }
     // Show him what the end of his turn did, before the evening begins.
-    st.turnEnd = { ...res, day: st.day, blocked: !!st.turn.blocked, blockers: bl.map(m => data.monsters[m.id].name), plan: st.turn.results.slice() };
+    st.turnEnd = { ...res, day: st.day, blocked: !!st.turn.blocked, blockers: bl.map(m => data.monsters[m.id].name), plan: st.turn.results.slice(), hidden: !!st.ch.hidden };
     st.period = 'turn-end';
-    if (res.chits.length || res.arrivals.length || res.natives.length || st.turn.blocked) { st.pending = { type: 'turn-end' }; return; }
-    afterTurnEnd(st, data);
+    // He always stops here: the end of the turn is where he sees whether he is hidden or seen going into the evening.
+    st.pending = { type: 'turn-end' };
 }
 
 function afterTurnEnd(st, data) {

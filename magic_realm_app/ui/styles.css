@@ -546,3 +546,14 @@ button.chit2:disabled { cursor: default; }
 .sitecard .setupline { margin: 4px 0; font-size: 15px; line-height: 1.35; color: var(--text); }
 .sitecard .setupline.card { padding: 6px 8px; border-left: 3px solid #6c5aa8; background: rgba(108, 90, 168, .12); border-radius: 4px; }
 .sitecard .setupline.dim { color: var(--dim); font-size: 14px; }
+
+/* the end of the turn: hidden or seen first, then the day's results */
+.endstatus { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 14px; border: 2px solid var(--line); margin-bottom: 8px; }
+.endstatus b { font-size: 21px; }
+.endstatus small { color: var(--dim); font-size: 14px; }
+.endstatus.hidden { border-color: #5fae8a; background: rgba(95, 174, 138, .12); }
+.endstatus.seen { border-color: #d98a6a; background: rgba(217, 138, 106, .10); }
+.daydid summary { cursor: pointer; font-weight: 600; margin: 6px 0; }
+.daydid-row { margin: 4px 0 4px 6px; font-size: 15px; }
+.daydid-row b { color: var(--dim); font-weight: 600; margin-right: 4px; }
+.daydid-row.hide { color: var(--text); border-left: 3px solid #5fae8a; padding-left: 8px; }
