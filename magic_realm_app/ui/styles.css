@@ -691,3 +691,7 @@ button.daybox { min-width: 0; overflow: hidden; padding: 0 2px; }
 .cb-gear { display: flex; flex-direction: column; gap: 8px; }
 .cb-gear-h { color: var(--dim); letter-spacing: .04em; }
 .foe.gear { background: var(--panel); border-color: var(--line); }
+
+.cb-victory { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 14px; border: 2px solid #e2c068; background: rgba(226, 192, 104, .12); }
+.cb-victory b { font-size: 20px; color: #f1d27f; }
+.cb-victory span { color: var(--text); font-size: 15px; }

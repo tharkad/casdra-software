@@ -443,6 +443,7 @@ export function meleePlay(st, data, p) {
     const o = meleeOptions(st, data);
     const w = o.weapon, notes = [];
     c.roundRollFrom = st.rollSeq ?? 0;            // the dice tray in the fight shows this round's rolls only
+    c.killed = [];                                  // what he killed this round, for the screen to lead with
     const ev = c.events = [];
     const log = (t, story) => { ev.push(story ?? t); say(st, t, 'combat', story ?? null); };
     const weaponName = w ? nameOfItem(st, data, w.item) : 'bare hands';
@@ -748,6 +749,7 @@ function myHit(st, data, h, ctx) {
         if (den.kind === 'mon') { const m = st.mons.find(x => x.id === den.id); m.dead = true; m.loc = null; }
         else if (den.kind === 'nat') { const n = st.nats.find(x => x.id === den.id); n.dead = true; n.loc = null; dropNativeGoods(st, data, n); }
         tally(st, 'kills'); tally(st, `kill.${s.name}`);
+        (c.killed ??= []).push(s.name);
         ctx.log(`You kill the ${s.name} with ${finalL} harm${note}${reward}.`, tell.kill(st, ctx.spell ?? (ctx.w ? nameOfItem(st, data, ctx.w.item) : 'bare hands'), s.name, reward));
         c.eventful = true;
     } else {

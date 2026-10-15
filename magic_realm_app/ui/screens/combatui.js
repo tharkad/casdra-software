@@ -224,7 +224,16 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
     // Wounds and fatigue are decisions the player must not miss: they come first, above the foes and the account of the last round, so the
     // tiles and the confirm button are on screen the moment the question is asked.
     const decideFirst = p.type === 'combat-wounds' || p.type === 'combat-fatigue';
-    const decision = h('div', { class: 'cb-body' }, ...body.filter(Boolean));
+    // What the round did comes first: a kill, or the whole fight won, before the housekeeping of wounds and fatigue.
+    const liveFoes = c.dens.some(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse' && d.assigned);       // anyone not set against him is not a foe
+    const killed = c.killed ?? [];
+    const names = killed.map(n => `the ${n}`).join(' and ');
+    const price = p.type === 'combat-wounds' ? 'The wounds below are the price' : 'The tiredness below is the price';
+    const headline = decideFirst && (killed.length || !liveFoes)
+        ? h('div', { class: 'cb-victory', role: 'status' }, h('b', {}, liveFoes ? `You killed ${names}.` : 'The fight is won.'),
+            h('span', {}, liveFoes ? 'Others are still on their feet.' : `${killed.length ? `You killed ${names}: n` : 'N'}othing hostile is left standing. ${price}; settle it and the evening is yours.`))
+        : null;
+    const decision = h('div', { class: 'cb-body' }, ...[headline, ...body].filter(Boolean));
     return h('div', { class: 'combat' }, header, state,
         h('div', { class: 'cb-scroll' },
             ...(decideFirst ? [decision] : []),
