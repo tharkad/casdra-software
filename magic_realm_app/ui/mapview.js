@@ -149,7 +149,7 @@ export function mountMap(host) {
                     makeLabel.set(gid, (box, i) => {
                         const t = shown[i], th = t.img ? 15 : 0;
                         // a circle with the clearing's number leads the pill, so a name that had to move still says where it belongs
-                        return sv('g', { transform: `translate(${box.x.toFixed(1)} ${box.y.toFixed(1)})`, class: `pill ${t.k}`, 'data-clearing': id },
+                        return sv('g', { transform: `translate(${box.x.toFixed(1)} ${box.y.toFixed(1)})`, class: `pill ${t.k}${t.disc ? ' disc' : ''}`, 'data-clearing': id },
                             sv('rect', { width: box.w, height: box.h, rx: 6 }),
                             sv('circle', { cx: 8, cy: box.h / 2, r: 6, class: 'pillnum' }),
                             sv('text', { x: 8, y: box.h / 2, dy: '.35em', 'text-anchor': 'middle', class: 'pillnumtxt' }, String(c.n)),

@@ -98,8 +98,10 @@ export function gameScreen(ctx) {
             if (c.kind === 'warning' && c.letter === 'V') continue;
             const known = c.up || st.ch.seen.includes(c.id);
             const name = KINDNAME[c.kind] ?? c.name;
-            if (c.up && c.clearing && (c.kind === 'sound' || c.kind === 'site')) { add(c.tile + c.clearing, { k: c.kind, label: c.kind === 'sound' ? `\u266A ${name}` : `\u25C6 ${name}` }); continue; }
-            if (!c.up && c.kind === 'site' && st.ch.discovered.sites.includes(c.id)) { add(c.tile + c.num, { k: 'site', label: `\u25C6 ${name}` }); continue; }
+            // a site he has DISCOVERED (Locate, Discover chits) carries a tick and a gold edge: it may be looted. A site chit merely turned up does not.
+            const disc = c.kind === 'site' && st.ch.discovered.sites.includes(c.id);
+            if (c.up && c.clearing && (c.kind === 'sound' || c.kind === 'site')) { add(c.tile + c.clearing, { k: c.kind, disc, label: c.kind === 'sound' ? `\u266A ${name}` : `\u25C6 ${name}${disc ? ' \u2713' : ''}` }); continue; }
+            if (!c.up && c.kind === 'site' && disc) { add(c.tile + c.num, { k: 'site', disc: true, label: `\u25C6 ${name} \u2713` }); continue; }
             (chitsByTile[c.tile] ??= []).push({ up: known, name: known ? (c.kind === 'sound' ? `${name} ${c.num}` : name) : '?', id: c.id, kind: known ? c.kind : null, slot: slotOf[c.id] });
         }
         for (const d of st.dwellings) {
@@ -322,7 +324,7 @@ export function gameScreen(ctx) {
         else if (ui.sheet === 'score') out.push(scoreSheet());
         else if (ui.sheet === 'key') out.push(modal('Map key', h('div', { class: 'key' },
             ...[['I H C G', 'Dwellings: Inn, House, Chapel, Guard house; the number beside it is the natives there'],
-                ['\u25C6', 'A site you have found: treasure lies there'], ['\u266A', 'A sound chit that has turned up: monsters stir in that clearing'],
+                ['\u25C6 \u2713', 'A site you have discovered (gold edge): you may loot it or read its runes'], ['\u25C6', 'A site chit that has turned up but is not yet discovered: Locate it first'], ['\u266A', 'A sound chit that has turned up: monsters stir in that clearing'],
                 ['?', 'A face-down chit in that tile; a letter means you have peeked at it'], ['red', 'Monsters (the number is how many)'], ['blue', 'Natives'],
                 ['? on a dotted line', 'A hidden path or secret passage printed on the tile that you have not discovered yet: you cannot use it until you do'],
                 ['\u25C7', 'You: solid when you are seen, hollow when you are hidden']].map(([k, t]) => h('p', {}, h('b', {}, k), ' ', t))), { close: () => { ui.sheet = null; render(); } }));

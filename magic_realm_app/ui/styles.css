@@ -714,3 +714,6 @@ button.daybox { min-width: 0; overflow: hidden; padding: 0 2px; }
 .deathbox .dwho { font-size: 18px; color: var(--text); }
 .deathbox small { color: var(--dim); font-size: 14px; }
 .deathbox .dstats { color: var(--dim); font-size: 14px; letter-spacing: .04em; }
+
+/* a discovered site: a gold edge round its pill (and a tick in its name) */
+.realm-svg .pill.disc rect { stroke: #f1d27f; stroke-width: 2.4; }
