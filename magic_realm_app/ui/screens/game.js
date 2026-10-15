@@ -1047,6 +1047,12 @@ export function gameScreen(ctx) {
                 const dim = a !== 'nothing' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver;
                 return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a]);
             })));
+        // a climb needs its second Move straight after the first
+        if (s?.act === 'move' && s.to && isMountain(st, data, s.to)) {
+            const prev = d.slots[i - 1], next = d.slots[i + 1];
+            const paired = (next?.act === 'move' && next.to === s.to) || (prev?.act === 'move' && prev.to === s.to);
+            if (!paired) out.push(h('p', { class: 'hint bad' }, `${nameOfClearing(s.to)} is a mountain: it takes two Move phases in a row, so the next phase must be this Move too.`));
+        }
         if (ui.pickMove === i || s?.act === 'move') {
             out.push(h('p', { class: 'hint' }, at[i] || st.ch.onRoad ? 'Tap a ringed clearing on the map to go there.' : 'You are on a road; move to one of its ends first.'));
         }
@@ -1129,7 +1135,12 @@ export function gameScreen(ctx) {
         const d = ui.draft;
         d.slots[i] = { act: 'move', to };
         // a mountain takes two moves in a row: fill the next phase with the same move
-        if (isMountain(st, data, to) && i + 1 < planInfo().total && !d.slots[i + 1]) d.slots[i + 1] = { act: 'move', to };
+        // (only if the next phase can really be a Move: an extra phase that is for Rest alone, or a day with no phase left, is not filled)
+        if (isMountain(st, data, to) && i + 1 < planInfo().total && !d.slots[i + 1]) {
+            const trial = d.slots.map((x, j) => (j === i + 1 ? { act: 'move', to } : x));
+            const k = planKinds(st, data, trial);
+            if (k.kinds[i + 1] === 'basic' || k.kinds[i + 1] === 'sunlight' || k.kinds[i + 1] === 'extra') d.slots[i + 1] = { act: 'move', to };
+        }
         ui.pickMove = null;
         advance(i + 1);
         render();
