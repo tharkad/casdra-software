@@ -163,9 +163,9 @@ export function gameScreen(ctx) {
                 h('b', {}, `Day ${st.day}`, h('small', {}, st.mode === 'endless' ? '' : `/${st.lastDay ?? 28}`)),
                 h('span', {}, isMagicDay(st.day) ? `${dayColors(st.day).join(' & ')} magic` : `${st.period === 'over' ? 'finished' : st.period}`)),
             h('button', { class: 'stats', onclick: () => { ui.sheet = ui.sheet === 'char' ? null : 'char'; render(); } },
-                h('span', { class: 'stat gold' }, `${st.ch.gold}g`),
-                h('span', { class: 'stat' }, `Fame ${st.ch.fame}`),
-                h('span', { class: 'stat' }, `Notor ${st.ch.notoriety}`)),
+                h('span', { class: 'statbox gold', 'data-stat': 'gold' }, h('small', {}, 'Gold'), h('b', {}, String(st.ch.gold))),
+                h('span', { class: 'statbox fame', 'data-stat': 'fame' }, h('small', {}, 'Fame'), h('b', {}, String(st.ch.fame))),
+                h('span', { class: 'statbox notor', 'data-stat': 'notoriety' }, h('small', {}, 'Notor'), h('b', {}, String(st.ch.notoriety)))),
             (() => {
                 const tot = vpNow();
                 return h('button', { class: 'vpchip', 'data-act': 'vp', 'aria-label': `Victory points: ${tot}. Tap for your goals`, onclick: () => { ui.sheet = ui.sheet === 'score' ? null : 'score'; render(); } },
