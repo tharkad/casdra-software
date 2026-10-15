@@ -236,10 +236,11 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             gainChips.length ? h('div', { class: 'gain-chips' }, ...gainChips) : null,
             h('span', {}, liveFoes ? 'Others are still on their feet.' : `${killed.length ? `You killed ${names}: n` : 'N'}othing hostile is left standing. ${price}; settle it and the evening is yours.`))
         : null;
-    const decision = h('div', { class: 'cb-body' }, ...[headline, ...body].filter(Boolean));
+    const decision = h('div', { class: 'cb-body' }, ...body.filter(Boolean));
     return h('div', { class: 'combat' }, header, state,
         h('div', { class: 'cb-scroll' },
-            ...(decideFirst ? [decision] : []),
-            h('div', { class: 'cb-foes' }, ...foeEls), gearBlock, diceBlock, last,
-            ...(decideFirst ? [] : [decision])));
+            // After a round: what happened comes first (it is the first chance to read it), then the choice it leaves, then the table.
+            ...(decideFirst ? [headline, last, decision] : []),
+            h('div', { class: 'cb-foes' }, ...foeEls), gearBlock, diceBlock,
+            ...(decideFirst ? [] : [last, decision])));
 }
