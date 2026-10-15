@@ -28,5 +28,13 @@ function render() {
     app.append(make(ctx));
 }
 
+// The game is laid out for a phone held upright. Where the browser allows it the orientation is locked (installed apps, full screen);
+// elsewhere index.html's #turnup cover asks for the phone to be turned back.
+function lockPortrait() {
+    try { const p = screen.orientation?.lock?.('portrait'); if (p?.catch) p.catch(() => {}); } catch { /* not allowed here */ }
+}
+lockPortrait();
+addEventListener('pointerdown', lockPortrait, { once: true });
+
 window.__mr = { ctx, render };
 render();
