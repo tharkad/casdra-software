@@ -1,11 +1,11 @@
 import { rollRow } from '../dice.js';
-import { monsterCounter } from '../counter.js';
+import { monsterCounter, itemFace } from '../counter.js';
 import { ask } from '../ask.js';
 import { h } from '../dom.js';
-import { encounterOptions, meleeOptions, denSide } from '../../engine/combat.js';
+import { encounterOptions, meleeOptions, denSide, weaponOf, activeArmor } from '../../engine/combat.js';
 import { roadsFrom, nameOfClearing } from '../../engine/world.js';
 import { chitLabel } from '../../engine/day.js';
-import { nameOf, weightOf } from '../../engine/items.js';
+import { nameOf, weightOf, defOf } from '../../engine/items.js';
 import { lvl } from '../../engine/core.js';
 
 // The evening fight: a vertical, one-hand layout. Foes on top, then the choice in front of you, then the chits you may play.
@@ -63,6 +63,36 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
                 d.pickedUp ? h('em', {}, 'has seized you') : null,
                 d.engagedBy ? h('em', { class: 'ally' }, 'is fighting your hireling') : null));
     });
+    // Your weapon and armor, as counters: tap one to turn it over and read its other side (alerted / not alerted, whole / damaged).
+    ui.flippedGear ??= {};
+    const WORD = { N: 'Negligible', L: 'Light', M: 'Medium', H: 'Heavy', T: 'Tremendous' };
+    const gearCard = it => {
+        const d = defOf(data, it), name = nameOf(data, it), pic = data.art?.weapons?.[name] ?? data.art?.armor?.[name] ?? null;
+        const flip = !!ui.flippedGear[it.uid];
+        let counter, lines;
+        if (it.kind === 'weapon') {
+            const showA = flip ? !it.alerted : !!it.alerted, s = showA ? d.alerted : d.unalerted;
+            counter = itemFace({ name, picture: pic, face: showA ? 'Alerted' : 'Not alerted', big: `${s.harm}${s.attackTime ?? ''}`, stars: s.stars ?? 0, corner: `(${d.length})`, current: !flip, size: 92 });
+            lines = [`${d.missile ? 'Missile weapon' : 'Striking weapon'} \u00B7 length ${d.length}`,
+                `${showA ? 'Alerted' : 'Not alerted'}: harm ${s.harm}${'*'.repeat(s.stars ?? 0)}, ${s.attackTime == null ? 'attack time from your Fight chit' : `attack time ${s.attackTime}`}`];
+        } else {
+            const showD = flip ? !it.damaged : !!it.damaged;
+            counter = itemFace({ name, picture: pic, face: showD ? 'Damaged' : 'Whole', big: d.toughness ?? '', circle: showD ? d.priceDamaged ?? null : d.priceIntact ?? null, circleTone: showD ? 'red' : 'blue', current: !flip, size: 92 });
+            const dirs = (d.protects ?? []).map(x => (typeof x === 'number' ? DIRS[x] : x)).join(', ');
+            lines = [`${(d.type ?? 'armor')[0].toUpperCase()}${(d.type ?? 'armor').slice(1)} \u00B7 toughness ${WORD[d.toughness] ?? d.toughness}`,
+                d.chooseOneDirection ? 'guards the one direction you choose each round' : `guards against ${dirs || 'nothing listed'}`,
+                showD ? 'damaged: one more blow of its toughness destroys it' : 'whole: a blow as strong as its toughness damages it'];
+        }
+        return h('button', { class: `foe gear${flip ? ' rev' : ''}`, 'data-gear': it.uid, 'aria-pressed': flip ? 'true' : 'false', 'aria-label': `${name}: tap to turn it over`,
+            onclick: () => { ui.flippedGear[it.uid] = !ui.flippedGear[it.uid]; render(); } },
+            counter,
+            h('div', { class: 'foe-text' }, h('b', {}, name), h('em', { class: 'sidetag' }, flip ? 'other side' : (it.kind === 'weapon' ? (it.alerted ? 'alerted now' : 'not alerted now') : (it.damaged ? 'damaged now' : 'whole now'))),
+                ...lines.map(t => h('span', {}, t)),
+                it.destroyed ? h('em', {}, 'destroyed') : null));
+    };
+    const w0 = weaponOf(st, data);
+    const gearItems = [...(w0 ? [w0.item] : []), ...activeArmor(st, data).map(a => a.item ?? a).filter(x => x && x.uid)];
+    const gearBlock = gearItems.length ? h('div', { class: 'cb-gear' }, h('small', { class: 'cb-gear-h' }, 'Your weapon and armor \u00B7 tap one to turn it over'), ...gearItems.map(gearCard)) : null;
     const dice = (st.rolls ?? []).filter(r => r.n > (c.roundRollFrom ?? c.rollFrom ?? 0)).slice(-8);
     const diceBlock = dice.length ? h('div', { class: 'cb-dice' }, ...dice.map(r => rollRow(r, { compact: true }))) : null;
     const last = c.events?.length ? h('div', { class: 'cb-last' }, h('b', {}, 'Last round'), ...c.events.map(e => h('p', { class: e.startsWith('  ') ? 'sub' : /^(Round \d+:|Order of blows|Boxes as|Repositioning)/.test(e) ? 'hd' : '' }, e.trim()))) : null;
@@ -198,6 +228,6 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
     return h('div', { class: 'combat' }, header, state,
         h('div', { class: 'cb-scroll' },
             ...(decideFirst ? [decision] : []),
-            h('div', { class: 'cb-foes' }, ...foeEls), diceBlock, last,
+            h('div', { class: 'cb-foes' }, ...foeEls), gearBlock, diceBlock, last,
             ...(decideFirst ? [] : [decision])));
 }
