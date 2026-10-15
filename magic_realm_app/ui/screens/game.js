@@ -164,9 +164,9 @@ export function gameScreen(ctx) {
                 h('span', { class: 'stat' }, `Fame ${st.ch.fame}`),
                 h('span', { class: 'stat' }, `Notor ${st.ch.notoriety}`)),
             (() => {
-                const over = st.period === 'over', pr = progress(st, data), tot = vpNow();
-                return h('button', { class: `vpchip${over && tot < 0 ? ' neg' : ''}`, 'data-act': 'vp', 'aria-label': over ? 'Final victory points' : `Goals: ${pr.met} of ${pr.count} reached`, onclick: () => { ui.sheet = ui.sheet === 'score' ? null : 'score'; render(); } },
-                    h('small', {}, over ? 'VP' : 'GOALS'), h('b', {}, over ? (tot > 0 ? `+${tot}` : String(tot)) : `${pr.met}/${pr.count}`));
+                const tot = vpNow();
+                return h('button', { class: 'vpchip', 'data-act': 'vp', 'aria-label': `Victory points: ${tot}. Tap for your goals`, onclick: () => { ui.sheet = ui.sheet === 'score' ? null : 'score'; render(); } },
+                    h('small', {}, 'VP'), h('b', {}, tot > 0 ? `+${tot}` : String(tot)));
             })());
         map.set(mapModel());
         const hero = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at;
@@ -720,7 +720,7 @@ export function gameScreen(ctx) {
         const idle = CATS.filter(c => !(need[c] > 0));
         return modal('Your goals', h('div', { class: 'scoresheet' },
             ask(over ? `Final score: ${sign(res.total ?? -100)}${res.dead ? ' (dead characters score -100)' : (res.total >= 0 ? ': a win' : ': not enough')}`
-                : res.dead ? 'You are dead: a dead character scores -100.' : `You have reached ${pr.met} of your ${pr.count} goals.`,
+                : res.dead ? 'You are dead: a dead character scores -100.' : `Score ${sign(res.total ?? 0)}. You have reached ${pr.met} of your ${pr.count} goals.`,
                 over ? 'The game is over; this is how each goal finished.'
                     : 'Reach every goal by the end of the month to win. Going past a goal earns bonus points; ending short of one costs points, counted three times over.'),
             ...pr.goals.map(goalCard),
