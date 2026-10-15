@@ -128,8 +128,8 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
                 h('p', {}, 'A hidden character is not touched by the Fiery Chasm. Staying hidden keeps a Demon from being set on you at all.')));
         }
         if (c.round === 1 && c.intro?.length) body.push(h('div', { class: 'ask', role: 'note' }, h('b', {}, 'How this came about'), ...c.intro.map(t => h('p', {}, t))));
-        body.push(ask(p.spellOnly ? 'A quiet evening: nothing is fighting you.' : `Round ${c.round}, Encounter step: you may take one action before the melee.`,
-            p.spellOnly ? 'Spells are cast in the evening, so the game stops here to let you cast one. You may also do nothing.'
+        body.push(ask(p.spellOnly ? 'Evening: nothing is fighting you. Do you want to cast a spell?' : `Round ${c.round}, Encounter step: you may take one action before the melee.`,
+            p.spellOnly ? 'Spells are cast in the evening (rule 8.1.3a: a quiet clearing still gets its rounds), so the game stops here to let you cast one now. You may also do nothing.'
                 : 'Before plays are chosen you may ready your weapon, run from the fight, cast a spell, or simply go on. A chit you play here has to be faster than every creature facing you.'));
         if (o.canStay && !p.spellOnly) {
             body.push(h('p', { class: 'hint' }, 'You are hidden. Creatures cannot be set on a hidden character, so nothing here can attack you. You may stay hidden and let the evening pass, or strike from hiding: you get the first blow, but you are revealed.'));

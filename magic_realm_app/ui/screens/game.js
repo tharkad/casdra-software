@@ -19,7 +19,7 @@ import { ask } from '../ask.js';
 import { itemFace } from '../counter.js';
 import { cardEl } from '../card.js';
 import { earned, targets, scoreGame, progress, FACTORS, CATS } from '../../engine/score.js';
-import { COLORS, COLOR_MEANING, dayColors, isMagicDay, colorSources, castable } from '../../engine/spells.js';
+import { COLORS, COLOR_MEANING, dayColors, isMagicDay, colorSources, castable, castOptions, ATTACK_SPELLS } from '../../engine/spells.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
@@ -231,6 +231,9 @@ export function gameScreen(ctx) {
             h('span', { class: 'skull', 'aria-hidden': 'true' }, '\u2620'),
             h('span', { class: 'rl' }, h('small', { class: 'gl' }, 'YOU ARE CURSED'), ...cursesOn.map(n => h('span', { class: 'cl' }, h('b', {}, n), ' ', CURSE_PLAIN[n] ?? ''))),
             h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A')) : null;
+        // a spell that could be cast tonight: said during the day so it is not a surprise that the evening stops to ask
+        const tonight = (st.period === 'daylight' || st.period === 'birdsong') && !st.combat && !st.ch.onRoad ? castOptions(st, data).filter(o => o.useful && !ATTACK_SPELLS[o.spell]) : [];
+        const tonightBar = tonight.length ? h('p', { class: 'hint tonight', 'data-act': 'cast-tonight' }, `\u2728 You can cast ${[...new Set(tonight.map(o => o.name))].join(', ')} this evening: the game will stop and ask you, even if nothing attacks.`) : null;
         const info = h('div', { class: 'where2' }, h('span', { class: 'you' }, 'You are at'), h('b', {}, st.ch.onRoad ? 'on the road' : where), st.ch.hidden ? h('em', {}, 'hidden') : h('em', { class: 'seen' }, 'visible'));
         const recent0 = [...st.log].reverse().filter(l => l.k !== 'day' && l.k !== 'roll').slice(0, 3).reverse();
         ui.gainSeen ??= st.gainSeq ?? 0;
@@ -273,7 +276,7 @@ export function gameScreen(ctx) {
         } else if (p.type === 'over') main = h('div', { class: 'dock-ask' }, st.ch.dead || st.over?.reason === 'died' ? deathBox() : null,
             h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result'));
         else main = h('div', { class: 'note' }, 'Decision needed...');
-        dock.replaceChildren(...[curseBar, magicBar, info, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, main].filter(Boolean));
+        dock.replaceChildren(...[curseBar, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, main].filter(Boolean));
     }
 
     function describeSlot(s) {
@@ -644,7 +647,7 @@ export function gameScreen(ctx) {
             h('p', { class: 'hint' }, 'Gold, Fame and Notoriety are shown on the top bar. Fatigued chits are dim; wounded chits are crossed out.'),
             ...(ch.spells?.length ? [h('h3', {}, 'Spells'), ...ch.spells.map(id => h('div', { class: 'itemrow spellrow' }, h('button', { class: 'btn row', 'data-spell': id, onclick: () => { ui.spellId = id; ui.sheet = 'spell'; render(); } },
                 h('span', { class: 'rl' }, h('b', {}, data.spells?.[id]?.name ?? id), h('small', {}, `Type ${data.spells?.[id]?.type ?? '?'} \u00B7 ${data.spells?.[id]?.color ?? 'any colour'} \u00B7 ${data.spells?.[id]?.duration ?? ''}`)),
-                h('em', {}, castable(data.spells?.[id]) ? 'evening fight' : 'not yet'))))]
+                h('em', {}, castable(data.spells?.[id]) ? 'cast in the evening' : 'not yet'))))]
                 : (data.characters[ch.id].stage4.spellsKnown ?? 0) ? [h('p', { class: 'hint' }, `Spells: one of type ${(data.characters[ch.id].stage4.spellTypes ?? []).join('/')} (not castable in this build yet).`)] : []),
             h('h3', {}, 'Carrying'),
             ...ch.items.map(it => {
@@ -861,7 +864,7 @@ export function gameScreen(ctx) {
         const color = sp.color ?? 'any';
         return cardEl({ title: sp.name, kind: sp.color ?? 'any', tag: `Type ${sp.type} spell \u00B7 ${color === 'any' ? 'any colour of magic' : `${color} magic`} \u00B7 ${sp.duration}`,
             stats: [...(target ? [['Target', target]] : []), ['Cast with', `a Magic chit of type ${sp.type}`], ['Colour needed', color === 'any' ? 'any' : color]], text: body,
-            notes: [castable(sp) ? 'You can cast this only in the Encounter step of an evening fight (rule 4.6.5b), where its colour of magic is present. If nothing is in your clearing at Evening there is no fight and so no chance to cast it; a Rest phase mends chits without one.' : 'This spell cannot be cast in this build yet.'] });
+            notes: [castable(sp) ? 'You cast this in the Encounter step of the evening, where its colour of magic is present. If nothing is fighting you the evening is still held (rule 8.1.3a) and the game stops to ask whether you want to cast it, when there is something for it to do.' : 'This spell cannot be cast in this build yet.'] });
     }
     function spellSheet() {
         const sp = data.spells?.[ui.spellId];
