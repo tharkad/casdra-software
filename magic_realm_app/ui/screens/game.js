@@ -24,6 +24,16 @@ import { collect as collectReport, send as sendReport } from '../bugreport.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
 const SAVE_KEY = 'mr-save-v1';
+// What each curse takes away, in plain words, the action it spoils (so the plan can say so before the phase is wasted) and how it ends.
+const CURSE_ACT = { Eyemist: 'search', Squeak: 'hide', 'Ill Health': 'rest' };
+const CURSE_PLAIN = {
+    Eyemist: 'You cannot Search at all (Locate, Loot, Peer, Reading Runes).',
+    Squeak: 'You cannot Hide, and you were unhidden the moment it struck: monsters will see you.',
+    Wither: 'Chits with an asterisk cannot be played: they were all tired when it struck.',
+    'Ill Health': 'You cannot Rest, so tired and wounded chits stay that way.',
+    Ashes: 'Your gold is worthless: you cannot spend it, so you cannot buy, hire or pay.',
+    Disgust: 'Your Fame is worthless: you cannot lose it, so paying an insult in Fame is not possible and Challenges mean a fight.',
+};
 const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert', enchant: 'Enchant', nothing: 'Nothing' };
 const TABLE_LABEL = { peer: 'Peer', locate: 'Locate', loot: 'Loot', ground: 'Ground', sitecard: 'Site card', runes: 'Read runes' };
 
@@ -162,7 +172,7 @@ export function gameScreen(ctx) {
             h('button', { class: 'back', 'aria-label': 'Menu', onclick: () => { ui.sheet = ui.sheet === 'menu' ? null : 'menu'; render(); } }, '☰'),
             h('button', { class: 'bugbtn', 'aria-label': 'Report a problem', 'data-act': 'bug', onclick: () => { ui.sheet = 'bug'; render(); } }, '\u{1F41E}'),
             h('button', { class: `daybox${isMagicDay(st.day) ? ' magic' : ''}`, 'data-act': 'calendar', 'aria-label': 'Calendar and the colours of magic', onclick: () => { ui.sheet = ui.sheet === 'calendar' ? null : 'calendar'; render(); } },
-                h('b', {}, `Day ${st.day}`, h('small', {}, st.mode === 'endless' ? '' : `/${st.lastDay ?? 28}`)),
+                h('b', {}, `Day ${st.day}`, h('small', {}, st.mode === 'endless' ? '' : `/${st.lastDay ?? 28}`), (st.ch.curses ?? []).length ? h('i', { class: 'cursedmark', 'aria-label': 'cursed' }, '\u2620') : null),
                 h('span', {}, isMagicDay(st.day) ? `${dayColors(st.day).join(' & ')} magic` : `${st.period === 'over' ? 'finished' : st.period}`)),
             h('button', { class: 'stats', onclick: () => { ui.sheet = ui.sheet === 'char' ? null : 'char'; render(); } },
                 h('span', { class: 'statbox gold', 'data-stat': 'gold' }, h('small', {}, 'Gold'), h('b', {}, String(st.ch.gold))),
@@ -213,6 +223,12 @@ export function gameScreen(ctx) {
         const magicNow = dayColors(st.day);
         const magicBar = magicNow.length ? h('button', { class: 'magicbar', 'data-act': 'magic-day', onclick: () => { ui.sheet = 'calendar'; render(); } },
             h('span', {}, 'The land is filled with'), ...magicNow.map(c => colorChip(c)), h('span', { class: 'until' }, 'until midnight')) : null;
+        const cursesOn = st.ch.curses ?? [];
+        const curseJustFell = (st.finds ?? []).some(f => f.kind === 'curse' && f.n > (ui.findSeen ?? st.findSeq ?? 0));
+        const curseBar = cursesOn.length && !curseJustFell ? h('button', { class: 'cursebar', 'data-act': 'curses', 'aria-label': `You are cursed: ${cursesOn.join(', ')}. Tap for what it does`, onclick: () => { ui.sheet = 'curses'; render(); } },
+            h('span', { class: 'skull', 'aria-hidden': 'true' }, '\u2620'),
+            h('span', { class: 'rl' }, h('small', { class: 'gl' }, 'YOU ARE CURSED'), ...cursesOn.map(n => h('span', { class: 'cl' }, h('b', {}, n), ' ', CURSE_PLAIN[n] ?? ''))),
+            h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A')) : null;
         const info = h('div', { class: 'where2' }, h('span', { class: 'you' }, 'You are at'), h('b', {}, st.ch.onRoad ? 'on the road' : where), st.ch.hidden ? h('em', {}, 'hidden') : h('em', { class: 'seen' }, 'visible'));
         const recent0 = [...st.log].reverse().filter(l => l.k !== 'day' && l.k !== 'roll').slice(0, 3).reverse();
         ui.gainSeen ??= st.gainSeq ?? 0;
@@ -226,6 +242,10 @@ export function gameScreen(ctx) {
         ui.findSeen ??= st.findSeq ?? 0;
         const findBars = (st.finds ?? []).filter(f => f.n > ui.findSeen).map(f => {
             const isCard = f.kind === 'card';
+            if (f.kind === 'curse') return h('button', { class: 'gainbar find curse', 'data-act': 'curse-new', onclick: () => { ui.sheet = 'curses'; render(); } },
+                h('span', { class: 'skull', 'aria-hidden': 'true' }, '\u2620'),
+                h('span', { class: 'rl' }, h('small', { class: 'gl' }, 'A CURSE HAS FALLEN ON YOU'), h('b', {}, f.name), h('small', {}, CURSE_PLAIN[f.name] ?? f.effect)),
+                h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A'));
             return h('button', { class: 'gainbar find', 'data-act': 'find', onclick: () => { if (isCard) { ui.cardId = f.id; ui.sheet = 'cardinfo'; } else { ui.sel = f.clearing; ui.sheet = 'clearing'; } render(); } },
                 h('span', { class: 'rl' }, h('small', { class: 'gl' }, isCard ? 'YOU FOUND' : 'YOU DISCOVERED'), h('b', {}, f.name ?? 'a site'), h('small', {}, isCard ? 'Tap to read the card' : `at ${nameOfClearing(f.clearing)}: tap for what is there`)),
                 h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A'));
@@ -251,7 +271,7 @@ export function gameScreen(ctx) {
         } else if (p.type === 'over') main = h('div', { class: 'dock-ask' }, st.ch.dead || st.over?.reason === 'died' ? deathBox() : null,
             h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result'));
         else main = h('div', { class: 'note' }, 'Decision needed...');
-        dock.replaceChildren(...[magicBar, info, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, main].filter(Boolean));
+        dock.replaceChildren(...[curseBar, magicBar, info, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, main].filter(Boolean));
     }
 
     function describeSlot(s) {
@@ -329,6 +349,7 @@ export function gameScreen(ctx) {
         else if (ui.sheet === 'setupcard') out.push(setupCardSheet());
         else if (ui.sheet === 'item') out.push(itemSheet());
         else if (ui.sheet === 'cardinfo') out.push(cardInfoSheet());
+        else if (ui.sheet === 'curses') out.push(cursesSheet());
         else if (ui.sheet === 'spell') out.push(spellSheet());
         else if (ui.sheet === 'score') out.push(scoreSheet());
         else if (ui.sheet === 'key') out.push(modal('Map key', h('div', { class: 'key' },
@@ -859,6 +880,21 @@ export function gameScreen(ctx) {
     }
 
     // One belonging: both of its faces drawn as counters, the facts, and the switch.
+    // The curses on him, what each takes away and what lifts it.
+    function cursesSheet() {
+        const back = { close: () => { ui.sheet = null; render(); } };
+        const mine = st.ch.curses ?? [];
+        const rows = Object.values(data.tables.curses.rows);
+        const atChapel = st.dwellings.some(d => d.kind === 'Chapel' && d.at === st.ch.at);
+        return modal(mine.length ? 'You are cursed' : 'Curses', h('div', { class: 'cursesheet' },
+            mine.length ? null : h('p', { class: 'hint' }, 'You carry no curse. A curse can fall on you from a Treasure Location card, a Reading Runes result or a Loot result.'),
+            ...mine.map(n => h('div', { class: 'curserow' }, h('span', { class: 'skull', 'aria-hidden': 'true' }, '\u2620'), h('div', {}, h('b', {}, n), h('p', {}, CURSE_PLAIN[n] ?? rows.find(r => r.name === n)?.effect ?? '')))),
+            mine.length ? h('p', { class: 'hint' }, atChapel ? 'You are in a Chapel\u2019s clearing: at Midnight it lifts every curse.' : 'A curse stays until Midnight finds you in the clearing of a Chapel, which lifts them all. Walk there before the day ends.') : null,
+            h('h3', {}, 'All six curses'),
+            ...rows.map(r => h('p', { class: `hint${mine.includes(r.name) ? ' bad' : ''}` }, h('b', {}, r.name + ': '), CURSE_PLAIN[r.name] ?? r.effect)),
+            h('button', { class: 'btn', onclick: back.close }, 'Back')), back);
+    }
+
     // A treasure card he found but does not carry (a Mouldy Skeleton, a Toadstool Circle): what it says.
     function cardInfoSheet() {
         const td = data.treasures[ui.cardId];
@@ -1104,9 +1140,12 @@ export function gameScreen(ctx) {
         const out = [];
         out.push(h('div', { class: 'chips2 six' },
             ...['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), 'nothing'].map(a => {
-                const dim = a !== 'nothing' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver;
-                return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a]);
+                const cursed = (st.ch.curses ?? []).some(n => CURSE_ACT[n] === a);
+                const dim = cursed || (a !== 'nothing' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver);
+                return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${cursed ? ' cursed' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a], cursed ? h('small', {}, ' \u2620') : null);
             })));
+        const blockedNow = (st.ch.curses ?? []).filter(n => CURSE_ACT[n]);
+        if (blockedNow.length) out.push(h('p', { class: 'hint bad' }, `\u2620 ${blockedNow.map(n => `${n}: ${ACT_LABEL[CURSE_ACT[n]]} is not possible.`).join(' ')}`));
         // a climb needs its second Move straight after the first
         if (s?.act === 'move' && s.to && isMountain(st, data, s.to)) {
             const prev = d.slots[i - 1], next = d.slots[i + 1];

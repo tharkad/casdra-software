@@ -12,6 +12,9 @@ export function rollCurse(st, data) {
     if (!ch.curses.includes(row.name)) ch.curses.push(row.name);
     if (row.name === 'Squeak') ch.hidden = false;
     if (row.name === 'Wither') for (const c of ch.chits) if (c.state === 'active' && c.effort > 0) c.state = 'fatigued';
+    st.findSeq = (st.findSeq ?? 0) + 1;
+    (st.finds ??= []).push({ n: st.findSeq, day: st.day, kind: 'curse', name: row.name, effect: row.effect });
+    if (st.finds.length > 40) st.finds.shift();
     say(st, `A curse falls on you: ${row.name}. ${row.effect}`, 'curse');
     return row.name;
 }
