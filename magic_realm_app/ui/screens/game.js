@@ -644,7 +644,7 @@ export function gameScreen(ctx) {
             h('p', { class: 'hint' }, 'Gold, Fame and Notoriety are shown on the top bar. Fatigued chits are dim; wounded chits are crossed out.'),
             ...(ch.spells?.length ? [h('h3', {}, 'Spells'), ...ch.spells.map(id => h('div', { class: 'itemrow spellrow' }, h('button', { class: 'btn row', 'data-spell': id, onclick: () => { ui.spellId = id; ui.sheet = 'spell'; render(); } },
                 h('span', { class: 'rl' }, h('b', {}, data.spells?.[id]?.name ?? id), h('small', {}, `Type ${data.spells?.[id]?.type ?? '?'} \u00B7 ${data.spells?.[id]?.color ?? 'any colour'} \u00B7 ${data.spells?.[id]?.duration ?? ''}`)),
-                h('em', {}, castable(data.spells?.[id]) ? 'castable' : 'not yet'))))]
+                h('em', {}, castable(data.spells?.[id]) ? 'evening fight' : 'not yet'))))]
                 : (data.characters[ch.id].stage4.spellsKnown ?? 0) ? [h('p', { class: 'hint' }, `Spells: one of type ${(data.characters[ch.id].stage4.spellTypes ?? []).join('/')} (not castable in this build yet).`)] : []),
             h('h3', {}, 'Carrying'),
             ...ch.items.map(it => {
@@ -861,7 +861,7 @@ export function gameScreen(ctx) {
         const color = sp.color ?? 'any';
         return cardEl({ title: sp.name, kind: sp.color ?? 'any', tag: `Type ${sp.type} spell \u00B7 ${color === 'any' ? 'any colour of magic' : `${color} magic`} \u00B7 ${sp.duration}`,
             stats: [...(target ? [['Target', target]] : []), ['Cast with', `a Magic chit of type ${sp.type}`], ['Colour needed', color === 'any' ? 'any' : color]], text: body,
-            notes: [castable(sp) ? 'You can cast this in this build: in the Encounter step of an evening fight, where its colour of magic is present.' : 'This spell cannot be cast in this build yet.'] });
+            notes: [castable(sp) ? 'You can cast this only in the Encounter step of an evening fight (rule 4.6.5b), where its colour of magic is present. If nothing is in your clearing at Evening there is no fight and so no chance to cast it; a Rest phase mends chits without one.' : 'This spell cannot be cast in this build yet.'] });
     }
     function spellSheet() {
         const sp = data.spells?.[ui.spellId];
