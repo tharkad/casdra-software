@@ -847,15 +847,49 @@ export function gameScreen(ctx) {
     // The printed Treasure Set Up Card in full: it is the same for every game, so every player may read it.
     function setupCardSheet() {
         const c = data.setupcard;
-        const guard = id => data.monsters[id]?.name ?? id;
-        const section = (title, rows) => [h('h3', {}, title), ...rows.map(r => h('p', { class: 'setupline' }, r))];
-        return modal('The Setup Card', h('div', { class: 'setupcard' },
+        const guardName = id => data.monsters[id]?.name ?? id;
+        const monsterArt = name => data.art?.monstersColor?.[name] ?? data.art?.monsters?.[name] ?? null;
+        const pips = (n, cls) => Array.from({ length: n }, () => h('i', { class: `pip ${cls}` }));
+        const treasureRow = e => h('div', { class: 'sc-treasure' },
+            e.small ? h('span', { class: 'sc-t', title: 'Small treasures' }, ...pips(e.small, 'small'), h('small', {}, `${e.small} Small`)) : null,
+            e.large ? h('span', { class: 'sc-t', title: 'Large treasures' }, ...pips(e.large, 'large'), h('small', {}, `${e.large} Large`)) : null,
+            ...(e.spells ?? []).map(t => h('span', { class: 'sc-spell', title: `A spell of Type ${t}` }, t)));
+        const found = name => st.chits.some(ch => ch.name === name && st.ch.discovered.sites.includes(ch.id));
+        const need = e => e.special ? e.special.replace('fatigue_asterisk', 'an asterisk of effort').replace('fatigue_t,key', 'a Tremendous chit or the Lost Keys') : null;
+        const siteCard = e => {
+            const gn = guardName(e.guardian), art = monsterArt(gn);
+            return h('div', { class: `sc-card site${found(e.name) ? ' found' : ''}` },
+                h('div', { class: 'sc-head' }, mrChit({ kind: 'site', name: e.name, num: e.chitNumber }),
+                    h('div', { class: 'sc-title' }, found(e.name) ? h('em', {}, 'discovered') : h('small', {}, 'not yet found'))),
+                h('div', { class: 'sc-guard' }, art ? h('img', { src: art, alt: '' }) : null, h('span', {}, h('b', {}, gn), h('small', {}, `comes on Monster Roll ${e.row}`))),
+                treasureRow(e),
+                need(e) ? h('div', { class: 'sc-need' }, `Needs ${need(e)}`) : null);
+        };
+        const nativeArt = group => { const n = Object.values(data.natives ?? {}).find(x => x.group === group && x.leader) ?? Object.values(data.natives ?? {}).find(x => x.group === group); return n ? data.art?.natives?.[n.id] : null; };
+        const goodsArt = name => picOf(name);
+        const dwellingCard = e => h('div', { class: 'sc-card dwelling' },
+            h('div', { class: 'sc-head' }, data.art?.dwellings?.[e.name] ? h('img', { class: 'sc-dw', src: data.art.dwellings[e.name], alt: '' }) : null,
+                h('div', { class: 'sc-title' }, h('b', {}, e.name), h('small', {}, e.group + (e.virtual ? ' (come with the group)' : '')))),
+            h('div', { class: 'sc-natives' }, nativeArt(e.group) ? h('img', { src: nativeArt(e.group), alt: '' }) : null, h('span', {}, h('b', {}, `${e.nativeCounters}`), h('small', {}, ' native counters'))),
+            e.treasures?.small ? treasureRow({ small: e.treasures.small }) : null,
+            Object.keys(e.treasures?.counters ?? {}).length ? h('div', { class: 'sc-goods' }, ...Object.entries(e.treasures.counters).map(([n, k]) =>
+                h('span', { class: 'sc-good' }, goodsArt(n) ? h('img', { src: goodsArt(n), alt: '' }) : null, `${n}${k > 1 ? ` \u00D7${k}` : ''}`))) : null);
+        const twtCard = e => h('div', { class: 'sc-card twt' }, h('b', {}, e.name),
+            h('div', { class: 'sc-treasure' }, ...pips(e.largeTreasures, 'large'), h('small', {}, `${e.largeTreasures} Large`)),
+            h('small', {}, [e.goldReward ? `${e.goldReward} gold` : '', e.needsKey ? 'needs the Lost Keys' : '', e.curse ? 'carries a curse' : '', e.siteCard ? 'searched with its own table' : ''].filter(Boolean).join(' \u00B7 ')));
+        const visitorCard = e => h('div', { class: 'sc-card visitor' }, h('b', {}, e.name), treasureRow({ small: e.small, spells: e.spells }));
+        const byKind = {}; for (const e of c.spellContainers ?? []) (byKind[e.kind] ??= []).push(e);
+        const KIND_LABEL = { book: 'Spell books', artifact: 'Artifacts', site: 'Treasure sites', visitor: 'Visitors' };
+        return modal('The Setup Card', h('div', { class: 'setupcard graphic' },
             h('p', { class: 'hint' }, 'What the printed card says, true in every game. What is in a pile, and in which order, is hidden until it is looted.'),
-            ...section('Treasure sites', (c.sites ?? []).map(siteCardText)),
-            ...section('Dwellings', (c.dwellings ?? []).map(e => `${e.name} (${e.group}${e.virtual ? ', appears with the group' : ''}): ${e.nativeCounters} native counters, ${e.treasures?.small ?? 0} Small treasures. Goods: ${Object.entries(e.treasures?.counters ?? {}).map(([n, k]) => `${n}${k > 1 ? ` \u00D7${k}` : ''}`).join(', ') || 'none'}.`)),
-            ...section('Treasures within Treasures', (c.twt ?? []).map(e => `${e.name}: ${e.largeTreasures} Large treasure${e.largeTreasures === 1 ? '' : 's'}${e.goldReward ? `, ${e.goldReward} gold` : ''}${e.needsKey ? ', needs the Lost Keys' : ''}${e.curse ? ', carries a curse' : ''}${e.siteCard ? ', a place that can be searched with its own table' : ''}.`)),
-            ...section('Visitors', (c.visitors ?? []).map(e => `${e.name}: ${e.small} Small treasures${e.spells?.length ? `, spells ${e.spells.join(', ')}` : ''}.`)),
-            ...section('Spell books and artifacts', (c.spellContainers ?? []).map(e => `${e.name} (${e.kind}): spells ${e.spells.join(', ')}.`)),
+            h('div', { class: 'sc-key' }, h('span', {}, h('i', { class: 'pip small' }), ' Small treasure'), h('span', {}, h('i', { class: 'pip large' }), ' Large treasure'), h('span', {}, h('i', { class: 'sc-spell' }, 'II'), ' Spell (its type)')),
+            h('h3', {}, 'Treasure sites'), h('div', { class: 'sc-grid' }, ...(c.sites ?? []).map(siteCard)),
+            h('h3', {}, 'Dwellings'), h('div', { class: 'sc-grid' }, ...(c.dwellings ?? []).map(dwellingCard)),
+            h('h3', {}, 'Treasures within Treasures'), h('div', { class: 'sc-grid' }, ...(c.twt ?? []).map(twtCard)),
+            h('h3', {}, 'Visitors'), h('div', { class: 'sc-grid' }, ...(c.visitors ?? []).map(visitorCard)),
+            h('h3', {}, 'Spell books and artifacts'),
+            ...Object.entries(byKind).map(([k, list]) => h('div', { class: 'sc-spells' }, h('small', {}, KIND_LABEL[k] ?? k),
+                h('div', { class: 'sc-chips' }, ...list.map(e => h('span', { class: 'sc-chip' }, e.name, ...e.spells.map(t => h('i', { class: 'sc-spell' }, t))))))),
             h('p', { class: 'hint' }, c.notes ?? '')), { close: () => { ui.sheet = 'menu'; render(); } });
     }
 
