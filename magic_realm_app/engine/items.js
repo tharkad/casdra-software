@@ -73,7 +73,8 @@ export function abandon(st, clearing, items) {
     st.abandoned[clearing] = [...(st.abandoned[clearing] ?? []), ...items.map(i => ({ ...i, active: false, alerted: false }))];
 }
 
-// One weapon, one shield, and one body armor (a suit takes the place of helmet and breastplate) can be in use at a time.
+// One weapon at a time, and of armor one of each type: a helmet, a breastplate, a shield and a suit of armor may all be active together (rule 4.3.7: a
+// breastplate is fitted over a suit, a helmet worn over its basinet); two of the same type may not. Armor cards each have a place of their own.
 export function slotsOf(data, it) {
     const d = defOf(data, it);
     if (it.kind === 'weapon') return ['weapon'];
@@ -81,10 +82,7 @@ export function slotsOf(data, it) {
     if (it.kind === 'armor') {
         if (d?.card) return ['card:' + it.id];
         const t = (d?.type ?? '').toLowerCase();
-        if (t === 'suit') return ['head', 'body'];
-        if (t === 'helmet') return ['head'];
-        if (t === 'breastplate') return ['body'];
-        if (t === 'shield') return ['shield'];
+        if (['suit', 'helmet', 'breastplate', 'shield'].includes(t)) return [t];
     }
     return [];
 }
