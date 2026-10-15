@@ -239,7 +239,8 @@ export function gameScreen(ctx) {
                 h('div', { class: 'row2' },
                     h('button', { class: 'btn primary', 'data-act': 'next', onclick: () => act({ type: 'next' }) }, describeSlot(slot)),
                     h('button', { class: 'btn', 'data-act': 'all', onclick: () => act({ type: 'next', all: true }) }, 'Play the day')));
-        } else if (p.type === 'over') main = h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result');
+        } else if (p.type === 'over') main = h('div', { class: 'dock-ask' }, st.ch.dead || st.over?.reason === 'died' ? deathBox() : null,
+            h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result'));
         else main = h('div', { class: 'note' }, 'Decision needed...');
         dock.replaceChildren(...[magicBar, info, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, main].filter(Boolean));
     }
@@ -980,12 +981,24 @@ export function gameScreen(ctx) {
             { close: () => { ui.sheet = null; render(); } });
     }
 
+    // How it ended, said loudly: who or what did it, where, which day, and what he had earned.
+    function deathBox() {
+        const o = st.over ?? {};
+        const by = o.by ? o.by.replace(/ #\d+$/, '') : null;
+        return h('div', { class: 'deathbox', role: 'alert' },
+            h('b', {}, 'You have died'),
+            h('span', { class: 'dwho' }, by ? `Slain by the ${by} at ${nameOfClearing(o.at ?? st.ch.at)}, on day ${o.day ?? st.day}.` : `Fallen at ${nameOfClearing(o.at ?? st.ch.at)}, on day ${o.day ?? st.day}.`),
+            o.text && !by ? h('small', {}, o.text) : null,
+            h('span', { class: 'dstats' }, `Fame ${st.ch.fame} \u00B7 Notoriety ${st.ch.notoriety} \u00B7 ${st.ch.gold} gold`));
+    }
+
     function overSheet() {
         const s = st.score;
         const dead = st.over?.reason === 'died';
         const canRestart = dead && st.mode !== 'endless' && st.day < (st.lastDay ?? 28);
         if (canRestart && ui.restartVp) return restartSheet();
         return modal(dead ? 'You have died' : 'The month is over', h('div', {},
+            dead ? deathBox() : null,
             dead ? h('p', {}, 'Your character is dead and scores -100.') : null,
             ...(s.rows ?? []).map(r => h('p', { class: 'scorerow' }, h('b', {}, r.cat), ` ${r.earned} of ${r.need}`, h('span', {}, ` \u2192 ${r.basic + r.bonus >= 0 ? '+' : ''}${r.basic + r.bonus}`))),
             h('p', { class: 'bigline' }, `Total ${s.total}`, h('small', {}, s.won ? ' (you won)' : ' (not enough)')),

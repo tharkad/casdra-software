@@ -891,6 +891,7 @@ function pitAftermath(st, data, rowName, caster, ctx) {
 
 function killMe(st, text, by = null) {
     st.ch.dead = true; tally(st, 'deathsInCombat'); if (by) tally(st, `slain.${by}`);
+    st.slain = { by, text, at: st.ch.at, day: st.day };            // for the screen that tells him how it ended
     say(st, text, 'combat');
     st.combat.events.push(text);
     st.combat.eventful = true;
@@ -903,7 +904,7 @@ function afterMelee(st, data) {
 }
 
 const nonWounded = st => st.ch.chits.filter(x => x.state !== 'wounded');
-const dieOfWounds = (st, data) => { st.ch.dead = true; say(st, 'Every action chit is wounded; you die.', 'combat'); return endCombat(st, data, 'died'); };
+const dieOfWounds = (st, data) => { st.ch.dead = true; st.slain = { by: null, text: 'Every action chit was wounded: there was nothing left to fight with.', at: st.ch.at, day: st.day }; say(st, 'Every action chit is wounded; you die.', 'combat'); return endCombat(st, data, 'died'); };
 
 // Wounds fall on active chits first, then on fatigued ones; with no chit left to wound he dies.
 function resolveWounds(st, data) {

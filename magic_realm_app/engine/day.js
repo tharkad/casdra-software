@@ -223,7 +223,7 @@ function died(st, data) {
     resetChitsAtMidnight(st);
     st.combat = null;
     st.period = 'over';
-    st.over = { reason: 'died', day: st.day };
+    st.over = { reason: 'died', day: st.day, by: st.slain?.by ?? null, text: st.slain?.text ?? null, at: st.slain?.at ?? st.ch.at };
     st.score = scoreGame(st, data);
     say(st, 'Your adventure ends here.', 'day');
     st.pending = { type: 'over' };
