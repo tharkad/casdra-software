@@ -593,6 +593,7 @@ export function meleePlay(st, data, p) {
         else if (!fight && target) bits.push('You named a target but played no Fight chit, so there was no attack.');
         else if (!target) bits.push('You attacked no one.');
         if (st.ch.hidden) bits.push('You are still hidden, so no creature can be set on you: nothing happens this round.');
+        else if (c.dens.some(d => !d.dead && d.kind !== 'horse' && d.box != null && denSide(st, data, d).attack !== 'none' && (d.partOf ? c.dens.find(x => x.uid === d.partOf)?.assigned : d.assigned))) bits.push('Every blow, theirs and yours, missed: nothing lands this round.');
         else bits.push('No creature could strike you either, so no blow lands this round.');
         const text = bits.join(' ');
         log(text, text);
@@ -649,8 +650,10 @@ export function meleePlay(st, data, p) {
         const wasAlerted = !!w.item.alerted;
         w.item.alerted = !delivered;      // only a blow that was delivered unalerts the weapon; a miss or a cancelled blow leaves it alerted
         // say so: it changes what the weapon does next round (an alerted weapon takes its attack time from the Fight chit)
-        if (!delivered) log(wasAlerted ? `Your ${weaponName} found no mark, so it stays alerted.` : `Your ${weaponName} found no mark, so it is now alerted: its next blow takes its attack time from the Fight chit you play.`,
-            wasAlerted ? `Your ${weaponName} found no mark and stays alerted.` : `Your ${weaponName} found no mark, and the missed swing leaves it alerted: next round its time comes from the Fight chit you play.`);
+        const aTime = w.def.alerted?.attackTime;                       // some weapons print a time on the alerted side (the Morning Star's 3); others use the Fight chit's
+        const timeWhat = aTime != null ? `its attack time is ${aTime}, as printed on its alerted side` : 'its attack time comes from the Fight chit you play';
+        if (!delivered) log(wasAlerted ? `Your ${weaponName} found no mark, so it stays alerted.` : `Your ${weaponName} found no mark, so it is now alerted: next round ${timeWhat}.`,
+            wasAlerted ? `Your ${weaponName} found no mark and stays alerted.` : `Your ${weaponName} found no mark, and the missed swing leaves it alerted: next round ${timeWhat}.`);
         else if (wasAlerted) log(`Your ${weaponName} struck home, so it goes back to unalerted.`, `Your ${weaponName} struck home and goes back to unalerted.`);
     }
     c.attackSpell = null;                                 // an attack spell not used this round is lost
