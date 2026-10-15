@@ -557,3 +557,27 @@ button.chit2:disabled { cursor: default; }
 .daydid-row { margin: 4px 0 4px 6px; font-size: 15px; }
 .daydid-row b { color: var(--dim); font-weight: 600; margin-right: 4px; }
 .daydid-row.hide { color: var(--text); border-left: 3px solid #5fae8a; padding-left: 8px; }
+
+/* map chits drawn the way the game prints them */
+.mrchit { flex: none; box-sizing: border-box; width: 62px; height: 62px; border-radius: 6px; border: 2px solid #1b1710; box-shadow: 0 2px 0 rgba(0,0,0,.55), inset 0 0 0 2px rgba(255,255,255,.35);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; text-align: center; color: #1b1710; line-height: 1.05; padding: 3px; overflow: hidden; }
+.mrchit b { font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; overflow-wrap: anywhere; }
+.mrchit i { font-style: normal; font-size: 17px; font-weight: 800; }
+.mrchit.sound { background: #d65d46; }
+.mrchit.warning { background: #efeb7b; }
+.mrchit.site { background: #efcc6e; }
+.mrchit.special { background: #b491b4; }
+.crow.chit { display: flex; align-items: center; gap: 12px; }
+.crow.chit .callout { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
+.crow.chit .callout small { color: var(--dim); font-size: 14px; }
+.crow.chit .who { display: inline-flex; align-items: center; gap: 6px; }
+.crow.chit .who .ico { width: 36px; height: 36px; object-fit: contain; }
+.crow.chit .who b { font-size: 17px; }
+
+/* from the fight: look at belongings or the map, then come back */
+.cb-peek { display: flex; align-items: center; gap: 8px; }
+.cb-peek em { font-style: normal; margin-left: 4px; }
+.peekbtn { min-height: 34px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; font-size: 15px; }
+.peekbtn:active { background: var(--panel2); }
+.combat-back { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px var(--gutter) calc(12px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(0deg, rgba(10,12,17,.95) 60%, rgba(10,12,17,0)); }
+.combat-back .btn { width: 100%; }

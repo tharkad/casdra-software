@@ -64,6 +64,7 @@ export function gameScreen(ctx) {
 
     function commit(next) { st = next; ctx.state = st; saveGame(st); render(); }
     function act(action) {
+        ui.combatMap = false;
         if (action.type !== 'tidy') ui.gainSeen = st.gainSeq ?? 0;          // what he found last time is old news once he does something else
         try {
             const next = apply(st, data, action);
@@ -247,7 +248,20 @@ export function gameScreen(ctx) {
         const out = [];
         const p = st.pending;
         if (ui.sheet === 'bug') { out.push(bugSheet()); return out; }
-        if (p?.type?.startsWith('combat')) { out.push(combatSheet({ st, data, act, ui, render })); return out; }
+        if (p?.type?.startsWith('combat')) {
+            // The fight can be set aside to look at the map, or covered by the belongings sheets, and then picked up again.
+            if (ui.combatMap) {
+                if (ui.sheet === 'clearing' && ui.sel) out.push(clearingSheet());
+                out.push(h('div', { class: 'combat-back' }, h('button', { class: 'btn primary big', 'data-act': 'back-to-fight', onclick: () => { ui.combatMap = false; render(); } }, 'Back to the fight')));
+                return out;
+            }
+            out.push(combatSheet({ st, data, act, ui, render, peek: { gear: () => { ui.sheet = 'char'; render(); }, map: () => { ui.combatMap = true; ui.sheet = null; render(); } } }));
+            if (ui.sheet === 'char') out.push(charSheet());
+            else if (ui.sheet === 'item') out.push(itemSheet());
+            else if (ui.sheet === 'spell') out.push(spellSheet());
+            else if (ui.sheet === 'card') out.push(modal(st.ch.name, h('div', {}, data.art?.cards?.[st.ch.id] ? h('img', { class: 'cardpic', src: data.art.cards[st.ch.id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { ui.sheet = 'char'; render(); } }));
+            return out;
+        }
         if (ui.peek && ui.sel && p?.type === 'plan') { out.push(clearingSheet()); return out; }
         if (p?.type === 'turn-end') out.push(turnEndSheet());
         else if (p?.type === 'turn-end') out.push(turnEndSheet());
@@ -454,7 +468,7 @@ export function gameScreen(ctx) {
         const cdef = data.tile(tile).sides.normal.clearings.find(c => c.n === n);
         const here = st.ch.at === id && !st.ch.onRoad;
         const sections = [];
-        const row = (k, text, sub, img) => h('div', { class: `crow ${k}` }, img ? h('img', { class: 'ico', src: img, alt: '' }) : null, h('div', { class: 'crow-t' }, h('b', {}, text), sub ? (typeof sub === 'string' ? h('small', {}, sub) : sub) : null));
+        const row = (k, text, sub, img) => h('div', { class: `crow ${k}` }, img ? (typeof img === 'string' ? h('img', { class: 'ico', src: img, alt: '' }) : img) : null, h('div', { class: 'crow-t' }, h('b', {}, text), sub ? (typeof sub === 'string' ? h('small', {}, sub) : sub) : null));
         // you
         if (here) sections.push(['You', [row('me', st.ch.name, st.ch.hidden ? 'hidden: monsters cannot block you' : 'in plain sight')]]);
         // dwelling and the people who live there
@@ -479,8 +493,8 @@ export function gameScreen(ctx) {
         const chitRows = [];
         for (const c of st.chits) {
             if (c.pile || c.tile !== tile) continue;
-            if (c.clearing === n && c.up) chitRows.push(row(c.kind, c.kind === 'sound' ? `${c.name} (sound ${c.num})` : `${c.name} (site ${c.num})`, c.kind === 'site' ? siteLine(c) : 'monsters stir here'));
-            else if (!c.up && c.kind === 'site' && c.num === n && st.ch.discovered.sites.includes(c.id)) chitRows.push(row('site', `${c.name} (site ${c.num})`, siteLine(c)));
+            if (c.clearing === n && c.up) chitRows.push(row(c.kind, c.kind === 'sound' ? `${c.name} (sound ${c.num})` : `${c.name} (site ${c.num})`, c.kind === 'site' ? siteLine(c) : 'monsters stir here', mrChit(c)));
+            else if (!c.up && c.kind === 'site' && c.num === n && st.ch.discovered.sites.includes(c.id)) chitRows.push(row('site', `${c.name} (site ${c.num})`, siteLine(c), mrChit(c)));
         }
         if (chitRows.length) sections.push(['Chits and sites', chitRows]);
         const ground = (st.abandoned[id] ?? []);
@@ -495,15 +509,27 @@ export function gameScreen(ctx) {
             { close: () => { if (ui.peek) { ui.peek = false; ui.sel = null; } else { ui.sheet = null; ui.sel = null; } render(); } });
     }
 
+    // A map chit as the game prints it: a square counter (sound red, warning yellow, treasure site gold), the name above and the clearing number
+    // or tile letter below. RealmSpeak draws them the same way.
+    const mrChit = c => {
+        const kind = c.kind === 'sound' ? 'sound' : c.kind === 'warning' ? 'warning' : c.kind === 'site' ? 'site' : 'special';
+        const second = c.kind === 'warning' ? (c.letter ?? '') : (c.num ?? '');
+        return h('span', { class: `mrchit ${kind}`, role: 'img', 'aria-label': `${c.name}${second !== '' ? ` ${second}` : ''} ${c.kind === 'sound' ? 'sound' : c.kind === 'warning' ? 'warning' : 'site'} chit` },
+            h('b', {}, c.name), second !== '' ? h('i', {}, String(second)) : null);
+    };
     // What happened when his turn ended: chits turned up, creatures that came, natives that appeared, being blocked.
     function turnEndSheet() {
         const t = st.turnEnd;
         const lines = [];
         const KIND = { warning: 'warning chit', sound: 'sound chit', site: 'site chit', 'lost-city': 'the Lost City', 'lost-castle': 'the Lost Castle' };
+        const monsterIcon = n => data.art?.monstersColor?.[n] ?? data.art?.monsters?.[n] ?? null;
         for (const c of t.chits) {
-            const what = c.kind === 'sound' ? `${c.name} (sound, clearing ${c.num})` : c.kind === 'site' ? `${c.name} (site, clearing ${c.num})` : c.kind === 'warning' ? `${c.name} warning` : (KIND[c.kind] ?? c.name);
-            lines.push(h('div', { class: 'crow chit' }, h('b', {}, (c.already ? what : `Turned up: ${what}`)),
-                h('small', {}, c.summons.length ? `It calls out: ${[...new Set(c.summons)].map(n => `${c.summons.filter(x => x === n).length > 1 ? c.summons.filter(x => x === n).length + ' ' : ''}${n}`).join(', ')}${c.dest === t.at ? ' to your clearing' : c.dest ? ` to clearing ${numOf(c.dest)}` : ''}` : `It calls nothing out today${c.why ? `: ${c.why}` : ''}.`)));
+            const counts = new Map(); for (const n of c.summons) counts.set(n, (counts.get(n) ?? 0) + 1);
+            const where = c.dest === t.at ? 'to your clearing' : c.dest ? `to clearing ${numOf(c.dest)}` : '';
+            const out = counts.size
+                ? h('span', { class: 'callout' }, h('small', {}, 'Calls out'), ...[...counts].map(([n, k]) => h('span', { class: 'who' }, monsterIcon(n) ? h('img', { class: 'ico', src: monsterIcon(n), alt: '' }) : null, h('b', {}, `${k > 1 ? k + ' ' : ''}${n}`))), h('small', {}, where))
+                : h('span', { class: 'callout' }, h('small', {}, `Calls nothing out today${c.why ? `: ${c.why}` : ''}.`));
+            lines.push(h('div', { class: 'crow chit' }, mrChit(c), out));
         }
         for (const a of t.arrivals.filter(a => a.why === 'prowls in your tile')) lines.push(h('div', { class: 'crow mon' }, h('b', {}, `${a.name} arrives`), h('small', {}, `it was prowling in this tile and comes to your clearing`)));
         for (const nn of t.natives) lines.push(h('div', { class: 'crow nat' }, h('b', {}, `The ${nn.group} appear`), h('small', {}, `${nn.count} of them, at the ${nn.at}`)));

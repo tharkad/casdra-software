@@ -11,7 +11,7 @@ import { lvl } from '../../engine/core.js';
 // The evening fight: a vertical, one-hand layout. Foes on top, then the choice in front of you, then the chits you may play.
 const DIRS = ['Thrust', 'Swing', 'Smash'], MNV = ['Charge', 'Dodge', 'Duck'];
 
-export function combatSheet({ st, data, act, ui, render }) {
+export function combatSheet({ st, data, act, ui, render, peek }) {
     const p = st.pending, c = st.combat;
     ui.melee ??= { target: c.dens.find(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse')?.uid ?? null, fightChit: null, attackDir: 0, moveChit: null, moveDir: 0, shieldDir: 0, boxes: {} };
     const m = ui.melee;
@@ -20,7 +20,11 @@ export function combatSheet({ st, data, act, ui, render }) {
     const cs = { active: 0, fatigued: 0, wounded: 0 }; st.ch.chits.forEach(x => { cs[x.state]++; });
     const gear = st.ch.items.filter(i => i.kind === 'armor' && i.active).map(i => `${nameOf(data, i)}${i.damaged ? ' (damaged)' : i.destroyed ? ' (destroyed)' : ''}`);
     const header = h('div', { class: 'cb-head' },
-        h('b', {}, `Evening at ${nameOfClearing(c.at)}`), h('span', {}, `Round ${c.round}`));
+        h('b', {}, `Evening at ${nameOfClearing(c.at)}`),
+        h('span', { class: 'cb-peek' },
+            peek ? h('button', { class: 'peekbtn', 'data-act': 'peek-gear', onclick: peek.gear }, 'Belongings') : null,
+            peek ? h('button', { class: 'peekbtn', 'data-act': 'peek-map', onclick: peek.map }, 'Map') : null,
+            h('em', {}, `Round ${c.round}`)));
     const state = h('div', { class: 'cb-state' }, h('span', {}, `Chits: ${cs.active} ready \u00B7 ${cs.fatigued} tired \u00B7 ${cs.wounded} wounded`), h('span', {}, gear.join(', ') || 'no armor'));
     // A tap on a creature turns its counter over: the other side, with its own numbers, and what changed.
     ui.flipped ??= {};
