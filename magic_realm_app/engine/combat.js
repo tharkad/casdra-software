@@ -499,7 +499,9 @@ export function meleePlay(st, data, p) {
     const inBox = b => c.dens.filter(d => !d.dead && d.box === b);
     const old = [inBox(0), inBox(1), inBox(2)];
     for (let nb = 0; nb < 3; nb++) for (const d of old[perm[nb]]) d.box = nb;
-    log(`Repositioning roll: ${rr}${rr === 4 ? ' (no change)' : ''}.`, rr === 4 ? tell.hold(st) : tell.shuffle(st));
+    // A shuffle is told creature by creature just below, so only the journal gets the roll itself; "nothing shifts" is worth saying.
+    if (rr === 4) log(`Repositioning roll: ${rr} (no change).`, tell.hold(st));
+    else say(st, `Repositioning roll: ${rr}.`, 'combat');
     {
         const moved = c.dens.filter(d => !d.dead && d.box != null && boxBefore.get(d.uid) != null && boxBefore.get(d.uid) !== d.box && d.kind !== 'horse');
         moved.forEach((d, i) => log(`  ${denSide(st, data, d).name} ${MANEUVERS[boxBefore.get(d.uid)]} \u2192 ${MANEUVERS[d.box]}.`, tell.moved(st, denSide(st, data, d).name, MANEUVERS[boxBefore.get(d.uid)], MANEUVERS[d.box], i)));
