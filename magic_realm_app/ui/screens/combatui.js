@@ -229,8 +229,11 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
     const killed = c.killed ?? [];
     const names = killed.map(n => `the ${n}`).join(' and ');
     const price = p.type === 'combat-wounds' ? 'The wounds below are the price' : 'The tiredness below is the price';
+    const gain = c.roundGain ?? { fame: 0, notoriety: 0, gold: 0 };
+    const gainChips = [['Fame', gain.fame], ['Notoriety', gain.notoriety], ['gold', gain.gold]].filter(x => x[1]).map(([n, v]) => h('span', { class: `gain-chip ${n.toLowerCase()}` }, `${v > 0 ? '+' : ''}${v} ${n}`));
     const headline = decideFirst && (killed.length || !liveFoes)
         ? h('div', { class: 'cb-victory', role: 'status' }, h('b', {}, liveFoes ? `You killed ${names}.` : 'The fight is won.'),
+            gainChips.length ? h('div', { class: 'gain-chips' }, ...gainChips) : null,
             h('span', {}, liveFoes ? 'Others are still on their feet.' : `${killed.length ? `You killed ${names}: n` : 'N'}othing hostile is left standing. ${price}; settle it and the evening is yours.`))
         : null;
     const decision = h('div', { class: 'cb-body' }, ...[headline, ...body].filter(Boolean));

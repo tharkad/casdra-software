@@ -444,6 +444,7 @@ export function meleePlay(st, data, p) {
     const w = o.weapon, notes = [];
     c.roundRollFrom = st.rollSeq ?? 0;            // the dice tray in the fight shows this round's rolls only
     c.killed = [];                                  // what he killed this round, for the screen to lead with
+    c.roundGain = { fame: 0, notoriety: 0, gold: 0 };   // and what the kills paid
     const ev = c.events = [];
     const log = (t, story) => { ev.push(story ?? t); say(st, t, 'combat', story ?? null); };
     const weaponName = w ? nameOfItem(st, data, w.item) : 'bare hands';
@@ -702,6 +703,7 @@ function killReward(st, data, den, s) {
     const k = st.ch.killsToday;
     const fame = (s.fame ?? 0) * k, notor = (s.notor ?? 0) * k;
     st.ch.fame += fame; st.ch.notoriety += notor; st.ch.gold += s.gold ?? 0;
+    if (st.combat) { const g = (st.combat.roundGain ??= { fame: 0, notoriety: 0, gold: 0 }); g.fame += fame; g.notoriety += notor; g.gold += s.gold ?? 0; }
     const bits = [];
     if (fame) bits.push(`+${fame} Fame`);
     if (notor) bits.push(`+${notor} Notoriety`);

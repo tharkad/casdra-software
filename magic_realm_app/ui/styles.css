@@ -695,3 +695,7 @@ button.daybox { min-width: 0; overflow: hidden; padding: 0 2px; }
 .cb-victory { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 14px; border: 2px solid #e2c068; background: rgba(226, 192, 104, .12); }
 .cb-victory b { font-size: 20px; color: #f1d27f; }
 .cb-victory span { color: var(--text); font-size: 15px; }
+
+.gain-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.gain-chip { padding: 3px 10px; border-radius: 999px; border: 1.5px solid; font-weight: 700; font-size: 15px; }
+.gain-chip.fame { color: #7fb0ea; border-color: #7fb0ea; } .gain-chip.notoriety { color: #e0806a; border-color: #e0806a; } .gain-chip.gold { color: #f1d27f; border-color: #e2c068; }
