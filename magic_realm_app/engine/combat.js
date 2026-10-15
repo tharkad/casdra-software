@@ -600,10 +600,11 @@ export function meleePlay(st, data, p) {
     const blowText = h => `${blowName(h)} (time ${h.time ?? '?'}${h.length ? `, length ${h.length}` : ''})`;
     if (hits.length > 1) {
         const why = c.round === 1 ? 'in the first round the longest weapon strikes first, then the fastest' : 'after the first round the fastest strikes first, then the longest weapon';
+        const whyShort = c.round === 1 ? 'longest weapon first, then fastest' : 'fastest first, then longest weapon';
         log(`Order of blows (${why}): ${hits.map((h, k) => `${k + 1}. ${blowText(h)}`).join('; ')}.`,
-            `The blows fall in turn (${why}): ${hits.map(blowText).join(', then ')}.`);
+            `Blows in order (${whyShort}): ${hits.map(blowText).join(', then ')}.`);
     } else if (hits.length === 1) {
-        log(`Only one blow can land this round: ${blowText(hits[0])}.`, `Only one blow can land this round: ${blowText(hits[0])}.`);
+        log(`Only one blow can land this round: ${blowText(hits[0])}.`, `Only one blow lands: ${blowText(hits[0])}.`);
     }
     c.newWounds = 0;
     let i = 0, dead = false, delivered = false;
