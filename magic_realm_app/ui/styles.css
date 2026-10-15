@@ -667,3 +667,13 @@ button.daybox { min-width: 0; overflow: hidden; padding: 0 2px; }
 .realm-svg .leader.nat, .realm-svg .leader.ally { stroke: #a9c2f2; }
 .realm-svg .leader.mon { stroke: #f0a090; }
 .realm-svg .leader.site, .realm-svg .leader.sound, .realm-svg .leader.more { stroke: #d2c2ee; }
+
+/* planning on a phone: a short panel whose middle scrolls, so the map keeps most of the screen */
+.planpanel { max-height: 34vh; gap: 6px; }
+.plan-head { min-height: 28px; }
+.plan-head .x { height: 28px; }
+.ptab { min-height: 40px; }
+.plan-nav .btn { min-height: 44px; font-size: 17px; }
+.plan-step { gap: 6px; }
+@media (max-height: 700px) { .planpanel { max-height: 40vh; } }
+.tray[hidden] { display: none; }

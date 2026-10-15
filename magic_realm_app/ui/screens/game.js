@@ -201,6 +201,8 @@ export function gameScreen(ctx) {
         tray.className = `tray${fresh ? ' fresh' : ''}`;
         tray.replaceChildren(r ? rollRow(r, { compact: true }) : h('div', { class: 'rollrow compact none' }, h('div', { class: 'rr-what' }, 'Dice'), h('div', { class: 'rr-body' }, h('span', { class: 'rr-res dim' }, 'Your rolls show here'))),
             h('span', { class: 'tray-more' }, '\u2026'));
+        // while the plan is open the map needs the room: the dice tray waits (its rolls are in the journal)
+        tray.hidden = !!(st.pending?.type === 'plan' && ui.sheet === 'plan' && ui.draft && !ui.planCollapsed);
     }
 
     function renderDock() {
@@ -1022,7 +1024,6 @@ export function gameScreen(ctx) {
         const others = d.slots.map((x, j) => (j === i ? null : x));
         const baseOver = over(others);
         const out = [];
-        if (extras.length) out.push(h('p', { class: 'hint' }, `${base} ordinary phases take any action; the extra phases (${[...new Set(extras)].map(x => ACT_LABEL[x]?.toLowerCase() ?? x).join(', ')}) can fall anywhere in the day, but only for their own action.`));
         out.push(h('div', { class: 'chips2 six' },
             ...['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), 'nothing'].map(a => {
                 const dim = a !== 'nothing' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver;
@@ -1031,6 +1032,7 @@ export function gameScreen(ctx) {
         if (ui.pickMove === i || s?.act === 'move') {
             out.push(h('p', { class: 'hint' }, at[i] || st.ch.onRoad ? 'Tap a ringed clearing on the map to go there.' : 'You are on a road; move to one of its ends first.'));
         }
+        if (extras.length) out.push(h('p', { class: 'hint' }, `${base} ordinary phases take any action; the extra phases (${[...new Set(extras)].map(x => ACT_LABEL[x]?.toLowerCase() ?? x).join(', ')}) can fall anywhere in the day, but only for their own action.`));
         return out;
     }
 
@@ -1067,11 +1069,11 @@ export function gameScreen(ctx) {
         const head = h('div', { class: 'plan-head' }, h('b', {}, 'Plan your day'), h('button', { class: 'x', 'aria-label': 'Hide the plan', onclick: () => { ui.planCollapsed = true; render(); } }, '\u25BE'));
         const s = d.slots[step];
         const body = h('div', { class: 'plan-step' },
-            step === 0 ? ask(`Day ${st.day}: choose what you will do in each phase.`, 'Your plan is secret and fixed once you start the day. Fill the phases in any order: extra phases may fall anywhere, and an action is greyed out only when the others have used up what it needs.', { compact: true }) : null,
             h('div', { class: 'slot-head' }, h('b', {}, `Phase ${step + 1} of ${total}`), h('span', {}, slotKind(step, base, extras)), h('em', {}, s ? describeSlot(s) : 'not set'),
                 s ? h('button', { class: 'clearbtn', onclick: () => { d.slots[step] = null; render(); } }, 'Clear') : null),
+            ...phaseChoices(step, at, base, extras, total),
             at[step] ? h('p', { class: 'hint' }, `You will be at ${nameOfClearing(at[step])}.`) : null,
-            ...phaseChoices(step, at, base, extras, total));
+            step === 0 ? ask(`Day ${st.day}: choose what you will do in each phase.`, 'Your plan is secret and fixed once you start the day. Fill the phases in any order: extra phases may fall anywhere, and an action is greyed out only when the others have used up what it needs.', { compact: true }) : null);
         const nav = h('div', { class: 'row2 plan-nav' },
             h('button', { class: 'btn', 'data-act': 'plan-back', disabled: step === 0, onclick: () => { ui.planStep = step - 1; ui.pickMove = null; ui.pickSearch = null; render(); } }, '\u2039 Back'),
             step < total - 1 ? h('button', { class: 'btn', 'data-act': 'plan-next', onclick: () => { ui.planStep = step + 1; ui.pickMove = null; ui.pickSearch = null; render(); } }, 'Next \u203A') : null,
