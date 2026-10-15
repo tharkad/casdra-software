@@ -29,7 +29,13 @@ export function roll2(st) { const a = die(st), b = die(st); return { dice: [a, b
 
 // ---- log ----
 // `story` is the same event in prose (engine/story.js); the plain text `t` stays exact for tools and tests.
-export function say(st, text, kind = 'info', story = null) { st.log.push(story ? { day: st.day, t: text, k: kind, s: story } : { day: st.day, t: text, k: kind }); }
+// `r` is the combat round the line belongs to (the review draws a box round each round).
+export function say(st, text, kind = 'info', story = null) {
+    const e = { day: st.day, t: text, k: kind };
+    if (story) e.s = story;
+    if (st.combat && !st.combat.ended && st.combat.round) e.r = st.combat.round;
+    st.log.push(e);
+}
 
 // Counters for the grind statistics: st.stats[key] += n. Never read by the rules.
 export function tally(st, key, n = 1) { const t = (st.stats ??= {}); t[key] = (t[key] ?? 0) + n; }

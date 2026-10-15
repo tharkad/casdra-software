@@ -923,6 +923,22 @@ export function gameScreen(ctx) {
             h('p', { class: 'hint' }, c.notes ?? '')), { close: () => { ui.sheet = 'menu'; render(); } });
     }
 
+    // The lines of a group, with each combat round in a box of its own under a "Round N" marker.
+    function roundBoxes(lines) {
+        const out = [];
+        let cur = null;
+        for (const l of lines) {
+            const line = h('p', { class: `j-${l.k}` }, l.s ?? l.t);
+            if (l.r == null) { cur = null; out.push(line); continue; }
+            if (!cur || cur.r !== l.r) {
+                cur = { r: l.r, box: h('div', { class: 'roundbox' }, h('div', { class: 'roundmark' }, `Round ${l.r}`)) };
+                out.push(cur.box);
+            }
+            cur.box.append(line);
+        }
+        return out;
+    }
+
     // The morning review: first the result alone, then (after Next) the day step by step, each step a triangle holding its explanation.
     function reportSheet() {
         const day = st.day - 1;
@@ -952,7 +968,7 @@ export function gameScreen(ctx) {
         const show = groups.filter(g => g.kids.length || /^Phase/.test(g.head));
         return modal(`Day ${day}: overview`, h('div', { class: 'reportsheet' },
             ...show.map(g => g.kids.length
-                ? h('details', { class: 'repstep' }, h('summary', {}, g.head), ...g.kids.map(l => h('p', { class: `j-${l.k}` }, l.s ?? l.t)))
+                ? h('details', { class: 'repstep' }, h('summary', {}, g.head), ...roundBoxes(g.kids))
                 : h('p', { class: 'repstep plain' }, g.head)),
             h('div', { class: 'row2' },
                 h('button', { class: 'btn', onclick: () => { ui.reportPage = null; render(); } }, 'Back to the result'),
