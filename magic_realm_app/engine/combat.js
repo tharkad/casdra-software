@@ -130,6 +130,7 @@ function introLines(st, data, c) {
         lines.push(`${subject} ${list.length > 1 ? cause.replace(/^was /, 'were ').replace(/^answered/, 'answered') : cause}.`);
     }
     if (te?.blocked) lines.push(te.blockers?.length ? `Your turn was cut short: ${[...new Set(te.blockers)].join(', ')} blocked you.` : 'Your turn was cut short.');
+    else if (te?.closedIn?.length) lines.push('Your turn was already over when they arrived, so no phase was lost, but they found you.');
     lines.push(st.ch.hidden ? 'You are hidden, so creatures cannot be set on you unless you give yourself away.' : 'You are in plain sight, so the creatures here will come for you.');
     return lines;
 }

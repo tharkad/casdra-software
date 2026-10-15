@@ -155,12 +155,16 @@ function endDaylight(st, data) {
     const res = endOfTurn(st, data);
     st.turn.end = res;
     const bl = blockers(st);
-    if (bl.length && !st.turn.blocked) {
+    // Blocked in the middle of the turn costs him the rest of it; creatures that only arrive now (a chit calling them, prowlers in the tile) find
+    // him after the turn is over: nothing is lost, but he is seen.
+    const blockedMid = !!st.turn.blocked;
+    if (bl.length && !blockedMid) {
         st.turn.blocked = true; st.ch.hidden = false;
         say(st, `${bl.map(m => data.monsters[m.id].name).join(', ')} close in on you.`, 'block');
     }
     // Show him what the end of his turn did, before the evening begins.
-    st.turnEnd = { ...res, day: st.day, blocked: !!st.turn.blocked, blockers: bl.map(m => data.monsters[m.id].name), plan: st.turn.results.slice(), hidden: !!st.ch.hidden };
+    const names = bl.map(m => data.monsters[m.id].name);
+    st.turnEnd = { ...res, day: st.day, blocked: blockedMid, blockers: blockedMid ? names : [], closedIn: blockedMid ? [] : names, plan: st.turn.results.slice(), hidden: !!st.ch.hidden };
     st.period = 'turn-end';
     // He always stops here: the end of the turn is where he sees whether he is hidden or seen going into the evening.
     st.pending = { type: 'turn-end' };
