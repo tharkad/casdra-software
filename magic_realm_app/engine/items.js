@@ -14,6 +14,14 @@ export function noteGain(st, it) {
     if (st.gains.length > 40) st.gains.shift();
 }
 
+// Something he has just found that is not an item he carries: a treasure card that turns out to be a Mouldy Skeleton, a site discovered.
+// { kind: 'card', id } opens the card; { kind: 'site', clearing } opens the clearing.
+export function noteFind(st, f) {
+    st.findSeq = (st.findSeq ?? 0) + 1;
+    (st.finds ??= []).push({ n: st.findSeq, day: st.day, ...f });
+    if (st.finds.length > 40) st.finds.shift();
+}
+
 export function defOf(data, it) {
     if (it.kind === 'spell') return { name: `Spell card (type ${it.id.replace('spell-', '')})`, weight: 'N', gold: 0 };
     return it.kind === 'weapon' ? data.weapons[it.id] : it.kind === 'armor' ? data.armor[it.id] : it.kind === 'horse' ? data.horses[it.id] : data.treasures[it.id];

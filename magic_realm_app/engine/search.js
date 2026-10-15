@@ -1,5 +1,5 @@
 import { lvl, say, tally } from './core.js';
-import { makeItem, defOf, nameOf, autoEquip, noteGain } from './items.js';
+import { makeItem, defOf, nameOf, autoEquip, noteGain, noteFind } from './items.js';
 import { numOf, tileOf } from './world.js';
 import { rollCurse, hasCurse, pit } from './effects.js';
 import { roll2 } from './core.js';
@@ -103,6 +103,7 @@ function counterNamed(data, name, box) {
 
 function takeTwt(st, data, pile, it, card, r, label) {
     const box = st.twt[it.id], here = st.ch.at;
+    noteFind(st, { kind: 'card', id: it.id, name: box.name });
     if (!box.siteCard) {
         // A substitute card: it leaves play, curses you, and its contents go on top of the pile.
         const curse = rollCurse(st, data);

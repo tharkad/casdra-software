@@ -66,7 +66,7 @@ export function gameScreen(ctx) {
     function commit(next) { st = next; ctx.state = st; saveGame(st); render(); }
     function act(action) {
         ui.combatMap = false;
-        if (action.type !== 'tidy') ui.gainSeen = st.gainSeq ?? 0;          // what he found last time is old news once he does something else
+        if (action.type !== 'tidy') { ui.gainSeen = st.gainSeq ?? 0; ui.findSeen = st.findSeq ?? 0; }          // what he found last time is old news once he does something else
         try {
             const next = apply(st, data, action);
             rec?.moves.push(JSON.parse(JSON.stringify(action)));
@@ -223,7 +223,14 @@ export function gameScreen(ctx) {
                 ico(nm), h('span', { class: 'rl' }, h('small', { class: 'gl' }, 'YOU GOT'), h('b', {}, nm), h('small', {}, summaryOf(data, it))),
                 h('em', {}, `${WEIGHT_WORDS[weightOf(data, it)] ?? ''}`), h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A'));
         });
-        const gainNames = fresh.map(it => nameOf(data, it));
+        ui.findSeen ??= st.findSeq ?? 0;
+        const findBars = (st.finds ?? []).filter(f => f.n > ui.findSeen).map(f => {
+            const isCard = f.kind === 'card';
+            return h('button', { class: 'gainbar find', 'data-act': 'find', onclick: () => { if (isCard) { ui.cardId = f.id; ui.sheet = 'cardinfo'; } else { ui.sel = f.clearing; ui.sheet = 'clearing'; } render(); } },
+                h('span', { class: 'rl' }, h('small', { class: 'gl' }, isCard ? 'YOU FOUND' : 'YOU DISCOVERED'), h('b', {}, f.name ?? 'a site'), h('small', {}, isCard ? 'Tap to read the card' : `at ${nameOfClearing(f.clearing)}: tap for what is there`)),
+                h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A'));
+        });
+        const gainNames = fresh.map(it => nameOf(data, it)).concat((st.finds ?? []).filter(f => f.n > ui.findSeen).map(f => f.name).filter(Boolean));
         const recent = recent0.filter(l => !gainNames.some(n => (l.s ?? l.t).includes(n)));
         const prowl = st.period === 'daylight' && st.prowl ? h('button', { class: 'prowl', 'data-act': 'prowl', onclick: () => { ui.sheet = 'dice'; render(); } },
             h('b', {}, `Monster roll ${st.prowl}`), h('span', {}, prowlers().join(', ') || 'no one stirs')) : null;
@@ -244,7 +251,7 @@ export function gameScreen(ctx) {
         } else if (p.type === 'over') main = h('div', { class: 'dock-ask' }, st.ch.dead || st.over?.reason === 'died' ? deathBox() : null,
             h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result'));
         else main = h('div', { class: 'note' }, 'Decision needed...');
-        dock.replaceChildren(...[magicBar, info, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, main].filter(Boolean));
+        dock.replaceChildren(...[magicBar, info, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, main].filter(Boolean));
     }
 
     function describeSlot(s) {
@@ -269,6 +276,7 @@ export function gameScreen(ctx) {
             out.push(combatSheet({ st, data, act, ui, render, peek: { gear: () => { ui.sheet = 'char'; render(); }, map: () => { ui.combatMap = true; ui.sheet = null; render(); } } }));
             if (ui.sheet === 'char') out.push(charSheet());
             else if (ui.sheet === 'item') out.push(itemSheet());
+            else if (ui.sheet === 'cardinfo') out.push(cardInfoSheet());
             else if (ui.sheet === 'spell') out.push(spellSheet());
             else if (ui.sheet === 'card') out.push(modal(st.ch.name, h('div', {}, data.art?.cards?.[st.ch.id] ? h('img', { class: 'cardpic', src: data.art.cards[st.ch.id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { ui.sheet = 'char'; render(); } }));
             return out;
@@ -320,6 +328,7 @@ export function gameScreen(ctx) {
         else if (ui.sheet === 'log') out.push(logSheet());
         else if (ui.sheet === 'setupcard') out.push(setupCardSheet());
         else if (ui.sheet === 'item') out.push(itemSheet());
+        else if (ui.sheet === 'cardinfo') out.push(cardInfoSheet());
         else if (ui.sheet === 'spell') out.push(spellSheet());
         else if (ui.sheet === 'score') out.push(scoreSheet());
         else if (ui.sheet === 'key') out.push(modal('Map key', h('div', { class: 'key' },
@@ -468,6 +477,31 @@ export function gameScreen(ctx) {
         const goods = Object.entries(e.treasures?.counters ?? {}).map(([n, k]) => `${n}${k > 1 ? ` \u00D7${k}` : ''}`).join(', ');
         return `Setup card: the ${e.group} live here (${e.nativeCounters} native counters). They keep ${e.treasures?.small ?? 0} Small treasures${goods ? ` and: ${goods}` : ''}.`;
     }
+    // The pile at a site drawn top to bottom, the way a Loot roll counts it: a roll of 1 takes the top card, 2 the second, and so on to 6.
+    // Only what the Setup Card tells everyone is drawn: Large above Small, never which card is Great. Spell cards lie apart, by type.
+    const REACH = 6;
+    function lootStack(name, pile) {
+        const sizes = pile.filter(it => it.kind !== 'spell').map(it => ((data.treasures[it.id]?.kind ?? 'small') === 'small' ? 'small' : 'large'));
+        const groups = [];
+        sizes.forEach((s, i) => { const g = groups[groups.length - 1]; if (g && g.size === s) g.to = i + 1; else groups.push({ size: s, from: i + 1, to: i + 1 }); });
+        const rows = [];
+        groups.forEach(g => {
+            const cards = [];
+            for (let p = g.from; p <= g.to; p++) cards.push(h('div', { class: `ls-card ${g.size}${p > REACH ? ' deep' : ''}`, 'data-pos': String(p) },
+                h('span', { class: 'ls-n' }, String(p)), h('span', { class: 'ls-t' }, g.size === 'large' ? 'Large' : 'Small'), h('span', { class: 'ls-r' }, p <= REACH ? `Loot roll ${p}` : 'too deep')));
+            const n = g.to - g.from + 1;
+            rows.push(h('div', { class: `ls-group ${g.size}` },
+                h('div', { class: 'ls-label' }, h('b', {}, `${n} ${g.size === 'large' ? 'Large' : 'Small'}`), h('small', {}, n > 1 ? `${g.from}\u2013${g.to}` : `${g.from}`)),
+                h('div', { class: 'ls-cards' }, ...cards)));
+            if (g.from <= REACH && g.to > REACH) rows[rows.length - 1].classList.add('crosses');
+        });
+        const spells = (st.spellBox?.sites?.[name] ?? []).map(sp => data.spells?.[sp.id]?.type).filter(Boolean);
+        return h('div', { class: 'lootstack', 'data-site': name },
+            h('div', { class: 'ls-head' }, 'THE PILE, TOP FIRST', h('small', {}, `a Loot roll of 1\u2013${REACH} takes that card`)),
+            ...rows,
+            sizes.length > REACH ? h('p', { class: 'ls-note' }, `Cards below the ${REACH}th cannot be reached until those above are taken.`) : null,
+            spells.length ? h('div', { class: 'ls-spells' }, h('b', {}, 'Spell cards kept apart'), h('small', {}, `${spells.map(t => `Type ${t}`).join(', ')}: read them with Reading Runes, they are not in the pile.`)) : null);
+    }
     function siteLine(c) {
         const found = st.ch.discovered.sites.includes(c.id);
         const e = data.setupcard?.sites?.find(x => x.name === c.name);
@@ -481,7 +515,7 @@ export function gameScreen(ctx) {
             const small = treasures.filter(it => (data.treasures[it.id]?.kind ?? 'small') === 'small').length, large = treasures.length - small;
             const left = pile.length ? [`${small} Small`, `${large} Large`, ...(spells ? [`${spells} spell${spells === 1 ? '' : 's'}`] : [])].join(', ') : 'nothing';
             status.push(h('p', { class: 'setupline' }, h('b', {}, pile.length ? 'Discovered: you may loot it. ' : 'Discovered, and empty. '), pile.length ? `Left: ${left}.` : ''));
-            if (pile.length) status.push(h('p', { class: 'setupline dim' }, 'Which are Great is not known until they are looted.'));
+            if (pile.length) status.push(lootStack(c.name, pile), h('p', { class: 'setupline dim' }, 'Which are Great is not known until they are looted.'));
         }
         status.push(h('p', { class: 'setupline dim' }, needs));
         return h('div', { class: 'sitecard' }, e ? h('p', { class: 'setupline card' }, siteCardText(e)) : null, ...status);
@@ -825,6 +859,17 @@ export function gameScreen(ctx) {
     }
 
     // One belonging: both of its faces drawn as counters, the facts, and the switch.
+    // A treasure card he found but does not carry (a Mouldy Skeleton, a Toadstool Circle): what it says.
+    function cardInfoSheet() {
+        const td = data.treasures[ui.cardId];
+        const back = { close: () => { ui.sheet = null; render(); } };
+        if (!td) return modal('Card', h('p', { class: 'hint' }, 'Unknown card.'), back);
+        const text = data.cardtext?.treasures?.[ui.cardId] ?? td.effectText ?? '';
+        return modal(td.name, h('div', { class: 'itemsheet' },
+            cardEl({ title: td.name, kind: 'treasure', tag: td.kind === 'twt' ? 'Treasure within Treasure' : 'Treasure', stats: [], text, notes: ui.cardId === 'chest' ? [] : ['A treasure within a treasure: it is not carried off; what it holds is described on the card.'] }),
+            h('button', { class: 'btn', onclick: back.close }, 'Back')), back);
+    }
+
     function itemSheet() {
         const it = st.ch.items.find(i => i.uid === ui.itemUid);
         const back = { close: () => { ui.sheet = ui.itemFrom === 'dock' ? null : 'char'; ui.itemFrom = null; render(); } };
