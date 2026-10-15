@@ -2,7 +2,7 @@ import { rollRow } from '../dice.js';
 import { monsterCounter, itemFace } from '../counter.js';
 import { ask } from '../ask.js';
 import { h } from '../dom.js';
-import { encounterOptions, meleeOptions, denSide, weaponOf, activeArmor } from '../../engine/combat.js';
+import { encounterOptions, meleeOptions, denSide, weaponOf, activeArmor, weaponSide } from '../../engine/combat.js';
 import { roadsFrom, nameOfClearing } from '../../engine/world.js';
 import { chitLabel } from '../../engine/day.js';
 import { nameOf, weightOf, defOf } from '../../engine/items.js';
@@ -181,7 +181,13 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
                 ...o.targets.map(d => h('button', { class: `segb${m.target === d.uid ? ' on' : ''}`, onclick: () => { m.target = d.uid; render(); } }, denSide(st, data, d).name)))));
         // 2 attack
         const spl = o.attackSpell ? data.spells?.[o.attackSpell.spell] : null;
-        body.push(h('div', { class: 'cb-sec' }, h('b', {}, spl ? `2. Attack with ${spl.name}` : `2. Attack with your ${wname}`),
+        // the time the attack goes off at: a weapon's own printed time for the side showing, else the Fight chit's
+        const wside = w ? weaponSide(w) : null;
+        const timeNote = spl ? null : !w ? 'Attack time: the Fight chit\u2019s own time.'
+            : wside.time != null ? `Attack time ${wside.time}: printed on the ${w.item.alerted ? 'alerted ' : ''}weapon, so it is ${wside.time} whichever Fight chit you play.`
+                : 'Attack time: the time on the Fight chit you play (this side of the weapon prints none).';
+        body.push(h('div', { class: 'cb-sec' }, h('b', {}, spl ? `2. Attack with ${spl.name}` : `2. Attack with your ${wname}${wside?.time != null ? ` \u00B7 time ${wside.time}` : ''}`),
+            timeNote ? h('p', { class: 'hint' }, timeNote) : null,
             h('div', { class: 'seg3' }, ...DIRS.map((n, i) => h('button', { class: `segb${m.attackDir === i ? ' on' : ''}`, onclick: () => { m.attackDir = i; render(); } }, n))),
             spl ? h('p', { class: 'hint' }, `The spell strikes from the attack circle: ${o.attackSpell.hits > 1 ? `${o.attackSpell.hits} attacks` : 'one attack'} of harm ${o.attackSpell.harm}${'*'.repeat(o.attackSpell.stars)}, length ${o.attackSpell.length}, each with its own Missile Table roll. You cannot also use a Fight chit or weapon this round.`)
             : h('div', { class: 'chitrow' }, h('button', { class: `chit3 none${m.fightChit == null ? ' sel' : ''}`, onclick: () => { m.fightChit = null; render(); } }, 'none'),
