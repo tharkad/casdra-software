@@ -185,5 +185,13 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         const sum = ui.pickChits.reduce((s, id) => s + st.ch.chits.find(x => x.id === id).effort, 0);
         body.push(h('button', { class: 'btn primary', disabled: sum < p.need || sum - p.need > 1, onclick: () => { const ids = ui.pickChits; ui.pickChits = null; send({ kind: 'fatigue', chits: ids }); } }, 'Fatigue these'));
     }
-    return h('div', { class: 'combat' }, header, state, h('div', { class: 'cb-scroll' }, h('div', { class: 'cb-foes' }, ...foeEls), diceBlock, last, h('div', { class: 'cb-body' }, ...body.filter(Boolean))));
+    // Wounds and fatigue are decisions the player must not miss: they come first, above the foes and the account of the last round, so the
+    // tiles and the confirm button are on screen the moment the question is asked.
+    const decideFirst = p.type === 'combat-wounds' || p.type === 'combat-fatigue';
+    const decision = h('div', { class: 'cb-body' }, ...body.filter(Boolean));
+    return h('div', { class: 'combat' }, header, state,
+        h('div', { class: 'cb-scroll' },
+            ...(decideFirst ? [decision] : []),
+            h('div', { class: 'cb-foes' }, ...foeEls), diceBlock, last,
+            ...(decideFirst ? [] : [decision])));
 }
