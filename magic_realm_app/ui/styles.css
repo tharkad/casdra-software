@@ -750,3 +750,8 @@ button.daybox { min-width: 0; overflow: hidden; padding: 0 2px; }
 .chip.cursed { border-color: #d0506a; text-decoration: line-through; }
 .curserow { display: flex; gap: 12px; align-items: flex-start; padding: 8px 10px; margin: 6px 0; border-left: 4px solid #d0506a; background: rgba(150, 40, 60, .15); border-radius: 8px; }
 .curserow p { margin: 2px 0 0; }
+
+/* a number a curse has made worthless: shown, struck through */
+.statbox.void b, .repchip.void, s.void { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: #ff8aa0; }
+.statbox.void { opacity: .65; border-color: #d0506a; }
+.repchip.void { opacity: .7; }

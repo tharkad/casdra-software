@@ -34,6 +34,8 @@ const CURSE_PLAIN = {
     Ashes: 'Your gold is worthless: you cannot spend it, so you cannot buy, hire or pay.',
     Disgust: 'Your Fame is worthless: you cannot lose it, so paying an insult in Fame is not possible and Challenges mean a fight.',
 };
+// A curse makes a number worthless (Ashes: gold, Disgust: Fame): it is still shown, struck through, so it is plain it cannot be used.
+const voidBy = (st, stat) => (stat === 'gold' && (st.ch.curses ?? []).includes('Ashes') ? 'Ashes' : stat === 'fame' && (st.ch.curses ?? []).includes('Disgust') ? 'Disgust' : null);
 const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert', enchant: 'Enchant', nothing: 'Nothing' };
 const TABLE_LABEL = { peer: 'Peer', locate: 'Locate', loot: 'Loot', ground: 'Ground', sitecard: 'Site card', runes: 'Read runes' };
 
@@ -175,8 +177,8 @@ export function gameScreen(ctx) {
                 h('b', {}, `Day ${st.day}`, h('small', {}, st.mode === 'endless' ? '' : `/${st.lastDay ?? 28}`), (st.ch.curses ?? []).length ? h('i', { class: 'cursedmark', 'aria-label': 'cursed' }, '\u2620') : null),
                 h('span', {}, isMagicDay(st.day) ? `${dayColors(st.day).join(' & ')} magic` : `${st.period === 'over' ? 'finished' : st.period}`)),
             h('button', { class: 'stats', onclick: () => { ui.sheet = ui.sheet === 'char' ? null : 'char'; render(); } },
-                h('span', { class: 'statbox gold', 'data-stat': 'gold' }, h('small', {}, 'Gold'), h('b', {}, String(st.ch.gold))),
-                h('span', { class: 'statbox fame', 'data-stat': 'fame' }, h('small', {}, 'Fame'), h('b', {}, String(st.ch.fame))),
+                h('span', { class: `statbox gold${voidBy(st, 'gold') ? ' void' : ''}`, 'data-stat': 'gold', title: voidBy(st, 'gold') ? `Worthless: the ${voidBy(st, 'gold')} curse` : null }, h('small', {}, 'Gold'), h('b', {}, String(st.ch.gold))),
+                h('span', { class: `statbox fame${voidBy(st, 'fame') ? ' void' : ''}`, 'data-stat': 'fame', title: voidBy(st, 'fame') ? `Worthless: the ${voidBy(st, 'fame')} curse` : null }, h('small', {}, 'Fame'), h('b', {}, String(st.ch.fame))),
                 h('span', { class: 'statbox notor', 'data-stat': 'notoriety' }, h('small', {}, 'Notor'), h('b', {}, String(st.ch.notoriety)))),
             (() => {
                 const tot = vpNow();
@@ -947,6 +949,12 @@ export function gameScreen(ctx) {
             if (td?.fameReward) notes.push(`Sold to the ${td.fameReward.group} it earns ${td.fameReward.points} Fame.`);
             card = cardEl({ title: td?.name ?? name, kind: td?.great ? 'great' : 'treasure', tag: `${td?.great ? 'Great treasure' : td?.kind === 'large' ? 'Large treasure' : td?.kind === 'small' ? 'Small treasure' : 'Treasure'}${td?.magic ? ` \u00B7 magic ${td.magic}` : ''}`, stats, text, notes, picture: pic });
         }
+        if (card == null) {
+            // what it is worth: gold when sold (armor already says whole and damaged above), and the Fame and Notoriety it adds while he owns it
+            if (it.kind !== 'armor') { const g = priceOf(data, it); if (g) facts.push(voidBy(st, 'gold') ? h('span', {}, 'Worth ', h('s', { class: 'void' }, `${g} gold`), ' when sold: your gold is worthless while the Ashes curse lasts.') : `Worth ${g} gold when sold.`); }
+            const fm = d?.fame ?? 0, nt = d?.notoriety ?? 0;
+            if (fm || nt) facts.push(`Owning it adds ${[fm ? `Fame ${fm > 0 ? '+' : ''}${fm}` : '', nt ? `Notoriety ${nt > 0 ? '+' : ''}${nt}` : ''].filter(Boolean).join(' and ')} to your totals.`);
+        }
         const canSwitch = (st.pending?.type === 'phase' || st.pending?.type === 'plan') && !it.destroyed;
         return modal(name, h('div', { class: 'itemsheet' },
             card ?? h('div', { class: 'faces' }, ...faces),
@@ -1035,7 +1043,7 @@ export function gameScreen(ctx) {
         for (const l of heads) { const t = (l.s ?? l.t).trim(); if (!seen.has(t)) { seen.add(t); result.push(l); } }
         if (ui.reportPage !== day + ':overview') {
             return modal(`Day ${day}: the result`, h('div', { class: 'reportsheet' },
-                h('div', { class: 'repchips' }, ...(chips.length ? chips.map(([n, v]) => h('span', { class: `repchip ${v > 0 ? 'up' : 'down'}` }, `${n} ${sign(v)}`)) : [h('span', { class: 'repchip' }, 'No change in Fame, Notoriety or gold')])),
+                h('div', { class: 'repchips' }, ...(chips.length ? chips.map(([n, v]) => h('span', { class: `repchip ${v > 0 ? 'up' : 'down'}${voidBy(st, n.toLowerCase()) ? ' void' : ''}`, title: voidBy(st, n.toLowerCase()) ? `Worthless: the ${voidBy(st, n.toLowerCase())} curse` : null }, `${n} ${sign(v)}`)) : [h('span', { class: 'repchip' }, 'No change in Fame, Notoriety or gold')])),
                 ...(result.length ? result.slice(0, 5).map(l => h('p', { class: `j-${l.k}` }, l.t.replace(/ \(rolled [^)]*\)/, ''))) : [h('p', { class: 'hint' }, 'A quiet day: nothing was won or lost.')]),
                 result.length > 5 ? h('p', { class: 'hint' }, `and ${result.length - 5} more: see the overview.`) : null,
                 h('div', { class: 'row2' },

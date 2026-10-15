@@ -164,6 +164,10 @@
   "Hut": "art/dwellings/hut.gif"
  },
  "weapons": {
+  "Bane Sword": "art/weapons/great_sword.gif",
+  "Truesteel Sword": "art/weapons/broadsword.gif",
+  "Devil Sword": "art/weapons/broadsword.gif",
+  "Living Sword": "art/weapons/thrusting_sword.gif",
   "Medium Bow": "art/weapons/medium_bow.gif",
   "Light Bow": "art/weapons/light_bow.gif",
   "Crossbow": "art/weapons/crossbow.gif",
