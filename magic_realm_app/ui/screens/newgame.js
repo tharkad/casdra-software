@@ -1,5 +1,6 @@
 import { h } from '../dom.js';
 import { ask } from '../ask.js';
+import { ATTACK_SPELLS } from '../../engine/spells.js';
 
 // New game: a three-step wizard (game type, optional rules, character and goals).
 // Everything here is a *choice about the rules*, so the facts come from docs/rules/01 and 06 (see the notes beside each option).
@@ -92,11 +93,44 @@ const CARD_FILE = { 'woods-girl': 'woodsgirl' };
 export const CHARACTERS = [
     { id: 'black-knight', name: 'Black Knight', weight: 'Medium weight', starts: ['Inn'], gear: 'Mace, Suit of Armor and Shield',
       line: 'Allied with the Company, friendly with Soldiers; the Guard are his enemies. Fear: one die on the Meeting Table. Aim with missiles.' },
-    { id: 'white-knight', name: 'White Knight', weight: 'Heavy weight', starts: ['Inn', 'Chapel'], gear: 'Great Sword and Suit of Armor',
+    { id: 'white-knight', name: 'White Knight', weight: 'Heavy weight', starts: ['Inn', 'Chapel'], gear: 'Great Sword and Suit of Armor', spells: { n: 1, types: ['I'] },
       line: 'Allied with the Order, friendly with Lancers; the Company are his enemies. Health: an extra Rest phase a day. Honor: one less on every Meeting die. His Type I spell is Make Whole: cast in the evening where there is White magic (a Chapel, or day 7).' },
-    { id: 'woods-girl', name: 'Woods Girl', weight: 'Light weight', starts: ['Inn', 'House'], gear: 'Light Bow', her: true,
+    { id: 'wizard', name: 'Wizard', weight: 'Medium weight', starts: ['Inn', 'House', 'Guard house'], gear: 'Staff', spells: { n: 2, types: ['II', 'III', 'IV'] },
+      line: 'Friendly with the Woodfolk, Patrol, Soldiers and Guard; the Company, Bashkars and Warlock are against him, the Lancers his enemies. Lore: one die when Reading Runes. Experience: knows every hidden path and secret passage. Starts with two spells of Types II to IV.' },
+    { id: 'woods-girl', name: 'Woods Girl', weight: 'Light weight', starts: ['Inn', 'House'], gear: 'Light Bow', her: true, spells: { n: 1, types: ['VII'] },
       line: 'Allied with the Woodfolk, friendly with Lancers; the Bashkars are her enemies. Tracking: one die on Hide, Search and Meeting in the six Woods tiles. Archer: one die on the Missile Table with a bow. Her Type VII spell cannot be cast in this build yet.' },
 ];
+
+// The spell list for the starting-spell picker, fetched once.
+let SPELLS = null;
+function spellChooser(g, who, redraw) {
+    if (!who.spells) return [];
+    if (!SPELLS) {
+        fetch('data/spells.json').then(r => r.json()).then(j => { SPELLS = j.spells; redraw(); }).catch(() => { SPELLS = []; });
+        return [h('p', { class: 'hint' }, 'Loading the spell list...')];
+    }
+    const pool = SPELLS.filter(sp => who.spells.types.includes(sp.type));
+    const castNow = sp => !!(sp.implemented || ATTACK_SPELLS[sp.id]);
+    if (!Array.isArray(g.spells) || g.spellsFor !== who.id) { g.spells = pool.filter(castNow).slice(0, who.spells.n).map(sp => sp.id); g.spellsFor = who.id; }
+    const chosen = g.spells;
+    return [
+        h('h2', { class: 'q' }, `Your starting spell${who.spells.n === 1 ? '' : 's'}`),
+        ask(`Choose ${who.spells.n} spell${who.spells.n === 1 ? '' : 's'} of Type ${who.spells.types.join(', ')}.`, 'These are written on your sheet from the start. Spells are cast in the evening, in the Encounter step of a fight, while the spell\'s colour of magic is present. Ones marked "not castable yet" can be chosen but have no effect in this build.', { compact: true }),
+        h('div', { class: 'choices' }, ...pool.map(sp => {
+            const on = chosen.includes(sp.id);
+            return h('button', { class: `choice${on ? ' on' : ''}`, role: 'checkbox', 'aria-checked': on ? 'true' : 'false', 'data-spell': sp.id,
+                onclick: () => {
+                    if (on) g.spells = chosen.filter(x => x !== sp.id);
+                    else g.spells = [...chosen, sp.id].slice(-who.spells.n);
+                    redraw();
+                } },
+                h('span', { class: 'dot' }),
+                h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, sp.name, h('em', {}, `Type ${sp.type} \u00B7 ${sp.color ?? 'any'}`)),
+                    h('span', { class: 'choice-line' }, `${sp.duration}${castNow(sp) ? ' \u00B7 castable' : ' \u00B7 not castable yet'}`)));
+        })),
+        chosen.length === who.spells.n ? null : h('p', { class: 'hint bad' }, `Choose ${who.spells.n - chosen.length} more.`),
+    ].filter(Boolean);
+}
 
 function charsStep(g, redraw, ctx) {
     const total = vpTotal(g), used = Object.values(g.vp).reduce((a, b) => a + b, 0);
@@ -116,6 +150,7 @@ function charsStep(g, redraw, ctx) {
             h('span', { class: 'dot' }),
             h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, d), h('span', { class: 'choice-line' }, DWELLING_LINE[d]))))),
         who.starts.length === 1 ? h('p', { class: 'hint' }, `The ${who.name} has only the ${who.starts[0]} on ${who.her ? 'her' : 'his'} character card.`) : null,
+        ...spellChooser(g, who, redraw),
         h('h2', { class: 'q' }, `Spend your ${total} victory points`),
         ask('Set the goals you will be scored against.', 'You must spend every point. Points on a goal raise what you need to reach; the bigger the goal you meet, the bigger the bonus.', { compact: true }),
         h('p', { class: 'hint' }, 'Each point sets a goal. Miss a goal and the shortfall counts triple; beat it and each point you put there pays a bonus.'),
@@ -166,7 +201,7 @@ export function newGameScreen(ctx) {
     const back = () => { if (g.step === 0) { ctx.go('title'); } else { g.step -= 1; redraw(); } };
     const start = () => {
         const lastDay = g.length === 'custom' ? g.weeks * 7 : 28;
-        ctx.go('game', { fresh: true, character: g.character, vp: { ...g.vp }, options: { ...g.options }, startDwelling: g.dwelling, lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month' });
+        ctx.go('game', { fresh: true, character: g.character, vp: { ...g.vp }, options: { ...g.options }, startDwelling: g.dwelling, startSpells: (CHARACTERS.find(c => c.id === g.character)?.spells && Array.isArray(g.spells)) ? [...g.spells] : undefined, lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month' });
     };
     const next = () => { if (g.step < STEPS.length - 1) { g.step += 1; g._scroll = 0; redraw(); } };
 
@@ -182,7 +217,7 @@ export function newGameScreen(ctx) {
             h('div', { class: 'body', onscroll: e => { g._scroll = e.target.scrollTop; } }, g.step === 0 ? typeStep(g, redraw) : g.step === STEPS.length - 1 ? charsStep(g, redraw, ctx) : optionsStep(g, redraw, ctx.go)),
             h('footer', { class: 'dock' },
                 h('div', { class: 'sum' }, summary(g)),
-                h('button', { class: 'btn primary big', 'data-act': last ? 'start' : 'next', disabled: last && Object.values(g.vp).reduce((a, b) => a + b, 0) !== vpTotal(g), onclick: last ? start : next },
+                h('button', { class: 'btn primary big', 'data-act': last ? 'start' : 'next', disabled: last && (Object.values(g.vp).reduce((a, b) => a + b, 0) !== vpTotal(g) || (CHARACTERS.find(c => c.id === g.character)?.spells && (g.spells ?? []).length !== CHARACTERS.find(c => c.id === g.character).spells.n)), onclick: last ? start : next },
                     last ? 'Start the game' : `Next: ${STEPS[g.step + 1].label}`),
                 g.step === 0 ? h('button', { class: 'btn', 'data-act': 'quick', onclick: start }, 'Start now with the defaults') : null),
         ];

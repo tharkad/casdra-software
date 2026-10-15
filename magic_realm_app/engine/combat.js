@@ -424,7 +424,8 @@ export function meleeOptions(st, data) {
     return {
         targets,
         assigned,
-        fightChits: activeChits(st, 'fight', data),
+        attackSpell: c.attackSpell ?? null,
+        fightChits: c.attackSpell ? [] : activeChits(st, 'fight', data),           // a character who cast an attack spell cannot also swing a weapon (8.4.5a)
         moveChits: activeChits(st, 'move', data),
         fightOk: ch => lvl(ch.strength) >= wlvl,
         moveOk: ch => lvl(ch.strength) >= (ch.isHorse ? Math.max(load, lvl(st.ch.weight)) : load),
@@ -522,6 +523,21 @@ export function meleePlay(st, data, p) {
     const mySide = weaponSide(w);
     const attackTime = fight ? (mySide.time ?? fight.time) : null;
     const hits = [];            // { who:'me'|denUid, order keys }
+    // An attack spell attacks from the attack circle like a weapon, once per hit it makes, each with its own Missile Table roll.
+    if (c.attackSpell && target && myDir != null) {
+        const sp = c.attackSpell, chit = st.ch.chits.find(x => x.id === sp.chit);
+        const side = { harm: sp.harm, stars: sp.stars, time: chit?.time ?? 0, length: sp.length, missile: true };
+        const horse = c.dens.find(d => d.kind === 'horse' && d.partOf === target.uid && !d.dead);
+        const def = horse ?? target, defSide = denSide(st, data, def);
+        const inBox = def.box != null && def.box === myDir, fast = side.time != null && defSide.move != null && side.time < defSide.move;
+        const nm = defSide.name, spName = data.spells[sp.spell]?.name ?? sp.spell;
+        if (inBox || fast) {
+            for (let k = 0; k < (sp.hits ?? 1); k++) hits.push({ who: 'me', time: side.time, length: side.length, on: def.uid, owner: target.uid, side, spell: spName });
+            log(`${spName}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): ${sp.hits > 1 ? `${sp.hits} hits` : 'hit'}${inBox ? '' : ' by undercutting'}.`);
+        } else log(`${spName}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): miss.`);
+    } else if (c.attackSpell && !target) {
+        log(`${data.spells[c.attackSpell.spell]?.name ?? 'Your spell'} is cast at no one and fizzles.`);
+    }
     if (fight && target && myDir != null) {
         // the defender is its horse while the horse lives
         const horse = c.dens.find(d => d.kind === 'horse' && d.partOf === target.uid && !d.dead);
@@ -600,7 +616,7 @@ export function meleePlay(st, data, p) {
         if (group.length > 1) log(`These blows land at the same instant: ${group.map(blowName).join(' and ')}.`, `${group.map(blowName).join(' and ')} land at the same instant: neither can prevent the other.`.replace(/^./, ch => ch.toUpperCase()));
         for (const h of group) {
             if (h.who === 'me') {
-                if (alive.has(h.on)) dmg.push(() => { delivered = true; myHit(st, data, h, { w, mySide, fight, myDir, notes, log }); });
+                if (alive.has(h.on)) dmg.push(() => { delivered = true; myHit(st, data, h, h.side ? { w: null, mySide: h.side, fight: null, myDir, notes, log, spell: h.spell } : { w, mySide, fight, myDir, notes, log }); });
                 else log('Your blow finds its target already dead.', `Your ${weaponName} finds its target already dead: the blow is wasted.`);
             }
             else if (h.who === 'hire') { if (alive.has(h.den) && !c.hires.find(x => x.uid === h.hire).dead) dmg.push(() => hireStrikes(st, data, h, log)); }
@@ -626,6 +642,7 @@ export function meleePlay(st, data, p) {
     // weapon state: a weapon that hit goes unalerted; one that struck and missed turns alerted
     if (w && fight && !target && (p.weaponSide === 'alerted' || p.weaponSide === 'unalerted')) w.item.alerted = p.weaponSide === 'alerted';      // 8.4.5 h.2
     if (w && fight && target && myDir != null) w.item.alerted = !delivered;      // only a blow that was delivered unalerts the weapon; a miss or a cancelled blow leaves it alerted
+    c.attackSpell = null;                                 // an attack spell not used this round is lost
     c.step = 'resolve';
     return afterMelee(st, data);
 }
@@ -724,11 +741,11 @@ function myHit(st, data, h, ctx) {
         if (den.kind === 'mon') { const m = st.mons.find(x => x.id === den.id); m.dead = true; m.loc = null; }
         else if (den.kind === 'nat') { const n = st.nats.find(x => x.id === den.id); n.dead = true; n.loc = null; dropNativeGoods(st, data, n); }
         tally(st, 'kills'); tally(st, `kill.${s.name}`);
-        ctx.log(`You kill the ${s.name} with ${finalL} harm${note}${reward}.`, tell.kill(st, ctx.w ? nameOfItem(st, data, ctx.w.item) : 'bare hands', s.name, reward));
+        ctx.log(`You kill the ${s.name} with ${finalL} harm${note}${reward}.`, tell.kill(st, ctx.spell ?? (ctx.w ? nameOfItem(st, data, ctx.w.item) : 'bare hands'), s.name, reward));
         c.eventful = true;
     } else {
         tally(st, 'hitsNotKilling');
-        ctx.log(`You hit the ${s.name} for ${finalL} harm${note}; it has vulnerability ${s.vuln} and survives.`, tell.tough(st, ctx.w ? nameOfItem(st, data, ctx.w.item) : 'bare hands', s.name, finalL, s.vuln));
+        ctx.log(`You hit the ${s.name} for ${finalL} harm${note}; it has vulnerability ${s.vuln} and survives.`, tell.tough(st, ctx.spell ?? (ctx.w ? nameOfItem(st, data, ctx.w.item) : 'bare hands'), s.name, finalL, s.vuln));
         // a harmless hit still turns the weapon unalerted (handled by caller)
     }
 }
@@ -876,8 +893,10 @@ const dieOfWounds = (st, data) => { st.ch.dead = true; say(st, 'Every action chi
 function resolveWounds(st, data) {
     const c = st.combat;
     while ((c.newWounds ?? 0) > 0) {
+        // wounds fall on ready chits, then enchanted ones, and only then on tired ones (rule 4.2.5)
         const active = st.ch.chits.filter(x => x.state === 'active');
-        const pool = active.length ? active : st.ch.chits.filter(x => x.state === 'fatigued');
+        const enchanted = st.ch.chits.filter(x => x.state === 'enchanted');
+        const pool = active.length ? active : enchanted.length ? enchanted : st.ch.chits.filter(x => x.state === 'fatigued');
         if (!pool.length) return dieOfWounds(st, data);
         if (pool.length <= c.newWounds) {
             pool.forEach(x => { x.state = 'wounded'; });
@@ -896,7 +915,8 @@ function resolveWounds(st, data) {
 export function chooseWounds(st, data, ids) {
     const c = st.combat, need = c.newWounds;
     const active = st.ch.chits.filter(x => x.state === 'active');
-    const eligible = (active.length ? active : st.ch.chits.filter(x => x.state === 'fatigued')).map(x => x.id);
+    const enchanted = st.ch.chits.filter(x => x.state === 'enchanted');
+    const eligible = (active.length ? active : enchanted.length ? enchanted : st.ch.chits.filter(x => x.state === 'fatigued')).map(x => x.id);
     const uniq = [...new Set(ids)];
     if (uniq.length !== need || uniq.some(id => !eligible.includes(id))) throw new Error(`choose ${need} chit${need === 1 ? '' : 's'} to wound`);
     for (const id of uniq) st.ch.chits.find(x => x.id === id).state = 'wounded';

@@ -5,6 +5,7 @@ import { makeItem, defOf, priceOf } from './items.js';
 import { tileLetter } from './summon.js';
 import { beginDay } from './day.js';
 import { dealSpells } from './runes.js';
+import { castable } from './spells.js';
 
 // Building a new game (rules digest 01 section 3): map, chits, dwellings, denizens, treasure, then the character.
 
@@ -29,7 +30,7 @@ export function newGame(data, opts = {}) {
     setupTreasure(st, data);
     st.options = { knightsAdjustment: !!opts.options?.knightsAdjustment, watchfulNatives: !!opts.options?.watchfulNatives, quietMonsters: !!opts.options?.quietMonsters };
     st.startGear = { weapon: opts.startGear?.weapon ?? true, armor: opts.startGear?.armor ?? true };
-    st.ch = makeCharacter(st, data, opts.character ?? 'black-knight', opts.vp, { gear: st.startGear, dwelling: opts.startDwelling });
+    st.ch = makeCharacter(st, data, opts.character ?? 'black-knight', opts.vp, { gear: st.startGear, dwelling: opts.startDwelling, spells: opts.startSpells });
     st.ch.at = chooseStart(st, data, st.ch);
     st.ch.hidden = true;
     say(st, `${st.ch.name} begins at the ${st.ch.startDwelling}.`, 'day');
@@ -143,9 +144,14 @@ function knightsRel(st, id, rel) {
 }
 
 // The spells he starts with: the card says how many and of which types; of those, the ones this build can cast (data/src/spells.json).
-function startingSpells(data, c) {
+// The player picks them (any spell of the allowed types: the card stays in the deck, so two characters may start with the same one); a pick that does
+// not fit the card is ignored. With no pick, the first spells of those types that this build can cast.
+function startingSpells(data, c, chosen = null) {
     const want = c.stage4?.spellsKnown ?? 0, types = c.stage4?.spellTypes ?? [];
-    return Object.values(data.spells ?? {}).filter(s => s.implemented && types.includes(s.type)).slice(0, want).map(s => s.id);
+    const all = Object.values(data.spells ?? {});
+    const okId = id => all.some(s => s.id === id && types.includes(s.type));
+    if (Array.isArray(chosen) && chosen.length === want && chosen.every(okId) && new Set(chosen).size === chosen.length) return [...chosen];
+    return all.filter(s => castable(s) && types.includes(s.type)).slice(0, want).map(s => s.id);
 }
 
 export function makeCharacter(st, data, id, vp, opt = {}) {
@@ -155,7 +161,7 @@ export function makeCharacter(st, data, id, vp, opt = {}) {
         chits: c.chits.map((x, i) => ({ id: `${id}-${i + 1}`, type: x.type, strength: x.strength, time: x.time, effort: x.effort ?? 0, state: 'active', stage: x.stage, numeral: x.magicNumeral ?? null })),
         items: [], rel: { ...c.relationships, ...knightsRel(st, id, c.relationships) }, discovered: { paths: [], sites: [] }, seen: [], hiddenEnemies: false, killsToday: 0,
         vp: vp ?? { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 }, onRoad: null, startDwelling: opt.dwelling ?? c.startDwellings[0], startValue: 10,
-        adv: (c.advantages ?? []).map(a => a.key), spells: startingSpells(data, c),
+        adv: (c.advantages ?? []).map(a => a.key), spells: startingSpells(data, c, opt.spells), learned: [],
     };
     // The starting weapon and armor are taken from the native group that owns them (never bought). A counter exists once: look in the
     // natives' stock, then lying on the ground; failing both he gets its price in gold instead.

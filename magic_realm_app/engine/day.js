@@ -12,7 +12,7 @@ import { activeHorse } from './items.js';
 import { extraActs, oneDie, locateMod } from './modifiers.js';
 import { beginTrade, tradeAction } from './trade.js';
 import { scoreGame } from './score.js';
-import { canCastUsefully } from './spells.js';
+import { canCastUsefully, enchantableChits, TYPE_COLOR } from './spells.js';
 import { beginHire, hireAction, followHero, expireHires } from './hire.js';
 
 // The day loop (rules digest 01 section 4): Birdsong plan, Sunrise, Daylight phases, Sunset, Evening combat, Midnight.
@@ -282,6 +282,7 @@ function executeSlot(st, data, slot, i) {
         case 'rest': { t.climb = null; return doRest(st, data); }
         case 'alert': { t.climb = null; return doAlert(st, data); }
         case 'search': { t.climb = null; return doSearch(st, data, slot); }
+        case 'enchant': { t.climb = null; return doEnchant(st, data); }
         case 'trade': { t.climb = null; return beginTrade(st, data) ? 'wait' : 'No one here will trade with you.'; }
         case 'hire': {
             t.climb = null;
@@ -290,6 +291,18 @@ function executeSlot(st, data, slot, i) {
         }
         default: t.climb = null; return 'Nothing happens.';
     }
+}
+
+// Enchant (rule 7.10): the first Enchant phase of a day is only meditation; each later one enchants a Magic chit of Type I to V into a colour chit
+// (it then supplies its colour to its owner's own spells, and is used up when played).
+function doEnchant(st, data) {
+    const t = st.turn;
+    t.enchants = (t.enchants ?? 0) + 1;
+    if (t.enchants === 1) return 'You meditate and gather your power: the first Enchant phase of a day only prepares you, so a second Enchant phase is needed to enchant.';
+    const opts = enchantableChits(st);
+    if (!opts.length) return 'You have no ready Magic chit of Type I to V to enchant.';
+    st.pending = { type: 'enchant-choice', options: opts.map(c => ({ chit: c.id, numeral: c.numeral, time: c.time, effort: c.effort, color: TYPE_COLOR[c.numeral] })) };
+    return 'wait';
 }
 
 function doMove(st, data, slot) {
@@ -513,6 +526,18 @@ export function apply(st0, data, action) {
             say(st, payEffort(st, o), 'info');
             const text = p.resume === 'search' ? doSearch(st, data, { ...p.slot, paid: true }) : lootFrom(st, data, p.r, p.ground, { paid: true });
             if (text === 'wait') return st;
+            finishPhase(st, data, text);
+            return settle(st, data, st.turn?.auto);
+        }
+        case 'enchant-choice': {
+            if (p.type !== 'enchant-choice') throw new Error('nothing to enchant');
+            const o = p.options.find(x => x.chit === action.chit);
+            if (!o) throw new Error('choose one of the chits offered');
+            st.pending = null;
+            const ch = st.ch.chits.find(x => x.id === o.chit);
+            ch.state = 'enchanted';
+            const text = `You enchant your Magic ${o.numeral}${o.time}${'*'.repeat(o.effort)}: it now holds ${o.color} magic until you play it.`;
+            say(st, text, 'info');
             finishPhase(st, data, text);
             return settle(st, data, st.turn?.auto);
         }

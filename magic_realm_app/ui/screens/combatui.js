@@ -17,7 +17,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
     const m = ui.melee;
     const send = a => { ui.melee = null; act({ type: 'combat', ...a }); };
     const foes = c.dens.filter(d => !d.dead && d.kind !== 'horse');
-    const cs = { active: 0, fatigued: 0, wounded: 0 }; st.ch.chits.forEach(x => { cs[x.state]++; });
+    const cs = { active: 0, fatigued: 0, wounded: 0, enchanted: 0 }; st.ch.chits.forEach(x => { cs[x.state] = (cs[x.state] ?? 0) + 1; });
     const gear = st.ch.items.filter(i => i.kind === 'armor' && i.active).map(i => `${nameOf(data, i)}${i.damaged ? ' (damaged)' : i.destroyed ? ' (destroyed)' : ''}`);
     const header = h('div', { class: 'cb-head' },
         h('b', {}, `Evening at ${nameOfClearing(c.at)}`),
@@ -25,7 +25,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             peek ? h('button', { class: 'peekbtn', 'data-act': 'peek-gear', onclick: peek.gear }, 'Belongings') : null,
             peek ? h('button', { class: 'peekbtn', 'data-act': 'peek-map', onclick: peek.map }, 'Map') : null,
             h('em', {}, `Round ${c.round}`)));
-    const state = h('div', { class: 'cb-state' }, h('span', {}, `Chits: ${cs.active} ready \u00B7 ${cs.fatigued} tired \u00B7 ${cs.wounded} wounded`), h('span', {}, gear.join(', ') || 'no armor'));
+    const state = h('div', { class: 'cb-state' }, h('span', {}, `Chits: ${cs.active} ready \u00B7 ${cs.fatigued} tired \u00B7 ${cs.wounded} wounded${cs.enchanted ? ` \u00B7 ${cs.enchanted} enchanted` : ''}`), h('span', {}, gear.join(', ') || 'no armor'));
     // A tap on a creature turns its counter over: the other side, with its own numbers, and what changed.
     ui.flipped ??= {};
     const SIDE_NAME = { light: 'light side', dark: 'dark side', red: 'red side' };
@@ -142,7 +142,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         // the three lanes: where the creatures stand (before the dice move them) and which way you attack, maneuver and guard
         body.push(h('div', { class: 'board' }, ...[0, 1, 2].map(b => h('div', { class: 'lane' },
             h('div', { class: 'lane-h' }, h('b', {}, MNV[b]), h('small', {}, DIRS[b])),
-            h('div', { class: 'lane-tags' }, ...[m.attackDir === b && m.fightChit ? 'your attack' : null, m.moveDir === b && m.moveChit ? 'your maneuver' : null, o.shield && m.shieldDir === b ? 'shield' : null]
+            h('div', { class: 'lane-tags' }, ...[m.attackDir === b && (m.fightChit || o.attackSpell) ? 'your attack' : null, m.moveDir === b && m.moveChit ? 'your maneuver' : null, o.shield && m.shieldDir === b ? 'shield' : null]
                 .filter(Boolean).map(t => h('span', { class: 'tag' }, t))),
             ...o.boxable.filter((d, i) => (m.boxes[d.uid] ?? (i % 3)) === b).map(d => h('div', { class: 'lane-foe' }, denSide(st, data, d).name))))));
         // 1 target
@@ -150,9 +150,11 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             h('div', { class: 'seg3 wrap' }, h('button', { class: `segb${m.target == null ? ' on' : ''}`, onclick: () => { m.target = null; render(); } }, 'No one'),
                 ...o.targets.map(d => h('button', { class: `segb${m.target === d.uid ? ' on' : ''}`, onclick: () => { m.target = d.uid; render(); } }, denSide(st, data, d).name)))));
         // 2 attack
-        body.push(h('div', { class: 'cb-sec' }, h('b', {}, `2. Attack with your ${wname}`),
+        const spl = o.attackSpell ? data.spells?.[o.attackSpell.spell] : null;
+        body.push(h('div', { class: 'cb-sec' }, h('b', {}, spl ? `2. Attack with ${spl.name}` : `2. Attack with your ${wname}`),
             h('div', { class: 'seg3' }, ...DIRS.map((n, i) => h('button', { class: `segb${m.attackDir === i ? ' on' : ''}`, onclick: () => { m.attackDir = i; render(); } }, n))),
-            h('div', { class: 'chitrow' }, h('button', { class: `chit3 none${m.fightChit == null ? ' sel' : ''}`, onclick: () => { m.fightChit = null; render(); } }, 'none'),
+            spl ? h('p', { class: 'hint' }, `The spell strikes from the attack circle: ${o.attackSpell.hits > 1 ? `${o.attackSpell.hits} attacks` : 'one attack'} of harm ${o.attackSpell.harm}${'*'.repeat(o.attackSpell.stars)}, length ${o.attackSpell.length}, each with its own Missile Table roll. You cannot also use a Fight chit or weapon this round.`)
+            : h('div', { class: 'chitrow' }, h('button', { class: `chit3 none${m.fightChit == null ? ' sel' : ''}`, onclick: () => { m.fightChit = null; render(); } }, 'none'),
                 ...o.fightChits.map(ch => chitBtn(ch, m.fightChit === ch.id, () => { m.fightChit = ch.id; render(); }, o.fightOk(ch))))));
         // 3 maneuver
         body.push(h('div', { class: 'cb-sec' }, h('b', {}, '3. Maneuver'),

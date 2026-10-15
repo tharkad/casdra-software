@@ -19,12 +19,12 @@ import { ask } from '../ask.js';
 import { itemFace } from '../counter.js';
 import { cardEl } from '../card.js';
 import { earned, targets, scoreGame, progress, FACTORS, CATS } from '../../engine/score.js';
-import { COLORS, COLOR_MEANING, dayColors, isMagicDay, colorSources } from '../../engine/spells.js';
+import { COLORS, COLOR_MEANING, dayColors, isMagicDay, colorSources, castable } from '../../engine/spells.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
 const SAVE_KEY = 'mr-save-v1';
-const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert', nothing: 'Nothing' };
+const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert', enchant: 'Enchant', nothing: 'Nothing' };
 const TABLE_LABEL = { peer: 'Peer', locate: 'Locate', loot: 'Loot', ground: 'Ground', sitecard: 'Site card', runes: 'Read runes' };
 
 const WELCOME_KEY = 'mr-welcomed-v1';
@@ -282,6 +282,14 @@ export function gameScreen(ctx) {
             ask('Which runes will you read?', 'A Reading Runes search needs one target: a discovered site here that holds spell cards, or an artifact or book you carry and have active.'),
             ...p.options.map(o => h('button', { class: 'btn', 'data-target': o.key, onclick: () => act({ type: 'runes-target', target: o.key }) }, o.label)))));
         else if (p?.type === 'learn-spell') out.push(learnSheet(p));
+        else if (p?.type === 'enchant-choice') out.push(modal('Enchant', h('div', { class: 'restsheet' },
+            ask('Which Magic chit will you enchant?', 'It turns over to its colour and stays enchanted until you play it. A colour chit supplies that colour of magic to your own spells, and is used up when played.'),
+            h('div', { class: 'chitgrid' }, ...st.ch.chits.map(c => {
+                const o = p.options.find(x => x.chit === c.id);
+                const label = c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`;
+                return h('button', { class: `chit2 ${c.type} ${c.state}${o ? ' pick' : ' off'}`, 'data-enchant-chit': c.id, disabled: !o || null, onclick: () => act({ type: 'enchant-choice', chit: c.id }) },
+                    h('b', {}, label), h('span', {}, '*'.repeat(c.effort) || ' '), h('small', {}, o ? o.color : c.type === 'magic' ? 'Magic' : c.type === 'move' ? 'Move' : 'Fight'));
+            })))));
         else if (p?.type === 'search-choice') out.push(modal(`${TABLE_LABEL[p.table]}: your choice`, h('div', {}, latestRoll(st) ? rollRow(latestRoll(st)) : null, ask(`You rolled ${p.roll.join('+')}: the table gives you a choice.`, 'This result lets you pick whichever entry of the table you want instead of the one the dice name. Choose the one that helps you most.'),
             ...p.options.map(r => h('button', { class: 'btn', onclick: () => act({ type: 'search-choice', result: r }) }, r)))));
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));
@@ -572,7 +580,7 @@ export function gameScreen(ctx) {
             h('p', { class: 'hint' }, 'Gold, Fame and Notoriety are shown on the top bar. Fatigued chits are dim; wounded chits are crossed out.'),
             ...(ch.spells?.length ? [h('h3', {}, 'Spells'), ...ch.spells.map(id => h('div', { class: 'itemrow spellrow' }, h('button', { class: 'btn row', 'data-spell': id, onclick: () => { ui.spellId = id; ui.sheet = 'spell'; render(); } },
                 h('span', { class: 'rl' }, h('b', {}, data.spells?.[id]?.name ?? id), h('small', {}, `Type ${data.spells?.[id]?.type ?? '?'} \u00B7 ${data.spells?.[id]?.color ?? 'any colour'} \u00B7 ${data.spells?.[id]?.duration ?? ''}`)),
-                h('em', {}, data.spells?.[id]?.implemented ? 'castable' : 'not yet'))))]
+                h('em', {}, castable(data.spells?.[id]) ? 'castable' : 'not yet'))))]
                 : (data.characters[ch.id].stage4.spellsKnown ?? 0) ? [h('p', { class: 'hint' }, `Spells: one of type ${(data.characters[ch.id].stage4.spellTypes ?? []).join('/')} (not castable in this build yet).`)] : []),
             h('h3', {}, 'Carrying'),
             ...ch.items.map(it => {
@@ -788,7 +796,7 @@ export function gameScreen(ctx) {
         const color = sp.color ?? 'any';
         return cardEl({ title: sp.name, kind: sp.color ?? 'any', tag: `Type ${sp.type} spell \u00B7 ${color === 'any' ? 'any colour of magic' : `${color} magic`} \u00B7 ${sp.duration}`,
             stats: [...(target ? [['Target', target]] : []), ['Cast with', `a Magic chit of type ${sp.type}`], ['Colour needed', color === 'any' ? 'any' : color]], text: body,
-            notes: [sp.implemented ? 'You can cast this in this build: in the Encounter step of an evening fight, where its colour of magic is present.' : 'This spell cannot be cast in this build yet.'] });
+            notes: [castable(sp) ? 'You can cast this in this build: in the Encounter step of an evening fight, where its colour of magic is present.' : 'This spell cannot be cast in this build yet.'] });
     }
     function spellSheet() {
         const sp = data.spells?.[ui.spellId];
@@ -1015,7 +1023,7 @@ export function gameScreen(ctx) {
         const out = [];
         if (extras.length) out.push(h('p', { class: 'hint' }, `${base} ordinary phases take any action; the extra phases (${[...new Set(extras)].map(x => ACT_LABEL[x]?.toLowerCase() ?? x).join(', ')}) can fall anywhere in the day, but only for their own action.`));
         out.push(h('div', { class: 'chips2 six' },
-            ...['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', 'nothing'].map(a => {
+            ...['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), 'nothing'].map(a => {
                 const dim = a !== 'nothing' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver;
                 return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a]);
             })));
@@ -1114,7 +1122,7 @@ export function gameScreen(ctx) {
             let fresh = null;
             if (ctx.params?.fresh || !loadSaved()) {
                 fresh = { seed: ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: ctx.params?.character ?? 'white-knight', vp: ctx.params?.vp, mode: ctx.params?.mode, lastDay: ctx.params?.lastDay,
-                    startDwelling: ctx.params?.startDwelling, startGear: ctx.params?.startGear, options: ctx.params?.options };
+                    startDwelling: ctx.params?.startDwelling, startGear: ctx.params?.startGear, options: ctx.params?.options, startSpells: ctx.params?.startSpells };
                 st = newGame(data, fresh);
                 st.session = { id: String(Date.now()), started: new Date().toISOString(), version: VERSION, params: JSON.parse(JSON.stringify(fresh)) };
                 saveGame(st);
