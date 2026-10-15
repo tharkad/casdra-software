@@ -15,13 +15,30 @@ export function meetingDice(st, data = null) {
     return { dice: honor ? raw.map((d, i) => (used[i] === d ? `${d}` : `${d}-1`)) : raw, raw, used, value: Math.max(...used) };
 }
 
+// What a Meeting Table result means for the meeting itself, in words a player can follow (the table's own words are about prices and deals).
+export const MEETING_MEANING = {
+    'Price x1': 'A warm welcome: they will deal with you',
+    'Price x2': 'A guarded welcome: they will deal, at a price',
+    'Price x3': 'A cold welcome: they will deal, grudgingly',
+    'Price x4': 'A very cold welcome: they will deal, at a heavy price',
+    'Boon': 'They are glad of you: they offer a favour',
+    'Boon (x1)': 'They are glad of you: they offer a favour',
+    'No deal': 'They have no wish to deal with you',
+    'Opportunity': 'A chance to win them over: they hear you out again',
+    'Trouble': 'The talk turns sour: they hear you out in a worse mood',
+    'Insult': 'They insult you',
+    'Challenge': 'They challenge you',
+    'Block/Battle': 'They bar your way and attack',
+};
+export const meetingMeaning = res => MEETING_MEANING[res] ?? res;
+
 // One whole Meeting Table roll in a column, following Trouble (roll again as Unfriendly) and Opportunity (roll again one level friendlier).
 // Returns { res, r, note }: the final result, the last dice, and a note on what chained.
 export function meetingOutcome(st, col, what = 'Meeting Table', data = null) {
     const seen = [];
     const rollOnce = (c, label) => {
         const r = meetingDice(st, data), res = meetingResult(c, r.value);
-        seen.push(noteRoll(st, label, r.raw, r.value, res, r.used).n);
+        seen.push(noteRoll(st, label, r.raw, r.value, meetingMeaning(res), r.used).n);
         return { r, res };
     };
     let { r, res } = rollOnce(col, what), note = '';

@@ -629,6 +629,7 @@ export function gameScreen(ctx) {
 
     function menuSheet() {
         return modal('Menu', h('div', {},
+            h('button', { class: 'btn', 'data-act': 'menu-bug', onclick: () => { ui.sheet = 'bug'; render(); } }, 'Report a problem'),
             h('button', { class: 'btn', 'data-act': 'open-calendar', onclick: () => { ui.sheet = 'calendar'; render(); } }, 'Calendar and magic'),
             h('button', { class: 'btn', onclick: () => { ui.sheet = 'log'; render(); } }, 'Journal'),
             h('button', { class: 'btn', onclick: () => { ui.sheet = 'help'; render(); } }, 'How to play'),
