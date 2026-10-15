@@ -1095,6 +1095,7 @@ export function gameScreen(ctx) {
         const body = h('div', { class: 'plan-step' },
             h('div', { class: 'slot-head' }, h('b', {}, `Phase ${step + 1} of ${total}`), h('span', {}, slotKind(step, base, extras)), h('em', {}, s ? describeSlot(s) : 'not set'),
                 s ? h('button', { class: 'clearbtn', onclick: () => { d.slots[step] = null; render(); } }, 'Clear') : null),
+            ui.planNote ? h('p', { class: 'hint bad' }, ui.planNote) : null,
             ...phaseChoices(step, at, base, extras, total),
             at[step] ? h('p', { class: 'hint' }, `You will be at ${nameOfClearing(at[step])}.`) : null,
             step === 0 ? ask(`Day ${st.day}: choose what you will do in each phase.`, 'Your plan is secret and fixed once you start the day. Fill the phases in any order: extra phases may fall anywhere, and an action is greyed out only when the others have used up what it needs.', { compact: true }) : null);
@@ -1114,11 +1115,22 @@ export function gameScreen(ctx) {
             startButton());
     }
 
+    // A move into a cave takes the sunlight phases away, and an action chosen earlier can be left with no phase to stand in: such a slot is cleared
+    // (and the plan says so) instead of being left to make the whole plan invalid.
+    function pruneOver(why) {
+        const d = ui.draft, k = planKinds(st, data, d.slots).kinds, lost = [];
+        k.forEach((kind, i) => { if (kind === 'over' && d.slots[i]) { lost.push(i + 1); d.slots[i] = null; } });
+        if (lost.length) ui.planNote = `Phase${lost.length > 1 ? 's' : ''} ${lost.join(', ')} cleared: ${why ?? 'there is no ordinary phase left for it'}.`;
+        return lost.length > 0;
+    }
+
     function pick(i, a, at) {
         const d = ui.draft;
         ui.pickMove = null; ui.pickSearch = null;
         if (a === 'move') { ui.pickMove = i; render(); return; }
         d.slots[i] = { act: a };
+        ui.planNote = null;
+        pruneOver();
         advance(i + 1);
         render();
     }
@@ -1142,6 +1154,8 @@ export function gameScreen(ctx) {
             if (k.kinds[i + 1] === 'basic' || k.kinds[i + 1] === 'sunlight' || k.kinds[i + 1] === 'extra') d.slots[i + 1] = { act: 'move', to };
         }
         ui.pickMove = null;
+        ui.planNote = null;
+        pruneOver(isCave(st, data, to) ? 'a move into a cave takes away the sunlight phases, so the day is shorter' : null);
         advance(i + 1);
         render();
     }
