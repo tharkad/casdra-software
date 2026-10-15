@@ -641,7 +641,14 @@ export function meleePlay(st, data, p) {
     }
     // weapon state: a weapon that hit goes unalerted; one that struck and missed turns alerted
     if (w && fight && !target && (p.weaponSide === 'alerted' || p.weaponSide === 'unalerted')) w.item.alerted = p.weaponSide === 'alerted';      // 8.4.5 h.2
-    if (w && fight && target && myDir != null) w.item.alerted = !delivered;      // only a blow that was delivered unalerts the weapon; a miss or a cancelled blow leaves it alerted
+    if (w && fight && target && myDir != null) {
+        const wasAlerted = !!w.item.alerted;
+        w.item.alerted = !delivered;      // only a blow that was delivered unalerts the weapon; a miss or a cancelled blow leaves it alerted
+        // say so: it changes what the weapon does next round (an alerted weapon takes its attack time from the Fight chit)
+        if (!delivered) log(wasAlerted ? `Your ${weaponName} found no mark, so it stays alerted.` : `Your ${weaponName} found no mark, so it is now alerted: its next blow takes its attack time from the Fight chit you play.`,
+            wasAlerted ? `Your ${weaponName} found no mark and stays alerted.` : `Your ${weaponName} found no mark, and the missed swing leaves it alerted: next round its time comes from the Fight chit you play.`);
+        else if (wasAlerted) log(`Your ${weaponName} struck home, so it goes back to unalerted.`, `Your ${weaponName} struck home and goes back to unalerted.`);
+    }
     c.attackSpell = null;                                 // an attack spell not used this round is lost
     c.step = 'resolve';
     return afterMelee(st, data);
