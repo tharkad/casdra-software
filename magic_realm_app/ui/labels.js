@@ -69,7 +69,7 @@ export function layoutLabels(groups, obstacles = [], { rings = 12, step = 9, anc
                     const near = (rc, px, py) => { const cx = Math.max(rc.x, Math.min(px, rc.x + rc.w)), cy = Math.max(rc.y, Math.min(py, rc.y + rc.h)); return Math.hypot(cx - px, cy - py); };
                     for (const rc of rects) {                     // every pill of the stack, not just the stack's nearest edge
                         const mine = near(rc, g.ax, g.ay);
-                        for (const a of anchors) if (a.id !== g.own) { const d = near(rc, a.x, a.y); if (d + 4 < mine) { owned = false; excess = Math.max(excess, mine - d); } }
+                        for (const a of anchors) if (a.id !== g.own) { const d = near(rc, a.x, a.y); if (d + 1 < mine) { owned = false; excess = Math.max(excess, mine - d); } }
                     }
                 }
                 const score = area * 100 + dist + (owned ? 0 : 3000 + excess * 5);

@@ -144,7 +144,7 @@ export function mountMap(host) {
                     const shown = toks.length > 5 ? [...toks.slice(0, 4), { k: 'more', label: `+${toks.length - 4}` }] : toks;
                     const gid = `clr:${id}`;
                     const prio = Math.min(...shown.map(t => ({ mon: 1, nat: 1, ally: 2, dwelling: 2, site: 3, sound: 3, more: 4 }[t.k] ?? 3)));
-                    groups.push({ id: gid, own: id, ax: cx + x, ay: cy + y, ar: picture ? 10.5 : 13, prio, prefer: ['right', 'left'],
+                    groups.push({ id: gid, own: id, kind: shown[0]?.k ?? 'site', ax: cx + x, ay: cy + y, ar: picture ? 10.5 : 13, prio, prefer: ['right', 'left'],
                         boxes: shown.map(t => ({ w: pillWidth(t.label, { img: !!t.img }) + NUM_W, h: t.img ? 17 : PILL_H })) });
                     makeLabel.set(gid, (box, i) => {
                         const t = shown[i], th = t.img ? 15 : 0;
@@ -171,7 +171,10 @@ export function mountMap(host) {
             if (r.leader) {
                 const b = r.boxes[0];
                 const tx = Math.max(b.x, Math.min(gr.ax, b.x + b.w)), ty = Math.max(b.y, Math.min(gr.ay, b.y + b.h));
-                leaders.append(sv('line', { x1: gr.ax.toFixed(1), y1: gr.ay.toFixed(1), x2: tx.toFixed(1), y2: ty.toFixed(1), class: 'leader' }));
+                // a solid connector in the pills' own colour, and a ring on the clearing they belong to: no doubt which clearing a displaced name is for
+                const kind = gr.kind ?? 'site';
+                leaders.append(sv('circle', { cx: gr.ax.toFixed(1), cy: gr.ay.toFixed(1), r: (gr.ar + 4).toFixed(1), class: `leaderring ${kind}` }),
+                    sv('line', { x1: gr.ax.toFixed(1), y1: gr.ay.toFixed(1), x2: tx.toFixed(1), y2: ty.toFixed(1), class: `leader ${kind}` }));
             }
         }
         og.append(leaders, names);
