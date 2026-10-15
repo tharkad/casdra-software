@@ -39,9 +39,10 @@ function corner(side, ax, ay, r, W, H, h0) {
 /**
  * @param groups    [{ id, ax, ay, ar, prio, prefer?, boxes:[{w,h}] }]  anchor point, the radius around it that must stay clear, lower prio is placed first
  * @param obstacles [{ x, y, r }]                                         round things that never move (clearing numbers, counters)
+ * @param anchors   [{ id, x, y }]  every clearing's centre; a group with `own` set to its clearing's id is kept nearer to that clearing than to any other
  * @returns Map id -> { boxes:[{x,y,w,h}], side, ring, leader:boolean, overlap:number }
  */
-export function layoutLabels(groups, obstacles = [], { rings = 12, step = 9 } = {}) {
+export function layoutLabels(groups, obstacles = [], { rings = 12, step = 9, anchors = [] } = {}) {
     const fixed = obstacles.map(o => ({ x: o.x - o.r, y: o.y - o.r, w: 2 * o.r, h: 2 * o.r }));
     const placed = [];
     const out = new Map();
@@ -61,9 +62,19 @@ export function layoutLabels(groups, obstacles = [], { rings = 12, step = 9 } = 
                 const rects = []; let yy = y;
                 for (const b of boxes) { rects.push({ x, y: yy, w: b.w, h: b.h }); yy += b.h + GAP; }
                 const area = areaOf(rects), dist = Math.hypot(x + W / 2 - g.ax, y + H / 2 - g.ay);
-                const score = area * 100 + dist;
-                if (!best || score < best.score) best = { score, rects, side, ring, area, dist, W, H };
-                if (area === 0) return best;              // candidates run from nearest to farthest
+                // A name must read as belonging to its own clearing: measured from the nearest edge of the stack, it may not be closer to
+                // another clearing's centre than to its own.
+                let owned = true, excess = 0;
+                if (g.own != null && anchors.length) {
+                    const near = (rc, px, py) => { const cx = Math.max(rc.x, Math.min(px, rc.x + rc.w)), cy = Math.max(rc.y, Math.min(py, rc.y + rc.h)); return Math.hypot(cx - px, cy - py); };
+                    for (const rc of rects) {                     // every pill of the stack, not just the stack's nearest edge
+                        const mine = near(rc, g.ax, g.ay);
+                        for (const a of anchors) if (a.id !== g.own) { const d = near(rc, a.x, a.y); if (d + 4 < mine) { owned = false; excess = Math.max(excess, mine - d); } }
+                    }
+                }
+                const score = area * 100 + dist + (owned ? 0 : 3000 + excess * 5);
+                if (!best || score < best.score) best = { score, rects, side, ring, area, dist, W, H, owned };
+                if (area === 0 && owned) return best;     // candidates run from nearest to farthest
             }
         }
         return best;
@@ -84,7 +95,7 @@ export function layoutLabels(groups, obstacles = [], { rings = 12, step = 9 } = 
             if (worst < best.area) { boxes = lone; side = 'split'; ring = maxRing; area = worst; far = true; }
         }
         for (const r of boxes) placed.push(grow(r, MARGIN));
-        out.set(g.id, { boxes, side, ring, overlap: area, leader: ring > 0 || far });
+        out.set(g.id, { boxes, side, ring, overlap: area, leader: ring > 0 || far || best.owned === false });
     }
     return out;
 }

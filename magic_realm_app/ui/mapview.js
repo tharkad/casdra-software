@@ -49,7 +49,7 @@ export function mountMap(host) {
         const g = sv('g', { class: 'world' });
         const top = sv('g', { class: 'top' });          // labels sit above every tile
         const og = sv('g', { class: 'labels' });         // in world coordinates: positions are decided across tiles
-        const groups = [], obstacles = [], makeLabel = new Map();
+        const groups = [], obstacles = [], anchors = [], makeLabel = new Map();
         let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
         const tileDefs = Object.fromEntries(tiles.map(t => [t.id, t]));
         for (const p of placements) {
@@ -138,12 +138,13 @@ export function mountMap(host) {
                 tg.append(cg);
                 // things standing in this clearing, each with its name; where they go is decided by layoutLabels once every tile is known
                 obstacles.push({ x: cx + x, y: cy + y, r: picture ? 10.5 : 13 });
+                anchors.push({ id, x: cx + x, y: cy + y });
                 const toks = model.tokens?.[id] ?? [];
                 if (toks.length) {
                     const shown = toks.length > 5 ? [...toks.slice(0, 4), { k: 'more', label: `+${toks.length - 4}` }] : toks;
                     const gid = `clr:${id}`;
                     const prio = Math.min(...shown.map(t => ({ mon: 1, nat: 1, ally: 2, dwelling: 2, site: 3, sound: 3, more: 4 }[t.k] ?? 3)));
-                    groups.push({ id: gid, ax: cx + x, ay: cy + y, ar: picture ? 10.5 : 13, prio, prefer: ['right', 'left'],
+                    groups.push({ id: gid, own: id, ax: cx + x, ay: cy + y, ar: picture ? 10.5 : 13, prio, prefer: ['right', 'left'],
                         boxes: shown.map(t => ({ w: pillWidth(t.label, { img: !!t.img }) + NUM_W, h: t.img ? 17 : PILL_H })) });
                     makeLabel.set(gid, (box, i) => {
                         const t = shown[i], th = t.img ? 15 : 0;
@@ -161,7 +162,7 @@ export function mountMap(host) {
             g.append(tg);
         }
         // names last, once every counter and number is known: nothing may cover anything else
-        const placed = layoutLabels(groups, obstacles);
+        const placed = layoutLabels(groups, obstacles, { anchors });
         const leaders = sv('g', { class: 'leaders', 'pointer-events': 'none' });
         const names = sv('g', { class: 'names', 'pointer-events': 'none' });
         for (const gr of groups) {
