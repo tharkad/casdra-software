@@ -196,10 +196,13 @@ export function mountMap(host) {
         // Start with all names at full size, and while some collide, overflow their tile or have to be tethered, turn the worst crowds into markers.
         const demoted = new Set();
         const asBadge = g0 => ({ ...g0, boxes: badgeOf.get(g0.id).boxes, prefer: ['right', 'left', 'below', 'above'], prio: 1 });
-        const bad = r => r.leader || r.overlap > 0 || (r.outside ?? 0) > 0;
+        // only when the names truly cannot sit by their clearing: they collide, spill off their tile, or would have to stand well away from it. (A name that sits close
+        // but nearer another clearing keeps its place and gets a thin line to its own.)
+        const bad = r => r.overlap > 0 || (r.outside ?? 0) > 0 || r.ring >= 2;
         let placed = null;
         for (let guard = 0; guard < 40; guard++) {
             placed = layoutLabels(groups.map(g0 => (demoted.has(g0.id) ? asBadge(g0) : g0)), obstacles, { anchors });
+            if (guard === 0) window.__labelFirst = Object.fromEntries(groups.filter(g0 => badgeOf.has(g0.id)).map(g0 => { const r = placed.get(g0.id); return [g0.id, { leader: r.leader, overlap: Math.round(r.overlap), outside: r.outside ?? 0, ring: r.ring, boxes: g0.boxes.length }]; }));
             const failing = groups.filter(g0 => badgeOf.has(g0.id) && !demoted.has(g0.id) && bad(placed.get(g0.id)));
             if (!failing.length) break;
             failing.sort((a0, b0) => b0.boxes.length - a0.boxes.length || placed.get(b0.id).overlap - placed.get(a0.id).overlap);

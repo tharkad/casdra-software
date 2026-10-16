@@ -539,6 +539,11 @@ export function gameScreen(ctx) {
         else if (ui.sheet === 'char') out.push(charSheet());
         else if (ui.sheet === 'clearing' && ui.sel) out.push(clearingSheet());
         else if (ui.sheet === 'menu') out.push(menuSheet());
+        else if (ui.sheet === 'confirm-abandon' && !race) out.push(modal('Abandon this game?', h('div', { class: 'confirmbox' },
+            h('p', {}, `${st.ch?.name ?? 'Your hero'} is on day ${st.day}${st.mode === 'endless' ? '' : ` of ${st.lastDay ?? 28}`}, with ${st.ch?.gold ?? 0} gold, ${st.ch?.fame ?? 0} Fame and ${st.ch?.notoriety ?? 0} Notoriety.`),
+            h('p', { class: 'hint bad' }, 'Abandoning ends this adventure for good. It stays in History as abandoned, but it cannot be picked up again.'),
+            h('button', { class: 'btn primary big', 'data-act': 'keep-playing', onclick: () => { ui.sheet = null; render(); } }, 'Keep playing'),
+            h('button', { class: 'btn danger', 'data-act': 'confirm-abandon', onclick: abandon }, 'Abandon this game')), { close: () => { ui.sheet = null; render(); } }));
         else if (ui.sheet === 'race' && race) out.push(raceSheet());
         else if (ui.sheet === 'calendar') out.push(calendarSheet());
         else if (ui.sheet === 'over' || ui.restartVp) out.push(overSheet());
@@ -955,7 +960,7 @@ export function gameScreen(ctx) {
             h('h4', {}, 'Other'),
             row('Report a problem', null, go('bug'), { act: 'menu-bug' }),
             row('Back to the title screen', null, () => { conn?.stop(); ctx.go('title'); }),
-            row(race ? 'Leave the race (your game stays on the server)' : 'Abandon this game', null, abandon, { danger: true })),
+            row(race ? 'Leave the race (your game stays on the server)' : 'Abandon this game', null, race ? abandon : () => { ui.sheet = 'confirm-abandon'; render(); }, { danger: true })),
             { close: () => { ui.sheet = null; render(); } });
     }
 
