@@ -1032,3 +1032,6 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .gearsec .gearrow { margin-top: 6px; }
 .row-end { display: flex; justify-content: flex-end; }
 .row-end .btn { width: 62%; min-width: 180px; margin: 0; }
+.twtrows { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.twtrow { display: flex; gap: 12px; align-items: baseline; padding: 6px 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; font-size: 15px; }
+.twtrow b { min-width: 1.2em; font-variant-numeric: tabular-nums; color: var(--gold, #e3c36a); }

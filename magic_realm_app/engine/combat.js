@@ -454,7 +454,7 @@ export function encounterAction(st, data, a) {
     if (c.step !== 'encounter') throw new Error('not in the encounter step');
     if (c.spellOnly) {
         // only a spell can be cast; anything else is a pass
-        if (a.act === 'gear') { gearAction(st, data, a); return; }
+        if (a.act === 'gear') { gearAction(st, data, a); st.pending = { type: 'combat-encounter', round: c.round, spellOnly: true }; return; }       // (the evening is still held for his spell)
         if (a.act === 'cast') {
             castSpell(st, data, a.spell, a.chit, a.item); applyAim(st, data, a.spellAim); resolveSpells(st, data);
             // Rule 8.1.3a: a quiet clearing still gets its rounds, one spell to a round. When another spell is worth casting, the next round is held for it

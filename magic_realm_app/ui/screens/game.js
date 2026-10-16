@@ -732,6 +732,32 @@ export function gameScreen(ctx) {
     }
 
     // One treasure site the way the printed Setup Card words it; the same sentence heads the site in the clearing sheet.
+    // A site card he found by looting: what each Loot roll on it gives (the card's own table), and what it demands.
+    function siteCardRow(cid) {
+        const box = st.twt?.[cid], name = data.treasures?.[cid]?.name ?? box?.name ?? cid;
+        const T = data.tables?.twtSiteTables?.[box?.box ?? name] ?? {};
+        const gave = n => (st.gone ?? {})[n] ? ' (already taken)' : '';
+        const what = (res, ct) => {
+            const named = k => box?.contents?.find(c => c.kind === k)?.name;
+            switch (res) {
+                case 'weapon': return `a weapon: ${named('weapon') ?? 'a weapon'}`;
+                case 'horse': return `a horse: ${named('horse') ?? 'a horse'}`;
+                case 'armor': return `armor: ${named('armor') ?? 'a suit of armor'}`;
+                case 'treasure': return box?.large?.length ? `a Large treasure (${box.large.length} left)` : 'a Large treasure (none left)';
+                case 'gold': return 'one piece of gold';
+                case 'curse': return 'a curse (roll on the Curses table)';
+                case 'heal': return 'all your fatigue and wounds are healed';
+                case 'power_pit': return 'the Power of the Pit';
+                case 'teleport_cave': return 'a pull toward the caves';
+                case 'wish': return 'a wish';
+                case 'peer_any': return 'your sight ranges far';
+                default: return 'nothing happens';
+            }
+        };
+        const tm = (box?.box ?? name) === 'Crypt of the Knight' ? 'Needs a Tremendous-strength chit or the Lost Keys on every roll.' : 'Needs: nothing special.';
+        return h('div', { class: 'crow site', 'data-sitecard': cid }, h('div', { class: 'crow-t' }, h('b', {}, `${name} (found by looting)`), h('small', {}, `A place you can search here with a Loot phase, one roll on its own table. ${tm}`),
+            h('div', { class: 'twtrows' }, ...Object.entries(T).map(([roll, res]) => h('div', { class: 'twtrow' }, h('b', {}, roll), h('span', {}, what(res)))))));
+    }
     function siteCardText(e) {
         const g = data.monsters[e.guardian]?.name ?? e.guardian;
         const special = e.special ? ` Needs: ${e.special.replace('fatigue_asterisk', 'an asterisk of effort').replace('fatigue_t,key', 'a Tremendous-strength chit or the Lost Keys')}.` : '';
@@ -834,7 +860,7 @@ export function gameScreen(ctx) {
             if (c.clearing === n && c.up) chitRows.push(row(c.kind, c.kind === 'sound' ? `${c.name} (sound ${c.num})` : `${c.name} (site ${c.num})`, c.kind === 'site' ? siteLine(c) : 'monsters stir here', mrChit(c)));
             else if (!c.up && c.kind === 'site' && c.num === n && st.ch.discovered.sites.includes(c.id)) chitRows.push(row('site', `${c.name} (site ${c.num})`, siteLine(c), mrChit(c)));
         }
-        for (const cid of st.ch.siteCards?.[id] ?? []) chitRows.push(row('site', `${data.treasures?.[cid]?.name ?? cid} (found by looting)`, 'a place you can search here with a Loot phase', null));
+        for (const cid of st.ch.siteCards?.[id] ?? []) chitRows.push(siteCardRow(cid));
         if (chitRows.length) sections.push(['Chits and sites', chitRows]);
         const ground = (st.abandoned[id] ?? []);
         if (ground.length) sections.push(['On the ground', ground.map(i => row('loot', nameOf(data, i), 'anyone here may pick it up with a Loot phase'))]);
