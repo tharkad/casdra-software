@@ -183,7 +183,7 @@ export function gameScreen(ctx) {
         }
         return {
             tiles: data.tiles, art: data.art, placements: st.placements, side: 'normal', showHidden: false, discovered: new Set(st.ch.discovered.paths),
-            chitsByTile, tokens, hero: st.ch.onRoad ? null : st.ch.at, heroHidden: st.ch.hidden, selected: ui.sel, plan: planPath, targets: ui.moveTargets,
+            chitsByTile, tokens, hero: st.ch.onRoad ? null : st.ch.at, heroHidden: st.ch.hidden, selected: ui.sel, plan: planPath, targets: ui.moveTargets, goingTo: (st.pending?.type === 'phase' && st.plan?.[st.pending.i]?.act === 'move') ? st.plan[st.pending.i].to : null,
             onTap: id => {
                 if (ui.sheet === 'plan' && st.pending?.type === 'plan' && ui.draft) {
                     // planning: a tap on a clearing next to where this phase starts sets the move; any other tap just looks at that clearing
@@ -237,6 +237,9 @@ export function gameScreen(ctx) {
         map.set(mapModel());
         const hero = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at;
         if (hero !== lastHero) { const first = lastHero === null; lastHero = hero; map.focus(hero, undefined, !first); }
+        // A Move phase that is about to be played: show where he is and where he is going, so the press is a decision with the road in view.
+        { const pp = st.pending, slot = pp?.type === 'phase' ? st.plan?.[pp.i] : null;
+          if (slot?.act === 'move' && slot.to) { const key = `${st.day}.${pp.i}.${slot.to}`; if (ui.framedMove !== key) { ui.framedMove = key; map.frame([hero, slot.to]); } } }
         renderTray();
         renderDock();
         // Sheets are rebuilt on every change; keep each scrolling area where it was while the same question is still on screen

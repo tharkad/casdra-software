@@ -27,13 +27,24 @@ export function mountMap(host) {
         el: svg,
         set(m, { refit = false } = {}) {
             model = m;
+            const before = view ? worldCentre() : null;
             size = [host.clientWidth || 360, host.clientHeight || 520];
             draw();
             if (refit || !view) { view = fit(); }
+            else if (before) recentre(before);                      // the map may have grown or shrunk (the details drawer): keep what was in the middle there
             apply();
         },
         fit(animate = true) { go(fit(), animate); },
         relayout() { size = [host.clientWidth || size[0], host.clientHeight || size[1]]; },
+        // Show these clearings together: the camera fits their bounding box (with room around it) in whatever space the map has just now.
+        frame(ids, { animate = true, pad = 90, minK = 0.5, maxK = 1.8 } = {}) {
+            const pts = ids.map(id => posOf.get(id)).filter(Boolean); if (!pts.length) return;
+            size = [host.clientWidth || size[0], host.clientHeight || size[1]];
+            const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]);
+            const minX = Math.min(...xs) - pad, maxX = Math.max(...xs) + pad, minY = Math.min(...ys) - pad, maxY = Math.max(...ys) + pad;
+            const k = Math.max(minK, Math.min(maxK, size[0] / (maxX - minX), size[1] / (maxY - minY)));
+            go({ k, x: size[0] / 2 - (minX + maxX) / 2 * k, y: size[1] / 2 - (minY + maxY) / 2 * k }, animate);
+        },
         focus(clearingId, k, animate = true) {
             const p = posOf.get(clearingId); if (!p) return;
             size = [host.clientWidth || size[0], host.clientHeight || size[1]];
@@ -125,6 +136,7 @@ export function mountMap(host) {
                 cg.append(sv('circle', { r: 19, fill: 'transparent' }));
                 if (onPlan) cg.append(sv('circle', { r: 17, class: 'planring' }));
                 if (isTarget) cg.append(sv('circle', { r: 20, class: 'targetring' }));
+                if (model.goingTo === id) cg.append(sv('circle', { r: 22, class: 'goingring' }));
                 if (picture) {
                     // an upright number over the printed one, so it reads whichever way the tile is turned
                     cg.append(sv('circle', { r: 9, class: 'numbadge', fill: 'rgba(12,14,20,.82)', stroke: ring ?? 'rgba(255,255,255,.55)', 'stroke-width': ring ? 2.4 : 1 }));
@@ -190,6 +202,13 @@ export function mountMap(host) {
         const k = Math.min(w / bw, h / bh);
         return { k, x: w / 2 - (bounds.minX + bounds.maxX) / 2 * k, y: h / 2 - (bounds.minY + bounds.maxY) / 2 * k };
     }
+    const worldCentre = () => [(size[0] / 2 - view.x) / view.k, (size[1] / 2 - view.y) / view.k];
+    const recentre = c => { view = { k: view.k, x: size[0] / 2 - c[0] * view.k, y: size[1] / 2 - c[1] * view.k }; };
+    // While the drawer slides, the map's box changes size every frame: keep the same point in the middle.
+    if (typeof ResizeObserver === 'function') new ResizeObserver(() => {
+        if (!view || flight) { size = [host.clientWidth || size[0], host.clientHeight || size[1]]; return; }
+        const c = worldCentre(); size = [host.clientWidth || size[0], host.clientHeight || size[1]]; recentre(c); apply();
+    }).observe(host);
     // The camera glides to a new view: the centre of the screen travels in a straight line over the map while the zoom changes smoothly (geometrically,
     // so a zoom out and a zoom in feel alike). A touch, a drag or the wheel takes the camera back at once. With reduced motion it simply jumps.
     let flight = null;

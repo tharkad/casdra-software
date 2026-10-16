@@ -874,3 +874,8 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .cb-results.small { padding: 6px 10px; gap: 4px; }
 .cb-results.small .res-row { padding-left: 8px; }
 .cb-results.small .res-top b { font-size: 14px; }
+
+/* the clearing he is about to move to */
+.realm-svg .goingring { fill: none; stroke: var(--gold); stroke-width: 3; pointer-events: none; transform-box: fill-box; transform-origin: center; animation: going 1.4s ease-in-out infinite; }
+@keyframes going { 0%, 100% { transform: scale(1); opacity: .95; } 50% { transform: scale(1.35); opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .realm-svg .goingring { animation: none; } }
