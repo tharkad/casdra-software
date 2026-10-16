@@ -22,6 +22,7 @@ import { cardEl } from '../card.js';
 import { earned, targets, scoreGame, progress, FACTORS, CATS } from '../../engine/score.js';
 import { COLORS, COLOR_MEANING, dayColors, isMagicDay, colorSources, castable, castOptions, ATTACK_SPELLS } from '../../engine/spells.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
+import { connect, inviteLink } from '../online.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
 const SAVE_KEY = 'mr-save-v1';
@@ -104,6 +105,10 @@ export function gameScreen(ctx) {
     mapBox.append(mapTools);
     root.append(strip, mapBox, tray, dock, layer);
     let lastHero = null, st = null, data = null, map = null, ui = { sheet: null, sel: null, draft: null, toast: null };
+    // Online: this screen is one seat in a race. The server holds the game; `st` is the view it sent, and every action goes to it.
+    const race = ctx.params?.online ?? null;
+    let conn = null, standings = [], inflight = false, here = false;
+    if (race) ui.sheet = ctx.params?.invited ? 'race' : null;
     try { if (localStorage.getItem('mr-dock-open') === '0') ui.dockOpen = false; } catch { /* ignore */ }
 
     // The game record (engine/gamerecord.js): every action taken and what the game said, kept on the device so a game can be listed, read and replayed.
@@ -120,10 +125,11 @@ export function gameScreen(ctx) {
         persist();
     }
 
-    function commit(next) { st = next; ctx.state = st; saveGame(st); render(); }
+    function commit(next) { st = next; ctx.state = st; if (!race) saveGame(st); render(); }
     function act(action) {
         ui.combatMap = false;
         if (action.type !== 'tidy') { ui.gainSeen = st.gainSeq ?? 0; ui.findSeen = st.findSeq ?? 0; }          // what he found last time is old news once he does something else
+        if (race) { actRemote(action); return; }
         try {
             const next = apply(st, data, action);
             rec?.moves.push(JSON.parse(JSON.stringify(action)));
@@ -136,7 +142,19 @@ export function gameScreen(ctx) {
             ui.toast = e.message; render(); setTimeout(() => { ui.toast = null; render(); }, 2600);
         }
     }
+    async function actRemote(action) {
+        if (inflight) return;
+        inflight = true; ui.busy = true; render();
+        try { const r = await conn.act(action); st = r.view; commit(st); }
+        catch (e) {
+            if (e.status === 409 && e.body?.view) commit(e.body.view);
+            ui.toast = e.message; render(); setTimeout(() => { ui.toast = null; render(); }, 2600);
+        } finally { inflight = false; ui.busy = false; render(); }
+    }
+    // Back from a lost connection (or another device): take the server's word for where the game is.
+    async function refresh() { try { const v = await conn.view(); standings = v.standings; if (!inflight && JSON.stringify(v.view) !== JSON.stringify(st)) commit(v.view); else render(); } catch { /* the next try will do */ } }
     function abandon() {
+        if (race) { conn?.stop(); ctx.go('online'); return; }
         if (rec && st) { finalize(rec, st); rec.meta.result = 'abandoned'; clearTimeout(persistTimer); putRecord(rec); }
         clearSaved(); ctx.go('title');
     }
@@ -229,7 +247,8 @@ export function gameScreen(ctx) {
         };
         const tot = vpNow();
         strip.replaceChildren(
-            h('button', { class: 'back', 'aria-label': 'Menu', 'data-act': 'menu', onclick: () => { ui.sheet = ui.sheet === 'menu' ? null : 'menu'; render(); } }, icon('menu', 22)),
+            h('button', { class: 'back', 'aria-label': 'Menu', 'data-act': 'menu', onclick: () => { ui.sheet = ui.sheet === 'menu' ? null : 'menu'; render(); } }, icon('menu', 22),
+                race && standings.some(x => x.present && x.seat !== race.seat) ? h('i', { class: 'pdot on corner', 'aria-label': 'Others are here' }) : null),
             h('button', { class: `daybox${magicToday.length ? ' magic' : ''}`, 'data-act': 'calendar', 'aria-label': 'Calendar and the colours of magic', onclick: () => { ui.sheet = ui.sheet === 'calendar' ? null : 'calendar'; render(); } },
                 h('b', {}, `Day ${st.day}`, h('small', {}, st.mode === 'endless' ? '' : `/${st.lastDay ?? 28}`), cursed ? h('i', { class: 'cursedmark', 'aria-label': 'cursed' }, icon('skull', 15)) : null),
                 h('span', {}, st.period === 'over' ? 'finished' : st.period, ...magicToday.map(c => h('i', { class: 'mdot', title: `${c} magic`, style: `background:${COLOR_DOT[c] ?? '#aaa'}` })))),
@@ -482,6 +501,7 @@ export function gameScreen(ctx) {
         else if (ui.sheet === 'char') out.push(charSheet());
         else if (ui.sheet === 'clearing' && ui.sel) out.push(clearingSheet());
         else if (ui.sheet === 'menu') out.push(menuSheet());
+        else if (ui.sheet === 'race' && race) out.push(raceSheet());
         else if (ui.sheet === 'calendar') out.push(calendarSheet());
         else if (ui.sheet === 'over' || ui.restartVp) out.push(overSheet());
         else if (ui.sheet === 'card') out.push(modal(st.ch.name, h('div', {}, data.art?.cards?.[st.ch.id] ? h('img', { class: 'cardpic', src: data.art.cards[st.ch.id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { ui.sheet = 'char'; render(); } }));
@@ -843,16 +863,37 @@ export function gameScreen(ctx) {
             { close: () => { ui.sheet = null; render(); } });
     }
 
+    function copyInvite() {
+        const link = inviteLink(race);
+        (navigator.clipboard?.writeText(link) ?? Promise.reject()).then(() => { ui.toast = 'Invite copied.'; render(); setTimeout(() => { ui.toast = null; render(); }, 2000); },
+            () => { ui.invite = link; ui.sheet = 'race'; render(); });
+    }
+    function raceSheet() {
+        const rows = standings.length ? standings : [];
+        const stat = x => x.status === 'finished' ? `finished ${x.score >= 0 ? '+' : ''}${x.score}` : x.status === 'died' ? `died, day ${x.day}` : `day ${x.day}`;
+        return modal('The race', h('div', { class: 'racelist' },
+            h('p', { class: 'hint' }, 'Everyone plays the same realm. A green dot means they have the game open right now.'),
+            ...rows.map(x => h('div', { class: `raceplayer${x.seat === race.seat ? ' me' : ''}`, 'data-seat': x.seat },
+                h('i', { class: `pdot${x.present ? ' on' : ''}`, 'aria-label': x.present ? 'here now' : 'away' }),
+                h('span', { class: 'rp-main' }, h('b', {}, x.name + (x.seat === race.seat ? ' (you)' : '')), h('small', {}, `${x.character ?? ''} \u00b7 ${stat(x)}`)),
+                h('span', { class: 'rp-nums' }, `${x.gold} gold \u00b7 ${x.fame} fame \u00b7 ${x.notoriety} notor.`))),
+            race.invite ? h('div', {}, h('button', { class: 'btn', 'data-act': 'copy-invite', onclick: copyInvite }, 'Copy invite link'), ui.invite ? h('input', { class: 'invitebox', readonly: true, value: ui.invite, onfocus: e => e.target.select() }) : null) : null),
+            { close: () => { ui.sheet = null; render(); } });
+    }
+
     function menuSheet() {
         const go = (sheet) => () => { ui.sheet = sheet; render(); };
         const row = (label, hint, onclick, extra = {}) => h('button', { class: `mrow${extra.danger ? ' danger' : ''}`, 'data-act': extra.act ?? null, onclick },
             h('span', { class: 't' }, h('span', {}, label), hint ? h('small', {}, hint) : null), extra.danger ? null : h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A'));
         return modal('Menu', h('div', { class: 'menulist' },
+            ...(race ? [h('h4', {}, 'The race'),
+                row('Standings', `${standings.filter(x => x.present).length} here now`, go('race'), { act: 'open-race' }),
+                ...(race.invite ? [row('Invite someone', 'Copy the link to send them', copyInvite, { act: 'invite' })] : [])] : []),
             h('h4', {}, 'This game'),
             row('Journal', 'What has happened, day by day', go('log')),
             row('Calendar and magic', 'The colours of magic through the month', go('calendar'), { act: 'open-calendar' }),
             row('Show the whole realm', null, () => { ui.sheet = null; map.fit(); render(); }),
-            row('This game\u2019s record', null, () => { persist(true); ctx.go('history', { id: st.session?.id, back: 'game' }); }),
+            ...(race ? [] : [row('This game\u2019s record', null, () => { persist(true); ctx.go('history', { id: st.session?.id, back: 'game' }); })]),
             h('h4', {}, 'Reference'),
             row('How to play', null, go('help')),
             row('Map key', null, go('key')),
@@ -860,8 +901,8 @@ export function gameScreen(ctx) {
             ...(data.art?.misc?.meetingTable ? [row('Tables', 'Meeting, Search, Missile, Pit', go('tables'))] : []),
             h('h4', {}, 'Other'),
             row('Report a problem', null, go('bug'), { act: 'menu-bug' }),
-            row('Back to the title screen', null, () => ctx.go('title')),
-            row('Abandon this game', null, abandon, { danger: true })),
+            row('Back to the title screen', null, () => { conn?.stop(); ctx.go('title'); }),
+            row(race ? 'Leave the race (your game stays on the server)' : 'Abandon this game', null, abandon, { danger: true })),
             { close: () => { ui.sheet = null; render(); } });
     }
 
@@ -1449,6 +1490,19 @@ export function gameScreen(ctx) {
         try {
             data = await loadData('data/');
             ctx.data = data;
+            if (race) {
+                conn = connect(race, { onStandings: list => { standings = list; if (root.isConnected) render(); else conn.stop(); }, onStatus: s => { const was = here; here = s === 'here'; if (here && was === false) refresh(); } });
+                const v = await conn.view();
+                st = v.view; standings = v.standings; ctx.state = st;
+                conn.start();
+                map = mountMap(mapBox);
+                window.__mr.game = { get st() { return st; }, act, data, ui, render, race, get standings() { return standings; } };
+                map.set(mapModel(), { refit: true });
+                render();
+                requestAnimationFrame(() => { map.fit(false); map.focus(st.ch.onRoad ? st.ch.onRoad.from : st.ch.at, 1.5, false); lastHero = st.ch.at; });
+                window.addEventListener('resize', () => map?.fit(false));
+                return;
+            }
             let fresh = null;
             if (ctx.params?.fresh || !loadSaved()) {
                 fresh = { seed: ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: ctx.params?.character ?? 'white-knight', vp: ctx.params?.vp, mode: ctx.params?.mode, lastDay: ctx.params?.lastDay,

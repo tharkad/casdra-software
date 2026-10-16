@@ -5,11 +5,12 @@ import { realmScreen } from './screens/realm.js';
 import { gameScreen, loadSaved } from './screens/game.js';
 import { helpScreen, stub } from './screens/info.js';
 import { historyScreen } from './screens/history.js';
+import { onlineScreen } from './screens/online.js';
+import { parseInvite } from './online.js';
 
 // A very small router: the app is a stack of full-screen views. Each screen is a function (ctx) -> element.
 const app = document.getElementById('app');
-const SCREENS = { title: titleScreen, newgame: newGameScreen, realm: realmScreen, game: gameScreen, rules: helpScreen, history: historyScreen,
-    join: stub('Join a game', 'Joining other players\' games (RealmSpeak or by mail) is planned. This build plays one character alone.'),
+const SCREENS = { title: titleScreen, newgame: newGameScreen, realm: realmScreen, game: gameScreen, rules: helpScreen, history: historyScreen, online: onlineScreen,
     settings: stub('Settings', 'No settings yet. Your game saves itself on this device after every step.') };
 
 const ctx = {
@@ -37,4 +38,7 @@ lockPortrait();
 addEventListener('pointerdown', lockPortrait, { once: true });
 
 window.__mr = { ctx, render };
+// An invite link (#race=GAME.INVITE) opens the Play online screen with the invite filled in.
+const invite = parseInvite(location.hash);
+if (invite) { ctx.screen = 'online'; ctx.params = { invite, joinText: `${invite.game}.${invite.invite}` }; if (invite.server) ctx.params.server = invite.server; history.replaceState(null, '', location.pathname + location.search); }
 render();

@@ -1,6 +1,7 @@
 import { h } from '../dom.js';
 import { ask } from '../ask.js';
 import { ATTACK_SPELLS } from '../../engine/spells.js';
+import { createRace, joinRace, peekRace, serverUrl } from '../online.js';
 
 // New game: a three-step wizard (game type, optional rules, character and goals).
 // Everything here is a *choice about the rules*, so the facts come from docs/rules/01 and 06 (see the notes beside each option).
@@ -200,11 +201,36 @@ export function newGameScreen(ctx) {
     const g = ctx.newGame ?? (ctx.newGame = defaultGame());
     const root = h('main', { class: 'screen newgame', 'data-screen': 'newgame' });
     const redraw = () => { root.replaceChildren(...build()); const body = root.querySelector('.body'); if (body && g._scroll) body.scrollTop = g._scroll; };
-    const back = () => { if (g.step === 0) { ctx.go('title'); } else { g.step -= 1; redraw(); } };
+    const online = ctx.onlineIntent ?? null;                     // set by the Play online screen: this wizard is choosing a seat in a race
+    const first = online?.mode === 'join' ? STEPS.length - 1 : 0;       // someone joining takes the race's rules and only chooses a character
+    if (online && !g._online) {
+        g._online = true;
+        if (online.mode === 'join') {
+            g.step = first; g.loading = true; g.note = 'Looking up the race\u2026';
+            peekRace(online.server, online.invite).then(r => {
+                g.loading = false; g.note = null; g.race = r;
+                g.options = { ...g.options, ...r.options };
+                if (r.mode === 'sudden') g.length = 'sudden'; else if (r.mode === 'endless') g.length = 'endless'; else if (r.lastDay === 28) g.length = 'month'; else { g.length = 'custom'; g.weeks = Math.round(r.lastDay / 7); }
+                redraw();
+            }).catch(e => { g.loading = false; g.note = e.message; redraw(); });
+        }
+    }
+    const back = () => { if (g.step <= first) { ctx.go(online ? 'online' : 'title', online ? { message: '' } : {}); } else { g.step -= 1; redraw(); } };
     const start = () => {
         const lastDay = g.length === 'custom' ? g.weeks * 7 : 28;
+        if (online) { startOnline(lastDay); return; }
         ctx.go('game', { fresh: true, character: g.character, vp: { ...g.vp }, options: { ...g.options }, startDwelling: g.dwelling, startSpells: (CHARACTERS.find(c => c.id === g.character)?.spells && Array.isArray(g.spells)) ? [...g.spells] : undefined, lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month' });
     };
+    async function startOnline(lastDay) {
+        const choices = { character: g.character, vp: { ...g.vp }, startDwelling: g.dwelling, startSpells: (CHARACTERS.find(c => c.id === g.character)?.spells && Array.isArray(g.spells)) ? [...g.spells] : undefined };
+        g.note = online.mode === 'join' ? 'Taking your seat\u2026' : 'Setting up the race\u2026'; g.busy = true; redraw();
+        try {
+            const race = online.mode === 'join' ? await joinRace(online.server, online.invite, online.name, choices)
+                : await createRace(serverUrl(), online.name, { ...choices, lastDay, options: { ...g.options }, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month' });
+            ctx.onlineIntent = null; ctx.newGame = null;
+            ctx.go('game', { online: race, invited: online.mode === 'create' });
+        } catch (e) { g.busy = false; g.note = e.message; redraw(); }
+    }
     const next = () => { if (g.step < STEPS.length - 1) { g.step += 1; g._scroll = 0; redraw(); } };
 
     function build() {
@@ -212,17 +238,17 @@ export function newGameScreen(ctx) {
         return [
             h('header', { class: 'bar' },
                 h('button', { class: 'back', 'aria-label': 'Back', onclick: back }, '‹'),
-                h('h1', {}, 'New game')),
-            h('div', { class: 'progress', 'aria-label': `Step ${g.step + 1} of ${STEPS.length}: ${STEPS[g.step].label}` },
+                h('h1', {}, online ? (online.mode === 'join' ? 'Join the race' : 'Start a race') : 'New game')),
+            online?.mode === 'join' ? null : h('div', { class: 'progress', 'aria-label': `Step ${g.step + 1} of ${STEPS.length}: ${STEPS[g.step].label}` },
                 h('div', { class: 'ticks' }, STEPS.map((s, i) => h('span', { class: `tick${i < g.step ? ' done' : ''}${i === g.step ? ' now' : ''}` }))),
                 h('div', { class: 'where' }, h('b', {}, STEPS[g.step].label), h('span', {}, `Step ${g.step + 1} of ${STEPS.length}`))),
             h('div', { class: 'body', onscroll: e => { g._scroll = e.target.scrollTop; } }, g.step === 0 ? typeStep(g, redraw) : g.step === STEPS.length - 1 ? charsStep(g, redraw, ctx) : optionsStep(g, redraw, ctx.go)),
             h('footer', { class: 'dock' },
-                h('div', { class: 'sum' }, summary(g)),
-                h('button', { class: 'btn primary big', 'data-act': last ? 'start' : 'next', disabled: last && (Object.values(g.vp).reduce((a, b) => a + b, 0) !== vpTotal(g) || (CHARACTERS.find(c => c.id === g.character)?.spells && (g.spells ?? []).length !== CHARACTERS.find(c => c.id === g.character).spells.n)), onclick: last ? start : next },
-                    last ? 'Start the game' : `Next: ${STEPS[g.step + 1].label}`),
-                g.step === 0 ? h('button', { class: 'btn', 'data-act': 'quick', onclick: start }, 'Start now with the defaults') : null),
-        ];
+                g.note ? h('div', { class: 'sum', role: 'status' }, g.note) : online?.mode === 'join' && g.race ? h('div', { class: 'sum' }, `${summary(g)} \u00b7 with ${g.race.players.join(', ')}`) : h('div', { class: 'sum' }, summary(g)),
+                h('button', { class: 'btn primary big', 'data-act': last ? 'start' : 'next', disabled: g.loading || g.busy || last && (Object.values(g.vp).reduce((a, b) => a + b, 0) !== vpTotal(g) || (CHARACTERS.find(c => c.id === g.character)?.spells && (g.spells ?? []).length !== CHARACTERS.find(c => c.id === g.character).spells.n)), onclick: last ? start : next },
+                    last ? (online ? (online.mode === 'join' ? 'Take my seat' : 'Start the race') : 'Start the game') : `Next: ${STEPS[g.step + 1].label}`),
+                g.step === 0 && !online ? h('button', { class: 'btn', 'data-act': 'quick', onclick: start }, 'Start now with the defaults') : null),
+        ].filter(Boolean);
     }
     root.append(...build());
     return root;

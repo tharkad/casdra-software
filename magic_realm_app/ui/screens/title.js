@@ -1,10 +1,14 @@
 import { h } from '../dom.js';
 import { emblem } from '../emblem.js';
 import { VERSION } from '../version.js';
+import { serverAvailable } from '../online.js';
 
 // The title screen. The main choices sit in the lower half where a thumb rests; the upper half is the brand.
 export function titleScreen(ctx) {
     const last = ctx.saved[0];
+    // shown only where a game server answers (the public static copy has none yet)
+    const onlineBtn = h('button', { class: 'btn big', 'data-act': 'online', hidden: true, onclick: () => ctx.go('online') }, 'Play online');
+    serverAvailable().then(ok => { onlineBtn.hidden = !ok; });
     return h('main', { class: 'screen title', 'data-screen': 'title' },
         h('header', { class: 'title-top' },
             h('div', { class: 'edition' }, 'Third Edition'),
@@ -16,7 +20,7 @@ export function titleScreen(ctx) {
             last ? h('button', { class: 'btn primary big', 'data-act': 'continue', onclick: () => ctx.go('game', { id: last.id }) },
                 h('span', { class: 'col' }, 'Continue', h('small', {}, `${last.character} · Day ${last.day}`))) : null,
             h('button', { class: `btn ${last ? '' : 'primary'} big`, 'data-act': 'new', onclick: () => ctx.go('newgame') }, 'New game'),
-            h('button', { class: 'btn big', 'data-act': 'join', onclick: () => ctx.go('join') }, 'Join a game'),
+            onlineBtn,
             h('div', { class: 'row3' },
                 h('button', { class: 'btn', 'data-act': 'rules', onclick: () => ctx.go('rules') }, 'Rules'),
                 h('button', { class: 'btn', 'data-act': 'history', onclick: () => ctx.go('history') }, 'History'),
