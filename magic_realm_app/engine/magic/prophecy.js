@@ -1,5 +1,5 @@
 import { isCave, roadsFrom } from '../world.js';
-import { extraActs } from '../modifiers.js';
+import { extraActs, noSunlight } from '../modifiers.js';
 import { fxTags, HERO } from './fx.js';
 
 // Prophecy's choose-as-you-go turn (handlers/prophecy.js; docs/design/magic/02-day-spells.md section 3). Under a live Prophecy the hero does not record a plan
@@ -23,9 +23,9 @@ export function startPro(st, data) {
 export function phaseOptions(st, data) {
     const t = st.turn, pro = t?.pro;
     if (!pro) return null;
-    const sunlight = !pro.startedInCave && !pro.cave;
+    const sunlight = !pro.startedInCave && !pro.cave && !noSunlight(st);
     const base = BASIC + (sunlight ? SUNLIGHT : 0) + (pro.blazing ? 1 : 0);
-    const left = [...extraActs(st, data, { startsInCave: pro.startedInCave, intoCave: pro.cave })];
+    const left = [...extraActs(st, data, { startsInCave: pro.startedInCave })];
     for (const a of pro.extras) { const k = left.indexOf(a); if (k >= 0) left.splice(k, 1); }
     const regularLeft = Math.max(0, base - pro.regular), r1 = pro.regular + 1;
     const regularKind = r1 <= BASIC ? 'basic' : pro.blazing && r1 === base ? 'blazing' : 'sunlight';
@@ -34,8 +34,10 @@ export function phaseOptions(st, data) {
         if (left.includes(act)) acts.push({ act, kind: 'extra' });
         else if (regularLeft > 0 && PRO_ACTS.includes(act)) acts.push({ act, kind: regularKind });
     }
-    const roads = st.ch.onRoad ? [st.ch.onRoad.from, st.ch.onRoad.to] : roadsFrom(st, data, st.ch.at).filter(r => r.usable).map(r => r.to);
-    return { i: t.i, acts, moves: roads, regularLeft, extrasLeft: left };
+    let roads = st.ch.onRoad ? [st.ch.onRoad.from, st.ch.onRoad.to] : roadsFrom(st, data, st.ch.at).filter(r => r.usable).map(r => r.to);
+    // a cave cannot be entered in a sunlight phase (6.2.2b, 7.3.1c.2; day.js doMove would refuse it and lose the phase): do not offer one unless the Move would be an extra phase
+    if (regularKind === 'sunlight' && !left.includes('move')) roads = roads.filter(to => !isCave(st, data, to));
+    return { i: t.i, acts: roads.length ? acts : acts.filter(a => a.act !== 'move'), moves: roads, regularLeft, extrasLeft: left };          // (no Move to offer when every road is a cave in a sunlight phase)
 }
 
 // He has chosen: use up the phase it takes.

@@ -6,7 +6,7 @@ import { layoutLabels, pillWidth, PILL_H } from './labels.js';
 
 // The pannable, zoomable realm map. It draws whatever model it is given; it knows nothing about the rules.
 // model = { tiles, placements, side, showHidden, discovered:Set(pathKeys), chitsByTile:{tile:[chit]}, dwellings:[{kind,at}], tokens:{clearing:[{k,label}]},
-//           hero, selected, plan:[clearing...], targets:[clearing...], onTap(clearingId), onBackground() }
+//           hero, selected, plan:[clearing...], targets:[clearing...], targetsMaybe:[clearing...], onTap(clearingId), onBackground() }
 
 const S = 100;
 const NUM_W = 17;            // room at the start of a clearing's pill for the circle with its number
@@ -143,12 +143,13 @@ export function mountMap(host) {
             });
             def.clearings.forEach(c => {
                 const id = p.id + c.n, [x, y] = pos[c.n];
-                const sel = model.selected === id, onPlan = model.plan?.includes(id), isTarget = model.targets?.includes(id);
+                const sel = model.selected === id, onPlan = model.plan?.includes(id), isTarget = model.targets?.includes(id), isMaybe = model.targetsMaybe?.includes(id);
                 const ring = c.magic?.length ? MAGIC[c.magic[0]] : null;
                 const cg = sv('g', { class: `clr${sel ? ' sel' : ''}${onPlan ? ' plan' : ''}`, transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})`, 'data-clearing': id });
                 cg.append(sv('circle', { r: 19, fill: 'transparent' }));
                 if (onPlan) cg.append(sv('circle', { r: 17, class: 'planring' }));
                 if (isTarget) cg.append(sv('circle', { r: 20, class: 'targetring' }));
+                else if (isMaybe) cg.append(sv('circle', { r: 20, class: 'targetring maybe' }));          // a hidden path a Search earlier in the plan may find
                 if (model.goingTo === id) cg.append(sv('circle', { r: 22, class: 'goingring' }));
                 if (picture) {
                     // an upright number over the printed one, so it reads whichever way the tile is turned

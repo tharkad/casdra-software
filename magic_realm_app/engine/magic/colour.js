@@ -13,15 +13,21 @@ export const COLOR_MEANING = {
 };
 const WEEK_COLORS = [['White', 'Black'], ['Grey'], ['Purple'], ['Gold']];            // day 7, 14, 21, 28 (and again for a longer game)
 export const isMagicDay = day => day > 0 && day % 7 === 0;
-export const dayColors = day => (isMagicDay(day) ? WEEK_COLORS[((day / 7) - 1) % 4] : []);
+// Day 7 gives White and Black in a one-month game; in a game of several months it alternates, White in the first month, Black in the second, and so on (6.1.2, 10.E.2.3).
+// `lastDay` is the length of the timed game; sudden death and endless games (28 here) keep the month's colours.
+export const dayColors = (day, lastDay = 28) => {
+    if (!isMagicDay(day)) return [];
+    if (lastDay > 28 && day % 28 === 7) return [Math.floor((day - 1) / 28) % 2 === 0 ? 'White' : 'Black'];
+    return WEEK_COLORS[((day / 7) - 1) % 4];
+};
 // The next day on or after `from` that fills the land with `color`, or null when it never will in a game of `lastDay` days.
 export function nextDayWith(color, from, lastDay = 28) {
-    for (let d = from; d <= lastDay; d++) if (dayColors(d).includes(color)) return d;
+    for (let d = from; d <= lastDay; d++) if (dayColors(d, lastDay).includes(color)) return d;
     return null;
 }
 // Every colour present in a clearing, with where it comes from: [{ color, why }].
 export function colorSources(st, data, clearing) {
-    const out = dayColors(st.day).map(color => ({ color, why: `day ${st.day} fills the land with magic`, calendar: true }));
+    const out = dayColors(st.day, st.lastDay ?? 28).map(color => ({ color, why: `day ${st.day} fills the land with magic`, calendar: true }));
     if (st.dwellings.some(d => d.kind === 'Chapel' && d.at === clearing)) out.push({ color: 'White', why: 'the Chapel in this clearing' });
     // an enchanted tile: each of its clearings carries the colours printed on that side (4.6.2)
     const p = clearing ? st.placements.find(x => x.id === tileOf(clearing)) : null;

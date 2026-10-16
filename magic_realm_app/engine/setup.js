@@ -180,7 +180,7 @@ export function makeCharacter(st, data, id, vp, opt = {}) {
         }
         if (st.deaths || st.gearSeen) {
             const def = Object.values(pool).find(d => d.name === name);
-            if (def) ch.gold += (kind === 'armor' ? def.priceIntact : def.price) ?? 0;
+            if (def) { const price = (kind === 'armor' ? def.priceIntact : def.price) ?? 0; ch.gold += price; ch.startValue += price; }       // (the gold stands in for the gear: it is part of his starting value, not Gold earned)
             return null;
         }
         const def = Object.values(pool).find(d => d.name === name);       // the very first character: the Setup Card always has it

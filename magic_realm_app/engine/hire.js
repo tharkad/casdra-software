@@ -13,12 +13,16 @@ export function relFor(st, g) {
 }
 
 const individual = (data, g) => data.groups[g].hireMode === 'individual';
+// Hiring order inside Order and Rogues: highest number first, the leader last.
+const hireRank = (data, n) => { const r = data.natives[n.id].rank; return r === 'HQ' ? -1 : Number(r); };
 
 export function hireOptions(st, data) {
     const here = st.ch.at, out = [];
     // Natives already in his pay may be hired again: another 14 days.
     for (const g of Object.values(data.groups)) {
-        const mine = st.nats.filter(n => !n.dead && n.hired && n.loc?.c === here && data.natives[n.id].group === g.id);
+        let mine = st.nats.filter(n => !n.dead && n.hired && n.loc?.c === here && data.natives[n.id].group === g.id);
+        // Order and Rogues are hired, and so extended, one native per Hire phase (7.7.1a.1, 7.7.1d): the one whose term ends soonest, in hiring order.
+        if (individual(data, g.id) && mine.length > 1) mine = [mine.sort((a, b) => a.hiredUntil - b.hiredUntil || hireRank(data, b) - hireRank(data, a))[0]];
         if (mine.length) out.push({ group: g.id, rehire: true, members: mine.map(m => m.id), names: mine.map(m => data.natives[m.id].name), wage: mine.reduce((s, m) => s + data.natives[m.id].wage, 0) });
     }
     // Monsters a spell has pacified (Deal with Goblins) may be hired too, a kind at a time, at the Neutral column: the wage is their Notoriety bounty (7.7.2, per card).
@@ -32,8 +36,7 @@ export function hireOptions(st, data) {
         if (!members.length) continue;
         if (individual(data, g.id)) {
             // one at a time, highest number first, the leader last
-            const rank = n => { const r = data.natives[n.id].rank; return r === 'HQ' ? -1 : Number(r); };
-            members = [members.sort((a, b) => rank(b) - rank(a))[0]];
+            members = [members.sort((a, b) => hireRank(data, b) - hireRank(data, a))[0]];
         }
         out.push({ group: g.id, members: members.map(m => m.id), names: members.map(m => data.natives[m.id].name), wage: members.reduce((s, m) => s + data.natives[m.id].wage, 0) });
     }
@@ -119,14 +122,15 @@ function hireMonsters(st, data, ids) {
 function hire(st, data, ids, group) {
     for (const id of ids) {
         const n = st.nats.find(x => x.id === id);
-        n.hired = true; n.hiredUntil = st.day + 13; n.loc = { c: st.ch.at };
+        n.hired = true; n.hiredUntil = st.day + 13; n.hiredDay = st.day; n.loc = { c: st.ch.at };
     }
     say(st, `You hire ${ids.map(i => data.natives[i].name).join(', ')} of the ${group} for 14 days.`, 'trade');
 }
 
-// Hirelings follow him wherever he goes.
+// Hirelings follow him wherever he goes, except natives hired today: they cannot follow until the next Birdsong (7.11.3), so a Move later in
+// the day leaves them where he hired them. On a later day they are with him again (they catch up; a hireling is never lost by being left behind).
 export function followHero(st) {
-    for (const n of st.nats) if (n.hired && !n.dead) n.loc = { c: st.ch.at };
+    for (const n of st.nats) if (n.hired && !n.dead && n.hiredDay !== st.day) n.loc = { c: st.ch.at };
     for (const m of st.mons) if (m.hired && !m.dead) m.loc = { c: st.ch.at };       // monsters under a Control spell, or hired
 }
 

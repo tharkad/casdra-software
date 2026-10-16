@@ -7,7 +7,7 @@ import { roadsFrom, isMountain, isCave, nameOfClearing, tileOf, numOf, tileName 
 import { nameOf, defOf, priceOf, weightOf, summaryOf } from '../../engine/items.js';
 import { WEIGHT_WORDS, lvl } from '../../engine/core.js';
 import { REL_NAMES } from '../../engine/tables.js';
-import { stockOf, sellable } from '../../engine/trade.js';
+import { stockOf, sellable, groupChoices, canPayOffer } from '../../engine/trade.js';
 import { drinksCost } from '../../engine/meeting.js';
 import { rollRow, rollsByIds, latestRoll, diceOf } from '../dice.js';
 import { voiceChip, logText, onVoice, voice } from '../voice.js';
@@ -26,6 +26,8 @@ import { connect, inviteLink } from '../online.js';
 import { energizeOptions } from '../../engine/magic/energize.js';
 import { heldOptions } from '../../engine/magic/phase.js';
 import { flySources, flyTiles } from '../../engine/magic/fly.js';
+import { planState, moveOptions, actRefusal } from '../planlogic.js';
+import { timed, dayCap, lengthLine, overTitle, SPELLS_HOW } from '../gametext.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
 const SAVE_KEY = 'mr-save-v1';
@@ -200,26 +202,26 @@ export function gameScreen(ctx) {
         if (hires.length && st.ch.at) add(st.ch.at, { k: 'ally', label: `Your hirelings x${hires.length}` });
         const planPath = ui.draft ? plannedClearings() : [];
         // while a Move phase is being set, the clearings he can walk to are ringed on the map: the map is where moves are chosen
-        ui.moveTargets = [];
+        ui.moveTargets = []; ui.moveMaybe = [];
         if (ui.sheet === 'plan' && st.pending?.type === 'plan' && ui.draft) {
-            const i = ui.planStep ?? 0, from = planLocations()[i];
+            const i = ui.planStep ?? 0;
             if (ui.pickMove === i || ui.draft.slots[i]?.act === 'move') {
-                ui.moveTargets = st.ch.onRoad && i === 0 ? [st.ch.onRoad.from, st.ch.onRoad.to] : from ? roadsFrom(st, data, from).filter(r => r.usable).map(r => r.to) : [];
-                // a cave cannot be entered in a sunlight phase (the third and fourth ordinary phases): do not ring one there (rule 6.2.2; day.js doMove)
-                const trial = ui.draft.slots.slice(); trial[i] = { act: 'move', to: from ?? 'x' };
-                if (planKinds(st, data, trial).kinds[i] === 'sunlight') ui.moveTargets = ui.moveTargets.filter(to => !isCave(st, data, to));
+                // planlogic.js: the roads he can walk (no cave in a sunlight phase, only the mountain once a climb is begun) and the hidden paths a Search earlier in the plan may find (6.2.4e)
+                const o = moveOptions(st, data, ui.draft.slots, i);
+                ui.moveTargets = o.sure; ui.moveMaybe = o.maybe;
             }
         }
         return {
             tiles: data.tiles, art: data.art, placements: st.placements, side: 'normal', showHidden: false, discovered: new Set(st.ch.discovered.paths),
-            chitsByTile, tokens, hero: st.ch.onRoad ? null : st.ch.at, heroHidden: st.ch.hidden, selected: ui.sel, pathMarks: data.pathmarks, plan: planPath, targets: ui.moveTargets, goingTo: (st.pending?.type === 'phase' && st.plan?.[st.pending.i]?.act === 'move') ? st.plan[st.pending.i].to : null,
+            chitsByTile, tokens, hero: st.ch.onRoad ? null : st.ch.at, heroHidden: st.ch.hidden, selected: ui.sel, pathMarks: data.pathmarks, plan: planPath, targets: ui.moveTargets, targetsMaybe: ui.moveMaybe, goingTo: (st.pending?.type === 'phase' && st.plan?.[st.pending.i]?.act === 'move') ? st.plan[st.pending.i].to : null,
             onTap: id => {
                 if (ui.sheet === 'plan' && st.pending?.type === 'plan' && ui.draft) {
                     // planning: a tap on a clearing next to where this phase starts sets the move; any other tap just looks at that clearing
-                    const i = ui.planStep ?? 0, from = planLocations()[i];
+                    const i = ui.planStep ?? 0;
                     const wantsMove = ui.pickMove === i || ui.draft.slots[i]?.act === 'move';
-                    const reach = from && roadsFrom(st, data, from).some(r => r.usable && r.to === id);
-                    if (wantsMove && (reach || (st.ch.onRoad && i === 0 && (id === st.ch.onRoad.from || id === st.ch.onRoad.to)))) { ui.planCollapsed = false; setMove(i, id); return; }
+                    // only a clearing that is ringed can be chosen: the same list the ring is drawn from (so no cave in a sunlight phase, and nothing that would wipe the later phases)
+                    if (wantsMove && (ui.moveTargets.includes(id) || ui.moveMaybe.includes(id))) { ui.planCollapsed = false; setMove(i, id); return; }
+                    if (wantsMove && isCave(st, data, id) && roadsFrom(st, data, planState(st, data, ui.draft.slots).at[i] ?? '').some(r => r.usable && r.to === id)) { ui.planNote = 'No caves in a sunlight phase: a cave can be entered only in the first two phases, and it takes the sunlight phases away.'; ui.planCollapsed = false; render(); return; }
                     ui.sel = id; ui.peek = true; render(); return;
                 }
                 ui.sel = id; ui.sheet = 'clearing'; render();
@@ -241,7 +243,7 @@ export function gameScreen(ctx) {
 
     // ---- rendering ----
     function render() {
-        const cursed = (st.ch.curses ?? []).length > 0, magicToday = dayColors(st.day);
+        const cursed = (st.ch.curses ?? []).length > 0, magicToday = dayColors(st.day, st.lastDay ?? 28);
         // Fame and Notoriety are shown as what counts (recorded plus what the things he owns add) with the recorded part beneath, so both are always in view.
         let ern = null; try { ern = earned(st, data); } catch { /* scoring not available */ }
         const stat = (key, label, val, ic) => {
@@ -258,7 +260,7 @@ export function gameScreen(ctx) {
             h('button', { class: 'back', 'aria-label': 'Menu', 'data-act': 'menu', onclick: () => { ui.sheet = ui.sheet === 'menu' ? null : 'menu'; render(); } }, icon('menu', 22),
                 race && standings.some(x => x.present && x.seat !== race.seat) ? h('i', { class: 'pdot on corner', 'aria-label': 'Others are here' }) : null),
             h('button', { class: `daybox${magicToday.length ? ' magic' : ''}`, 'data-act': 'calendar', 'aria-label': 'Calendar and the colours of magic', onclick: () => { ui.sheet = ui.sheet === 'calendar' ? null : 'calendar'; render(); } },
-                h('b', {}, `Day ${st.day}`, h('small', {}, st.mode === 'endless' ? '' : `/${st.lastDay ?? 28}`), cursed ? h('i', { class: 'cursedmark', 'aria-label': 'cursed' }, icon('skull', 15)) : null),
+                h('b', {}, `Day ${st.day}`, h('small', {}, dayCap(st)), cursed ? h('i', { class: 'cursedmark', 'aria-label': 'cursed' }, icon('skull', 15)) : null),
                 h('span', {}, st.period === 'over' ? 'finished' : st.period, ...magicToday.map(c => h('i', { class: 'mdot', title: `${c} magic`, style: `background:${COLOR_DOT[c] ?? '#aaa'}` })))),
             h('button', { class: 'stats', 'aria-label': 'Gold, Fame and Notoriety: open your sheet', onclick: () => { ui.sheet = ui.sheet === 'char' ? null : 'char'; render(); } },
                 stat('gold', 'Gold', st.ch.gold, 'coin'), stat('fame', 'Fame', st.ch.fame, 'fame'), stat('notor', 'Notoriety', st.ch.notoriety, 'notor')),
@@ -304,7 +306,7 @@ export function gameScreen(ctx) {
     function renderDock() {
         const p = st.pending;
         const where = nameOfClearing(st.ch.at);
-        const magicNow = dayColors(st.day);
+        const magicNow = dayColors(st.day, st.lastDay ?? 28);
         const magicBar = magicNow.length ? h('button', { class: 'magicbar', 'data-act': 'magic-day', onclick: () => { ui.sheet = 'calendar'; render(); } },
             h('span', {}, 'The land is filled with'), ...magicNow.map(c => colorChip(c)), h('span', { class: 'until' }, 'until midnight')) : null;
         const cursesOn = st.ch.curses ?? [];
@@ -550,7 +552,7 @@ export function gameScreen(ctx) {
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));
         else if (p?.type === 'hire' || p?.type === 'hire-offer') out.push(hireSheet(p));
         else if (!ui.welcomeDone && !welcomed() && st.day === 1 && p?.type === 'plan') out.push(modal(`Welcome, ${st.ch.name}`, h('div', {},
-            h('p', {}, `You are at the ${st.ch.startDwelling}${st.ch.items.length ? ' with ' + st.ch.items.map(i => nameOf(data, i)).join(', ') : ' with no weapon or armor yet: trade for some'}. You have ${st.lastDay ?? 28} days.`),
+            h('p', {}, `You are at the ${st.ch.startDwelling}${st.ch.items.length ? ' with ' + st.ch.items.map(i => nameOf(data, i)).join(', ') : ' with no weapon or armor yet: trade for some'}. ${lengthLine(st)}`),
             h('p', {}, h('b', {}, 'Each morning'), ' you plan up to four phases in secret: move, hide, search, trade, hire, rest or alert.'),
             h('p', {}, h('b', {}, 'Then the day plays out'), ', a phase at a time, and anything you meet is called out by the chits you turn up.'),
             h('p', {}, h('b', {}, 'Each evening'), ' you fight whoever shares your clearing, playing your chits in secret.'),
@@ -561,7 +563,7 @@ export function gameScreen(ctx) {
         else if (ui.sheet === 'clearing' && ui.sel) out.push(clearingSheet());
         else if (ui.sheet === 'menu') out.push(menuSheet());
         else if (ui.sheet === 'confirm-abandon' && !race) out.push(modal('Abandon this game?', h('div', { class: 'confirmbox' },
-            h('p', {}, `${st.ch?.name ?? 'Your hero'} is on day ${st.day}${st.mode === 'endless' ? '' : ` of ${st.lastDay ?? 28}`}, with ${st.ch?.gold ?? 0} gold, ${st.ch?.fame ?? 0} Fame and ${st.ch?.notoriety ?? 0} Notoriety.`),
+            h('p', {}, `${st.ch?.name ?? 'Your hero'} is on day ${st.day}${timed(st) ? ` of ${st.lastDay ?? 28}` : ''}, with ${st.ch?.gold ?? 0} gold, ${st.ch?.fame ?? 0} Fame and ${st.ch?.notoriety ?? 0} Notoriety.`),
             h('p', { class: 'hint bad' }, 'Abandoning ends this adventure for good. It stays in History as abandoned, but it cannot be picked up again.'),
             h('button', { class: 'btn primary big', 'data-act': 'keep-playing', onclick: () => { ui.sheet = null; render(); } }, 'Keep playing'),
             h('button', { class: 'btn danger', 'data-act': 'confirm-abandon', onclick: abandon }, 'Abandon this game')), { close: () => { ui.sheet = null; render(); } }));
@@ -628,14 +630,18 @@ export function gameScreen(ctx) {
 
     const offerDice = p => { const rs = rollsByIds(st, p.rollIds); return rs.length ? h('div', { class: 'offerdice' }, ...rs.map(r => rollRow(r))) : null; };
 
+    const c0Hint = choices => choices.some(c => c.canSwitch) ? 'More than one leader is here. Pick whose goods you deal with before you sell, buy or buy drinks.' : 'You have started dealing with this leader, so the choice is made for this phase.';
+
     function tradeSheet(p) {
         if (p.type === 'trade-offer') {
             if (p.insult) {
                 return modal(`${p.group}: ${p.insult}!`, h('div', {},
                     offerDice(p),
-                    h('p', {}, `The ${p.group} are offended. You may pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'} to calm things, or they will block you.`),
-                    h('button', { class: 'btn', onclick: () => act({ type: 'trade', act: 'pay' }) }, `Pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'}`),
-                    h('button', { class: 'btn', onclick: () => act({ type: 'trade', act: 'fight' }) }, 'Refuse')));
+                    canPayOffer(st, p)
+                        ? h('p', {}, `The ${p.group} are offended. You may pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'} to calm things, or they will block you.`)
+                        : h('p', {}, `The ${p.group} challenge you. Under the Disgust curse you cannot pay Fame, so they will block you and fight.`),
+                    canPayOffer(st, p) ? h('button', { class: 'btn', onclick: () => act({ type: 'trade', act: 'pay' }) }, `Pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'}`) : null,
+                    h('button', { class: 'btn', onclick: () => act({ type: 'trade', act: 'fight' }) }, canPayOffer(st, p) ? 'Refuse' : 'Fight')));
             }
             // Rule 7.6.5c: belongings may make up part or all of the price at their basic Gold price; no change is given.
             const mine = sellable(st, data), chosen = new Set((ui.payWith ?? []).filter(u => mine.some(m => m.uid === u)));
@@ -667,6 +673,13 @@ export function gameScreen(ctx) {
         const goods = stockOf(st, data, p.group), mine = sellable(st, data);
         return modal(`Trade with the ${p.group}`, h('div', { class: 'trade' },
             ask(`Trade phase with the ${p.group} at ${nameOfClearing(st.ch.at)}.`, 'Sell your things at their basic price, or choose one thing to buy: a purchase is priced by a roll on the Meeting Table, so how they feel about you matters. Press Done when you have finished.'),
+            ...(() => {
+                const choices = groupChoices(p);
+                return choices.length > 1 ? [h('h3', {}, 'Trade with'),
+                    h('div', { class: 'row2 grouppick' }, ...choices.map(c => h('button', { class: `btn${c.selected ? ' on' : ''}`, 'data-trade-group': c.group, 'aria-pressed': c.selected, disabled: !c.canSwitch && !c.selected,
+                        onclick: () => { if (!c.selected) act({ type: 'trade', act: 'group', group: c.group }); } }, `${c.selected ? '\u2713 ' : ''}${c.group}`))),
+                    h('p', { class: 'hint' }, c0Hint(choices))] : [];
+            })(),
             h('p', { class: 'hint' }, `Relationship: ${REL_NAMES[String(st.ch.rel?.[p.group] ?? 0)]}. You have ${st.ch.gold} gold. In one Trade phase you may sell any number of things, or buy one.${(st.ch.rel?.[p.group] ?? 0) <= -2 ? ' They are your enemies: expect an insult or a fight, not a price.' : ''}`),
             ...(() => {
                 const cost = drinksCost(st, data, p.group), owed = (st.ch.boons ?? []).map((b, n) => ({ ...b, n })).filter(b => b.group === p.group);
@@ -692,9 +705,11 @@ export function gameScreen(ctx) {
         if (p.type === 'hire-offer') {
             if (p.insult) return modal(`${p.group}: ${p.insult}!`, h('div', {},
                 offerDice(p),
-                h('p', {}, `The ${p.group} are offended. Pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'} to calm things, or they block you.`),
-                h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'pay' }) }, `Pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'}`),
-                h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'fight' }) }, 'Refuse')));
+                canPayOffer(st, p)
+                    ? h('p', {}, `The ${p.group} are offended. Pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'} to calm things, or they block you.`)
+                    : h('p', {}, `The ${p.group} challenge you. Under the Disgust curse you cannot pay Fame, so they will block you and fight.`),
+                canPayOffer(st, p) ? h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'pay' }) }, `Pay 5 ${p.insult === 'Insult' ? 'Notoriety' : 'Fame'}`) : null,
+                h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'fight' }) }, canPayOffer(st, p) ? 'Refuse' : 'Fight')));
             return modal(`Hire ${p.names.length === 1 ? p.names[0] : 'the ' + p.group}`, h('div', {},
                 ask(`${p.names.length === 1 ? p.names[0] : 'The ' + p.group} will join you for ${p.price} gold.`, 'That is their wages times your Meeting Table roll. Hire them to pay it now, or say no thanks and keep your gold.'),
                 offerDice(p) ?? h('p', {}, p.why),
@@ -914,17 +929,17 @@ export function gameScreen(ctx) {
     function calendarSheet() {
         const last = st.lastDay ?? 28, weeks = Math.ceil(last / 7);
         const cell = d => {
-            const cols = dayColors(d);
+            const cols = dayColors(d, st.lastDay ?? 28);
             return h('div', { class: `calday${d === st.day ? ' today' : ''}${d < st.day ? ' past' : ''}${cols.length ? ' magic' : ''}` },
                 h('b', {}, String(d)), ...cols.map(c => h('i', { class: `dot ${c.toLowerCase()}`, title: c })));
         };
         const here = colorSources(st, data, st.ch.at);
         return modal('Calendar and magic', h('div', { class: 'calendar' },
-            ask(isMagicDay(st.day) ? `Today the land is filled with ${dayColors(st.day).join(' and ')} magic.` : `Day ${st.day} of ${last}: an ordinary day for magic.`,
+            ask(isMagicDay(st.day) ? `Today the land is filled with ${dayColors(st.day, st.lastDay ?? 28).join(' and ')} magic.` : `Day ${st.day}${timed(st) ? ` of ${last}` : ''}: an ordinary day for magic.`,
                 'On the seventh day of each week one colour of magic fills the whole realm, from sunrise to midnight, in every clearing. Spells of that colour can be cast anywhere that evening.'),
             h('div', { class: 'calgrid' }, ...Array.from({ length: weeks }, (_, w) => h('div', { class: 'calweek' }, h('small', {}, `Week ${w + 1}`), ...Array.from({ length: 7 }, (_, k) => cell(w * 7 + k + 1))))),
             h('h3', {}, 'The week\'s colours'),
-            ...Array.from({ length: weeks }, (_, w) => h('p', { class: 'calrow' }, h('b', {}, `Day ${(w + 1) * 7}`), ...dayColors((w + 1) * 7).map(c => colorChip(c)))),
+            ...Array.from({ length: weeks }, (_, w) => h('p', { class: 'calrow' }, h('b', {}, `Day ${(w + 1) * 7}`), ...dayColors((w + 1) * 7, st.lastDay ?? 28).map(c => colorChip(c)))),
             h('h3', {}, 'What each colour is'),
             ...COLORS.map(c => h('p', { class: 'calrow' }, colorChip(c), h('span', {}, COLOR_MEANING[c]))),
             h('h3', {}, `In your clearing (${nameOfClearing(st.ch.at)})`),
@@ -1095,7 +1110,7 @@ export function gameScreen(ctx) {
         const belong = (key) => st.ch.items.filter(i => !i.destroyed).map(i => { const d = defOf(data, i); const t = i.card ? data.treasures[i.card] : d; return { name: nameOf(data, i), v: (t?.[key] ?? d?.[key] ?? 0) }; }).filter(x => x.v);
         const how = {
             great: `Great Treasures you own and can carry (${e.great}). Each is worth one point of the goal.`,
-            spells: 'Spells learned from cards during the game count (starting spells do not). None can be learned in this build yet.',
+            spells: SPELLS_HOW,
             fame: 'Recorded Fame plus the Fame of what you own.',
             notoriety: 'Recorded Notoriety plus the Notoriety of what you own.',
             gold: `Recorded gold ${st.ch.gold} minus your starting value ${st.ch.startValue ?? 10} (your starting gold and the price of the gear you began with). Only gold counts, not the price of things you own.`,
@@ -1430,7 +1445,7 @@ export function gameScreen(ctx) {
         const dead = st.over?.reason === 'died';
         const canRestart = dead && st.mode !== 'endless' && st.day < (st.lastDay ?? 28);
         if (canRestart && ui.restartVp) return restartSheet();
-        return modal(dead ? 'You have died' : 'The month is over', h('div', {},
+        return modal(overTitle(st, dead), h('div', {},
             dead ? deathBox() : null,
             dead ? h('p', {}, 'Your character is dead and scores -100.') : null,
             ...(s.rows ?? []).map(r => h('p', { class: 'scorerow' }, h('b', {}, r.cat), ` ${r.earned} of ${r.need}`, h('span', {}, ` \u2192 ${r.basic + r.bonus >= 0 ? '+' : ''}${r.basic + r.bonus}`))),
@@ -1461,11 +1476,8 @@ export function gameScreen(ctx) {
     // ---- planning ----
     // ---- planning: a panel under the map, one phase at a time (or all of them), with the map still live above it ----
     // where he will be at the start of each phase, as planned
-    function planLocations() {
-        const at = []; let loc = st.ch.onRoad ? null : st.ch.at;
-        for (let i = 0; i < 9; i++) { at.push(loc); const s = ui.draft.slots[i]; if (s?.act === 'move' && s.to) loc = s.to; }
-        return at;
-    }
+    // (the first half of a mountain climb does not bring him there: planlogic.js)
+    function planLocations() { return planState(st, data, ui.draft.slots).at; }
     const planInfo = () => {
         const v = planKinds(st, data, ui.draft.slots);
         return { total: v.total, base: v.base, extras: v.extras, kinds: v.kinds, errors: v.errors };
@@ -1490,9 +1502,9 @@ export function gameScreen(ctx) {
         const out = [];
         out.push(h('div', { class: 'chips2 six' },
             ...['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(flySources(st, data).length || st.ch.flying ? ['fly'] : []), 'nothing'].map(a => {
-                const cursed = (st.ch.curses ?? []).some(n => CURSE_ACT[n] === a);
-                const dim = cursed || (a !== 'nothing' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver);
-                return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${cursed ? ' cursed' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a], cursed ? h('small', {}, ' \u2620') : null);
+                const cursed = (st.ch.curses ?? []).some(n => CURSE_ACT[n] === a), refused = actRefusal(st, a);
+                const dim = cursed || !!refused || (a !== 'nothing' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver);
+                return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${cursed ? ' cursed' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, title: refused ?? undefined, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a], cursed ? h('small', {}, ' \u2620') : null);
             })));
         if (s?.act === 'search' && at[i]) out.push(h('p', { class: 'hint', 'data-hint': 'search-where' }, searchWhere(at[i])));
         // Alert: ready the weapon, or alert a Magic chit so that it can cast against fast creatures (it acts at time 0, and tires at Midnight if unused)
@@ -1508,6 +1520,8 @@ export function gameScreen(ctx) {
             out.push(h('p', { class: 'hint' }, 'Fly over which tile? A flight needs a Fly chit; you land at a clearing on that tile by a die roll, and cannot be blocked in the air.'));
             out.push(h('div', { class: 'chips2' }, ...flyTiles(st, data).map(t => h('button', { class: `chip${s?.to === t ? ' on' : ''}`, 'data-fly-tile': t, onclick: () => { d.slots[i] = { act: 'fly', to: t }; ui.pickFly = null; ui.planNote = null; advance(i + 1); render(); } }, tileName(t)))));
         }
+        if (st.ch.mist) out.push(h('p', { class: 'hint bad' }, 'As mist you can only move and hide.'));
+        else if (st.ch.morph) out.push(h('p', { class: 'hint bad' }, `In this shape you cannot ${['rest', 'trade', 'hire', 'enchant'].map(a => ACT_LABEL[a]?.toLowerCase() ?? a).join(', ')}.`));
         const blockedNow = (st.ch.curses ?? []).filter(n => CURSE_ACT[n]);
         if (blockedNow.length) out.push(h('p', { class: 'hint bad' }, `\u2620 ${blockedNow.map(n => `${n}: ${ACT_LABEL[CURSE_ACT[n]]} is not possible.`).join(' ')}`));
         // a climb needs its second Move straight after the first
@@ -1518,6 +1532,7 @@ export function gameScreen(ctx) {
         }
         if (ui.pickMove === i || s?.act === 'move') {
             out.push(h('p', { class: 'hint' }, at[i] || st.ch.onRoad ? 'Tap a ringed clearing on the map to go there.' : 'You are on a road; move to one of its ends first.'));
+            if (ui.moveMaybe?.length) out.push(h('p', { class: 'hint' }, `Dotted rings: ${ui.moveMaybe.map(nameOfClearing).join(', ')} lie along a hidden path or secret passage you have not found. Your earlier Search may find it; if it has not by then, this Move is lost.`));
         }
         if (extras.length) out.push(h('p', { class: 'hint' }, `${base} ordinary phases take any action; the extra phases (${[...new Set(extras)].map(x => ACT_LABEL[x]?.toLowerCase() ?? x).join(', ')}) can fall anywhere in the day, but only for their own action.`));
         return out;
@@ -1605,6 +1620,7 @@ export function gameScreen(ctx) {
     function pick(i, a, at) {
         const d = ui.draft;
         if (roadLocked(i)) return;
+        if (actRefusal(st, a)) return;
         ui.pickMove = null; ui.pickSearch = null;
         if (a === 'move') { ui.pickMove = i; ui.pickFly = null; render(); return; }
         if (a === 'fly') { ui.pickFly = i; ui.pickMove = null; d.slots[i] = { act: 'fly' }; render(); return; }
@@ -1630,7 +1646,8 @@ export function gameScreen(ctx) {
         d.slots[i] = { act: 'move', to };
         // a mountain takes two moves in a row: fill the next phase with the same move
         // (only if the next phase can really be a Move: an extra phase that is for Rest alone, or a day with no phase left, is not filled)
-        if (isMountain(st, data, to) && i + 1 < planInfo().total && !d.slots[i + 1]) {
+        const secondHalf = !!planState(st, data, d.slots).climbing[i];          // (this Move finishes a climb already begun: nothing more to fill in)
+        if (isMountain(st, data, to) && !secondHalf && i + 1 < planInfo().total && !d.slots[i + 1]) {
             const trial = d.slots.map((x, j) => (j === i + 1 ? { act: 'move', to } : x));
             const k = planKinds(st, data, trial);
             if (k.kinds[i + 1] === 'basic' || k.kinds[i + 1] === 'sunlight' || k.kinds[i + 1] === 'extra') d.slots[i + 1] = { act: 'move', to };

@@ -1,5 +1,6 @@
 import { h } from '../dom.js';
 import { ask } from '../ask.js';
+import { dwellingLine } from '../dwelling_line.js';
 import { ATTACK_SPELLS } from '../../engine/spells.js';
 import { createRace, joinRace, peekRace, serverUrl } from '../online.js';
 
@@ -84,11 +85,6 @@ const VP_ROWS = [
 
 // The characters this build can play. Where each may begin is on his card (rules 3.3.5): the Black Knight has the Inn only, the White Knight
 // the Inn or the Chapel. Gear is always the stage-4 weapon and armor, taken from the natives' stock (3.3.2).
-const DWELLING_LINE = {
-    Inn: 'The Rogues live here: they sell workhorses and trinkets.',
-    Chapel: 'The Order live here: they sell suits of armor, warhorses, crossbows, great swords, great axes and morning stars.',
-    House: 'The Soldiers live here, and they dislike her. The Woodfolk may turn up on a day their row prowls.',
-};
 // Each card file is named by its picture; the cards that do not follow the id are listed.
 const CARD_FILE = { 'woods-girl': 'woodsgirl' };
 // `rel`: how each native group takes to him (2 ally, 1 friendly, -1 wary, -2 enemy), as on the character card; `perks`: what sets him apart, in a few words.
@@ -166,7 +162,7 @@ function charsStep(g, redraw, ctx) {
         h('div', { class: 'choices', role: 'radiogroup' }, ...who.starts.map(d => h('button', { class: `choice${g.dwelling === d ? ' on' : ''}`, role: 'radio', 'aria-checked': g.dwelling === d, 'data-dwelling': d,
             onclick: () => { g.dwelling = d; redraw(); } },
             h('span', { class: 'dot' }),
-            h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, d), h('span', { class: 'choice-line' }, DWELLING_LINE[d]))))),
+            h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, d), h('span', { class: 'choice-line' }, dwellingLine(d, who)))))),
         who.starts.length === 1 ? h('p', { class: 'hint' }, `The ${who.name} has only the ${who.starts[0]} on ${who.her ? 'her' : 'his'} character card.`) : null,
         ...spellChooser(g, who, redraw),
         h('h2', { class: 'q' }, `Spend your ${total} victory points`),

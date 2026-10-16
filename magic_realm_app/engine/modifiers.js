@@ -10,12 +10,20 @@ const treasureIds = st => st.ch.items.filter(i => i.kind === 'treasure' && i.act
 // Cards that give one more phase restricted to one activity.
 const EXTRA = { 'magic-spectacles': 'search', 'cloak-of-mist': 'hide', 'regent-of-jewels': 'trade', 'royal-sceptre': 'hire', 'seven-league-boots': 'move' };
 
-export function extraActs(st, data, { startsInCave = false, intoCave = false } = {}) {
+// The Dwarf's Short Legs: no sunlight phases at all (6.2.2b).
+export const noSunlight = st => (st.ch.adv ?? []).includes('short-legs');
+
+// `intoCave` is accepted for callers that know it, but nothing is dropped by it: the workhorse's extra Move may itself be the Move into a cave (7.3.2a.2: the horse
+// is inactivated on arrival); only a day that STARTS in a cave bars the horse's extra phase (6.2.2c.1). The sunlight phases are what a cave takes away, not the extras.
+export function extraActs(st, data, { startsInCave = false } = {}) {
     const out = [];
     const h = activeHorse(st), hd = h ? data.horses[h.id] : null;
-    if (hd?.kind === 'workhorse' && !startsInCave && !intoCave) out.push('move');
+    if (hd?.kind === 'workhorse' && !startsInCave) out.push('move');
     for (const id of treasureIds(st)) if (EXTRA[id]) out.push(EXTRA[id]);
     if ((st.ch.adv ?? []).includes('health')) out.push('rest');             // the White Knight's extra Rest phase
+    if ((st.ch.adv ?? []).includes('robust')) out.push('rest');             // the Berserker's Robust: the same extra Rest phase
+    if ((st.ch.adv ?? []).includes('elusiveness')) out.push('hide');        // the Elf's extra Hide phase
+    if ((st.ch.adv ?? []).includes('stamina')) out.push('move');            // the Amazon's extra Move phase, even when riding
     if ((st.ch.adv ?? []).includes('aura-of-power')) out.push('enchant');   // the Sorcerer's extra spell (Enchant) phase
     if ((st.ch.adv ?? []).includes('magical-paraphernalia')) out.push('alert');   // the Magician's extra Alert phase (6.2.2, 7.9.3: weapon or one Magic chit)
     for (const t of fxTags(st, HERO, 'extraPhase')) out.push(t.value);       // Day and energized Permanent spells: Blend Into Background (hide), See Hidden Signs (search), Sense Danger (alert)

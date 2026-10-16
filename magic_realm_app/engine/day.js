@@ -10,7 +10,7 @@ import { tell } from './story.js';
 import { runesTargets, readRunes, learnSpell } from './runes.js';
 import { restartAfterDeath } from './setup.js';
 import { activeHorse } from './items.js';
-import { extraActs, oneDie, locateMod, modRoll, modNote } from './modifiers.js';
+import { extraActs, noSunlight, oneDie, locateMod, modRoll, modNote } from './modifiers.js';
 import { beginTrade, tradeAction } from './trade.js';
 import { scoreGame } from './score.js';
 import { canCastUsefully, enchantableChits, TYPE_COLOR, dayColors } from './spells.js';
@@ -73,7 +73,7 @@ function landDenizens(st, data) {
 export function phasesFor(st, data, slots) {
     const startsInCave = !st.ch.onRoad && isCave(st, data, st.ch.at);        // fleeing out of a cave leaves him on the road: a full day (8.3.8 d.2)
     const intoCave = slots.some(s => s?.act === 'move' && isCave(st, data, s.to));
-    const sunlight = !startsInCave && !intoCave;
+    const sunlight = !startsInCave && !intoCave && !noSunlight(st);          // the Dwarf's Short Legs: no sunlight phases ever
     // A working horse in use, and some treasure cards, give one more phase each, restricted to one activity.
     const extras = extraActs(st, data, { startsInCave, intoCave });
     // Blazing Light (Day, cast in a cave): in the Birdsong after it was cast, a character who starts the day in that cave clearing may record one more phase, for any activity
@@ -144,7 +144,7 @@ function sunrise(st, data) {
     st.prowl = die(st);
     noteRoll(st, 'Monster roll', [st.prowl], st.prowl, `row ${st.prowl} prowls today`);
     st.rolls.at(-1).tale = tell.wilds(st, data);                       // the story voice says what prowls, not which row
-    const magic = dayColors(st.day), week = st.day % 7 === 0 ? regenerate(st, data) : null;
+    const magic = dayColors(st.day, st.lastDay ?? 28), week = st.day % 7 === 0 ? regenerate(st, data) : null;
     say(st, `Dawn of day ${st.day}: row ${st.prowl} prowls.${magic.length ? ` The land is filled with ${magic.join(' and ')} magic until midnight.` : ''}`, 'day', tell.dawn(st, data, { magic }));
     if (week) say(st, `Regeneration: row ${st.prowl} creatures return to their homes.`, 'day', tell.weekEnd(st, data, week));
     // He becomes unhidden when his own turn begins.
@@ -396,6 +396,7 @@ function midnight(st, data) {
         return;
     }
     st.day += 1;
+    if (!st.ch.onRoad) followHero(st);                 // natives hired yesterday (who could not follow him on that day's Move) are with him again by Birdsong (7.11.3)
     beginDay(st, data);
 }
 

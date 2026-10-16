@@ -880,16 +880,22 @@ function roofStrikesHire(st, data, h, log) {
         log(`The roof kills ${hs.name}; you lose ${hs.notor} Notoriety.`);
     } else log(`The roof hits ${hs.name} but does not kill.`);
     c.eventful = true;
-    rebelGroup(st, data, group);
+    rebelGroup(st, data, group, hire.dead ? [hire.id] : []);
 }
 // Treachery: when his spell strikes a native he hired, that group's hirelings turn on him and the group battles.
-function rebelGroup(st, data, group) {
+// 8.4.2g: every member of the group under his hire rebels, wherever it is on the map, and he loses Fame equal to each rebel's Notoriety bounty.
+// `also` names a hireling already struck down by the very effect that caused the treachery: it counts as a rebel too.
+export function rebelGroup(st, data, group, also = []) {
     const c = st.combat;
-    let any = false;
-    for (const h of (c.hires ?? []).filter(x => !x.dead && data.natives[x.id].group === group)) {
-        const n = st.nats.find(x => x.id === h.id);
-        h.dead = true; n.hired = false; any = true;
+    let any = false, lost = 0;
+    for (const h of (c.hires ?? []).filter(x => !x.dead && data.natives[x.id].group === group)) { h.dead = true; any = true; }
+    const rebels = new Set([...also, ...st.nats.filter(n => n.hired && !n.dead && data.natives[n.id].group === group).map(n => n.id)]);
+    for (const id of rebels) {
+        const n = st.nats.find(x => x.id === id);
+        n.hired = false; if (!also.includes(id)) any = true;
+        lost += data.natives[id].notorietyBounty ?? 0;
     }
+    if (lost) { st.ch.fame -= lost; say(st, `Treachery: you lose ${lost} Fame.`, 'combat'); }
     if (any || nativesIn(st, data, c.at).some(n => data.natives[n.id].group === group)) {
         say(st, `The ${group} turn on you for what your spell did to one of their own.`, 'combat');
         startBattling(st, data, group);
@@ -1044,7 +1050,7 @@ function dropNativeGoods(st, data, n) {
     const stock = st.stock[def.group] ?? [];
     if (!stock.length) return;
     const at = st.combat.at;
-    const items = stock.splice(0).map(g => makeItem(st, g.kind, g.id));
+    const items = stock.splice(0).map(g => makeItem(st, g.kind, g.id, g.card ? { card: g.card } : {}));
     st.abandoned[at] = [...(st.abandoned[at] ?? []), ...items];
     say(st, `The ${def.group}'s goods are left lying where their leader fell.`, 'loot');
 }

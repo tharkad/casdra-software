@@ -32,6 +32,17 @@ export function beginTrade(st, data) {
     return true;
 }
 
+// The "Trade with" chooser for the sheet: one entry per leader in the clearing. He may switch while nothing has been dealt (7.6.1: he picks the leader).
+export function groupChoices(p) {
+    const open = !p.mode && !(p.sold?.length) && !p.drinks;
+    return (p.groups ?? []).map(group => ({ group, selected: group === p.group, canSwitch: open && (p.groups.length > 1) }));
+}
+
+// Under Disgust a Challenge cannot be paid (it costs Fame): the sheet must offer only the fight (7.6.5d).
+export function canPayOffer(st, p) {
+    return !(p.insult === 'Challenge' && hasCurse(st, 'Disgust'));
+}
+
 const relOf = (st, g) => st.ch.rel?.[g] ?? 0;
 const itemsWorthOf = (st, data) => st.ch.items.filter(i => !i.destroyed).reduce((n, i) => n + priceOf(data, i), 0);
 
@@ -46,7 +57,7 @@ export function tradeAction(st, data, p, a) {
         const price = priceOf(data, it);
         st.ch.gold += price;
         st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
-        (st.stock[g] ??= []).push({ kind: it.kind, id: it.id, damaged: false });
+        (st.stock[g] ??= []).push({ kind: it.kind, id: it.id, damaged: false, ...(it.card ? { card: it.card } : {}) });     // a card that became a counter stays linked to its card
         // A treasure with a Fame reward pays it when sold to the right group.
         const d = it.card ? data.treasures[it.card] : defOf(data, it);
         let bonus = '';
@@ -139,8 +150,8 @@ export function tradeAction(st, data, p, a) {
 
 function takeBought(st, data, g, idx) {
     const raw = st.stock[g].splice(idx, 1)[0];
-    const it = makeItem(st, raw.kind, raw.id, { damaged: !!raw.damaged });
-    const card = data.treasures[raw.id];
+    const it = makeItem(st, raw.kind, raw.id, { damaged: !!raw.damaged, ...(raw.card ? { card: raw.card } : {}) });
+    const card = data.treasures[raw.card ?? raw.id];
     if (card?.fameReward && card.fameReward.group === g) st.ch.fame -= card.fameReward.points;     // buying it back from its group costs the Fame it paid
     st.ch.items.push(it);
     noteGain(st, it);
@@ -182,7 +193,7 @@ function offerAction(st, data, p, a) {
         const given = [];
         for (const it of paying) {
             st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
-            (st.stock[g] ??= []).push({ kind: it.kind, id: it.id, damaged: false });     // the buyer's box, like any sale
+            (st.stock[g] ??= []).push({ kind: it.kind, id: it.id, damaged: false, ...(it.card ? { card: it.card } : {}) });     // the buyer's box, like any sale
             const d = it.card ? data.treasures[it.card] : defOf(data, it);
             if (d?.fameReward && d.fameReward.group === g) st.ch.fame += d.fameReward.points;
             given.push(nameOf(data, it));
