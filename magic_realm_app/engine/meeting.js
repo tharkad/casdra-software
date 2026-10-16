@@ -30,15 +30,30 @@ export const MEETING_MEANING = {
     'Challenge': 'They challenge you',
     'Block/Battle': 'They bar your way and attack',
 };
-export const meetingMeaning = res => MEETING_MEANING[res] ?? res;
+// The same results as they read in the Evening, where the roll decides one thing only: whether they fight you (8.2.2b). Everything else is "no fight".
+export const EVENING_MEANING = {
+    'Price x1': 'Friendly: they will not fight you',
+    'Price x2': 'Wary: they will not fight you',
+    'Price x3': 'Cool: they will not fight you',
+    'Price x4': 'Cold, but they will not fight you',
+    'Boon': 'Glad of you: they will not fight you',
+    'Boon (x1)': 'Glad of you: they will not fight you',
+    'No deal': 'They want nothing to do with you, but they will not fight',
+    'Opportunity': 'A chance to win them over: roll again, one level friendlier',
+    'Trouble': 'The talk turns sour: roll again, in a worse mood',
+    'Insult': 'They insult you: pay 5 Notoriety or fight',
+    'Challenge': 'They challenge you: pay 5 Fame or fight',
+    'Block/Battle': 'They attack: a fight',
+};
+export const meetingMeaning = (res, evening = false) => (evening ? EVENING_MEANING : MEETING_MEANING)[res] ?? res;
 
 // One whole Meeting Table roll in a column, following Trouble (roll again as Unfriendly) and Opportunity (roll again one level friendlier).
 // Returns { res, r, note }: the final result, the last dice, and a note on what chained.
-export function meetingOutcome(st, col, what = 'Meeting Table', data = null) {
+export function meetingOutcome(st, col, what = 'Meeting Table', data = null, evening = false) {
     const seen = [];
     const rollOnce = (c, label) => {
         const r = meetingDice(st, data), res = meetingResult(c, r.value);
-        seen.push(noteRoll(st, label, r.raw, r.value, meetingMeaning(res), r.used).n);
+        seen.push(noteRoll(st, label, r.raw, r.value, meetingMeaning(res, evening), r.used).n);
         return { r, res };
     };
     let { r, res } = rollOnce(col, what), note = '';

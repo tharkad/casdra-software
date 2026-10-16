@@ -134,7 +134,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
                 h('button', { class: 'btn primary', 'data-act': 'buy-drinks', disabled: st.ch.gold < p.cost, onclick: () => send({ kind: 'drinks', buy: true }) }, `Buy drinks (${p.cost}g)`),
                 h('button', { class: 'btn', 'data-act': 'no-drinks', onclick: () => send({ kind: 'drinks', buy: false }) }, 'No thanks'))));
     } else if (p.type === 'combat-choice') {
-        body.push(h('div', { class: 'cb-q' }, h('p', {}, `The ${p.groups.join(' and the ')} ${p.groups.length > 1 ? 'are' : 'is'} here and not looking for a fight. You may attack ${p.groups.length > 1 ? 'one of them, which brings its whole group in' : 'them'}, or let them be.`),
+        body.push(h('div', { class: 'cb-q' }, h('p', {}, `The ${p.groups.join(' and the ')} are here and not looking for a fight. You may attack ${p.groups.length > 1 ? 'one of them, which brings its whole group in' : 'them'}, or let them be.`),
             h('div', { class: 'row2' },
                 h('button', { class: 'btn', 'data-act': 'let-be', onclick: () => send({ kind: 'choice', fight: false }) }, 'Let them be'),
                 h('button', { class: 'btn primary', 'data-act': 'attack-natives', onclick: () => send({ kind: 'choice', fight: true }) }, 'Pick a fight'))));
