@@ -32,13 +32,13 @@ export function mountMap(host) {
             if (refit || !view) { view = fit(); }
             apply();
         },
-        fit() { view = fit(); apply(); },
+        fit(animate = true) { go(fit(), animate); },
         relayout() { size = [host.clientWidth || size[0], host.clientHeight || size[1]]; },
-        focus(clearingId, k) {
+        focus(clearingId, k, animate = true) {
             const p = posOf.get(clearingId); if (!p) return;
             size = [host.clientWidth || size[0], host.clientHeight || size[1]];
             const kk = k ?? Math.max(view?.k ?? 0, 1.5);
-            view = { k: kk, x: size[0] / 2 - p[0] * kk, y: size[1] / 2 - p[1] * kk }; apply();
+            go({ k: kk, x: size[0] / 2 - p[0] * kk, y: size[1] / 2 - p[1] * kk }, animate);
         },
     };
     const posOf = new Map();          // clearing id -> world position
@@ -190,6 +190,30 @@ export function mountMap(host) {
         const k = Math.min(w / bw, h / bh);
         return { k, x: w / 2 - (bounds.minX + bounds.maxX) / 2 * k, y: h / 2 - (bounds.minY + bounds.maxY) / 2 * k };
     }
+    // The camera glides to a new view: the centre of the screen travels in a straight line over the map while the zoom changes smoothly (geometrically,
+    // so a zoom out and a zoom in feel alike). A touch, a drag or the wheel takes the camera back at once. With reduced motion it simply jumps.
+    let flight = null;
+    const stopFlight = () => { if (flight) { cancelAnimationFrame(flight); flight = null; } };
+    function go(to, animate = true) {
+        stopFlight();
+        const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!animate || reduce || !view) { view = to; apply(); return; }
+        const [w, h] = size, from = { ...view };
+        const world = v => [(w / 2 - v.x) / v.k, (h / 2 - v.y) / v.k];
+        const [fx, fy] = world(from), [tx, ty] = world(to);
+        const dist = Math.hypot(tx - fx, ty - fy) * Math.max(from.k, to.k), zoom = Math.abs(Math.log(to.k / from.k));
+        const ms = Math.min(650, 260 + dist * 0.35 + zoom * 180);
+        const t0 = performance.now();
+        const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+        const step = now => {
+            const u = Math.min(1, (now - t0) / ms), e = ease(u);
+            const k = from.k * Math.pow(to.k / from.k, e), cx = fx + (tx - fx) * e, cy = fy + (ty - fy) * e;
+            view = { k, x: w / 2 - cx * k, y: h / 2 - cy * k }; apply();
+            flight = u < 1 ? requestAnimationFrame(step) : null;
+            if (u >= 1) { view = to; apply(); }
+        };
+        flight = requestAnimationFrame(step);
+    }
     function apply() {
         const g = svg.querySelector('.world');
         if (g) g.setAttribute('transform', `translate(${view.x.toFixed(1)} ${view.y.toFixed(1)}) scale(${view.k.toFixed(4)})`);
@@ -203,7 +227,7 @@ export function mountMap(host) {
 
     // taps and drags
     const pts = new Map(), down = new Map(); let last = null;
-    svg.addEventListener('pointerdown', e => { pts.set(e.pointerId, [e.clientX, e.clientY]); down.set(e.pointerId, [e.clientX, e.clientY]); last = null; moved = false; });
+    svg.addEventListener('pointerdown', e => { stopFlight(); pts.set(e.pointerId, [e.clientX, e.clientY]); down.set(e.pointerId, [e.clientX, e.clientY]); last = null; moved = false; });
     svg.addEventListener('pointermove', e => {
         if (!pts.has(e.pointerId)) return;
         const prev = pts.get(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]);
@@ -219,7 +243,7 @@ export function mountMap(host) {
     });
     const up = e => { pts.delete(e.pointerId); down.delete(e.pointerId); last = null; };
     svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
-    svg.addEventListener('wheel', e => { e.preventDefault(); const r = svg.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+    svg.addEventListener('wheel', e => { stopFlight(); e.preventDefault(); const r = svg.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
     svg.addEventListener('click', e => {
         if (moved) { moved = false; return; }
         const g = e.target.closest?.('[data-clearing]');

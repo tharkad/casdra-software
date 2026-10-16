@@ -236,7 +236,7 @@ export function gameScreen(ctx) {
                 h('small', {}, 'VP'), h('b', {}, tot > 0 ? `+${tot}` : String(tot))));
         map.set(mapModel());
         const hero = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at;
-        if (hero !== lastHero) { lastHero = hero; map.focus(hero); }
+        if (hero !== lastHero) { const first = lastHero === null; lastHero = hero; map.focus(hero, undefined, !first); }
         renderTray();
         renderDock();
         // Sheets are rebuilt on every change; keep each scrolling area where it was while the same question is still on screen
@@ -978,7 +978,7 @@ export function gameScreen(ctx) {
             return h('div', { class: 'scorerow2' },
                 h('div', { class: 'sr-head' }, h('b', {}, NAME[g.cat]), h('span', {}, g.earned >= g.need ? `${g.earned} of ${g.need} \u2713${g.earned > g.need ? ` (${g.earned - g.need} over)` : ''}` : `${g.earned} of ${g.need}: ${g.need - g.earned} to go`)),
                 h('div', { class: 'goalbar', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': g.need, 'aria-valuenow': Math.max(0, g.earned) }, h('i', { style: `width:${Math.round(g.frac * 100)}%` })),
-                h('p', { class: 'hint' }, `${g.vp} victory point${g.vp === 1 ? '' : 's'} are riding on this goal. ${how[g.cat]}`),
+                h('p', { class: 'hint' }, `${g.vp} victory point${g.vp === 1 ? ' is' : 's are'} riding on this goal. ${how[g.cat]}`),
                 h('details', { class: 'sr-math' }, h('summary', {}, sumUp(g.cat) || 'The arithmetic'),
                     r ? h('p', { class: 'hint' }, r.diff < 0
                         ? `Short by ${Math.abs(r.diff / 3)}, counted three times (${r.diff}), divided by ${FACTORS[g.cat]} and rounded down: ${r.basic}. Bonus ${r.basic} \u00D7 ${vp[g.cat] ?? 0} VP = ${r.bonus}.`
@@ -1447,8 +1447,8 @@ export function gameScreen(ctx) {
             window.__mr.game = { get st() { return st; }, act, data, ui, render };
             map.set(mapModel(), { refit: true });
             render();
-            requestAnimationFrame(() => { map.fit(); map.focus(st.ch.at, 1.5); lastHero = st.ch.at; });
-            window.addEventListener('resize', () => map?.fit());
+            requestAnimationFrame(() => { map.fit(false); map.focus(st.ch.at, 1.5, false); lastHero = st.ch.at; });
+            window.addEventListener('resize', () => map?.fit(false));
         } catch (e) {
             console.error(e);
             root.append(h('div', { class: 'note' }, 'Could not start the game: ' + e.message));
