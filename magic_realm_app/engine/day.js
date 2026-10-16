@@ -143,6 +143,7 @@ function sunrise(st, data) {
     st.period = 'sunrise';
     st.prowl = die(st);
     noteRoll(st, 'Monster roll', [st.prowl], st.prowl, `row ${st.prowl} prowls today`);
+    st.rolls.at(-1).tale = tell.wilds(st, data);                       // the story voice says what prowls, not which row
     const magic = dayColors(st.day), week = st.day % 7 === 0 ? regenerate(st, data) : null;
     say(st, `Dawn of day ${st.day}: row ${st.prowl} prowls.${magic.length ? ` The land is filled with ${magic.join(' and ')} magic until midnight.` : ''}`, 'day', tell.dawn(st, data, { magic }));
     if (week) say(st, `Regeneration: row ${st.prowl} creatures return to their homes.`, 'day', tell.weekEnd(st, data, week));

@@ -49,18 +49,38 @@ export function prowlers(data, row) {
     const folk = Object.values(data.groups ?? {}).filter(g => g.homeRow === row).map(g => `the ${g.id}`);
     return { mons, folk };
 }
+// What prowls today, told as a sentence instead of a row number: the creatures of that row (and the ever-wandering Ghosts) that are alive and free, by family.
+const WILD = { Dragon: ['dragon', 'wake in their hoards', 'wakes in its hoard'], Giant: ['giant', 'rise from their stones', 'rises from its stones'], Ogre: ['ogre', 'lumber out of their holes', 'lumbers out of its hole'],
+    Troll: ['troll', 'prowl the dark places', 'prowls the dark places'], Demon: ['demon', 'stir below', 'stirs below'], Imp: ['imp', 'flit abroad', 'flits abroad'], Octopus: ['octopus', 'stirs in the deep', 'stirs in the deep'],
+    Serpent: ['serpent', 'uncoil', 'uncoils'], Spider: ['spider', 'creep from their webs', 'creeps from its web'], Goblin: ['goblin', 'take the field', 'takes the field'], Wolf: ['wolf', 'hunt in packs', 'hunts'],
+    Bat: ['giant bat', 'take wing', 'takes wing'], Ghost: ['ghost', 'drift out', 'drifts out'] };
+const WILD_ORDER = ['Dragon', 'Giant', 'Ogre', 'Troll', 'Demon', 'Imp', 'Octopus', 'Serpent', 'Spider', 'Goblin', 'Wolf', 'Bat', 'Ghost'];
+const WORDNUM = { 10: 'ten', 11: 'eleven', 12: 'twelve', 13: 'thirteen', 14: 'fourteen', 15: 'fifteen', 16: 'sixteen', 17: 'seventeen', 18: 'eighteen', 19: 'nineteen', 20: 'twenty' };
+const cap1 = t => t.charAt(0).toUpperCase() + t.slice(1);
+export function wilds(st, data) {
+    const live = st.mons.filter(m => { const d = data.monsters[m.id]; return !m.dead && !m.hired && d && (d.homeRow === st.prowl || d.prowlsEveryDay); });
+    const by = {}; for (const m of live) { const d = data.monsters[m.id]; (by[d.family] ??= []).push(d); }
+    const clauses = WILD_ORDER.filter(f => by[f]).map(f => {
+        const n = by[f].length, [noun, many, one] = WILD[f] ?? [f.toLowerCase(), 'stir', 'stirs'], winged = f === 'Dragon' && by[f].some(d => d.flies) && by[f].length > 1;
+        const count = n === 1 ? `${/^[aeiou]/.test(noun) ? 'an' : 'a'} ${noun}` : `${n > 9 ? WORDNUM[n] ?? n : num(n)} ${noun === 'wolf' ? 'wolves' : `${noun}s`}`;
+        return `${n === 1 ? count : count}${winged ? ', some winged,' : ''} ${n === 1 ? one : many}`;
+    });
+    if (!clauses.length) return 'The wilds are quiet today.';
+    return `${cap1(listOf(clauses))}.`;
+}
 Object.assign(tell, {
+    wilds,
     dawn: (st, data, { magic = [], weekEnd = false } = {}) => {
         const { mons, folk } = prowlers(data, st.prowl), who = [...mons, ...folk];
         const open = v(st, [`Day ${st.day} dawns.`, `Morning comes on day ${st.day}.`, `The sun rises on day ${st.day}.`]);
-        const stir = who.length ? v(st, [`Row ${st.prowl} stirs: ${listOf(who)} leave their lairs.`, `Across the realm, ${listOf(who)} rouse themselves (row ${st.prowl}).`, `Row ${st.prowl} prowls today: ${listOf(who)}.`], 1) : `Row ${st.prowl} prowls, but little is left of it.`;
+        const stir = wilds(st, data);
         const mag = magic.length ? ` The land is filled with ${listOf(magic)} magic until midnight.` : '';
         return `${open} ${stir}${mag}`;
     },
     weekEnd: (st, data, { revived = [], ghosts = false } = {}) => {
         const names = listOf([...new Set(revived)]);
         const dead = revived.length ? ` ${v(st, [`The slain come back with them: ${names}.`, `Even the dead are called home: ${names} rise again.`, `The slain return too (${names}), new arrivals from beyond the Realm.`], 2)}` : '';
-        return `${v(st, [`It is the week's end.`, `The week turns.`, `Day ${st.day} closes the week.`])} Row ${st.prowl} is called back to where it began.${dead}${ghosts ? ' The Ghosts, who can never be put down, are back where they started.' : ''}`;
+        return `${v(st, [`It is the week's end.`, `The week turns.`, `Day ${st.day} closes the week.`])} The creatures of the wilds are called home to where they began.${dead}${ghosts ? ' The Ghosts, who can never be put down, are back where they started.' : ''}`;
     },
     sunset: (st, where) => v(st, [`The sun sets over ${where}.`, `Dusk gathers around ${where}.`, `Evening falls on ${where}.`]),
     quiet: st => v(st, ['A quiet evening: nothing stirs near you.', 'The evening is quiet. Nothing comes for you.']),
@@ -154,7 +174,7 @@ export function narrateRoll(r) {
     if ((m = /^Evening meeting with the ([^:]+)/.exec(w))) return { title: `The ${m[1]}`, line: pick(EVENING, res) ?? res };
     if ((m = /^Meeting roll: (?:buying from|repaying|hiring from|buying drinks for) the ([^:]+)/.exec(w)) || (m = /^Meeting roll: .* the ([^:]+)/.exec(w))) return { title: `The ${m[1]}`, line: pick(TRADE, res) ?? res };
     if (w === 'Hide') return { title: 'Hiding', line: /seen/i.test(res) ? 'Eyes find you. There is no cover.' : 'You slip out of sight.' };
-    if (w === 'Monster roll') { const row = /row (\d)/.exec(res)?.[1]; return { title: 'The wilds', line: row ? `Row ${row} stirs in the wilds.` : res }; }
+    if (w === 'Monster roll') { const row = /row (\d)/.exec(res)?.[1]; return { title: 'The wilds', line: r.tale ?? (row ? 'Something stirs in the wilds.' : res) }; }
     if (/^Repositioning roll/.test(w)) return { title: 'The melee', line: /shuffle/.test(res) ? 'The creatures circle and trade places.' : 'Nothing shifts.' };
     if ((m = /^Tactics roll \((\w+) box\)/.exec(w))) return { title: `The ${m[1]} box`, line: /switch sides/.test(res) ? 'A snarl, a twist: they change their stance.' : 'They hold their stance.' };
     if (/missile roll/.test(w)) { const d = /([+-])(\d)/.exec(res); const who = /^Your/.test(w) ? 'Your shot' : 'The shot'; return { title: /^Your/.test(w) ? 'Your shot' : 'Their shot', line: !d ? res : d[1] === '+' ? `${who} bites deeper than it looked.` : `${who} loses its sting.` }; }

@@ -336,7 +336,7 @@ export function gameScreen(ctx) {
         const recent = recent0.filter(l => !gainNames.some(n => logText(l).includes(n)));
         const prowl = st.period === 'daylight' && st.prowl ? h('button', { class: 'prowl', 'data-act': 'prowl', onclick: () => { ui.sheet = 'dice'; render(); } },
             h('b', {}, voice() === 'story' ? 'The wilds stir' : `Monster roll ${st.prowl}`), h('span', {}, prowlers().join(', ') || 'no one stirs'),
-            st.day % 7 === 0 ? h('small', { class: 'weekend' }, `Week\u2019s end: row ${st.prowl} was called back to where it began, the slain among them.`) : null) : null;
+            st.day % 7 === 0 ? h('small', { class: 'weekend' }, (voice() === 'story' ? 'The week turns: the creatures of the wilds are called home to where they began, the slain among them.' : `Week\u2019s end: row ${st.prowl} was called back to where it began, the slain among them.`)) : null) : null;
         // What the drawer shows: `body` is everything that explains (it slides away), `actions` is what you press (it stays).
         let body = null, actions = null;
         if (!p) body = h('div', { class: 'note' }, 'Working...');
