@@ -93,7 +93,31 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
     const w0 = weaponOf(st, data);
     const gearItems = [...(w0 ? [w0.item] : []), ...activeArmor(st, data).map(a => a.item ?? a).filter(x => x && x.uid)];
     const gearBlock = gearItems.length ? h('div', { class: 'cb-gear' }, h('small', { class: 'cb-gear-h' }, 'Your weapon and armor \u00B7 tap one to turn it over'), ...gearItems.map(gearCard)) : null;
-    const dice = (st.rolls ?? []).filter(r => r.n > (c.roundRollFrom ?? c.rollFrom ?? 0)).slice(-8);
+    const isMeet = r => /^Evening meeting with the /.test(r.what);
+    const dice = (st.rolls ?? []).filter(r => r.n > (c.roundRollFrom ?? c.rollFrom ?? 0) && !isMeet(r)).slice(-8);
+    // The evening's Meeting rolls, said once and kept at the top of every step: one block per native group with its verdict, what that means for the fight,
+    // and the dice behind it for whoever wants them.
+    const meets = new Map();
+    for (const r of (st.rolls ?? []).filter(x => x.n > (c.rollFrom ?? 0) && isMeet(x))) {
+        const g = r.what.replace(/^Evening meeting with the ([^:]+).*$/, '$1');
+        (meets.get(g) ?? meets.set(g, []).get(g)).push(r);
+    }
+    const meetFate = g => {
+        const line = (c.intro ?? []).find(t => t.startsWith(`The ${g} `)) ?? '';
+        if (c.battling?.[g]) return ['fight', 'Will fight you'];
+        if ((c.pays ?? []).some(x => x.group === g)) return ['asks', 'Wants you to pay'];
+        if (/insulted|challenged/.test(line)) return ['calm', 'Paid off'];
+        return ['calm', 'Lets you be'];
+    };
+    const resultsBlock = meets.size ? h('div', { class: `cb-results${c.round > 1 ? ' small' : ''}`, 'data-block': 'meeting' },
+        c.round > 1 ? null : h('b', { class: 'res-h' }, 'The evening meeting'),
+        ...[...meets].map(([g, rolls]) => {
+            const [fate, pill] = meetFate(g), verdict = rolls[rolls.length - 1].result;
+            return h('div', { class: `res-row ${fate}` },
+                h('div', { class: 'res-top' }, h('b', {}, g), h('span', { class: 'res-pill' }, pill)),
+                c.round > 1 ? null : h('p', { class: 'res-verdict' }, verdict ? `${verdict.charAt(0).toUpperCase()}${verdict.slice(1)}${/[.!?]$/.test(verdict) ? '' : '.'}` : ''),
+                c.round > 1 ? null : h('details', { class: 'res-dice' }, h('summary', {}, rolls.length > 1 ? `The ${rolls.length} rolls` : 'The roll'), ...rolls.map(r => rollRow(r, { compact: true }))));
+        })) : null;
     const diceBlock = dice.length ? h('div', { class: 'cb-dice' }, ...dice.map(r => rollRow(r, { compact: true }))) : null;
     const last = c.events?.length ? h('div', { class: 'cb-last' }, h('b', {}, 'Last round'), ...c.events.map(e => h('p', { class: e.startsWith('  ') ? 'sub' : /^(Round \d+:|Order of blows|Boxes as|Repositioning)/.test(e) ? 'hd' : '' }, e.trim()))) : null;
     const body = [];
@@ -271,10 +295,14 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             h('span', {}, liveFoes ? 'Others are still on their feet.' : `${killed.length ? `You killed ${names}: n` : 'N'}othing hostile is left standing. ${price}; settle it and the evening is yours.`))
         : null;
     const decision = h('div', { class: 'cb-body' }, ...body.filter(Boolean));
+    const meetingQuestion = ['combat-pay', 'combat-drinks', 'combat-choice'].includes(p.type);
     return h('div', { class: 'combat' }, header, state,
         h('div', { class: 'cb-scroll' },
+            resultsBlock,
+            // A question that comes straight out of the meeting (pay, buy drinks, leave them be) sits right under its results, not under a page of creatures.
+            ...(meetingQuestion && !decideFirst ? [decision] : []),
             // After a round: what happened comes first (it is the first chance to read it), then the choice it leaves, then the table.
             ...(decideFirst ? [headline, last, decision] : []),
             h('div', { class: 'cb-foes' }, ...foeEls), st.pending?.spellOnly ? null : gearBlock, diceBlock,
-            ...(decideFirst ? [] : [last, decision])));
+            ...(decideFirst ? [] : meetingQuestion ? [last] : [last, decision])));
 }
