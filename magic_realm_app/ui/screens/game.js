@@ -1520,13 +1520,14 @@ export function gameScreen(ctx) {
     function planLocations() { return planState(st, data, ui.draft.slots).at; }
     const planInfo = () => {
         const v = planKinds(st, data, ui.draft.slots);
-        return { total: v.total, base: v.base, extras: v.extras, kinds: v.kinds, errors: v.errors };
+        return { total: v.total, base: v.base, lantern: v.lantern, extras: v.extras, kinds: v.kinds, errors: v.errors };
     };
 
     // what kind of phase this recorded activity uses: an extra phase may be recorded anywhere, the rest fill the basic and then the sunlight phases
     function slotKind(i, base, extras) {
         const k = planInfo().kinds[i];
         if (k === 'extra') return 'extra phase';
+        if (k === 'lantern') return 'Shielded Lantern phase (caves only)';
         if (k === 'basic' || k === 'sunlight') return k;
         return extras.length ? `${base} ordinary + ${extras.length} extra (${[...new Set(extras)].join(', ')})` : 'unset';
     }
@@ -1574,6 +1575,7 @@ export function gameScreen(ctx) {
             out.push(h('p', { class: 'hint' }, at[i] || st.ch.onRoad ? 'Tap a ringed clearing on the map to go there.' : 'You are on a road; move to one of its ends first.'));
             if (ui.moveMaybe?.length) out.push(h('p', { class: 'hint' }, `Dotted rings: ${ui.moveMaybe.map(nameOfClearing).join(', ')} lie along a hidden path or secret passage you have not found. Your earlier Search may find it; if it has not by then, this Move is lost.`));
         }
+        if (planInfo().lantern) out.push(h('p', { class: 'hint', 'data-hint': 'lantern' }, 'Your Shielded Lantern gives one more phase for any activity, but only if you start that phase in a cave clearing: out in the open it is cancelled.'));
         if (extras.length) out.push(h('p', { class: 'hint' }, `${base} ordinary phases take any action; the extra phases (${[...new Set(extras)].map(x => ACT_LABEL[x]?.toLowerCase() ?? x).join(', ')}) can fall anywhere in the day, but only for their own action.`));
         return out;
     }

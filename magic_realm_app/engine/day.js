@@ -10,7 +10,7 @@ import { tell } from './story.js';
 import { runesTargets, readRunes, learnSpell } from './runes.js';
 import { restartAfterDeath } from './setup.js';
 import { activeHorse } from './items.js';
-import { extraActs, noSunlight, oneDie, locateMod, modRoll, modNote } from './modifiers.js';
+import { extraActs, hasTreasure, noSunlight, oneDie, locateMod, modRoll, modNote } from './modifiers.js';
 import { beginTrade, tradeAction } from './trade.js';
 import { scoreGame } from './score.js';
 import { canCastQuietly, enchantableChits, TYPE_COLOR, dayColors } from './spells.js';
@@ -79,7 +79,9 @@ export function phasesFor(st, data, slots) {
     // Blazing Light (Day, cast in a cave): in the Birdsong after it was cast, a character who starts the day in that cave clearing may record one more phase, for any activity
     const blazing = startsInCave && !!st.ch.at && fxTags(st, { kind: 'clearing', id: st.ch.at }, 'extraPhase').length > 0;
     const base = PHASES.basic + (sunlight ? PHASES.sunlight : 0) + (blazing ? 1 : 0);
-    return { total: base + extras.length, base, sunlight, extras, extra: extras.length, blazing, refused: st.ch.morph ? Object.keys(MORPH_REFUSED) : [] };       // (as a creature he cannot Rest, Trade, Hire or Enchant)
+    // The Shielded Lantern: one more phase for any normal activity; he must be in a cave clearing when it starts or the activity is cancelled (the card's own text)
+    const lantern = hasTreasure(st, 'shielded-lantern');
+    return { total: base + (lantern ? 1 : 0) + extras.length, base, lantern, sunlight, extras, extra: extras.length, blazing, refused: st.ch.morph ? Object.keys(MORPH_REFUSED) : [] };       // (as a creature he cannot Rest, Trade, Hire or Enchant)
 }
 
 // Which kind of phase each recorded activity uses (rule 6.2.4 a): an extra phase takes only its own activity and may be recorded anywhere; every other
@@ -98,6 +100,7 @@ export function planKinds(st, data, slots) {
             if (regular <= PHASES.basic) kinds.push('basic');
             else if (ph.blazing && regular === ph.base) kinds.push('blazing');          // the extra phase of the Blazing Light: any activity, but only while he is still in that clearing
             else if (regular <= ph.base) kinds.push('sunlight');
+            else if (ph.lantern && regular === ph.base + 1) kinds.push('lantern');          // the Shielded Lantern's phase: any activity, only worth recording if he will be in a cave then
             else {
                 kinds.push('over');
                 errors.push(ph.extras.length ? `Phase ${i + 1}: only ${ph.base} ordinary activities today; the extra phase can be used only for ${[...new Set(ph.extras)].join(' or ')}.` : `Phase ${i + 1} is not available today.`);
@@ -107,7 +110,7 @@ export function planKinds(st, data, slots) {
         if (s.act === 'fly') { const e = planFlyError(st, data, slots, i); if (e) errors.push(`Phase ${i + 1}: ${e}`); }
         if (st.ch.mist && s.act !== 'move' && s.act !== 'hide') errors.push(`Phase ${i + 1}: as mist you can only move and hide.`);
     });
-    return { kinds, errors, total: ph.total, base: ph.base, sunlight: ph.sunlight, extras: ph.extras };
+    return { kinds, errors, total: ph.total, base: ph.base, lantern: ph.lantern, sunlight: ph.sunlight, extras: ph.extras };
 }
 
 export function validatePlan(st, data, slots) {
@@ -410,6 +413,7 @@ function executeSlot(st, data, slot, i) {
     // Mist (Melt into Mist) can do only Move, Hide and Follow (there is no Follow activity yet).
     if (st.ch.mist && slot.act !== 'move' && slot.act !== 'hide' && slot.act !== 'nothing') { t.climb = null; return 'As mist you can only move and hide: the phase is lost.'; }
     const here = st.ch.at;
+    if (t.kinds?.[i] === 'lantern' && !(here && !st.ch.onRoad && isCave(st, data, here))) { t.climb = null; return 'The Shielded Lantern\'s phase needs a cave clearing and you are not in one: the activity is cancelled.'; }
     if (t.kinds?.[i] === 'blazing' && here !== st.planBlazing) { t.climb = null; return 'You have left the Blazing Light behind: the extra phase is lost.'; }
     if (st.ch.onRoad && !(slot.act === 'move' && (slot.to === st.ch.onRoad.from || slot.to === st.ch.onRoad.to))) {
         // He is still out on a road; only a Move to one of its ends gets him anywhere.
