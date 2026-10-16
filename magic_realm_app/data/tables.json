@@ -457,7 +457,18 @@
     "effect": "Gain extra strength for the next combat."
    }
   },
-  "note": "Names from RealmSpeak result strings; effects 4-6 are summarised from digest 04 (peace, health, strength) because their exact rules text was not in either source. OPEN."
+  "note": "Names from RealmSpeak result strings; effects 4-6 follow RealmSpeak (Wish.java) as docs/design/magic/01-combat-spells.md section 3 reads them: 4 Peace ends the combat in the clearing for the day and cancels spells not yet in effect; 5 Health restores tired and wounded chits and lifts Ill Health and Wither; 6 Strength makes the next Fight chit or Gloves play strike with flat Tremendous harm. Closed until the owner rules otherwise."
+ },
+ "violentStorm": {
+  "rows": {
+   "1": 4,
+   "2": 3,
+   "3": 3,
+   "4": 2,
+   "5": 2,
+   "6": 1
+  },
+  "note": "Number of phases the Violent Storm costs (two dice, higher counts). Values from RealmSpeak ViolentStormEffect.java (1: 4, 2-3: 3, 4-5: 2, 6: 1); the printed table was not available. OPEN (docs/design/magic/01-combat-spells.md Question 11)."
  },
  "transform": {
   "rows": [

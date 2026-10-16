@@ -1,9 +1,11 @@
 import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll, tally, WEIGHT_WORDS } from './core.js';
 import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './tables.js';
-import { pit } from './effects.js';
+import { pit, rollPit, pitOnChar, hasCurse } from './effects.js';
 import { hirelings, monsterHires } from './hire.js';
 import { cardChits, effortLimit, oneDie, tableMod } from './modifiers.js';
-import { expireDue, fxTags, targetGone } from './magic/fx.js';
+import { expireDue, expireFx, breakFx, fxTags, fxList, shielded, HERO, targetGone } from './magic/fx.js';
+import { B } from './magic/bridge.js';
+import { lostTarget } from './magic/util.js';
 import { breakPacify } from './magic/followers.js';
 import { energizePass } from './magic/energize.js';
 import { activatePhase, heldOptions } from './magic/phase.js';
@@ -11,7 +13,7 @@ import { blockedSpells, castOptions, castSpell, resolveSpells, canCastUsefully, 
 import { tell } from './story.js';
 import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
 import { makeItem, autoEquip, toggleItem, activeHorse } from './items.js';
-import { isCave, roadsFrom } from './world.js';
+import { isCave, roadsFrom, tileName } from './world.js';
 
 // Evening combat for one character against the denizens in his clearing (rules digest 03).
 // The combat is a small state machine stored in st.combat; the UI reads st.pending and answers with actions:
@@ -28,10 +30,10 @@ export function weaponOf(st, data) {
     const it = st.ch.items.find(i => i.kind === 'weapon' && i.active);
     return it ? { item: it, def: data.weapons[it.id] } : null;
 }
-export function weaponSide(w) {
+export function weaponSide(w, extraStars = 0) {
     if (!w) return { harm: 'N', stars: 1, time: null, length: 0, missile: false, none: true };       // bare Fight chit: Negligible with one star
     const side = w.item.alerted ? w.def.alerted : w.def.unalerted;
-    return { harm: side.harm ?? w.def.weight, stars: side.stars ?? 0, time: side.attackTime ?? null, length: w.def.length ?? 0, missile: !!w.def.missile };
+    return { harm: side.harm ?? w.def.weight, stars: (side.stars ?? 0) + extraStars, time: side.attackTime ?? null, length: w.def.length ?? 0, missile: !!w.def.missile };
 }
 export function activeArmor(st, data) {
     return st.ch.items.filter(i => i.kind === 'armor' && i.active && !i.destroyed).map(i => ({ item: i, def: data.armor[i.id] }));
@@ -57,7 +59,18 @@ function coversDir(def, dir) {
 const isShield = def => (def.type ?? '').toLowerCase() === 'shield' || !!def.chooseOneDirection;
 
 // ---- denizen sides ----
+// What spells in force do to a denizen's counter: Elven Grace makes its size its move time on both sides; Poison adds sharpness stars to what it inflicts.
+const SIZE_TIME = { L: 1, M: 2, H: 3, T: 4 };
 export function denSide(st, data, den) {
+    const s = denSideRaw(st, data, den);
+    if ((den.kind === 'mon' || den.kind === 'nat') && st.fx?.length) {
+        const ref = { kind: den.kind, id: den.id };
+        if (fxTags(st, ref, 'moveBySize').length && s.move != null) s.move = SIZE_TIME[den.kind === 'nat' ? s.vuln : s.size] ?? s.move;       // a native's size is its vulnerability (RealmSpeak)
+        for (const t of fxTags(st, ref, 'stars')) s.stars = (s.stars ?? 0) + t.value;
+    }
+    return s;
+}
+function denSideRaw(st, data, den) {
     const morph = (den.kind === 'mon' || den.kind === 'nat') ? morphOf(st, den) : null;
     if (morph) {
         // Transform: the creature's own combat numbers; the original keeps its name, bounty and place (the bounty is paid for the original)
@@ -160,7 +173,7 @@ function nextMeeting(st, data) {
     const c = st.combat;
     while (c.meetQueue.length) {
         const g = c.meetQueue[0], cost = drinksCost(st, data, g);
-        if (relOf(st, g) < 1 && cost > 0 && st.ch.gold >= cost && !(st.ch.curses ?? []).includes('Ashes')) {
+        if (relOf(st, g) < 1 && cost > 0 && st.ch.gold >= cost && !hasCurse(st, 'Ashes')) {
             c.step = 'drinks';
             st.pending = { type: 'combat-drinks', group: g, cost };
             return;
@@ -238,7 +251,7 @@ function rollBattle(st, data, group, drinks = false) {
     (c.intro ??= []).push(res === 'Block/Battle' ? `The ${group} met you with hostility and will fight.` : res === 'Insult' || res === 'Challenge' ? `The ${group} ${res === 'Insult' ? 'insulted' : 'challenged'} you: pay or fight.` : `The ${group} are here, and let you be.`);
     if (res === 'Block/Battle') return startBattling(st, data, group);
     if (res === 'Insult') c.pays.push({ group, cost: 'notoriety', amount: 5, why: 'Insult' });
-    else if (res === 'Challenge') { if ((st.ch.curses ?? []).includes('Disgust')) startBattling(st, data, group); else c.pays.push({ group, cost: 'fame', amount: 5, why: 'Challenge' }); }
+    else if (res === 'Challenge') { if (hasCurse(st, 'Disgust')) startBattling(st, data, group); else c.pays.push({ group, cost: 'fame', amount: 5, why: 'Challenge' }); }
 }
 
 function startBattling(st, data, group) {
@@ -267,7 +280,7 @@ export function payOrFight(st, data, pay) {
 function assignAll(st, data) {
     const c = st.combat;
     if (st.ch.hidden) return;
-    for (const d of c.dens) if (!d.dead && !d.assigned && !d.bystander && d.kind !== 'part' && d.kind !== 'horse') d.assigned = true;
+    for (const d of c.dens) if (!d.dead && !d.assigned && !d.bystander && !d.pacified && d.kind !== 'part' && d.kind !== 'horse') d.assigned = true;      // a creature a spell has made peaceful is not set on him
 }
 
 // His own horse is played like a Move chit, either side up (walking or galloping), whichever he can use; it is played once a round.
@@ -281,15 +294,37 @@ function horseChits(st, data) {
 }
 
 function activeChits(st, type, data) {
-    const real = st.ch.chits.filter(x => x.state === 'active' && (!type || x.type === type));
+    let real = st.ch.chits.filter(x => x.state === 'active' && (!type || x.type === type));
+    // Elven Grace: each Move chit's strength is its time number (the chits themselves are unchanged)
+    if (st.fx?.length && fxTags(st, HERO, 'moveBySize').length) real = real.map(x => (x.type === 'move' ? { ...x, time: SIZE_TIME[x.strength] ?? x.time } : x));
+    // Unleash Power: a transformed Magic chit is both a Move chit and a Fight chit (one play a round: both share the chit's id)
+    if (st.fx?.length && type) real = [...real, ...st.ch.chits.filter(x => x.state === 'active' && x.type === 'magic' && x.alt?.mf).map(x => ({ ...x, type, strength: x.alt.strength, mf: true }))];
     const cards = type ? cardChits(st, type) : [...cardChits(st, 'move'), ...cardChits(st, 'fight')];
     const horse = (!type || type === 'move') && data ? horseChits(st, data) : [];
     return [...real, ...cards, ...horse].filter(x => !st.combat.played?.[x.id] && !(x.isHorse && st.combat.played?.['horse:' + x.horseUid]));
 }
 
+// Hurricane Winds: the creature it was cast at flies off just before the next Encounter Step, with its parts and its horse, and lands in the tile named at Birdsong
+// (day.js landDenizens). Nobody is paid for it.
+function flyAway(st, data) {
+    const c = st.combat;
+    for (const f of fxList(st, { spell: 'hurricane-winds' })) {
+        const t = f.targets[0], den = c.dens.find(d => d.kind === t.kind && d.id === t.id && !d.dead);
+        if (!den) continue;
+        den.dead = true;
+        for (const p of c.dens.filter(d => d.partOf === den.uid)) p.dead = true;
+        const o = (den.kind === 'mon' ? st.mons : st.nats).find(x => x.id === den.id);
+        if (o) o.loc = { tile: f.data.tile, flying: true };
+        say(st, `Hurricane Winds lifts the ${denSide(st, data, den).name} into the air and carries it off toward the ${tileName(f.data.tile)}.`, 'combat');
+        c.eventful = true;
+        expireFx(st, data, f.id, 'it flew away');
+    }
+}
+
 function enterEncounter(st, data) {
     const c = st.combat;
-    const live = c.dens.filter(d => !d.dead && !d.pacified && d.kind !== 'part' && d.kind !== 'horse');       // a pacified monster is not a foe
+    flyAway(st, data);
+    const live = c.dens.filter(d => !d.dead && !d.pacified && d.kind !== 'part' && d.kind !== 'horse');          // a creature made peaceful by a spell is not a foe
     if (!live.length) {
         if (canCastUsefully(st, data)) return enterSpellOnly(st, data);
         c.ended = true; c.why = 'quiet'; c.step = 'done'; st.pending = null;
@@ -327,7 +362,7 @@ function deployHires(st, data) {
     for (const d of c.dens) d.engagedBy = null;
     const crew = (c.hires ?? []).filter(x => !x.dead);
     for (const hire of crew) {
-        const cand = c.dens.filter(d => !d.dead && !d.bystander && d.kind !== 'part' && d.kind !== 'horse' && !d.pickedUp);
+        const cand = c.dens.filter(d => !d.dead && !d.bystander && !d.pacified && d.kind !== 'part' && d.kind !== 'horse' && !d.pickedUp);
         if (!cand.length) break;
         const free = cand.filter(d => !d.engagedBy);
         const pool = free.length ? free : cand;
@@ -377,7 +412,7 @@ export function encounterAction(st, data, a) {
             say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOfItem(st, data, it)}.`, 'combat');
             return;
         }
-        if (a.act === 'cast') { castSpell(st, data, a.spell, a.chit, a.item); resolveSpells(st, data); }
+        if (a.act === 'cast') { castSpell(st, data, a.spell, a.chit, a.item); applyAim(st, data, a.spellAim); resolveSpells(st, data); }
         c.spellOnly = false;
         return endCombat(st, data, 'quiet');
     }
@@ -451,7 +486,7 @@ export function meleeOptions(st, data) {
         assigned,
         attackSpell: c.attackSpell ?? null,
         aims: aimOptions(st, data),                                                 // what each spell cast this round may be aimed at
-        fightChits: c.attackSpell ? [] : activeChits(st, 'fight', data),           // a character who cast an attack spell cannot also swing a weapon (8.4.5a)
+        fightChits: c.casts?.length ? [] : activeChits(st, 'fight', data),         // a character who cast a spell cannot also swing a weapon or play a Fight chit that round (8.4.5a)
         moveChits: activeChits(st, 'move', data),
         fightOk: ch => lvl(ch.strength) >= wlvl,
         moveOk: ch => lvl(ch.strength) >= (ch.isHorse ? Math.max(load, lvl(st.ch.weight)) : load),
@@ -486,28 +521,48 @@ export function meleePlay(st, data, p) {
         if (!move) throw new Error('that Move chit is not available');
         if (!o.moveOk(move)) throw new Error('that Move chit is too weak to carry your gear');
     }
+    if (fight && move && fight.id === move.id) throw new Error('a Move/Fight chit is played as one or the other, not both');
     const ast = o.asterisksPlayed + (fight?.effort ?? 0) + (move?.effort ?? 0);
     if (ast > effortLimit(st)) throw new Error(`at most ${effortLimit(st)} effort asterisks may be played in a round`);
     if (fight) playChit(st, fight);
     if (move) playChit(st, move);
+    // Wish 6 (Strength): the next Fight chit or Gloves he plays strikes with a flat Tremendous harm, whatever he swings, and the wish is used up
+    const wish = fight && st.ch.wishStrength ? st.ch.wishStrength : null;
+    if (wish) st.ch.wishStrength = null;
     applyAim(st, data, p.spellAim);
     resolveSpells(st, data, log);
+    // a spell may end the round at once: it killed him, or it ended the combat (Small Blessing's Peace and Elsewhere)
+    if (st.ch.dead) { c.attackSpell = null; c.step = 'resolve'; return afterMelee(st, data); }
+    if (c.ended) { c.attackSpell = null; return; }
     // --- target and unhide ---
     let target = p.target ? c.dens.find(d => d.uid === p.target && !d.dead) : null;
+    // An attack spell may be aimed at several creatures (Stones Fly, Fiery Blast); the one under his Attention chit is p.target. Roof Collapses names no one.
+    const sp0 = c.attackSpell && !c.attackSpell.auto ? c.attackSpell : null;
+    let spTargets = [];
+    if (sp0) {
+        const ids = p.targets?.length ? p.targets : p.target ? [p.target] : [];
+        spTargets = [...new Set(ids)].map(uid => c.dens.find(d => d.uid === uid && !d.dead && d.kind !== 'part' && d.kind !== 'horse')).filter(Boolean);
+        if (!sp0.many) spTargets = spTargets.slice(0, 1);
+        if (!target && spTargets.length) target = spTargets[0];
+        if (target && !spTargets.includes(target)) spTargets.unshift(target);
+        if (!sp0.many) spTargets = spTargets.slice(0, 1);
+    }
+    for (const t of new Set([target, ...spTargets].filter(Boolean))) namedTarget(st, data, t, log);           // naming a creature a spell made peaceful breaks that spell
     const wasHidden = st.ch.hidden;
     c.toRed = [];
     if (st.ch.hidden && target) { st.ch.hidden = false; log('You strike from hiding and are revealed.', tell.ambush(st)); }
-    if (target?.pacified) breakPacify(st, data, target, log);                         // he named a pacified monster: the pacifying spell is broken
-    if (target && !target.assigned) {
+    for (const t of new Set([target, ...spTargets].filter(Boolean))) if (t.pacified) breakPacify(st, data, t, log);          // he named a pacified monster: the pacifying spell is broken
+    for (const t of new Set([target, ...spTargets].filter(Boolean))) {
+        if (t.assigned) continue;
         // attacking an unassigned denizen makes it fight back; attacking a native brings its whole group in
-        if (target.kind === 'nat') {
+        if (t.kind === 'nat') {
             // the group begins to battle him at once, but nobody was assigned to answer this round: no blow comes back until the next
-            startBattling(st, data, data.natives[target.id].group);
+            startBattling(st, data, data.natives[t.id].group);
             // (with the optional Watchful Natives rule, 10.B.4, the group answers in the same round)
-            if (!st.options?.watchfulNatives) for (const d of c.dens) if (d.kind === 'nat' && data.natives[d.id].group === data.natives[target.id].group || d.partOf === target.uid) { d.noRetaliation = true; d.noWhy = 'joins'; }
+            if (!st.options?.watchfulNatives) for (const d of c.dens) if (d.kind === 'nat' && data.natives[d.id].group === data.natives[t.id].group || d.partOf === t.uid) { d.noRetaliation = true; d.noWhy = 'joins'; }
         }
-        target.assigned = true;
-        if (wasHidden) { target.noRetaliation = true; target.noWhy = 'hidden'; }          // a hidden character gets a free first blow
+        t.assigned = true;
+        if (wasHidden) { t.noRetaliation = true; t.noWhy = 'hidden'; }          // a hidden character gets a free first blow
     }
     // A character who was hidden strikes first; only the one he struck is on his sheet this round.
     const boxableNow = c.dens.filter(d => !d.dead && d.kind !== 'horse' && (d.assigned || (d.partOf && c.dens.find(x => x.uid === d.partOf)?.assigned)));
@@ -550,22 +605,28 @@ export function meleePlay(st, data, p) {
 
     // --- hit determination ---
     const myDir = p.attackDir, mnvDir = p.moveDir;
-    const mySide = weaponSide(w);
+    // Poison on the weapon he swings adds sharpness stars to every blow of it
+    const poison = w && st.fx?.length ? fxTags(st, { kind: 'item', id: w.item.uid }, 'stars').reduce((n, t) => n + t.value, 0) : 0;
+    const mySide = wish ? { ...weaponSide(w), harm: wish, stars: 0, missile: false } : weaponSide(w, poison);
+    if (wish) log(`Your Wish of Strength strikes with ${WEIGHT_WORDS[wish]} harm.`);
     const attackTime = fight ? (mySide.time ?? fight.time) : null;
     const hits = [];            // { who:'me'|denUid, order keys }
     // An attack spell attacks from the attack circle like a weapon, once per hit it makes, each with its own Missile Table roll.
-    if (c.attackSpell && target && myDir != null) {
-        const sp = c.attackSpell;
-        const side = { harm: sp.harm, stars: sp.stars, time: (c.casts ?? []).find(x => x.spell === sp.spell)?.time ?? 0, length: sp.length, missile: true };
-        const horse = c.dens.find(d => d.kind === 'horse' && d.partOf === target.uid && !d.dead);
-        const def = horse ?? target, defSide = denSide(st, data, def);
-        const inBox = def.box != null && def.box === myDir, fast = side.time != null && defSide.move != null && side.time < defSide.move;
-        const nm = defSide.name, spName = data.spells[sp.spell]?.name ?? sp.spell;
-        if (inBox || fast) {
-            for (let k = 0; k < (sp.hits ?? 1); k++) hits.push({ who: 'me', time: side.time, length: side.length, on: def.uid, owner: target.uid, side, spell: spName });
-            log(`${spName}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): ${sp.hits > 1 ? `${sp.hits} hits` : 'hit'}${inBox ? '' : ' by undercutting'}.`);
-        } else log(`${spName}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): miss.`);
-    } else if (c.attackSpell && !target) {
+    if (c.attackSpell?.auto === 'all') roofHits(st, data, { hits, log, move, mnvDir });
+    else if (sp0 && spTargets.length && myDir != null) {
+        const side = { harm: sp0.harm, stars: sp0.stars, time: (c.casts ?? []).find(x => x.spell === sp0.spell)?.time ?? 0, length: sp0.length, missile: true };
+        const spName = data.spells[sp0.spell]?.name ?? sp0.spell;
+        for (const { den: t, n } of spellHitPlan(sp0, spTargets, p.target ? spTargets.find(d => d.uid === p.target) ?? spTargets[0] : spTargets[0])) {
+            const horse = c.dens.find(d => d.kind === 'horse' && d.partOf === t.uid && !d.dead);
+            const def = horse ?? t, defSide = denSide(st, data, def);
+            const inBox = def.box != null && def.box === myDir, fast = side.time != null && defSide.move != null && side.time < defSide.move;
+            const nm = defSide.name;
+            if (inBox || fast) {
+                for (let k = 0; k < n; k++) hits.push({ who: 'me', time: side.time, length: side.length, on: def.uid, owner: t.uid, side, spell: spName });
+                log(`${spName}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): ${n > 1 ? `${n} hits` : 'hit'}${inBox ? '' : ' by undercutting'}.`);
+            } else log(`${spName}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): miss.`);
+        }
+    } else if (c.attackSpell) {
         log(`${data.spells[c.attackSpell.spell]?.name ?? 'Your spell'} is cast at no one and fizzles.`);
     }
     if (fight && target && myDir != null) {
@@ -626,7 +687,7 @@ export function meleePlay(st, data, p) {
         log(text, text);
     }
     // The order the blows will fall in, and why: it is the thing a player most wants explained.
-    const blowName = h => (h.who === 'me' ? `your ${weaponName}` : h.who === 'hire' ? `your hireling's blow` : `the ${denSide(st, data, c.dens.find(d => d.uid === h.who)).name}'s ${DIRS[c.dens.find(d => d.uid === h.who).box ?? 0].toLowerCase()}`);
+    const blowName = h => (h.who === 'roofhero' ? 'the falling roof (on you)' : h.who === 'roofhire' ? 'the falling roof (on your hireling)' : h.who === 'me' ? (h.spell ? `your ${h.spell}` : `your ${weaponName}`) : h.who === 'hire' ? `your hireling's blow` : `the ${denSide(st, data, c.dens.find(d => d.uid === h.who)).name}'s ${DIRS[c.dens.find(d => d.uid === h.who).box ?? 0].toLowerCase()}`);
     const blowText = h => `${blowName(h)} (time ${h.time ?? '?'}${h.length ? `, length ${h.length}` : ''})`;
     if (hits.length > 1) {
         const why = c.round === 1 ? 'in the first round the longest weapon strikes first, then the fastest' : 'after the first round the fastest strikes first, then the longest weapon';
@@ -648,10 +709,12 @@ export function meleePlay(st, data, p) {
         if (group.length > 1) log(`These blows land at the same instant: ${group.map(blowName).join(' and ')}.`, `${group.map(blowName).join(' and ')} land at the same instant: neither can prevent the other.`.replace(/^./, ch => ch.toUpperCase()));
         for (const h of group) {
             if (h.who === 'me') {
-                if (alive.has(h.on)) dmg.push(() => { delivered = true; myHit(st, data, h, h.side ? { w: null, mySide: h.side, fight: null, myDir, notes, log, spell: h.spell } : { w, mySide, fight, myDir, notes, log }); });
+                if (alive.has(h.on) || (c.dens.find(d => d.uid === h.on)?.kind === 'horse' && alive.has(h.owner))) dmg.push(() => { delivered = true; myHit(st, data, h, h.side ? { w: null, mySide: h.side, fight: null, myDir, notes, log, spell: h.spell } : { w, mySide, fight, myDir, notes, log }); });
                 else log('Your blow finds its target already dead.', `Your ${weaponName} finds its target already dead: the blow is wasted.`);
             }
             else if (h.who === 'hire') { if (alive.has(h.den) && !c.hires.find(x => x.uid === h.hire).dead) dmg.push(() => hireStrikes(st, data, h, log)); }
+            else if (h.who === 'roofhire') dmg.push(() => roofStrikesHire(st, data, h, log));
+            else if (h.who === 'roofhero') dmg.push(() => strikeHero(st, data, { name: 'Roof Collapses', harm: h.side.harm, stars: h.side.stars, dir: h.side.dir, missile: false, archer: false, den: null }, { mnvDir, move, shieldDir: p.shieldDir, log, g: c.groupNo, horse: move?.isHorse ? st.ch.items.find(i => i.uid === move.horseUid) : null }));
             else if (h.onHire) {
                 const den = c.dens.find(d => d.uid === h.who);
                 if (alive.has(den.uid) && !c.hires.find(x => x.uid === h.onHire).dead) dmg.push(() => denStrikesHire(st, data, den, h.onHire, log));
@@ -686,6 +749,78 @@ export function meleePlay(st, data, p) {
     c.attackSpell = null;                                 // an attack spell not used this round is lost
     c.step = 'resolve';
     return afterMelee(st, data);
+}
+
+// How many hits a spell makes on each creature it is aimed at. Stones Fly "always makes at least four attacks": one target takes all four, two take two each, with three
+// the one under his Attention chit takes two and the others one, four or more take one each. Fiery Blast makes one attack on each. A one-target spell takes all its hits.
+function spellHitPlan(sp, targets, attention) {
+    if (!sp.many || targets.length <= 1) return targets.map(t => ({ den: t, n: sp.hits ?? 1 }));
+    if (sp.split === 'four') {
+        if (targets.length === 2) return targets.map(t => ({ den: t, n: 2 }));
+        if (targets.length === 3) return targets.map(t => ({ den: t, n: t === attention ? 2 : 1 }));
+    }
+    return targets.map(t => ({ den: t, n: 1 }));
+}
+
+// Roof Collapses (cave): one attack on every creature in the clearing, his hirelings and himself, in the Smash direction at time 4 whatever chit cast it. A creature that
+// has taken a box avoids it only by sitting outside the Smash (Duck) box and not being slower than the 4; one that is not on his sheet has no maneuver and is caught.
+// The hero is hit unless he plays a Move chit in another direction whose time is 4 or less (equal does not undercut).
+function roofHits(st, data, { hits, log, move, mnvDir }) {
+    const c = st.combat, sp = c.attackSpell, spName = data.spells[sp.spell]?.name ?? sp.spell;
+    const side = { harm: sp.harm, stars: sp.stars ?? 0, time: sp.time, length: sp.length, missile: false, dir: sp.dir };
+    for (const d of c.dens.filter(x => !x.dead && x.kind !== 'part' && x.kind !== 'horse')) {
+        // the roof falls on a native and on its horse alike: the horse does not shield its rider from a spell that attacks them both
+        const horse = c.dens.find(h => h.kind === 'horse' && h.partOf === d.uid && !h.dead);
+        for (const def of horse ? [d, horse] : [d]) {
+            const ds = denSide(st, data, def), boxed = def.box != null;
+            const caught = !boxed || def.box === sp.dir || (ds.move != null && side.time < ds.move);
+            if (caught) hits.push({ who: 'me', time: side.time, length: side.length, on: def.uid, owner: d.uid, side, spell: spName });
+            log(`${spName}: the roof falls on the ${ds.name}${caught ? '' : ' and misses'}.`);
+        }
+    }
+    for (const h of (c.hires ?? []).filter(x => !x.dead)) {
+        hits.push({ who: 'roofhire', hire: h.uid, time: side.time, length: side.length });
+        log(`${spName}: the roof falls on your hireling ${data.natives[h.id].name}.`);
+    }
+    const hitsHero = !move || mnvDir === sp.dir || side.time < move.time;
+    if (hitsHero) { hits.push({ who: 'roofhero', time: side.time, length: side.length, side }); log(`${spName}: the roof falls on you.`); }
+    else log(`${spName}: you get out of the way.`);
+}
+
+// A hireling under the falling roof: a native of vulnerability up to Heavy dies, and either way his group rebels (8.4.2g).
+function roofStrikesHire(st, data, h, log) {
+    const c = st.combat, hire = c.hires.find(x => x.uid === h.hire);
+    if (!hire || hire.dead) return;
+    const hs = hireStats(data, hire.id), n = st.nats.find(x => x.id === hire.id), group = data.natives[hire.id].group;
+    if (lvl('H') >= lvl(hs.vuln)) {
+        hire.dead = true; n.dead = true; n.hired = false; n.loc = null;
+        st.ch.notoriety -= hs.notor;
+        log(`The roof kills ${hs.name}; you lose ${hs.notor} Notoriety.`);
+    } else log(`The roof hits ${hs.name} but does not kill.`);
+    c.eventful = true;
+    rebelGroup(st, data, group);
+}
+// Treachery: when his spell strikes a native he hired, that group's hirelings turn on him and the group battles.
+function rebelGroup(st, data, group) {
+    const c = st.combat;
+    let any = false;
+    for (const h of (c.hires ?? []).filter(x => !x.dead && data.natives[x.id].group === group)) {
+        const n = st.nats.find(x => x.id === h.id);
+        h.dead = true; n.hired = false; any = true;
+    }
+    if (any || nativesIn(st, data, c.at).some(n => data.natives[n.id].group === group)) {
+        say(st, `The ${group} turn on you for what your spell did to one of their own.`, 'combat');
+        startBattling(st, data, group);
+    }
+}
+
+// Peace and Persuade end when the creature they protect is named as the target of an attack or spell (he or his hirelings; area spells do not name it).
+function namedTarget(st, data, den, log) {
+    if (!st.fx?.length) return;
+    for (const { fx } of fxTags(st, { kind: den.kind, id: den.id }, 'nameBreaks')) {
+        log(`You name the ${denSide(st, data, den).name}: ${data.spells[fx.spell]?.name ?? fx.spell} is broken, and it fights back.`);
+        breakFx(st, data, fx.id, 'its target was named');
+    }
 }
 
 function canFlip(st, data, d) {
@@ -743,9 +878,41 @@ function killReward(st, data, den, s) {
     return bits.length ? ` (${bits.join(', ')}; kill ${k} today)` : '';
 }
 
+// A denizen dies, by his hand or his spell: its parts go with it, a native's horse is lost with the rider (or alone), the bounty is paid unless `pay` is false
+// (a "shared" kill still counts toward the day's total), and the monster or native leaves the map. Returns the bounty text for the log.
+export function slayDenizen(st, data, den, { pay = true, shared = false, spell = null } = {}) {
+    const c = st.combat, s = denSide(st, data, den);
+    den.dead = true; den.slainBy = spell;
+    if (den.kind === 'mon' || den.kind === 'nat') lostTarget(st, data, { kind: den.kind, id: den.id });          // spells aimed at it end with it
+    if (den.kind === 'horse') { const nat = st.nats.find(n => n.id === den.owner); if (nat) nat.horseDead = true; c.eventful = true; return ''; }
+    for (const p of c.dens.filter(d => d.partOf === den.uid)) p.dead = true;
+    let reward = '';
+    if (shared) { st.ch.killsToday = (st.ch.killsToday ?? 0) + 1; reward = ' (a shared kill: the bounty was already paid)'; }
+    else if (pay) reward = killReward(st, data, den, s);
+    if (den.kind === 'mon') { const m = st.mons.find(x => x.id === den.id); m.dead = true; m.loc = null; }
+    else if (den.kind === 'nat') { const n = st.nats.find(x => x.id === den.id); n.dead = true; n.loc = null; dropNativeGoods(st, data, n); }
+    tally(st, 'kills'); tally(st, `kill.${s.name}`);
+    (c.killed ??= []).push(s.name);
+    c.eventful = true;
+    return reward;
+}
+
+// Naming a creature that was not set on him makes it fight (a native brings its whole group in, with no blow back this round, as in meleePlay).
+function provoke(st, data, target) {
+    const c = st.combat;
+    if (!target || target.dead || target.assigned) return;
+    if (target.kind === 'nat') {
+        startBattling(st, data, data.natives[target.id].group);
+        if (!st.options?.watchfulNatives) for (const d of c.dens) if (d.kind === 'nat' && data.natives[d.id].group === data.natives[target.id].group || d.partOf === target.uid) { d.noRetaliation = true; d.noWhy = 'joins'; }
+    }
+    target.assigned = true;
+}
+
 function myHit(st, data, h, ctx) {
     const c = st.combat;
-    const den = c.dens.find(d => d.uid === h.on), owner = c.dens.find(d => d.uid === h.owner);
+    let den = c.dens.find(d => d.uid === h.on);
+    const owner = c.dens.find(d => d.uid === h.owner);
+    if (den.kind === 'horse' && den.dead && owner && !owner.dead) den = owner;          // the horse an earlier blow of the same instant killed: the rest fall on the rider (8.4.9)
     const s = denSide(st, data, den);
     const side = ctx.mySide;
     let level = lvl(side.harm), stars = side.stars;
@@ -754,8 +921,9 @@ function myHit(st, data, h, ctx) {
     let note = '', shotDelta = null;
     if (side.missile) {
         const bow = /bow$/i.test(ctx.w ? data.weapons[ctx.w.item.id]?.name ?? '' : '');
-        const r = (hasAdv(st, 'archer') && bow) || oneDie(st, 'missile') ? (() => { const d1 = die(st); return { dice: [d1], value: d1 }; })() : roll2(st);
-        const aim = hasAdv(st, 'aim') ? 1 : 0;
+        // a spell's Missile roll is a plain roll: the Archer's single die and the Aim advantage belong to weapons (RealmSpeak; 01-combat-spells.md Question 3)
+        const r = !ctx.spell && ((hasAdv(st, 'archer') && bow) || oneDie(st, 'missile')) ? (() => { const d1 = die(st); return { dice: [d1], value: d1 }; })() : roll2(st);
+        const aim = !ctx.spell && hasAdv(st, 'aim') ? 1 : 0;
         const v = clamp6(r.value - aim + tableMod(st, data, 'missile'));
         level += MISSILE[v - 1]; shotDelta = MISSILE[v - 1];
         noteRoll(st, 'Your missile roll', r.dice, v, `${MISSILE[v - 1] >= 0 ? '+' : ''}${MISSILE[v - 1]} harm level${Math.abs(MISSILE[v - 1]) === 1 ? '' : 's'}${aim ? ' (Aim -1)' : ''}`);
@@ -775,17 +943,9 @@ function myHit(st, data, h, ctx) {
     }
     if (level >= vuln) {
         const shared = den.dead;           // a hireling's blow killed it in the same instant: the bounty is paid once, and this still counts as a kill
-        den.dead = true;
-        // parts die with their owner
-        for (const p of c.dens.filter(d => d.partOf === den.uid)) p.dead = true;
-        let reward;
-        if (shared) { st.ch.killsToday = (st.ch.killsToday ?? 0) + 1; reward = ' (a shared kill: the bounty was already paid)'; }
-        else reward = killReward(st, data, den, s);
-        if (den.kind === 'mon') { const m = st.mons.find(x => x.id === den.id); m.dead = true; m.loc = null; }
-        else if (den.kind === 'nat') { const n = st.nats.find(x => x.id === den.id); n.dead = true; n.loc = null; dropNativeGoods(st, data, n); }
-        targetGone(st, data, { kind: den.kind, id: den.id });
-        tally(st, 'kills'); tally(st, `kill.${s.name}`);
-        (c.killed ??= []).push(s.name);
+        // a further hit of the same spell on a target it has already killed scores nothing (one death, one kill)
+        if (shared && ctx.spell && den.slainBy === ctx.spell) { ctx.log(`Another ${ctx.spell} hit finds the ${s.name} already dead.`); return; }
+        const reward = slayDenizen(st, data, den, { shared, spell: ctx.spell ?? null });
         ctx.log(`You kill the ${s.name} with ${finalL} harm${note}${reward}.`, tell.kill(st, ctx.spell ?? (ctx.w ? nameOfItem(st, data, ctx.w.item) : 'bare hands'), s.name, reward));
         c.eventful = true;
     } else {
@@ -812,51 +972,60 @@ function denHit(st, data, den, ctx) {
     const dir = den.box;
     // red side up from an earlier round: kills outright
     if (den.pickedUp) return killMe(st, `${s.name} crushes you.`, s.name);
-    let level = lvl(s.harm), stars = s.stars ?? 0;
     // a Demon's Power of the Pit and an Imp's curse go to the rider; a horse played as the maneuver does not take them
     if (s.attack === 'spell') {
+        // a Pentangle (or any shield against bewitching magic) keeps the Demon, Winged Demon and Imp from harming him
+        if (fxTags(st, HERO, 'demonProof').length || shielded(st, HERO)) { ctx.log(`${s.name}'s magic cannot touch you: you are shielded.`); return; }
         const row = pit(st, data, `${s.name}'s magic`);
-        pitAftermath(st, data, row, den, ctx);
+        pitSweep(st, data, row, { caster: den, log: ctx.log });
         c.eventful = true;
         if (st.ch.dead) { ctx.log(`${s.name}'s magic kills you.`); c.events.push('You are dead.'); }
         else if (s.tremendous && den.kind !== 'part') c.toRed.push(den.uid);
         return;
     }
+    return strikeHero(st, data, { name: s.name, harm: s.harm, stars: s.stars ?? 0, dir, missile: s.attack === 'missile', archer: s.type === 'Archer', den }, ctx);
+}
+
+// A blow lands on the hero: first on the horse he played as his maneuver, else on the armor in its way (a shield guarding that direction, then body armor),
+// else on him. `b` = { name, harm, stars, dir, missile, archer, den } (den: the creature that struck, or null for a spell).
+function strikeHero(st, data, b, ctx) {
+    const c = st.combat, den = b.den;
+    let level = lvl(b.harm), stars = b.stars ?? 0;
     // if his horse was played as the maneuver the blow lands on the horse, not on him
     if (ctx.horse && (!ctx.horse.destroyed || ctx.horse.destroyedGroup === ctx.g)) {
         const hd = data.horses[ctx.horse.id];
-        let hl = lvl(s.harm) + (hd.armored ? Math.max(0, stars - 1) : stars);
-        if (s.attack === 'missile') hl += missileRoll(st, `${s.name}'s missile roll (at your horse)`, s.type === 'Archer');
+        let hl = lvl(b.harm) + (hd.armored ? Math.max(0, stars - 1) : stars);
+        if (b.missile) hl += missileRoll(st, `${b.name}'s missile roll (at your horse)`, b.archer);
         if (hl >= lvl(hd.vulnerability)) {
             ctx.horse.destroyed = true; ctx.horse.active = false; ctx.horse.destroyedGroup = ctx.g;
-            ctx.log(`${s.name} strikes your ${hd.name} dead.`);
+            ctx.log(`${b.name} strikes your ${hd.name} dead.`);
             c.eventful = true;
-        } else ctx.log(`${s.name} hits your ${hd.name} but it stands.`);
-        const owner = den.kind === 'part' ? c.dens.find(d => d.uid === den.partOf) : den;
+        } else ctx.log(`${b.name} hits your ${hd.name} but it stands.`);
+        const owner = !den ? null : den.kind === 'part' ? c.dens.find(d => d.uid === den.partOf) : den;
         if (owner && redCapable(st, data, owner) && !c.toRed.includes(owner.uid)) c.toRed.push(owner.uid);      // it has hit something of his: it turns red
         return;
     }
     // armor in that direction: a shield guarding that way first, then body armor
     const all = armorForBlow(st, data, ctx.g);
     const pieces = [];
-    const sh = all.find(a => isShield(a.def) && ctx.shieldDir === dir);
+    const sh = all.find(a => isShield(a.def) && ctx.shieldDir === b.dir);
     if (sh) pieces.push(sh);
-    for (const a of all) if (!isShield(a.def) && coversDir(a.def, dir)) pieces.push(a);
+    for (const a of all) if (!isShield(a.def) && coversDir(a.def, b.dir)) pieces.push(a);
     // the first piece in the way takes the blow: shields and armor cards are the outer row, then helmets and breastplates, then suits
     // (Ointment of Steel before the Suit); a counter before a card of the same row
     const row = a => (isShield(a.def) || (a.def.card && a.def.id !== 'ointment-of-steel-1') ? 1 : /helmet|breastplate/.test(a.def.type ?? '') ? 2 : 3);
     pieces.sort((x, y) => row(x) - row(y) || (x.def.id === 'ointment-of-steel-1' ? -1 : y.def.id === 'ointment-of-steel-1' ? 1 : 0) || (!!x.def.card - !!y.def.card));
     const armor = pieces[0] ?? null;
     let note = '', missile = 0;
-    if (s.attack === 'missile') {
+    if (b.missile) {
         // the Missile Table shifts the harm; if the result is above Tremendous it ignores armor, judged before armor takes any star off
-        missile = missileRoll(st, `${s.name}'s missile roll`, s.type === 'Archer');
-        if (lvl(s.harm) + stars + missile > 4) return killMe(st, `${s.name}'s shot finds a vital spot; you are slain.`, s.name);
+        missile = missileRoll(st, `${b.name}'s missile roll`, b.archer);
+        if (lvl(b.harm) + stars + missile > 4) return killMe(st, `${b.name}'s shot finds a vital spot; you are slain.`, b.name);
     }
     if (armor) stars = Math.max(0, stars - 1);
     level += stars + missile;
     const L = letterOf(level);
-    ctx.log(`${s.name} strikes ${DIRS[dir].toLowerCase()} for ${L} harm${armor ? ` against your ${armor.def.name}` : ''}.`, tell.strike(st, s.name, DIRS[dir].toLowerCase(), L, armor?.def.name));
+    ctx.log(`${b.name} strikes ${DIRS[b.dir].toLowerCase()} for ${L} harm${armor ? ` against your ${armor.def.name}` : ''}.`, tell.strike(st, b.name, DIRS[b.dir].toLowerCase(), L, armor?.def.name));
     let wounded = false, changed = false;
     if (armor) {
         const tough = lvl(armor.def.toughness ?? armor.def.weight);
@@ -873,10 +1042,10 @@ function denHit(st, data, den, ctx) {
         }
         if (level >= lvl('M')) wounded = true;
     } else if (level >= lvl(st.ch.weight)) {
-        return killMe(st, `${s.name} deals ${L} harm; you are slain.`, s.name);
+        return killMe(st, `${b.name} deals ${L} harm; you are slain.`, b.name);
     } else if (level >= lvl('L')) wounded = true;
     if (wounded) {
-        c.newWounds = (c.newWounds ?? 0) + 1; tally(st, 'woundsTaken'); tally(st, `wounds.${s.name}`);
+        c.newWounds = (c.newWounds ?? 0) + 1; tally(st, 'woundsTaken'); tally(st, `wounds.${b.name}`);
         c.eventful = true;
         ctx.log('You take a wound.', tell.wound(st));
     } else if (!changed && !st.ch.dead) {
@@ -888,28 +1057,24 @@ function denHit(st, data, den, ctx) {
     }
     // a tremendous monster that hurts him and leaves him alive will pick him up when the round ends
     if (!st.ch.dead) {
-        const owner = den.kind === 'part' ? c.dens.find(d => d.uid === den.partOf) : den;
+        const owner = !den ? null : den.kind === 'part' ? c.dens.find(d => d.uid === den.partOf) : den;
         if (owner && redCapable(st, data, owner) && !c.toRed.includes(owner.uid)) c.toRed.push(owner.uid);
     }
 }
 const redCapable = (st, data, owner) => owner.kind === 'mon' && !!data.monsters[owner.id]?.red && !morphOf(st, owner);
 
-// The Power of the Pit also hits the creatures in the clearing: a Fiery Chasm kills every unhidden individual (not the demon that cast it),
-// Terror kills the Light and Medium monsters, natives and horses. Nobody is paid a bounty for these deaths.
-function pitAftermath(st, data, rowName, caster, ctx) {
-    if (rowName !== 'Fiery Chasm' && rowName !== 'Terror') return;
+// The Power of the Pit also hits the creatures in the clearing: a Fiery Chasm kills every individual (not the one that cast it), Terror kills the Light and
+// Medium monsters, natives and horses. A demon's Pit pays nobody; a spell cast by the hero pays him as for any kill (`pay`). Returns the names of the dead.
+function pitSweep(st, data, rowName, { caster = null, pay = false, log = null } = {}) {
+    if (rowName !== 'Fiery Chasm' && rowName !== 'Terror') return [];
     const c = st.combat, small = x => lvl(x ?? 'T') <= lvl('M');
     const dead = [];
     for (const d of c.dens) {
-        if (d.dead || d.uid === caster.uid || (caster.partOf && d.uid === caster.partOf) || d.partOf === caster.uid || d.kind === 'part') continue;
+        if (d.dead || (caster && (d.uid === caster.uid || (caster.partOf && d.uid === caster.partOf) || d.partOf === caster.uid)) || d.kind === 'part') continue;
         const s = denSide(st, data, d);
         const dies = rowName === 'Fiery Chasm' ? d.kind !== 'horse' : (d.kind === 'horse' ? small(s.vuln) : small(s.size));
         if (!dies) continue;
-        d.dead = true;
-        for (const p of c.dens.filter(x => x.partOf === d.uid)) p.dead = true;
-        if (d.kind === 'mon') { const m = st.mons.find(x => x.id === d.id); if (m) { m.dead = true; m.loc = null; } }
-        else if (d.kind === 'nat') { const n = st.nats.find(x => x.id === d.id); if (n) { n.dead = true; n.loc = null; dropNativeGoods(st, data, n); } }
-        targetGone(st, data, { kind: d.kind, id: d.id });
+        slayDenizen(st, data, d, { pay, spell: 'Power of the Pit' });
         dead.push(s.name);
     }
     for (const h of c.hires ?? []) {
@@ -917,7 +1082,8 @@ function pitAftermath(st, data, rowName, caster, ctx) {
         const hs = hireStats(data, h.id, h.kind, st), size = h.kind === 'mon' ? data.monsters[h.id].size : data.natives[h.id].weight;
         if (rowName === 'Fiery Chasm' || small(size)) { h.dead = true; hireDies(st, data, h); dead.push(hs.name); }
     }
-    if (dead.length) ctx.log(`${rowName} kills: ${dead.join(', ')}.`);
+    if (dead.length && log) log(`${rowName} kills: ${dead.join(', ')}.`);
+    return dead;
 }
 
 function killMe(st, text, by = null) {
@@ -984,7 +1150,7 @@ function toFatigue(st, data) {
     if (c.asterisks.move) kinds.push('move');
     if (c.asterisks.fight) kinds.push('fight');
     c.fatigueKinds = kinds;
-    const pool = st.ch.chits.filter(x => x.state === 'active' && x.effort > 0 && (kinds.includes(x.type)));
+    const pool = st.ch.chits.filter(x => x.state === 'active' && x.effort > 0 && (kinds.includes(x.type) || x.alt?.mf));        // a Move/Fight chit can pay either kind
     const total = pool.reduce((s, x) => s + x.effort, 0);
     if (total <= need) {
         pool.forEach(x => { x.state = 'fatigued'; });
@@ -1001,7 +1167,7 @@ function toFatigue(st, data) {
 
 export function chooseFatigue(st, data, ids) {
     const c = st.combat, need = c.fatigueNeed;
-    const pool = st.ch.chits.filter(x => x.state === 'active' && x.effort > 0 && c.fatigueKinds.includes(x.type));
+    const pool = st.ch.chits.filter(x => x.state === 'active' && x.effort > 0 && (c.fatigueKinds.includes(x.type) || x.alt?.mf));
     const chosen = [...new Set(ids)].map(id => pool.find(x => x.id === id));
     if (chosen.some(x => !x)) throw new Error('that chit cannot be fatigued');
     const sum = chosen.reduce((s, x) => s + x.effort, 0);
@@ -1056,7 +1222,7 @@ function endCombat(st, data, why) {
     }
     st.ch.items = st.ch.items.filter(i => !i.destroyed);
     st.pending = null;
-    const text = { won: 'Combat is over: nothing hostile is left.', quiet: 'The fighting dies down.', ran: 'You are out of the fight.', died: 'You have died.' }[why];
+    const text = { won: 'Combat is over: nothing hostile is left.', quiet: 'The fighting dies down.', ran: 'You are out of the fight.', died: 'You have died.', peace: 'A hush falls: there will be no more fighting here today.', teleported: 'You are carried away from the fight.' }[why];
     say(st, text, 'combat', why === 'quiet' ? tell.dieDown(st) : why === 'won' ? tell.won(st) : why === 'ran' ? tell.ran(st) : null);
 }
 
@@ -1119,7 +1285,7 @@ function hireStrikes(st, data, h, log) {
     if (hs.missile) level += missileRoll(st, `${hs.name}'s missile roll`, hs.archer);
     if (level >= lvl(ds.vuln)) {
         if (den.dead) { log(`${hs.name} strikes the ${ds.name} in the same instant; the bounty was already paid.`); return; }
-        den.dead = true;
+        den.dead = true; if (den.kind === 'mon' || den.kind === 'nat') lostTarget(st, data, { kind: den.kind, id: den.id });
         for (const p of c.dens.filter(d => d.partOf === den.uid)) p.dead = true;
         if (den.kind === 'mon') { const m = st.mons.find(x => x.id === den.id); m.dead = true; m.loc = null; }
         else if (den.kind === 'nat') { const n = st.nats.find(x => x.id === den.id); n.dead = true; n.loc = null; dropNativeGoods(st, data, n); }
@@ -1145,3 +1311,6 @@ function denStrikesHire(st, data, den, hireUid, log) {
         c.eventful = true;
     } else log(`The ${ds.name} hits ${hs.name} but fails to kill.`);
 }
+
+// What the spell handlers may ask of the combat (magic/bridge.js is a leaf module so that handlers do not import this file).
+Object.assign(B, { namedTarget, denSide, slayDenizen, provoke, pitSweep, killMe, endCombat, missileRoll, dropNativeGoods, activeArmor, killReward });

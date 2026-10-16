@@ -10,7 +10,7 @@
    "type": "I",
    "color": "White",
    "duration": "Instant",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "make-whole",
@@ -28,7 +28,7 @@
    "type": "I",
    "color": "White",
    "duration": "Combat",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "small-blessing",
@@ -36,7 +36,7 @@
    "type": "I",
    "color": "White",
    "duration": "Instant",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "blend-into-background",
@@ -68,7 +68,7 @@
    "type": "II",
    "color": "Grey",
    "duration": "Attack",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "talk-to-wise-bird",
@@ -92,7 +92,7 @@
    "type": "III",
    "color": "Gold",
    "duration": "Combat",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "faerie-lights",
@@ -124,7 +124,7 @@
    "type": "III",
    "color": "Gold",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "see-hidden-signs",
@@ -140,7 +140,7 @@
    "type": "IV",
    "color": "Purple",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "elemental-spirit",
@@ -156,7 +156,7 @@
    "type": "IV",
    "color": "Purple",
    "duration": "Attack",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "hurricane-winds",
@@ -164,7 +164,7 @@
    "type": "IV",
    "color": "Purple",
    "duration": "Fly",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "lightning-bolt",
@@ -172,7 +172,7 @@
    "type": "IV",
    "color": "Purple",
    "duration": "Attack",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "roof-collapses",
@@ -180,7 +180,7 @@
    "type": "IV",
    "color": "Purple",
    "duration": "Attack",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "violent-storm",
@@ -188,7 +188,7 @@
    "type": "IV",
    "color": "Purple",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "absorb-essence",
@@ -220,7 +220,7 @@
    "type": "V",
    "color": "Grey",
    "duration": "Instant",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "pentangle",
@@ -228,7 +228,7 @@
    "type": "V",
    "color": "Black",
    "duration": "Combat",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "power-of-the-pit",
@@ -236,7 +236,7 @@
    "type": "V",
    "color": "Black",
    "duration": "Instant",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "dissolve-spell",
@@ -284,7 +284,7 @@
    "type": "VI",
    "color": "Purple",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "world-fades",
@@ -364,7 +364,7 @@
    "type": "VIII",
    "color": "Grey",
    "duration": "Combat",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "remedy",
@@ -372,7 +372,7 @@
    "type": "VIII",
    "color": "Grey",
    "duration": "Instant",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "whistle-for-monsters",
@@ -380,7 +380,7 @@
    "type": "VIII",
    "color": "Purple",
    "duration": "Instant",
-   "implemented": false
+   "implemented": true
   }
  ]
 }

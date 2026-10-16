@@ -31,11 +31,27 @@ import illusion from './handlers/illusion.js';
 import lost from './handlers/lost.js';
 import talkToWiseBird from './handlers/talk-to-wise-bird.js';
 import protectionFromMagic from './handlers/protection-from-magic.js';
-
+import curse from './handlers/curse.js';
+import powerOfThePit from './handlers/power-of-the-pit.js';
+import remedy from './handlers/remedy.js';
+import exorcise from './handlers/exorcise.js';
+import pentangle from './handlers/pentangle.js';
+import smallBlessing from './handlers/small-blessing.js';
+import peace from './handlers/peace.js';
+import elvenGrace from './handlers/elven-grace.js';
+import poison from './handlers/poison.js';
+import persuade from './handlers/persuade.js';
+import roofCollapses from './handlers/roof-collapses.js';
+import blazingLight from './handlers/blazing-light.js';
+import violentStorm from './handlers/violent-storm.js';
+import whistleForMonsters from './handlers/whistle-for-monsters.js';
+import unleashPower from './handlers/unleash-power.js';
+import hurricaneWinds from './handlers/hurricane-winds.js';
 
 export const HANDLERS = {};
 for (const h of [makeWhole, controlBats, stonesFly, fieryBlast, lightningBolt, elementalSpirit, guideSpider, dealWithGoblins, dissolveSpell, transform, askDemon,
-    blendIntoBackground, seeHiddenSigns, peaceWithNature, premonition, fog, witchsBrew, faerieLights, senseDanger, badLuck, illusion, lost, talkToWiseBird, protectionFromMagic]) HANDLERS[h.id] = h;
+    blendIntoBackground, seeHiddenSigns, peaceWithNature, premonition, fog, witchsBrew, faerieLights, senseDanger, badLuck, illusion, lost, talkToWiseBird, protectionFromMagic,
+    curse, powerOfThePit, remedy, exorcise, pentangle, smallBlessing, peace, elvenGrace, poison, persuade, roofCollapses, blazingLight, violentStorm, whistleForMonsters, unleashPower, hurricaneWinds]) HANDLERS[h.id] = h;
 
 export const handlerOf = id => HANDLERS[id] ?? null;
 export const spellDef = (data, id) => data.spells?.[id] ?? Object.values(data.spells ?? {}).find(x => x.id === id) ?? null;

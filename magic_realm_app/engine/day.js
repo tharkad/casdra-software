@@ -28,6 +28,7 @@ export const PHASES = { basic: 2, sunlight: 2 };
 
 // ---- starting a day ----
 export function beginDay(st, data) {
+    landDenizens(st, data);
     st.period = 'birdsong';
     st.plan = null;
     st.turn = null;
@@ -41,6 +42,20 @@ export function beginDay(st, data) {
     st.pending = { type: 'plan' };
 }
 
+// Creatures that Hurricane Winds carried off land at the start of the day, before the Monster Roll and the plan: a die picks a clearing of the tile, rolled again
+// when the tile has no clearing of that number (7.3.3).
+function landDenizens(st, data) {
+    for (const o of [...st.mons, ...st.nats]) {
+        if (!o.loc?.flying) continue;
+        const tile = o.loc.tile, nums = tileClearings(st, data, tile).map(numOf);
+        let n = null;
+        for (let k = 0; k < 40 && !nums.includes(n); k++) n = die(st);
+        if (!nums.includes(n)) n = nums[0];
+        o.loc = { c: tile + n };
+        say(st, `${o.id in data.monsters ? data.monsters[o.id].name : data.natives[o.id].name} comes down in clearing ${n} of the ${tileName(tile)}.`, 'monster');
+    }
+}
+
 // How many phases the day will give him, given what he plans.
 export function phasesFor(st, data, slots) {
     const startsInCave = !st.ch.onRoad && isCave(st, data, st.ch.at);        // fleeing out of a cave leaves him on the road: a full day (8.3.8 d.2)
@@ -48,8 +63,10 @@ export function phasesFor(st, data, slots) {
     const sunlight = !startsInCave && !intoCave;
     // A working horse in use, and some treasure cards, give one more phase each, restricted to one activity.
     const extras = extraActs(st, data, { startsInCave, intoCave });
-    const base = PHASES.basic + (sunlight ? PHASES.sunlight : 0);
-    return { total: base + extras.length, base, sunlight, extras, extra: extras.length };
+    // Blazing Light (Day, cast in a cave): in the Birdsong after it was cast, a character who starts the day in that cave clearing may record one more phase, for any activity
+    const blazing = startsInCave && !!st.ch.at && fxTags(st, { kind: 'clearing', id: st.ch.at }, 'extraPhase').length > 0;
+    const base = PHASES.basic + (sunlight ? PHASES.sunlight : 0) + (blazing ? 1 : 0);
+    return { total: base + extras.length, base, sunlight, extras, extra: extras.length, blazing };
 }
 
 // Which kind of phase each recorded activity uses (rule 6.2.4 a): an extra phase takes only its own activity and may be recorded anywhere; every other
@@ -66,6 +83,7 @@ export function planKinds(st, data, slots) {
         else {
             regular++;
             if (regular <= PHASES.basic) kinds.push('basic');
+            else if (ph.blazing && regular === ph.base) kinds.push('blazing');          // the extra phase of the Blazing Light: any activity, but only while he is still in that clearing
             else if (regular <= ph.base) kinds.push('sunlight');
             else {
                 kinds.push('over');
@@ -85,7 +103,9 @@ export function validatePlan(st, data, slots) {
 function submitPlan(st, data, slots) {
     const v = validatePlan(st, data, slots);
     if (v.errors.length) throw new Error(v.errors[0]);
-    st.planBase = phasesFor(st, data, slots.filter(Boolean)).base;
+    const ph = phasesFor(st, data, slots.filter(Boolean));
+    st.planBase = ph.base;
+    st.planBlazing = ph.blazing ? st.ch.at : null;
     st.planKinds = v.kinds;
     st.ch.arrivedFrom = null;                      // a new day: he has not moved into any clearing yet
     st.plan = slots.slice(0, v.total).map(s => s ? { ...s } : null);
@@ -148,6 +168,7 @@ function finishPhase(st, data, text) {
     expireDue(st, data, 'phase-end');
     energizePass(st, data, 'phase');
     if (st.ch.dead) return died(st, data);
+    stormCheck(st, data);
     // End-of-phase blocking by monsters in his clearing.
     const bl = blockers(st);
     if (bl.length || t.forceBlock) {
@@ -160,6 +181,22 @@ function finishPhase(st, data, text) {
     t.i++;
     if (t.i >= st.plan.length) return endDaylight(st, data);
     st.pending = { type: 'phase', i: t.i };
+}
+
+// Violent Storm (Day): a character who ends a phase in a woods or mountain clearing of the stormed tile that has no Inn, House, Chapel or Guardhouse (a campfire does not
+// help) loses as many of his remaining activities as the storm rolled, once a turn. Not between clearings, not in a cave. He may choose what to lose on the card; here
+// the last activities still to come go (the lead can add a choice, the engine only needs st.plan changed).
+function stormCheck(st, data) {
+    const t = st.turn, here = st.ch.at;
+    if (!st.fx?.length || t.stormed || st.ch.onRoad || !here || isCave(st, data, here)) return;
+    const storms = fxTags(st, { kind: 'tile', id: tileOf(here) }, 'storm');
+    if (!storms.length || st.dwellings.some(d => d.at === here && ['Inn', 'House', 'Chapel', 'Guard house'].includes(d.kind))) return;
+    t.stormed = true;
+    const lose = Math.max(...storms.map(x => x.value)), later = [];
+    for (let j = t.i + 1; j < st.plan.length; j++) if (st.plan[j] && st.plan[j].act !== 'nothing') later.push(j);
+    const drop = later.slice(Math.max(0, later.length - lose));
+    for (const j of drop) st.plan[j] = null;
+    say(st, `The Violent Storm batters you: ${drop.length ? `you lose ${drop.length} of the ${later.length} activit${later.length === 1 ? 'y' : 'ies'} still to come` : 'it costs you nothing, for no activity is left'} (the storm rolled ${lose}).`, 'phase');
 }
 
 function endDaylight(st, data) {
@@ -259,6 +296,7 @@ function midnight(st, data) {
     st.period = 'midnight';
     expireDue(st, data, 'midnight');                       // Combat spells end at Midnight (8.9.2)
     deenergizePass(st, data);                              // Permanent spells fall inert unless a source that stays still fills their place
+    st.ch.wishStrength = null;                              // a Wish of Strength not used today is lost
     for (const it of st.ch.items) if (it.kind === 'weapon') it.alerted = false;
     for (const c of st.ch.chits) if (c.alerted) { c.alerted = false; if (c.state === 'active') c.state = 'fatigued'; }          // an alerted Magic chit that was not used tires at Midnight
     // potions are good until Midnight, then they go back to the box they came from
@@ -295,6 +333,7 @@ function executeSlot(st, data, slot, i) {
     const t = st.turn;
     if (!slot) { t.climb = null; return 'You do nothing.'; }
     const here = st.ch.at;
+    if (t.kinds?.[i] === 'blazing' && here !== st.planBlazing) { t.climb = null; return 'You have left the Blazing Light behind: the extra phase is lost.'; }
     if (st.ch.onRoad && !(slot.act === 'move' && (slot.to === st.ch.onRoad.from || slot.to === st.ch.onRoad.to))) {
         // He is still out on a road; only a Move to one of its ends gets him anywhere.
         t.climb = null;
@@ -421,7 +460,7 @@ function doRest(st, data) {
 
 export function restOptions(st) {
     const out = [];
-    const wither = (st.ch.curses ?? []).includes('Wither');
+    const wither = hasCurse(st, 'Wither');
     for (const c of st.ch.chits) {
         if (c.state === 'fatigued' && c.effort > 0 && !wither) {
             out.push({ chit: c.id, to: 'active', text: `rest ${chitLabel(c)}`, cost: c.effort });

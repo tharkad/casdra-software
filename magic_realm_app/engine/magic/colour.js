@@ -6,7 +6,7 @@ import { isMountain, tileName, tileOf } from '../world.js';
 export const COLORS = ['White', 'Grey', 'Gold', 'Purple', 'Black'];
 // Magic chits of Types I to V can be enchanted into a colour chit (4.6.4f); VI to VIII cannot.
 export const TYPE_COLOR = { I: 'White', II: 'Grey', III: 'Gold', IV: 'Purple', V: 'Black' };
-export const enchantableChits = st => st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active' && TYPE_COLOR[c.numeral]);
+export const enchantableChits = st => st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active' && TYPE_COLOR[c.numeral] && !c.alt?.mf);
 export const colorChits = (st, color = null) => st.ch.chits.filter(c => c.type === 'magic' && c.state === 'enchanted' && (!color || TYPE_COLOR[c.numeral] === color));
 export const COLOR_MEANING = {
     White: 'Power from on High', Grey: 'Natural laws', Gold: 'Woods sprites', Purple: 'Elemental energies', Black: 'Demonic',

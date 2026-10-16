@@ -3,7 +3,8 @@ import { nameOf } from '../items.js';
 import { effortLimit } from '../modifiers.js';
 import { COLORS, TYPE_COLOR, colorChits, colorsAt, nextDayWith } from './colour.js';
 import { HANDLERS, handlerOf, spellDef } from './registry.js';
-import { addFx, HERO, sameRef } from './fx.js';
+import { addFx, breakFx, fxTags, HERO, sameRef } from './fx.js';
+import { cancelCasts } from './util.js';
 
 // Casting (rules 4.6, 8.3.9, 8.4). A spell is cast in the Encounter step of an Evening combat round by playing a Magic chit of its numeral while its
 // colour of magic is present; it comes to life in the Melee step. The chit is `committed` from the moment it is played; it tires when the spell ends
@@ -12,7 +13,7 @@ import { addFx, HERO, sameRef } from './fx.js';
 // Attack spells (rule 8.4.4): they ride in the attack circle like a weapon, with the casting chit's time. Each handler carries its numbers.
 // (built on first use: the modules import each other, so the registry may not be filled yet when this file loads)
 let attackMap = null;
-const attacks = () => (attackMap ??= Object.fromEntries(Object.values(HANDLERS).filter(h => h.attack).map(h => [h.id, h.attack])));
+const attacks = () => (attackMap ??= Object.fromEntries(Object.values(HANDLERS).filter(h => h.attack && !h.attack.auto).map(h => [h.id, h.attack])));
 export const ATTACK_SPELLS = new Proxy({}, { get: (_, k) => attacks()[k], has: (_, k) => k in attacks(), ownKeys: () => Reflect.ownKeys(attacks()),
     getOwnPropertyDescriptor: (_, k) => (k in attacks() ? { enumerable: true, configurable: true, value: attacks()[k] } : undefined) });
 // A spell this build can cast: the ones with a handler, or that the data marks as implemented.
@@ -20,6 +21,18 @@ export const castable = sp => !!(sp && (sp.implemented || handlerOf(sp.id)));
 export const knownSpells = (st, data) => (st.ch.spells ?? []).map(id => spellDef(data, id)).filter(castable);
 
 const timeOf = chit => (chit.alerted ? 0 : chit.time);
+
+// A Pentangle keeps every new spell off its target (it stops only spells aimed at him). A spell with no aim list whose only target is the caster (`selfOnly`)
+// is barred while he stands in one.
+const barred = (st, ref) => !!ref && fxTags(st, ref, 'noNewSpells').length > 0;
+// true, or why the spell cannot be cast now: the handler's own conditions, then whether any legal target is left.
+function legalOf(st, data, h, spell) {
+    if (!h) return true;
+    if (h.legal) { const r = h.legal(st, data, { spell }); if (r !== true) return r; }
+    if (h.selfOnly && barred(st, HERO)) return 'A Pentangle holds off every new spell aimed at you, your own included.';
+    if (h.aim) { const o = h.aim(st, data, { cast: null }); if (o && o.filter(x => !barred(st, x.ref)).length < (h.targets?.min ?? 1)) return 'Every legal target is shielded by a Pentangle.'; }
+    return true;
+}
 
 // Every way he could cast something now: [{ spell, name, chit, colorChit, effort, time, useful }]. `slowest` is the speed of the slowest creature facing him:
 // a Magic chit may be no slower than it (8.3.7a; other chits must be strictly faster).
@@ -36,9 +49,9 @@ export function castOptions(st, data, { slowest = 99 } = {}) {
         const need = spell.color ? !colors.has(spell.color) : colors.size === 0;
         const supply = need ? (spell.color ? colorChits(st, spell.color)[0] : colorChits(st)[0]) : null;
         if (need && !supply) continue;
-        if (h?.legal && h.legal(st, data, { spell }) !== true) continue;
+        if (legalOf(st, data, h, spell) !== true) continue;
         for (const chit of st.ch.chits) {
-            if (chit.type !== 'magic' || chit.state !== 'active' || chit.numeral !== spell.type) continue;
+            if (chit.type !== 'magic' || chit.state !== 'active' || chit.numeral !== spell.type || chit.alt?.mf) continue;          // a chit changed by Unleash Power is no Magic chit
             if (c?.played?.[chit.id]) continue;
             if (spent + chit.effort > effortLimit(st)) continue;
             if (timeOf(chit) > slowest) continue;
@@ -67,7 +80,7 @@ export function itemCastOptions(st, data, colors = colorsAt(st, data, st.ch.at))
             const need = spell.color ? !colors.has(spell.color) : colors.size === 0;
             const supply = need ? (spell.color ? colorChits(st, spell.color)[0] : colorChits(st)[0]) : null;
             if (need && !supply) continue;
-            if (h?.legal && h.legal(st, data, { spell }) !== true) continue;
+            if (legalOf(st, data, h, spell) !== true) continue;
             const opt = { spell: spell.id, name: spell.name, colorChit: supply?.id ?? null, chit: null, item: it.uid, effort: 0, time: 0, from: nameOf(data, it) };
             opt.useful = h?.useful ? !!h.useful(st, data, opt) : true;
             out.push(opt);
@@ -93,8 +106,8 @@ export function blockedSpells(st, data, { slowest = 99 } = {}) {
             out.push({ ...base, why: `Needs ${spell.color ?? 'some'} magic.${next ? ` ${spell.color} fills the land on day ${next}.` : ''}${chapel}${chit}` });
             continue;
         }
-        if (h?.legal) { const why = h.legal(st, data, { spell }); if (why !== true) { out.push({ ...base, why }); continue; } }
-        const ready = st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active' && c.numeral === spell.type);
+        { const why = legalOf(st, data, h, spell); if (why !== true) { out.push({ ...base, why }); continue; } }
+        const ready = st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active' && c.numeral === spell.type && !c.alt?.mf);
         if (!ready.length) { out.push({ ...base, why: `You have no ready Magic ${spell.type} chit.` }); continue; }
         if (st.combat && ready.every(c => timeOf(c) > slowest)) out.push({ ...base, why: `Your Magic ${spell.type} chit is too slow: a Magic chit must be no slower than the fastest creature facing you (time ${slowest}). Alert it in an Alert phase and it acts at time 0.` });
     }
@@ -113,14 +126,14 @@ export function castSpell(st, data, spellId, chitId, itemUid = null) {
     if (itemUid) {
         const it = st.ch.items.find(i => i.uid === itemUid);
         (it.usedEvening ??= {})[def.type] = st.day;                       // once per Evening for each numeral
-        (c.casts ??= []).push({ spell: spellId, item: itemUid, time: 0, colour });
+        (c.casts ??= []).push({ spell: spellId, item: itemUid, time: 0, colour, colorChit: opt.colorChit });
         say(st, `You cast ${opt.name} from your ${opt.from}.`, 'combat');
     } else {
         const chit = st.ch.chits.find(x => x.id === chitId);
         chit.state = 'committed'; chit.tie = null; chit.alerted = false;
         c.played[chitId] = true;
         c.asterisks.magic = (c.asterisks.magic ?? 0) + opt.effort;
-        (c.casts ??= []).push({ spell: spellId, chit: chitId, time: opt.time, colour });
+        (c.casts ??= []).push({ spell: spellId, chit: chitId, time: opt.time, colour, colorChit: opt.colorChit });
         say(st, `You cast ${opt.name}, playing Magic ${chit.numeral}${opt.time}${'*'.repeat(opt.effort)}.`, 'combat');
     }
     const atk = handlerOf(spellId)?.attack;
@@ -135,9 +148,9 @@ export function aimOptions(st, data) {
     const out = [];
     for (const cast of st.combat?.casts ?? []) {
         if (cast.done) continue;
-        const h = handlerOf(cast.spell), options = h?.aim?.(st, data, { cast });
+        const h = handlerOf(cast.spell), all = h?.aim?.(st, data, { cast }), options = all?.filter(o => !barred(st, o.ref));
         if (!options) continue;
-        out.push({ spell: cast.spell, name: spellDef(data, cast.spell)?.name ?? cast.spell, options, min: h.targets?.min ?? 1, max: h.targets?.max ?? 1, params: h.params ?? null });
+        out.push({ spell: cast.spell, name: spellDef(data, cast.spell)?.name ?? cast.spell, options, min: h.targets?.min ?? 1, max: h.targets?.max ?? 1, params: typeof h.params === 'function' ? h.params(st, data, { cast }) : (h.params ?? null) });
     }
     return out;
 }
@@ -155,7 +168,8 @@ export function applyAim(st, data, spellAim = {}) {
         for (const r of refs) if (!a.options.some(o => sameRef(o.ref, r))) throw new Error(`${a.name} cannot be aimed at that`);
         if (refs.length < a.min || refs.length > a.max) throw new Error(`${a.name}: choose ${a.min === a.max ? a.min : `${a.min} to ${a.max}`} target${a.max === 1 ? '' : 's'}`);
         const cast = st.combat.casts.find(x => x.spell === a.spell && !x.done);
-        cast.targets = refs; cast.params = given.params ?? {};
+        cast.targets = refs.map(r => a.options.find(o => sameRef(o.ref, r)).ref);          // the full reference of the option, not what the caller sent
+        cast.params = given.params ?? {};
     }
 }
 
@@ -163,8 +177,10 @@ export function applyAim(st, data, spellAim = {}) {
 // in earlier rounds is mended.
 export function resolveCasts(st, data, log = t => say(st, t, 'combat')) {
     const c = st.combat;
-    const todo = (c.casts ?? []).filter(x => !x.done).sort((a, b) => (a.time ?? 99) - (b.time ?? 99));
+    const todo = (c.casts ?? []).filter(x => !x.done).sort((a, b) => (handlerOf(a.spell)?.first ? -1 : 0) - (handlerOf(b.spell)?.first ? -1 : 0) || (a.time ?? 99) - (b.time ?? 99));   // Exorcise acts before all others
     for (const cast of todo) {
+        if (cast.done) continue;                                          // an earlier spell (Exorcise) cancelled it
+        if (c.ended || st.ch.dead) { cancelCasts(st, data, null); break; }       // the combat is over (a Wish) or he is dead: nothing more comes to life
         cast.done = true;
         const chit = cast.chit ? st.ch.chits.find(x => x.id === cast.chit) : null;
         const item = cast.item ? st.ch.items.find(i => i.uid === cast.item) : null;
@@ -173,7 +189,7 @@ export function resolveCasts(st, data, log = t => say(st, t, 'combat')) {
         if (!cast.targets && h?.aim) { const options = h.aim(st, data, { cast }); if (options?.length) cast.targets = autoTargets(st, data, cast.spell, options); }
         const dur = (def?.duration ?? h?.dur ?? 'Instant').toLowerCase();
         const ctx = {
-            st, data, spell: def, caster: HERO, source: item ? { kind: 'item', id: item.uid, type: def?.type } : { kind: 'chit', id: cast.chit, type: chit?.numeral }, targets: cast.targets ?? [], params: cast.params ?? {}, log, say: log,
+            st, data, spell: def, cast, caster: HERO, source: item ? { kind: 'item', id: item.uid, type: def?.type } : { kind: 'chit', id: cast.chit, type: chit?.numeral }, targets: cast.targets ?? [], params: cast.params ?? {}, log, say: log,
             fx: spec => {
                 const fx = addFx(st, data, { spell: cast.spell, dur, source: ctx.source, colour: cast.colour, targets: ctx.targets, ...spec });
                 if (chit && chit.state === 'committed') chit.tie = fx.id;
@@ -181,7 +197,13 @@ export function resolveCasts(st, data, log = t => say(st, t, 'combat')) {
                 return fx;
             },
         };
-        h?.start?.(ctx);
+        // a Pentangle that came to life earlier this round keeps a spell aimed at its target out; the spell is spent
+        if ((h?.selfOnly && barred(st, HERO)) || (cast.targets ?? []).some(t => barred(st, t))) log(`${def?.name ?? cast.spell} is held off by a Pentangle and fizzles.`);
+        else {
+            // naming a creature that a spell made peaceful (Peace, Persuade) breaks that spell
+            for (const t of cast.targets ?? []) for (const { fx } of fxTags(st, t, 'nameBreaks')) { log(`${spellDef(data, fx.spell)?.name ?? fx.spell} is broken: its target was named.`); breakFx(st, data, fx.id, 'its target was named'); }
+            h?.start?.(ctx);
+        }
         // an Instant or Attack spell leaves its chit fatigued at once; any other keeps it committed for as long as its effect lives (tie set by ctx.fx)
         if (chit && chit.state === 'committed' && !chit.tie) chit.state = 'fatigued';
         c.eventful = true;

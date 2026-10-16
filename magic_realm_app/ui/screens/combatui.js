@@ -246,11 +246,12 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         // spells cast this round that need a target named (8.4.2)
         const sameRef = (x, y) => x.kind === y.kind && String(x.id) === String(y.id);
         for (const a of o.aims ?? []) {
-            m.aim ??= {};
+            m.aim ??= {}; m.aimParams ??= {};
             const sel = m.aim[a.spell] ??= a.options.slice(0, a.min).map(x => x.ref);
+            const pars = Array.isArray(a.params) ? a.params : [];
             body.push(h('div', { class: 'cb-sec', 'data-aim': a.spell }, h('b', {}, `Aim ${a.name}`),
-                h('p', { class: 'hint' }, a.max === 1 ? 'Choose what it is aimed at.' : `Choose ${a.min === a.max ? a.min : `${a.min} to ${a.max}`}.`),
-                h('div', { class: 'seg3 wrap' }, ...a.options.map(opt => {
+                a.options.length ? h('p', { class: 'hint' }, a.max === 1 ? 'Choose what it is aimed at.' : a.max === 0 ? '' : `Choose ${a.min === a.max ? a.min : `${a.min} to ${a.max}`}${a.min === 0 ? ' (or none)' : ''}.`) : null,
+                a.options.length ? h('div', { class: 'seg3 wrap' }, ...a.options.map(opt => {
                     const on = sel.some(r => sameRef(r, opt.ref));
                     return h('button', { class: `segb${on ? ' on' : ''}`, 'data-aim-opt': `${opt.ref.kind}:${opt.ref.id}`, onclick: () => {
                         if (a.max === 1) m.aim[a.spell] = [opt.ref];
@@ -258,8 +259,15 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
                         else if (sel.length < a.max) m.aim[a.spell] = [...sel, opt.ref];
                         render();
                     } }, opt.label);
-                }))));
+                })) : null,
+                // the questions a spell asks beforehand (a clearing, a tile, a box...): the first sensible answer is taken when none is chosen
+                ...pars.map(q => { const cur = (m.aimParams[a.spell] ??= {})[q.key];
+                    return h('div', { class: 'aimq' }, h('p', { class: 'hint' }, q.label),
+                        h('div', { class: 'seg3 wrap' }, ...(q.options ?? []).map(op => h('button', { class: `segb${JSON.stringify(cur) === JSON.stringify(op.value) ? ' on' : ''}`, 'data-param': `${q.key}:${typeof op.value === 'object' ? JSON.stringify(op.value) : op.value}`, onclick: () => { m.aimParams[a.spell][q.key] = op.value; render(); } }, op.label)))); })));
         }
+        // a spell cast this round takes the place of the weapon: no Fight chit may be played with it (8.4.5a)
+        const castNote = c.casts?.length && !o.attackSpell && !o.fightChits.length ? h('p', { class: 'hint' }, 'You cast a spell this round, so you cannot also swing a weapon (rule 8.4.5a).') : null;
+        if (castNote) body.push(castNote);
         // 2 attack
         const spl = o.attackSpell ? data.spells?.[o.attackSpell.spell] : null;
         // the time the attack goes off at: a weapon's own printed time for the side showing, else the Fight chit's
@@ -292,7 +300,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             m.fightChit && !m.target ? h('span', { class: 'bad' }, 'Pick whom to strike, or play no Fight chit') : null,
             h('button', { class: 'btn primary big', 'data-act': 'commit', disabled: ast > 2 || (m.fightChit && !m.target) || null, onclick: () => {
                 const boxes = {}; o.boxable.forEach((d, i) => { boxes[d.uid] = m.boxes[d.uid] ?? (i % 3); });
-                const spellAim = {}; for (const a of o.aims ?? []) spellAim[a.spell] = { targets: m.aim?.[a.spell] ?? a.options.slice(0, a.min).map(x => x.ref) };
+                const spellAim = {}; for (const a of o.aims ?? []) spellAim[a.spell] = { targets: m.aim?.[a.spell] ?? a.options.slice(0, a.min).map(x => x.ref), params: m.aimParams?.[a.spell] ?? {} };
                 send({ kind: 'melee', target: m.target, fightChit: m.fightChit, attackDir: m.attackDir, moveChit: m.moveChit, moveDir: m.moveDir, shieldDir: o.shield ? m.shieldDir : null, boxes, spellAim });
             } }, 'Commit and roll')));
     } else if (p.type === 'combat-wounds') {

@@ -6,6 +6,12 @@ import { targetGone } from './magic/fx.js';
 // The Hire activity (rules digest 05 section 4.5). He pays a native group to join him for 14 days.
 // Simplification noted in docs: a hired leader follows like any other hireling instead of taking his own turn.
 
+// How a native group stands with him for hiring: a group pacified by his Persuade spell is Friendly at least (the card: "to hire them, he uses the Friendly column").
+export function relFor(st, g) {
+    const rel = st.ch.rel?.[g] ?? 0;
+    return (st.fx ?? []).some(f => f.state === 'live' && f.spell === 'persuade' && f.data?.group === g) ? Math.max(rel, 1) : rel;
+}
+
 const individual = (data, g) => data.groups[g].hireMode === 'individual';
 
 export function hireOptions(st, data) {
@@ -35,7 +41,7 @@ export function hireOptions(st, data) {
 }
 
 export function beginHire(st, data) {
-    if ((st.ch.curses ?? []).includes('Ashes')) return false;
+    if (hasCurse(st, 'Ashes')) return false;
     const opts = hireOptions(st, data);
     if (!opts.length) return false;
     st.pending = { type: 'hire', options: opts };
@@ -82,7 +88,7 @@ export function hireAction(st, data, p, a) {
         st.ch.gold -= cost; drinks = true;
         say(st, `You buy drinks for the ${g} (${cost} gold): they warm to you.`, 'trade');
     }
-    const { res, r, note, rolls } = meetingOutcome(st, opt.monsters ? 0 : (st.ch.rel?.[g] ?? 0) + (drinks ? 1 : 0), `Meeting roll: hiring the ${g}${opt.monsters ? ' (the Neutral column)' : ''}`, data);
+    const { res, r, note, rolls } = meetingOutcome(st, opt.monsters ? 0 : relFor(st, g) + (drinks ? 1 : 0), `Meeting roll: hiring ${opt.monsters ? `the ${g} (the Neutral column)` : `from the ${g}`}`, data);
     const why = `${drinks ? 'Drinks; ' : ''}${note}rolled ${r.dice.join('+')}: ${res}`;
     if (res.startsWith('Price')) {
         const mult = Number(res.split('x')[1]);

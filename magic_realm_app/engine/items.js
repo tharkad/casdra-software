@@ -50,6 +50,7 @@ export function activeHorse(st) { return st.ch.items.find(i => i.kind === 'horse
 export function carryCapacity(st, data) {
     let c = -1;
     for (const x of st.ch.chits) if (x.state === 'active' && x.type === 'move') c = Math.max(c, lvl(x.strength));
+    for (const x of st.ch.chits) if (x.state === 'active' && x.alt?.mf) c = Math.max(c, lvl(x.alt.strength));          // a Magic chit changed by Unleash Power carries like a Move chit
     const h = activeHorse(st);
     if (h && data.horses[h.id]) c = Math.max(c, lvl(data.horses[h.id].walk.strength));
     for (const b of cardChits(st, 'move')) c = Math.max(c, lvl(b.strength));

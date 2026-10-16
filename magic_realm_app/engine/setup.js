@@ -146,14 +146,15 @@ function knightsRel(st, id, rel) {
 // The spells he starts with: the card says how many and of which types; of those, the ones this build can cast (data/src/spells.json).
 // The player picks them (any spell of the allowed types: the card stays in the deck, so two characters may start with the same one); a pick that does
 // not fit the card is ignored. With no pick, the first spells of those types that this build can cast.
+const STARTER_SPELLS = ['make-whole', 'stones-fly', 'fiery-blast', 'lightning-bolt', 'control-bats'];
 function startingSpells(data, c, chosen = null) {
     const want = c.stage4?.spellsKnown ?? 0, types = c.stage4?.spellTypes ?? [];
     const all = Object.values(data.spells ?? {});
     const okId = id => all.some(s => s.id === id && types.includes(s.type));
     if (Array.isArray(chosen) && chosen.length === want && chosen.every(okId) && new Set(chosen).size === chosen.length) return [...chosen];
-    // attack spells first (the computer players and the first fights need them), then the rest in card order
-    const pickable = all.filter(s => castable(s) && types.includes(s.type));
-    return [...pickable.filter(s => ATTACK_SPELLS[s.id]), ...pickable.filter(s => !ATTACK_SPELLS[s.id])].slice(0, want).map(s => s.id);
+    // the five spells the game started with come first, so that new handlers do not change what a character gets by default
+    const first = id => { const k = STARTER_SPELLS.indexOf(id); return k < 0 ? STARTER_SPELLS.length : k; };
+    return all.filter(s => castable(s) && types.includes(s.type)).map((s, i) => ({ s, i })).sort((a, b) => first(a.s.id) - first(b.s.id) || a.i - b.i).slice(0, want).map(x => x.s.id);
 }
 
 export function makeCharacter(st, data, id, vp, opt = {}) {
