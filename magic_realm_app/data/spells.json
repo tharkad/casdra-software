@@ -300,7 +300,7 @@
    "type": "VII",
    "color": null,
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "peace-with-nature",

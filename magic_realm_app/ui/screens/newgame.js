@@ -97,8 +97,10 @@ export const CHARACTERS = [
       line: 'Allied with the Order, friendly with Lancers; the Company are his enemies. Health: an extra Rest phase a day. Honor: one less on every Meeting die. His Type I spell is Make Whole: cast in the evening where there is White magic (a Chapel, or day 7).' },
     { id: 'wizard', name: 'Wizard', weight: 'Medium weight', starts: ['Inn', 'House', 'Guard house'], gear: 'Staff', spells: { n: 2, types: ['II', 'III', 'IV'] },
       line: 'Friendly with the Woodfolk, Patrol, Soldiers and Guard; the Company, Bashkars and Warlock are against him, the Lancers his enemies. Lore: one die when Reading Runes. Experience: knows every hidden path and secret passage. Starts with two spells of Types II to IV.' },
+    { id: 'sorceror', name: 'Sorcerer', weight: 'Medium weight', starts: ['Inn'], gear: null, spells: { n: 3, types: ['IV', 'VI'] },
+      line: 'Allied with the Lancers, friendly with the Company and Bashkars; the Guard are his enemies, and the Order, Soldiers and Warlock dislike him. Lore: one die when Reading Runes. Aura of Power: an extra Enchant phase every day. Nine Magic chits and only three to move and fight with: he lives on his spells, starting with three of Types IV and VI.' },
     { id: 'woods-girl', name: 'Woods Girl', weight: 'Light weight', starts: ['Inn', 'House'], gear: 'Light Bow', her: true, spells: { n: 1, types: ['VII'] },
-      line: 'Allied with the Woodfolk, friendly with Lancers; the Bashkars are her enemies. Tracking: one die on Hide, Search and Meeting in the six Woods tiles. Archer: one die on the Missile Table with a bow. Her Type VII spell cannot be cast in this build yet.' },
+      line: 'Allied with the Woodfolk, friendly with Lancers; the Bashkars are her enemies. Tracking: one die on Hide, Search and Meeting in the six Woods tiles. Archer: one die on the Missile Table with a bow. Her Type VII spell can be Control Bats (cast in an evening fight, it makes every Giant Bat in the clearing hers until tomorrow\u2019s Sunset); the other Type VII spells cannot be cast yet.' },
 ];
 
 // The spell list for the starting-spell picker, fetched once.
@@ -142,7 +144,7 @@ function charsStep(g, redraw, ctx) {
             onclick: () => { g.character = c.id; if (!c.starts.includes(g.dwelling)) g.dwelling = c.starts[0]; redraw(); } },
             h('span', { class: 'dot' }),
             h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, c.name, h('em', {}, c.weight)), h('span', { class: 'choice-line' }, c.line))))),
-        h('p', { class: 'hint' }, `${who.her ? 'She begins with her' : 'He begins with his'} ${who.gear}, taken from the natives' stock as the rules say. More characters will come.`),
+        h('p', { class: 'hint' }, who.gear ? `${who.her ? 'She begins with her' : 'He begins with his'} ${who.gear}, taken from the natives' stock as the rules say. More characters will come.` : `${who.her ? 'She' : 'He'} begins with no weapon or armor: buy or find them, or fight with the Fight chit.`),
         h('img', { class: 'cardpic', src: `art/characterdetail/${CARD_FILE[who.id] ?? who.id.replace('-', '_')}.jpg`, alt: `${who.name} character card`, onerror: e => e.target.remove() }),
         h('h2', { class: 'q' }, who.starts.length > 1 ? 'Where do you start?' : `Where ${who.her ? 'she' : 'he'} starts`),
         h('div', { class: 'choices', role: 'radiogroup' }, ...who.starts.map(d => h('button', { class: `choice${g.dwelling === d ? ' on' : ''}`, role: 'radio', 'aria-checked': g.dwelling === d, 'data-dwelling': d,

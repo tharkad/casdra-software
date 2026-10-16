@@ -57,6 +57,8 @@ function mends(st, exceptChit) {
 }
 
 const foesHere = st => !!st.combat?.dens.some(d => !d.dead && d.kind !== 'horse' && d.kind !== 'part');
+// The Giant Bats in the fight (Control Bats takes them all).
+const batsHere = (st, data) => (st.combat?.dens ?? []).filter(d => !d.dead && d.kind === 'mon' && data.monsters[d.id]?.name === 'Giant Bat');
 
 // Every way he could cast something now: [{ spell, chit, useful }]. `round` is the combat in progress (omit before it has begun).
 export function castOptions(st, data) {
@@ -76,7 +78,7 @@ export function castOptions(st, data) {
             if (chit.type !== 'magic' || chit.state !== 'active' || chit.numeral !== spell.type) continue;
             if (c?.played?.[chit.id]) continue;
             if (spent + chit.effort > effortLimit(st)) continue;
-            out.push({ spell: spell.id, name: spell.name, colorChit: supply?.id ?? null, chit: chit.id, effort: chit.effort, time: chit.time, useful: spell.id === 'make-whole' ? mends(st, chit.id) : ATTACK_SPELLS[spell.id] ? foesHere(st) : true });
+            out.push({ spell: spell.id, name: spell.name, colorChit: supply?.id ?? null, chit: chit.id, effort: chit.effort, time: chit.time, useful: spell.id === 'make-whole' ? mends(st, chit.id) : spell.id === 'control-bats' ? batsHere(st, data).length > 0 : ATTACK_SPELLS[spell.id] ? foesHere(st) : true });
         }
     }
     return out;
@@ -125,6 +127,17 @@ export function resolveSpells(st, data, log = t => say(st, t, 'combat')) {
             for (const x of st.ch.chits) if (x !== chit && (x.state === 'fatigued' || x.state === 'wounded')) { x.state = 'active'; chits++; }
             for (const it of st.ch.items) if (it.kind === 'armor' && it.damaged && !it.destroyed) { it.damaged = false; armor++; }
             log(`Make Whole: ${chits} action chit${chits === 1 ? '' : 's'} restored${armor ? ` and ${armor} piece${armor === 1 ? '' : 's'} of armor repaired` : ''}.`);
+            c.eventful = true;
+        }
+        if (cast.spell === 'control-bats') {
+            // A Day spell cast in the Evening: the Bats are his until Sunset of the next day, when they stop being controlled just before combat begins.
+            const bats = batsHere(st, data);
+            for (const d of bats) {
+                d.dead = true; d.controlled = true;
+                const m = st.mons.find(x => x.id === d.id && !x.dead && !x.hired && x.loc?.c === st.ch.at);
+                if (m) { m.hired = true; m.controlledUntil = st.day + 1; }
+            }
+            log(bats.length ? `Control Bats: ${bats.length === 1 ? 'the Giant Bat is' : `all ${bats.length} Giant Bats are`} yours. They follow you until Sunset tomorrow, when they are free again.` : 'Control Bats: there are no Giant Bats here.');
             c.eventful = true;
         }
         if (chit) chit.state = 'fatigued';                       // an Instant spell leaves the chit that cast it fatigued

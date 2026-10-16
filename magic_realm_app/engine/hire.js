@@ -104,6 +104,7 @@ function hire(st, data, ids, group) {
 // Hirelings follow him wherever he goes.
 export function followHero(st) {
     for (const n of st.nats) if (n.hired && !n.dead) n.loc = { c: st.ch.at };
+    for (const m of st.mons) if (m.hired && m.controlledUntil && !m.dead) m.loc = { c: st.ch.at };       // monsters under a Control spell
 }
 
 export function expireHires(st, data) {

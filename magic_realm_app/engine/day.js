@@ -190,6 +190,8 @@ function hostilesHere(st, data) {
 function evening(st, data) {
     if (st.ch.dead) return died(st, data);
     st.period = 'evening';
+    // Day spells that control monsters end at Sunset, just before combat begins (rule 8.1.1).
+    for (const m of st.mons) if (m.hired && m.controlledUntil && st.day >= m.controlledUntil) { m.hired = false; m.controlledUntil = null; say(st, `Your control of the ${data.monsters[m.id].name} ends with the Sunset.`, 'combat'); }
     if (st.ch.onRoad) { midnight(st, data); return; }
     if (!hostilesHere(st, data)) { say(st, 'A quiet evening.', 'day'); return midnight(st, data); }
     combat.startCombat(st, data, st.ch.at);
