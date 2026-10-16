@@ -906,3 +906,29 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .prowl .weekend { display: block; margin-top: 3px; font-size: 13px; color: var(--dim); font-weight: 400; }
 @media (max-height: 720px) { .maptools { gap: 6px; } .maptools button { width: 38px; height: 38px; font-size: 19px; } }
 @media (max-height: 720px) { .dock-inner { max-height: 34vh; } }
+
+/* ---- readable descriptions: body text in boxes is never smaller than 14px, and what a creature's numbers mean is said in words ---- */
+.foe { padding: 10px 12px; gap: 3px; }
+.foe b, .cb-foes .foe b { font-size: 18.5px; line-height: 1.15; }
+.foe .sidetag { font-size: 13px; letter-spacing: .08em; }
+.foe .foe-kind { display: block; font-size: 16px; color: var(--text); margin-top: 1px; }
+.foe .foe-stats { display: flex; gap: 10px; margin-top: 6px; }
+.foe .fs { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 5px 8px; border-radius: 8px; background: rgba(255, 255, 255, .06); }
+.foe .fs small { font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.foe .fs i { font-size: 18px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.foe .fs i.chg { color: #ffd27f; }
+.foe .was { font-size: 14.5px; color: var(--dim); }
+.cb-foes .foe span { font-size: 15.5px; }
+.cb-foes { grid-template-columns: 1fr; gap: 8px; }
+
+.ask p { font-size: 15.5px; line-height: 1.4; } .ask b { font-size: 16.5px; }
+.ask.compact p { font-size: 14.5px; } .ask.compact b { font-size: 15.5px; }
+.card-stats, .card-note, .pitnote .pitrow { font-size: 15px; }
+.btn .col small, .btn.row .rl small, .itemrow .rl small, .spellrow .rl small, .castcard small, .menulist .mrow small { font-size: 14px; }
+.where2 em, .slot-head span, .planbar-main small, .hist-sub, .optgroup, .scorerow2 .hint { font-size: 14.5px; }
+.sc-key, .sc-title small, .sc-title em, .sc-guard small, .sc-t small, .sc-treasure > small, .sc-spell, .sc-need, .sc-good, .sc-chip { font-size: 14px; }
+.ls-label, .ls-card, .ls-spells, .ls-note, .ls-spells small, .ls-r { font-size: 14px; }
+.rr-what, .histrow small, .lane-h small, .lane-foe, .cb-results .res-h, .cb-results .res-pill, .gainbar em, .gainbar small, .gainbar .gl { font-size: 14px; }
+.sr-math summary, .sr-idle summary, .storysheet summary, .res-dice summary, .storysheet .sx { font-size: 14.5px; }
+.ptab small, .chit2 small, .tag { font-size: 12.5px; }
+.grab .peek { font-size: 14px; }

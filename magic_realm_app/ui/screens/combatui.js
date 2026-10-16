@@ -34,6 +34,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         if (d.kind === 'nat' || d.kind === 'part') return d.side === 'dark' ? 'light' : 'dark';
         return null;
     };
+    const WORD = { N: 'Negligible', L: 'Light', M: 'Medium', H: 'Heavy', T: 'Tremendous' };
     const stat = s => ({ harm: s.attack === 'none' ? 'no attack' : s.attack === 'spell' ? 'Power of the Pit' : `${s.harm}${'*'.repeat(s.stars || 0)}`, speed: s.attack === 'none' ? '\u2013' : s.atk, moves: s.move ?? '\u2013', vuln: s.vuln ?? '\u2013' });
     const foeEls = foes.map(d => {
         const now = denSide(st, data, d), other = otherSide(d);
@@ -56,8 +57,11 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             counter,
             h('div', { class: 'foe-text' },
                 h('b', {}, s.name), h('em', { class: 'sidetag' }, other ? (showRev ? `reverse: ${sideTag}` : sideTag) : ''),
-                h('span', {}, `${s.size ?? ''} \u00B7 vuln `, h('i', { class: diff('vuln') }, b.vuln), ' \u00B7 harm ', h('i', { class: diff('harm') }, b.harm), ' \u00B7 speed ', h('i', { class: diff('speed') }, b.speed),
-                    ' \u00B7 moves ', h('i', { class: diff('moves') }, b.moves)),
+                // what the numbers on its counter mean, in the words the rules use
+                h('span', { class: 'foe-kind' }, [s.size ? WORD[s.size] ?? s.size : '', b.vuln && b.vuln !== '\u2013' ? `killed by ${WORD[b.vuln] ?? b.vuln} harm` : ''].filter(Boolean).join(' \u00B7 ')),
+                h('div', { class: 'foe-stats' },
+                    ...[['Hits', /^[NLMHT]\*{0,3}$/.test(String(b.harm)) ? `${WORD[String(b.harm)[0]]}${String(b.harm).slice(1)}` : b.harm, 'harm'], ['Speed', b.speed, 'speed'], ['Moves', b.moves, 'moves']]
+                        .map(([k, v, key]) => h('div', { class: 'fs' }, h('small', {}, k), h('i', { class: diff(key) }, String(v))))),
                 ui.flipped[d.uid] && !showRev ? h('small', { class: 'was' }, 'This counter has no other side.') : null,
                 showRev ? h('small', { class: 'was' }, `now: harm ${a.harm} \u00B7 speed ${a.speed} \u00B7 moves ${a.moves}${a.vuln !== b.vuln ? ` \u00B7 vuln ${a.vuln}` : ''}`) : null,
                 d.pickedUp ? h('em', {}, 'has seized you') : null,
@@ -65,7 +69,6 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
     });
     // Your weapon and armor, as counters: tap one to turn it over and read its other side (alerted / not alerted, whole / damaged).
     ui.flippedGear ??= {};
-    const WORD = { N: 'Negligible', L: 'Light', M: 'Medium', H: 'Heavy', T: 'Tremendous' };
     const gearCard = it => {
         const d = defOf(data, it), name = nameOf(data, it), pic = data.art?.weapons?.[name] ?? data.art?.armor?.[name] ?? null;
         const flip = !!ui.flippedGear[it.uid];
