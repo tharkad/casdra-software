@@ -91,18 +91,33 @@ const DWELLING_LINE = {
 };
 // Each card file is named by its picture; the cards that do not follow the id are listed.
 const CARD_FILE = { 'woods-girl': 'woodsgirl' };
+// `rel`: how each native group takes to him (2 ally, 1 friendly, -1 wary, -2 enemy), as on the character card; `perks`: what sets him apart, in a few words.
 export const CHARACTERS = [
     { id: 'black-knight', name: 'Black Knight', weight: 'Medium weight', starts: ['Inn'], gear: 'Mace, Suit of Armor and Shield',
-      line: 'Allied with the Company, friendly with Soldiers; the Guard are his enemies. Fear: one die on the Meeting Table. Aim with missiles.' },
+      rel: { Company: 2, Soldiers: 1, Crone: 1, Lancers: -1, Guard: -2 },
+      perks: [['Fear', 'One die instead of two on the Meeting Table'], ['Aim', 'Missiles roll one lower on the Missile Table']] },
     { id: 'white-knight', name: 'White Knight', weight: 'Heavy weight', starts: ['Inn', 'Chapel'], gear: 'Great Sword and Suit of Armor', spells: { n: 1, types: ['I'] },
-      line: 'Allied with the Order, friendly with Lancers; the Company are his enemies. Health: an extra Rest phase a day. Honor: one less on every Meeting die. His Type I spell is Make Whole: cast in the evening where there is White magic (a Chapel, or day 7).' },
+      rel: { Order: 2, Lancers: 1, Bashkars: -1, Crone: -1, Company: -2 },
+      perks: [['Health', 'An extra Rest phase every day'], ['Honor', 'One less on every Meeting die'], ['Spell', 'Make Whole: cast in an evening where White magic is (a Chapel, or day 7)']] },
     { id: 'wizard', name: 'Wizard', weight: 'Medium weight', starts: ['Inn', 'House', 'Guard house'], gear: 'Staff', spells: { n: 2, types: ['II', 'III', 'IV'] },
-      line: 'Friendly with the Woodfolk, Patrol, Soldiers and Guard; the Company, Bashkars and Warlock are against him, the Lancers his enemies. Lore: one die when Reading Runes. Experience: knows every hidden path and secret passage. Starts with two spells of Types II to IV.' },
+      rel: { Woodfolk: 1, Patrol: 1, Soldiers: 1, Guard: 1, Company: -1, Bashkars: -1, Warlock: -1, Lancers: -2 },
+      perks: [['Lore', 'One die when Reading Runes'], ['Experience', 'Knows every hidden path and secret passage'], ['Spells', 'Starts with two, of Types II to IV']] },
     { id: 'sorceror', name: 'Sorcerer', weight: 'Medium weight', starts: ['Inn'], gear: null, spells: { n: 3, types: ['IV', 'VI'] },
-      line: 'Allied with the Lancers, friendly with the Company and Bashkars; the Guard are his enemies, and the Order, Soldiers and Warlock dislike him. Lore: one die when Reading Runes. Aura of Power: an extra Enchant phase every day. Nine Magic chits and only three to move and fight with: he lives on his spells, starting with three of Types IV and VI.' },
+      rel: { Lancers: 2, Company: 1, Bashkars: 1, Order: -1, Soldiers: -1, Warlock: -1, Guard: -2 },
+      perks: [['Lore', 'One die when Reading Runes'], ['Aura of Power', 'An extra Enchant phase every day'], ['Spellcaster', 'Nine Magic chits and only three to move and fight with: he lives on his spells']] },
     { id: 'woods-girl', name: 'Woods Girl', weight: 'Light weight', starts: ['Inn', 'House'], gear: 'Light Bow', her: true, spells: { n: 1, types: ['VII'] },
-      line: 'Allied with the Woodfolk, friendly with Lancers; the Bashkars are her enemies. Tracking: one die on Hide, Search and Meeting in the six Woods tiles. Archer: one die on the Missile Table with a bow. Her Type VII spell can be Control Bats (cast in an evening fight, it makes every Giant Bat in the clearing hers until tomorrow\u2019s Sunset); the other Type VII spells cannot be cast yet.' },
+      rel: { Woodfolk: 2, Lancers: 1, Soldiers: -1, Warlock: -1, Bashkars: -2 },
+      perks: [['Tracking', 'One die on Hide, Search and Meeting in the six Woods tiles'], ['Archer', 'One die on the Missile Table with a bow'], ['Spell', 'Type VII: Control Bats makes every Giant Bat in a fight hers until Sunset tomorrow']] },
 ];
+const REL_LEVELS = [[2, 'Ally', 'ally'], [1, 'Friendly', 'friendly'], [-1, 'Unfriendly', 'wary'], [-2, 'Enemy', 'enemy']];
+// One character as a card you can read at a glance: who likes him, what he is good at.
+function charBlurb(c) {
+    const rows = REL_LEVELS.map(([lv, label, cls]) => ({ label, cls, names: Object.entries(c.rel).filter(([, v]) => v === lv).map(([k]) => k) })).filter(r => r.names.length);
+    return [
+        h('span', { class: 'relgrid' }, ...rows.map(r => h('span', { class: 'relrow' }, h('i', { class: `relbadge ${r.cls}` }, r.label), h('span', { class: 'relnames' }, r.names.join(', '))))),
+        h('ul', { class: 'perks' }, ...c.perks.map(([t, x]) => h('li', {}, h('b', {}, t + ':'), ' ', x))),
+    ];
+}
 
 // The spell list for the starting-spell picker, fetched once.
 let SPELLS = null;
@@ -144,7 +159,7 @@ function charsStep(g, redraw, ctx) {
         h('div', { class: 'choices', role: 'radiogroup' }, ...CHARACTERS.map(c => h('button', { class: `choice${g.character === c.id ? ' on' : ''}`, role: 'radio', 'aria-checked': g.character === c.id, 'data-char': c.id,
             onclick: () => { g.character = c.id; if (!c.starts.includes(g.dwelling)) g.dwelling = c.starts[0]; redraw(); } },
             h('span', { class: 'dot' }),
-            h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, c.name, h('em', {}, c.weight)), h('span', { class: 'choice-line' }, c.line))))),
+            h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, c.name, h('em', {}, c.weight)), ...charBlurb(c))))),
         h('p', { class: 'hint' }, who.gear ? `${who.her ? 'She begins with her' : 'He begins with his'} ${who.gear}, taken from the natives' stock as the rules say. More characters will come.` : `${who.her ? 'She' : 'He'} begins with no weapon or armor: buy or find them, or fight with the Fight chit.`),
         h('img', { class: 'cardpic', src: `art/characterdetail/${CARD_FILE[who.id] ?? who.id.replace('-', '_')}.jpg`, alt: `${who.name} character card`, onerror: e => e.target.remove() }),
         h('h2', { class: 'q' }, who.starts.length > 1 ? 'Where do you start?' : `Where ${who.her ? 'she' : 'he'} starts`),

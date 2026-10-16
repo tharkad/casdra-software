@@ -980,3 +980,17 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .cursesheet .curserow .skull { color: var(--arcane); }
 .blocked-spells summary { cursor: pointer; }
 .cursesheet .curserow.fxrow { border-left-color: var(--arcane); background: rgba(110, 96, 190, .14); }
+
+/* ---- character cards in the new-game list: who likes him, what he is good at ---- */
+.relgrid { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 2px; }
+.relrow { display: flex; align-items: baseline; gap: 8px; font-size: 15px; line-height: 1.2; }
+.relbadge { flex: none; width: 92px; text-align: center; font-style: normal; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid; }
+.relbadge.ally { color: #8fe3a8; border-color: #3f8f5a; background: rgba(63, 143, 90, .18); }
+.relbadge.friendly { color: #b9dc8a; border-color: #7a9a45; background: rgba(122, 154, 69, .16); }
+.relbadge.wary { color: #f0c27a; border-color: #b0803a; background: rgba(176, 128, 58, .16); }
+.relbadge.enemy { color: #ff9c8a; border-color: #b04a3e; background: rgba(176, 74, 62, .18); }
+.relnames { color: var(--text); min-width: 0; }
+.perks { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.perks li { font-family: var(--font-text); font-size: 15.5px; line-height: 1.3; color: var(--dim); padding-left: 12px; position: relative; }
+.perks li::before { content: ''; position: absolute; left: 0; top: .6em; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
+.perks li b { color: var(--text); font-family: var(--font-ui); font-weight: 700; }
