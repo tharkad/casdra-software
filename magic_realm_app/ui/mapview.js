@@ -133,7 +133,10 @@ export function mountMap(host) {
                 // known: the glyph is part of the name, as for a sound in a clearing: one pill, on the chit's own clear spot
                 const glyph = c.kind === 'sound' ? '\u266A' : c.kind === 'site' ? '\u25C6' : c.kind === 'warning' ? '!' : '\u2605';
                 const text = `${glyph} ${label}`, id = `chit:${c.id ?? p.id + i}`;
-                groups.push({ id, ax: wx, ay: wy, ar: 3, prio: 3, prefer: ['center', 'below', 'above', 'right', 'left'], boxes: [{ w: pillWidth(text), h: PILL_H }] });
+                // its name must stay on its own tile: inside the hexagon, wherever the empty ground is
+                const hex = corners(S).map(([hx, hy]) => [cx + hx, cy + hy]);
+                const inside = (px, py) => { let ins = false; for (let i = 0, j = hex.length - 1; i < hex.length; j = i++) { const [xi, yi] = hex[i], [xj, yj] = hex[j]; if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) ins = !ins; } return ins; };
+                groups.push({ id, ax: wx, ay: wy, ar: 3, prio: 3, prefer: ['center', 'below', 'above', 'right', 'left'], inside, boxes: [{ w: pillWidth(text), h: PILL_H }] });
                 makeLabel.set(id, box => sv('g', { class: `pill chitpill ${c.kind ?? 'star'}`, transform: `translate(${box.x.toFixed(1)} ${box.y.toFixed(1)})`, 'pointer-events': 'none' },
                     sv('rect', { width: box.w, height: box.h, rx: 6 }), sv('text', { x: 4, y: box.h / 2, dy: '.35em' }, text)));
             });

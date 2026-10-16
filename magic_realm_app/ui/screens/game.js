@@ -1446,7 +1446,7 @@ export function gameScreen(ctx) {
         return h('div', { class: 'roadlock', role: 'note' },
             h('div', { class: 'rl-head' }, icon('lock', 18), h('b', {}, 'This phase is fixed')),
             h('p', {}, `You fled along the road between ${nameOfClearing(r.from)} and ${nameOfClearing(r.to)}. You must Move to one end of it first.`),
-            h('div', { class: 'row2' }, ...[r.from, r.to].map(id => h('button', { class: `btn${cur === id ? ' primary' : ''}`, 'data-road-end': id, 'aria-pressed': cur === id ? 'true' : 'false', onclick: () => { d.slots[0] = { act: 'move', to: id }; ui.planNote = null; render(); } }, `${id === r.from ? 'Back to' : 'On to'} ${nameOfClearing(id)}`))));
+            h('div', { class: 'row2' }, ...[r.from, r.to].map(id => h('button', { class: `btn${cur === id ? ' primary' : ''}`, 'data-road-end': id, 'aria-pressed': cur === id ? 'true' : 'false', onclick: () => { d.slots[0] = { act: 'move', to: id }; ui.planNote = null; ui.pickMove = null; advance(1); render(); } }, `${id === r.from ? 'Back to' : 'On to'} ${nameOfClearing(id)}`))));
     }
 
     function planPanel() {

@@ -72,9 +72,11 @@ export function layoutLabels(groups, obstacles = [], { rings = 12, step = 9, anc
                         for (const a of anchors) if (a.id !== g.own) { const d = near(rc, a.x, a.y); if (d + 1 < mine) { owned = false; excess = Math.max(excess, mine - d); } }
                     }
                 }
-                const score = area * 100 + dist + (owned ? 0 : 3000 + excess * 5);
-                if (!best || score < best.score) best = { score, rects, side, ring, area, dist, W, H, owned };
-                if (area === 0 && owned) return best;     // candidates run from nearest to farthest
+                // a counter's name belongs on its own tile: a group may carry `inside(x, y)`, and every corner of a pill that falls outside it costs
+                const outside = g.inside ? rects.reduce((n, r) => n + [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]].filter(([px, py]) => !g.inside(px, py)).length, 0) : 0;
+                const score = area * 100 + dist + (owned ? 0 : 3000 + excess * 5) + outside * 4000;
+                if (!best || score < best.score) best = { score, rects, side, ring, area, dist, W, H, owned, outside };
+                if (area === 0 && owned && outside === 0) return best;     // candidates run from nearest to farthest
             }
         }
         return best;
