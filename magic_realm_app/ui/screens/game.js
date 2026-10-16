@@ -1298,11 +1298,11 @@ export function gameScreen(ctx) {
             ...phaseChoices(step, at, base, extras, total),
             at[step] ? h('p', { class: 'hint' }, `You will be at ${nameOfClearing(at[step])}.`) : null,
             step === 0 ? ask(`Day ${st.day}: choose what you will do in each phase.`, 'Your plan is secret and fixed once you start the day. Fill the phases in any order: extra phases may fall anywhere, and an action is greyed out only when the others have used up what it needs.', { compact: true }) : null);
-        const nav = h('div', { class: 'row2 plan-nav' },
-            h('button', { class: 'btn', 'data-act': 'plan-back', disabled: step === 0, onclick: () => { ui.planStep = step - 1; ui.pickMove = null; ui.pickSearch = null; render(); } }, '\u2039 Back'),
-            step < total - 1 ? h('button', { class: 'btn', 'data-act': 'plan-next', onclick: () => { ui.planStep = step + 1; ui.pickMove = null; ui.pickSearch = null; render(); } }, 'Next \u203A') : null,
-            startButton());
-        return h('div', { class: 'planpanel' }, head, tabs, h('div', { class: 'plan-body' }, body), nav);
+        // No Back or Next: the numbered tabs jump to any phase and choosing an action moves on to the next empty one. Only the start button is left,
+        // and only once the plan can be played.
+        const go = startButton();
+        const nav = go ? h('div', { class: 'plan-nav' }, go) : null;
+        return h('div', { class: 'planpanel' }, head, tabs, h('div', { class: 'plan-body' }, body), ...(nav ? [nav] : []));
     }
 
     // the plan tucked away so the whole map shows; tap it to bring the plan back

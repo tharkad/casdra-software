@@ -805,3 +805,4 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 /* the pinned action buttons: tall enough for a thumb, no taller */
 .dock-actions .btn, .dock-actions .btn.big { min-height: 46px; padding: 0 16px; font-size: 18px; border-radius: 12px; }
 .dock-actions .row2 { gap: 8px; }
+.plan-nav .btn { min-height: 46px; width: 100%; }
