@@ -1030,3 +1030,5 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .gearrow { grid-template-columns: 1fr auto auto; }
 .gearrow .quiet-no { width: auto; min-height: 38px; padding: 0 12px; font-size: 14px; }
 .gearsec .gearrow { margin-top: 6px; }
+.row-end { display: flex; justify-content: flex-end; }
+.row-end .btn { width: 62%; min-width: 180px; margin: 0; }

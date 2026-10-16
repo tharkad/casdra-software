@@ -354,12 +354,11 @@ export function gameScreen(ctx) {
         } else if (p.type === 'phase') {
             const slot = st.plan[p.i];
             body = h('div', { class: 'phase' },
-                ask(`Phase ${p.i + 1} of ${st.plan.length}: ${describeSlot(slot)}.`, 'This is the action you planned. Press it to carry it out; "Play the day" carries out every phase that is left. Anything that needs your decision will stop and ask.', { compact: true }),
+                ask(`Phase ${p.i + 1} of ${st.plan.length}: ${describeSlot(slot)}.`, 'This is the action you planned. Press the button to carry it out. Anything that needs your decision will stop and ask.', { compact: true }),
                 h('div', { class: 'phase-info' }, h('b', {}, `Phase ${p.i + 1} of ${st.plan.length}`), h('span', {}, describeSlot(slot))),
                 slot?.act === 'search' && !st.ch.onRoad ? h('p', { class: 'hint', 'data-hint': 'search-where' }, searchWhere(st.ch.at)) : null);
-            actions = h('div', { class: 'row2' },
-                h('button', { class: 'btn primary', 'data-act': 'next', onclick: () => act({ type: 'next' }) }, describeSlot(slot)),
-                h('button', { class: 'btn', 'data-act': 'all', onclick: () => act({ type: 'next', all: true }) }, 'Play the day'));
+            actions = h('div', { class: 'row-end' },
+                h('button', { class: 'btn primary', 'data-act': 'next', onclick: () => act({ type: 'next' }) }, describeSlot(slot)));
         } else if (p.type === 'phase-pick') {
             // Prophecy: no plan was recorded; each phase is chosen as it comes (the printed rule: he learns his day as he lives it)
             body = h('div', { class: 'phase' },
