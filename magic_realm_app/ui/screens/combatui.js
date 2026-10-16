@@ -348,7 +348,9 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         ? h('div', { class: 'cb-victory', role: 'status' }, h('b', {}, liveFoes ? `You killed ${names}.` : 'The fight is won.'),
             gainChips.length ? h('div', { class: 'gain-chips' }, ...gainChips) : null,
             h('span', {}, liveFoes ? 'Others are still on their feet.' : `${killed.length ? `You killed ${names}: n` : 'N'}othing hostile is left standing. ${price}; settle it and the evening is yours.`))
-        : null;
+        : (!decideFirst && killed.length && p.type === 'combat-encounter')
+            ? h('div', { class: 'cb-victory', role: 'status' }, h('b', {}, liveFoes ? `You killed ${names}.` : 'The fight is won.'), gainChips.length ? h('div', { class: 'gain-chips' }, ...gainChips) : null)
+            : null;
     const decision = h('div', { class: 'cb-body' }, ...body.filter(Boolean));
     const meetingQuestion = ['combat-pay', 'combat-drinks', 'combat-choice'].includes(p.type);
     return h('div', { class: 'combat' }, header, state,
@@ -357,8 +359,8 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             // A question that comes straight out of the meeting (pay, buy drinks, leave them be) sits right under its results, not under a page of creatures.
             ...(meetingQuestion && !decideFirst ? [decision] : []),
             // After a round: what happened comes first (it is the first chance to read it), then the choice it leaves, then the table.
-            ...(decideFirst ? [headline, last, decision] : []),
+            ...(decideFirst ? [headline, last, decision] : meetingQuestion ? [] : [headline, last]),       // the kill, then the story of the round, lead every step
             allies.length ? h('div', { class: 'ask allies', role: 'note' }, h('b', {}, 'On your side'), h('p', {}, allies.join(', '))) : null,
             h('div', { class: 'cb-foes' }, ...foeEls), st.pending?.spellOnly ? null : gearBlock, diceBlock,
-            ...(decideFirst ? [] : meetingQuestion ? [last] : [last, decision])));
+            ...(decideFirst ? [] : meetingQuestion ? [last] : [decision])));
 }
