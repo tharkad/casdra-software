@@ -316,6 +316,8 @@ function evening(st, data) {
 function afterCombatStep(st, data) {
     const c = st.combat;
     if (c && c.ended) {
+        // a fight he won stops on a result screen of its own (the screens set st.pauseVictory; the computer players and the tests do not)
+        if (c.why === 'won' && st.pauseVictory && !c.ack && !st.ch.dead) { st.pending = { type: 'combat-over', why: 'won', killed: c.killed ?? [], gain: c.roundGain ?? null }; return; }
         if (c.why === 'ran') runAway(st, data);
         st.combat = null;
         if (st.ch.dead) return died(st, data);
@@ -769,7 +771,7 @@ export function apply(st0, data, action) {
         }
         case 'combat': {
             if (!st.combat) throw new Error('no combat');
-            const kindFor = { 'combat-pay': 'pay', 'combat-drinks': 'drinks', 'combat-choice': 'choice', 'combat-encounter': 'encounter', 'combat-melee': 'melee', 'combat-wounds': 'wounds', 'combat-fatigue': 'fatigue' };
+            const kindFor = { 'combat-pay': 'pay', 'combat-drinks': 'drinks', 'combat-choice': 'choice', 'combat-encounter': 'encounter', 'combat-melee': 'melee', 'combat-wounds': 'wounds', 'combat-fatigue': 'fatigue', 'combat-over': 'over' };
             if (kindFor[p.type] !== action.kind) throw new Error(`that is not what the fight is waiting for (${kindFor[p.type] ?? p.type})`);
             st.pending = null;
             combatAction(st, data, action);
@@ -855,6 +857,7 @@ function combatAction(st, data, a) {
         case 'melee': return combat.meleePlay(st, data, a);
         case 'wounds': return combat.chooseWounds(st, data, a.chits);
         case 'fatigue': return combat.chooseFatigue(st, data, a.chits);
+        case 'over': st.combat.ack = true; return;
         default: throw new Error('unknown combat action');
     }
 }

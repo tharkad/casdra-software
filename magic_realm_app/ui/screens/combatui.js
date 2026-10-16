@@ -326,6 +326,8 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             'Each wound puts one of your action chits out of play until you rest it back. The choice is yours, so give up the chits you will miss least.'));
         body.push(h('div', { class: 'chitrow' }, ...p.chits.map(id => { const ch = st.ch.chits.find(x => x.id === id); return chitBtn(ch, ui.pickChits.includes(id), () => { const i = ui.pickChits.indexOf(id); if (i >= 0) ui.pickChits.splice(i, 1); else ui.pickChits.push(id); render(); }); })));
         body.push(h('button', { class: 'btn primary', disabled: ui.pickChits.length !== p.count, onclick: () => { const ids = ui.pickChits; ui.pickChits = null; send({ kind: 'wounds', chits: ids }); } }, 'Wound these'));
+    } else if (p.type === 'combat-over') {
+        body.push(h('button', { class: 'btn primary big', 'data-act': 'fight-over', onclick: () => send({ kind: 'over' }) }, 'On through the night'));
     } else if (p.type === 'combat-fatigue') {
         ui.pickChits ??= [];
         body.push(h('h3', {}, `Fatigue ${p.need} asterisk${p.need === 1 ? '' : 's'}`));
@@ -336,18 +338,18 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
     }
     // Wounds and fatigue are decisions the player must not miss: they come first, above the foes and the account of the last round, so the
     // tiles and the confirm button are on screen the moment the question is asked.
-    const decideFirst = p.type === 'combat-wounds' || p.type === 'combat-fatigue';
+    const decideFirst = p.type === 'combat-wounds' || p.type === 'combat-fatigue' || p.type === 'combat-over';
     // What the round did comes first: a kill, or the whole fight won, before the housekeeping of wounds and fatigue.
     const liveFoes = c.dens.some(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse' && d.assigned);       // anyone not set against him is not a foe
     const killed = c.killed ?? [];
     const names = killed.map(n => `the ${n}`).join(' and ');
-    const price = p.type === 'combat-wounds' ? 'The wounds below are the price' : 'The tiredness below is the price';
+    const price = p.type === 'combat-over' ? 'The evening is yours' : p.type === 'combat-wounds' ? 'The wounds below are the price' : 'The tiredness below is the price';
     const gain = c.roundGain ?? { fame: 0, notoriety: 0, gold: 0 };
     const gainChips = [['Fame', gain.fame], ['Notoriety', gain.notoriety], ['gold', gain.gold]].filter(x => x[1]).map(([n, v]) => h('span', { class: `gain-chip ${n.toLowerCase()}` }, `${v > 0 ? '+' : ''}${v} ${n}`));
     const headline = decideFirst && (killed.length || !liveFoes)
         ? h('div', { class: 'cb-victory', role: 'status' }, h('b', {}, liveFoes ? `You killed ${names}.` : 'The fight is won.'),
             gainChips.length ? h('div', { class: 'gain-chips' }, ...gainChips) : null,
-            h('span', {}, liveFoes ? 'Others are still on their feet.' : `${killed.length ? `You killed ${names}: n` : 'N'}othing hostile is left standing. ${price}; settle it and the evening is yours.`))
+            h('span', {}, liveFoes ? 'Others are still on their feet.' : p.type === 'combat-over' ? 'Nothing hostile is left standing.' : `${killed.length ? `You killed ${names}: n` : 'N'}othing hostile is left standing. ${price}; settle it and the evening is yours.`))
         : (!decideFirst && killed.length && p.type === 'combat-encounter')
             ? h('div', { class: 'cb-victory', role: 'status' }, h('b', {}, liveFoes ? `You killed ${names}.` : 'The fight is won.'), gainChips.length ? h('div', { class: 'gain-chips' }, ...gainChips) : null)
             : null;

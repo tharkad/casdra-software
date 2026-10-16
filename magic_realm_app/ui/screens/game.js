@@ -351,7 +351,8 @@ export function gameScreen(ctx) {
             const slot = st.plan[p.i];
             body = h('div', { class: 'phase' },
                 ask(`Phase ${p.i + 1} of ${st.plan.length}: ${describeSlot(slot)}.`, 'This is the action you planned. Press it to carry it out; "Play the day" carries out every phase that is left. Anything that needs your decision will stop and ask.', { compact: true }),
-                h('div', { class: 'phase-info' }, h('b', {}, `Phase ${p.i + 1} of ${st.plan.length}`), h('span', {}, describeSlot(slot))));
+                h('div', { class: 'phase-info' }, h('b', {}, `Phase ${p.i + 1} of ${st.plan.length}`), h('span', {}, describeSlot(slot))),
+                slot?.act === 'search' && !st.ch.onRoad ? h('p', { class: 'hint', 'data-hint': 'search-where' }, searchWhere(st.ch.at)) : null);
             actions = h('div', { class: 'row2' },
                 h('button', { class: 'btn primary', 'data-act': 'next', onclick: () => act({ type: 'next' }) }, describeSlot(slot)),
                 h('button', { class: 'btn', 'data-act': 'all', onclick: () => act({ type: 'next', all: true }) }, 'Play the day'));
@@ -467,6 +468,15 @@ export function gameScreen(ctx) {
         }, { passive: true });
     }
 
+    // Where a Search will be made, and what the map already shows of sites on this tile: a site in another clearing is not found from here.
+    function searchWhere(at) {
+        if (!at) return null;
+        const tile = tileOf(at), n = numOf(at);
+        const sites = st.chits.filter(c => c.kind === 'site' && c.tile === tile && !c.pile && c.up);
+        const away = sites.filter(c => c.num !== n);
+        const there = away.map(c => `the ${c.name} is in clearing ${c.num}`).join(', ');
+        return `You will search in ${nameOfClearing(at)}.${sites.some(c => c.num === n) ? '' : ' No site is revealed here yet.'}${there ? ` ${there.charAt(0).toUpperCase()}${there.slice(1)}: a search only finds what is in the clearing you are in, so Move there first.` : ''}`;
+    }
     function describeSlot(s) {
         if (!s || s.act === 'nothing') return 'Do nothing';
         if (s.act === 'move') return `Move to ${nameOfClearing(s.to).replace(/ (\d+)$/, '\u00A0$1')}`;       // the number never wraps on its own line
@@ -1074,8 +1084,8 @@ export function gameScreen(ctx) {
         const how = {
             great: `Great Treasures you own and can carry (${e.great}). Each is worth one point of the goal.`,
             spells: 'Spells learned from cards during the game count (starting spells do not). None can be learned in this build yet.',
-            fame: `Recorded Fame ${st.ch.fame} plus the Fame of what you own${belong('fame').length ? ` (${belong('fame').map(x => `${x.name} ${x.v > 0 ? '+' : ''}${x.v}`).join(', ')})` : ''}.`,
-            notoriety: `Recorded Notoriety ${st.ch.notoriety} plus the Notoriety of what you own${belong('notoriety').length ? ` (${belong('notoriety').map(x => `${x.name} ${x.v > 0 ? '+' : ''}${x.v}`).join(', ')})` : ''}.`,
+            fame: 'Recorded Fame plus the Fame of what you own.',
+            notoriety: 'Recorded Notoriety plus the Notoriety of what you own.',
             gold: `Recorded gold ${st.ch.gold} minus your starting value ${st.ch.startValue ?? 10} (your starting gold and the price of the gear you began with). Only gold counts, not the price of things you own.`,
         };
         const rows = res.rows ?? [];
@@ -1088,10 +1098,28 @@ export function gameScreen(ctx) {
                 h('div', { class: 'sr-head' }, h('b', {}, NAME[g.cat]), h('span', {}, g.earned >= g.need ? `${g.earned} of ${g.need} \u2713${g.earned > g.need ? ` (${g.earned - g.need} over)` : ''}` : `${g.earned} of ${g.need}: ${g.need - g.earned} to go`)),
                 h('div', { class: 'goalbar', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': g.need, 'aria-valuenow': Math.max(0, g.earned) }, h('i', { style: `width:${Math.round(g.frac * 100)}%` })),
                 h('p', { class: 'hint' }, `${g.vp} victory point${g.vp === 1 ? ' is' : 's are'} riding on this goal. ${how[g.cat]}`),
+                partsEl(g),
                 h('details', { class: 'sr-math' }, h('summary', {}, sumUp(g.cat) || 'The arithmetic'),
                     r ? h('p', { class: 'hint' }, r.diff < 0
                         ? `Short by ${Math.abs(r.diff / 3)}, counted three times (${r.diff}), divided by ${FACTORS[g.cat]} and rounded down: ${r.basic}. Bonus ${r.basic} \u00D7 ${vp[g.cat] ?? 0} VP = ${r.bonus}.`
                         : `Over by ${r.diff}, divided by ${FACTORS[g.cat]} and rounded down: ${r.basic}. Bonus ${r.basic} \u00D7 ${vp[g.cat] ?? 0} VP = ${r.bonus}.`) : null));
+        };
+        // where a goal's figure comes from: the recorded part, then one line per belonging that adds to it
+        const parts = cat => {
+            if (cat === 'fame' || cat === 'notoriety') {
+                const own = belong(cat), rec = st.ch[cat] ?? 0;
+                return [[`Recorded ${NAME[cat]} (earned so far)`, rec], ...own.map(x => [x.name, x.v]), ...(own.length ? [] : [['What you own adds nothing', 0]])];
+            }
+            if (cat === 'great') return st.ch.items.filter(i => !i.destroyed && (i.card ? data.treasures[i.card] : defOf(data, i))?.great).map(i => [nameOf(data, i), 1]);
+            if (cat === 'gold') return [['Gold you hold', st.ch.gold], ['Your starting value (gold and the price of your first gear)', -(st.ch.startValue ?? 10)]];
+            return [];
+        };
+        const partsEl = g => {
+            const rowsOf = parts(g.cat);
+            if (!rowsOf.length) return null;
+            return h('details', { class: 'sr-parts' }, h('summary', {}, `Where the ${g.earned} comes from`),
+                ...rowsOf.map(([n, v]) => h('div', { class: 'sr-part' }, h('span', {}, n), h('b', {}, v > 0 && g.cat !== 'great' ? `+${v}` : String(v)))),
+                h('div', { class: 'sr-part total' }, h('span', {}, 'Total'), h('b', {}, String(g.earned))));
         };
         const idle = CATS.filter(c => !(need[c] > 0));
         return modal('Your goals', h('div', { class: 'scoresheet' },
@@ -1442,6 +1470,7 @@ export function gameScreen(ctx) {
                 const dim = cursed || (a !== 'nothing' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver);
                 return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${cursed ? ' cursed' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a], cursed ? h('small', {}, ' \u2620') : null);
             })));
+        if (s?.act === 'search' && at[i]) out.push(h('p', { class: 'hint', 'data-hint': 'search-where' }, searchWhere(at[i])));
         // Alert: ready the weapon, or alert a Magic chit so that it can cast against fast creatures (it acts at time 0, and tires at Midnight if unused)
         const readyMagic = st.ch.chits.filter(x => x.type === 'magic' && x.state === 'active');
         if (s?.act === 'alert' && readyMagic.length) {
@@ -1610,11 +1639,12 @@ export function gameScreen(ctx) {
             let fresh = null;
             if (ctx.params?.fresh || !loadSaved()) {
                 fresh = { seed: ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: ctx.params?.character ?? 'white-knight', vp: ctx.params?.vp, mode: ctx.params?.mode, lastDay: ctx.params?.lastDay,
-                    startDwelling: ctx.params?.startDwelling, startGear: ctx.params?.startGear, options: ctx.params?.options, startSpells: ctx.params?.startSpells };
+                    startDwelling: ctx.params?.startDwelling, startGear: ctx.params?.startGear, options: ctx.params?.options, pauseVictory: true, startSpells: ctx.params?.startSpells };
                 st = newGame(data, fresh);
                 st.session = { id: String(Date.now()), started: new Date().toISOString(), version: VERSION, params: JSON.parse(JSON.stringify(fresh)) };
                 saveGame(st);
             } else st = loadSaved();
+            if (st.pauseVictory === undefined) st.pauseVictory = true;
             ctx.state = st;
             // a game saved before records existed gets one now; its earlier moves are unknown, so it cannot be replayed
             st.session ??= { id: String(Date.now()), started: new Date().toISOString(), version: VERSION, params: null };
