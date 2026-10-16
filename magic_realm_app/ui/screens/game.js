@@ -298,6 +298,17 @@ export function gameScreen(ctx) {
 
         // The drawer: a grabber on top, then what explains, then what you press. Pulled down, only the grabber and the buttons are left.
         const newCount = findBars.length + gainBars.length + (curseJustFell ? 1 : 0);
+        // Anything that comes with a note (a find, an item, a curse, the day's Monster roll) brings the drawer up if it was pulled down. A find or an item
+        // sends it back to where he had left it once it is old news; the Monster roll just opens it and leaves it to him.
+        const transient = [...fresh.map(i => `g${i.uid}`), ...(st.finds ?? []).filter(f => f.n > ui.findSeen).map(f => `f${f.n}`), ...(curseJustFell ? ['c'] : [])];
+        ui.prowlPopped ??= st.period === 'daylight' ? st.day : 0;                 // loading a game in the middle of a day is not news
+        const prowlNew = st.period === 'daylight' && !!st.prowl && ui.prowlPopped !== st.day;
+        const sig = transient.join(',');
+        if (ui.dockOpen === false && ((transient.length && sig !== ui.attnSig) || prowlNew)) {
+            ui.dockPref = false; ui.dockOpen = true; ui.dockAuto = transient.length > 0 && !prowlNew;
+        } else if (ui.dockAuto && !transient.length) { ui.dockOpen = ui.dockPref ?? false; ui.dockAuto = false; }
+        if (prowlNew) ui.prowlPopped = st.day;
+        ui.attnSig = sig;
         const open = ui.dockOpen !== false;
         const items = [curseBar, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, body].filter(Boolean);
         const peek = `${st.ch.onRoad ? 'On the road' : where} \u00B7 ${st.ch.hidden ? 'hidden' : 'visible'}`;
@@ -319,7 +330,7 @@ export function gameScreen(ctx) {
         const fullH = () => { const had = wrap.classList.contains('closed'); wrap.classList.remove('closed'); const keep = wrap.style.height; wrap.style.height = 'auto'; const hh = wrap.getBoundingClientRect().height; wrap.style.height = keep; if (had) wrap.classList.add('closed'); return hh; };
         const remember = o => { try { localStorage.setItem('mr-dock-open', o ? '1' : '0'); } catch { /* ignore */ } };
         const settle = (o, from = null) => {
-            ui.dockOpen = o; remember(o);
+            ui.dockOpen = o; ui.dockAuto = false; ui.dockPref = o; remember(o);
             const target = o ? fullH() : 0;
             dock.classList.toggle('closed', !o);
             grab.setAttribute('aria-expanded', o ? 'true' : 'false');
