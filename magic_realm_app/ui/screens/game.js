@@ -466,7 +466,7 @@ export function gameScreen(ctx) {
 
     function describeSlot(s) {
         if (!s || s.act === 'nothing') return 'Do nothing';
-        if (s.act === 'move') return `Move to ${nameOfClearing(s.to)}`;
+        if (s.act === 'move') return `Move to ${nameOfClearing(s.to).replace(/ (\d+)$/, '\u00A0$1')}`;       // the number never wraps on its own line
         if (s.act === 'search') return s.table ? `Search: ${TABLE_LABEL[s.table]}` : 'Search';
         return ACT_LABEL[s.act] ?? s.act;
     }
