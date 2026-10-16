@@ -41,6 +41,7 @@ const ICON = {
     coin: ['M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z', 'M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6z'],
     fame: ['M12 3.2l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.5l6.1-.7z'],
     notor: ['M12 3c.8 3.4 5 5.4 5 10a5 5 0 0 1-10 0c0-2 1-3.2 2.2-4.2 0 2 .9 3 1.9 3 .2-3-1.1-5 .9-8.8z'],
+    lock: ['M7.5 11V8a4.5 4.5 0 0 1 9 0v3', 'M6 11h12v9H6z', 'M12 14.5v2'],
     skull: ['M12 3.5a7 7 0 0 0-7 7c0 2.4 1.2 4.2 3 5.3v3.2h8v-3.2c1.8-1.1 3-2.9 3-5.3a7 7 0 0 0-7-7z', 'M9 11.2h.01', 'M15 11.2h.01', 'M10.5 19v-2.2', 'M13.5 19v-2.2'],
 };
 function icon(name, size = 18) {
@@ -319,8 +320,8 @@ export function gameScreen(ctx) {
         if (!p) body = h('div', { class: 'note' }, 'Working...');
         else if (p.type === 'plan' && ui.sheet === 'plan' && ui.draft) { dock.classList.remove('closed'); dock.replaceChildren(h('div', { class: 'dock-plan' }, ui.planCollapsed ? planBar() : planPanel())); return; }
         else if (p.type === 'plan') {
-            body = ask(`Day ${st.day}, Birdsong: plan your day.`, `You choose one action for each of your ${phasesFor(st, data, []).total} phases now, in secret; they are then played in order after the Monster Roll.`, { compact: true });
-            actions = h('button', { class: 'btn primary big', 'data-act': 'plan', onclick: () => { ui.draft ??= { slots: Array(9).fill(null) }; ui.sheet = 'plan'; ui.planCollapsed = false; render(); } }, 'Plan your day');
+            body = ask(`Day ${st.day}, Birdsong: plan your day.`, `You choose one action for each of your ${phasesFor(st, data, []).total} phases now, in secret; they are then played in order after the Monster Roll.${st.ch.onRoad ? ' You are still out on the road after running away, so your first phase is a Move to one end of it, already set for you.' : ''}`, { compact: true });
+            actions = h('button', { class: 'btn primary big', 'data-act': 'plan', onclick: () => { ui.draft ??= newDraft(); ui.sheet = 'plan'; ui.planCollapsed = false; render(); } }, 'Plan your day');
         } else if (p.type === 'phase') {
             const slot = st.plan[p.i];
             body = h('div', { class: 'phase' },
@@ -1349,21 +1350,33 @@ export function gameScreen(ctx) {
             : null;                                  // nothing to press until every phase has an action
     };
 
+    // Out on the road after running away, the first phase is not a choice: it is a Move to one of the road's two ends (rule 8.3.8). The plan starts with it filled in
+    // and it cannot be cleared or turned into anything else; only which end can be changed.
+    const roadLocked = i => !!st.ch.onRoad && i === 0;
+    const newDraft = () => { const slots = Array(9).fill(null); if (st.ch.onRoad) slots[0] = { act: 'move', to: st.ch.onRoad.to }; return { slots }; };
+    function roadLockBox(d) {
+        const r = st.ch.onRoad, cur = d.slots[0]?.to;
+        return h('div', { class: 'roadlock', role: 'note' },
+            h('div', { class: 'rl-head' }, icon('lock', 18), h('b', {}, 'This phase is fixed')),
+            h('p', {}, `You fled along the road between ${nameOfClearing(r.from)} and ${nameOfClearing(r.to)}. You must Move to one end of it first.`),
+            h('div', { class: 'row2' }, ...[r.from, r.to].map(id => h('button', { class: `btn${cur === id ? ' primary' : ''}`, 'data-road-end': id, 'aria-pressed': cur === id ? 'true' : 'false', onclick: () => { d.slots[0] = { act: 'move', to: id }; ui.planNote = null; render(); } }, `${id === r.from ? 'Back to' : 'On to'} ${nameOfClearing(id)}`))));
+    }
+
     function planPanel() {
         const d = ui.draft, { total, base, extras } = planInfo(), at = planLocations();
         ui.planStep = Math.max(0, Math.min(total - 1, ui.planStep ?? 0));
         const step = ui.planStep;
         const tabs = h('div', { class: 'plan-tabs', role: 'tablist' }, ...Array.from({ length: total }, (_, i) => h('button', { class: `ptab${i === step ? ' on' : ''}${d.slots[i] ? ' set' : ''}`, 'data-tab': i, role: 'tab',
             onclick: () => { ui.planStep = i; ui.pickMove = null; ui.pickSearch = null; render(); } },
-            h('b', {}, i + 1), h('small', {}, d.slots[i] ? (ACT_LABEL[d.slots[i].act] ?? d.slots[i].act) : '\u2013'))));
+            h('b', {}, i + 1), h('small', {}, roadLocked(i) ? icon('lock', 11) : null, d.slots[i] ? (ACT_LABEL[d.slots[i].act] ?? d.slots[i].act) : '\u2013'))));
         const grab = h('div', { class: 'sheet-grab', 'aria-hidden': 'true' }, h('span', { class: 'grip' }));
         const head = h('div', { class: 'plan-head' }, h('b', {}, 'Plan your day'), h('button', { class: 'x', 'aria-label': 'Put the plan away', onclick: () => { ui.planCollapsed = true; render(); } }, '\u25BE'));
         const s = d.slots[step];
         const body = h('div', { class: 'plan-step' },
             h('div', { class: 'slot-head' }, h('b', {}, `Phase ${step + 1} of ${total}`), h('span', {}, slotKind(step, base, extras)), h('em', {}, s ? describeSlot(s) : 'not set'),
-                s ? h('button', { class: 'clearbtn', onclick: () => { d.slots[step] = null; render(); } }, 'Clear') : null),
+                s && !roadLocked(step) ? h('button', { class: 'clearbtn', onclick: () => { d.slots[step] = null; render(); } }, 'Clear') : null),
             ui.planNote ? h('p', { class: 'hint bad' }, ui.planNote) : null,
-            ...phaseChoices(step, at, base, extras, total),
+            ...(roadLocked(step) ? [roadLockBox(d)] : phaseChoices(step, at, base, extras, total)),
             at[step] ? h('p', { class: 'hint' }, `You will be at ${nameOfClearing(at[step])}.`) : null,
             step === 0 ? ask(`Day ${st.day}: choose what you will do in each phase.`, 'Your plan is secret and fixed once you start the day. Fill the phases in any order: extra phases may fall anywhere, and an action is greyed out only when the others have used up what it needs.', { compact: true }) : null);
         // No Back or Next: the numbered tabs jump to any phase and choosing an action moves on to the next empty one. Only the start button is left,
@@ -1395,6 +1408,7 @@ export function gameScreen(ctx) {
 
     function pick(i, a, at) {
         const d = ui.draft;
+        if (roadLocked(i)) return;
         ui.pickMove = null; ui.pickSearch = null;
         if (a === 'move') { ui.pickMove = i; render(); return; }
         d.slots[i] = { act: a };
@@ -1414,6 +1428,7 @@ export function gameScreen(ctx) {
 
     function setMove(i, to) {
         const d = ui.draft;
+        if (roadLocked(i) && to !== st.ch.onRoad.from && to !== st.ch.onRoad.to) return;
         d.slots[i] = { act: 'move', to };
         // a mountain takes two moves in a row: fill the next phase with the same move
         // (only if the next phase can really be a Move: an extra phase that is for Rest alone, or a day with no phase left, is not filled)

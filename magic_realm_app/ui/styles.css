@@ -936,3 +936,9 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .cb-results .res-verdict.tale { font-family: var(--font-text); font-style: italic; font-size: 17.5px; }
 .cb-results .res-dice { display: flex; flex-direction: column; gap: 4px; }
 .cb-last .cb-steps { margin-top: 4px; }
+
+/* a phase the rules have already decided */
+.roadlock { border: 1px solid #e2c068; border-radius: 12px; padding: 10px 12px; background: color-mix(in srgb, #e2c068 10%, transparent); display: flex; flex-direction: column; gap: 6px; }
+.roadlock .rl-head { display: flex; align-items: center; gap: 8px; color: #e2c068; }
+.roadlock p { margin: 0; font-size: 15.5px; line-height: 1.4; }
+.ptab small svg { vertical-align: -1px; margin-right: 2px; }
