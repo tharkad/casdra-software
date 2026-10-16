@@ -1,5 +1,6 @@
 import { rollRow } from '../dice.js';
 import { monsterCounter, itemFace } from '../counter.js';
+import { roundSynopsis } from '../../engine/story.js';
 import { ask } from '../ask.js';
 import { h } from '../dom.js';
 import { encounterOptions, meleeOptions, denSide, weaponOf, activeArmor, weaponSide } from '../../engine/combat.js';
@@ -122,9 +123,15 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
                 c.round > 1 ? null : h('details', { class: 'res-dice' }, h('summary', {}, rolls.length > 1 ? `The ${rolls.length} rolls` : 'The roll'), ...rolls.map(r => rollRow(r, { compact: true }))));
         })) : null;
     const diceBlock = dice.length ? h('div', { class: 'cb-dice' }, ...dice.map(r => rollRow(r, { compact: true }))) : null;
-    const last = c.events?.length ? h('div', { class: 'cb-last' }, h('b', {}, 'Last round'), ...c.events.map(e => h('p', { class: e.startsWith('  ') ? 'sub' : /^(Round \d+:|Order of blows|Boxes as|Repositioning)/.test(e) ? 'hd' : '' }, e.trim()))) : null;
+    // The round told in a few sentences, with every line of it (the order of blows, the dice, the boxes) one tap away; whether that is open is remembered.
+    const stepsOpen = (() => { try { return localStorage.getItem('mr-steps') === '1'; } catch { return false; } })();
+    const last = c.events?.length ? h('div', { class: 'cb-last' }, h('b', {}, 'Last round'),
+        h('p', { class: 'cb-synopsis' }, roundSynopsis(c.events) || 'The round passed.'),
+        h('details', { class: 'cb-steps', open: stepsOpen || null, ontoggle: e => { try { localStorage.setItem('mr-steps', e.target.open ? '1' : '0'); } catch { /* ignore */ } } },
+            h('summary', {}, 'Step by step'),
+            ...c.events.map(e => h('p', { class: e.startsWith('  ') ? 'sub' : /^(Round \d+:|Order of blows|Boxes as|Repositioning)/.test(e) ? 'hd' : '' }, e.trim())))) : null;
     const body = [];
-    const chitBtn = (ch, sel, on, ok = true) => h('button', { class: `chit3 ${ch.type}${sel ? ' sel' : ''}`, disabled: !ok, onclick: on }, h('b', {}, `${ch.strength}${ch.time}`), h('span', {}, '*'.repeat(ch.effort) || ' '));
+    const chitBtn = (ch, sel, on, ok = true) => h('button', { class: `chit3 ${ch.type}${sel ? ' sel' : ''}`, disabled: !ok, onclick: on }, h('b', {}, ch.type === 'magic' ? `${ch.numeral ?? ''}${ch.time}` : `${ch.strength}${ch.time}`), h('span', {}, '*'.repeat(ch.effort) || ' '));
 
     if (p.type === 'combat-pay') {
         body.push(h('div', { class: 'cb-q' }, h('p', {}, `The ${p.group} ${p.why === 'Insult' ? 'insult you' : 'challenge you'}. Pay ${p.amount} ${p.cost === 'fame' ? 'Fame' : 'Notoriety'} to avoid a fight, or stand and fight.`),

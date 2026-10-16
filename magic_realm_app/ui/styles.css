@@ -932,3 +932,9 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .sr-math summary, .sr-idle summary, .storysheet summary, .res-dice summary, .storysheet .sx { font-size: 14.5px; }
 .ptab small, .chit2 small, .tag { font-size: 12.5px; }
 .grab .peek { font-size: 14px; }
+
+/* the last round: told first, in a few sentences; the full lines fold away */
+.cb-last .cb-synopsis { margin: 4px 0 8px; font-family: var(--font-text); font-size: 18px; line-height: 1.4; color: var(--text); }
+.cb-last .cb-steps summary { color: var(--dim); font-size: 14.5px; cursor: pointer; padding: 4px 0; }
+.cb-last .cb-steps p { font-size: 15px; line-height: 1.35; margin: 3px 0; color: var(--dim); }
+.cb-last .cb-steps p.hd { color: var(--text); margin-top: 8px; }

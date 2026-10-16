@@ -88,3 +88,43 @@ export function headline(st, max = 280) {
     for (const t of lines) { if (out && (out + ' ' + t).length > max) break; out = out ? `${out} ${t}` : t; }
     return out;
 }
+
+// ---- a round of combat told in a few sentences (the full lines stay behind it, step by step) ----
+const num = n => ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'][n] ?? String(n);
+export function roundSynopsis(events) {
+    const L = (events ?? []).map(e => String(e).trim()).filter(Boolean);
+    if (!L.length) return '';
+    const m = (re, from = L) => from.map(l => re.exec(l)).filter(Boolean);
+    const strikeRe = /^(?:The |the )?(.+?)(?:'s) (?:thrust|swing|smash|bite|club|claw|blow|sting|attack|strike)s? (glances off|thuds against|bites into|hammers|crashes down on) /i;
+    const lines = {
+        killed: m(/^Your .+? (?:cleaves|strikes down|cuts down) the (.+?), which /),
+        felled: m(/ (?:dies|falls|is slain|is struck down)\b/i),
+        found: m(/^Your .+? (?:thrusts|swings|smashes down) at the (.+?) and finds it there/),
+        quicker: m(/^The (.+?) twists into .+?, but your .+? is quicker/),
+        missed: m(/^Your .+? (?:thrusts|swings|smashes down) at empty air: the (.+?) is in /),
+        tough: m(/^Your .+? bites the (.+?), but harm .+? cannot fell it/),
+        spell: m(/^(?:You cast|Your (?:Stones Fly|Fiery Blast|Lightning Bolt|Make Whole)|.+?: .*(?:hit|hits|miss)\b)/),
+        landed: m(strikeRe),
+        avoided: m(/ misses: your .+? carries you clear/),
+        destroyed: m(/^Your (.+?) is destroyed/),
+        damaged: m(/^Your (.+?) (?:is dented and damaged|takes the blow and is damaged)/),
+        wounds: m(/^(?:The blow gets through: a wound|You are wounded)\b/),
+        ran: m(/You break away and flee/),
+        ended: m(/(?:fighting dies down|draw back|The last foe falls|Nothing hostile is left)/),
+    };
+    const out = [];
+    // what you did
+    if (lines.ran.length) out.push('You broke away and fled.');
+    else if (lines.killed.length) out.push(`You cut down the ${lines.killed[0][1]}${lines.killed.length > 1 ? ` and ${num(lines.killed.length - 1)} more` : ''}.`);
+    else if (lines.found.length || lines.quicker.length) out.push(`Your blow found the ${(lines.found[0] ?? lines.quicker[0])[1]}.`);
+    else if (lines.tough.length) out.push(`Your blow bit the ${lines.tough[0][1]}, but it was not enough to bring it down.`);
+    else if (lines.missed.length) out.push(`You struck at empty air: the ${lines.missed[0][1]} was too quick to catch.`);
+    // what came back
+    const hit = lines.landed.length, wounds = lines.wounds.length;
+    if (hit) {
+        const gear = [...lines.destroyed.map(x => `your ${x[1]} was destroyed`), ...lines.damaged.map(x => `your ${x[1]} was damaged`)];
+        out.push(`${hit === 1 ? 'One blow' : `${num(hit)[0].toUpperCase()}${num(hit).slice(1)} blows`} came back at you${gear.length ? `: ${gear.join(', ').replace(/, ([^,]+)$/, ' and $1')}` : ''}${wounds ? ` ${gear.length ? 'and' : '—'} you took ${num(wounds)} wound${wounds === 1 ? '' : 's'}` : ''}.`.replace(/ — you took/, ', and you took'));
+    } else if (lines.avoided.length) out.push('Every blow missed you.');
+    if (lines.ended.length && !out.length) out.push('The fighting died down.');
+    return out.join(' ');
+}
