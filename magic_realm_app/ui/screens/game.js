@@ -316,7 +316,7 @@ export function gameScreen(ctx) {
             h('span', { class: 'rl' }, h('small', { class: 'gl' }, 'YOU ARE CURSED'), ...cursesOn.map(n => h('span', { class: 'cl' }, h('b', {}, n), ' ', CURSE_PLAIN[n] ?? ''))),
             h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A')) : null;
         // a spell that could be cast tonight: said during the day so it is not a surprise that the evening stops to ask
-        const tonight = (st.period === 'daylight' || st.period === 'birdsong') && !st.combat && !st.ch.onRoad ? castOptions(st, data).filter(o => o.useful && !ATTACK_SPELLS[o.spell]) : [];
+        const tonight = (st.period === 'daylight' || st.period === 'birdsong') && !st.combat && !st.ch.onRoad ? castOptions(st, data).filter(o => (o.useful || o.quiet) && !ATTACK_SPELLS[o.spell]) : [];
         const tonightBar = tonight.length ? h('p', { class: 'hint tonight', 'data-act': 'cast-tonight' }, `\u2728 You can cast ${[...new Set(tonight.map(o => o.name))].join(', ')} this evening: the game will stop and ask you, even if nothing attacks.`) : null;
         const info = h('div', { class: 'where2' }, h('span', { class: 'you' }, 'You are at'), h('b', {}, st.ch.onRoad ? 'on the road' : where), st.ch.hidden ? h('em', {}, 'hidden') : h('em', { class: 'seen' }, 'visible'));
         const recent0 = [...st.log].reverse().filter(l => l.k !== 'day' && l.k !== 'roll').slice(0, 3).reverse();
@@ -902,7 +902,7 @@ export function gameScreen(ctx) {
             ...(ch.spells?.length ? [h('h3', {}, 'Spells'), ...ch.spells.map(id => h('div', { class: 'itemrow spellrow' }, h('button', { class: 'btn row', 'data-spell': id, onclick: () => { ui.spellId = id; ui.sheet = 'spell'; render(); } },
                 h('span', { class: 'rl' }, h('b', {}, data.spells?.[id]?.name ?? id), h('small', {}, `Type ${data.spells?.[id]?.type ?? '?'} \u00B7 ${data.spells?.[id]?.color ?? 'any colour'} \u00B7 ${data.spells?.[id]?.duration ?? ''}`)),
                 h('em', {}, castable(data.spells?.[id]) ? 'cast in the evening' : 'not yet'))))]
-                : (data.characters[ch.id].stage4.spellsKnown ?? 0) ? [h('p', { class: 'hint' }, `Spells: one of type ${(data.characters[ch.id].stage4.spellTypes ?? []).join('/')} (not castable in this build yet).`)] : []),
+                : (data.characters[ch.id].stage4.spellsKnown ?? 0) ? [h('p', { class: 'hint' }, `Spells: one of type ${(data.characters[ch.id].stage4.spellTypes ?? []).join('/')} (cast in the evening, in the Encounter step).`)] : []),
             h('h3', {}, 'Carrying'),
             ...ch.items.map(it => {
                 const canSwitch = st.pending?.type === 'phase' || st.pending?.type === 'plan';
@@ -1319,7 +1319,7 @@ export function gameScreen(ctx) {
                 h('button', { class: `switch big${it.active ? ' on' : ''}`, role: 'switch', 'aria-checked': it.active ? 'true' : 'false', 'data-act': 'item-switch', disabled: !canSwitch || null, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid }); } }, it.active ? 'Active: deactivate it' : 'Inactive: activate it'),
                 h('button', { class: 'btn', onclick: back.close }, 'Back')),
             canSwitch && !it.destroyed ? h('button', { class: 'btn quiet-no leave', 'data-act': 'item-leave', onclick: () => { ui.keep = true; ui.sheet = ui.itemFrom === 'dock' ? null : 'char'; ui.itemFrom = null; act({ type: 'tidy', item: it.uid, drop: true }); } }, `Leave the ${name} here`) : null,
-            canSwitch ? null : h('p', { class: 'hint' }, 'Gear can be changed between phases, not in the middle of one.')), back);
+            canSwitch ? null : h('p', { class: 'hint' }, 'Gear can be changed between phases. In a fight, switching one item or leaving one behind is your Encounter action (open the Encounter step and use "Belongings" there).')), back);
     }
 
     // The printed Treasure Set Up Card in full: it is the same for every game, so every player may read it.

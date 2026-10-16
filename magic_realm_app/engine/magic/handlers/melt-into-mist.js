@@ -26,6 +26,7 @@ export default {
     id: 'melt-into-mist', dur: 'permanent', strength: 3, benevolent: true, selfOnly: true,
     legal: st => (st.ch.mist ? 'You are already mist.' : true),
     useful: () => false,
+    quiet: st => !st.ch.mist,                                         // mist for tomorrow's travels is a legitimate quiet-evening cast
     start(ctx) {
         const { st, data } = ctx, c = st.combat;
         const fx = ctx.fx({ targets: [HERO], strength: 3 });                // the record is energized as it is cast (fx.js addFx), which stashes his belongings (apply)

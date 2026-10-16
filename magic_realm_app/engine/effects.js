@@ -45,7 +45,7 @@ export function rollCurse(st, data, target = HERO, roller = HERO) {
 
 // Called at Midnight: a Chapel's clearing lifts curses.
 export function liftCursesAtChapel(st) {
-    if (!st.ch.curses?.length) return;
+    if (!st.ch.curses?.length || st.ch.onRoad) return;          // (4.6.8a.5: in the Chapel's clearing; a hero on the road beside it is not)
     if (st.dwellings.some(d => d.kind === 'Chapel' && d.at === st.ch.at)) { say(st, 'The Chapel lifts your curses.', 'curse'); st.ch.curses = []; }
 }
 

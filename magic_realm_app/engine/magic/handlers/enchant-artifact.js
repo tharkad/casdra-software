@@ -30,6 +30,7 @@ export default {
     params: (st, data) => [{ key: 'spell', kind: 'choice', label: 'Record which of your spells on it', options: spellsToRecord(st, data).map(s => ({ value: s.id, label: `${s.name} (Type ${s.type}, ${s.color ?? 'any colour'})` })) }],
     // worth a prompt when something could be recorded on an item that does not hold it yet; never in a quiet evening by default: it is a long project, not a reflex
     useful: () => false,
+    quiet: st => !fxList(st, { spell: 'enchant-artifact', any: true }).length,         // a long project, started in the evening; asked only while none is under way (legal() already needs an item and a spell)
     start(ctx) {
         const { st, data } = ctx;
         const it = (ctx.targets[0] && st.ch.items.find(i => i.uid === ctx.targets[0].id)) ?? enchantableItems(st, data)[0];

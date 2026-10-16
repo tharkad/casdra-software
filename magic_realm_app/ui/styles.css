@@ -1025,3 +1025,8 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .sr-part b { font-variant-numeric: tabular-nums; }
 .sr-part.total { border-bottom: 0; color: var(--gold, #e3c36a); }
 .sheet2 .peekmap { border: 1px solid var(--gold-deep); background: none; color: var(--gold, #e3c36a); border-radius: 999px; padding: 6px 16px; font-family: var(--font-display); font-size: 14px; letter-spacing: .08em; cursor: pointer; }
+
+/* Encounter-step belongings (CE-01): name, switch, leave */
+.gearrow { grid-template-columns: 1fr auto auto; }
+.gearrow .quiet-no { width: auto; min-height: 38px; padding: 0 12px; font-size: 14px; }
+.gearsec .gearrow { margin-top: 6px; }

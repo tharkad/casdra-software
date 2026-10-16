@@ -1,5 +1,5 @@
 import { HERO } from '../fx.js';
-import { dayExpiry, startFx, targetsOr } from '../helpers.js';
+import { alreadyOn, dayExpiry, dayUseful, startFx, targetsOr } from '../helpers.js';
 // Prophecy (II / Purple / Day, one character): the target ignores his recorded turn and chooses what to do at each phase of his turn as he does it. He gets the same number
 // of phases and the same kinds of activity as a recorded turn gives, except that an extra or enhanced activity from a belonging can be used as soon as he activates the
 // belonging. If the spell is broken before he finishes his turn he is instantly blocked. His hired leaders, controlled monsters, familiars and phantasms still do the turns
@@ -13,6 +13,7 @@ import { dayExpiry, startFx, targetsOr } from '../helpers.js';
 export default {
     id: 'prophecy', dur: 'day', benevolent: true,
     useful: () => false,
+    quiet: st => dayUseful(st) && !alreadyOn(st, 'prophecy', HERO),            // cast tonight it serves tomorrow: worth a quiet-evening prompt unless it is already on
     start(ctx) {
         if (startFx(ctx, targetsOr(ctx, HERO), { expires: dayExpiry(ctx.st) })) ctx.log('Prophecy: tomorrow you need not record a turn; you choose each phase as it comes. It ends at Sunset tomorrow.');
     },

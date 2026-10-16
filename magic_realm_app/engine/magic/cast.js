@@ -57,6 +57,7 @@ export function castOptions(st, data, { slowest = 99 } = {}) {
             if (timeOf(chit) > slowest) continue;
             const opt = { spell: spell.id, name: spell.name, colorChit: supply?.id ?? null, chit: chit.id, effort: chit.effort, time: timeOf(chit) };
             opt.useful = h?.useful ? !!h.useful(st, data, opt) : true;
+            opt.quiet = !opt.useful && !!h?.quiet?.(st, data, opt);
             out.push(opt);
         }
     }
@@ -73,12 +74,13 @@ export function itemCastOptions(st, data, colors = colorsAt(st, data, st.ch.at))
         const box = st.spellBox?.items?.[nameOf(data, it)];
         if (!box?.length) continue;
         // the spells Enchant Artifact added to it count as awakened cards of their own Magic type (artifacts.js; item.extra exists only while that spell is energized)
-        const seen = new Set();
+        const seen = new Set(), ownNumerals = new Set([data.treasures?.[it.card ?? it.id]?.magic?.numeral, ...(it.extra ?? []).map(e => e.type)]);
         for (const card of [...box, ...(it.extra ?? []).map(e => ({ id: e.spell, awake: true }))]) {
             if (!card.awake || seen.has(card.id)) continue;
             seen.add(card.id);
             const spell = spellDef(data, card.id), h = spell && handlerOf(spell.id);
             if (!spell || !castable(spell)) continue;
+            if (!ownNumerals.has(spell.type)) continue;          // 4.6.6b: the item acts as a Magic chit of ITS printed numeral only (the Good Book is Magic I and 'cannot cast the Type VII spells'), plus what Enchant Artifact added
             if (it.usedEvening?.[spell.type] === st.day || it.tied?.[spell.type]) continue;
             if (c?.casts?.length) continue;
             const need = spell.color ? !colors.has(spell.color) : colors.size === 0;
@@ -87,6 +89,7 @@ export function itemCastOptions(st, data, colors = colorsAt(st, data, st.ch.at))
             if (legalOf(st, data, h, spell) !== true) continue;
             const opt = { spell: spell.id, name: spell.name, colorChit: supply?.id ?? null, chit: null, item: it.uid, effort: 0, time: 0, from: nameOf(data, it) };
             opt.useful = h?.useful ? !!h.useful(st, data, opt) : true;
+            opt.quiet = !opt.useful && !!h?.quiet?.(st, data, opt);
             out.push(opt);
         }
     }
@@ -118,7 +121,22 @@ export function blockedSpells(st, data, { slowest = 99 } = {}) {
     return out;
 }
 
+// A spell's `useful` says it is worth casting against what is here now (a fight). `quiet` says it has a legitimate use in an evening with nothing hostile about (a buff for
+// tomorrow, a long-lived Permanent spell, a call that brings monsters): handler.quiet(st, data, opt). A quiet evening is held open for the player whenever either holds
+// (rules 8.1.3a, 8.3.9b.1, 8.8.3); spells with neither (Curse, Pentangle, Premonition, Violent Storm, Fog...) are still castable but never worth stopping the evening for.
 export const canCastUsefully = (st, data) => castOptions(st, data).some(o => o.useful);
+export const canCastQuietly = (st, data) => castOptions(st, data).some(o => o.useful || o.quiet);
+
+// What a cast of `opt` (one of castOptions) would ask to be aimed at, before it is played: the same aim entry the Melee step shows ({ spell, name, options, min, max, params }),
+// or null when the spell needs no target. Used by the quiet-evening cast, which has no Melee step in between.
+export function previewAim(st, data, opt) {
+    const c = st.combat;
+    if (!c) return null;
+    const cast = { spell: opt.spell, chit: opt.chit ?? null, item: opt.item ?? null, time: opt.time ?? 0 };
+    (c.casts ??= []).push(cast);
+    try { return aimOptions(st, data).find(a => a.spell === opt.spell) ?? null; }
+    finally { c.casts.splice(c.casts.indexOf(cast), 1); }
+}
 
 // Play the chit and put the spell on the round's list; the effect comes when the round is resolved (Melee, spell effects).
 export function castSpell(st, data, spellId, chitId, itemUid = null) {

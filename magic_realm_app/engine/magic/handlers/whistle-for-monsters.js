@@ -17,6 +17,7 @@ export default {
     aim: st => { const o = sounds(st).map(c => ({ ref: { kind: 'chit', id: c.id }, label: `${c.name} (clearing ${c.num} of ${tileName(c.tile)})` })); return o.length ? o : null; },
     params: (st, data) => [{ key: 'tile', kind: 'choice', label: 'If the chit is in your tile already, move it to', options: sixTiles(st, data).filter(t => t !== tileOf(st.ch.at)).map(t => ({ value: t, label: tileName(t) })) }],
     useful: () => false,
+    quiet: () => true,                                                // calling monsters to this tile is a deliberate choice (a hunt for Fame), whether or not anything is here yet
     start(ctx) {
         const { st, data } = ctx, here = tileOf(st.ch.at), c = st.chits.find(x => x.id === ctx.targets[0]?.id);
         if (!c) { ctx.log('Whistle for Monsters: there is no Sound chit face up to call.'); return; }

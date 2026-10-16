@@ -1,5 +1,5 @@
 import { HERO } from '../fx.js';
-import { dayExpiry, startFx, targetsOr } from '../helpers.js';
+import { alreadyOn, dayExpiry, dayUseful, startFx, targetsOr } from '../helpers.js';
 import { dropCompanions } from '../companion.js';
 // Phantasm (VI / Purple / Day, one character): at Birdsong of the next day the target puts a piece beside himself and records a separate turn for it: the same Basic and
 // Sunlight phases as everyone, but only Move, Peer and Enchant. It takes its turn just before the target, enchants with the target's Magic chits, and shares his
@@ -14,6 +14,7 @@ import { dropCompanions } from '../companion.js';
 export default {
     id: 'phantasm', dur: 'day', benevolent: true,
     useful: () => false,
+    quiet: st => dayUseful(st) && !alreadyOn(st, 'phantasm', HERO),            // a second turn tomorrow: a legitimate quiet-evening cast
     start(ctx) {
         if (startFx(ctx, targetsOr(ctx, HERO), { expires: dayExpiry(ctx.st) })) ctx.log('Phantasm: tomorrow at Birdsong a piece appears beside you and you record a second turn for it (Move, Peer and Enchant). It ends at Sunset tomorrow.');
     },

@@ -13,7 +13,7 @@ import { activeHorse } from './items.js';
 import { extraActs, noSunlight, oneDie, locateMod, modRoll, modNote } from './modifiers.js';
 import { beginTrade, tradeAction } from './trade.js';
 import { scoreGame } from './score.js';
-import { canCastUsefully, enchantableChits, TYPE_COLOR, dayColors } from './spells.js';
+import { canCastQuietly, enchantableChits, TYPE_COLOR, dayColors } from './spells.js';
 import { flipTile, tileEnchantOptions } from './magic/colour.js';
 import { expireDue, breakAllFrom, fxTags, fxList, HERO } from './magic/fx.js';
 import { energizePass, deenergizePass, energizeWith } from './magic/energize.js';
@@ -297,7 +297,7 @@ function hostilesHere(st, data) {
     const here = st.ch.at;
     const mons = st.mons.some(m => !m.dead && !m.hired && m.loc?.c === here);
     const nats = st.nats.some(n => !n.dead && !n.hired && n.loc?.c === here);
-    return mons || nats || canCastUsefully(st, data);
+    return mons || nats || canCastQuietly(st, data);
 }
 
 function evening(st, data) {
@@ -819,12 +819,6 @@ export function apply(st0, data, action) {
                 say(st, `You leave the ${nameOf(data, it)} behind.`, 'info');
                 st.pending = keep(st, data, p);
                 return st;
-            }
-            if (it.kind === 'horse' && !it.active) {
-                const hd = data.horses[it.id];
-                if (isCave(st, data, st.ch.at)) throw new Error('A horse cannot be ridden in a cave.');
-                if (lvl(hd.walk.strength) < Math.max(lvl(st.ch.weight), carriedLevel(st, data))) throw new Error('The horse is not strong enough to carry you and your gear.');
-                st.ch.items.filter(o => o.kind === 'horse').forEach(o => { o.active = false; });
             }
             toggleItem(st, data, it);
             say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOf(data, it)}.`, 'info');

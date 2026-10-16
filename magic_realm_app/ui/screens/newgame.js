@@ -1,7 +1,7 @@
 import { h } from '../dom.js';
 import { ask } from '../ask.js';
 import { dwellingLine } from '../dwelling_line.js';
-import { ATTACK_SPELLS } from '../../engine/spells.js';
+import { ATTACK_SPELLS, castable } from '../../engine/spells.js';
 import { createRace, joinRace, peekRace, serverUrl } from '../online.js';
 
 // New game: a three-step wizard (game type, optional rules, character and goals).
@@ -124,12 +124,12 @@ function spellChooser(g, who, redraw) {
         return [h('p', { class: 'hint' }, 'Loading the spell list...')];
     }
     const pool = SPELLS.filter(sp => who.spells.types.includes(sp.type));
-    const castNow = sp => !!(sp.implemented || ATTACK_SPELLS[sp.id]);
+    const castNow = castable;
     if (!Array.isArray(g.spells) || g.spellsFor !== who.id) { g.spells = pool.filter(castNow).slice(0, who.spells.n).map(sp => sp.id); g.spellsFor = who.id; }
     const chosen = g.spells;
     return [
         h('h2', { class: 'q' }, `Your starting spell${who.spells.n === 1 ? '' : 's'}`),
-        ask(`Choose ${who.spells.n} spell${who.spells.n === 1 ? '' : 's'} of Type ${who.spells.types.join(', ')}.`, 'These are written on your sheet from the start. Spells are cast in the evening, in the Encounter step of a fight, while the spell\'s colour of magic is present. Ones marked "not castable yet" can be chosen but have no effect in this build.', { compact: true }),
+        ask(`Choose ${who.spells.n} spell${who.spells.n === 1 ? '' : 's'} of Type ${who.spells.types.join(', ')}.`, 'These are written on your sheet from the start. Spells are cast in the evening, in the Encounter step of a fight, while the spell\'s colour of magic is present.', { compact: true }),
         h('div', { class: 'choices' }, ...pool.map(sp => {
             const on = chosen.includes(sp.id);
             return h('button', { class: `choice${on ? ' on' : ''}`, role: 'checkbox', 'aria-checked': on ? 'true' : 'false', 'data-spell': sp.id,

@@ -1,5 +1,6 @@
 // The spells that can be cast. Each handler is one file in handlers/ with a small contract (docs/design/magic/00-framework.md section 6.3):
-//   useful(st, data, opt) -> bool        is casting it worth a prompt right now
+//   useful(st, data, opt) -> bool        is casting it worth a prompt right now (default true)
+//   quiet(st, data, opt) -> bool         has it a legitimate use in an evening with nothing hostile about, though not `useful` (default false); see cast.js canCastQuietly
 //   legal(st, data, ctx) -> true | 'why not'     place and other conditions beyond colour and chit
 //   aim(st, data, ctx) -> [{ ref, label }] | null    the legal targets, or null when it needs none
 //   start(ctx)                           the spell comes to life (in completion-time order); ctx = { st, data, spell, caster, source, targets, params, say, log, fx(spec) }

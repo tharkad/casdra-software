@@ -1,5 +1,6 @@
 import { lvl } from './core.js';
 import { cardChits, BOOTS, GLOVES } from './modifiers.js';
+import { isCave } from './world.js';
 
 // Everything a character can own is an item: { uid, kind: 'weapon'|'armor'|'horse'|'treasure', id, active, alerted, damaged, destroyed }.
 export function makeItem(st, kind, id, extra = {}) {
@@ -116,6 +117,14 @@ export function bootsStrongEnough(st, data, it) {
 
 export function toggleItem(st, data, it) {
     if (it.active) { it.active = false; if (it.kind === 'weapon') it.alerted = false; return; }
+    // A horse (4.3.8a, 7.3.2a): never in a cave, strong enough for him and everything he owns, and only one at a time. The same checks whether he switches it on
+    // between phases (day.js tidy) or as his Encounter action in a fight (combat.js gear).
+    if (it.kind === 'horse') {
+        const at = st.combat?.at ?? st.ch.at;
+        if (at && isCave(st, data, at)) throw new Error('A horse cannot be ridden in a cave.');
+        if (lvl(data.horses[it.id].walk.strength) < Math.max(lvl(st.ch.weight), carriedLevel(st, data))) throw new Error('The horse is not strong enough to carry you and your gear.');
+        st.ch.items.filter(o => o.kind === 'horse').forEach(o => { o.active = false; });
+    }
     if (BOOTS[it.id] && !bootsStrongEnough(st, data, it)) throw new Error('Those boots are not strong enough to carry you and your gear.');
     const slots = slotsOf(data, it);
     for (const o of st.ch.items) if (o.uid !== it.uid && o.active && slotsOf(data, o).some(s => slots.includes(s))) { o.active = false; if (o.kind === 'weapon') o.alerted = false; }

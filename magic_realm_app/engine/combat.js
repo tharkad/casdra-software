@@ -1,6 +1,6 @@
 import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll, tally, WEIGHT_WORDS } from './core.js';
 import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './tables.js';
-import { pit, rollPit, pitOnChar, hasCurse } from './effects.js';
+import { pit, rollPit, rollCurse, pitOnChar, hasCurse } from './effects.js';
 import { hirelings, monsterHires } from './hire.js';
 import { cardChits, effortLimit, oneDie, tableMod } from './modifiers.js';
 import { expireDue, expireFx, breakFx, fxTags, fxList, shielded, HERO, targetGone, sameRef } from './magic/fx.js';
@@ -13,7 +13,7 @@ import { morphChits, morphParts, morphView } from './magic/morph.js';
 import { activatePhase, heldOptions } from './magic/phase.js';
 import { flySources, carries, flyAwayTiles, startFlight, blowAway } from './magic/fly.js';
 import { releaseFoes } from './magic/mist.js';
-import { blockedSpells, castOptions, castSpell, resolveSpells, canCastUsefully, aimOptions, applyAim } from './spells.js';
+import { blockedSpells, castOptions, castSpell, resolveSpells, canCastQuietly, previewAim, aimOptions, applyAim } from './spells.js';
 import { tell } from './story.js';
 import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
 import { makeItem, autoEquip, toggleItem, activeHorse } from './items.js';
@@ -215,7 +215,7 @@ export function choiceAction(st, data, fight) {
     c.choiceMade = true;
     if (!fight) {
         say(st, 'You let the natives be.', 'combat');
-        if (canCastUsefully(st, data)) return enterSpellOnly(st, data);
+        if (canCastQuietly(st, data)) return enterSpellOnly(st, data);
         c.ended = true; c.why = 'quiet'; c.step = 'done'; st.pending = null; return;
     }
     enterEncounter(st, data);
@@ -234,7 +234,7 @@ function addDen(st, data, d) {
     if (d.kind === 'nat') {
         const n = data.natives[d.id];
         const alive = st.nats.find(x => x.id === d.id);
-        if (n.horse && !alive.horseDead) addDen(st, data, { kind: 'horse', id: d.id + '-horse', owner: d.id, partOf: den.uid });
+        if (n.horse && !alive.horseDead && !isCave(st, data, st.combat.at)) addDen(st, data, { kind: 'horse', id: d.id + '-horse', owner: d.id, partOf: den.uid });
     }
     return den;
 }
@@ -344,7 +344,7 @@ function enterEncounter(st, data) {
     if (st.ch.mist) { releaseFoes(c); return endCombat(st, data, 'mist'); }       // mist takes no part in combat: a Melt into Mist that woke between rounds ends it here
     const live = c.dens.filter(d => !d.dead && !d.pacified && d.kind !== 'part' && d.kind !== 'horse');          // a creature made peaceful by a spell is not a foe
     if (!live.length) {
-        if (canCastUsefully(st, data)) return enterSpellOnly(st, data);
+        if (canCastQuietly(st, data)) return enterSpellOnly(st, data);
         c.ended = true; c.why = 'quiet'; c.step = 'done'; st.pending = null;
         say(st, 'Nothing here wants a fight.', 'combat');
         return;
@@ -362,6 +362,12 @@ function enterEncounter(st, data) {
     assignAll(st, data);
     deployHires(st, data);
     st.pending = { type: 'combat-encounter', round: c.round };
+}
+
+// What a quiet evening may still offer: the casts that have a use tonight (or all castable ones, `all`), minus the spells already cast in an earlier quiet round.
+function quietCasts(st, data, all = false) {
+    const done = st.combat?.quietDone ?? [];
+    return castOptions(st, data).filter(o => !done.includes(o.spell) && (all || o.useful || o.quiet));
 }
 
 // Nothing is fighting him, but there is a spell worth casting: the Encounter step is held so that he may cast it (rule 8.8.3: combat is held
@@ -418,23 +424,50 @@ export function encounterOptions(st, data) {
     // A Fly chit is played like a Move chit (spell durations, Fly): strictly faster than every creature on his sheet, strong enough to carry him (what is heavier is left behind).
     // It takes him out of the fight to a neighbouring tile (8.3.8e) and is spent. A Tremendous monster that holds him still holds him (8.4.7 d.2).
     const flyChits = pickedUp || st.ch.mist ? [] : flySources(st, data).filter(x => x.time < slowest && carries(st, x) && !c.played?.[x.id]);
-    return { canStay, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), casts: castOptions(st, data, { slowest }), blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && fight.length > 0, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st) };
+    // Why a section is missing (8.3.7a, 8.3.8): the gate is the slowest creature ON HIS SHEET; a hidden hero with nothing assigned has none. The screen says it in words.
+    const gate = dens.length ? dens.reduce((a, d) => (speedOf(d) < speedOf(a) ? d : a)) : null;
+    const gateName = gate ? denSide(st, data, gate).name : null;
+    const gateText = gate ? `the ${gateName} (it moves ${slowest})` : null;
+    const wname = w ? nameOfItem(st, data, w.item) : null;
+    const chitsFor = kind => activeChits(st, kind, data);
+    const fastEnough = x => x.time < slowest;
+    const why = {
+        gate: gate ? { name: gateName, speed: slowest } : null,
+        alert: !w || fight.length ? null
+            : st.ch.morph ? null
+                : !chitsFor('fight').length ? 'You have no ready Fight chit to ready your weapon with.'
+                    : !chitsFor('fight').some(x => lvl(x.strength) >= wlvl) ? `No ready Fight chit is strong enough for your ${wname} (it needs ${WEIGHT_WORDS[data.weapons[w.item.id].weight] ?? "a stronger"} chit or better).`
+                        : `No ready Fight chit that is strong enough is faster than ${gateText}: a chit played here must be strictly faster, so time ${slowest - 1} or lower.`,
+        run: pickedUp || canRunNow(move, st, data) ? null
+            : !runDestinations(st, data).length ? (st.ch.arrivedFrom ? 'You came into this clearing today, so you may only run back the way you came, and that road is closed to you.' : 'There is no road you know that you could run along.')
+                : !chitsFor('move').length ? 'You have no ready Move chit to run with.'
+                    : chitsFor('move').every(x => !fastEnough(x)) ? `No ready Move chit is faster than ${gateText}: a chit played here must be strictly faster, so time ${slowest - 1} or lower.`
+                        : 'No ready Move chit that is fast enough is also strong enough to carry everything you own.',
+    };
+    const casts = (c.spellOnly ? quietCasts(st, data, true) : castOptions(st, data, { slowest })).map(o => (c.spellOnly ? { ...o, aim: previewAim(st, data, o) } : o));       // (a quiet-evening cast has no Melee step: it is aimed on the cast screen)
+    return { canStay, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && fight.length > 0, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
 }
+const canRunNow = (move, st, data) => move.length > 0 && runDestinations(st, data).length > 0;
 
 export function encounterAction(st, data, a) {
     const c = st.combat;
     if (c.step !== 'encounter') throw new Error('not in the encounter step');
     if (c.spellOnly) {
         // only a spell can be cast; anything else is a pass
-        if (a.act === 'gear') {
-            if (st.ch.morph) throw new Error('your gear is of no use to a creature');
-            const it = st.ch.items.find(i => i.uid === a.item);
-            if (!it) throw new Error('no such item');
-            toggleItem(st, data, it);
-            say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOfItem(st, data, it)}.`, 'combat');
-            return;
+        if (a.act === 'gear') { gearAction(st, data, a); return; }
+        if (a.act === 'cast') {
+            castSpell(st, data, a.spell, a.chit, a.item); applyAim(st, data, a.spellAim); resolveSpells(st, data);
+            // Rule 8.1.3a: a quiet clearing still gets its rounds, one spell to a round. When another spell is worth casting, the next round is held for it
+            // (not the same spell again: a second one on the same target would only be nullified).
+            (c.quietDone ??= []).push(a.spell);
+            expireDue(st, data, 'round-end');
+            c.casts = []; c.played = {};                        // (this round's spells are done: the next round starts clean)
+            if (!c.ended && !st.ch.dead && !st.ch.mist && !st.ch.flying && quietCasts(st, data).length) {
+                c.round += 1;
+                energizePass(st, data, 'round');
+                return enterSpellOnly(st, data);
+            }
         }
-        if (a.act === 'cast') { castSpell(st, data, a.spell, a.chit, a.item); applyAim(st, data, a.spellAim); resolveSpells(st, data); }
         c.spellOnly = false;
         return endCombat(st, data, 'quiet');
     }
@@ -449,12 +482,7 @@ export function encounterAction(st, data, a) {
         return endCombat(st, data, 'quiet');
     }
     if (a.act === 'gear') {
-        // Without playing a chit he may switch one item on or off.
-        if (st.ch.morph) throw new Error('your gear is of no use to a creature');
-        const it = st.ch.items.find(i => i.uid === a.item);
-        if (!it) throw new Error('no such item');
-        toggleItem(st, data, it);
-        say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOfItem(st, data, it)}.`, 'combat');
+        gearAction(st, data, a);             // without playing a chit he may switch one item on or off, or abandon one (8.3.7d); the Melee step follows
     } else if (a.act === 'protect') {
         // a held Phase spell is activated like an item, in place of a chit action (so he cannot also cast this round)
         activatePhase(st, data, a.fx, 'round');
@@ -486,6 +514,23 @@ export function encounterAction(st, data, a) {
         return toFatigue(st, data);
     } else if (a.act !== 'pass') throw new Error('unknown encounter action');
     enterMelee(st, data);
+}
+
+// The Encounter-step belongings action (8.3.7d, 4.3.2): switch one item on or off, or abandon one where he stands (`a.drop`). The same horse and boots checks as between
+// phases (items.js toggleItem).
+function gearAction(st, data, a) {
+    const c = st.combat;
+    if (st.ch.morph && !a.drop) throw new Error('your gear is of no use to a creature');
+    const it = st.ch.items.find(i => i.uid === a.item);
+    if (!it) throw new Error('no such item');
+    if (a.drop) {
+        st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
+        st.abandoned[c.at] = [...(st.abandoned[c.at] ?? []), { ...it, active: false, alerted: false }];
+        say(st, `You leave the ${nameOfItem(st, data, it)} behind.`, 'combat');
+        return;
+    }
+    toggleItem(st, data, it);
+    say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOfItem(st, data, it)}.`, 'combat');
 }
 
 function playChit(st, chit) {
@@ -528,6 +573,7 @@ export function meleeOptions(st, data) {
         morph: morphView(st),                                                       // he is a creature: the chits above are its counter's sides; see also `morphParts`
         morphParts: morphParts(st),                                                 // its head or club: a second attack at his target, either side up (p.parts = { [id]: 'light'|'dark' })
         asterisksPlayed: c.asterisks.move + c.asterisks.fight + (c.asterisks.magic ?? 0),
+        effortLimit: effortLimit(st),                                               // 2 asterisks a round, 3 with the Girtle of Energy (8.4.5f.2, 8.5.1c)
         // everything that will sit in the red boxes: assigned denizens and their parts
         boxable: c.dens.filter(d => !d.dead && d.kind !== 'horse' && (d.assigned || (d.partOf && c.dens.find(o => o.uid === d.partOf)?.assigned))),
     };
@@ -801,7 +847,7 @@ export function meleePlay(st, data, p) {
         else if (delivered && target && (fight || Object.keys(p.parts ?? {}).length)) hm.pin = target.uid;
     }
     // weapon state: a weapon that hit goes unalerted; one that struck and missed turns alerted
-    if (w && fight && !target && (p.weaponSide === 'alerted' || p.weaponSide === 'unalerted')) w.item.alerted = p.weaponSide === 'alerted';      // 8.4.5 h.2
+    if (w && fight && !target && !spTargets.length) w.item.alerted = p.weaponSide === 'unalerted' ? false : true;      // 8.4.5 h.2: a Fight chit played at no one sets the weapon either side up (alerted unless he asks for the other)
     if (w && fight && target && myDir != null) {
         const wasAlerted = !!w.item.alerted;
         w.item.alerted = !delivered;      // only a blow that was delivered unalerts the weapon; a miss or a cancelled blow leaves it alerted
@@ -1064,6 +1110,13 @@ function denHit(st, data, den, ctx) {
     if (s.attack === 'spell') {
         // a Pentangle (or any shield against bewitching magic) keeps the Demon, Winged Demon and Imp from harming him
         if (fxTags(st, HERO, 'demonProof').length || shielded(st, HERO)) { ctx.log(`${s.name}'s magic cannot touch you: you are shielded.`); return; }
+        // an Imp's spell is a curse (8.4.7b, the Curses Table); a Demon's is the Power of the Pit
+        if (den.kind === 'mon' && data.monsters[den.id]?.family === 'Imp') {
+            ctx.log(`${s.name}'s magic is aimed at you.`);
+            rollCurse(st, data);
+            c.eventful = true;
+            return;
+        }
         const row = pit(st, data, `${s.name}'s magic`);
         pitSweep(st, data, row, { caster: den, log: ctx.log });
         c.eventful = true;

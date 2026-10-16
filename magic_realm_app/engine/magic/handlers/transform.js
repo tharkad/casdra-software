@@ -39,6 +39,7 @@ export default {
     autoAim: options => (options.find(o => o.ref.kind !== 'char') ?? options[0] ? [(options.find(o => o.ref.kind !== 'char') ?? options[0]).ref] : []),
     // a gamble (three rolls in four leave a creature harmless or weak): worth a prompt only against something Heavy or worse
     useful: (st, data) => present(st).some(d => !d.bystander && (lvl(denSide(st, data, d).harm ?? 'N') >= 3 || lvl(denSide(st, data, d).vuln ?? 'N') >= 3)),
+    quiet: st => !st.ch.morph,                                        // alone, the one creature to turn is himself: a deliberate gamble (an Eagle to cross the map), worth offering
     start(ctx) {
         const { st, data } = ctx, c = st.combat;
         const t = ctx.targets[0];

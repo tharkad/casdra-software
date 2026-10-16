@@ -1,7 +1,7 @@
 {
  "meta": {
   "source": "3rd edition rules 3.1 list of spells; digest docs/rules/04 section 2.5",
-  "note": "Only spells marked implemented are castable in this build"
+  "note": "All 47 spells are implemented (each has a handler in app/engine/magic/handlers)"
  },
  "spells": [
   {
@@ -44,7 +44,7 @@
    "type": "II",
    "color": "Grey",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "fog",
@@ -52,7 +52,7 @@
    "type": "II",
    "color": "Grey",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "prophecy",
@@ -60,7 +60,7 @@
    "type": "II",
    "color": "Purple",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "stones-fly",
@@ -76,7 +76,7 @@
    "type": "II",
    "color": "Gold",
    "duration": "Instant",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "witch-s-brew",
@@ -84,7 +84,7 @@
    "type": "II",
    "color": "Grey",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "elven-grace",
@@ -100,7 +100,7 @@
    "type": "III",
    "color": "Gold",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "illusion",
@@ -108,7 +108,7 @@
    "type": "III",
    "color": "Gold",
    "duration": "Permanent",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "lost",
@@ -116,7 +116,7 @@
    "type": "III",
    "color": "Gold",
    "duration": "Permanent",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "persuade",
@@ -132,7 +132,7 @@
    "type": "III",
    "color": "Gold",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "blazing-light",
@@ -148,7 +148,7 @@
    "type": "IV",
    "color": "Purple",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "fiery-blast",
@@ -196,7 +196,7 @@
    "type": "V",
    "color": "Black",
    "duration": "Permanent",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "ask-demon",
@@ -204,7 +204,7 @@
    "type": "V",
    "color": "Black",
    "duration": "Instant",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "broomstick",
@@ -244,7 +244,7 @@
    "type": "VI",
    "color": "Purple",
    "duration": "Instant",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "enchant-artifact",
@@ -252,7 +252,7 @@
    "type": "VI",
    "color": "Purple",
    "duration": "Permanent",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "melt-into-mist",
@@ -268,7 +268,7 @@
    "type": "VI",
    "color": "Purple",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "transform",
@@ -276,7 +276,7 @@
    "type": "VI",
    "color": "Purple",
    "duration": "Permanent",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "unleash-power",
@@ -292,7 +292,7 @@
    "type": "VI",
    "color": "Black",
    "duration": "Permanent",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "control-bats",
@@ -308,7 +308,7 @@
    "type": "VII",
    "color": "Gold",
    "duration": "Permanent",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "premonition",
@@ -316,7 +316,7 @@
    "type": "VII",
    "color": "Grey",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "protection-from-magic",
@@ -324,7 +324,7 @@
    "type": "VII",
    "color": "Gold",
    "duration": "Phase",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "sense-danger",
@@ -332,7 +332,7 @@
    "type": "VII",
    "color": "Purple",
    "duration": "Permanent",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "bad-luck",
@@ -340,7 +340,7 @@
    "type": "VIII",
    "color": null,
    "duration": "Permanent",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "deal-with-goblins",
@@ -348,7 +348,7 @@
    "type": "VIII",
    "color": "Black",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "guide-spider-or-octopus",
@@ -356,7 +356,7 @@
    "type": "VIII",
    "color": "Grey",
    "duration": "Day",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "poison",
