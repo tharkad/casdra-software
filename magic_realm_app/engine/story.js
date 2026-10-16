@@ -36,3 +36,55 @@ export const tell = {
     won: st => v(st, ['The last foe falls.', 'Nothing hostile is left standing.']),
     ran: st => 'You break away and flee.',
 };
+
+// ---- the world's own events: dawn, who prowls, the week's end, sunset, and the day's phases in prose ----
+const PLURAL = n => (/wolf$/i.test(n) ? n.replace(/wolf$/i, 'Wolves') : /s$/i.test(n) ? n : /(?:ch|sh|x)$/i.test(n) ? `${n}es` : `${n}s`);
+const listOf = a => (a.length <= 1 ? (a[0] ?? '') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);
+// The creatures and peoples whose boxes are in the row the Monster roll named.
+export function prowlers(data, row) {
+    const mons = [...new Set(Object.values(data.monsters).filter(m => m.homeRow === row && m.family !== 'Ghost').map(m => (m.name ?? '').replace(/^(Tremendous|Heavy|Spear|Sword|Axe) /, '')))].map(n => PLURAL(n));
+    const folk = Object.values(data.groups ?? {}).filter(g => g.homeRow === row).map(g => `the ${g.id}`);
+    return { mons, folk };
+}
+Object.assign(tell, {
+    dawn: (st, data, { magic = [], weekEnd = false } = {}) => {
+        const { mons, folk } = prowlers(data, st.prowl), who = [...mons, ...folk];
+        const open = v(st, [`Day ${st.day} dawns.`, `Morning comes on day ${st.day}.`, `The sun rises on day ${st.day}.`]);
+        const stir = who.length ? v(st, [`Row ${st.prowl} stirs: ${listOf(who)} leave their lairs.`, `Across the realm, ${listOf(who)} rouse themselves (row ${st.prowl}).`, `Row ${st.prowl} prowls today: ${listOf(who)}.`], 1) : `Row ${st.prowl} prowls, but little is left of it.`;
+        const mag = magic.length ? ` The land is filled with ${listOf(magic)} magic until midnight.` : '';
+        return `${open} ${stir}${mag}`;
+    },
+    weekEnd: (st, data, { revived = [], ghosts = false } = {}) => {
+        const names = listOf([...new Set(revived)]);
+        const dead = revived.length ? ` ${v(st, [`The slain come back with them: ${names}.`, `Even the dead are called home: ${names} rise again.`, `The slain return too (${names}), new arrivals from beyond the Realm.`], 2)}` : '';
+        return `${v(st, [`It is the week's end.`, `The week turns.`, `Day ${st.day} closes the week.`])} Row ${st.prowl} is called back to where it began.${dead}${ghosts ? ' The Ghosts, who can never be put down, are back where they started.' : ''}`;
+    },
+    sunset: (st, where) => v(st, [`The sun sets over ${where}.`, `Dusk gathers around ${where}.`, `Evening falls on ${where}.`]),
+    quiet: st => v(st, ['A quiet evening: nothing stirs near you.', 'The evening is quiet. Nothing comes for you.']),
+    phase: (st, text) => {
+        const t = text.replace(/\s*\(rolled [^)]*\)/, '').replace(/\.$/, '');
+        let m;
+        if ((m = /^You move to (.+)$/.exec(t))) return `${v(st, ['You make your way to', 'You pick your way to', 'You travel on to'], 1)} ${m[1]}.`;
+        if (/^You fail to hide/.test(t)) return v(st, ['You try to slip out of sight, but you are seen.', 'You look for cover and do not find it.']);
+        if (/^You are already hidden/.test(t)) return v(st, ['You stay out of sight.', 'You keep still and unseen.']);
+        if (/^You hide/.test(t)) return v(st, ['You melt out of sight.', 'You find cover and stay quiet.', 'You vanish into the surroundings.'], 2);
+        if (/^You have nothing to rest/.test(t)) return 'You are well, and there is nothing to rest.';
+        if (/^You rest/.test(t)) return t.replace(/^You rest \(?/, 'You rest').replace(/\)$/, '') + '.';
+        if (/^You do nothing/.test(t)) return 'You let the time pass.';
+        return `${t}.`;
+    },
+});
+
+
+// What just happened, for the caption over the map and the step-by-step sheet: everything the last step wrote, rolls apart (they live in the dice tray).
+export function stepLines(st) {
+    const from = st.stepAt ?? Math.max(0, (st.log?.length ?? 0) - 3);
+    return (st.log ?? []).slice(from).filter(l => l.k !== 'roll');
+}
+export function headline(st, max = 280) {
+    const lines = stepLines(st).filter(l => l.k !== 'day' || l.s).map(l => l.s ?? l.t);
+    if (!lines.length) return '';
+    let out = '';
+    for (const t of lines) { if (out && (out + ' ' + t).length > max) break; out = out ? `${out} ${t}` : t; }
+    return out;
+}

@@ -6,13 +6,14 @@ import * as combat from './combat.js';
 import { makeItem, defOf, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain, noteFind } from './items.js';
 import { lootFrom, lootSiteCard, groundPileAt, sitesHere, effortOptions, payEffort } from './search.js';
 import { hasCurse, liftCursesAtChapel } from './effects.js';
+import { tell } from './story.js';
 import { runesTargets, readRunes, learnSpell } from './runes.js';
 import { restartAfterDeath } from './setup.js';
 import { activeHorse } from './items.js';
 import { extraActs, oneDie, locateMod } from './modifiers.js';
 import { beginTrade, tradeAction } from './trade.js';
 import { scoreGame } from './score.js';
-import { canCastUsefully, enchantableChits, TYPE_COLOR } from './spells.js';
+import { canCastUsefully, enchantableChits, TYPE_COLOR, dayColors } from './spells.js';
 import { beginHire, hireAction, followHero, expireHires } from './hire.js';
 
 // The day loop (rules digest 01 section 4): Birdsong plan, Sunrise, Daylight phases, Sunset, Evening combat, Midnight.
@@ -93,7 +94,9 @@ function sunrise(st, data) {
     st.period = 'sunrise';
     st.prowl = die(st);
     noteRoll(st, 'Monster roll', [st.prowl], st.prowl, `row ${st.prowl} prowls today`);
-    if (st.day % 7 === 0) regenerate(st, data);
+    const magic = dayColors(st.day), week = st.day % 7 === 0 ? regenerate(st, data) : null;
+    say(st, `Dawn of day ${st.day}: row ${st.prowl} prowls.${magic.length ? ` The land is filled with ${magic.join(' and ')} magic until midnight.` : ''}`, 'day', tell.dawn(st, data, { magic }));
+    if (week) say(st, `Regeneration: row ${st.prowl} creatures return to their homes.`, 'day', tell.weekEnd(st, data, week));
     // He becomes unhidden when his own turn begins.
     st.ch.hidden = false;
     st.period = 'daylight';
@@ -103,24 +106,26 @@ function sunrise(st, data) {
 
 function regenerate(st, data) {
     // The prowling row goes back to its starting boxes, even the slain (digest 05 section 5.3).
-    let back = 0;
+    let back = 0, ghosts = false;
+    const revived = [];                       // the slain who come back, for the telling
     for (const m of st.mons) {
         const def = data.monsters[m.id];
         if (m.hired) continue;
-        if (def.family === 'Ghost') { if (m.loc?.c !== st.ghostsAt || m.dead) { m.loc = { c: st.ghostsAt }; m.dead = false; back++; } continue; }
+        if (def.family === 'Ghost') { if (m.loc?.c !== st.ghostsAt || m.dead) { m.loc = { c: st.ghostsAt }; if (m.dead) revived.push(def.name); m.dead = false; back++; ghosts = true; } continue; }
         if (def.homeRow !== st.prowl) continue;
-        if (m.loc?.c || m.dead) { m.loc = { box: def.homeBox }; m.dead = false; back++; }
+        if (m.loc?.c || m.dead) { m.loc = { box: def.homeBox }; if (m.dead) revived.push(def.name); m.dead = false; back++; }
     }
     for (const n of st.nats) {
         const def = data.natives[n.id], g = data.groups[def.group];
         if (n.hired || g.homeRow !== st.prowl) continue;
         if (n.dead || n.loc?.c) {
+            if (n.dead) revived.push(def.name ?? n.id);
             n.dead = false; n.horseDead = false;
             n.loc = g.garrison ? { c: st.garrisonAt[g.garrison] } : { box: g.id };
             back++;
         }
     }
-    say(st, `Regeneration: row ${st.prowl} creatures return to their homes.`, 'day');
+    return { revived, ghosts };                  // the caller tells it, after the dawn
 }
 
 // ---- daylight: one phase at a time ----
@@ -134,7 +139,7 @@ function runPhase(st, data) {
 function finishPhase(st, data, text) {
     const t = st.turn;
     t.results[t.i] = text;
-    say(st, `Phase ${t.i + 1}: ${text}`, 'phase');
+    say(st, `Phase ${t.i + 1}: ${text}`, 'phase', tell.phase(st, text));
     if (st.ch.dead) return died(st, data);
     // End-of-phase blocking by monsters in his clearing.
     const bl = blockers(st);
@@ -176,7 +181,7 @@ function afterTurnEnd(st, data) {
 }
 
 function sunset(st, data) {
-    say(st, 'The sun sets.', 'day');
+    say(st, 'The sun sets.', 'day', tell.sunset(st, st.ch.onRoad ? 'the road' : nameOfClearing(st.ch.at)));
     evening(st, data);
 }
 
@@ -193,7 +198,7 @@ function evening(st, data) {
     // Day spells that control monsters end at Sunset, just before combat begins (rule 8.1.1).
     for (const m of st.mons) if (m.hired && m.controlledUntil && st.day >= m.controlledUntil) { m.hired = false; m.controlledUntil = null; say(st, `Your control of the ${data.monsters[m.id].name} ends with the Sunset.`, 'combat'); }
     if (st.ch.onRoad) { midnight(st, data); return; }
-    if (!hostilesHere(st, data)) { say(st, 'A quiet evening.', 'day'); return midnight(st, data); }
+    if (!hostilesHere(st, data)) { say(st, 'A quiet evening.', 'day', tell.quiet(st)); return midnight(st, data); }
     combat.startCombat(st, data, st.ch.at);
     afterCombatStep(st, data);
 }
@@ -490,6 +495,8 @@ export function apply(st0, data, action) {
     const st = clone(st0);
     const p = st.pending;
     if (!p) throw new Error('nothing to do');
+    // Where this step's story starts in the log: the narration of "what just happened" is everything written from here on. (Tidying gear is not a step.)
+    if (action.type !== 'tidy') st.stepAt = st.log.length;
     switch (action.type) {
         case 'plan': {
             if (p.type !== 'plan') throw new Error('not planning');

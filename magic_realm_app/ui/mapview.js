@@ -75,6 +75,12 @@ export function mountMap(host) {
             // The original tile picture, turned with the tile. The roads, caves and numbers are all in it; we draw only what changes.
             if (picture) tg.append(sv('image', { href: picture, x: -S, y: -S * 0.866025, width: 2 * S, height: 1.732051 * S, transform: `rotate(${p.rot * 60})`, 'pointer-events': 'none' }));
             const paths = sv('g', { class: 'paths' });
+            // A hidden path or secret passage that bends in the picture: a curve through the measured middle of the printed passage (a quadratic bend), else the straight line.
+            const bendOf = (path, A, B) => {
+                const m = model.pathMarks?.[tile.id]?.[side]?.[`${path.a}-${path.b}`]?.mid; if (!m) return null;
+                const M = rot([m[0], m[1]], a).map(v => v * S), C = [2 * M[0] - (A[0] + B[0]) / 2, 2 * M[1] - (A[1] + B[1]) / 2];
+                return { mid: M, d: `M${A[0].toFixed(1)} ${A[1].toFixed(1)} Q${C[0].toFixed(1)} ${C[1].toFixed(1)} ${B[0].toFixed(1)} ${B[1].toFixed(1)}` };
+            };
             for (const path of def.paths) {
                 // Hidden paths and secret passages are printed on the tile: they are always drawn, but faint and marked '?' until discovered.
                 const known = path.kind === 'open' || path.kind === 'tunnel' || model.showHidden || model.discovered?.has(pk(p.id + path.a, p.id + path.b));
@@ -82,9 +88,11 @@ export function mountMap(host) {
                 if (picture) {
                     // the picture already shows every road; mark the hidden ones we have not found, and trace the ones we have
                     if (path.kind === 'open' || path.kind === 'tunnel') continue;
-                    if (known) paths.append(sv('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], stroke: s.stroke, 'stroke-width': 2, 'stroke-dasharray': '1.5 4', 'stroke-linecap': 'round', opacity: 0.9, class: 'found-path' }));
+                    const bend = bendOf(path, A, B);
+                    if (known) paths.append(bend ? sv('path', { d: bend.d, fill: 'none', stroke: s.stroke, 'stroke-width': 2, 'stroke-dasharray': '1.5 4', 'stroke-linecap': 'round', opacity: 0.9, class: 'found-path' })
+                        : sv('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], stroke: s.stroke, 'stroke-width': 2, 'stroke-dasharray': '1.5 4', 'stroke-linecap': 'round', opacity: 0.9, class: 'found-path' }));
                     else {
-                        const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2;
+                        const mx = bend ? bend.mid[0] : (A[0] + B[0]) / 2, my = bend ? bend.mid[1] : (A[1] + B[1]) / 2;
                         paths.append(sv('g', { class: 'undisc-mark', transform: `translate(${mx.toFixed(1)} ${my.toFixed(1)})` },
                             sv('circle', { r: 6.5, stroke: s.stroke }), sv('text', { 'text-anchor': 'middle', dy: '.35em' }, '?')));
                     }

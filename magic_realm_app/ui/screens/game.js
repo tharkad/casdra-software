@@ -19,6 +19,7 @@ import { ask } from '../ask.js';
 import { itemFace } from '../counter.js';
 import { cardEl } from '../card.js';
 import { earned, targets, scoreGame, progress, FACTORS, CATS } from '../../engine/score.js';
+import { stepLines, headline } from '../../engine/story.js';
 import { COLORS, COLOR_MEANING, dayColors, isMagicDay, colorSources, castable, castOptions, ATTACK_SPELLS } from '../../engine/spells.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
 
@@ -40,6 +41,7 @@ const ICON = {
     coin: ['M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z', 'M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6z'],
     fame: ['M12 3.2l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.5l6.1-.7z'],
     notor: ['M12 3c.8 3.4 5 5.4 5 10a5 5 0 0 1-10 0c0-2 1-3.2 2.2-4.2 0 2 .9 3 1.9 3 .2-3-1.1-5 .9-8.8z'],
+    story: ['M7 3.5h10a2 2 0 0 1 2 2V18a2.5 2.5 0 0 1-2.5 2.5H8A3.5 3.5 0 0 1 4.5 17V6A2.5 2.5 0 0 1 7 3.5z', 'M8.5 8h7', 'M8.5 11.5h7', 'M8.5 15h4'],
     skull: ['M12 3.5a7 7 0 0 0-7 7c0 2.4 1.2 4.2 3 5.3v3.2h8v-3.2c1.8-1.1 3-2.9 3-5.3a7 7 0 0 0-7-7z', 'M9 11.2h.01', 'M15 11.2h.01', 'M10.5 19v-2.2', 'M13.5 19v-2.2'],
 };
 function icon(name, size = 18) {
@@ -98,10 +100,15 @@ export function gameScreen(ctx) {
     const mapTools = h('div', { class: 'maptools' },
         h('button', { 'aria-label': 'Centre on me', onclick: () => map?.focus(st.ch.onRoad ? st.ch.onRoad.from : st.ch.at) }, '\u25CE'),
         h('button', { 'aria-label': 'Show the whole realm', onclick: () => map?.fit() }, '\u2922'));
-    mapBox.append(mapTools);
+    // The story over the map: what just happened, told in a sentence or two, with a scroll in the upper right that opens it step by step.
+    const narrCap = h('div', { class: 'narr', role: 'status', 'aria-live': 'polite', 'data-act': 'narr-hide', hidden: true });
+    const narrBtn = h('button', { class: 'narrbtn', 'aria-label': 'The story so far, step by step', 'data-act': 'story', onclick: () => { ui.sheet = 'story'; render(); } });
+    mapTools.prepend(narrBtn);
+    mapBox.append(mapTools, narrCap);
     root.append(strip, mapBox, tray, dock, layer);
     let lastHero = null, st = null, data = null, map = null, ui = { sheet: null, sel: null, draft: null, toast: null };
     try { if (localStorage.getItem('mr-dock-open') === '0') ui.dockOpen = false; } catch { /* ignore */ }
+    try { if (localStorage.getItem('mr-narr') === '0') ui.narrOff = true; } catch { /* ignore */ }
 
     // The game record (engine/gamerecord.js): every action taken and what the game said, kept on the device so a game can be listed, read and replayed.
     let rec = null, persistTimer = null;
@@ -183,7 +190,7 @@ export function gameScreen(ctx) {
         }
         return {
             tiles: data.tiles, art: data.art, placements: st.placements, side: 'normal', showHidden: false, discovered: new Set(st.ch.discovered.paths),
-            chitsByTile, tokens, hero: st.ch.onRoad ? null : st.ch.at, heroHidden: st.ch.hidden, selected: ui.sel, plan: planPath, targets: ui.moveTargets, goingTo: (st.pending?.type === 'phase' && st.plan?.[st.pending.i]?.act === 'move') ? st.plan[st.pending.i].to : null,
+            chitsByTile, tokens, hero: st.ch.onRoad ? null : st.ch.at, heroHidden: st.ch.hidden, selected: ui.sel, pathMarks: data.pathmarks, plan: planPath, targets: ui.moveTargets, goingTo: (st.pending?.type === 'phase' && st.plan?.[st.pending.i]?.act === 'move') ? st.plan[st.pending.i].to : null,
             onTap: id => {
                 if (ui.sheet === 'plan' && st.pending?.type === 'plan' && ui.draft) {
                     // planning: a tap on a clearing next to where this phase starts sets the move; any other tap just looks at that clearing
@@ -210,6 +217,19 @@ export function gameScreen(ctx) {
         return out;
     }
 
+    const setNarr = on => { ui.narrOff = !on; try { localStorage.setItem('mr-narr', on ? '1' : '0'); } catch { /* ignore */ } };
+    narrCap.addEventListener('click', () => { setNarr(false); render(); });
+    function renderNarr() {
+        const text = st.period === 'over' && st.over ? headline(st) : headline(st);
+        const key = `${st.day}.${st.stepAt ?? 0}.${st.log.length}`;
+        const show = !ui.narrOff && !!text && ui.sheet !== 'story';
+        narrCap.hidden = !show;
+        if (show) { if (narrCap.textContent !== text) { narrCap.textContent = text; narrCap.classList.remove('fresh'); void narrCap.offsetWidth; narrCap.classList.add('fresh'); } ui.narrSeen = key; }
+        const unread = !!ui.narrOff && ui.narrSeen !== key && !!text;
+        narrBtn.replaceChildren(...[icon('story', 22), unread ? h('i', { class: 'dot', 'aria-hidden': 'true' }) : null].filter(Boolean));
+        narrBtn.classList.toggle('lit', !ui.narrOff);
+    }
+
     // ---- rendering ----
     function render() {
         const cursed = (st.ch.curses ?? []).length > 0, magicToday = dayColors(st.day);
@@ -234,6 +254,7 @@ export function gameScreen(ctx) {
                 stat('gold', 'Gold', st.ch.gold, 'coin'), stat('fame', 'Fame', st.ch.fame, 'fame'), stat('notor', 'Notoriety', st.ch.notoriety, 'notor')),
             h('button', { class: `vpchip${tot < 0 ? ' neg' : ''}`, 'data-act': 'vp', 'aria-label': `Victory points: ${tot}. Tap for your goals`, onclick: () => { ui.sheet = ui.sheet === 'score' ? null : 'score'; render(); } },
                 h('small', {}, 'VP'), h('b', {}, tot > 0 ? `+${tot}` : String(tot))));
+        renderNarr();
         map.set(mapModel());
         const hero = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at;
         if (hero !== lastHero) { const first = lastHero === null; lastHero = hero; map.focus(hero, undefined, !first); }
@@ -310,7 +331,8 @@ export function gameScreen(ctx) {
         const gainNames = fresh.map(it => nameOf(data, it)).concat((st.finds ?? []).filter(f => f.n > ui.findSeen).map(f => f.name).filter(Boolean));
         const recent = recent0.filter(l => !gainNames.some(n => (l.s ?? l.t).includes(n)));
         const prowl = st.period === 'daylight' && st.prowl ? h('button', { class: 'prowl', 'data-act': 'prowl', onclick: () => { ui.sheet = 'dice'; render(); } },
-            h('b', {}, `Monster roll ${st.prowl}`), h('span', {}, prowlers().join(', ') || 'no one stirs')) : null;
+            h('b', {}, `Monster roll ${st.prowl}`), h('span', {}, prowlers().join(', ') || 'no one stirs'),
+            st.day % 7 === 0 ? h('small', { class: 'weekend' }, `Week\u2019s end: row ${st.prowl} was called back to where it began, the slain among them.`) : null) : null;
         // What the drawer shows: `body` is everything that explains (it slides away), `actions` is what you press (it stays).
         let body = null, actions = null;
         if (!p) body = h('div', { class: 'note' }, 'Working...');
@@ -490,6 +512,7 @@ export function gameScreen(ctx) {
         else if (ui.sheet === 'item') out.push(itemSheet());
         else if (ui.sheet === 'cardinfo') out.push(cardInfoSheet());
         else if (ui.sheet === 'curses') out.push(cursesSheet());
+        else if (ui.sheet === 'story') out.push(storySheet());
         else if (ui.sheet === 'spell') out.push(spellSheet());
         else if (ui.sheet === 'score') out.push(scoreSheet());
         else if (ui.sheet === 'key') out.push(modal('Map key', h('div', { class: 'key' },
@@ -1036,6 +1059,24 @@ export function gameScreen(ctx) {
     }
 
     // One belonging: both of its faces drawn as counters, the facts, and the switch.
+    // The step by step: what the last step did in the words it was told in, with the exact lines beneath, then the day so far.
+    function storySheet() {
+        const back = { close: () => { ui.sheet = null; ui.narrSeen = `${st.day}.${st.stepAt ?? 0}.${st.log.length}`; render(); } };
+        const step = stepLines(st), from = st.stepAt ?? Math.max(0, st.log.length - 3);
+        const today = st.log.slice(0, from).filter(l => l.day === st.day && l.k !== 'roll');
+        const line = l => h('div', { class: `storyline ${l.k}` },
+            h('p', { class: 'sp' }, l.s ?? l.t), l.s && l.s !== l.t ? h('p', { class: 'sx' }, l.t) : null);
+        const rolls = (st.rolls ?? []).filter(r => r.n > (st.rollSeq ?? 0) - 8 && r.day === st.day).slice(-6);
+        return modal('The story so far', h('div', { class: 'storysheet' },
+            h('label', { class: 'switchrow' }, h('span', {}, 'Tell it over the map'),
+                h('button', { class: `switch${ui.narrOff ? '' : ' on'}`, role: 'switch', 'aria-checked': ui.narrOff ? 'false' : 'true', 'data-act': 'narr-toggle', onclick: () => { setNarr(!!ui.narrOff); render(); } }, ui.narrOff ? 'Off' : 'On')),
+            h('h3', {}, 'This step'),
+            ...(step.length ? step.map(line) : [h('p', { class: 'hint' }, 'Nothing has happened yet.')]),
+            rolls.length ? h('details', { class: 'storydice' }, h('summary', {}, 'The dice behind it'), ...rolls.map(r => rollRow(r, { compact: true }))) : null,
+            today.length ? h('details', { class: 'storyday' }, h('summary', {}, `Earlier on day ${st.day}`), ...today.map(line)) : null,
+            h('button', { class: 'btn', 'data-act': 'story-journal', onclick: () => { ui.sheet = 'log'; render(); } }, 'Open the whole journal')), back);
+    }
+
     // The curses on him, what each takes away and what lifts it.
     function cursesSheet() {
         const back = { close: () => { ui.sheet = null; render(); } };
