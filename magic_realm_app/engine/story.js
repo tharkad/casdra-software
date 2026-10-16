@@ -92,7 +92,7 @@ Object.assign(tell, {
         if (/^You are already hidden/.test(t)) return v(st, ['You stay out of sight.', 'You keep still and unseen.']);
         if (/^You hide/.test(t)) return v(st, ['You melt out of sight.', 'You find cover and stay quiet.', 'You vanish into the surroundings.'], 2);
         if (/^You have nothing to rest/.test(t)) return 'You are well, and there is nothing to rest.';
-        if (/^You rest/.test(t)) return t.replace(/^You rest \(?/, 'You rest').replace(/\)$/, '') + '.';
+        if (/^You rest/.test(t)) return t.replace(/^You rest \(?/, 'You rest: ').replace(/\)$/, '') + '.';
         if ((m = /^Loot \([\d+]+\) at (.+?): you take the (.+)$/.exec(t))) return `You reach into the ${m[1]} and draw out the ${m[2]}.`;
         if ((m = /^Loot \([\d+]+\) at (.+?): nothing at that depth$/.exec(t))) return `Your hand closes on nothing in the ${m[1]}.`;
         if ((m = /^Loot \([\d+]+\) at (.+?): (.+?)! Cursed with (\w+)\.?(.*)$/.exec(t))) return `The ${m[1]} gives up the ${m[2]}, and a curse comes with it: ${m[3]}.${m[4] ? ' ' + m[4].trim().replace(/^You find (\d+) gold\./, 'Gold glints within: $1.').replace('You keep: ', 'You keep ') : ''}`;

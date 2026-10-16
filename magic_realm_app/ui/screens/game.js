@@ -1190,7 +1190,7 @@ export function gameScreen(ctx) {
             ask(over ? `Final score: ${sign(res.total ?? -100)}${res.dead ? ' (dead characters score -100)' : (res.total >= 0 ? ': a win' : ': not enough')}`
                 : res.dead ? 'You are dead: a dead character scores -100.' : `Score ${sign(res.total ?? 0)}. You have reached ${pr.met} of your ${pr.count} goals.`,
                 over ? 'The game is over; this is how each goal finished.'
-                    : 'Reach every goal by the end of the month to win. Going past a goal earns bonus points; ending short of one costs points, counted three times over.'),
+                    : 'You win if your total is zero or more when the game ends. Going past a goal earns bonus points; ending short of one costs points, counted three times over.'),
             ...pr.goals.map(goalCard),
             idle.length ? h('details', { class: 'sr-idle' }, h('summary', {}, 'Goals you put no points on'),
                 ...idle.map(c => h('p', { class: 'hint' }, `${NAME[c]}: need 0, earned ${e[c]}. ${r0(c)}`))) : null,
@@ -1704,6 +1704,9 @@ export function gameScreen(ctx) {
             }
             let fresh = null;
             if (ctx.params?.fresh || !loadSaved()) {
+                // a game that was in progress and is being replaced is closed in the History as abandoned, not left "in progress" for ever
+                const prev = loadSaved();
+                if (prev?.session?.id && prev.period !== 'over') getRecord(prev.session.id).then(r => { if (r && !r.meta?.result) { finalize(r, prev); r.meta.result = 'abandoned'; putRecord(r); } }).catch(() => {});
                 fresh = { seed: ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: ctx.params?.character ?? 'white-knight', vp: ctx.params?.vp, mode: ctx.params?.mode, lastDay: ctx.params?.lastDay,
                     startDwelling: ctx.params?.startDwelling, startGear: ctx.params?.startGear, options: ctx.params?.options, pauseVictory: true, startSpells: ctx.params?.startSpells };
                 st = newGame(data, fresh);
