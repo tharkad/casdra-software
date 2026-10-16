@@ -47,11 +47,24 @@ import violentStorm from './handlers/violent-storm.js';
 import whistleForMonsters from './handlers/whistle-for-monsters.js';
 import unleashPower from './handlers/unleash-power.js';
 import hurricaneWinds from './handlers/hurricane-winds.js';
+import absorbEssence from './handlers/absorb-essence.js';
 
 export const HANDLERS = {};
 for (const h of [makeWhole, controlBats, stonesFly, fieryBlast, lightningBolt, elementalSpirit, guideSpider, dealWithGoblins, dissolveSpell, transform, askDemon,
     blendIntoBackground, seeHiddenSigns, peaceWithNature, premonition, fog, witchsBrew, faerieLights, senseDanger, badLuck, illusion, lost, talkToWiseBird, protectionFromMagic,
-    curse, powerOfThePit, remedy, exorcise, pentangle, smallBlessing, peace, elvenGrace, poison, persuade, roofCollapses, blazingLight, violentStorm, whistleForMonsters, unleashPower, hurricaneWinds]) HANDLERS[h.id] = h;
+    curse, powerOfThePit, remedy, exorcise, pentangle, smallBlessing, peace, elvenGrace, poison, persuade, roofCollapses, blazingLight, violentStorm, whistleForMonsters, unleashPower, hurricaneWinds, absorbEssence]) HANDLERS[h.id] = h;
+
+// Extra turns, Magic Sight and artifacts (docs/design/magic/02-day-spells.md, "Implementation notes: turns, sight and artifacts"): a block of its own.
+import worldFades from './handlers/world-fades.js';
+import enchantArtifact from './handlers/enchant-artifact.js';
+import phantasm from './handlers/phantasm.js';
+import prophecy from './handlers/prophecy.js';
+for (const h of [worldFades, enchantArtifact, phantasm, prophecy]) HANDLERS[h.id] = h;
 
 export const handlerOf = id => HANDLERS[id] ?? null;
 export const spellDef = (data, id) => data.spells?.[id] ?? Object.values(data.spells ?? {}).find(x => x.id === id) ?? null;
+
+// Flying and mist (docs/design/magic/02-day-spells.md sections 8 and 15), registered apart from the list above.
+import broomstick from './handlers/broomstick.js';
+import meltIntoMist from './handlers/melt-into-mist.js';
+for (const h of [broomstick, meltIntoMist]) HANDLERS[h.id] = h;

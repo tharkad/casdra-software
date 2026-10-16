@@ -17,6 +17,7 @@ export function extraActs(st, data, { startsInCave = false, intoCave = false } =
     for (const id of treasureIds(st)) if (EXTRA[id]) out.push(EXTRA[id]);
     if ((st.ch.adv ?? []).includes('health')) out.push('rest');             // the White Knight's extra Rest phase
     if ((st.ch.adv ?? []).includes('aura-of-power')) out.push('enchant');   // the Sorcerer's extra spell (Enchant) phase
+    if ((st.ch.adv ?? []).includes('magical-paraphernalia')) out.push('alert');   // the Magician's extra Alert phase (6.2.2, 7.9.3: weapon or one Magic chit)
     for (const t of fxTags(st, HERO, 'extraPhase')) out.push(t.value);       // Day and energized Permanent spells: Blend Into Background (hide), See Hidden Signs (search), Sense Danger (alert)
     return out;
 }
@@ -81,7 +82,7 @@ export function convertCard(data, it) {
 // Never the Monster Roll (4.1.3). A spell on the hero or on the tile he stands in counts while it is in force.
 const SEARCH_TABLES = new Set(['peer', 'locate', 'loot', 'ground', 'sitecard', 'runes', 'magicsight']);
 export function tableMod(st, data, kind) {
-    if (st.ch.dead) return 0;
+    if (st.ch.dead || st.ch.mist) return 0;                      // mist is not affected by spells aimed at others (Melt into Mist)
     const who = [HERO]; if (st.ch.at) who.push({ kind: 'tile', id: st.ch.at.slice(0, 2) });
     let m = 0;
     for (const r of who) for (const { value } of fxTags(st, r, 'tableMod')) if (value.kinds === 'all' || (value.kinds === 'search' && SEARCH_TABLES.has(kind))) m += value.delta;

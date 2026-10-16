@@ -35,7 +35,7 @@ const quietChit = c => c.kind === 'warning' || c.kind === 'sound';
 export function endOfTurn(st, data) {
     const here = st.ch.at, tile = tileOf(here);
     const out = { at: here, tile, prowl: st.prowl, arrivals: [], flipped: [], chits: [], natives: [] };
-    if (st.ch.onRoad) return out;                       // on a road he is in no clearing and nothing reacts
+    if (st.ch.onRoad || st.ch.flying) return out;       // on a road, or in the air, he is in no clearing and nothing reacts
     // 1. prowling monsters already in this tile move to him
     for (const m of st.mons) {
         if (m.dead || m.hired || !m.loc?.c || tileOf(m.loc.c) !== tile || m.loc.c === here) continue;
@@ -134,7 +134,7 @@ function chitText(c, tile) {
 
 // Monsters that block him at the end of a phase: any unhired monster in his clearing, if he is not hidden.
 export function blockers(st) {
-    if (st.ch.hidden || st.ch.onRoad) return [];
+    if (st.ch.hidden || st.ch.onRoad || st.ch.flying || st.ch.mist) return [];        // nothing blocks a flier in the air (7.12.2d) or mist (Melt into Mist)
     return st.mons.filter(m => !m.dead && !m.hired && !m.pacify?.length && m.loc?.c === st.ch.at);        // a pacified monster (Deal with Goblins) does not block him
 }
 

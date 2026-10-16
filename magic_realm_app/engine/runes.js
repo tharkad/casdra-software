@@ -44,6 +44,9 @@ export function runesTargets(st, data) {
         const name = nameOf(data, it);
         const box = st.spellBox?.items?.[name];
         if (box?.length) out.push({ key: `item:${it.uid}`, label: `Your ${name}`, kind: 'item', box, item: it });
+        // Enchant Artifact (4.6.7 via digest 04 section 7.3): while that spell is energized the holder can read the runes of each spell it recorded on the item. The added card
+        // is awake from the start (7.5.6b lets him target any awakened card), so each is its own target; they exist only while the spell is live.
+        for (const e of it.extra ?? []) out.push({ key: `extra:${it.uid}:${e.spell}`, label: `Your ${name} (the ${spellOf(data, e.spell)?.name ?? e.spell} added to it)`, kind: 'item', extra: true, box: [{ id: e.spell, awake: true, extra: true }], item: it });
     }
     return out;
 }
@@ -78,8 +81,10 @@ export function readRunes(st, data, targetKey) {
 }
 
 // He decides whether to write the spell down.
-export function learnSpell(st, data, learn, p, erase = null) {
-    const sp = spellOf(data, p.spell);
+// `pick` is the card chosen among p.choices (Magic Sight's Perceive spell shows several); the default is p.spell.
+export function learnSpell(st, data, learn, p, erase = null, pick = null) {
+    if (pick && !p.choices?.some(c => c.spell === pick && c.learnable)) throw new Error('you cannot learn that spell');
+    const sp = spellOf(data, pick ?? p.spell);
     if (learn) {
         if ((st.ch.spells ?? []).length >= MAX_SPELLS) {
             if (!erase || !st.ch.spells.includes(erase)) throw new Error(`you may know at most ${MAX_SPELLS} spells: say which one to erase`);

@@ -5,7 +5,7 @@ import { isStory, voiceChip } from '../voice.js';
 import { ask } from '../ask.js';
 import { h } from '../dom.js';
 import { encounterOptions, meleeOptions, denSide, weaponOf, activeArmor, weaponSide } from '../../engine/combat.js';
-import { roadsFrom, nameOfClearing } from '../../engine/world.js';
+import { roadsFrom, nameOfClearing, tileName } from '../../engine/world.js';
 import { chitLabel } from '../../engine/day.js';
 import { nameOf, weightOf, defOf } from '../../engine/items.js';
 import { lvl } from '../../engine/core.js';
@@ -219,6 +219,12 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             body.push(h('h3', {}, o.weapon.item.alerted ? 'Put your weapon away (unalert)' : 'Ready your weapon (alert)'));
             body.push(h('div', { class: 'chitrow' }, ...o.alertChits.map(ch => chitBtn(ch, false, () => send({ kind: 'encounter', act: 'alert', chit: ch.id })))));
         }
+        if (!p.spellOnly && o.canFly) {
+            body.push(h('h3', {}, 'Fly away'));
+            body.push(h('p', { class: 'hint' }, 'You leave the fight on a Fly chit, strictly faster than every creature facing you, and are carried to a neighbouring tile; you land there at the next Birdsong.'));
+            for (const to of o.flyTiles) body.push(h('div', { class: 'runrow' }, h('span', {}, `to ${tileName(to)}`),
+                h('div', { class: 'chitrow' }, ...o.flyChits.map(ch => chitBtn(ch, false, () => send({ kind: 'encounter', act: 'fly', chit: ch.id, to }))))));
+        }
         if (!p.spellOnly && o.canRun) {
             const roads = o.runTo.map(to => ({ to }));
             body.push(h('h3', {}, 'Run for it'));
@@ -267,6 +273,15 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
                     return h('div', { class: 'aimq' }, h('p', { class: 'hint' }, q.label),
                         h('div', { class: 'seg3 wrap' }, ...(q.options ?? []).map(op => h('button', { class: `segb${JSON.stringify(cur) === JSON.stringify(op.value) ? ' on' : ''}`, 'data-param': `${q.key}:${typeof op.value === 'object' ? JSON.stringify(op.value) : op.value}`, onclick: () => { m.aimParams[a.spell][q.key] = op.value; render(); } }, op.label)))); })));
         }
+        // a creature he has become (Absorb Essence, Transform): its counter plays for him
+        if (o.morph) body.push(h('div', { class: 'ask morphnote', role: 'note' }, h('b', {}, `You are ${/^[aeiou]/i.test(o.morph.name) ? 'an' : 'a'} ${o.morph.name}`), h('p', {}, `Your chits are the creature's counter: its attack, its speed and its moves. A blow that reaches its vulnerability (${WORD[o.morph.vuln] ?? o.morph.vuln}) kills it${o.morph.pin ? `; it is red side up against ${o.morph.pin}` : ''}.`)));
+        if (o.morphParts?.length) {
+            m.parts ??= {};
+            body.push(h('div', { class: 'cb-sec', 'data-morph-parts': '1' }, h('b', {}, 'Its other attacks'),
+                ...o.morphParts.map(pt => h('div', { class: 'placerow' }, h('span', {}, pt.name),
+                    h('div', { class: 'seg3' }, h('button', { class: `segb${!m.parts[pt.id] ? ' on' : ''}`, onclick: () => { delete m.parts[pt.id]; render(); } }, 'not now'),
+                        ...pt.sides.map(sd => h('button', { class: `segb${m.parts[pt.id] === sd.side ? ' on' : ''}`, onclick: () => { m.parts[pt.id] = sd.side; render(); } }, sd.side)))))));
+        }
         // a spell cast this round takes the place of the weapon: no Fight chit may be played with it (8.4.5a)
         const castNote = c.casts?.length && !o.attackSpell && !o.fightChits.length ? h('p', { class: 'hint' }, 'You cast a spell this round, so you cannot also swing a weapon (rule 8.4.5a).') : null;
         if (castNote) body.push(castNote);
@@ -303,7 +318,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             h('button', { class: 'btn primary big', 'data-act': 'commit', disabled: ast > 2 || (m.fightChit && !m.target) || null, onclick: () => {
                 const boxes = {}; o.boxable.forEach((d, i) => { boxes[d.uid] = m.boxes[d.uid] ?? (i % 3); });
                 const spellAim = {}; for (const a of o.aims ?? []) spellAim[a.spell] = { targets: m.aim?.[a.spell] ?? a.options.slice(0, a.min).map(x => x.ref), params: m.aimParams?.[a.spell] ?? {} };
-                send({ kind: 'melee', target: m.target, fightChit: m.fightChit, attackDir: m.attackDir, moveChit: m.moveChit, moveDir: m.moveDir, shieldDir: o.shield ? m.shieldDir : null, boxes, spellAim });
+                send({ kind: 'melee', parts: m.parts && Object.keys(m.parts).length ? { ...m.parts } : undefined, target: m.target, fightChit: m.fightChit, attackDir: m.attackDir, moveChit: m.moveChit, moveDir: m.moveDir, shieldDir: o.shield ? m.shieldDir : null, boxes, spellAim });
             } }, 'Commit and roll')));
     } else if (p.type === 'combat-wounds') {
         ui.pickChits ??= [];

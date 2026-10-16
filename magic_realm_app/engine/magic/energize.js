@@ -1,8 +1,8 @@
 import { say } from '../core.js';
-import { tileClearings } from '../world.js';
+import { tileClearings, tileOf } from '../world.js';
 import { colorSources, colorChits, TYPE_COLOR } from './colour.js';
 import { spellDef } from './registry.js';
-import { idleFx, wakeFx } from './fx.js';
+import { idleFx, wakeFx, sameRef, heldDown } from './fx.js';
 
 // Energizing Permanent spells (rules 4.6.7h; docs/design/magic/00-framework.md section 3.1). A Permanent spell lives forever but acts only while it is
 // energized. fx.state is 'live' (energized) or 'inert'; fx.energized is null or { by: 'cast'|'auto'|'chit', day }.
@@ -17,7 +17,7 @@ import { idleFx, wakeFx } from './fx.js';
 export function fxPlaces(st, data, fx) {
     const t = fx.targets?.[0];
     if (!t) return [st.ch.at ?? null];
-    if (t.kind === 'char') return [st.ch.onRoad ? null : st.ch.at];
+    if (t.kind === 'char') return st.ch.flying ? tileClearings(st, data, st.ch.flying.tile) : [st.ch.onRoad ? null : st.ch.at];       // in the air only the tile's own colours count (4.6.2)
     if (t.kind === 'clearing') return [t.id];
     if (t.kind === 'tile') return tileClearings(st, data, t.id);
     if (t.kind === 'mon' || t.kind === 'nat') {
@@ -33,14 +33,18 @@ export function fxSupply(st, data, fx, { calendar = true } = {}) {
     for (const place of fxPlaces(st, data, fx)) for (const s of colorSources(st, data, place)) if (calendar || !s.calendar) out.add(s.color);
     return out;
 }
+// A stronger Permanent spell that is energized on the same target keeps a weaker one asleep (4.6.10f: Melt into Mist 3 beats Transform 2 beats Absorb Essence 1); the
+// weaker one stays inert and its colour chit is not spent (RealmSpeak RealmUtility.java:648-665).
+export const outranked = (st, fx) => (st.fx ?? []).some(o => o !== fx && o.dur === 'permanent' && o.state === 'live' && (o.strength ?? 0) > (fx.strength ?? 0) && o.targets.some(t => fx.targets.some(u => sameRef(t, u))));
 const fits = (def, supply) => (def?.color ? supply.has(def.color) : supply.size > 0);          // a spell of "any" colour wants some colour
 
 // Wake every inert Permanent spell whose colour fills its place now. Returns how many woke.
 export function energizePass(st, data, why = 'pass') {
     let n = 0;
-    for (const fx of (st.fx ?? []).slice()) {
-        if (fx.dur !== 'permanent' || fx.state !== 'inert') continue;
-        if (fits(spellDef(data, fx.spell), fxSupply(st, data, fx))) { wakeFx(st, data, fx.id, 'auto'); n++; say(st, `${spellDef(data, fx.spell)?.name ?? fx.spell} is energized again.`, 'info'); }
+    // the stronger transmorph spell first (of equal ones the latest cast), so that a weaker one on the same target finds it already in place (fx.js claim)
+    for (const fx of (st.fx ?? []).slice().sort((a, b) => b.strength - a.strength || Number(b.id.slice(1)) - Number(a.id.slice(1)))) {
+        if (fx.dur !== 'permanent' || fx.state !== 'inert' || outranked(st, fx)) continue;
+        if (fits(spellDef(data, fx.spell), fxSupply(st, data, fx)) && wakeFx(st, data, fx.id, 'auto')) { n++; say(st, `${spellDef(data, fx.spell)?.name ?? fx.spell} is energized again.`, 'info'); }
     }
     return n;
 }
@@ -51,6 +55,11 @@ export function deenergizePass(st, data) {
         if (fx.dur !== 'permanent' || fx.state !== 'live') continue;
         if (!fits(spellDef(data, fx.spell), fxSupply(st, data, fx, { calendar: false }))) { idleFx(st, data, fx.id); n++; say(st, `${spellDef(data, fx.spell)?.name ?? fx.spell} falls inert at Midnight.`, 'info'); }
     }
+    // a spell held off by a shield (Pentangle, Melt into Mist) falls inert too, so that it does not come back energized when the shield ends (RS deenergizePermanentSpells)
+    for (const fx of st.fx ?? []) {
+        if (fx.dur !== 'permanent' || fx.state !== 'nullified' || fx.data?.duplicate) continue;
+        if (!fits(spellDef(data, fx.spell), fxSupply(st, data, fx, { calendar: false }))) { fx.state = 'inert'; fx.energized = null; n++; }
+    }
     return n;
 }
 
@@ -58,7 +67,9 @@ export function deenergizePass(st, data) {
 export function energizeOptions(st, data) {
     const out = [];
     for (const fx of st.fx ?? []) {
-        if (fx.dur !== 'permanent' || fx.state !== 'inert' || !fxPlaces(st, data, fx).includes(st.ch.at ?? '-')) continue;
+        if (fx.dur !== 'permanent' || fx.state !== 'inert' || outranked(st, fx) || heldDown(st, fx)) continue;
+        const places = fxPlaces(st, data, fx);
+        if (st.ch.flying ? !places.some(p => p && tileOf(p) === st.ch.flying.tile) : !places.includes(st.ch.at ?? '-')) continue;           // (a flier is over a tile, not in a clearing)
         const def = spellDef(data, fx.spell);
         const chits = colorChits(st, def?.color ?? null).map(c => c.id);
         if (chits.length) out.push({ fx: fx.id, spell: fx.spell, name: def?.name ?? fx.spell, chits });
@@ -71,7 +82,9 @@ export function energizeWith(st, data, fxId, chitId) {
     if (!o) throw new Error('that spell cannot be energized now');
     const chit = st.ch.chits.find(c => c.id === (chitId ?? o.chits[0]));
     if (!chit || !o.chits.includes(chit.id)) throw new Error('that chit does not hold the right colour');
+    // (a transmorph spell that a stronger one holds down on its target cannot be energized, and the chit is not spent: RS RealmUtility:648-665)
+    const woke = wakeFx(st, data, fxId, 'chit');
+    if (!woke) throw new Error(`${o.name} cannot be energized: a stronger spell holds that target.`);
     chit.state = 'fatigued';
-    wakeFx(st, data, fxId, 'chit');
     say(st, `You use up an enchanted ${TYPE_COLOR[chit.numeral]} chit to energize ${o.name}.`, 'info');
 }

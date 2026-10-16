@@ -38,7 +38,7 @@ export function roadsFrom(st, data, id) {
     return (g.adj.get(id) ?? []).map(r => ({
         to: r.to, kind: r.kind, bridge: r.bridge,
         // the Wizard's Experience: he uses hidden paths and secret passages without having discovered them
-        usable: r.kind === 'open' || r.kind === 'tunnel' || st.ch.discovered.paths.includes(pathKey(id, r.to)) || (st.ch.adv ?? []).includes('experience'),
+        usable: r.kind === 'open' || r.kind === 'tunnel' || st.ch.discovered.paths.includes(pathKey(id, r.to)) || (st.ch.adv ?? []).includes('experience') || !!st.ch.mist,         // (mist, from Melt into Mist, goes by any path without having discovered it)
     }));
 }
 

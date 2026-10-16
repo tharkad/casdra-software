@@ -212,7 +212,7 @@
    "type": "V",
    "color": "Black",
    "duration": "Fly",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "curse",
@@ -260,7 +260,7 @@
    "type": "VI",
    "color": "Purple",
    "duration": "Permanent",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "phantasm",

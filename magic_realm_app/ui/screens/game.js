@@ -25,6 +25,7 @@ import { collect as collectReport, send as sendReport } from '../bugreport.js';
 import { connect, inviteLink } from '../online.js';
 import { energizeOptions } from '../../engine/magic/energize.js';
 import { heldOptions } from '../../engine/magic/phase.js';
+import { flySources, flyTiles } from '../../engine/magic/fly.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
 const SAVE_KEY = 'mr-save-v1';
@@ -82,8 +83,8 @@ function pullDown(handle, target, done) {
 
 // A curse makes a number worthless (Ashes: gold, Disgust: Fame): it is still shown, struck through, so it is plain it cannot be used.
 const voidBy = (st, stat) => (stat === 'gold' && (st.ch.curses ?? []).includes('Ashes') ? 'Ashes' : stat === 'fame' && (st.ch.curses ?? []).includes('Disgust') ? 'Disgust' : null);
-const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert', enchant: 'Enchant', nothing: 'Nothing' };
-const TABLE_LABEL = { peer: 'Peer', locate: 'Locate', loot: 'Loot', ground: 'Ground', sitecard: 'Site card', runes: 'Read runes' };
+const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert', enchant: 'Enchant', fly: 'Fly', nothing: 'Nothing' };
+const TABLE_LABEL = { peer: 'Peer', locate: 'Locate', loot: 'Loot', ground: 'Ground', sitecard: 'Site card', runes: 'Read runes', magicsight: 'Magic Sight', 'magicsight-take': 'Magic Sight: take' };
 
 const WELCOME_KEY = 'mr-welcomed-v1';
 const welcomed = () => { try { return !!localStorage.getItem(WELCOME_KEY); } catch { return true; } };
@@ -351,6 +352,13 @@ export function gameScreen(ctx) {
             actions = h('div', { class: 'row2' },
                 h('button', { class: 'btn primary', 'data-act': 'next', onclick: () => act({ type: 'next' }) }, describeSlot(slot)),
                 h('button', { class: 'btn', 'data-act': 'all', onclick: () => act({ type: 'next', all: true }) }, 'Play the day'));
+        } else if (p.type === 'phase-pick') {
+            // Prophecy: no plan was recorded; each phase is chosen as it comes (the printed rule: he learns his day as he lives it)
+            body = h('div', { class: 'phase' },
+                ask(`Phase ${p.i + 1}: choose what you do (Prophecy).`, 'Under Prophecy you do not record your day in advance: you pick each phase as it comes. Move, Hide, Search, Rest, Alert and the rest work as usual.'),
+                h('div', { class: 'phase-info' }, h('b', {}, `Phase ${p.i + 1}`), h('span', {}, `${p.regularLeft ?? '?'} ordinary phases left${p.extrasLeft ? `, ${p.extrasLeft} extra` : ''}`)));
+            actions = h('div', { class: 'pickrow' }, ...p.acts.map(a => h('button', { class: `btn${a.kind === 'extra' ? '' : ' primary'}`, 'data-pick-act': a.act, onclick: () => { ui.pickAct = ui.pickAct === a.act ? null : a.act; render(); } }, ACT_LABEL[a.act] ?? a.act)),
+                h('button', { class: 'btn', 'data-act': 'next', onclick: () => act({ type: 'next' }) }, 'Follow the suggestion'));
         } else if (p.type === 'over') {
             body = st.ch.dead || st.over?.reason === 'died' ? deathBox() : null;
             actions = h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result');
@@ -383,7 +391,11 @@ export function gameScreen(ctx) {
                 h('span', { class: 'col' }, h('b', {}, `Use ${o.name}`), h('small', {}, 'It lasts through this phase (it also holds off your own helpful spells)')))) : []),
         ] : [];
         const spellActs = freeActs.length ? h('div', { class: 'spellacts' }, ...freeActs) : null;
-        const items = [curseBar, spellBar, spellActs, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, logText(l)))) : null, body].filter(Boolean);
+        // what he has become: a creature (Absorb Essence, Transform), mist, or a flier
+        const formBar = st.ch.morph ? h('div', { class: 'formbar', 'data-act': 'form' }, h('small', { class: 'gl' }, 'YOU ARE A CREATURE'), h('b', {}, st.ch.morph.creature?.name ?? 'a creature'), h('span', {}, 'You cannot cast, trade, hire or enchant until the spell ends.'))
+            : st.ch.mist ? h('div', { class: 'formbar mist', 'data-act': 'form' }, h('small', { class: 'gl' }, 'YOU ARE MIST'), h('span', {}, `You can only Move and Hide; nothing can block you. Your ${st.ch.mist.items?.length ?? 0} things and ${st.ch.mist.gold ?? 0} gold are held in the spell.`))
+            : st.ch.flying ? h('div', { class: 'formbar fly', 'data-act': 'form' }, h('small', { class: 'gl' }, 'YOU ARE FLYING'), h('span', {}, `Over ${tileName(st.ch.flying.tile)}. You land at a clearing on it by a die roll.`)) : null;
+        const items = [curseBar, formBar, spellBar, spellActs, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, logText(l)))) : null, body].filter(Boolean);
         const peek = `${st.ch.onRoad ? 'On the road' : where} \u00B7 ${st.ch.hidden ? 'hidden' : 'visible'}`;
         const grab = h('button', { class: 'grab', 'data-act': 'dock-toggle', 'aria-expanded': open ? 'true' : 'false', 'aria-controls': 'dock-body',
             'aria-label': open ? 'Details panel, open. Press to slide it away' : `Details panel, closed${newCount ? `, ${newCount} new` : ''}. Press to open it` },
@@ -493,6 +505,7 @@ export function gameScreen(ctx) {
             ask('Which runes will you read?', 'A Reading Runes search needs one target: a discovered site here that holds spell cards, or an artifact or book you carry and have active.'),
             ...p.options.map(o => h('button', { class: 'btn', 'data-target': o.key, onclick: () => act({ type: 'runes-target', target: o.key }) }, o.label)))));
         else if (p?.type === 'learn-spell') out.push(learnSheet(p));
+        else if (p?.type === 'phase-pick' && ui.pickAct) out.push(pickSheet(p));
         else if (p?.type === 'enchant-choice') {
             const chitOpts = p.options.filter(x => (x.kind ?? 'chit') === 'chit'), tileOpts = p.options.filter(x => x.kind === 'tile');
             const tile = tileOpts[0]?.tile, here = tile ? st.placements.find(x => x.id === tile) : null;
@@ -889,6 +902,19 @@ export function gameScreen(ctx) {
             { close: () => { ui.sheet = null; render(); } });
     }
 
+    // Prophecy: the details of the phase being chosen (where to, which table, which chit), then it is sent.
+    function pickSheet(p) {
+        const act2 = ui.pickAct, send = slot => { ui.pickAct = null; act({ type: 'pick', slot }); };
+        const rows = [];
+        if (act2 === 'move') rows.push(h('p', { class: 'hint' }, 'Where to?'), ...(p.moves ?? []).map(id => h('button', { class: 'btn', 'data-pick-to': id, onclick: () => send({ act: 'move', to: id }) }, nameOfClearing(id))));
+        else if (act2 === 'search') rows.push(h('p', { class: 'hint' }, 'Which Search?'), ...(p.tables ?? []).map(t => h('button', { class: 'btn', 'data-pick-table': t, onclick: () => send({ act: 'search', table: t }) }, TABLE_LABEL[t] ?? t)));
+        else if (act2 === 'alert') {
+            rows.push(h('p', { class: 'hint' }, 'Ready your weapon, or alert a Magic chit (time 0, tires at Midnight if unused).'), h('button', { class: 'btn', onclick: () => send({ act: 'alert' }) }, 'Weapon'),
+                ...st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active').map(c => h('button', { class: 'btn', 'data-pick-magic': c.id, onclick: () => send({ act: 'alert', magic: c.id }) }, `Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}`)));
+        } else rows.push(h('button', { class: 'btn primary', onclick: () => send({ act: act2 }) }, `Do it: ${ACT_LABEL[act2] ?? act2}`));
+        return modal(`Phase ${p.i + 1}: ${ACT_LABEL[act2] ?? act2}`, h('div', { class: 'restsheet' }, ...rows), { close: () => { ui.pickAct = null; render(); } });
+    }
+
     function copyInvite() {
         const link = inviteLink(race);
         (navigator.clipboard?.writeText(link) ?? Promise.reject()).then(() => { ui.toast = 'Invite copied.'; render(); setTimeout(() => { ui.toast = null; render(); }, 2000); },
@@ -1097,6 +1123,12 @@ export function gameScreen(ctx) {
     }
     // Reading Runes found a card he can learn.
     function learnSheet(p) {
+        // Magic Sight (Perceive a spell): all the cards are shown and he may learn one (he does not awaken it)
+        if (p.sight && p.choices?.length) return modal('Magic Sight: the spells you perceive', h('div', { class: 'itemsheet' },
+            ask(`${p.from ?? 'Magic Sight'}: you see these spell cards.`, 'You may write one of them on your sheet if you hold a Magic chit of its Type. The card stays where it is.'),
+            ...p.choices.map(c => h('button', { class: 'btn', 'data-learn': c.spell, disabled: !c.learnable || null, onclick: () => act({ type: 'learn-spell', learn: true, spell: c.spell }) },
+                h('span', { class: 'col' }, h('b', {}, c.name), h('small', {}, `Type ${c.type}${c.color ? ` \u00B7 ${c.color}` : ''}${c.learnable ? '' : ' \u00B7 you cannot learn it'}`)))),
+            h('button', { class: 'btn', onclick: () => act({ type: 'learn-spell', learn: false }) }, 'Leave them')));
         const sp = data.spells?.[p.spell];
         const erase = ui.erase ?? null;
         return modal('Read the runes', h('div', { class: 'itemsheet' },
@@ -1396,7 +1428,7 @@ export function gameScreen(ctx) {
         const baseOver = over(others);
         const out = [];
         out.push(h('div', { class: 'chips2 six' },
-            ...['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), 'nothing'].map(a => {
+            ...['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(flySources(st, data).length || st.ch.flying ? ['fly'] : []), 'nothing'].map(a => {
                 const cursed = (st.ch.curses ?? []).some(n => CURSE_ACT[n] === a);
                 const dim = cursed || (a !== 'nothing' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver);
                 return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${cursed ? ' cursed' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a], cursed ? h('small', {}, ' \u2620') : null);
@@ -1408,6 +1440,11 @@ export function gameScreen(ctx) {
             out.push(h('p', { class: 'hint' }, 'Ready your weapon, or alert a Magic chit: an alerted chit acts at time 0, so it can cast even against the fastest creature. It tires at Midnight if it is not used.'));
             out.push(h('div', { class: 'chips2' }, chip('Weapon', !s.magic, () => { delete s.magic; render(); }, 'weapon'),
                 ...readyMagic.map(c => chip(`Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}`, s.magic === c.id, () => { s.magic = c.id; render(); }, c.id))));
+        }
+        // Fly: a Fly chit (Broomstick, a Flying Carpet...) takes him over to this tile or a neighbouring one; he lands by a die roll (rule 4.3 flying)
+        if (s?.act === 'fly' || ui.pickFly === i) {
+            out.push(h('p', { class: 'hint' }, 'Fly over which tile? A flight needs a Fly chit; you land at a clearing on that tile by a die roll, and cannot be blocked in the air.'));
+            out.push(h('div', { class: 'chips2' }, ...flyTiles(st, data).map(t => h('button', { class: `chip${s?.to === t ? ' on' : ''}`, 'data-fly-tile': t, onclick: () => { d.slots[i] = { act: 'fly', to: t }; ui.pickFly = null; ui.planNote = null; advance(i + 1); render(); } }, tileName(t)))));
         }
         const blockedNow = (st.ch.curses ?? []).filter(n => CURSE_ACT[n]);
         if (blockedNow.length) out.push(h('p', { class: 'hint bad' }, `\u2620 ${blockedNow.map(n => `${n}: ${ACT_LABEL[CURSE_ACT[n]]} is not possible.`).join(' ')}`));
@@ -1507,7 +1544,8 @@ export function gameScreen(ctx) {
         const d = ui.draft;
         if (roadLocked(i)) return;
         ui.pickMove = null; ui.pickSearch = null;
-        if (a === 'move') { ui.pickMove = i; render(); return; }
+        if (a === 'move') { ui.pickMove = i; ui.pickFly = null; render(); return; }
+        if (a === 'fly') { ui.pickFly = i; ui.pickMove = null; d.slots[i] = { act: 'fly' }; render(); return; }
         d.slots[i] = { act: a };
         ui.planNote = null;
         pruneOver();

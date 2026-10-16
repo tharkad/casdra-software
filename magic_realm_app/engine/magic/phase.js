@@ -6,7 +6,7 @@ import { activateFx } from './fx.js';
 // step of a combat round in place of a chit action (it ends with that round, see combat.js nextRound). A held spell is not cleared at Midnight.
 
 // The Phase spells he is holding, ready to use: [{ fx, spell, name }].
-export const heldOptions = (st, data) => (st.fx ?? []).filter(f => f.dur === 'phase' && f.state === 'held')
+export const heldOptions = (st, data) => st.ch.mist ? [] : (st.fx ?? []).filter(f => f.dur === 'phase' && f.state === 'held')
     .map(f => ({ fx: f.id, spell: f.spell, name: spellDef(data, f.spell)?.name ?? f.spell }));
 
 // Use one: `when` is 'phase' (a Daylight phase) or 'round' (a combat round). With no id given, the first held spell.

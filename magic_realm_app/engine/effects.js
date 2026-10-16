@@ -1,4 +1,4 @@
-import { roll2, say, noteRoll } from './core.js';
+import { roll2, say, noteRoll, lvl } from './core.js';
 import { modRoll } from './modifiers.js';
 import { shielded, HERO } from './magic/fx.js';
 
@@ -61,10 +61,12 @@ export function rollPit(st, data, what = 'Power of the Pit') {
 // What a row does to a character (the hero, or a stand-in): Fiery Chasm and Carried Away kill (Chasm spares a hidden one), Terror wounds the Light and Medium
 // Move and Fight chits, Blight wounds every active chit with effort, Forget tires the Magic chits that are ready, Rust damages the armor counters in use.
 export function pitOnChar(st, row, ch = st.ch) {
+    const form = ch === st.ch ? st.ch.morph : null;          // a creature (Absorb Essence, Transform): Terror kills the Light and Medium ones (RS PowerOfThePit:296), and he has no chits to run out of
     switch (row.name) {
         case 'Fiery Chasm': if (!ch.hidden) ch.dead = true; break;
         case 'Carried Away': ch.dead = true; break;
         case 'Terror':
+            if (form) { if (lvl(form.creature.vuln) <= lvl('M')) ch.dead = true; break; }
             for (const c of ch.chits) if (c.state !== 'wounded' && (c.strength === 'L' || c.strength === 'M') && c.type !== 'magic') c.state = 'wounded';
             break;
         case 'Blight': for (const c of ch.chits) if (c.state === 'active' && c.effort > 0) c.state = 'wounded'; break;
@@ -74,7 +76,7 @@ export function pitOnChar(st, row, ch = st.ch) {
             break;
         default: break;
     }
-    if (!ch.dead && ch.chits.every(c => c.state === 'wounded')) ch.dead = true;
+    if (!ch.dead && !form && ch.chits.every(c => c.state === 'wounded')) ch.dead = true;
 }
 
 // The Pit rolled on the hero (a Demon's blow, a Pit site).

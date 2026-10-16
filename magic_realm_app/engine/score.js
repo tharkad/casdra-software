@@ -1,6 +1,7 @@
 import { lvl } from './core.js';
 import { defOf, weightOf } from './items.js';
 import { BOOTS } from './modifiers.js';
+import { ownedItems, ownedGold } from './magic/mist.js';
 
 // End-of-game scoring (rules digest 05 section 6).
 export const FACTORS = { great: 1, spells: 2, fame: 10, notoriety: 20, gold: 30 };
@@ -12,13 +13,14 @@ export function earned(st, data) {
     // Things beyond what his strongest Move chit (or horse or boots) could carry do not count.
     let cap = 0;
     for (const x of ch.chits) if (x.state !== 'wounded' && x.type === 'move') cap = Math.max(cap, lvl(x.strength));
-    for (const it of ch.items) {
+    const items = ownedItems(st);              // (what a Melt into Mist holds for him counts too)
+    for (const it of items) {
         if (it.destroyed) continue;
         if (it.kind === 'horse' && data.horses[it.id]) cap = Math.max(cap, lvl(data.horses[it.id].walk.strength));
         if (BOOTS[it.id] && it.active) cap = Math.max(cap, lvl(BOOTS[it.id][0]));
     }
     let great = 0, fame = cursed('Disgust') ? -1 : ch.fame, notor = ch.notoriety;
-    for (const it of ch.items) {
+    for (const it of items) {
         const d = defOf(data, it);
         if (!d || it.destroyed) continue;
         if (it.kind !== 'horse' && lvl(weightOf(data, it)) > cap) continue;
@@ -27,7 +29,7 @@ export function earned(st, data) {
         fame += d.fame ?? 0;
         notor += d.notoriety ?? 0;
     }
-    return { great, spells: (ch.learned ?? []).length, fame, notoriety: notor, gold: (cursed('Ashes') ? -1 : ch.gold) - (ch.startValue ?? 10) };
+    return { great, spells: (ch.learned ?? []).length, fame, notoriety: notor, gold: (cursed('Ashes') ? -1 : ownedGold(st)) - (ch.startValue ?? 10) };
 }
 
 export function targets(st) {

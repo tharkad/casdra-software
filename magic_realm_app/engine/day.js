@@ -15,10 +15,16 @@ import { beginTrade, tradeAction } from './trade.js';
 import { scoreGame } from './score.js';
 import { canCastUsefully, enchantableChits, TYPE_COLOR, dayColors } from './spells.js';
 import { flipTile, tileEnchantOptions } from './magic/colour.js';
-import { expireDue, breakAllFrom, fxTags, HERO } from './magic/fx.js';
+import { expireDue, breakAllFrom, fxTags, fxList, HERO } from './magic/fx.js';
 import { energizePass, deenergizePass, energizeWith } from './magic/energize.js';
 import { activatePhase } from './magic/phase.js';
+import { spawnCompanion, companionsOf, companionInfo, planCompanions, runCompanionTurns } from './magic/companion.js';
+import { prophecyOn, startPro, phaseOptions, consume, noteCave } from './magic/prophecy.js';
+import { magicSightOn, SIGHT_REPLACES, doMagicSight, takeChosen, perceive } from './magic/sight.js';
+import { MORPH_REFUSED } from './magic/morph.js';
 import { beginHire, hireAction, followHero, expireHires } from './hire.js';
+import { planFlyError, flySources, flyTiles, carries, startFlight, landHero } from './magic/fly.js';
+import { ownedGold } from './magic/mist.js';
 
 // The day loop (rules digest 01 section 4): Birdsong plan, Sunrise, Daylight phases, Sunset, Evening combat, Midnight.
 // A game is a plain object; apply(state, data, action) returns the next state and never mutates its input.
@@ -29,17 +35,24 @@ export const PHASES = { basic: 2, sunlight: 2 };
 // ---- starting a day ----
 export function beginDay(st, data) {
     landDenizens(st, data);
+    if (st.ch.flying) landHero(st, data, 'You come down');            // blown away by Hurricane Winds, or flown out of a fight: down before the plan is recorded (7.3.3b)
     st.period = 'birdsong';
     st.plan = null;
     st.turn = null;
     st.ch.hiddenEnemies = false;
+    st.ch.findEnemies = {};                                           // Magic Sight's partial Find Enemies (counters, treasures, spells): for today only
     st.ch.killsToday = 0;
     energizePass(st, data, 'dawn');                                   // Permanent spells whose colour fills the land today wake (4.6.7h)
     // What the day just ended changed, for the morning review (the report reads st.report; nothing in the rules does).
-    if (st.mark) st.report = { day: st.mark.day, fame: st.ch.fame - st.mark.fame, notoriety: st.ch.notoriety - st.mark.notoriety, gold: st.ch.gold - st.mark.gold };
-    st.mark = { day: st.day, fame: st.ch.fame, notoriety: st.ch.notoriety, gold: st.ch.gold };
+    if (st.mark) st.report = { day: st.mark.day, fame: st.ch.fame - st.mark.fame, notoriety: st.ch.notoriety - st.mark.notoriety, gold: ownedGold(st) - st.mark.gold };
+    st.mark = { day: st.day, fame: st.ch.fame, notoriety: st.ch.notoriety, gold: ownedGold(st) };
     say(st, `Day ${st.day} begins.`, 'day');
+    // Phantasm (and any other companion): the piece appears beside him at Birdsong and gets a turn of its own to record
+    st.companions = [];
+    for (const f of fxList(st, { spell: 'phantasm', target: HERO })) spawnCompanion(st, data, { kind: 'phantasm', fx: f.id });
     st.pending = { type: 'plan' };
+    if (st.companions.length) st.pending.companions = companionInfo(st, data);
+    if (prophecyOn(st)) st.pending.prophecy = true;                  // Prophecy: no turn to record; he chooses each phase as it comes (action 'pick')
 }
 
 // Creatures that Hurricane Winds carried off land at the start of the day, before the Monster Roll and the plan: a die picks a clearing of the tile, rolled again
@@ -66,7 +79,7 @@ export function phasesFor(st, data, slots) {
     // Blazing Light (Day, cast in a cave): in the Birdsong after it was cast, a character who starts the day in that cave clearing may record one more phase, for any activity
     const blazing = startsInCave && !!st.ch.at && fxTags(st, { kind: 'clearing', id: st.ch.at }, 'extraPhase').length > 0;
     const base = PHASES.basic + (sunlight ? PHASES.sunlight : 0) + (blazing ? 1 : 0);
-    return { total: base + extras.length, base, sunlight, extras, extra: extras.length, blazing };
+    return { total: base + extras.length, base, sunlight, extras, extra: extras.length, blazing, refused: st.ch.morph ? Object.keys(MORPH_REFUSED) : [] };       // (as a creature he cannot Rest, Trade, Hire or Enchant)
 }
 
 // Which kind of phase each recorded activity uses (rule 6.2.4 a): an extra phase takes only its own activity and may be recorded anywhere; every other
@@ -91,6 +104,8 @@ export function planKinds(st, data, slots) {
             }
         }
         if (s.act === 'move' && !s.to) errors.push(`Phase ${i + 1}: choose where to move.`);
+        if (s.act === 'fly') { const e = planFlyError(st, data, slots, i); if (e) errors.push(`Phase ${i + 1}: ${e}`); }
+        if (st.ch.mist && s.act !== 'move' && s.act !== 'hide') errors.push(`Phase ${i + 1}: as mist you can only move and hide.`);
     });
     return { kinds, errors, total: ph.total, base: ph.base, sunlight: ph.sunlight, extras: ph.extras };
 }
@@ -100,7 +115,16 @@ export function validatePlan(st, data, slots) {
     return { total: v.total, sunlight: v.sunlight, errors: v.errors, kinds: v.kinds };
 }
 
-function submitPlan(st, data, slots) {
+function submitPlan(st, data, slots, companions = null, choose = false) {
+    planCompanions(st, data, companions ?? {});                    // (throws before anything changes)
+    st.planFree = prophecyOn(st) && (choose || !slots?.length);    // Prophecy: no recorded plan (an empty one, or `choose`) means he picks each phase as it comes; a recorded plan is simply played
+    if (st.planFree) {
+        // Prophecy: he ignores his recorded turn and chooses each phase as it comes. Slots sent with `choose` are a suggestion that autoplay follows.
+        st.planBase = 4; st.planBlazing = null; st.planKinds = null;
+        st.ch.arrivedFrom = null;
+        st.plan = []; st.planFull = (slots ?? []).slice();
+        return sunrise(st, data);
+    }
     const v = validatePlan(st, data, slots);
     if (v.errors.length) throw new Error(v.errors[0]);
     const ph = phasesFor(st, data, slots.filter(Boolean));
@@ -126,7 +150,35 @@ function sunrise(st, data) {
     st.ch.hidden = false;
     st.period = 'daylight';
     st.turn = { i: 0, climb: null, blocked: false, results: [], movedHere: null, auto: false, base: st.planBase ?? 4, kinds: st.planKinds ?? null };
-    st.pending = { type: 'phase', i: 0 };
+    if (companionsOf(st).length) runCompanionTurns(st, data);          // a Phantasm takes its turn just before the hero
+    if (st.planFree) {
+        st.turn.pro = startPro(st, data); st.turn.kinds = [];
+        if (st.turn.pro.blazing) st.planBlazing = st.ch.at;
+        st.pending = proPending(st, data);
+    } else st.pending = { type: 'phase', i: 0 };
+}
+
+// Prophecy: the question for the phase to come, or null when no phase is left.
+function proPending(st, data) {
+    const o = phaseOptions(st, data);
+    return o.acts.length ? { type: 'phase-pick', ...o, tables: searchTables(st, data) } : null;
+}
+// He picks (or the autoplay picks for him from the suggested plan): use up the phase it takes and run it. `soft`: a suggestion that does not fit does nothing instead of failing.
+function pickPhase(st, data, slot, { soft = false } = {}) {
+    const t = st.turn, o = phaseOptions(st, data);
+    if (!prophecyOn(st)) {                                         // broken before he finished his turn: instantly blocked
+        t.blocked = true; st.ch.hidden = false;
+        say(st, 'Your Prophecy is broken: you are stopped and the rest of your turn is lost.', 'block');
+        return endDaylight(st, data);
+    }
+    let choice = slot && slot.act !== 'nothing' ? o.acts.find(a => a.act === slot.act) : null;
+    if (slot && slot.act !== 'nothing' && !choice) { if (!soft) throw new Error(`${slot.act} is not an activity you can do in this phase`); slot = null; }
+    if (choice && slot.act === 'move' && !slot.to) { if (!soft) throw new Error('choose where to move'); choice = null; slot = null; }
+    if (!choice) { choice = o.acts.find(a => a.kind !== 'extra') ?? o.acts[0]; slot = null; }   // nothing chosen: the phase is spent doing nothing
+    consume(t.pro, choice);
+    t.kinds[t.i] = choice.kind;
+    st.plan[t.i] = slot ? { ...slot } : null;
+    runPhase(st, data);
 }
 
 function regenerate(st, data) {
@@ -135,7 +187,7 @@ function regenerate(st, data) {
     const revived = [];                       // the slain who come back, for the telling
     for (const m of st.mons) {
         const def = data.monsters[m.id];
-        if (m.hired) continue;
+        if (m.hired || m.absorbed) continue;                // (an absorbed monster is out of play inside a spell)
         if (def.family === 'Ghost') { if (m.loc?.c !== st.ghostsAt || m.dead) { m.loc = { c: st.ghostsAt }; if (m.dead) revived.push(def.name); m.dead = false; back++; ghosts = true; } continue; }
         if (def.homeRow !== st.prowl) continue;
         if (m.loc?.c || m.dead) { m.loc = { box: def.homeBox }; if (m.dead) revived.push(def.name); m.dead = false; back++; }
@@ -165,11 +217,13 @@ function finishPhase(st, data, text) {
     const t = st.turn;
     t.results[t.i] = text;
     say(st, `Phase ${t.i + 1}: ${text}`, 'phase', tell.phase(st, text));
+    if (t.pro && !prophecyOn(st)) t.proBroken = true;              // broken, or suspended by Protection from Magic (spec question 9): blocked unless the turn is over
     expireDue(st, data, 'phase-end');
     energizePass(st, data, 'phase');
     if (st.ch.dead) return died(st, data);
     stormCheck(st, data);
     // End-of-phase blocking by monsters in his clearing.
+    if (t.pro) { noteCave(st, data); if (t.proBroken && phaseOptions(st, data).acts.length) t.forceBlock = true; }
     const bl = blockers(st);
     if (bl.length || t.forceBlock) {
         t.blocked = true;
@@ -179,6 +233,7 @@ function finishPhase(st, data, text) {
         return endDaylight(st, data);
     }
     t.i++;
+    if (t.pro) { st.pending = proPending(st, data); return st.pending ? undefined : endDaylight(st, data); }
     if (t.i >= st.plan.length) return endDaylight(st, data);
     st.pending = { type: 'phase', i: t.i };
 }
@@ -188,11 +243,17 @@ function finishPhase(st, data, text) {
 // the last activities still to come go (the lead can add a choice, the engine only needs st.plan changed).
 function stormCheck(st, data) {
     const t = st.turn, here = st.ch.at;
-    if (!st.fx?.length || t.stormed || st.ch.onRoad || !here || isCave(st, data, here)) return;
+    if (!st.fx?.length || t.stormed || st.ch.onRoad || st.ch.flying || st.ch.mist || !here || isCave(st, data, here)) return;
     const storms = fxTags(st, { kind: 'tile', id: tileOf(here) }, 'storm');
     if (!storms.length || st.dwellings.some(d => d.at === here && ['Inn', 'House', 'Chapel', 'Guard house'].includes(d.kind))) return;
     t.stormed = true;
     const lose = Math.max(...storms.map(x => x.value)), later = [];
+    if (t.pro) {                                              // Prophecy: the phases still to come are not recorded, so the storm simply takes ordinary ones away
+        const left = phaseOptions(st, data).regularLeft, gone = Math.min(lose, left);
+        t.pro.regular += gone;
+        say(st, `The Violent Storm batters you: ${gone ? `you lose ${gone} of the ${left} ordinary phase${left === 1 ? '' : 's'} still to come` : 'it costs you nothing, for no phase is left'} (the storm rolled ${lose}).`, 'phase');
+        return;
+    }
     for (let j = t.i + 1; j < st.plan.length; j++) if (st.plan[j] && st.plan[j].act !== 'nothing') later.push(j);
     const drop = later.slice(Math.max(0, later.length - lose));
     for (const j of drop) st.plan[j] = null;
@@ -200,6 +261,8 @@ function stormCheck(st, data) {
 }
 
 function endDaylight(st, data) {
+    // A flier must land at the end of his last phase (7.3.3b.3); he can be blocked and summoned as soon as he is down.
+    if (st.ch.flying) landHero(st, data);
     // His turn is over: the world reacts.
     const res = endOfTurn(st, data);
     st.turn.end = res;
@@ -213,7 +276,7 @@ function endDaylight(st, data) {
     }
     // Show him what the end of his turn did, before the evening begins.
     const names = bl.map(m => data.monsters[m.id].name);
-    st.turnEnd = { ...res, day: st.day, blocked: blockedMid, blockers: blockedMid ? names : [], closedIn: blockedMid ? [] : names, plan: st.turn.results.slice(), hidden: !!st.ch.hidden };
+    st.turnEnd = { ...res, day: st.day, blocked: blockedMid, blockers: blockedMid ? names : [], closedIn: blockedMid ? [] : names, plan: st.turn.results.slice(), hidden: !!st.ch.hidden, companions: st.turn.companions ?? [] };
     st.period = 'turn-end';
     // He always stops here: the end of the turn is where he sees whether he is hidden or seen going into the evening.
     st.pending = { type: 'turn-end' };
@@ -242,7 +305,8 @@ function evening(st, data) {
     // Day spells end at Sunset, just before combat begins (rule 8.1.1).
     expireDue(st, data, 'sunset');
     for (const m of st.mons) if (m.hired && m.controlledUntil && st.day >= m.controlledUntil) { m.hired = false; m.controlledUntil = null; say(st, `Your control of the ${data.monsters[m.id].name} ends with the Sunset.`, 'combat'); }
-    if (st.ch.onRoad) { midnight(st, data); return; }
+    if (st.ch.onRoad || st.ch.flying) { midnight(st, data); return; }          // (on a road, or still in the air: no clearing, no fight)
+    if (st.ch.mist) { say(st, 'As mist you take no part in any fight: the evening passes.', 'day', tell.quiet(st)); return midnight(st, data); }
     if (!hostilesHere(st, data)) { say(st, 'A quiet evening.', 'day', tell.quiet(st)); return midnight(st, data); }
     combat.startCombat(st, data, st.ch.at);
     afterCombatStep(st, data);
@@ -267,6 +331,7 @@ function runAway(st, data) {
 }
 
 function died(st, data) {
+    st.companions = [];
     expireHires(st, data);
     breakAllFrom(st, data, HERO);                          // what he cast through his chits ends with him
     // what he carried lies where he fell, and the day's chits go back face down as at Midnight
@@ -297,6 +362,7 @@ function midnight(st, data) {
     expireDue(st, data, 'midnight');                       // Combat spells end at Midnight (8.9.2)
     deenergizePass(st, data);                              // Permanent spells fall inert unless a source that stays still fills their place
     st.ch.wishStrength = null;                              // a Wish of Strength not used today is lost
+    st.companions = [];
     for (const it of st.ch.items) if (it.kind === 'weapon') it.alerted = false;
     for (const c of st.ch.chits) if (c.alerted) { c.alerted = false; if (c.state === 'active') c.state = 'fatigued'; }          // an alerted Magic chit that was not used tires at Midnight
     // potions are good until Midnight, then they go back to the box they came from
@@ -309,7 +375,7 @@ function midnight(st, data) {
     }
     if (spent.length) st.ch.items = st.ch.items.filter(it => !spent.includes(it));
     resetChitsAtMidnight(st);
-    liftCursesAtChapel(st);
+    if (!st.ch.flying) liftCursesAtChapel(st);                     // (not while he is blown across the land)
     expireHires(st, data);
     st.combat = null;
     if (st.ch.onRoad) {
@@ -332,6 +398,10 @@ function midnight(st, data) {
 function executeSlot(st, data, slot, i) {
     const t = st.turn;
     if (!slot) { t.climb = null; return 'You do nothing.'; }
+    // In the air, every activity but Fly lands him first (7.3.3b): a die picks the clearing; a cave has no sunlight, and a monster there stops him as he lands.
+    if (st.ch.flying && slot.act !== 'fly' && slot.act !== 'nothing') { const lost = landForPhase(st, data, i); if (lost) { t.climb = null; return lost; } }
+    // Mist (Melt into Mist) can do only Move, Hide and Follow (there is no Follow activity yet).
+    if (st.ch.mist && slot.act !== 'move' && slot.act !== 'hide' && slot.act !== 'nothing') { t.climb = null; return 'As mist you can only move and hide: the phase is lost.'; }
     const here = st.ch.at;
     if (t.kinds?.[i] === 'blazing' && here !== st.planBlazing) { t.climb = null; return 'You have left the Blazing Light behind: the extra phase is lost.'; }
     if (st.ch.onRoad && !(slot.act === 'move' && (slot.to === st.ch.onRoad.from || slot.to === st.ch.onRoad.to))) {
@@ -339,8 +409,10 @@ function executeSlot(st, data, slot, i) {
         t.climb = null;
         return 'You are still on the road and cannot do that.';
     }
+    if (st.ch.morph && MORPH_REFUSED[slot.act]) { t.climb = null; return MORPH_REFUSED[slot.act]; }          // as a creature he can only move, hide, search and alert
     switch (slot.act) {
         case 'move': return doMove(st, data, slot);
+        case 'fly': return doFly(st, data, slot);
         case 'hide': { t.climb = null; return doHide(st, data); }
         case 'rest': { t.climb = null; return doRest(st, data); }
         case 'alert': { t.climb = null; return doAlert(st, data, slot); }
@@ -354,6 +426,34 @@ function executeSlot(st, data, slot, i) {
         }
         default: t.climb = null; return 'Nothing happens.';
     }
+}
+
+// A Fly phase (7.3.3a): to the tile he is over or one next to it. The first phase of a flight plays a Fly chit (the Broomstick's); a phase that goes on flying needs none.
+function doFly(st, data, slot) {
+    const t = st.turn;
+    t.climb = null;
+    if (!flyTiles(st, data).includes(slot.to)) return 'That tile is too far away to fly to: the phase is lost.';
+    let src = null;
+    if (!st.ch.flying) {
+        const all = flySources(st, data);
+        if (!all.length) return 'You have nothing to fly with: the phase is lost.';
+        src = all.find(x => carries(st, x));
+        if (!src) return 'You are too heavy to fly with that: the phase is lost.';
+    }
+    return startFlight(st, data, slot.to, src);
+}
+
+// He comes down before a phase that is not a Fly phase. Returns why the phase is lost, or null when he may go on. Down in a cave, the sunlight phases still to come are lost
+// (spec 02 section 8, test 4); down among monsters, the activity is lost and the end-of-phase blocking takes the rest.
+function landForPhase(st, data, i) {
+    const t = st.turn, down = landHero(st, data);
+    const sunlight = k => (t.kinds ? t.kinds[k] === 'sunlight' : (k >= 2 && k < (t.base ?? 4)));
+    let lostHere = false;
+    if (down.cave) for (let k = i; k < st.plan.length; k++) if (sunlight(k)) { st.plan[k] = null; if (k === i) lostHere = true; }
+    if (lostHere) return 'You land in a cave, where there is no sunlight: the rest of your turn is lost.';
+    const bl = blockers(st);
+    if (bl.length) return `You land among the ${bl.map(m => data.monsters[m.id].name).join(', ')} and are blocked before you can act.`;
+    return null;
 }
 
 // Enchant (rule 7.10): the first Enchant phase of a day is only meditation; each later one enchants a Magic chit of Type I to V into a colour chit
@@ -406,7 +506,7 @@ function doMove(st, data, slot) {
     return text;
 }
 
-const lostActive = st => !st.ch.onRoad && !!st.ch.at && (fxTags(st, HERO, 'randomMove').length > 0 || fxTags(st, { kind: 'tile', id: tileOf(st.ch.at) }, 'randomMove').length > 0);
+const lostActive = st => !st.ch.onRoad && !st.ch.mist && !!st.ch.at && (fxTags(st, HERO, 'randomMove').length > 0 || fxTags(st, { kind: 'tile', id: tileOf(st.ch.at) }, 'randomMove').length > 0);
 // One die is a clearing number among the clearings joined to this one (undiscovered paths too). None: the phase is lost; several: his recorded one, else the first.
 function lostMove(st, data, from, wanted) {
     const d = die(st), cands = roadsFrom(st, data, from).filter(r => numOf(r.to) === d);
@@ -434,6 +534,7 @@ function doHide(st, data) {
 // in the Encounter step against the fastest creature; if it is not used it tires at Midnight.
 function doAlert(st, data, slot = {}) {
     if (slot?.magic) {
+        if (st.ch.morph) return 'A creature has no Magic chit to alert.';
         const chit = st.ch.chits.find(c => c.id === slot.magic);
         if (!chit || chit.type !== 'magic') return 'There is no such Magic chit to alert.';
         if (chit.state !== 'active') return `That Magic chit is not ready (${chit.state === 'fatigued' ? 'tired' : chit.state}).`;
@@ -492,6 +593,8 @@ function applyRest(st, o) {
 // Which tables he may search on where he stands (rule 7.5: he records only "S" at Birdsong and names the table when he does it).
 export function searchTables(st, data = null) {
     const here = st.ch.at;
+    // Magic Sight (7.5.7) replaces Peer, Locate, Loot (site and ground) and Reading Runes; the site-card tables stay
+    if (data && magicSightOn(st, data)) return ['magicsight', ...(st.ch.siteCards?.[here]?.length ? ['sitecard'] : [])];
     return [...(peerBlocked(st, data, here) ? [] : ['peer']), 'locate', 'loot', ...((st.abandoned[here] ?? []).length ? ['ground'] : []), ...(st.ch.siteCards?.[here]?.length ? ['sitecard'] : []), ...(data && runesTargets(st, data).length ? ['runes'] : [])];
 }
 
@@ -502,7 +605,9 @@ function doSearch(st, data, slot) {
         st.pending = { type: 'search-table', options: searchTables(st, data) };
         return 'wait';
     }
-    const table = slot.table;
+    let table = slot.table;
+    if (SIGHT_REPLACES.has(table) && magicSightOn(st, data)) table = 'magicsight';           // a plan that names an old table searches with Magic Sight instead
+    if (table === 'magicsight') return magicSightOn(st, data) ? doMagicSight(st, data) : 'You are not using Magic Sight.';
     // Searching the Cairns costs an asterisk of effort for every Loot roll, found or not, paid before the roll; the player picks the chit.
     if (table === 'loot' && !slot.paid && sitesHere(st)[0]?.name === 'Cairns') {
         const opts = effortOptions(st);
@@ -546,14 +651,25 @@ export function apply(st0, data, action) {
         case 'plan': {
             if (p.type !== 'plan') throw new Error('not planning');
             st.pending = null;
-            submitPlan(st, data, action.slots);
-            if (st.pending?.type === 'phase' && action.autoplay) autoplay(st, data);
+            submitPlan(st, data, action.slots ?? [], action.companions ?? null, !!action.choose);
+            if ((st.pending?.type === 'phase' || st.pending?.type === 'phase-pick') && action.autoplay) autoplay(st, data);
             return st;
         }
         case 'next': {
+            if (p.type === 'phase-pick') {                          // Prophecy: "next" follows the suggested plan (or does nothing)
+                st.pending = null;
+                pickPhase(st, data, st.planFull?.[st.turn.i] ?? null, { soft: true });
+                return settle(st, data, !!action.all);
+            }
             if (p.type !== 'phase') throw new Error('not in a phase');
             st.pending = null;
             runPhase(st, data);
+            return settle(st, data, !!action.all);
+        }
+        case 'pick': {
+            if (p.type !== 'phase-pick') throw new Error('you are not choosing a phase');
+            st.pending = null;
+            pickPhase(st, data, action.slot ?? null);
             return settle(st, data, !!action.all);
         }
         case 'rest': {
@@ -568,9 +684,10 @@ export function apply(st0, data, action) {
         }
         case 'search-table': {
             if (p.type !== 'search-table') throw new Error('no search table is being chosen');
-            if (!p.options.includes(action.table)) throw new Error('you cannot search that table here');
+            const named = SIGHT_REPLACES.has(action.table) && magicSightOn(st, data) ? 'magicsight' : action.table;       // under Magic Sight a named old table is the Magic Sight table
+            if (!p.options.includes(named)) throw new Error('you cannot search that table here');
             st.pending = null;
-            const text = doSearch(st, data, { act: 'search', table: action.table });
+            const text = doSearch(st, data, { act: 'search', table: named });
             if (text === 'wait') return st;                          // a Choice result is waiting for its own answer
             say(st, text, 'info');
             finishPhase(st, data, text);
@@ -582,7 +699,7 @@ export function apply(st0, data, action) {
             if (!o) throw new Error('choose one of the ways to pay');
             st.pending = null;
             say(st, payEffort(st, o), 'info');
-            const text = p.resume === 'search' ? doSearch(st, data, { ...p.slot, paid: true }) : lootFrom(st, data, p.r, p.ground, { paid: true });
+            const text = p.resume === 'search' ? doSearch(st, data, { ...p.slot, paid: true }) : lootFrom(st, data, p.r, p.ground, { paid: true, sight: !!p.sight });
             if (text === 'wait') return st;
             finishPhase(st, data, text);
             return settle(st, data, st.turn?.auto);
@@ -612,7 +729,7 @@ export function apply(st0, data, action) {
             if (p.type !== 'runes-target') throw new Error('nothing to read');
             if (!p.options.some(o => o.key === action.target)) throw new Error('read the runes of one of the things offered');
             st.pending = null;
-            const text = readRunes(st, data, action.target);
+            const text = p.sight ? perceive(st, data, p.roll, action.target) : readRunes(st, data, action.target);
             if (text === 'wait') return st;
             say(st, text, 'info');
             finishPhase(st, data, text);
@@ -620,7 +737,7 @@ export function apply(st0, data, action) {
         }
         case 'learn-spell': {
             if (p.type !== 'learn-spell') throw new Error('no spell is being offered');
-            const text = learnSpell(st, data, !!action.learn, p, action.erase);          // (throws, leaving the question open, when he must erase one and has not said which)
+            const text = learnSpell(st, data, !!action.learn, p, action.erase, action.spell ?? null);          // (throws, leaving the question open, when he must erase one and has not said which)
             st.pending = null;
             finishPhase(st, data, text);
             return settle(st, data, st.turn?.auto);
@@ -629,7 +746,8 @@ export function apply(st0, data, action) {
             if (p.type !== 'search-choice') throw new Error('not choosing');
             if (!p.options.includes(action.result)) throw new Error('not a result on that table');
             st.pending = null;
-            const text = applySearchResult(st, data, p.table, action.result, p.roll);
+            const text = p.table === 'magicsight-take' ? takeChosen(st, data, p, action.result) : applySearchResult(st, data, p.table, action.result, p.roll);
+            if (text === 'wait') return st;                          // the Pool or the Cairns ask which chit to tire
             say(st, text, 'info');
             finishPhase(st, data, text);
             return settle(st, data, st.turn?.auto);
@@ -669,29 +787,31 @@ export function apply(st0, data, action) {
         }
         case 'protect': {
             // a held Phase spell (Protection from Magic) is activated like an item before the phase runs; it ends with the phase
-            if (p.type !== 'phase') throw new Error('you can only use it at the start of a phase');
+            if (p.type !== 'phase' && p.type !== 'phase-pick') throw new Error('you can only use it at the start of a phase');
             activatePhase(st, data, action.fx, 'phase');
-            st.pending = p;
+            st.pending = keep(st, data, p);
             return st;
         }
         case 'energize': {
-            if (p.type !== 'phase' && p.type !== 'plan') throw new Error('you can only energize a spell at the start of a phase or while planning');
+            if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'plan') throw new Error('you can only energize a spell at the start of a phase or while planning');
             energizeWith(st, data, action.fx, action.colorChit);
-            st.pending = p;
+            st.pending = keep(st, data, p);
             return st;
         }
         case 'tidy': {
-            if (p.type !== 'phase' && p.type !== 'plan') throw new Error('you can only rearrange your gear between phases (in a fight, use your Encounter action)');
+            if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'plan') throw new Error('you can only rearrange your gear between phases (in a fight, use your Encounter action)');
+            if (st.ch.flying) throw new Error('you cannot rearrange your gear in the air');
             // free item management outside combat: switch items on and off
             const it = st.ch.items.find(i => i.uid === action.item);
             if (!it) throw new Error('no such item');
+            if (st.ch.morph && !action.drop) throw new Error('your gear is of no use to a creature');
             if (action.drop) {
                 // 4.3.2: he may abandon a belonging at the start of any phase; it lies where he stands
                 const where = st.ch.at ?? st.ch.onRoad?.from;
                 st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
                 st.abandoned[where] = [...(st.abandoned[where] ?? []), { ...it, active: false, alerted: false }];
                 say(st, `You leave the ${nameOf(data, it)} behind.`, 'info');
-                st.pending = p;
+                st.pending = keep(st, data, p);
                 return st;
             }
             if (it.kind === 'horse' && !it.active) {
@@ -702,11 +822,11 @@ export function apply(st0, data, action) {
             }
             toggleItem(st, data, it);
             say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOf(data, it)}.`, 'info');
-            st.pending = p;
+            st.pending = keep(st, data, p);                    // (under Prophecy an item can give an extra phase the moment he activates it)
             return st;
         }
         case 'open': {
-            if (p.type !== 'phase' && p.type !== 'plan') throw new Error('you can only open it between phases');
+            if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'plan') throw new Error('you can only open it between phases');
             // The Chest opens with the Lost Keys: its two large treasures and fifty gold replace it.
             const chest = st.ch.items.find(i => i.uid === action.item && i.id === 'chest');
             if (!chest) throw new Error('no chest to open');
@@ -721,6 +841,9 @@ export function apply(st0, data, action) {
         default: throw new Error('unknown action ' + action.type);
     }
 }
+
+// A free action leaves the question open; under Prophecy it is asked again, for the choices may have changed (a belonging he just activated).
+const keep = (st, data, p) => (p.type === 'phase-pick' ? (proPending(st, data) ?? p) : p);
 
 function combatAction(st, data, a) {
     switch (a.kind) {
@@ -743,6 +866,9 @@ function settle(st, data, all) {
 function autoplay(st, data) {
     if (st.turn) st.turn.auto = true;
     let guard = 0;
-    while (st.pending?.type === 'phase' && guard++ < 20) { st.pending = null; runPhase(st, data); }
-    if (st.turn && st.pending?.type !== 'phase') st.turn.auto = false;
+    while ((st.pending?.type === 'phase' || st.pending?.type === 'phase-pick') && guard++ < 20) {
+        const p = st.pending; st.pending = null;
+        if (p.type === 'phase-pick') pickPhase(st, data, st.planFull?.[st.turn.i] ?? null, { soft: true }); else runPhase(st, data);
+    }
+    if (st.turn && st.pending?.type !== 'phase' && st.pending?.type !== 'phase-pick') st.turn.auto = false;
 }

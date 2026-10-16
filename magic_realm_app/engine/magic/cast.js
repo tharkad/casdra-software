@@ -37,7 +37,7 @@ function legalOf(st, data, h, spell) {
 // Every way he could cast something now: [{ spell, name, chit, colorChit, effort, time, useful }]. `slowest` is the speed of the slowest creature facing him:
 // a Magic chit may be no slower than it (8.3.7a; other chits must be strictly faster).
 export function castOptions(st, data, { slowest = 99 } = {}) {
-    if (st.ch.dead || st.ch.onRoad) return [];
+    if (st.ch.dead || st.ch.onRoad || st.ch.flying || st.ch.mist || st.ch.morph) return [];        // (mist can do only Move and Hide, nothing is cast in the air, and a creature casts nothing: his Magic chits are not in play)
     const c = st.combat;
     if (c?.casts?.length) return [];                                    // one spell per round
     const colors = colorsAt(st, data, st.ch.at);
@@ -67,12 +67,16 @@ export function castOptions(st, data, { slowest = 99 } = {}) {
 // numeral, and the item stays tied to the spell for as long as it lives. He need not know the spell. [{ spell, name, item, chit: null, ... }]
 export function itemCastOptions(st, data, colors = colorsAt(st, data, st.ch.at)) {
     const out = [], c = st.combat;
+    if (st.ch.morph) return out;
     for (const it of st.ch.items) {
         if (it.destroyed || !it.active || it.kind !== 'treasure') continue;
         const box = st.spellBox?.items?.[nameOf(data, it)];
         if (!box?.length) continue;
-        for (const card of box) {
-            if (!card.awake) continue;
+        // the spells Enchant Artifact added to it count as awakened cards of their own Magic type (artifacts.js; item.extra exists only while that spell is energized)
+        const seen = new Set();
+        for (const card of [...box, ...(it.extra ?? []).map(e => ({ id: e.spell, awake: true }))]) {
+            if (!card.awake || seen.has(card.id)) continue;
+            seen.add(card.id);
             const spell = spellDef(data, card.id), h = spell && handlerOf(spell.id);
             if (!spell || !castable(spell)) continue;
             if (it.usedEvening?.[spell.type] === st.day || it.tied?.[spell.type]) continue;
@@ -92,7 +96,7 @@ export function itemCastOptions(st, data, colors = colorsAt(st, data, st.ch.at))
 // Why a spell he knows cannot be cast now: its colour is missing (and when it will come), or every ready chit of its numeral is too slow, or none is ready.
 // [{ spell, name, color, why }]
 export function blockedSpells(st, data, { slowest = 99 } = {}) {
-    if (st.ch.dead || st.ch.onRoad) return [];
+    if (st.ch.dead || st.ch.onRoad || st.ch.flying || st.ch.mist || st.ch.morph) return [];        // (mist can do only Move and Hide, nothing is cast in the air, and a creature casts nothing: his Magic chits are not in play)
     const here = colorsAt(st, data, st.ch.at);
     const out = [];
     for (const spell of knownSpells(st, data)) {

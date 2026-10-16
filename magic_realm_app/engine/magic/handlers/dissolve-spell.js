@@ -23,7 +23,7 @@ export const dissolvable = (st, data) => (st.fx ?? []).filter(f => f.state !== '
 
 const describe = (st, data, f) => {
     const name = data.spells[f.spell]?.name ?? f.spell, own = sameRef(f.caster, HERO);
-    const on = f.targets.length > 1 ? `${f.targets.length} targets` : f.targets[0] ? (f.targets[0].kind === 'mon' ? data.monsters[f.targets[0].id]?.name : f.targets[0].kind === 'nat' ? data.natives[f.targets[0].id]?.name : f.targets[0].kind) : 'nothing';
+    const on = f.targets.length === 1 && f.targets[0].kind === 'char' ? 'you' : f.targets.length > 1 ? `${f.targets.length} targets` : f.targets[0] ? (f.targets[0].kind === 'mon' ? data.monsters[f.targets[0].id]?.name : f.targets[0].kind === 'nat' ? data.natives[f.targets[0].id]?.name : f.targets[0].kind) : 'nothing';
     return `${name}${own ? ' (yours' : ' (another’s'}, on ${on})`;
 };
 

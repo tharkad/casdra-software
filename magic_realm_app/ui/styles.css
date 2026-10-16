@@ -995,3 +995,11 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .perks li::before { content: ''; position: absolute; left: 0; top: .6em; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
 .perks li b { color: var(--text); font-family: var(--font-ui); font-weight: 700; }
 .spellacts { display: flex; flex-direction: column; gap: 6px; margin: 0 0 6px; } .spellact { width: 100%; justify-content: flex-start; text-align: left; border-color: var(--arcane); }
+.pickrow { display: flex; flex-wrap: wrap; gap: 8px; } .pickrow .btn { flex: 1 1 30%; }
+.formbar { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; margin: 0 0 6px; border-radius: 12px; border: 1.5px solid var(--gold); background: rgba(217, 180, 90, .12); }
+.formbar .gl { color: var(--gold); letter-spacing: .14em; font-size: 11px; font-weight: 700; }
+.formbar span { font-size: 14px; color: var(--dim); }
+.formbar.mist { border-color: #9aa0aa; background: rgba(154, 160, 170, .12); } .formbar.mist .gl { color: #c9ced8; }
+.formbar.fly { border-color: #7fb4e8; background: rgba(127, 180, 232, .12); } .formbar.fly .gl { color: #9cc8f2; }
+.morphname { display: block; font-size: 10px; line-height: 1.1; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.morphnote b { text-transform: none; }

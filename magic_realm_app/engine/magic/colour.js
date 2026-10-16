@@ -47,9 +47,9 @@ export function flipTile(st, data, tile) {
 }
 // The ways he can enchant the tile he stands on with a ready Magic chit of Type I to V whose colour of magic is present in his clearing
 // (from the land, a Chapel, the tile itself, or one of his own enchanted chits of that colour, which is then used up). [{ chit, tile, supply }]
-export function tileEnchantOptions(st, data) {
-    if (st.ch.onRoad || !st.ch.at) return [];
-    const here = colorsAt(st, data, st.ch.at), tile = tileOf(st.ch.at), out = [];
+export function tileEnchantOptions(st, data, at = st.ch.at) {              // `at`: a companion (Phantasm) enchants where it stands
+    if ((at === st.ch.at && st.ch.onRoad) || !at) return [];
+    const here = colorsAt(st, data, at), tile = tileOf(at), out = [];
     for (const chit of enchantableChits(st)) {
         const color = TYPE_COLOR[chit.numeral];
         if (here.has(color)) out.push({ kind: 'tile', chit: chit.id, tile, supply: null, numeral: chit.numeral, time: chit.time, effort: chit.effort, color });

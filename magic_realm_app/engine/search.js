@@ -56,12 +56,13 @@ function takeInto(st, data, it) {
     autoEquip(st, data, it);
 }
 
-export function lootFrom(st, data, r, groundOnly = false, { paid = false } = {}) {
-    const here = st.ch.at;
+// `sight`: taken through the Magic Sight table (7.5.7): the same piles and conditions, but the Cairns' toll is paid when something is actually taken (like the Pool's).
+export function lootFrom(st, data, r, groundOnly = false, { paid = false, sight = false } = {}) {
+    const here = st.ch.at, what = sight ? 'Magic Sight' : 'Loot';
     const sites = groundOnly ? [] : sitesHere(st);
     const site = sites[0];
     const pileList = site ? st.sites[site.name] : (st.abandoned[here]?.length ? st.abandoned[here] : null);
-    if (!pileList) return `Loot (${r.dice.join('+')}): there is nothing here to loot. You need to discover a site first.`;
+    if (!pileList) return `${what} (${r.dice.join('+')}): there is nothing here to loot. You need to discover a site first.`;
     const label = site ? site.name : 'the things on the ground';
     // Conditions at the more dangerous sites.
     // (the Cairns' toll is paid before the roll is made: see doSearch)
@@ -73,13 +74,13 @@ export function lootFrom(st, data, r, groundOnly = false, { paid = false } = {})
     }
     const idx = r.value - 1;
     const it = pileList[idx];
-    if (!it) return `Loot (${r.dice.join('+')}) at ${label}: nothing at that depth.`;
-    if (site?.name === 'Pool' && !paid) {
+    if (!it) return `${what} (${r.dice.join('+')}) at ${label}: nothing at that depth.`;
+    if ((site?.name === 'Pool' || (sight && site?.name === 'Cairns')) && !paid) {
         // an asterisk is paid each time something is actually taken, and he picks the chit
         const opts = effortOptions(st);
         if (!opts.length) return 'You are too exhausted to wade into the Pool.';
         if (opts.length === 1) say(st, payEffort(st, opts[0]), 'info');
-        else { st.pending = { type: 'effort-cost', site: 'Pool', options: opts, resume: 'loot', r, ground: groundOnly }; return 'wait'; }
+        else { st.pending = { type: 'effort-cost', site: site.name, options: opts, resume: 'loot', r, ground: groundOnly, sight }; return 'wait'; }
     }
     pileList.splice(idx, 1);
     const card = it.kind === 'treasure' ? data.treasures[it.id] : null;
@@ -87,7 +88,7 @@ export function lootFrom(st, data, r, groundOnly = false, { paid = false } = {})
     const item = it.uid ? it : makeItem(st, it.kind, it.id);
     takeInto(st, data, item);
     tally(st, 'looted'); if (site) tally(st, `looted.${site.name}`);
-    const text = `Loot (${r.dice.join('+')}) at ${label}: you take the ${nameOf(data, item)}.`;
+    const text = `${what} (${r.dice.join('+')}) at ${label}: you take the ${nameOf(data, item)}.`;
     say(st, text, 'loot');
     return text;
 }
@@ -183,7 +184,7 @@ export const peerBlocked = (st, data, clearing) => !!clearing && fxTags(st, { ki
 export function applySearchResult(st, data, table, res, dice, here = st.ch.at) {
     const tile = tileOf(here);
     const bits = [];
-    const lead = `${table === 'peer' ? 'Peer' : 'Locate'} (${dice.join('+')}): ${res}.`;
+    const lead = `${table === 'peer' ? 'Peer' : table === 'magicsight' ? 'Magic Sight' : 'Locate'} (${dice.join('+')}): ${res}.`;
     if (/Clues/.test(res)) {
         const ids = st.chits.filter(c => c.tile === tile && !c.up && !c.pile).map(c => c.id);
         for (const id of ids) if (!st.ch.seen.includes(id)) st.ch.seen.push(id);
@@ -218,7 +219,7 @@ const unseenChits = (st, tile) => st.chits.filter(c => c.tile === tile && !c.up 
 const hiddenPaths = (st, data, clearing, kind) => roadsFrom(st, data, clearing).filter(r => r.kind === kind && !st.ch.discovered.paths.includes(pathKey(clearing, r.to))).length;
 export const peerGain = (st, data, clearing) => unseenChits(st, tileOf(clearing)) + hiddenPaths(st, data, clearing, 'hidden');
 // "Choice" cannot ask a question in the middle of a combat round, so the best result is taken: the one that shows him the most he does not know yet.
-function bestChoice(st, data, clearing) {
+export function bestChoice(st, data, clearing) {
     const tile = tileOf(clearing);
     const sites = () => st.chits.filter(c => c.kind === 'site' && c.tile === tile && c.num === numOf(clearing) && !c.pile && !st.ch.discovered.sites.includes(c.id)).length;
     const worth = res => (/Clues/.test(res) ? unseenChits(st, tile) : 0) + (/Paths/.test(res) ? hiddenPaths(st, data, clearing, 'hidden') : 0)

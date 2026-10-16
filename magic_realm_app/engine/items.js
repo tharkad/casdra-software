@@ -48,6 +48,7 @@ export function carriedLevel(st, data) {
 export function activeHorse(st) { return st.ch.items.find(i => i.kind === 'horse' && i.active && !i.destroyed) ?? null; }
 
 export function carryCapacity(st, data) {
+    if (st.ch.morph) return lvl(st.ch.morph.creature.vuln);          // a creature carries what its vulnerability weight can (RS CharacterWrapper:863-868)
     let c = -1;
     for (const x of st.ch.chits) if (x.state === 'active' && x.type === 'move') c = Math.max(c, lvl(x.strength));
     for (const x of st.ch.chits) if (x.state === 'active' && x.alt?.mf) c = Math.max(c, lvl(x.alt.strength));          // a Magic chit changed by Unleash Power carries like a Move chit
