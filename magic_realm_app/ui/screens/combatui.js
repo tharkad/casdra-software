@@ -24,7 +24,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         h('span', { class: 'cb-peek' },
             peek ? h('button', { class: 'peekbtn', 'data-act': 'peek-gear', onclick: peek.gear }, 'Belongings') : null,
             peek ? h('button', { class: 'peekbtn', 'data-act': 'peek-map', onclick: peek.map }, 'Map') : null,
-            h('em', {}, `Round ${c.round}`)));
+            st.pending?.spellOnly ? null : h('em', {}, `Round ${c.round}`)));
     const state = h('div', { class: 'cb-state' }, h('span', {}, `Chits: ${cs.active} ready \u00B7 ${cs.fatigued} tired \u00B7 ${cs.wounded} wounded${cs.enchanted ? ` \u00B7 ${cs.enchanted} enchanted` : ''}`), h('span', {}, gear.join(', ') || 'no armor'));
     // A tap on a creature turns its counter over: the other side, with its own numbers, and what changed.
     ui.flipped ??= {};
@@ -127,6 +127,33 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
                 ...Object.entries(rows).map(([k, r]) => h('p', { class: 'pitrow' }, h('b', {}, `${k} (${odds(Number(k))}) ${r.name}: `), r.effect)),
                 h('p', {}, 'A hidden character is not touched by the Fiery Chasm. Staying hidden keeps a Demon from being set on you at all.')));
         }
+        if (p.spellOnly) {
+            // A quiet evening with something worth casting: said the way a person would say it, with what the spell will do, in the buttons themselves.
+            const here = (c.intro ?? []).filter(t => !/plain sight|will come for you|hidden, so creatures/i.test(t));
+            body.push(h('div', { class: 'quiet' },
+                h('h3', { class: 'quiet-h' }, 'A quiet evening'),
+                h('p', {}, [...here, 'Nothing here is looking for a fight.'].join(' '))));
+            const mendCount = chitId => st.ch.chits.filter(x => x.id !== chitId && (x.state === 'fatigued' || x.state === 'wounded')).length;
+            const armorCount = st.ch.items.filter(i => i.kind === 'armor' && i.damaged && !i.destroyed).length;
+            const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+            const what = x => {
+                if (x.spell === 'make-whole') {
+                    const bits = [mendCount(x.chit) ? `${plural(mendCount(x.chit), 'tired or wounded chit')}` : '', armorCount ? `${plural(armorCount, 'damaged piece')} of armor` : ''].filter(Boolean);
+                    return bits.length ? `Puts right ${bits.join(' and ')}.` : 'There is nothing of yours to mend.';
+                }
+                return data.spells?.[x.spell]?.text ?? '';
+            };
+            if (o.casts.length) {
+                body.push(h('p', { class: 'quiet-q' }, 'Would you like to cast a spell?'));
+                for (const x of o.casts) {
+                    const sp = data.spells?.[x.spell], chit = st.ch.chits.find(c => c.id === x.chit);
+                    body.push(h('button', { class: `btn castcard${x.useful ? ' primary' : ''}`, 'data-act': 'cast', 'data-spell': x.spell, onclick: () => send({ kind: 'encounter', act: 'cast', spell: x.spell, chit: x.chit }) },
+                        h('span', { class: 'col' }, h('b', {}, `Cast ${x.name}`), h('span', { class: 'what' }, what(x)),
+                            h('small', {}, `Uses your Magic ${chit?.numeral ?? ''}${x.time}${'*'.repeat(x.effort)}, which is tired afterwards${sp?.color ? ` \u00B7 ${sp.color} magic` : ''}`))));
+                }
+            }
+            body.push(h('button', { class: 'btn quiet-no', 'data-act': 'pass', onclick: () => send({ kind: 'encounter', act: 'pass' }) }, 'Not tonight'));
+        } else {
         if (c.round === 1 && c.intro?.length) body.push(h('div', { class: 'ask', role: 'note' }, h('b', {}, 'How this came about'), ...c.intro.map(t => h('p', {}, t))));
         body.push(ask(p.spellOnly ? 'Evening: nothing is fighting you. Do you want to cast a spell?' : `Round ${c.round}, Encounter step: you may take one action before the melee.`,
             p.spellOnly ? 'Spells are cast in the evening (rule 8.1.3a: a quiet clearing still gets its rounds), so the game stops here to let you cast one now. You may also do nothing.'
@@ -163,6 +190,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
                     h('div', { class: 'chitrow' }, ...o.runChits.map(ch => chitBtn(ch, false, () => send({ kind: 'encounter', act: 'run', chit: ch.id, to: r.to }))))));
             }
         } else if (!p.spellOnly && o.pickedUp) body.push(h('p', { class: 'hint' }, 'You are seized and cannot run.'));
+        }
     } else if (p.type === 'combat-melee') {
         const o = meleeOptions(st, data);
         const w = o.weapon;
@@ -247,6 +275,6 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         h('div', { class: 'cb-scroll' },
             // After a round: what happened comes first (it is the first chance to read it), then the choice it leaves, then the table.
             ...(decideFirst ? [headline, last, decision] : []),
-            h('div', { class: 'cb-foes' }, ...foeEls), gearBlock, diceBlock,
+            h('div', { class: 'cb-foes' }, ...foeEls), st.pending?.spellOnly ? null : gearBlock, diceBlock,
             ...(decideFirst ? [] : [last, decision])));
 }

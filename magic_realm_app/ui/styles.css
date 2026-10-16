@@ -806,3 +806,17 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .dock-actions .btn, .dock-actions .btn.big { min-height: 46px; padding: 0 16px; font-size: 18px; border-radius: 12px; }
 .dock-actions .row2 { gap: 8px; }
 .plan-nav .btn { min-height: 46px; width: 100%; }
+
+/* the quiet evening that stops to ask about a spell */
+.quiet { padding: 4px 2px 2px; }
+.quiet-h { margin: 0 0 4px; font-family: var(--font-display); font-size: 20px; letter-spacing: .04em; }
+.quiet p { margin: 0; font-size: 17px; line-height: 1.35; color: var(--text); }
+.quiet-q { margin: 14px 2px 8px; font-size: 17px; color: var(--dim); }
+.castcard { display: block; width: 100%; text-align: left; padding: 12px 14px; margin-bottom: 8px; }
+.castcard .col { display: flex; flex-direction: column; gap: 3px; }
+.castcard b { font-size: 19px; }
+.castcard .what { font-size: 16px; line-height: 1.3; }
+.castcard small { font-size: 13px; opacity: .8; }
+.quiet-no { width: 100%; min-height: 46px; background: none; }
+.castcard .what { font-weight: 400; }
+.quiet-h { margin-top: 6px; }
