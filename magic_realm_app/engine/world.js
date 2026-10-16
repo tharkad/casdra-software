@@ -15,6 +15,7 @@ function graphFor(st, data) {
             for (const c of side.clearings) { type.set(p.id + c.n, c.type); magic.set(p.id + c.n, c.magic ?? []); }
         }
         g = { nodes, links, adj, type, magic, reach: reachableFromBorderland(data.tiles, st.placements) };
+        if (cache.size >= 6) cache.delete(cache.keys().next().value);          // one realm per game: keep a few, not every one ever played
         cache.set(st.mapKey, g);
     }
     return g;

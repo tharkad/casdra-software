@@ -17,7 +17,8 @@ export function layoutSide(tile, sideName) {
     const artSide = ART?.[tile.id]?.[sideName];
     if (artSide && tile.sides[sideName].clearings.every(c => artSide[String(c.n)])) {
         const out = { art: true, pos: Object.fromEntries(tile.sides[sideName].clearings.map(c => [c.n, artSide[String(c.n)]])) };
-        cache.set(key, out);
+        if (cache.size >= 6) cache.delete(cache.keys().next().value);
+    cache.set(key, out);
         return out;
     }
     const side = tile.sides[sideName], rng = makeRng([...key].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7));
@@ -56,6 +57,7 @@ export function layoutSide(tile, sideName) {
         }
     }
     const out = { pos: Object.fromEntries(pts.map(p => [p.n, [p.x, p.y]])) };
+    if (cache.size >= 6) cache.delete(cache.keys().next().value);
     cache.set(key, out);
     return out;
 }
