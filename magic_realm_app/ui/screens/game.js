@@ -1126,12 +1126,24 @@ export function gameScreen(ctx) {
             if (cat === 'gold') return [['Gold you hold', st.ch.gold], ['Your starting value (gold and the price of your first gear)', -(st.ch.startValue ?? 10)]];
             return [];
         };
+        // what the goods would fetch if he sold the lot at their printed prices: for his information only, it never changes the score
+        const saleRows = () => st.ch.items.filter(i => !i.destroyed).map(i => [nameOf(data, i), priceOf(data, i)]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
+        const saleEl = g => {
+            const list = saleRows(), sum = list.reduce((a, x) => a + x[1], 0), start = st.ch.startValue ?? 10;
+            if (g.cat !== 'gold') return null;
+            return h('details', { class: 'sr-parts sr-sale' }, h('summary', {}, `If you sold everything you own: ${st.ch.gold + sum - start} of ${g.need}`),
+                h('p', { class: 'hint' }, 'For your information only: it does not change your score. Only gold in hand counts, and trading prices vary with the roll.'),
+                ...list.map(([n, v]) => h('div', { class: 'sr-part' }, h('span', {}, n), h('b', {}, `+${v}`))),
+                h('div', { class: 'sr-part' }, h('span', {}, 'Gold you hold'), h('b', {}, String(st.ch.gold))),
+                h('div', { class: 'sr-part' }, h('span', {}, 'Your starting value'), h('b', {}, String(-start))),
+                h('div', { class: 'sr-part total' }, h('span', {}, `Gold would stand at (${g.need} needed)`), h('b', {}, String(st.ch.gold + sum - start))));
+        };
         const partsEl = g => {
             const rowsOf = parts(g.cat);
             if (!rowsOf.length) return null;
-            return h('details', { class: 'sr-parts' }, h('summary', {}, `Where the ${g.earned} comes from`),
+            return h('div', {}, h('details', { class: 'sr-parts' }, h('summary', {}, `Where the ${g.earned} comes from`),
                 ...rowsOf.map(([n, v]) => h('div', { class: 'sr-part' }, h('span', {}, n), h('b', {}, v > 0 && g.cat !== 'great' ? `+${v}` : String(v)))),
-                h('div', { class: 'sr-part total' }, h('span', {}, 'Total'), h('b', {}, String(g.earned))));
+                h('div', { class: 'sr-part total' }, h('span', {}, 'Total'), h('b', {}, String(g.earned)))), saleEl(g));
         };
         const idle = CATS.filter(c => !(need[c] > 0));
         return modal('Your goals', h('div', { class: 'scoresheet' },
