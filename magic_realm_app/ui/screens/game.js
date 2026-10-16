@@ -213,8 +213,17 @@ export function gameScreen(ctx) {
     // ---- rendering ----
     function render() {
         const cursed = (st.ch.curses ?? []).length > 0, magicToday = dayColors(st.day);
-        const stat = (key, label, val, ic) => h('span', { class: `statbox ${key}${voidBy(st, key === 'notor' ? 'notoriety' : key) ? ' void' : ''}`, 'data-stat': key === 'notor' ? 'notoriety' : key,
-            title: voidBy(st, key === 'notor' ? 'notoriety' : key) ? `Worthless: the ${voidBy(st, key === 'notor' ? 'notoriety' : key)} curse` : label, 'aria-label': `${label} ${val}` }, icon(ic, 17), h('b', {}, String(val)));
+        // Fame and Notoriety are shown as what counts (recorded plus what the things he owns add) with the recorded part beneath, so both are always in view.
+        let ern = null; try { ern = earned(st, data); } catch { /* scoring not available */ }
+        const stat = (key, label, val, ic) => {
+            const kind = key === 'notor' ? 'notoriety' : key, worthless = voidBy(st, kind);
+            const total = ern && (kind === 'fame' || kind === 'notoriety') ? ern[kind] : val, items = total - val;
+            const sub = items ? `${val} ${items > 0 ? '+' : '\u2212'}${Math.abs(items)}` : null;
+            return h('span', { class: `statbox ${key}${worthless ? ' void' : ''}${sub ? ' two' : ''}`, 'data-stat': kind,
+                title: worthless ? `Worthless: the ${worthless} curse` : sub ? `${label}: ${total} counting your belongings (${val} recorded ${items > 0 ? 'plus' : 'minus'} ${Math.abs(items)} from what you own)` : label,
+                'aria-label': `${label} ${total}${sub ? `, ${val} recorded ${items > 0 ? 'plus' : 'minus'} ${Math.abs(items)} from belongings` : ''}` },
+                icon(ic, 17), h('span', { class: 'sv' }, h('b', {}, String(total)), sub ? h('small', {}, sub) : null));
+        };
         const tot = vpNow();
         strip.replaceChildren(
             h('button', { class: 'back', 'aria-label': 'Menu', 'data-act': 'menu', onclick: () => { ui.sheet = ui.sheet === 'menu' ? null : 'menu'; render(); } }, icon('menu', 22)),
