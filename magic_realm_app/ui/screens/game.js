@@ -78,6 +78,7 @@ export function gameScreen(ctx) {
     mapBox.append(mapTools);
     root.append(strip, mapBox, tray, dock, layer);
     let lastHero = null, st = null, data = null, map = null, ui = { sheet: null, sel: null, draft: null, toast: null };
+    try { if (localStorage.getItem('mr-dock-open') === '0') ui.dockOpen = false; } catch { /* ignore */ }
 
     // The game record (engine/gamerecord.js): every action taken and what the game said, kept on the device so a game can be listed, read and replayed.
     let rec = null, persistTimer = null;
@@ -275,24 +276,96 @@ export function gameScreen(ctx) {
         const recent = recent0.filter(l => !gainNames.some(n => (l.s ?? l.t).includes(n)));
         const prowl = st.period === 'daylight' && st.prowl ? h('button', { class: 'prowl', 'data-act': 'prowl', onclick: () => { ui.sheet = 'dice'; render(); } },
             h('b', {}, `Monster roll ${st.prowl}`), h('span', {}, prowlers().join(', ') || 'no one stirs')) : null;
-        let main;
-        if (!p) main = h('div', { class: 'note' }, 'Working...');
-        else if (p.type === 'plan' && ui.sheet === 'plan' && ui.draft) { dock.replaceChildren(ui.planCollapsed ? planBar() : planPanel()); return; }
-        else if (p.type === 'plan') main = h('div', { class: 'dock-ask' },
-            ask(`Day ${st.day}, Birdsong: plan your day.`, `You choose one action for each of your ${phasesFor(st, data, []).total} phases now, in secret; they are then played in order after the Monster Roll.`, { compact: true }),
-            h('button', { class: 'btn primary big', 'data-act': 'plan', onclick: () => { ui.draft ??= { slots: Array(9).fill(null) }; ui.sheet = 'plan'; ui.planCollapsed = false; render(); } }, 'Plan your day'));
-        else if (p.type === 'phase') {
+        // What the drawer shows: `body` is everything that explains (it slides away), `actions` is what you press (it stays).
+        let body = null, actions = null;
+        if (!p) body = h('div', { class: 'note' }, 'Working...');
+        else if (p.type === 'plan' && ui.sheet === 'plan' && ui.draft) { dock.classList.remove('closed'); dock.replaceChildren(h('div', { class: 'dock-plan' }, ui.planCollapsed ? planBar() : planPanel())); return; }
+        else if (p.type === 'plan') {
+            body = ask(`Day ${st.day}, Birdsong: plan your day.`, `You choose one action for each of your ${phasesFor(st, data, []).total} phases now, in secret; they are then played in order after the Monster Roll.`, { compact: true });
+            actions = h('button', { class: 'btn primary big', 'data-act': 'plan', onclick: () => { ui.draft ??= { slots: Array(9).fill(null) }; ui.sheet = 'plan'; ui.planCollapsed = false; render(); } }, 'Plan your day');
+        } else if (p.type === 'phase') {
             const slot = st.plan[p.i];
-            main = h('div', { class: 'phase' },
+            body = h('div', { class: 'phase' },
                 ask(`Phase ${p.i + 1} of ${st.plan.length}: ${describeSlot(slot)}.`, 'This is the action you planned. Press it to carry it out; "Play the day" carries out every phase that is left. Anything that needs your decision will stop and ask.', { compact: true }),
-                h('div', { class: 'phase-info' }, h('b', {}, `Phase ${p.i + 1} of ${st.plan.length}`), h('span', {}, describeSlot(slot))),
-                h('div', { class: 'row2' },
-                    h('button', { class: 'btn primary', 'data-act': 'next', onclick: () => act({ type: 'next' }) }, describeSlot(slot)),
-                    h('button', { class: 'btn', 'data-act': 'all', onclick: () => act({ type: 'next', all: true }) }, 'Play the day')));
-        } else if (p.type === 'over') main = h('div', { class: 'dock-ask' }, st.ch.dead || st.over?.reason === 'died' ? deathBox() : null,
-            h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result'));
-        else main = h('div', { class: 'note' }, 'Decision needed...');
-        dock.replaceChildren(...[curseBar, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, main].filter(Boolean));
+                h('div', { class: 'phase-info' }, h('b', {}, `Phase ${p.i + 1} of ${st.plan.length}`), h('span', {}, describeSlot(slot))));
+            actions = h('div', { class: 'row2' },
+                h('button', { class: 'btn primary', 'data-act': 'next', onclick: () => act({ type: 'next' }) }, describeSlot(slot)),
+                h('button', { class: 'btn', 'data-act': 'all', onclick: () => act({ type: 'next', all: true }) }, 'Play the day'));
+        } else if (p.type === 'over') {
+            body = st.ch.dead || st.over?.reason === 'died' ? deathBox() : null;
+            actions = h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result');
+        } else body = h('div', { class: 'note' }, 'Decision needed...');
+
+        // The drawer: a grabber on top, then what explains, then what you press. Pulled down, only the grabber and the buttons are left.
+        const newCount = findBars.length + gainBars.length + (curseJustFell ? 1 : 0);
+        const open = ui.dockOpen !== false;
+        const items = [curseBar, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null, body].filter(Boolean);
+        const peek = `${st.ch.onRoad ? 'On the road' : where} \u00B7 ${st.ch.hidden ? 'hidden' : 'visible'}`;
+        const grab = h('button', { class: 'grab', 'data-act': 'dock-toggle', 'aria-expanded': open ? 'true' : 'false', 'aria-controls': 'dock-body',
+            'aria-label': open ? 'Details panel, open. Press to slide it away' : `Details panel, closed${newCount ? `, ${newCount} new` : ''}. Press to open it` },
+            h('span', { class: 'grip', 'aria-hidden': 'true' }),
+            h('span', { class: 'peek' }, h('span', { class: 'peek-t' }, peek), newCount ? h('span', { class: 'badge', 'aria-hidden': 'true' }, String(newCount)) : null,
+                h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u2303')));
+        const wrap = h('div', { class: `dock-body${open ? '' : ' closed'}`, id: 'dock-body' }, h('div', { class: 'dock-inner' }, ...items));
+        dock.classList.toggle('closed', !open);
+        dock.replaceChildren(...[grab, wrap, actions ? h('div', { class: 'dock-actions' }, actions) : null].filter(Boolean));
+        wireDrawer(grab, wrap);
+    }
+
+    // The drawer's behaviour is the usual bottom sheet: tap the grabber or drag it; a swipe down on the content, when it is at its top, closes it.
+    // It follows the finger and settles on whichever end is nearer, or the one the flick was heading for.
+    function wireDrawer(grab, wrap) {
+        const inner = wrap.firstChild, reduce = matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        const fullH = () => { const had = wrap.classList.contains('closed'); wrap.classList.remove('closed'); const keep = wrap.style.height; wrap.style.height = 'auto'; const hh = wrap.getBoundingClientRect().height; wrap.style.height = keep; if (had) wrap.classList.add('closed'); return hh; };
+        const remember = o => { try { localStorage.setItem('mr-dock-open', o ? '1' : '0'); } catch { /* ignore */ } };
+        const settle = (o, from = null) => {
+            ui.dockOpen = o; remember(o);
+            const target = o ? fullH() : 0;
+            dock.classList.toggle('closed', !o);
+            grab.setAttribute('aria-expanded', o ? 'true' : 'false');
+            wrap.classList.remove('closed'); wrap.classList.remove('dragging');
+            if (reduce) { wrap.style.height = ''; wrap.classList.toggle('closed', !o); return; }
+            if (from != null) wrap.style.height = from + 'px';
+            else wrap.style.height = (o ? 0 : fullH()) + 'px';
+            void wrap.offsetHeight;                              // start the transition from where it is
+            wrap.style.height = target + 'px';
+            const done = () => { wrap.removeEventListener('transitionend', done); wrap.style.height = ''; wrap.classList.toggle('closed', !o); render(); };
+            wrap.addEventListener('transitionend', done);
+            setTimeout(() => { if (wrap.style.height !== '') done(); }, 400);
+        };
+        grab.addEventListener('click', () => { if (grab._dragged) return; settle(!(ui.dockOpen !== false)); });
+        // dragging the grabber
+        let y0 = null, h0 = 0, full = 0, moved = false, lastY = 0, lastT = 0, vel = 0;
+        grab.addEventListener('pointerdown', e => {
+            if (e.button) return;
+            y0 = e.clientY; moved = false; full = fullH(); h0 = ui.dockOpen !== false ? wrap.getBoundingClientRect().height : 0; lastY = e.clientY; lastT = e.timeStamp; vel = 0;
+            try { grab.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+        });
+        grab.addEventListener('pointermove', e => {
+            if (y0 == null) return;
+            const dy = e.clientY - y0;
+            if (!moved && Math.abs(dy) < 5) return;
+            if (!moved) { moved = true; wrap.classList.remove('closed'); wrap.classList.add('dragging'); }
+            vel = (e.clientY - lastY) / Math.max(1, e.timeStamp - lastT); lastY = e.clientY; lastT = e.timeStamp;
+            wrap.style.height = Math.max(0, Math.min(full, h0 - dy)) + 'px';
+        });
+        const release = () => {
+            if (y0 == null) return;
+            y0 = null;
+            if (!moved) return;
+            grab._dragged = true; setTimeout(() => { grab._dragged = false; }, 50);
+            const cur = wrap.getBoundingClientRect().height;
+            settle(vel < -0.35 ? true : vel > 0.35 ? false : cur > full / 2, cur);
+        };
+        grab.addEventListener('pointerup', release); grab.addEventListener('pointercancel', release);
+        // a swipe down from the top of the content
+        let ty = null, tx = 0;
+        inner.addEventListener('touchstart', e => { ty = inner.scrollTop <= 0 ? e.touches[0].clientY : null; tx = e.touches[0].clientX; }, { passive: true });
+        inner.addEventListener('touchmove', e => {
+            if (ty == null) return;
+            const dy = e.touches[0].clientY - ty, dx = Math.abs(e.touches[0].clientX - tx);
+            if (dy > 36 && dy > dx * 1.5) { ty = null; settle(false); }
+        }, { passive: true });
     }
 
     function describeSlot(s) {
