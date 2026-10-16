@@ -130,7 +130,7 @@ export function gameScreen(ctx) {
 
     function commit(next) { st = next; ctx.state = st; if (!race) saveGame(st); render(); }
     function act(action) {
-        ui.combatMap = false;
+        ui.combatMap = false; ui.mapPeek = false;
         if (action.type !== 'tidy') { ui.gainSeen = st.gainSeq ?? 0; ui.findSeen = st.findSeq ?? 0; }          // what he found last time is old news once he does something else
         if (race) { actRemote(action); return; }
         try {
@@ -479,10 +479,16 @@ export function gameScreen(ctx) {
         const there = away.map(c => `the ${c.name} is in clearing ${c.num}`).join(', ');
         return `You will search in ${nameOfClearing(at)}.${sites.some(c => c.num === n) ? '' : ' No site is revealed here yet.'}${there ? ` ${there.charAt(0).toUpperCase()}${there.slice(1)}: a search only finds what is in the clearing you are in, so Move there first.` : ''}`;
     }
+    // a table's name for the player: the site card he found is named (Loot the Crypt of the Knight)
+    function tableName(t) {
+        if (t !== 'sitecard') return TABLE_LABEL[t] ?? t;
+        const id = st.ch.siteCards?.[st.ch.at]?.[0];
+        return id ? `Loot the ${data.treasures?.[id]?.name ?? 'site card'}` : TABLE_LABEL[t];
+    }
     function describeSlot(s) {
         if (!s || s.act === 'nothing') return 'Do nothing';
         if (s.act === 'move') return `Move to ${nameOfClearing(s.to).replace(/ (\d+)$/, '\u00A0$1')}`;       // the number never wraps on its own line
-        if (s.act === 'search') return s.table ? `Search: ${TABLE_LABEL[s.table]}` : 'Search';
+        if (s.act === 'search') return s.table ? `Search: ${tableName(s.table)}` : 'Search';
         return ACT_LABEL[s.act] ?? s.act;
     }
 
@@ -512,9 +518,9 @@ export function gameScreen(ctx) {
         else if (p?.type === 'rest') out.push(restSheet(p));
         else if (p?.type === 'search-table') out.push(modal('Search: which table?', h('div', {},
             ask(`You are searching at ${nameOfClearing(st.ch.at)}: choose the table.`, 'Your plan said only Search, and the rules let you name the table when the phase comes. A Search phase is one roll on one table, and each table finds different things, so pick the one that matches what you are after.'),
-            ...p.options.map(t => h('button', { class: 'btn', 'data-table': t, onclick: () => act({ type: 'search-table', table: t }) }, h('b', {}, TABLE_LABEL[t]),
+            ...p.options.map(t => h('button', { class: 'btn', 'data-table': t, onclick: () => act({ type: 'search-table', table: t }) }, h('b', {}, tableName(t)),
                 h('small', {}, { peer: 'look for clues, hidden enemies and hidden paths', locate: 'find passages, clues and sites in this clearing', loot: 'take treasure from a site you have discovered here',
-                    ground: 'pick up what lies on the ground here', sitecard: 'search the place you found with a treasure card', runes: 'learn a spell from a site here or an artifact or book you carry' }[t] ?? ''))))));
+                    ground: 'pick up what lies on the ground here', sitecard: 'search the place you found with a treasure card: its own table', runes: 'learn a spell from a site here or an artifact or book you carry' }[t] ?? ''))))));
         else if (p?.type === 'effort-cost') out.push(effortSheet(p));
         else if (p?.type === 'runes-target') out.push(modal('Read runes: which?', h('div', {},
             ask('Which runes will you read?', 'A Reading Runes search needs one target: a discovered site here that holds spell cards, or an artifact or book you carry and have active.'),
@@ -539,7 +545,7 @@ export function gameScreen(ctx) {
                     h('p', { class: 'hint' }, `Turn ${tileName(tile)} to its ${other} side. ${other === 'enchanted' ? `Its clearings then hold ${cols.length ? cols.join(', ') : 'colours of'} magic for everyone, and some of its roads change.` : 'It goes back to its ordinary side: its roads change back and its colours go.'} The Magic chit is not used up${tileOpts.some(o => o.supply) ? ' (but a colour chit that supplies the colour is)' : ''}.`),
                     ...tileOpts.map(o => h('button', { class: 'btn', 'data-enchant-tile': o.chit, onclick: () => act({ type: 'enchant-choice', chit: o.chit, kind: 'tile' }) }, `Use Magic ${o.numeral}${o.time}${'*'.repeat(o.effort)} (${o.color})${o.supply ? ', burning a colour chit' : ''}`))) : null)));
         }
-        else if (p?.type === 'search-choice') out.push(modal(`${TABLE_LABEL[p.table]}: your choice`, h('div', {}, latestRoll(st) ? rollRow(latestRoll(st)) : null, ask(`You rolled ${p.roll.join('+')}: the table gives you a choice.`, 'This result lets you pick whichever entry of the table you want instead of the one the dice name. Choose the one that helps you most.'),
+        else if (p?.type === 'search-choice') out.push(modal(`${tableName(p.table)}: your choice`, h('div', {}, latestRoll(st) ? rollRow(latestRoll(st)) : null, ask(`You rolled ${p.roll.join('+')}: the table gives you a choice.`, 'This result lets you pick whichever entry of the table you want instead of the one the dice name. Choose the one that helps you most.'),
             ...p.options.map(r => h('button', { class: 'btn', onclick: () => act({ type: 'search-choice', result: r }) }, r)))));
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));
         else if (p?.type === 'hire' || p?.type === 'hire-offer') out.push(hireSheet(p));
@@ -590,10 +596,13 @@ export function gameScreen(ctx) {
     // Every sheet is the same object: a scrim, a rounded sheet with a grabber and a title, and (when it is only for looking) a way out three ways:
     // pull it down, tap outside it, or the cross. A sheet that needs an answer has none of them and no grabber.
     const modal = (title, body, { close } = {}) => {
+        // a sheet that needs an answer can be set aside to look at the map, and brought back (the decision may depend on what is on the map)
+        if (!close && ui.mapPeek) return h('div', { class: 'combat-back' }, h('button', { class: 'btn primary big', 'data-act': 'back-to-choice', onclick: () => { ui.mapPeek = false; render(); } }, `Back to: ${title}`));
         const sheet = h('div', { class: 'sheet2' },
             h('div', { class: 'sheet-top' },
                 close ? h('div', { class: 'sheet-grab', 'aria-hidden': 'true' }, h('span', { class: 'grip' })) : null,
-                h('div', { class: 'sheet2-head' }, h('b', {}, title), close ? h('button', { class: 'x', 'aria-label': 'Close', onclick: close }, '\u2715') : null)),
+                h('div', { class: 'sheet2-head' }, h('b', {}, title), close ? h('button', { class: 'x', 'aria-label': 'Close', onclick: close }, '\u2715')
+                    : h('button', { class: 'peekmap', 'data-act': 'peek-sheet-map', onclick: () => { ui.mapPeek = true; render(); } }, 'Map'))),
             body);
         const bg = h('div', { class: 'sheet-bg', onclick: e => { if (close && e.target === e.currentTarget) close(); } }, sheet);
         if (close) pullDown(sheet.querySelector('.sheet-grab'), sheet, close);
@@ -929,7 +938,7 @@ export function gameScreen(ctx) {
         const act2 = ui.pickAct, send = slot => { ui.pickAct = null; act({ type: 'pick', slot }); };
         const rows = [];
         if (act2 === 'move') rows.push(h('p', { class: 'hint' }, 'Where to?'), ...(p.moves ?? []).map(id => h('button', { class: 'btn', 'data-pick-to': id, onclick: () => send({ act: 'move', to: id }) }, nameOfClearing(id))));
-        else if (act2 === 'search') rows.push(h('p', { class: 'hint' }, 'Which Search?'), ...(p.tables ?? []).map(t => h('button', { class: 'btn', 'data-pick-table': t, onclick: () => send({ act: 'search', table: t }) }, TABLE_LABEL[t] ?? t)));
+        else if (act2 === 'search') rows.push(h('p', { class: 'hint' }, 'Which Search?'), ...(p.tables ?? []).map(t => h('button', { class: 'btn', 'data-pick-table': t, onclick: () => send({ act: 'search', table: t }) }, tableName(t))));
         else if (act2 === 'alert') {
             rows.push(h('p', { class: 'hint' }, 'Ready your weapon, or alert a Magic chit (time 0, tires at Midnight if unused).'), h('button', { class: 'btn', onclick: () => send({ act: 'alert' }) }, 'Weapon'),
                 ...st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active').map(c => h('button', { class: 'btn', 'data-pick-magic': c.id, onclick: () => send({ act: 'alert', magic: c.id }) }, `Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}`)));
