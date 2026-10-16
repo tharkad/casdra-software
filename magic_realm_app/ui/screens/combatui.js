@@ -4,7 +4,8 @@ import { roundSynopsis, narrateRoll } from '../../engine/story.js';
 import { isStory, voiceChip } from '../voice.js';
 import { ask } from '../ask.js';
 import { h } from '../dom.js';
-import { encounterOptions, meleeOptions, denSide, weaponOf, activeArmor, weaponSide } from '../../engine/combat.js';
+import { encounterOptions, meleeOptions, denSide, weaponOf, activeArmor, weaponSide, shiftOptions, makeChangeOptions } from '../../engine/combat.js';
+import { hasTreasure, NO_EFFORT_LIMIT } from '../../engine/modifiers.js';
 import { roadsFrom, nameOfClearing, tileName } from '../../engine/world.js';
 import { chitLabel } from '../../engine/day.js';
 import { nameOf, weightOf, defOf } from '../../engine/items.js';
@@ -70,7 +71,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
                         .map(([k, v, key]) => h('div', { class: 'fs' }, h('small', {}, k), h('i', { class: diff(key) }, String(v))))),
                 ui.flipped[d.uid] && !showRev ? h('small', { class: 'was' }, 'This counter has no other side.') : null,
                 showRev ? h('small', { class: 'was' }, `now: harm ${a.harm} \u00B7 speed ${a.speed} \u00B7 moves ${a.moves}${a.vuln !== b.vuln ? ` \u00B7 vuln ${a.vuln}` : ''}`) : null,
-                d.pickedUp ? h('em', {}, 'has seized you') : null,
+                d.pickedUp ? h('em', {}, d.engagedBy ? 'has seized your hireling' : 'has seized you') : null,
                 d.engagedBy ? h('em', { class: 'ally' }, 'is fighting your hireling') : null));
     });
     // Your weapon and armor, as counters: tap one to turn it over and read its other side (alerted / not alerted, whole / damaged).
@@ -309,7 +310,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         const w = o.weapon;
         const wname = w ? nameOf(data, w.item) + (w.item.alerted ? ' (alerted)' : '') : 'bare hands';
         body.push(ask(`Round ${c.round}, Melee: choose your plays.`,
-            'Pick whom you strike and in which direction, the maneuver that defends you, and where the creatures stand in the three boxes. Plays are chosen together; then the dice shuffle the creatures and the blows land. You may play at most ' + (o.effortLimit === 3 ? 'three asterisks of effort (your Girtle of Energy gives you the extra one).' : 'two asterisks of effort.')));
+            'Pick whom you strike and in which direction, the maneuver that defends you, and where the creatures stand in the three boxes. Plays are chosen together; then the dice shuffle the creatures and the blows land. You may play at most ' + (o.effortLimit >= NO_EFFORT_LIMIT ? 'as many asterisks of effort as you like (your Potion of Energy lifts the limit).' : o.effortLimit === 3 ? 'three asterisks of effort (your Girtle of Energy gives you the extra one).' : 'two asterisks of effort.')));
         // the three lanes: where the creatures stand (before the dice move them) and which way you attack, maneuver and guard
         body.push(h('div', { class: 'board' }, ...[0, 1, 2].map(b => h('div', { class: 'lane' },
             h('div', { class: 'lane-h' }, h('b', {}, MNV[b]), h('small', {}, DIRS[b])),
@@ -370,12 +371,39 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         const limit = o.effortLimit ?? 2;
         const ast = o.asterisksPlayed + [m.fightChit, m.moveChit].map(id => st.ch.chits.find(x => x.id === id)?.effort ?? 0).reduce((a, b) => a + b, 0);
         body.push(h('div', { class: 'cb-go' },
-            h('span', { class: ast > limit ? 'bad' : '' }, `Effort ${ast}/${limit}`),
+            h('span', { class: ast > limit ? 'bad' : '' }, limit >= NO_EFFORT_LIMIT ? `Effort ${ast} (no limit)` : `Effort ${ast}/${limit}`),
             h('button', { class: 'btn primary big', 'data-act': 'commit', disabled: ast > limit || null, onclick: () => {
                 const boxes = {}; o.boxable.forEach((d, i) => { boxes[d.uid] = m.boxes[d.uid] ?? (i % 3); });
                 const spellAim = {}; for (const a of o.aims ?? []) spellAim[a.spell] = aimOf(a, m);
                 send({ kind: 'melee', weaponSide: m.fightChit && !m.target && w ? (m.weaponSide ?? 'alerted') : undefined, parts: m.parts && Object.keys(m.parts).length ? { ...m.parts } : undefined, target: m.target, fightChit: m.fightChit, attackDir: m.attackDir, moveChit: m.moveChit, moveDir: m.moveDir, shieldDir: o.shield ? m.shieldDir : null, boxes, spellAim });
             } }, 'Commit and roll')));
+    } else if (p.type === 'combat-shift') {
+        // Battle Bracelets / Elusive Cloak (Treasures 12): the plays are revealed and the dice have moved the creatures; he may still move his attack circle or maneuver square.
+        const o = shiftOptions(st, data);
+        ui.shift ??= {};
+        const sh = ui.shift;
+        sh.attackDir ??= o.attackDir; sh.moveDir ??= o.moveDir;
+        body.push(ask(`Round ${c.round}: the plays are revealed.`, 'The dice have moved the creatures. Before the blows land, your cards allow a change.'));
+        body.push(h('div', { class: 'board', 'data-sec': 'shift-board' }, ...[0, 1, 2].map(b => h('div', { class: 'lane' },
+            h('div', { class: 'lane-h' }, h('b', {}, MNV[b]), h('small', {}, DIRS[b])),
+            h('div', { class: 'lane-tags' }, ...[o.hasAttack && sh.attackDir === b ? 'your attack' : null, o.hasMove && sh.moveDir === b ? 'your maneuver' : null].filter(Boolean).map(t => h('span', { class: 'tag' }, t))),
+            ...o.placed.filter(d => d.box === b).map(d => h('div', { class: 'lane-foe' }, `${d.name}${d.atk != null && d.aimedAtHim ? ` \u00B7 attacks at ${d.atk}` : ''}${d.move != null ? ` \u00B7 moves ${d.move}` : ''}`))))));
+        if (hasTreasure(st, 'battle-bracelets') && o.hasAttack) body.push(h('div', { class: 'cb-sec', 'data-sec': 'shift-attack' }, h('b', {}, 'Battle Bracelets: move your attack'),
+            o.attack
+                ? h('p', { class: 'hint' }, `${o.foes.map(f => `${f.name} moves at ${f.move}`).join(', ')}: ${o.foes.length > 1 ? 'all are' : 'that is'} 5 or more, so your attack may go to any circle.`)
+                : h('p', { class: 'hint' }, `${o.foes.map(f => `${f.name} moves at ${f.move ?? '?'}`).join(', ')}: a target that moves at 4 or less keeps your attack where it is.`),
+            h('div', { class: 'seg3' }, ...DIRS.map((n, i) => h('button', { class: `segb${sh.attackDir === i ? ' on' : ''}`, 'data-shift-attack': i, disabled: !o.attack || null, onclick: () => { sh.attackDir = i; render(); } }, n)))));
+        if (hasTreasure(st, 'elusive-cloak') && o.hasMove) body.push(h('div', { class: 'cb-sec', 'data-sec': 'shift-move' }, h('b', {}, 'Elusive Cloak: move your maneuver'),
+            o.move
+                ? h('p', { class: 'hint' }, `Every attack aimed at you comes at time 5 or more (${o.attackers.map(a => `${a.name} ${a.atk}`).join(', ')}), so your maneuver may go to any square.`)
+                : h('p', { class: 'hint' }, o.attackers.length ? `An attack aimed at you comes at time 4 or less (${o.attackers.map(a => `${a.name} ${a.atk}`).join(', ')}): the Cloak cannot move your maneuver.` : 'Nothing is aimed at you.'),
+            h('div', { class: 'seg3' }, ...MNV.map((n, i) => h('button', { class: `segb${sh.moveDir === i ? ' on' : ''}`, 'data-shift-move': i, disabled: !o.move || null, onclick: () => { sh.moveDir = i; render(); } }, n)))));
+        body.push(h('div', { class: 'cb-go' }, h('button', { class: 'btn primary big', 'data-act': 'shift-go', onclick: () => {
+            const a = { kind: 'shift' };
+            if (o.attack && sh.attackDir !== o.attackDir) a.attackDir = sh.attackDir;
+            if (o.move && sh.moveDir !== o.moveDir) a.moveDir = sh.moveDir;
+            ui.shift = null; send(a);
+        } }, 'Resolve the blows')));
     } else if (p.type === 'combat-wounds') {
         ui.pickChits ??= [];
         body.push(ask(`You took ${p.count} wound${p.count === 1 ? '' : 's'}: choose ${p.count === 1 ? 'the chit' : 'the chits'} to wound.`,
@@ -390,7 +418,13 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         if (p.why) body.push(h('p', { class: 'hint' }, p.why));
         body.push(h('div', { class: 'chitrow' }, ...p.chits.map(id => { const ch = st.ch.chits.find(x => x.id === id); return chitBtn(ch, ui.pickChits.includes(id), () => { const i = ui.pickChits.indexOf(id); if (i >= 0) ui.pickChits.splice(i, 1); else ui.pickChits.push(id); render(); }); })));
         const sum = ui.pickChits.reduce((s, id) => s + st.ch.chits.find(x => x.id === id).effort, 0);
-        body.push(h('button', { class: 'btn primary', disabled: sum < p.need || sum - p.need > 1, onclick: () => { const ids = ui.pickChits; ui.pickChits = null; send({ kind: 'fatigue', chits: ids }); } }, 'Fatigue these'));
+        // Making change (4.2.4a): one asterisk too many tired, so a tired one-asterisk chit of the same type comes back, and he picks which
+        const changers = sum - p.need === 1 ? makeChangeOptions(st, data, ui.pickChits) : [];
+        if (ui.changeChit && !changers.some(x => x.id === ui.changeChit)) ui.changeChit = null;
+        if (changers.length > 1) body.push(h('div', { class: 'cb-sec', 'data-sec': 'make-change' }, h('b', {}, 'Make change: which tired chit comes back?'),
+            h('p', { class: 'hint' }, 'You tire one asterisk more than you owe, so a tired one-asterisk chit of the same kind is ready again.'),
+            h('div', { class: 'chitrow' }, ...changers.map(ch => chitBtn(ch, (ui.changeChit ?? changers[0].id) === ch.id, () => { ui.changeChit = ch.id; render(); })))));
+        body.push(h('button', { class: 'btn primary', disabled: sum < p.need || sum - p.need > 1, onclick: () => { const ids = ui.pickChits, change = changers.length > 1 ? (ui.changeChit ?? changers[0].id) : null; ui.pickChits = null; ui.changeChit = null; send({ kind: 'fatigue', chits: ids, change }); } }, 'Fatigue these'));
     }
     // Wounds and fatigue are decisions the player must not miss: they come first, above the foes and the account of the last round, so the
     // tiles and the confirm button are on screen the moment the question is asked.
@@ -415,10 +449,10 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         h('div', { class: 'cb-scroll' },
             resultsBlock,
             // A question that comes straight out of the meeting (pay, buy drinks, leave them be) sits right under its results, not under a page of creatures.
-            ...(meetingQuestion && !decideFirst ? [decision] : []),
+            ...((meetingQuestion || p.type === 'combat-shift') && !decideFirst ? [decision] : []),         // (the Bracelets / Cloak offer too: the dice have just moved the creatures, and it is all that is being asked)
             // After a round: what happened comes first (it is the first chance to read it), then the choice it leaves, then the table.
-            ...(decideFirst ? [headline, last, decision] : meetingQuestion ? [] : [headline, last]),       // the kill, then the story of the round, lead every step
+            ...(decideFirst ? [headline, last, decision] : meetingQuestion || p.type === 'combat-shift' ? [] : [headline, last]),       // the kill, then the story of the round, lead every step
             allies.length ? h('div', { class: 'ask allies', role: 'note' }, h('b', {}, 'On your side'), h('p', {}, allies.join(', '))) : null,
             h('div', { class: 'cb-foes' }, ...foeEls), st.pending?.spellOnly ? null : gearBlock, diceBlock,
-            ...(decideFirst ? [] : meetingQuestion ? [last] : [decision])));
+            ...(decideFirst ? [] : meetingQuestion ? [last] : p.type === 'combat-shift' ? [] : [decision])));
 }

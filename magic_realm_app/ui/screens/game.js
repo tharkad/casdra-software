@@ -849,7 +849,8 @@ export function gameScreen(ctx) {
         for (const m of st.mons.filter(m => !m.dead && m.loc?.c === id)) (mons[data.monsters[m.id].name] ??= []).push(m);
         const monRows = Object.entries(mons).map(([name, l]) => {
             const md = data.monsters[l[0].id], ls = md.light;
-            const stats = `vuln ${md.vulnerability}${md.armored ? ' (armored)' : ''} \u00B7 harm ${ls.harm}${'*'.repeat(ls.stars || 0)} at ${ls.attackTime} \u00B7 moves ${ls.moveTime}${md.flies ? ' \u00B7 flies' : ''}`;
+            const blow = ls.attack === 'spell' ? `casts a Type ${ls.spell ?? ''} spell at ${ls.attackTime}` : ls.harm ? `harm ${ls.harm}${'*'.repeat(ls.stars || 0)} at ${ls.attackTime}` : `no attack on this side (${md.dark?.harm ? `harm ${md.dark.harm}${'*'.repeat(md.dark.stars || 0)} at ${md.dark.attackTime} on the other` : 'it only blocks'})`;
+            const stats = `vuln ${md.vulnerability}${md.armored ? ' (armored)' : ''} \u00B7 ${blow} \u00B7 moves ${ls.moveTime}${md.flies ? ' \u00B7 flies' : ''}`;
             return row('mon', `${name}${l.length > 1 ? ` x${l.length}` : ''}`, `${stats}. It will block you if you are seen.`, data.art?.monstersColor?.[name] ?? data.art?.monsters?.[name]);
         });
         if (monRows.length) sections.push(['Monsters', monRows]);
@@ -1714,6 +1715,7 @@ export function gameScreen(ctx) {
                 saveGame(st);
             } else st = loadSaved();
             if (st.pauseVictory === undefined) st.pauseVictory = true;
+            if (st.pauseShift === undefined) st.pauseShift = true;
             ctx.state = st;
             // a game saved before records existed gets one now; its earlier moves are unknown, so it cannot be replayed
             st.session ??= { id: String(Date.now()), started: new Date().toISOString(), version: VERSION, params: null };

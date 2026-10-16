@@ -775,7 +775,7 @@ export function apply(st0, data, action) {
         }
         case 'combat': {
             if (!st.combat) throw new Error('no combat');
-            const kindFor = { 'combat-pay': 'pay', 'combat-drinks': 'drinks', 'combat-choice': 'choice', 'combat-encounter': 'encounter', 'combat-melee': 'melee', 'combat-wounds': 'wounds', 'combat-fatigue': 'fatigue', 'combat-over': 'over' };
+            const kindFor = { 'combat-pay': 'pay', 'combat-drinks': 'drinks', 'combat-choice': 'choice', 'combat-encounter': 'encounter', 'combat-melee': 'melee', 'combat-shift': 'shift', 'combat-wounds': 'wounds', 'combat-fatigue': 'fatigue', 'combat-over': 'over' };
             if (kindFor[p.type] !== action.kind) throw new Error(`that is not what the fight is waiting for (${kindFor[p.type] ?? p.type})`);
             st.pending = null;
             combatAction(st, data, action);
@@ -854,8 +854,9 @@ function combatAction(st, data, a) {
         case 'choice': return combat.choiceAction(st, data, a.fight);
         case 'encounter': return combat.encounterAction(st, data, a);
         case 'melee': return combat.meleePlay(st, data, a);
+        case 'shift': return combat.shiftAction(st, data, a);
         case 'wounds': return combat.chooseWounds(st, data, a.chits);
-        case 'fatigue': return combat.chooseFatigue(st, data, a.chits);
+        case 'fatigue': return combat.chooseFatigue(st, data, a.chits, a.change ?? null);
         case 'over': st.combat.ack = true; return;
         default: throw new Error('unknown combat action');
     }

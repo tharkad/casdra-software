@@ -2,7 +2,7 @@ import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll, tally, WEIGHT_W
 import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './tables.js';
 import { pit, rollPit, rollCurse, pitOnChar, hasCurse } from './effects.js';
 import { hirelings, monsterHires } from './hire.js';
-import { cardChits, effortLimit, oneDie, tableMod } from './modifiers.js';
+import { cardChits, effortLimit, oneDie, tableMod, hasTreasure, chitSpeed } from './modifiers.js';
 import { expireDue, expireFx, breakFx, fxTags, fxList, shielded, HERO, targetGone, sameRef } from './magic/fx.js';
 import { B } from './magic/bridge.js';
 import { lostTarget } from './magic/util.js';
@@ -16,7 +16,7 @@ import { releaseFoes } from './magic/mist.js';
 import { blockedSpells, castOptions, castSpell, resolveSpells, canCastQuietly, previewAim, aimOptions, applyAim } from './spells.js';
 import { tell } from './story.js';
 import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
-import { makeItem, autoEquip, toggleItem, activeHorse } from './items.js';
+import { makeItem, autoEquip, toggleItem, activeHorse, onPackHorse } from './items.js';
 import { isCave, roadsFrom, tileName } from './world.js';
 
 // Evening combat for one character against the denizens in his clearing (rules digest 03).
@@ -36,7 +36,7 @@ export function weaponOf(st, data) {
     return it ? { item: it, def: data.weapons[it.id] } : null;
 }
 export function weaponSide(w, extraStars = 0) {
-    if (!w) return { harm: 'N', stars: 1, time: null, length: 0, missile: false, none: true };       // bare Fight chit: Negligible with one star
+    if (!w) return { harm: 'N', stars: 1 + extraStars, time: null, length: 0, missile: false, none: true };       // bare Fight chit: Negligible with one star
     const side = w.item.alerted ? w.def.alerted : w.def.unalerted;
     return { harm: side.harm ?? w.def.weight, stars: (side.stars ?? 0) + extraStars, time: side.attackTime ?? null, length: w.def.length ?? 0, missile: !!w.def.missile };
 }
@@ -51,6 +51,7 @@ export function carriedWeight(st, data) {
     let w = 0;
     for (const it of st.ch.items) {
         if (it.destroyed) continue;                      // destroyed armor is no longer carried
+        if (onPackHorse(st, data, it)) continue;         // what a pack horse carries needs no Move chit (7.3.1i, 8.4.5f.3)
         const def = it.kind === 'weapon' ? data.weapons[it.id] : it.kind === 'armor' ? data.armor[it.id] : it.kind === 'horse' ? null : data.treasures[it.id];
         if (!def || def.weight == null) continue;
         w = Math.max(w, lvl(def.weight));
@@ -306,6 +307,8 @@ function activeChits(st, type, data) {
     if (st.fx?.length && fxTags(st, HERO, 'moveBySize').length) real = real.map(x => (x.type === 'move' ? { ...x, time: SIZE_TIME[x.strength] ?? x.time } : x));
     // Unleash Power: a transformed Magic chit is both a Move chit and a Fight chit (one play a round: both share the chit's id)
     if (st.fx?.length && type) real = [...real, ...st.ch.chits.filter(x => x.state === 'active' && x.type === 'magic' && x.alt?.mf).map(x => ({ ...x, type, strength: x.alt.strength, mf: true }))];
+    // Draught of Speed / Garb of Speed: the asterisks of each chit fix its time (Treasures 6); Boots, Gloves and horses keep their own
+    if (hasTreasure(st, 'draught-of-speed') || hasTreasure(st, 'garb-of-speed')) real = real.map(x => (x.type === 'move' || x.type === 'fight' ? { ...x, time: chitSpeed(st, x) } : x));
     const cards = type ? cardChits(st, type) : [...cardChits(st, 'move'), ...cardChits(st, 'fight')];
     const horse = (!type || type === 'move') && data ? horseChits(st, data) : [];
     return [...real, ...cards, ...horse].filter(x => !st.combat.played?.[x.id] && !(x.isHorse && st.combat.played?.['horse:' + x.horseUid]));
@@ -383,8 +386,17 @@ function enterSpellOnly(st, data) {
 // Hirelings go for the most dangerous creature; a creature set on by a hireling fights it instead of the character.
 function deployHires(st, data) {
     const c = st.combat;
-    for (const d of c.dens) d.engagedBy = null;
-    const crew = (c.hires ?? []).filter(x => !x.dead);
+    // A red-side-up monster holding a hireling stays on it (8.6.2); once that hireling is dead it lets go and is a foe like any other again
+    const held = new Map();
+    for (const d of c.dens) {
+        if (d.pickedUp && d.engagedBy && !d.dead) {
+            if ((c.hires ?? []).some(h => h.uid === d.engagedBy && !h.dead)) held.set(d.uid, d.engagedBy);
+            else { d.pickedUp = false; d.side = 'light'; }
+        }
+    }
+    for (const d of c.dens) d.engagedBy = held.get(d.uid) ?? null;
+    const crew = (c.hires ?? []).filter(x => !x.dead && ![...held.values()].includes(x.uid));          // a hireling in a monster's grip is not sent at another
+    for (const [dUid, hUid] of held) { const hire = c.hires.find(h => h.uid === hUid); hire.target = dUid; c.dens.find(d => d.uid === dUid).assigned = false; }
     for (const hire of crew) {
         const cand = c.dens.filter(d => !d.dead && !d.bystander && !d.pacified && d.kind !== 'part' && d.kind !== 'horse' && !d.pickedUp);
         if (!cand.length) break;
@@ -429,11 +441,13 @@ export function encounterOptions(st, data) {
     const gateName = gate ? denSide(st, data, gate).name : null;
     const gateText = gate ? `the ${gateName} (it moves ${slowest})` : null;
     const wname = w ? nameOfItem(st, data, w.item) : null;
+    const gripped = !!w && hasTreasure(st, 'gripping-dust');         // the Dust keeps the weapon alerted: there is nothing to turn
     const chitsFor = kind => activeChits(st, kind, data);
     const fastEnough = x => x.time < slowest;
     const why = {
         gate: gate ? { name: gateName, speed: slowest } : null,
-        alert: !w || fight.length ? null
+        alert: !w || (fight.length && !gripped) ? null
+            : gripped ? 'Your Gripping Dust keeps the weapon alerted: it cannot be turned over.'
             : st.ch.morph ? null
                 : !chitsFor('fight').length ? 'You have no ready Fight chit to ready your weapon with.'
                     : !chitsFor('fight').some(x => lvl(x.strength) >= wlvl) ? `No ready Fight chit is strong enough for your ${wname} (it needs ${WEIGHT_WORDS[data.weapons[w.item.id].weight] ?? "a stronger"} chit or better).`
@@ -445,7 +459,7 @@ export function encounterOptions(st, data) {
                         : 'No ready Move chit that is fast enough is also strong enough to carry everything you own.',
     };
     const casts = (c.spellOnly ? quietCasts(st, data, true) : castOptions(st, data, { slowest })).map(o => (c.spellOnly ? { ...o, aim: previewAim(st, data, o) } : o));       // (a quiet-evening cast has no Melee step: it is aimed on the cast screen)
-    return { canStay, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && fight.length > 0, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
+    return { canStay, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && fight.length > 0 && !gripped, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
 }
 const canRunNow = (move, st, data) => move.length > 0 && runDestinations(st, data).length > 0;
 
@@ -494,6 +508,7 @@ export function encounterAction(st, data, a) {
         activatePhase(st, data, a.fx, 'round');
     } else if (a.act === 'alert') {
         if (st.ch.morph) throw new Error('a creature has no weapon to ready');
+        if (!opt.canAlert) throw new Error(hasTreasure(st, 'gripping-dust') ? 'your Gripping Dust keeps the weapon alerted' : 'cannot flip the weapon with that chit');
         const chit = opt.alertChits.find(x => x.id === a.chit);
         if (!opt.weapon || !chit) throw new Error('cannot flip the weapon with that chit');
         playChit(st, chit);
@@ -547,6 +562,8 @@ function playChit(st, chit) {
     if (chit.isHorse) c.played['horse:' + chit.horseUid] = true;       // one side of the horse a round
     if (chit.effort) c.asterisks[chit.type === 'move' ? 'move' : 'fight'] += chit.effort;
 }
+
+const chitName = ch => `${ch.type === 'move' ? 'Move' : ch.type === 'magic' ? 'Magic' : 'Fight'} ${ch.type === 'magic' ? (ch.numeral ?? '') : (ch.strength ?? '')}${ch.time}${'*'.repeat(ch.effort ?? 0)}`;
 
 function nameOfItem(st, data, it) {
     return (it.kind === 'weapon' ? data.weapons[it.id] : it.kind === 'armor' ? data.armor[it.id] : it.kind === 'horse' ? data.horses[it.id] : data.treasures[it.id])?.name ?? it.id;
@@ -649,7 +666,7 @@ export function meleePlay(st, data, p) {
     if (hm?.pin && target?.uid !== hm.pin) hm.pin = null;           // a Tremendous counter turns its red side down when he changes targets
     for (const t of new Set([target, ...spTargets].filter(Boolean))) namedTarget(st, data, t, log);           // naming a creature a spell made peaceful breaks that spell
     const wasHidden = st.ch.hidden;
-    c.toRed = [];
+    c.toRed = []; c.toRedHire = [];
     if (st.ch.hidden && target) { st.ch.hidden = false; log('You strike from hiding and are revealed.', tell.ambush(st)); }
     for (const t of new Set([target, ...spTargets].filter(Boolean))) if (t.pacified) breakPacify(st, data, t, log);          // he named a pacified monster: the pacifying spell is broken
     for (const t of new Set([target, ...spTargets].filter(Boolean))) {
@@ -703,12 +720,38 @@ export function meleePlay(st, data, p) {
         }
     }
 
+    // --- Battle Bracelets and Elusive Cloak (Treasures 12): after the dice, before the blows ---
+    const X = { p, fight, move, wish, target: target?.uid ?? null, spTargets: spTargets.map(d => d.uid) };
+    const sh = shiftChances(st, data, X);
+    if (p.shift) return meleeResolve(st, data, { ...X, p: applyShift(st, data, X, sh, p.shift) });           // named in advance (computer players, tests); refused if the cards do not allow it
+    if ((sh.attack || sh.move) && st.pauseShift) {                                                            // the game screen stops and asks
+        c.shiftCtx = X; c.step = 'shift';
+        st.pending = { type: 'combat-shift', round: c.round };
+        return;
+    }
+    return meleeResolve(st, data, X);
+}
+
+// The second half of the Melee step: hit determination and the blows (8.4.8, 8.4.9), from the plans in `X` (the plays, after any shift).
+function meleeResolve(st, data, X) {
+    const c = st.combat, p = X.p, fight = X.fight, move = X.move, wish = X.wish;
+    const w = weaponOf(st, data), notes = [];
+    const hm = st.ch.morph ?? null;
+    const weaponName = hm ? hm.creature.name : w ? nameOfItem(st, data, w.item) : 'bare hands';
+    const ev = c.events;
+    const log = (t, story) => { ev.push(story ?? t); say(st, t, 'combat', story ?? null); };
+    const sp0 = c.attackSpell && !c.attackSpell.auto ? c.attackSpell : null;
+    const target = X.target ? c.dens.find(d => d.uid === X.target) : null;
+    const spTargets = (X.spTargets ?? []).map(u => c.dens.find(d => d.uid === u)).filter(Boolean);
+    c.shiftCtx = null;
     // --- hit determination ---
     const myDir = p.attackDir, mnvDir = p.moveDir;
     // Poison on the weapon he swings adds sharpness stars to every blow of it
     const poison = w && st.fx?.length ? fxTags(st, { kind: 'item', id: w.item.uid }, 'stars').reduce((n, t) => n + t.value, 0) : 0;
+    // Oil of Poison (Treasures 11): one more sharpness star on every blow of the weapon he has in use (it stacks with the Poison spell, RealmSpeak BUG 548); a bare Fight chit is the dagger and takes it too
+    const oil = !hm && hasTreasure(st, 'oil-of-poison') ? 1 : 0;
     const morphSide = fight?.morph ? hm.creature[fight.side] : null;
-    const mySide = wish ? { ...weaponSide(w), harm: wish, stars: 0, missile: false } : morphSide ? { harm: morphSide.harm ?? 'N', stars: morphSide.stars, time: morphSide.atk, length: morphSide.length, missile: false } : weaponSide(w, poison);
+    const mySide = wish ? { ...weaponSide(w), harm: wish, stars: 0, missile: false } : morphSide ? { harm: morphSide.harm ?? 'N', stars: morphSide.stars, time: morphSide.atk, length: morphSide.length, missile: false } : weaponSide(w, poison + oil);
     if (wish) log(`Your Wish of Strength strikes with ${WEIGHT_WORDS[wish]} harm.`);
     const attackTime = fight ? (mySide.time ?? fight.time) : null;
     const hits = [];            // { who:'me'|denUid, order keys }
@@ -735,13 +778,16 @@ export function meleePlay(st, data, p) {
         const horse = c.dens.find(d => d.kind === 'horse' && d.partOf === target.uid && !d.dead);
         const def = horse ?? target, defSide = denSide(st, data, def);
         const inBox = def.box != null && def.box === myDir;
-        const fast = attackTime != null && defSide.move != null && attackTime < defSide.move;
+        // Ointment of Bite (Treasures 11): the weapon hits whenever its attack time undercuts OR ties the target's maneuver time
+        const bite = !hm && hasTreasure(st, 'ointment-of-bite');
+        const fast = attackTime != null && defSide.move != null && (bite ? attackTime <= defSide.move : attackTime < defSide.move);
         const hitsIt = inBox || fast;
         const nm = defSide.name, where = def.box != null ? MANEUVERS[def.box] : '?';
         if (hitsIt) {
             hits.push({ who: 'me', time: attackTime, length: mySide.length, on: def.uid, owner: target.uid, pit: morphSide?.attack === 'spell' });
-            log(inBox ? `You: ${DIRS[myDir]} at ${nm} (${where} box): hit.` : `You: ${DIRS[myDir]} at ${nm} (${where} box): hit by undercutting (your time ${attackTime} beats its ${defSide.move}).`,
-                inBox ? tell.myHitBox(st, weaponName, DIRS[myDir].toLowerCase(), nm) : tell.myHitFast(st, weaponName, DIRS[myDir].toLowerCase(), nm, where, attackTime, defSide.move));
+            const tie = !inBox && attackTime === defSide.move;
+            log(inBox ? `You: ${DIRS[myDir]} at ${nm} (${where} box): hit.` : tie ? `You: ${DIRS[myDir]} at ${nm} (${where} box): hit by your Ointment of Bite (your time ${attackTime} ties its ${defSide.move}).` : `You: ${DIRS[myDir]} at ${nm} (${where} box): hit by undercutting (your time ${attackTime} beats its ${defSide.move}).`,
+                inBox ? tell.myHitBox(st, weaponName, DIRS[myDir].toLowerCase(), nm) : tie ? `The Ointment of Bite makes your ${weaponName} bite: your time ${attackTime} ties the ${nm}'s ${defSide.move}, and the blow lands.` : tell.myHitFast(st, weaponName, DIRS[myDir].toLowerCase(), nm, where, attackTime, defSide.move));
         } else log(`You: ${DIRS[myDir]} at ${nm} (${where} box): miss (${DIRS[myDir]} hits ${MANEUVERS[myDir]}${defSide.move != null ? `; its time ${defSide.move} is not slower than your ${attackTime}` : ''}).`,
             tell.myMiss(st, weaponName, DIRS[myDir].toLowerCase(), nm, where, attackTime, defSide.move));
     }
@@ -824,7 +870,7 @@ export function meleePlay(st, data, p) {
                 if (alive.has(h.on) || (c.dens.find(d => d.uid === h.on)?.kind === 'horse' && alive.has(h.owner))) dmg.push(() => {
                     delivered = true;
                     if (h.pit) morphPit(st, data, h, log);                                                  // a Demon or Imp counter casts its spell at its target
-                    else myHit(st, data, h, h.side ? { w: null, mySide: h.side, fight: null, myDir, notes, log, spell: h.spell, morphName: h.morphName } : { w, mySide, fight: hm ? null : fight, myDir, notes, log, morphName: hm?.creature.name });
+                    else myHit(st, data, h, h.side ? { w: null, mySide: h.side, fight: null, myDir, notes, log, spell: h.spell, morphName: h.morphName } : { w, mySide, fight: hm ? null : fight, myDir, notes, log, morphName: hm?.creature.name, potions: !hm });
                 });
                 else log('Your blow finds its target already dead.', `Your ${weaponName} finds its target already dead: the blow is wasted.`);
             }
@@ -850,26 +896,109 @@ export function meleePlay(st, data, p) {
         const d = c.dens.find(x => x.uid === uid);
         if (d && !d.dead && !d.pickedUp) { d.side = 'red'; d.pickedUp = true; log(`${denSide(st, data, d).name} seizes you!`); c.eventful = true; }
     }
+    // ... and so do those that hurt a hireling without killing it: red side up, and they stay on that hireling (8.4.7d.3, 8.6.2)
+    for (const r of c.toRedHire ?? []) {
+        const d = c.dens.find(x => x.uid === r.den), hire = c.hires?.find(x => x.uid === r.hire);
+        if (d && !d.dead && !d.pickedUp && hire && !hire.dead) {
+            d.side = 'red'; d.pickedUp = true; d.engagedBy = hire.uid;
+            log(`${denSide(st, data, d).name} seizes ${hireStats(data, hire.id, hire.kind, st).name}!`);
+            c.eventful = true;
+        }
+    }
+    c.toRedHire = [];
     // a Tremendous counter turns red side up when it has hit the creature it is fighting, and red side down again when that creature is dead
     if (hm && hm.creature.red && !st.ch.dead) {
         if (target?.dead) hm.pin = null;
         else if (delivered && target && (fight || Object.keys(p.parts ?? {}).length)) hm.pin = target.uid;
     }
     // weapon state: a weapon that hit goes unalerted; one that struck and missed turns alerted
-    if (w && fight && !target && !spTargets.length) w.item.alerted = p.weaponSide === 'unalerted' ? false : true;      // 8.4.5 h.2: a Fight chit played at no one sets the weapon either side up (alerted unless he asks for the other)
+    const dust = !!w && hasTreasure(st, 'gripping-dust');          // Gripping Dust keeps the weapon alerted even when it hits (Treasures 11)
+    if (w && fight && !target && !spTargets.length) w.item.alerted = p.weaponSide === 'unalerted' && !dust ? false : true;      // 8.4.5 h.2: a Fight chit played at no one sets the weapon either side up (alerted unless he asks for the other)
     if (w && fight && target && myDir != null) {
         const wasAlerted = !!w.item.alerted;
-        w.item.alerted = !delivered;      // only a blow that was delivered unalerts the weapon; a miss or a cancelled blow leaves it alerted
+        w.item.alerted = !delivered || dust;      // only a blow that was delivered unalerts the weapon; a miss or a cancelled blow leaves it alerted
         // say so: it changes what the weapon does next round (an alerted weapon takes its attack time from the Fight chit)
         const aTime = w.def.alerted?.attackTime;                       // some weapons print a time on the alerted side (the Morning Star's 3); others use the Fight chit's
         const timeWhat = aTime != null ? `its attack time is ${aTime}, as printed on its alerted side` : 'its attack time comes from the Fight chit you play';
         if (!delivered) log(wasAlerted ? `Your ${weaponName} found no mark, so it stays alerted.` : `Your ${weaponName} found no mark, so it is now alerted: next round ${timeWhat}.`,
             wasAlerted ? `Your ${weaponName} found no mark and stays alerted.` : `Your ${weaponName} found no mark, and the missed swing leaves it alerted: next round ${timeWhat}.`);
-        else if (wasAlerted) log(`Your ${weaponName} struck home, so it goes back to unalerted.`, `Your ${weaponName} struck home and goes back to unalerted.`);
+        else if (wasAlerted && !dust) log(`Your ${weaponName} struck home, so it goes back to unalerted.`, `Your ${weaponName} struck home and goes back to unalerted.`);
     }
     c.attackSpell = null;                                 // an attack spell not used this round is lost
     c.step = 'resolve';
     return afterMelee(st, data);
+}
+
+// ---- Battle Bracelets and Elusive Cloak (Treasures 12) ----
+// After the plays are revealed and the dice have moved the denizens, and before the blows are resolved (the digest's step 7, evidence A7):
+//  Battle Bracelets: if he is attacking and EVERY target's maneuver time is 5 or more he may move his attack to any attack circle; against a target of 4 or less he cannot.
+//  Elusive Cloak: if EVERY attack aimed at him has an attack time of 5 or more he may move his maneuver to any maneuver square; one of 4 or less forbids it.
+// Only the circle or square changes; the chits stay as played. (RealmSpeak: REPLACE_FIGHT / REPLACE_MOVE with the speed to beat 4, "fasterThanOrEqual".)
+function attackersOnHim(st, data) {
+    const c = st.combat, out = [];
+    for (const d of c.dens.filter(x => !x.dead && x.kind !== 'horse' && x.box != null)) {
+        const s = denSide(st, data, d);
+        if (s.attack === 'none' || s.atk == null) continue;
+        const owner = d.partOf ? c.dens.find(x => x.uid === d.partOf) : d;
+        if (!owner?.assigned || owner.noRetaliation) continue;
+        out.push({ uid: d.uid, name: s.name, atk: s.atk, box: d.box });
+    }
+    return out;
+}
+function shiftChances(st, data, X) {
+    const c = st.combat, p = X.p, out = { attack: false, move: false, foes: [], attackers: [] };
+    if (st.ch.morph) return out;
+    if (hasTreasure(st, 'battle-bracelets') && p.attackDir != null) {
+        const sp0 = c.attackSpell && !c.attackSpell.auto ? c.attackSpell : null;
+        const targets = [];
+        if (X.fight && X.target) targets.push(X.target);
+        if (sp0) targets.push(...(X.spTargets ?? []));
+        const defs = [...new Set(targets)].map(u => c.dens.find(d => d.uid === u)).filter(Boolean).map(t => c.dens.find(h => h.kind === 'horse' && h.partOf === t.uid && !h.dead) ?? t);
+        out.foes = defs.map(d => ({ uid: d.uid, name: denSide(st, data, d).name, move: denSide(st, data, d).move, box: d.box }));
+        out.attack = defs.length > 0 && out.foes.every(f => f.move != null && f.move >= 5);
+    }
+    if (hasTreasure(st, 'elusive-cloak') && X.move && p.moveDir != null) {
+        out.attackers = attackersOnHim(st, data);
+        out.move = out.attackers.length > 0 && out.attackers.every(a => a.atk >= 5);
+    }
+    return out;
+}
+// The plays with the shift applied (`want` = { attackDir?, moveDir? }); a shift the card does not allow is refused.
+function applyShift(st, data, X, sh, want) {
+    const p = { ...X.p }, c = st.combat;
+    const ok = d => d === 0 || d === 1 || d === 2;
+    if (want.attackDir != null && want.attackDir !== p.attackDir) {
+        if (!sh.attack) throw new Error('your Battle Bracelets cannot move your attack now');
+        if (!ok(want.attackDir)) throw new Error('that is not an attack circle');
+        say(st, `Your Battle Bracelets move your attack from ${DIRS[p.attackDir]} to ${DIRS[want.attackDir]}.`, 'combat');
+        c.events.push(`Your Battle Bracelets move your attack to the ${DIRS[want.attackDir]} circle.`);
+        p.attackDir = want.attackDir;
+    }
+    if (want.moveDir != null && want.moveDir !== p.moveDir) {
+        if (!sh.move) throw new Error('your Elusive Cloak cannot move your maneuver now');
+        if (!ok(want.moveDir)) throw new Error('that is not a maneuver square');
+        say(st, `Your Elusive Cloak moves your maneuver from ${MANEUVERS[p.moveDir]} to ${MANEUVERS[want.moveDir]}.`, 'combat');
+        c.events.push(`Your Elusive Cloak moves your maneuver to ${MANEUVERS[want.moveDir]}.`);
+        p.moveDir = want.moveDir;
+    }
+    return p;
+}
+// What the shift screen shows: the plays, who stands where after the dice, and what each card allows.
+export function shiftOptions(st, data) {
+    const c = st.combat, X = c?.shiftCtx;
+    if (!X) return null;
+    const sh = shiftChances(st, data, X);
+    return { ...sh, attackDir: X.p.attackDir, moveDir: X.p.moveDir, hasAttack: X.p.attackDir != null && !!(X.fight || (c.attackSpell && !c.attackSpell.auto)), hasMove: !!X.move,
+        placed: c.dens.filter(d => !d.dead && d.kind !== 'horse' && d.box != null).map(d => ({ uid: d.uid, name: denSide(st, data, d).name, box: d.box, atk: denSide(st, data, d).atk, move: denSide(st, data, d).move, aimedAtHim: attackersOnHim(st, data).some(a => a.uid === d.uid) })) };
+}
+// His answer to the offer: `a.attackDir` / `a.moveDir` name the new circle / square; nothing named keeps his plays.
+export function shiftAction(st, data, a) {
+    const c = st.combat;
+    if (c.step !== 'shift' || !c.shiftCtx) throw new Error('there is no shift to make');
+    const X = c.shiftCtx, sh = shiftChances(st, data, X);
+    const p = applyShift(st, data, X, sh, a);
+    c.step = 'melee';
+    return meleeResolve(st, data, { ...X, p });
 }
 
 // A Demon or Imp counter worn by the hero attacks with its spell, like a monster and not like a character (Absorb Essence 2.2): where its blow connects, the Power of the Pit
@@ -1059,7 +1188,8 @@ function myHit(st, data, h, ctx) {
     const s = denSide(st, data, den);
     const side = ctx.mySide;
     let level = lvl(side.harm), stars = side.stars;
-    if (s.armored) stars = Math.max(0, stars - 1);
+    // Penetrating Grease (Treasures 11): his weapon ignores all armor, so an armored denizen takes the full sharpness
+    if (s.armored && !(ctx.potions && hasTreasure(st, 'penetrating-grease'))) stars = Math.max(0, stars - 1);
     level += stars;
     let note = '', shotDelta = null;
     if (side.missile) {
@@ -1178,7 +1308,7 @@ function strikeHero(st, data, b, ctx) {
     level += stars + missile;
     const L = letterOf(level);
     ctx.log(`${b.name} strikes ${DIRS[b.dir].toLowerCase()} for ${L} harm${armor ? ` against your ${armor.def.name}` : ''}.`, tell.strike(st, b.name, DIRS[b.dir].toLowerCase(), L, armor?.def.name));
-    let wounded = false, changed = false;
+    let wounded = false, changed = false, greased = false;
     if (armor) {
         const tough = lvl(armor.def.toughness ?? armor.def.weight);
         if (level >= tough) {
@@ -1192,7 +1322,11 @@ function strikeHero(st, data, b, ctx) {
                 c.eventful = true;
             }
         }
-        if (level >= lvl('M')) wounded = true;
+        if (level >= lvl('M')) {
+            // Reflecting Grease (Treasures 12): an attack that strikes armor wounds no action chit (the armor is still damaged or destroyed as above)
+            if (hasTreasure(st, 'reflecting-grease')) { greased = true; ctx.log('Your Reflecting Grease turns the blow aside: no chit is wounded.'); }
+            else wounded = true;
+        }
     } else if (level >= lvl(st.ch.weight)) {
         return killMe(st, `${b.name} deals ${L} harm; you are slain.`, b.name);
     } else if (level >= lvl('L')) wounded = true;
@@ -1200,7 +1334,7 @@ function strikeHero(st, data, b, ctx) {
         c.newWounds = (c.newWounds ?? 0) + 1; tally(st, 'woundsTaken'); tally(st, `wounds.${b.name}`);
         c.eventful = true;
         ctx.log('You take a wound.', tell.wound(st));
-    } else if (!changed && !st.ch.dead) {
+    } else if (!changed && !greased && !st.ch.dead) {
         // nothing came of it, and the player should be told why
         const why = armor
             ? `${WEIGHT_WORDS[L] ?? L} harm is not enough to hurt your ${armor.def.name} (toughness ${WEIGHT_WORDS[armor.def.toughness ?? armor.def.weight] ?? armor.def.toughness}), and it is too light to hurt you through it.`
@@ -1333,7 +1467,18 @@ function toFatigue(st, data) {
     st.pending = { type: 'combat-fatigue', need, chits: pool.map(x => x.id), kinds, why };
 }
 
-export function chooseFatigue(st, data, ids) {
+// Making change (4.2.4a, 8.5.1a): when he tires more asterisks than he owes (a two-asterisk chit for one), a fatigued ONE-asterisk chit of the same type as the one
+// he tired comes back into play, and he chooses which. Returns the chits he may name for the fatigue just chosen (empty when he has no choice to make).
+export function makeChangeOptions(st, data, ids) {
+    const c = st.combat, need = c.fatigueNeed;
+    const chosen = [...new Set(ids)].map(id => st.ch.chits.find(x => x.id === id)).filter(Boolean);
+    const sum = chosen.reduce((n, x) => n + (x.effort ?? 0), 0);
+    if (sum - need !== 1) return [];
+    const types = new Set((chosen.some(x => x.effort >= 2) ? chosen.filter(x => x.effort >= 2) : chosen).map(x => x.type));
+    return st.ch.chits.filter(x => x.state === 'fatigued' && x.effort === 1 && !chosen.includes(x) && (types.has(x.type) || (x.alt?.mf && [...types].some(t => t === 'move' || t === 'fight'))));
+}
+
+export function chooseFatigue(st, data, ids, change = null) {
     const c = st.combat, need = c.fatigueNeed;
     const pool = st.ch.chits.filter(x => x.state === 'active' && x.effort > 0 && (c.fatigueKinds.includes(x.type) || x.alt?.mf));
     const chosen = [...new Set(ids)].map(id => pool.find(x => x.id === id));
@@ -1341,11 +1486,13 @@ export function chooseFatigue(st, data, ids) {
     const sum = chosen.reduce((s, x) => s + x.effort, 0);
     if (sum < need) throw new Error(`fatigue at least ${need} asterisk${need === 1 ? '' : 's'}`);
     if (sum - need > 1) throw new Error('that is more than needed');
+    // Overshoot by one: make change by returning a fatigued single-asterisk chit of the same type, his choice (the first of them when he names none).
+    const options = makeChangeOptions(st, data, ids);
+    if (change != null && !options.some(x => x.id === change)) throw new Error('the chit you make change with must be a tired one-asterisk chit of the same type as the one you tire');
     chosen.forEach(x => { x.state = 'fatigued'; });
-    // Overshoot by one: make change by returning a fatigued single-asterisk chit of the same kind, if there is one.
     if (sum - need === 1) {
-        const back = st.ch.chits.find(x => x.state === 'fatigued' && x.effort === 1 && !chosen.includes(x) && c.fatigueKinds.includes(x.type));
-        if (back) { back.state = 'active'; say(st, 'You make change for the extra asterisk.', 'combat'); }
+        const back = options.find(x => x.id === change) ?? options[0];
+        if (back) { back.state = 'active'; say(st, `You make change for the extra asterisk: ${chitName(back)} is ready again.`, 'combat'); }
     }
     say(st, `You fatigue ${chosen.length} chit${chosen.length === 1 ? '' : 's'}.`, 'combat', tell.spent(st, chosen.length));
     c.eventful = true;
@@ -1472,13 +1619,19 @@ function denStrikesHire(st, data, den, hireUid, log) {
     let level = lvl(ds.harm) + (hs.armored ? Math.max(0, ds.stars - 1) : ds.stars);
     if (ds.attack === 'missile') level += missileRoll(st, `${ds.name}'s missile roll (at ${hs.name})`, ds.type === 'Archer');
     if (ds.attack === 'spell') level = 4;
+    if (den.pickedUp) level = 99;                        // a red-side-up monster holds this native: its hit kills outright (8.4.7d.2, as against the hero)
     if (level >= lvl(hs.vuln)) {
         hire.dead = true;
         hireDies(st, data, hire);
         st.ch.notoriety -= hs.notor;
         log(`The ${ds.name} kills ${hs.name}; you lose ${hs.notor} Notoriety.`);
         c.eventful = true;
-    } else log(`The ${ds.name} hits ${hs.name} but fails to kill.`);
+    } else {
+        log(`The ${ds.name} hits ${hs.name} but fails to kill.`);
+        // 8.4.7d.3: a Tremendous monster (or its head or club) that hits a native and does not kill it turns red side up, and (8.6.2) stays assigned to it
+        const owner = den.kind === 'part' ? c.dens.find(d => d.uid === den.partOf) : den;
+        if (hire.kind === 'nat' && owner && !owner.dead && redCapable(st, data, owner) && !owner.pickedUp) (c.toRedHire ??= []).push({ den: owner.uid, hire: hireUid });
+    }
 }
 
 // What the spell handlers may ask of the combat (magic/bridge.js is a leaf module so that handlers do not import this file).

@@ -28,7 +28,7 @@ export function newGame(data, opts = {}) {
     revealValleys(st, data);
     placeDenizens(st, data);
     setupTreasure(st, data);
-    if (opts.pauseVictory) st.pauseVictory = true;
+    if (opts.pauseVictory) { st.pauseVictory = true; st.pauseShift = true; }          // the game screen: stop on a result screen and on the Bracelets / Cloak offer
     st.options = { knightsAdjustment: !!opts.options?.knightsAdjustment, watchfulNatives: !!opts.options?.watchfulNatives, quietMonsters: !!opts.options?.quietMonsters };
     st.startGear = { weapon: opts.startGear?.weapon ?? true, armor: opts.startGear?.armor ?? true };
     st.ch = makeCharacter(st, data, opts.character ?? 'black-knight', opts.vp, { gear: st.startGear, dwelling: opts.startDwelling, spells: opts.startSpells });

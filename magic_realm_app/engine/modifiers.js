@@ -41,7 +41,21 @@ export function cardChits(st, type) {
     }));
 }
 
-export const effortLimit = st => (treasureIds(st).includes('girtle-of-energy') ? 3 : 2);
+// Is this treasure card in force for him (owned and active)? Potions count only once they have been activated (8.9.2a: they are used up at Midnight).
+export const hasTreasure = (st, id) => treasureIds(st).includes(id);
+
+// 8.4.5f.2: two effort asterisks a round; the Girtle of Energy makes it three; a Potion of Energy lifts the limit altogether and takes precedence over the Girtle.
+// (A large finite number, so that it survives the JSON round trip of a saved game and of the screen's options.)
+export const NO_EFFORT_LIMIT = 99;
+export const effortLimit = st => (hasTreasure(st, 'potion-of-energy') ? NO_EFFORT_LIMIT : hasTreasure(st, 'girtle-of-energy') ? 3 : 2);
+
+// Treasures 6: the Draught of Speed (2 asterisks time 2, 1 asterisk 3, none 4) and the Garb of Speed (3, 4, 5) fix the time number of every action chit by its
+// asterisks. A character with both takes the Draught's numbers. Returns the chit's time as it is played (the printed time when neither is in force).
+export function chitSpeed(st, chit) {
+    const base = hasTreasure(st, 'draught-of-speed') ? 2 : hasTreasure(st, 'garb-of-speed') ? 3 : null;
+    if (base == null) return chit.time;
+    return base + Math.max(0, 2 - Math.min(2, chit.effort ?? 0));
+}
 
 // The six tiles whose names end in "Woods" (Deep, Linden, Maple, Nut, Oak, Pine). The Deep Woods is a mountain tile for chits and climbing,
 // so this goes by name, not by the tile's group.

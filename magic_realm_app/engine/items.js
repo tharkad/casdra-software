@@ -1,5 +1,5 @@
 import { lvl } from './core.js';
-import { cardChits, BOOTS, GLOVES } from './modifiers.js';
+import { cardChits, BOOTS, GLOVES, hasTreasure } from './modifiers.js';
 import { isCave } from './world.js';
 
 // Everything a character can own is an item: { uid, kind: 'weapon'|'armor'|'horse'|'treasure', id, active, alerted, damaged, destroyed }.
@@ -38,10 +38,28 @@ export function priceOf(data, it) {
     return d.gold ?? d.price ?? 0;
 }
 
-// The heaviest thing he owns bounds what he can carry when he walks.
-export function carriedLevel(st, data) {
+// Pack horses (7.3.1i, 4.3.8b): every horse he owns that is not the one he rides is a pack horse. It carries any number of his INACTIVE items, so long as its
+// strength (its walking strength) bears the weight of each; what it carries needs no Move chit of his (7.3.1e, 8.4.5f.3), even in a cave (7.3.1i.5) or when the horse
+// itself is not ridden. An item in use stays with him: RealmSpeak (CharacterWrapper getNeededSupportWeight) and its test "pack horses don't support active weight".
+// `except` names a horse that is about to be ridden, which can no longer be a pack horse.
+export function packStrength(st, data, except = null) {
+    let best = -1;
+    for (const h of st.ch.items) if (h.kind === 'horse' && !h.active && !h.destroyed && h.uid !== except && data.horses[h.id]) best = Math.max(best, lvl(data.horses[h.id].walk.strength));
+    return best;
+}
+// Does a pack horse carry this item? (Only an inactive item that is not a horse itself, no heavier than the strongest pack horse.)
+export const onPackHorse = (st, data, it, except = null) => it.kind !== 'horse' && !it.active && !it.destroyed && lvl(weightOf(data, it)) <= packStrength(st, data, except);
+
+// The heaviest thing he owns bounds what he can carry when he walks (what a pack horse carries does not count).
+export function carriedLevel(st, data, except = null) {
     let w = 0;
-    for (const it of st.ch.items) if (!it.destroyed && it.kind !== 'horse') w = Math.max(w, lvl(weightOf(data, it)));
+    const pack = packStrength(st, data, except);
+    for (const it of st.ch.items) {
+        if (it.destroyed || it.kind === 'horse') continue;
+        const l = lvl(weightOf(data, it));
+        if (!it.active && l <= pack) continue;
+        w = Math.max(w, l);
+    }
     return w;
 }
 
@@ -65,6 +83,7 @@ export function dropHeavy(st, data) {
     const dropped = [];
     st.ch.items = st.ch.items.filter(it => {
         if (it.destroyed || it.kind === 'horse') return true;
+        if (onPackHorse(st, data, it)) return true;                 // a pack horse carries it (7.3.1i.2)
         if (lvl(weightOf(data, it)) > Math.max(cap, 0) && lvl(weightOf(data, it)) > 0) { dropped.push(it); return false; }
         return true;
     });
@@ -98,6 +117,13 @@ export function isOneUse(data, it) {
     return ONE_USE.has(it.id) || /one-use|\bpotion\b/i.test(d?.effectText ?? '');
 }
 
+// Gripping Dust (Treasures 11): the weapon he has in use stays alerted side up at all times, even when it hits. Called whenever the weapon or the Dust changes.
+export function keepAlerted(st) {
+    if (!hasTreasure(st, 'gripping-dust')) return;
+    const w = st.ch.items.find(i => i.kind === 'weapon' && i.active && !i.destroyed);
+    if (w) w.alerted = true;
+}
+
 // Puts a newly acquired item into use if the slots it needs are free.
 export function autoEquip(st, data, it) {
     const slots = slotsOf(data, it);
@@ -105,7 +131,7 @@ export function autoEquip(st, data, it) {
     if (!slots.length) return;
     if (BOOTS[it.id] && !bootsStrongEnough(st, data, it)) return;
     const taken = st.ch.items.filter(o => o.uid !== it.uid && o.active && !o.destroyed && slotsOf(data, o).some(s => slots.includes(s)));
-    if (!taken.length) it.active = true;
+    if (!taken.length) { it.active = true; keepAlerted(st); }
 }
 
 // Switching one item on switches off anything that needs the same slot.
@@ -122,13 +148,14 @@ export function toggleItem(st, data, it) {
     if (it.kind === 'horse') {
         const at = st.combat?.at ?? st.ch.at;
         if (at && isCave(st, data, at)) throw new Error('A horse cannot be ridden in a cave.');
-        if (lvl(data.horses[it.id].walk.strength) < Math.max(lvl(st.ch.weight), carriedLevel(st, data))) throw new Error('The horse is not strong enough to carry you and your gear.');
+        if (lvl(data.horses[it.id].walk.strength) < Math.max(lvl(st.ch.weight), carriedLevel(st, data, it.uid))) throw new Error('The horse is not strong enough to carry you and your gear.');
         st.ch.items.filter(o => o.kind === 'horse').forEach(o => { o.active = false; });
     }
     if (BOOTS[it.id] && !bootsStrongEnough(st, data, it)) throw new Error('Those boots are not strong enough to carry you and your gear.');
     const slots = slotsOf(data, it);
     for (const o of st.ch.items) if (o.uid !== it.uid && o.active && slotsOf(data, o).some(s => slots.includes(s))) { o.active = false; if (o.kind === 'weapon') o.alerted = false; }
     it.active = true;
+    keepAlerted(st);
 }
 
 // One short line describing an item for a person (stats, not rules text).
