@@ -879,3 +879,8 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .realm-svg .goingring { fill: none; stroke: var(--gold); stroke-width: 3; pointer-events: none; transform-box: fill-box; transform-origin: center; animation: going 1.4s ease-in-out infinite; }
 @keyframes going { 0%, 100% { transform: scale(1); opacity: .95; } 50% { transform: scale(1.35); opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .realm-svg .goingring { animation: none; } }
+
+/* the goal bar: a track you can see against the card, the filled part, and a mark at the goal itself */
+.goalbar { position: relative; height: 12px; border-radius: 6px; background: color-mix(in srgb, var(--text) 16%, var(--panel)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 24%, transparent); overflow: hidden; }
+.goalbar i { border-radius: 6px 0 0 6px; }
+.goalbar::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 2px; background: color-mix(in srgb, var(--text) 55%, transparent); }
