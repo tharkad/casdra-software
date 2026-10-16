@@ -203,6 +203,9 @@ export function gameScreen(ctx) {
             const i = ui.planStep ?? 0, from = planLocations()[i];
             if (ui.pickMove === i || ui.draft.slots[i]?.act === 'move') {
                 ui.moveTargets = st.ch.onRoad && i === 0 ? [st.ch.onRoad.from, st.ch.onRoad.to] : from ? roadsFrom(st, data, from).filter(r => r.usable).map(r => r.to) : [];
+                // a cave cannot be entered in a sunlight phase (the third and fourth ordinary phases): do not ring one there (rule 6.2.2; day.js doMove)
+                const trial = ui.draft.slots.slice(); trial[i] = { act: 'move', to: from ?? 'x' };
+                if (planKinds(st, data, trial).kinds[i] === 'sunlight') ui.moveTargets = ui.moveTargets.filter(to => !isCave(st, data, to));
             }
         }
         return {
