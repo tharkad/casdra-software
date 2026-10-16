@@ -952,8 +952,8 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .racerow { display: flex; gap: 8px; }
 .racerow .btn:first-child { flex: 1; justify-content: flex-start; text-align: left; }
 .racerow .btn.quiet { min-width: 52px; padding: 0; }
-.btn .col { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
-.btn .col small { font-size: 13px; color: var(--dim); font-weight: 400; }
+.racerow .btn .col { align-items: flex-start; }
+.racerow .btn .col small { color: var(--dim); font-weight: 400; }
 .pdot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #5b6275; flex: none; }
 .pdot.on { background: #58c98b; box-shadow: 0 0 0 3px rgba(88, 201, 139, .22); }
 .status .back { position: relative; }
