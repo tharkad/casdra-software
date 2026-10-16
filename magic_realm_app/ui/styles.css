@@ -755,3 +755,31 @@ button.daybox { min-width: 0; overflow: hidden; padding: 0 2px; }
 .statbox.void b, .repchip.void, s.void { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: #ff8aa0; }
 .statbox.void { opacity: .65; border-color: #d0506a; }
 .repchip.void { opacity: .7; }
+
+/* ---- the top bar, redrawn: one flat bar, icon and number, one score, no boxes ---- */
+.status { min-height: 56px; gap: 4px; padding: 0 var(--gutter); background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 92%, #fff 8%), var(--bg)); border-bottom: 1px solid color-mix(in srgb, var(--gold, #c9a24a) 35%, transparent); }
+.status .back { width: 40px; height: 44px; margin: 0 0 0 -10px; display: grid; place-items: center; color: var(--text); opacity: .85; }
+.status .back svg { display: block; }
+button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border: 0; border-radius: 0; background: none; box-shadow: none; display: flex; flex-direction: column; gap: 2px; text-align: left; overflow: visible; cursor: pointer; }
+.daybox.magic { box-shadow: none; border-radius: 0; }
+.daybox b { display: flex; align-items: baseline; gap: 2px; font-family: var(--font-display); font-size: 18px; letter-spacing: .06em; line-height: 1.05; text-transform: uppercase; white-space: nowrap; }
+.daybox b small { font-size: 12px; color: var(--dim); letter-spacing: .02em; text-transform: none; }
+.daybox span { display: flex; align-items: center; gap: 5px; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); white-space: nowrap; overflow: visible; }
+.daybox .mdot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, .45); flex: none; }
+.daybox .cursedmark { display: inline-flex; align-self: center; margin-left: 6px; color: #ff6f8c; }
+.daybox .cursedmark svg { display: block; }
+.stats { gap: 14px; align-items: center; padding: 0 4px; border: 0; background: none; }
+.statbox { display: inline-flex; align-items: center; gap: 5px; min-width: 0; height: auto; padding: 0; border: 0; border-radius: 0; background: none; color: var(--sb); }
+.statbox small { display: none; }
+.statbox b { font-size: 17px; font-weight: 700; letter-spacing: .01em; color: var(--text); font-variant-numeric: tabular-nums; }
+.statbox svg { display: block; flex: none; }
+.statbox.gold { --sb: #e2c068; } .statbox.fame { --sb: #7fb0ea; } .statbox.notor { --sb: #e0806a; }
+.statbox.gold b { color: #f1d27f; }
+.statbox.void { opacity: .6; border: 0; }
+.vpchip { align-self: stretch; min-width: 0; height: auto; margin-left: 4px; padding: 0 0 0 12px; border: 0; border-left: 1px solid var(--line); border-radius: 0; background: none; align-items: flex-end; justify-content: center; gap: 1px; }
+.vpchip small { font-size: 10px; letter-spacing: .16em; color: var(--dim); }
+.vpchip b { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.vpchip.neg b { color: #f08a8a; }
+@media (max-width: 400px) { .stats { gap: 10px; } .statbox b { font-size: 16px; } .daybox b { font-size: 16px; } .vpchip { padding-left: 8px; } .daybox span { letter-spacing: .1em; } }
+@media (max-width: 360px) { .stats { gap: 7px; } .statbox svg { width: 15px; height: 15px; } }
+.bugbtn { display: none; }

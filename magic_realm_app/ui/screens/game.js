@@ -34,6 +34,24 @@ const CURSE_PLAIN = {
     Ashes: 'Your gold is worthless: you cannot spend it, so you cannot buy, hire or pay.',
     Disgust: 'Your Fame is worthless: you cannot lose it, so paying an insult in Fame is not possible and Challenges mean a fight.',
 };
+// The header's icons: one family (24 grid, 1.8 round stroke, currentColor) so they read as a set.
+const ICON = {
+    menu: ['M4 7h16', 'M4 12h16', 'M4 17h16'],
+    coin: ['M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z', 'M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6z'],
+    fame: ['M12 3.2l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.5l6.1-.7z'],
+    notor: ['M12 3c.8 3.4 5 5.4 5 10a5 5 0 0 1-10 0c0-2 1-3.2 2.2-4.2 0 2 .9 3 1.9 3 .2-3-1.1-5 .9-8.8z'],
+    skull: ['M12 3.5a7 7 0 0 0-7 7c0 2.4 1.2 4.2 3 5.3v3.2h8v-3.2c1.8-1.1 3-2.9 3-5.3a7 7 0 0 0-7-7z', 'M9 11.2h.01', 'M15 11.2h.01', 'M10.5 19v-2.2', 'M13.5 19v-2.2'],
+};
+function icon(name, size = 18) {
+    const ns = 'http://www.w3.org/2000/svg', el = document.createElementNS(ns, 'svg');
+    el.setAttribute('viewBox', '0 0 24 24'); el.setAttribute('width', size); el.setAttribute('height', size); el.setAttribute('class', `ico-${name}`);
+    el.setAttribute('fill', 'none'); el.setAttribute('stroke', 'currentColor'); el.setAttribute('stroke-width', '1.8'); el.setAttribute('stroke-linecap', 'round'); el.setAttribute('stroke-linejoin', 'round');
+    el.setAttribute('aria-hidden', 'true');
+    for (const d of ICON[name]) { const p = document.createElementNS(ns, 'path'); p.setAttribute('d', d); el.append(p); }
+    return el;
+}
+const COLOR_DOT = { White: '#f2eedc', Black: '#15151c', Grey: '#9aa0aa', Gold: '#e2c068', Purple: '#8f7cc0' };
+
 // A curse makes a number worthless (Ashes: gold, Disgust: Fame): it is still shown, struck through, so it is plain it cannot be used.
 const voidBy = (st, stat) => (stat === 'gold' && (st.ch.curses ?? []).includes('Ashes') ? 'Ashes' : stat === 'fame' && (st.ch.curses ?? []).includes('Disgust') ? 'Disgust' : null);
 const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert', enchant: 'Enchant', nothing: 'Nothing' };
@@ -170,21 +188,19 @@ export function gameScreen(ctx) {
 
     // ---- rendering ----
     function render() {
+        const cursed = (st.ch.curses ?? []).length > 0, magicToday = dayColors(st.day);
+        const stat = (key, label, val, ic) => h('span', { class: `statbox ${key}${voidBy(st, key === 'notor' ? 'notoriety' : key) ? ' void' : ''}`, 'data-stat': key === 'notor' ? 'notoriety' : key,
+            title: voidBy(st, key === 'notor' ? 'notoriety' : key) ? `Worthless: the ${voidBy(st, key === 'notor' ? 'notoriety' : key)} curse` : label, 'aria-label': `${label} ${val}` }, icon(ic, 17), h('b', {}, String(val)));
+        const tot = vpNow();
         strip.replaceChildren(
-            h('button', { class: 'back', 'aria-label': 'Menu', onclick: () => { ui.sheet = ui.sheet === 'menu' ? null : 'menu'; render(); } }, '☰'),
-            h('button', { class: 'bugbtn', 'aria-label': 'Report a problem', 'data-act': 'bug', onclick: () => { ui.sheet = 'bug'; render(); } }, '\u{1F41E}'),
-            h('button', { class: `daybox${isMagicDay(st.day) ? ' magic' : ''}`, 'data-act': 'calendar', 'aria-label': 'Calendar and the colours of magic', onclick: () => { ui.sheet = ui.sheet === 'calendar' ? null : 'calendar'; render(); } },
-                h('b', {}, `Day ${st.day}`, h('small', {}, st.mode === 'endless' ? '' : `/${st.lastDay ?? 28}`), (st.ch.curses ?? []).length ? h('i', { class: 'cursedmark', 'aria-label': 'cursed' }, '\u2620') : null),
-                h('span', {}, isMagicDay(st.day) ? `${dayColors(st.day).join(' & ')} magic` : `${st.period === 'over' ? 'finished' : st.period}`)),
-            h('button', { class: 'stats', onclick: () => { ui.sheet = ui.sheet === 'char' ? null : 'char'; render(); } },
-                h('span', { class: `statbox gold${voidBy(st, 'gold') ? ' void' : ''}`, 'data-stat': 'gold', title: voidBy(st, 'gold') ? `Worthless: the ${voidBy(st, 'gold')} curse` : null }, h('small', {}, 'Gold'), h('b', {}, String(st.ch.gold))),
-                h('span', { class: `statbox fame${voidBy(st, 'fame') ? ' void' : ''}`, 'data-stat': 'fame', title: voidBy(st, 'fame') ? `Worthless: the ${voidBy(st, 'fame')} curse` : null }, h('small', {}, 'Fame'), h('b', {}, String(st.ch.fame))),
-                h('span', { class: 'statbox notor', 'data-stat': 'notoriety' }, h('small', {}, 'Notor'), h('b', {}, String(st.ch.notoriety)))),
-            (() => {
-                const tot = vpNow();
-                return h('button', { class: 'vpchip', 'data-act': 'vp', 'aria-label': `Victory points: ${tot}. Tap for your goals`, onclick: () => { ui.sheet = ui.sheet === 'score' ? null : 'score'; render(); } },
-                    h('small', {}, 'VP'), h('b', {}, tot > 0 ? `+${tot}` : String(tot)));
-            })());
+            h('button', { class: 'back', 'aria-label': 'Menu', 'data-act': 'menu', onclick: () => { ui.sheet = ui.sheet === 'menu' ? null : 'menu'; render(); } }, icon('menu', 22)),
+            h('button', { class: `daybox${magicToday.length ? ' magic' : ''}`, 'data-act': 'calendar', 'aria-label': 'Calendar and the colours of magic', onclick: () => { ui.sheet = ui.sheet === 'calendar' ? null : 'calendar'; render(); } },
+                h('b', {}, `Day ${st.day}`, h('small', {}, st.mode === 'endless' ? '' : `/${st.lastDay ?? 28}`), cursed ? h('i', { class: 'cursedmark', 'aria-label': 'cursed' }, icon('skull', 15)) : null),
+                h('span', {}, st.period === 'over' ? 'finished' : st.period, ...magicToday.map(c => h('i', { class: 'mdot', title: `${c} magic`, style: `background:${COLOR_DOT[c] ?? '#aaa'}` })))),
+            h('button', { class: 'stats', 'aria-label': 'Gold, Fame and Notoriety: open your sheet', onclick: () => { ui.sheet = ui.sheet === 'char' ? null : 'char'; render(); } },
+                stat('gold', 'Gold', st.ch.gold, 'coin'), stat('fame', 'Fame', st.ch.fame, 'fame'), stat('notor', 'Notoriety', st.ch.notoriety, 'notor')),
+            h('button', { class: `vpchip${tot < 0 ? ' neg' : ''}`, 'data-act': 'vp', 'aria-label': `Victory points: ${tot}. Tap for your goals`, onclick: () => { ui.sheet = ui.sheet === 'score' ? null : 'score'; render(); } },
+                h('small', {}, 'VP'), h('b', {}, tot > 0 ? `+${tot}` : String(tot))));
         map.set(mapModel());
         const hero = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at;
         if (hero !== lastHero) { lastHero = hero; map.focus(hero); }
