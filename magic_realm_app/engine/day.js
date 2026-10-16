@@ -495,8 +495,6 @@ export function apply(st0, data, action) {
     const st = clone(st0);
     const p = st.pending;
     if (!p) throw new Error('nothing to do');
-    // Where this step's story starts in the log: the narration of "what just happened" is everything written from here on. (Tidying gear is not a step.)
-    if (action.type !== 'tidy') st.stepAt = st.log.length;
     switch (action.type) {
         case 'plan': {
             if (p.type !== 'plan') throw new Error('not planning');

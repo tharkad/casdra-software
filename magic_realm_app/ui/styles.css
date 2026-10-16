@@ -885,24 +885,7 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .goalbar i { border-radius: 6px 0 0 6px; }
 .goalbar::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 2px; background: color-mix(in srgb, var(--text) 55%, transparent); }
 
-/* ---- the story over the map ---- */
-.narr { position: absolute; top: 10px; left: 10px; right: 70px; z-index: 3; padding: 9px 12px; border-radius: 12px; background: rgba(9, 11, 17, .78); border: 1px solid rgba(226, 192, 104, .35);
-    color: #f2ead4; font-family: var(--font-text); font-size: 16px; line-height: 1.35; cursor: pointer; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-.narr[hidden] { display: none; }
-.narr.fresh { animation: narr-in .4s ease-out; }
-@keyframes narr-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .narr.fresh { animation: none; } }
-.maptools .narrbtn { position: relative; color: var(--dim); }
-.maptools .narrbtn.lit { color: var(--gold); }
-.maptools .narrbtn .dot { position: absolute; top: 6px; right: 6px; width: 10px; height: 10px; border-radius: 50%; background: #e2c068; box-shadow: 0 0 0 2px #0b0d13; }
-.maptools .narrbtn svg { display: block; margin: auto; }
-.storysheet .switchrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 4px 0 8px; font-size: 17px; }
-.storysheet .storyline { border-left: 3px solid var(--line); padding: 2px 0 2px 10px; margin: 6px 0; }
-.storysheet .storyline.day { border-color: #e2c068; } .storysheet .storyline.combat { border-color: #d0506a; } .storysheet .storyline.loot, .storysheet .storyline.discover { border-color: #5fb58a; }
-.storysheet .sp { margin: 0; font-size: 17px; line-height: 1.35; }
-.storysheet .sx { margin: 2px 0 0; font-size: 13px; color: var(--dim); }
-.storysheet details { margin: 10px 0; } .storysheet summary { color: var(--dim); font-size: 14px; cursor: pointer; }
-.narr { font-size: 15.5px; -webkit-line-clamp: 3; padding: 8px 12px; }
+
 .prowl .weekend { display: block; margin-top: 3px; font-size: 13px; color: var(--dim); font-weight: 400; }
 @media (max-height: 720px) { .maptools { gap: 6px; } .maptools button { width: 38px; height: 38px; font-size: 19px; } }
 @media (max-height: 720px) { .dock-inner { max-height: 34vh; } }
@@ -938,3 +921,18 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .cb-last .cb-steps summary { color: var(--dim); font-size: 14.5px; cursor: pointer; padding: 4px 0; }
 .cb-last .cb-steps p { font-size: 15px; line-height: 1.35; margin: 3px 0; color: var(--dim); }
 .cb-last .cb-steps p.hd { color: var(--text); margin-top: 8px; }
+
+/* the dice tray is a row: the roll (a button that opens the dice) and the Story / Detail switch */
+.tray { cursor: default; gap: 6px; }
+.tray-main { flex: 1; min-width: 0; text-align: left; border: 0; background: none; color: inherit; padding: 0; cursor: pointer; }
+.voicechip { display: inline-flex; flex: none; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-size: 12.5px; letter-spacing: .02em; }
+.voicechip .vc { border: 0; background: transparent; color: var(--dim); padding: 4px 9px; min-height: 30px; cursor: pointer; font: inherit; }
+.voicechip .vc.on { background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--gold); }
+.rr-what { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.rollrow.tale .rr-res { font-family: var(--font-text); font-size: 17px; line-height: 1.3; font-style: italic; }
+
+.res-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cb-last .res-head b { font-size: 15px; }
+.cb-results .res-verdict.tale { font-family: var(--font-text); font-style: italic; font-size: 17.5px; }
+.cb-results .res-dice { display: flex; flex-direction: column; gap: 4px; }
+.cb-last .cb-steps { margin-top: 4px; }

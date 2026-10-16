@@ -70,24 +70,15 @@ Object.assign(tell, {
         if (/^You hide/.test(t)) return v(st, ['You melt out of sight.', 'You find cover and stay quiet.', 'You vanish into the surroundings.'], 2);
         if (/^You have nothing to rest/.test(t)) return 'You are well, and there is nothing to rest.';
         if (/^You rest/.test(t)) return t.replace(/^You rest \(?/, 'You rest').replace(/\)$/, '') + '.';
+        if ((m = /^Loot \([\d+]+\) at (.+?): you take the (.+)$/.exec(t))) return `You reach into the ${m[1]} and draw out the ${m[2]}.`;
+        if ((m = /^Loot \([\d+]+\) at (.+?): nothing at that depth$/.exec(t))) return `Your hand closes on nothing in the ${m[1]}.`;
+        if ((m = /^Loot \([\d+]+\) at (.+?): (.+?)! Cursed with (\w+)\.?(.*)$/.exec(t))) return `The ${m[1]} gives up the ${m[2]}, and a curse comes with it: ${m[3]}.${m[4] ? ' ' + m[4].trim().replace(/^You find (\d+) gold\./, 'Gold glints within: $1.').replace('You keep: ', 'You keep ') : ''}`;
+        if ((m = /^You discover a site here: (.+)$/.exec(t))) return `A hidden place shows itself: the ${m[1]}.`;
         if (/^You do nothing/.test(t)) return 'You let the time pass.';
         return `${t}.`;
     },
 });
 
-
-// What just happened, for the caption over the map and the step-by-step sheet: everything the last step wrote, rolls apart (they live in the dice tray).
-export function stepLines(st) {
-    const from = st.stepAt ?? Math.max(0, (st.log?.length ?? 0) - 3);
-    return (st.log ?? []).slice(from).filter(l => l.k !== 'roll');
-}
-export function headline(st, max = 280) {
-    const lines = stepLines(st).filter(l => l.k !== 'day' || l.s).map(l => l.s ?? l.t);
-    if (!lines.length) return '';
-    let out = '';
-    for (const t of lines) { if (out && (out + ' ' + t).length > max) break; out = out ? `${out} ${t}` : t; }
-    return out;
-}
 
 // ---- a round of combat told in a few sentences (the full lines stay behind it, step by step) ----
 const num = n => ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'][n] ?? String(n);
@@ -127,4 +118,40 @@ export function roundSynopsis(events) {
     } else if (lines.avoided.length) out.push('Every blow missed you.');
     if (lines.ended.length && !out.length) out.push('The fighting died down.');
     return out.join(' ');
+}
+
+// ---- a roll in the story voice: { title, line } for the dice tray and every box that describes a roll; the exact words stay as they were ("Detail") ----
+const EVENING = [
+    [/^Friendly: /, 'Friends here. No blades will be drawn.'], [/^Wary: /, 'Wary eyes, but no blades.'], [/^Cool: /, 'A cool stare. No blades drawn.'],
+    [/^Cold, but/, 'A cold silence. They let you be.'], [/^Glad of you/, 'They greet you gladly. No blades.'], [/^They want nothing/, 'They turn away: no blades, no words.'],
+    [/^A chance to win/, 'A chance to win them over.'], [/^The talk turns sour/, 'The mood sours.'],
+    [/^They insult you: pay (\d+) (\w+)/, (m) => `An insult hangs in the air. Pay ${m[1]} ${m[2]}, or draw steel.`],
+    [/^They challenge you: pay (\d+) (\w+)/, (m) => `A challenge is thrown down. Pay ${m[1]} ${m[2]}, or fight.`], [/^They attack/, 'Steel is drawn. They attack!'],
+];
+const TRADE = [
+    [/^A warm welcome/, 'A warm welcome: a fair price.'], [/^A guarded welcome/, 'Guarded, but willing: a price is named.'], [/^A cold welcome/, 'Grudging: they will deal, at a premium.'],
+    [/^A very cold welcome/, 'Cold: they will deal, but dearly.'], [/^They are glad of you/, 'Glad of you: they offer a favour.'], [/^They have no wish/, 'They turn their backs. No deal.'],
+    [/^A chance to win/, 'Your words land: they hear you out again.'], [/^The talk turns sour/, 'The talk sours. They hear you out, grudgingly.'],
+    [/^They insult you/, 'An insult.'], [/^They challenge you/, 'A challenge.'], [/^They bar your way/, 'They bar the way, blades out.'],
+];
+const SEARCH = {
+    'Peer': { 'Nothing': 'You watch. Nothing stirs.', 'Hidden enemies': 'You see them: hidden watchers revealed.', 'Hidden enemies and Paths': 'Watchers and secret ways lie open to you.', 'Paths': 'A hidden way shows itself.' },
+    'Locate': { 'Nothing': 'You search the stones. Nothing.', 'Discover chits': 'Something is here, and you have found it.', 'Passages and Clues': 'Hidden ways whisper their secrets.', 'Choice': 'The signs point more than one way.' },
+};
+const pick = (list, text) => { for (const [re, to] of list) { const m = re.exec(text); if (m) return typeof to === 'function' ? to(m) : to; } return null; };
+export function narrateRoll(r) {
+    const w = r.what ?? '', res = r.result ?? '';
+    let m;
+    if ((m = /^Evening meeting with the ([^:]+)/.exec(w))) return { title: `The ${m[1]}`, line: pick(EVENING, res) ?? res };
+    if ((m = /^Meeting roll: (?:buying from|repaying|hiring from|buying drinks for) the ([^:]+)/.exec(w)) || (m = /^Meeting roll: .* the ([^:]+)/.exec(w))) return { title: `The ${m[1]}`, line: pick(TRADE, res) ?? res };
+    if (w === 'Hide') return { title: 'Hiding', line: /seen/i.test(res) ? 'Eyes find you. There is no cover.' : 'You slip out of sight.' };
+    if (w === 'Monster roll') { const row = /row (\d)/.exec(res)?.[1]; return { title: 'The wilds', line: row ? `Row ${row} stirs in the wilds.` : res }; }
+    if (/^Repositioning roll/.test(w)) return { title: 'The melee', line: /shuffle/.test(res) ? 'The creatures circle and trade places.' : 'Nothing shifts.' };
+    if ((m = /^Tactics roll \((\w+) box\)/.exec(w))) return { title: `The ${m[1]} box`, line: /switch sides/.test(res) ? 'A snarl, a twist: they change their stance.' : 'They hold their stance.' };
+    if (/missile roll/.test(w)) { const d = /([+-])(\d)/.exec(res); const who = /^Your/.test(w) ? 'Your shot' : 'The shot'; return { title: /^Your/.test(w) ? 'Your shot' : 'Their shot', line: !d ? res : d[1] === '+' ? `${who} bites deeper than it looked.` : `${who} loses its sting.` }; }
+    if ((m = /^Search: (Peer|Locate)$/.exec(w))) return { title: m[1] === 'Peer' ? 'Peering' : 'Searching', line: SEARCH[m[1]][res] ?? res };
+    if (/^Search: Read runes/.test(w)) return { title: 'The runes', line: /Learn and awaken/.test(res) ? 'The runes yield their secret: a spell, yours to learn.' : /Awaken/.test(res) ? 'The runes stir: you may look, no more.' : /Curse/.test(res) ? 'The runes bite back.' : 'The runes stay silent.' };
+    if (w === 'Curse') return { title: 'A curse', line: `A curse takes hold: ${res}.` };
+    if (/^Power of the Pit/.test(w)) return { title: 'The Pit', line: `From the Pit: ${res}.` };
+    return null;
 }

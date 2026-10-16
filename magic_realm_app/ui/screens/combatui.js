@@ -1,6 +1,7 @@
 import { rollRow } from '../dice.js';
 import { monsterCounter, itemFace } from '../counter.js';
-import { roundSynopsis } from '../../engine/story.js';
+import { roundSynopsis, narrateRoll } from '../../engine/story.js';
+import { isStory, voiceChip } from '../voice.js';
 import { ask } from '../ask.js';
 import { h } from '../dom.js';
 import { encounterOptions, meleeOptions, denSide, weaponOf, activeArmor, weaponSide } from '../../engine/combat.js';
@@ -114,22 +115,20 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         return ['calm', 'Lets you be'];
     };
     const resultsBlock = meets.size ? h('div', { class: `cb-results${c.round > 1 ? ' small' : ''}`, 'data-block': 'meeting' },
-        c.round > 1 ? null : h('b', { class: 'res-h' }, 'The evening meeting'),
+        c.round > 1 ? null : h('div', { class: 'res-head' }, h('b', { class: 'res-h' }, 'The evening meeting'), voiceChip()),
         ...[...meets].map(([g, rolls]) => {
-            const [fate, pill] = meetFate(g), verdict = rolls[rolls.length - 1].result;
+            const [fate, pill] = meetFate(g), last = rolls[rolls.length - 1], tale = isStory() ? narrateRoll(last) : null;
+            const verdict = tale ? tale.line : last.result ? `${last.result.charAt(0).toUpperCase()}${last.result.slice(1)}${/[.!?]$/.test(last.result) ? '' : '.'}` : '';
             return h('div', { class: `res-row ${fate}` },
                 h('div', { class: 'res-top' }, h('b', {}, g), h('span', { class: 'res-pill' }, pill)),
-                c.round > 1 ? null : h('p', { class: 'res-verdict' }, verdict ? `${verdict.charAt(0).toUpperCase()}${verdict.slice(1)}${/[.!?]$/.test(verdict) ? '' : '.'}` : ''),
-                c.round > 1 ? null : h('details', { class: 'res-dice' }, h('summary', {}, rolls.length > 1 ? `The ${rolls.length} rolls` : 'The roll'), ...rolls.map(r => rollRow(r, { compact: true }))));
+                c.round > 1 ? null : h('p', { class: `res-verdict${tale ? ' tale' : ''}` }, verdict),
+                c.round > 1 || isStory() ? null : h('div', { class: 'res-dice' }, ...rolls.map(r => rollRow(r, { compact: true }))));
         })) : null;
     const diceBlock = dice.length ? h('div', { class: 'cb-dice' }, ...dice.map(r => rollRow(r, { compact: true }))) : null;
-    // The round told in a few sentences, with every line of it (the order of blows, the dice, the boxes) one tap away; whether that is open is remembered.
-    const stepsOpen = (() => { try { return localStorage.getItem('mr-steps') === '1'; } catch { return false; } })();
-    const last = c.events?.length ? h('div', { class: 'cb-last' }, h('b', {}, 'Last round'),
-        h('p', { class: 'cb-synopsis' }, roundSynopsis(c.events) || 'The round passed.'),
-        h('details', { class: 'cb-steps', open: stepsOpen || null, ontoggle: e => { try { localStorage.setItem('mr-steps', e.target.open ? '1' : '0'); } catch { /* ignore */ } } },
-            h('summary', {}, 'Step by step'),
-            ...c.events.map(e => h('p', { class: e.startsWith('  ') ? 'sub' : /^(Round \d+:|Order of blows|Boxes as|Repositioning)/.test(e) ? 'hd' : '' }, e.trim())))) : null;
+    // The round, told first in a few sentences (Story) or line by line with every number (Detail): the same switch as every box that describes a roll.
+    const last = c.events?.length ? h('div', { class: 'cb-last' }, h('div', { class: 'res-head' }, h('b', {}, 'Last round'), voiceChip()),
+        isStory() ? h('p', { class: 'cb-synopsis' }, roundSynopsis(c.events) || 'The round passed.')
+            : h('div', { class: 'cb-steps' }, ...c.events.map(e => h('p', { class: e.startsWith('  ') ? 'sub' : /^(Round \d+:|Order of blows|Boxes as|Repositioning)/.test(e) ? 'hd' : '' }, e.trim())))) : null;
     const body = [];
     const chitBtn = (ch, sel, on, ok = true) => h('button', { class: `chit3 ${ch.type}${sel ? ' sel' : ''}`, disabled: !ok, onclick: on }, h('b', {}, ch.type === 'magic' ? `${ch.numeral ?? ''}${ch.time}` : `${ch.strength}${ch.time}`), h('span', {}, '*'.repeat(ch.effort) || ' '));
 
