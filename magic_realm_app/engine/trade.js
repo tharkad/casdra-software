@@ -132,7 +132,7 @@ export function tradeAction(st, data, p, a) {
         st.turn.blocked = true; st.ch.hidden = false;
         say(st, `The ${g} take offence and block you (${note}rolled ${r.dice.join('+')}).`, 'block');
         st.turn.forceBlock = true;
-        return `The ${g} block you.`;
+        return `The ${g} block you (${note}rolled ${r.dice.join('+')}: Block/Battle).`;
     }
     throw new Error('unknown trade action');
 }
@@ -157,8 +157,8 @@ function offerAction(st, data, p, a) {
             return `You pay to smooth things over; the ${g} will not deal.`;
         }
         st.turn.blocked = true; st.ch.hidden = false; st.turn.forceBlock = true;
-        say(st, `The ${g} block you.`, 'block');
-        return `The ${g} block you.`;
+        say(st, `You refuse the ${(p.insult ?? 'offer').toLowerCase()}: the ${g} block you.`, 'block');
+        return `You refuse the ${(p.insult ?? 'offer').toLowerCase()}, so the ${g} block you.`;
     }
     if (a.act === 'accept') {
         // A boon taken free: the group drops one level and he owes it until he buys the level back (7.6.5e).

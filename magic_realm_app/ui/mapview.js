@@ -71,6 +71,9 @@ export function mountMap(host) {
             const pos = Object.fromEntries(def.clearings.map(c => [c.n, rot(lay.pos[c.n], a).map(v => v * S)]));
             for (const c of def.clearings) posOf.set(p.id + c.n, [cx + pos[c.n][0], cy + pos[c.n][1]]);
             const tg = sv('g', { transform: `translate(${cx.toFixed(1)} ${cy.toFixed(1)})` });
+            // a name belongs on its own tile: the hexagon, so a pill never reads as belonging to the clearing across the border
+            const hexPoly = corners(S).map(([hx, hy]) => [cx + hx, cy + hy]);
+            const insideTile = (px, py) => { let ins = false; for (let i = 0, j = hexPoly.length - 1; i < hexPoly.length; j = i++) { const [xi, yi] = hexPoly[i], [xj, yj] = hexPoly[j]; if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) ins = !ins; } return ins; };
             const picture = lay.art ? model.art?.tiles?.[tile.id]?.[side] : null;
             tg.append(sv('polygon', { class: 'hex', points: corners(S - (picture ? 0.5 : 1.5)).map(c => c.join(',')).join(' '), fill: GROUP[tile.group] }));
             // The original tile picture, turned with the tile. The roads, caves and numbers are all in it; we draw only what changes.
@@ -133,10 +136,7 @@ export function mountMap(host) {
                 // known: the glyph is part of the name, as for a sound in a clearing: one pill, on the chit's own clear spot
                 const glyph = c.kind === 'sound' ? '\u266A' : c.kind === 'site' ? '\u25C6' : c.kind === 'warning' ? '!' : '\u2605';
                 const text = `${glyph} ${label}`, id = `chit:${c.id ?? p.id + i}`;
-                // its name must stay on its own tile: inside the hexagon, wherever the empty ground is
-                const hex = corners(S).map(([hx, hy]) => [cx + hx, cy + hy]);
-                const inside = (px, py) => { let ins = false; for (let i = 0, j = hex.length - 1; i < hex.length; j = i++) { const [xi, yi] = hex[i], [xj, yj] = hex[j]; if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) ins = !ins; } return ins; };
-                groups.push({ id, ax: wx, ay: wy, ar: 3, prio: 3, prefer: ['center', 'below', 'above', 'right', 'left'], inside, boxes: [{ w: pillWidth(text), h: PILL_H }] });
+                groups.push({ id, ax: wx, ay: wy, ar: 3, prio: 3, prefer: ['center', 'below', 'above', 'right', 'left'], inside: insideTile, boxes: [{ w: pillWidth(text), h: PILL_H }] });
                 makeLabel.set(id, box => sv('g', { class: `pill chitpill ${c.kind ?? 'star'}`, transform: `translate(${box.x.toFixed(1)} ${box.y.toFixed(1)})`, 'pointer-events': 'none' },
                     sv('rect', { width: box.w, height: box.h, rx: 6 }), sv('text', { x: 4, y: box.h / 2, dy: '.35em' }, text)));
             });
@@ -168,7 +168,7 @@ export function mountMap(host) {
                     const shown = toks.length > 5 ? [...toks.slice(0, 4), { k: 'more', label: `+${toks.length - 4}` }] : toks;
                     const gid = `clr:${id}`;
                     const prio = Math.min(...shown.map(t => ({ mon: 1, nat: 1, ally: 2, dwelling: 2, site: 3, sound: 3, more: 4 }[t.k] ?? 3)));
-                    groups.push({ id: gid, own: id, kind: shown[0]?.k ?? 'site', ax: cx + x, ay: cy + y, ar: picture ? 10.5 : 13, prio, prefer: ['right', 'left'],
+                    groups.push({ id: gid, own: id, kind: shown[0]?.k ?? 'site', ax: cx + x, ay: cy + y, ar: picture ? 10.5 : 13, prio, prefer: ['right', 'left'], inside: insideTile,
                         boxes: shown.map(t => ({ w: pillWidth(t.label, { img: !!t.img }) + NUM_W, h: t.img ? 17 : PILL_H })) });
                     makeLabel.set(gid, (box, i) => {
                         const t = shown[i], th = t.img ? 15 : 0;

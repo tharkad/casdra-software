@@ -97,7 +97,7 @@ export function hireAction(st, data, p, a) {
     if (res === 'Insult' || res === 'Challenge') { st.pending = { type: 'hire-offer', group: g, insult: res, why, rollIds: rolls }; return undefined; }
     st.turn.blocked = true; st.turn.forceBlock = true; st.ch.hidden = false;
     say(st, `The ${g} block you (${why}).`, 'block');
-    return `The ${g} block you.`;
+    return `The ${g} block you (${why}).`;
 }
 
 // Monsters hired from a pacifying spell (Deal with Goblins): underlings for 14 days that follow him and fight for him (7.7.2). Hired, they no longer depend on the spell.
