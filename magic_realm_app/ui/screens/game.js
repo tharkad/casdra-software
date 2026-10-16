@@ -368,7 +368,12 @@ export function gameScreen(ctx) {
         if (prowlNew) ui.prowlPopped = st.day;
         ui.attnSig = sig;
         const open = ui.dockOpen !== false;
-        const items = [curseBar, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, logText(l)))) : null, body].filter(Boolean);
+        // spells in force: one line, tap for the card text, what is tied to what, and when each ends
+        const fxOn = (st.fx ?? []).filter(f => f.state !== 'done');
+        const spellBar = fxOn.length ? h('button', { class: 'spellbar', 'data-act': 'spells', 'aria-label': `Spells in effect: ${fxOn.map(f => data.spells?.[f.spell]?.name ?? f.spell).join(', ')}. Tap for details`, onclick: () => { ui.sheet = 'spells'; render(); } },
+            h('span', { class: 'rl' }, h('small', { class: 'gl' }, 'SPELLS IN EFFECT'), ...fxOn.map(f => h('span', { class: 'cl' }, h('b', {}, data.spells?.[f.spell]?.name ?? f.spell), ` ${fxEnds(f)}`))),
+            h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A')) : null;
+        const items = [curseBar, spellBar, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, logText(l)))) : null, body].filter(Boolean);
         const peek = `${st.ch.onRoad ? 'On the road' : where} \u00B7 ${st.ch.hidden ? 'hidden' : 'visible'}`;
         const grab = h('button', { class: 'grab', 'data-act': 'dock-toggle', 'aria-expanded': open ? 'true' : 'false', 'aria-controls': 'dock-body',
             'aria-label': open ? 'Details panel, open. Press to slide it away' : `Details panel, closed${newCount ? `, ${newCount} new` : ''}. Press to open it` },
@@ -478,14 +483,24 @@ export function gameScreen(ctx) {
             ask('Which runes will you read?', 'A Reading Runes search needs one target: a discovered site here that holds spell cards, or an artifact or book you carry and have active.'),
             ...p.options.map(o => h('button', { class: 'btn', 'data-target': o.key, onclick: () => act({ type: 'runes-target', target: o.key }) }, o.label)))));
         else if (p?.type === 'learn-spell') out.push(learnSheet(p));
-        else if (p?.type === 'enchant-choice') out.push(modal('Enchant', h('div', { class: 'restsheet' },
-            ask('Which Magic chit will you enchant?', 'It turns over to its colour and stays enchanted until you play it. A colour chit supplies that colour of magic to your own spells, and is used up when played.'),
-            h('div', { class: 'chitgrid' }, ...st.ch.chits.map(c => {
-                const o = p.options.find(x => x.chit === c.id);
-                const label = c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`;
-                return h('button', { class: `chit2 ${c.type} ${c.state}${o ? ' pick' : ' off'}`, 'data-enchant-chit': c.id, disabled: !o || null, onclick: () => act({ type: 'enchant-choice', chit: c.id }) },
-                    h('b', {}, label), h('span', {}, '*'.repeat(c.effort) || ' '), h('small', {}, o ? o.color : c.type === 'magic' ? 'Magic' : c.type === 'move' ? 'Move' : 'Fight'));
-            })))));
+        else if (p?.type === 'enchant-choice') {
+            const chitOpts = p.options.filter(x => (x.kind ?? 'chit') === 'chit'), tileOpts = p.options.filter(x => x.kind === 'tile');
+            const tile = tileOpts[0]?.tile, here = tile ? st.placements.find(x => x.id === tile) : null;
+            const other = here ? (here.side === 'enchanted' ? 'normal' : 'enchanted') : null;
+            const cols = other ? [...new Set(data.tile(tile).sides[other].clearings.flatMap(c => c.magic ?? []))].map(c => c[0].toUpperCase() + c.slice(1)) : [];
+            out.push(modal('Enchant', h('div', { class: 'restsheet' },
+                ask('Which Magic chit will you enchant?', 'It turns over to its colour and stays enchanted until you play it. A colour chit supplies that colour of magic to your own spells, and is used up when played.'),
+                h('div', { class: 'chitgrid' }, ...st.ch.chits.map(c => {
+                    const o = chitOpts.find(x => x.chit === c.id);
+                    const label = c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`;
+                    return h('button', { class: `chit2 ${c.type} ${c.state}${o ? ' pick' : ' off'}`, 'data-enchant-chit': c.id, disabled: !o || null, onclick: () => act({ type: 'enchant-choice', chit: c.id, kind: 'chit' }) },
+                        h('b', {}, label), h('span', {}, '*'.repeat(c.effort) || ' '), h('small', {}, o ? o.color : c.type === 'magic' ? 'Magic' : c.type === 'move' ? 'Move' : 'Fight'));
+                })),
+                tileOpts.length ? h('div', { class: 'tileenchant' },
+                    h('h3', {}, `Or enchant the tile: ${tileName(tile)}`),
+                    h('p', { class: 'hint' }, `Turn ${tileName(tile)} to its ${other} side. ${other === 'enchanted' ? `Its clearings then hold ${cols.length ? cols.join(', ') : 'colours of'} magic for everyone, and some of its roads change.` : 'It goes back to its ordinary side: its roads change back and its colours go.'} The Magic chit is not used up${tileOpts.some(o => o.supply) ? ' (but a colour chit that supplies the colour is)' : ''}.`),
+                    ...tileOpts.map(o => h('button', { class: 'btn', 'data-enchant-tile': o.chit, onclick: () => act({ type: 'enchant-choice', chit: o.chit, kind: 'tile' }) }, `Use Magic ${o.numeral}${o.time}${'*'.repeat(o.effort)} (${o.color})${o.supply ? ', burning a colour chit' : ''}`))) : null)));
+        }
         else if (p?.type === 'search-choice') out.push(modal(`${TABLE_LABEL[p.table]}: your choice`, h('div', {}, latestRoll(st) ? rollRow(latestRoll(st)) : null, ask(`You rolled ${p.roll.join('+')}: the table gives you a choice.`, 'This result lets you pick whichever entry of the table you want instead of the one the dice name. Choose the one that helps you most.'),
             ...p.options.map(r => h('button', { class: 'btn', onclick: () => act({ type: 'search-choice', result: r }) }, r)))));
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));
@@ -514,6 +529,7 @@ export function gameScreen(ctx) {
         else if (ui.sheet === 'item') out.push(itemSheet());
         else if (ui.sheet === 'cardinfo') out.push(cardInfoSheet());
         else if (ui.sheet === 'curses') out.push(cursesSheet());
+        else if (ui.sheet === 'spells') out.push(spellsSheet());
         else if (ui.sheet === 'spell') out.push(spellSheet());
         else if (ui.sheet === 'score') out.push(scoreSheet());
         else if (ui.sheet === 'key') out.push(modal('Map key', h('div', { class: 'key' },
@@ -1072,16 +1088,38 @@ export function gameScreen(ctx) {
     // Reading Runes found a card he can learn.
     function learnSheet(p) {
         const sp = data.spells?.[p.spell];
+        const erase = ui.erase ?? null;
         return modal('Read the runes', h('div', { class: 'itemsheet' },
             ask(`${p.from}: the runes show a spell.`, `You hold a Type ${sp?.type} Magic chit, so you may write it on your sheet. The card stays where it is.`),
             sp ? spellCard(sp) : null,
+            p.full ? h('div', { class: 'ask' }, h('b', {}, 'Your sheet is full (14 spells).'), h('p', {}, 'To learn this one you must erase another. Choose which:'),
+                ...(st.ch.spells ?? []).map(id => h('button', { class: `btn${erase === id ? ' primary' : ''}`, 'data-erase': id, onclick: () => { ui.erase = id; render(); } }, data.spells?.[id]?.name ?? id))) : null,
             h('div', { class: 'row2' },
-                h('button', { class: 'btn primary', 'data-act': 'learn', onclick: () => act({ type: 'learn-spell', learn: true }) }, 'Learn it'),
-                h('button', { class: 'btn', 'data-act': 'leave', onclick: () => act({ type: 'learn-spell', learn: false }) }, 'Leave it'))));
+                h('button', { class: 'btn primary', 'data-act': 'learn', disabled: (p.full && !erase) || null, onclick: () => { const e = ui.erase; ui.erase = null; act({ type: 'learn-spell', learn: true, erase: e }); } }, 'Learn it'),
+                h('button', { class: 'btn', 'data-act': 'leave', onclick: () => { ui.erase = null; act({ type: 'learn-spell', learn: false }); } }, 'Leave it'))));
     }
 
     // One belonging: both of its faces drawn as counters, the facts, and the switch.
     // The curses on him, what each takes away and what lifts it.
+    // When a spell in force ends, in words.
+    function fxEnds(f) {
+        if (f.state === 'inert') return '(inert: needs its colour of magic to act)';
+        if (f.state === 'nullified') return '(held off)';
+        if (f.state === 'held') return '(held, not yet used)';
+        const e = f.expires;
+        if (!e) return f.dur === 'permanent' ? 'until it is broken' : '';
+        return e.at === 'sunset' ? `until Sunset${e.day === st.day ? '' : e.day === st.day + 1 ? ' tomorrow' : ` of day ${e.day}`}` : e.at === 'midnight' ? 'until Midnight' : e.at === 'phase-end' ? 'this phase' : 'this round';
+    }
+    function spellsSheet() {
+        const back = { close: () => { ui.sheet = null; render(); } };
+        const fxOn = (st.fx ?? []).filter(f => f.state !== 'done');
+        return modal('Spells in effect', h('div', { class: 'cursesheet' },
+            fxOn.length ? null : h('p', { class: 'hint' }, 'No spell of yours is in effect.'),
+            ...fxOn.map(f => { const sp = data.spells?.[f.spell], chit = f.source?.kind === 'chit' ? st.ch.chits.find(c => c.id === f.source.id) : null;
+                return h('div', { class: 'curserow fxrow' }, h('span', { class: 'skull', 'aria-hidden': 'true' }, '\u2728'), h('div', {}, h('b', {}, sp?.name ?? f.spell), h('p', {}, `${fxEnds(f)}.${chit ? ` Your Magic ${chit.numeral}${chit.time}${'*'.repeat(chit.effort)} is tied to it and tires when it ends.` : ''}`), (sp?.text ?? data.cardtext?.spells?.[f.spell]) ? h('p', { class: 'hint' }, sp?.text ?? data.cardtext.spells[f.spell]) : null)); }),
+            h('button', { class: 'btn', onclick: back.close }, 'Back')), back);
+    }
+
     function cursesSheet() {
         const back = { close: () => { ui.sheet = null; render(); } };
         const mine = st.ch.curses ?? [];
@@ -1353,6 +1391,14 @@ export function gameScreen(ctx) {
                 const dim = cursed || (a !== 'nothing' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver);
                 return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${cursed ? ' cursed' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a], cursed ? h('small', {}, ' \u2620') : null);
             })));
+        // Alert: ready the weapon, or alert a Magic chit so that it can cast against fast creatures (it acts at time 0, and tires at Midnight if unused)
+        const readyMagic = st.ch.chits.filter(x => x.type === 'magic' && x.state === 'active');
+        if (s?.act === 'alert' && readyMagic.length) {
+            const chip = (label, on, fn, key) => h('button', { class: `chip${on ? ' on' : ''}`, 'data-alert': key, onclick: fn }, label);
+            out.push(h('p', { class: 'hint' }, 'Ready your weapon, or alert a Magic chit: an alerted chit acts at time 0, so it can cast even against the fastest creature. It tires at Midnight if it is not used.'));
+            out.push(h('div', { class: 'chips2' }, chip('Weapon', !s.magic, () => { delete s.magic; render(); }, 'weapon'),
+                ...readyMagic.map(c => chip(`Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}`, s.magic === c.id, () => { s.magic = c.id; render(); }, c.id))));
+        }
         const blockedNow = (st.ch.curses ?? []).filter(n => CURSE_ACT[n]);
         if (blockedNow.length) out.push(h('p', { class: 'hint bad' }, `\u2620 ${blockedNow.map(n => `${n}: ${ACT_LABEL[CURSE_ACT[n]]} is not possible.`).join(' ')}`));
         // a climb needs its second Move straight after the first
@@ -1455,6 +1501,7 @@ export function gameScreen(ctx) {
         d.slots[i] = { act: a };
         ui.planNote = null;
         pruneOver();
+        if (a === 'alert' && st.ch.chits.some(x => x.type === 'magic' && x.state === 'active')) { ui.planStep = i; render(); return; }      // stay: weapon or Magic chit is asked next
         advance(i + 1);
         render();
     }

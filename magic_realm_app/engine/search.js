@@ -1,9 +1,11 @@
-import { lvl, say, tally } from './core.js';
+import { lvl, say, tally, die, noteRoll } from './core.js';
 import { makeItem, defOf, nameOf, autoEquip, noteGain, noteFind } from './items.js';
-import { numOf, tileOf } from './world.js';
+import { numOf, tileOf, roadsFrom, pathKey, nameOfClearing } from './world.js';
+import { PEER, LOCATE } from './tables.js';
+import { fxTags } from './magic/fx.js';
 import { rollCurse, hasCurse, pit } from './effects.js';
 import { roll2 } from './core.js';
-import { convertCard } from './modifiers.js';
+import { convertCard, oneDie, modRoll, modNote } from './modifiers.js';
 
 // Looting: a discovered site in the clearing, or things lying on the ground (rules digest 04 section 3.4).
 
@@ -172,4 +174,65 @@ export function lootSiteCard(st, data, r) {
     }
     say(st, out, 'loot');
     return out;
+}
+
+// Fog (7.5.4b): nobody may use the Peer table in a fogged tile, from inside it or into it. Spells and cards that Peer are not stopped.
+export const peerBlocked = (st, data, clearing) => !!clearing && fxTags(st, { kind: 'tile', id: tileOf(clearing) }, 'noPeer').length > 0;
+
+// What a Peer or Locate result gives, for the clearing searched (his own, or one named from afar by Talk to Wise Bird).
+export function applySearchResult(st, data, table, res, dice, here = st.ch.at) {
+    const tile = tileOf(here);
+    const bits = [];
+    const lead = `${table === 'peer' ? 'Peer' : 'Locate'} (${dice.join('+')}): ${res}.`;
+    if (/Clues/.test(res)) {
+        const ids = st.chits.filter(c => c.tile === tile && !c.up && !c.pile).map(c => c.id);
+        for (const id of ids) if (!st.ch.seen.includes(id)) st.ch.seen.push(id);
+        bits.push(`You learn what the ${ids.length} unrevealed chit${ids.length === 1 ? '' : 's'} here are.`);
+    }
+    if (/Hidden enemies/.test(res)) { st.ch.hiddenEnemies = true; bits.push('You can now find hidden foes today.'); }
+    if (/Paths/.test(res)) bits.push(discoverPaths(st, data, here, 'hidden'));
+    if (/Passages/.test(res)) bits.push(discoverPaths(st, data, here, 'secret'));
+    if (/Discover chits/.test(res)) {
+        const ids = st.chits.filter(c => c.kind === 'site' && c.tile === tile && c.num === numOf(here) && !c.pile).map(c => c.id);
+        for (const id of ids) { if (!st.ch.discovered.sites.includes(id)) { st.ch.discovered.sites.push(id); tally(st, 'sitesDiscovered'); noteFind(st, { kind: 'site', id, name: st.chits.find(c => c.id === id)?.name, clearing: here }); } if (!st.ch.seen.includes(id)) st.ch.seen.push(id); }
+        bits.push(ids.length ? `You discover a site here: ${ids.map(id => st.chits.find(c => c.id === id).name).join(', ')}.` : 'There is no site in this clearing.');
+    }
+    if (res === 'Nothing') bits.push('You find nothing.');
+    return [lead, ...bits.filter(Boolean)].join(' ');
+}
+
+export function discoverPaths(st, data, clearing, kind) {
+    const found = [];
+    for (const r of roadsFrom(st, data, clearing)) {
+        if (r.kind !== kind) continue;
+        const key = pathKey(clearing, r.to);
+        if (!st.ch.discovered.paths.includes(key)) { st.ch.discovered.paths.push(key); found.push(nameOfClearing(r.to)); }
+    }
+    return found.length ? `You discover the ${kind === 'hidden' ? 'hidden path' : 'secret passage'} to ${found.join(', ')}.` : '';
+}
+
+
+// ---- Talk to Wise Bird: a remote Peer of any clearing on the map (7.5.4, 4.6.8a.2) ----
+// What a clearing would give him: the unrevealed chits of its tile he has not seen, its hidden paths he has not found.
+const unseenChits = (st, tile) => st.chits.filter(c => c.tile === tile && !c.up && !c.pile && !st.ch.seen.includes(c.id)).length;
+const hiddenPaths = (st, data, clearing, kind) => roadsFrom(st, data, clearing).filter(r => r.kind === kind && !st.ch.discovered.paths.includes(pathKey(clearing, r.to))).length;
+export const peerGain = (st, data, clearing) => unseenChits(st, tileOf(clearing)) + hiddenPaths(st, data, clearing, 'hidden');
+// "Choice" cannot ask a question in the middle of a combat round, so the best result is taken: the one that shows him the most he does not know yet.
+function bestChoice(st, data, clearing) {
+    const tile = tileOf(clearing);
+    const sites = () => st.chits.filter(c => c.kind === 'site' && c.tile === tile && c.num === numOf(clearing) && !c.pile && !st.ch.discovered.sites.includes(c.id)).length;
+    const worth = res => (/Clues/.test(res) ? unseenChits(st, tile) : 0) + (/Paths/.test(res) ? hiddenPaths(st, data, clearing, 'hidden') : 0)
+        + (/Passages/.test(res) ? hiddenPaths(st, data, clearing, 'secret') : 0) + (/Discover chits/.test(res) ? sites() : 0) + (/Hidden enemies/.test(res) && !st.ch.hiddenEnemies ? 0.5 : 0);
+    const options = [...new Set([...PEER, ...LOCATE].filter(x => x !== 'Choice' && x !== 'Nothing'))];
+    return options.reduce((best, o) => (worth(o) > worth(best) ? o : best), options[0]);
+}
+// One Peer-table roll for the named clearing, with his usual dice and modifiers; Fog and Eyemist do not matter (a spell, not the Search activity).
+export function remotePeer(st, data, clearing) {
+    const r = oneDie(st, 'search', st.ch.at, data) ? (() => { const d1 = die(st); return { dice: [d1], value: d1 }; })() : roll2(st);
+    const raw = [...r.dice];
+    modRoll(st, data, 'peer', r);
+    let res = PEER[r.value - 1];
+    noteRoll(st, 'Talk to Wise Bird: Peer', raw, r.value, res + modNote(r));
+    if (res === 'Choice') res = bestChoice(st, data, clearing);
+    return applySearchResult(st, data, 'peer', res, raw, clearing);
 }

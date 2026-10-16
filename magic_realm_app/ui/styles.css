@@ -898,7 +898,10 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .foe .foe-stats { display: flex; gap: 10px; margin-top: 6px; }
 .foe .fs { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 5px 8px; border-radius: 8px; background: rgba(255, 255, 255, .06); }
 .foe .fs small { font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
-.foe .fs i { font-size: 18px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.foe .fs i { font-size: 18px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; line-height: 1.15; }
+/* the Hits tile holds the longest words ("Tremendous 4"): it takes more of the row, and its text steps down on a narrow phone */
+.foe .fs:first-child { flex: 1.9; }
+.foe .fs:first-child i { font-size: clamp(15px, 4.6vw, 18px); }
 .foe .fs i.chg { color: #ffd27f; }
 .foe .was { font-size: 14.5px; color: var(--dim); }
 .cb-foes .foe span { font-size: 15.5px; }
@@ -966,3 +969,14 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .raceplayer .rp-nums { font-size: 12.5px; color: var(--dim); text-align: right; max-width: 38%; }
 .invitebox { -webkit-user-select: text; user-select: text; width: 100%; margin-top: 8px; min-height: 44px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font: 13px monospace; }
 .btn[hidden] { display: none; }
+
+/* ---- spells in effect ---- */
+.spellbar { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; margin: 0 0 6px; border-radius: 12px; text-align: left; cursor: pointer; color: var(--text);
+    background: linear-gradient(180deg, rgba(110, 96, 190, .30), rgba(60, 50, 120, .24)); border: 1.5px solid var(--arcane); }
+.spellbar .rl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.spellbar .gl { color: var(--arcane); letter-spacing: .14em; font-size: 11px; font-weight: 700; }
+.spellbar .cl { font-size: 14px; line-height: 1.25; }
+.spellbar .chev { font-size: 28px; color: var(--arcane); flex: none; line-height: 1; }
+.cursesheet .curserow .skull { color: var(--arcane); }
+.blocked-spells summary { cursor: pointer; }
+.cursesheet .curserow.fxrow { border-left-color: var(--arcane); background: rgba(110, 96, 190, .14); }

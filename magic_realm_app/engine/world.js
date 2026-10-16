@@ -3,7 +3,9 @@ import { graphOf, reachableFromBorderland, tileById } from './mapbuild.js';
 // Map queries over a game state. The map never changes in the base game, so each realm's graph is built once.
 const cache = new Map();
 function graphFor(st, data) {
-    let g = cache.get(st.mapKey);
+    // the map changes when a tile is enchanted (turned to its other side): the cache is keyed by which side of each tile is up
+    const key = `${st.mapKey}:${st.placements.map(p => (p.side === 'enchanted' ? 'e' : 'n')).join('')}`;
+    let g = cache.get(key);
     if (!g) {
         const { nodes, links } = graphOf(data.tiles, st.placements);
         const adj = new Map([...nodes].map(n => [n, []]));
@@ -16,7 +18,7 @@ function graphFor(st, data) {
         }
         g = { nodes, links, adj, type, magic, reach: reachableFromBorderland(data.tiles, st.placements) };
         if (cache.size >= 6) cache.delete(cache.keys().next().value);          // one realm per game: keep a few, not every one ever played
-        cache.set(st.mapKey, g);
+        cache.set(key, g);
     }
     return g;
 }

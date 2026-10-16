@@ -1,9 +1,13 @@
 import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll, tally, WEIGHT_WORDS } from './core.js';
 import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './tables.js';
 import { pit } from './effects.js';
-import { hirelings } from './hire.js';
-import { cardChits, effortLimit, oneDie } from './modifiers.js';
-import { blockedSpells, castOptions, castSpell, resolveSpells, canCastUsefully } from './spells.js';
+import { hirelings, monsterHires } from './hire.js';
+import { cardChits, effortLimit, oneDie, tableMod } from './modifiers.js';
+import { expireDue, fxTags, targetGone } from './magic/fx.js';
+import { breakPacify } from './magic/followers.js';
+import { energizePass } from './magic/energize.js';
+import { activatePhase, heldOptions } from './magic/phase.js';
+import { blockedSpells, castOptions, castSpell, resolveSpells, canCastUsefully, aimOptions, applyAim } from './spells.js';
 import { tell } from './story.js';
 import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
 import { makeItem, autoEquip, toggleItem, activeHorse } from './items.js';
@@ -54,6 +58,14 @@ const isShield = def => (def.type ?? '').toLowerCase() === 'shield' || !!def.cho
 
 // ---- denizen sides ----
 export function denSide(st, data, den) {
+    const morph = (den.kind === 'mon' || den.kind === 'nat') ? morphOf(st, den) : null;
+    if (morph) {
+        // Transform: the creature's own combat numbers; the original keeps its name, bounty and place (the bounty is paid for the original)
+        const o = den.kind === 'mon' ? data.monsters[den.id] : data.natives[den.id];
+        const fame = den.kind === 'mon' ? o.fame ?? 0 : o.fameBounty ?? 0, notor = den.kind === 'mon' ? o.notoriety ?? 0 : o.notorietyBounty ?? 0;
+        return { name: `${morph.name} (${o.name}, transformed)${den.tag ? ` #${den.tag}` : ''}`, size: morph.vulnerability, vuln: morph.vulnerability, armored: !!morph.armored, harm: morph.strength, stars: 0, atk: morph.attackTime, move: morph.moveTime,
+            length: 0, attack: morph.strength ? 'weapon' : 'none', fame, notor, gold: den.kind === 'nat' ? o.goldBounty ?? 0 : 0, tremendous: false, transformed: true };
+    }
     if (den.kind === 'mon') {
         const m = data.monsters[den.id];
         const s = den.side === 'red' && m.red ? { ...m.red, length: m.red.length ?? 0, attack: 'weapon' } : (den.side === 'dark' && m.dark ? m.dark : m.light);
@@ -83,6 +95,9 @@ export function denSide(st, data, den) {
     throw new Error('unknown denizen kind ' + den.kind);
 }
 
+// What Transform has made of a monster or native (the Transform Table row), or null.
+export const morphOf = (st, den) => fxTags(st, { kind: den.kind, id: den.id }, 'morph')[0]?.value ?? null;
+
 // ---- starting a combat ----
 const nextUid = st => { st.uidSeq = (st.uidSeq ?? 0) + 1; return 'd' + st.uidSeq; };
 
@@ -97,8 +112,14 @@ export function nativesIn(st, data, clearing) {
 
 export function startCombat(st, data, clearing) {
     const c = st.combat = { at: clearing, round: 1, quiet: 0, step: 'start', dens: [], battling: {}, events: [], melee: false, ended: false, ran: false, pays: [], rollFrom: st.rollSeq ?? 0 };
-    c.hires = hirelings(st).filter(n => n.loc?.c === clearing).map(n => ({ uid: nextUid(st), id: n.id, dead: false }));
-    for (const m of denizensIn(st, data, clearing)) { addDen(st, data, { kind: 'mon', id: m.id }); tally(st, `faced.${data.monsters[m.id].name}`); }
+    c.hires = [
+        ...hirelings(st).filter(n => n.loc?.c === clearing).map(n => ({ uid: nextUid(st), kind: 'nat', id: n.id, dead: false })),
+        ...monsterHires(st).filter(m => m.loc?.c === clearing).map(m => ({ uid: nextUid(st), kind: 'mon', id: m.id, dead: false })),       // controlled or hired monsters fight for him too
+    ];
+    for (const m of denizensIn(st, data, clearing)) {
+        const den = addDen(st, data, { kind: 'mon', id: m.id }); tally(st, `faced.${data.monsters[m.id].name}`);
+        if (m.pacify?.length) { den.pacified = true; den.bystander = true; }               // pacified (Deal with Goblins): it stands by and is not set on him
+    }
     c.intro = introLines(st, data, c);
     // Natives roll the Meeting Table once per group present, to see whether the group battles him (he may buy drinks first).
     c.meetQueue = [...new Set(nativesIn(st, data, clearing).map(n => data.natives[n.id].group))];
@@ -268,7 +289,7 @@ function activeChits(st, type, data) {
 
 function enterEncounter(st, data) {
     const c = st.combat;
-    const live = c.dens.filter(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse');
+    const live = c.dens.filter(d => !d.dead && !d.pacified && d.kind !== 'part' && d.kind !== 'horse');       // a pacified monster is not a foe
     if (!live.length) {
         if (canCastUsefully(st, data)) return enterSpellOnly(st, data);
         c.ended = true; c.why = 'quiet'; c.step = 'done'; st.pending = null;
@@ -277,7 +298,7 @@ function enterEncounter(st, data) {
     }
     if (!c.choiceMade && live.every(d => d.bystander)) {
         c.step = 'choice';
-        st.pending = { type: 'combat-choice', groups: [...new Set(live.map(d => data.natives[d.id].group))] };
+        st.pending = { type: 'combat-choice', groups: [...new Set(live.map(d => (d.kind === 'nat' ? data.natives[d.id].group : data.monsters[d.id].name)))] };
         return;
     }
     c.melee = false;
@@ -341,7 +362,7 @@ export function encounterOptions(st, data) {
     const move = activeChits(st, 'move', data).filter(x => x.time < slowest && lvl(x.strength) >= (x.isHorse ? Math.max(load, lvl(st.ch.weight)) : load));
     // hidden, and nothing is on his sheet (denizens cannot be assigned to a hidden character): nothing can attack him, so he may simply let the evening pass
     const canStay = !!st.ch.hidden && !c.dens.some(d => !d.dead && (d.assigned || d.engagedBy || d.pickedUp)) && !(c.hires ?? []).some(x => !x.dead);
-    return { canStay, casts: castOptions(st, data), blocked: blockedSpells(st, data), canAlert: !!w && fight.length > 0, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data) };
+    return { canStay, held: heldOptions(st, data), casts: castOptions(st, data, { slowest }), blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && fight.length > 0, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data) };
 }
 
 export function encounterAction(st, data, a) {
@@ -356,13 +377,13 @@ export function encounterAction(st, data, a) {
             say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOfItem(st, data, it)}.`, 'combat');
             return;
         }
-        if (a.act === 'cast') { castSpell(st, data, a.spell, a.chit); resolveSpells(st, data); }
+        if (a.act === 'cast') { castSpell(st, data, a.spell, a.chit, a.item); resolveSpells(st, data); }
         c.spellOnly = false;
         return endCombat(st, data, 'quiet');
     }
     const opt = encounterOptions(st, data);
     if (a.act === 'cast') {
-        castSpell(st, data, a.spell, a.chit);
+        castSpell(st, data, a.spell, a.chit, a.item);
         return enterMelee(st, data);
     }
     if (a.act === 'stay') {
@@ -376,6 +397,9 @@ export function encounterAction(st, data, a) {
         if (!it) throw new Error('no such item');
         toggleItem(st, data, it);
         say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOfItem(st, data, it)}.`, 'combat');
+    } else if (a.act === 'protect') {
+        // a held Phase spell is activated like an item, in place of a chit action (so he cannot also cast this round)
+        activatePhase(st, data, a.fx, 'round');
     } else if (a.act === 'alert') {
         const chit = opt.alertChits.find(x => x.id === a.chit);
         if (!opt.weapon || !chit) throw new Error('cannot flip the weapon with that chit');
@@ -426,6 +450,7 @@ export function meleeOptions(st, data) {
         targets,
         assigned,
         attackSpell: c.attackSpell ?? null,
+        aims: aimOptions(st, data),                                                 // what each spell cast this round may be aimed at
         fightChits: c.attackSpell ? [] : activeChits(st, 'fight', data),           // a character who cast an attack spell cannot also swing a weapon (8.4.5a)
         moveChits: activeChits(st, 'move', data),
         fightOk: ch => lvl(ch.strength) >= wlvl,
@@ -465,12 +490,14 @@ export function meleePlay(st, data, p) {
     if (ast > effortLimit(st)) throw new Error(`at most ${effortLimit(st)} effort asterisks may be played in a round`);
     if (fight) playChit(st, fight);
     if (move) playChit(st, move);
+    applyAim(st, data, p.spellAim);
     resolveSpells(st, data, log);
     // --- target and unhide ---
     let target = p.target ? c.dens.find(d => d.uid === p.target && !d.dead) : null;
     const wasHidden = st.ch.hidden;
     c.toRed = [];
     if (st.ch.hidden && target) { st.ch.hidden = false; log('You strike from hiding and are revealed.', tell.ambush(st)); }
+    if (target?.pacified) breakPacify(st, data, target, log);                         // he named a pacified monster: the pacifying spell is broken
     if (target && !target.assigned) {
         // attacking an unassigned denizen makes it fight back; attacking a native brings its whole group in
         if (target.kind === 'nat') {
@@ -528,8 +555,8 @@ export function meleePlay(st, data, p) {
     const hits = [];            // { who:'me'|denUid, order keys }
     // An attack spell attacks from the attack circle like a weapon, once per hit it makes, each with its own Missile Table roll.
     if (c.attackSpell && target && myDir != null) {
-        const sp = c.attackSpell, chit = st.ch.chits.find(x => x.id === sp.chit);
-        const side = { harm: sp.harm, stars: sp.stars, time: chit?.time ?? 0, length: sp.length, missile: true };
+        const sp = c.attackSpell;
+        const side = { harm: sp.harm, stars: sp.stars, time: (c.casts ?? []).find(x => x.spell === sp.spell)?.time ?? 0, length: sp.length, missile: true };
         const horse = c.dens.find(d => d.kind === 'horse' && d.partOf === target.uid && !d.dead);
         const def = horse ?? target, defSide = denSide(st, data, def);
         const inBox = def.box != null && def.box === myDir, fast = side.time != null && defSide.move != null && side.time < defSide.move;
@@ -577,7 +604,7 @@ export function meleePlay(st, data, p) {
     for (const hire of (c.hires ?? []).filter(x => !x.dead)) {
         const d = c.dens.find(x => x.uid === hire.target && !x.dead && x.engagedBy === hire.uid);
         if (!d) continue;
-        const hs = hireStats(data, hire.id), ds = denSide(st, data, d), a = (die(st) - 1) % 3;
+        const hs = hireStats(data, hire.id, hire.kind, st), ds = denSide(st, data, d), a = (die(st) - 1) % 3;
         if (hs.atk != null && hs.harm != null && (a === d.box || (ds.move != null && hs.atk < ds.move))) hits.push({ who: 'hire', hire: hire.uid, den: d.uid, time: hs.atk, length: hs.length });
         if (ds.attack !== 'none' && ds.atk != null && (a === d.box || (hs.move != null && ds.atk < hs.move))) hits.push({ who: d.uid, onHire: hire.uid, time: ds.atk, length: ds.length });
     }
@@ -663,6 +690,7 @@ export function meleePlay(st, data, p) {
 
 function canFlip(st, data, d) {
     if (d.kind === 'horse') return false;
+    if (morphOf(st, d)) return false;
     if (d.kind === 'mon') { const m = data.monsters[d.id]; return d.side !== 'red' && !(m.red) ; }
     if (d.kind === 'part') return true;
     return true;
@@ -728,7 +756,7 @@ function myHit(st, data, h, ctx) {
         const bow = /bow$/i.test(ctx.w ? data.weapons[ctx.w.item.id]?.name ?? '' : '');
         const r = (hasAdv(st, 'archer') && bow) || oneDie(st, 'missile') ? (() => { const d1 = die(st); return { dice: [d1], value: d1 }; })() : roll2(st);
         const aim = hasAdv(st, 'aim') ? 1 : 0;
-        const v = clamp6(r.value - aim);
+        const v = clamp6(r.value - aim + tableMod(st, data, 'missile'));
         level += MISSILE[v - 1]; shotDelta = MISSILE[v - 1];
         noteRoll(st, 'Your missile roll', r.dice, v, `${MISSILE[v - 1] >= 0 ? '+' : ''}${MISSILE[v - 1]} harm level${Math.abs(MISSILE[v - 1]) === 1 ? '' : 's'}${aim ? ' (Aim -1)' : ''}`);
         note = ` (missile roll ${r.dice.join('+')}${aim ? ' -1 for Aim' : ''} -> ${MISSILE[v - 1] >= 0 ? '+' : ''}${MISSILE[v - 1]})`;
@@ -755,6 +783,7 @@ function myHit(st, data, h, ctx) {
         else reward = killReward(st, data, den, s);
         if (den.kind === 'mon') { const m = st.mons.find(x => x.id === den.id); m.dead = true; m.loc = null; }
         else if (den.kind === 'nat') { const n = st.nats.find(x => x.id === den.id); n.dead = true; n.loc = null; dropNativeGoods(st, data, n); }
+        targetGone(st, data, { kind: den.kind, id: den.id });
         tally(st, 'kills'); tally(st, `kill.${s.name}`);
         (c.killed ??= []).push(s.name);
         ctx.log(`You kill the ${s.name} with ${finalL} harm${note}${reward}.`, tell.kill(st, ctx.spell ?? (ctx.w ? nameOfItem(st, data, ctx.w.item) : 'bare hands'), s.name, reward));
@@ -804,7 +833,7 @@ function denHit(st, data, den, ctx) {
             c.eventful = true;
         } else ctx.log(`${s.name} hits your ${hd.name} but it stands.`);
         const owner = den.kind === 'part' ? c.dens.find(d => d.uid === den.partOf) : den;
-        if (owner && data.monsters[owner.id]?.red && !c.toRed.includes(owner.uid)) c.toRed.push(owner.uid);      // it has hit something of his: it turns red
+        if (owner && redCapable(st, data, owner) && !c.toRed.includes(owner.uid)) c.toRed.push(owner.uid);      // it has hit something of his: it turns red
         return;
     }
     // armor in that direction: a shield guarding that way first, then body armor
@@ -860,9 +889,10 @@ function denHit(st, data, den, ctx) {
     // a tremendous monster that hurts him and leaves him alive will pick him up when the round ends
     if (!st.ch.dead) {
         const owner = den.kind === 'part' ? c.dens.find(d => d.uid === den.partOf) : den;
-        if (owner && data.monsters[owner.id]?.red && !c.toRed.includes(owner.uid)) c.toRed.push(owner.uid);
+        if (owner && redCapable(st, data, owner) && !c.toRed.includes(owner.uid)) c.toRed.push(owner.uid);
     }
 }
+const redCapable = (st, data, owner) => owner.kind === 'mon' && !!data.monsters[owner.id]?.red && !morphOf(st, owner);
 
 // The Power of the Pit also hits the creatures in the clearing: a Fiery Chasm kills every unhidden individual (not the demon that cast it),
 // Terror kills the Light and Medium monsters, natives and horses. Nobody is paid a bounty for these deaths.
@@ -879,12 +909,13 @@ function pitAftermath(st, data, rowName, caster, ctx) {
         for (const p of c.dens.filter(x => x.partOf === d.uid)) p.dead = true;
         if (d.kind === 'mon') { const m = st.mons.find(x => x.id === d.id); if (m) { m.dead = true; m.loc = null; } }
         else if (d.kind === 'nat') { const n = st.nats.find(x => x.id === d.id); if (n) { n.dead = true; n.loc = null; dropNativeGoods(st, data, n); } }
+        targetGone(st, data, { kind: d.kind, id: d.id });
         dead.push(s.name);
     }
     for (const h of c.hires ?? []) {
         if (h.dead) continue;
-        const n = st.nats.find(x => x.id === h.id);
-        if (rowName === 'Fiery Chasm' || small(data.natives[h.id].weight)) { h.dead = true; if (n) { n.dead = true; n.hired = false; n.loc = null; } dead.push(data.natives[h.id].name); }
+        const hs = hireStats(data, h.id, h.kind, st), size = h.kind === 'mon' ? data.monsters[h.id].size : data.natives[h.id].weight;
+        if (rowName === 'Fiery Chasm' || small(size)) { h.dead = true; hireDies(st, data, h); dead.push(hs.name); }
     }
     if (dead.length) ctx.log(`${rowName} kills: ${dead.join(', ')}.`);
 }
@@ -903,7 +934,8 @@ function afterMelee(st, data) {
     return toFatigue(st, data);
 }
 
-const nonWounded = st => st.ch.chits.filter(x => x.state !== 'wounded');
+// a chit that is wounded, or committed to a spell, is out of play: when every chit is, he is dead (4.2.5b)
+const nonWounded = st => st.ch.chits.filter(x => x.state !== 'wounded' && x.state !== 'committed');
 const dieOfWounds = (st, data) => { st.ch.dead = true; st.slain = { by: null, text: 'Every action chit was wounded: there was nothing left to fight with.', at: st.ch.at, day: st.day }; say(st, 'Every action chit is wounded; you die.', 'combat'); return endCombat(st, data, 'died'); };
 
 // Wounds fall on active chits first, then on fatigued ones; with no chit left to wound he dies.
@@ -994,21 +1026,24 @@ function finishRound(st, data) {
 
 function nextRound(st, data) {
     const c = st.combat;
+    expireDue(st, data, 'round-end');
     const quietRound = !c.eventful && !c.dens.some(d => d.pickedUp && !d.dead);
     c.quiet = quietRound ? c.quiet + 1 : 0;
     c.eventful = false;
     const foes = c.dens.filter(d => !d.dead && d.assigned && d.kind !== 'part' && d.kind !== 'horse');
-    const anyFoe = c.dens.some(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse');
+    const anyFoe = c.dens.some(d => !d.dead && !d.pacified && d.kind !== 'part' && d.kind !== 'horse');
     if (!anyFoe) return endCombat(st, data, 'won');
     if (c.quiet >= 2) return endCombat(st, data, 'quiet');
     // Disengagement: everything that is not assigned or picked up resets; his hit weapon stays as it is.
     for (const d of c.dens) { d.box = null; d.noRetaliation = false; }
     c.round += 1;
+    energizePass(st, data, 'round');
     enterEncounter(st, data);
 }
 
 function endCombat(st, data, why) {
     const c = st.combat;
+    expireDue(st, data, 'round-end');                 // a Phase spell used this round ends with it
     c.ended = true; c.why = why; c.step = 'done';
     tally(st, 'combats'); tally(st, 'rounds', c.round); tally(st, `combat.${why}`);
     for (const d of c.dens) { if (d.kind === 'mon' && d.side === 'red') d.side = 'light'; }
@@ -1026,16 +1061,60 @@ function endCombat(st, data, why) {
 }
 
 // ---- hirelings ----
-function hireStats(data, id) {
+// A hireling is a native (kind 'nat') or a monster that fights for him (kind 'mon': one a spell controls, or Goblins he has hired).
+export function hireStats(data, id, kind = 'nat', st = null) {
     // the hirer deploys a hireling on the side that can fight: the one with an attack, the harder-hitting one if both have
-    const n = data.natives[id], sides = [n.light, n.dark].filter(x => x && x.harm != null && x.attackTime != null);
-    const s = sides.sort((a, b) => lvl(b.harm) - lvl(a.harm) || (b.stars ?? 0) - (a.stars ?? 0) || a.attackTime - b.attackTime)[0] ?? n.light;
+    const best = (sides, fallback) => sides.filter(x => x && x.harm != null && x.attackTime != null).sort((a, b) => lvl(b.harm) - lvl(a.harm) || (b.stars ?? 0) - (a.stars ?? 0) || a.attackTime - b.attackTime)[0] ?? fallback;
+    if (kind === 'mon') {
+        const m = data.monsters[id], s = best([m.light, m.dark], m.light);
+        const morph = st ? morphOf(st, { kind: 'mon', id }) : null;
+        if (morph) return { name: `${morph.name} (${m.name}, transformed)`, vuln: morph.vulnerability, armored: !!morph.armored, harm: morph.strength, stars: 0, atk: morph.attackTime, move: morph.moveTime, length: 0, missile: false, archer: false, fame: m.fame ?? 0, notor: m.notoriety ?? 0, gold: 0, mon: true };
+        return { name: m.name, vuln: m.vulnerability, armored: !!m.armored, harm: s.harm, stars: s.stars ?? 0, atk: s.attackTime, move: s.moveTime, length: s.length ?? 0, missile: false, archer: false,
+            fame: m.fame ?? 0, notor: m.notoriety ?? 0, gold: 0, mon: true };
+    }
+    const n = data.natives[id], s = best([n.light, n.dark], n.light);
+    const morph = st ? morphOf(st, { kind: 'nat', id }) : null;
+    if (morph) return { name: `${morph.name} (${n.name}, transformed)`, vuln: morph.vulnerability, armored: !!morph.armored, harm: morph.strength, stars: 0, atk: morph.attackTime, move: morph.moveTime, length: 0, missile: false, archer: false, fame: n.fameBounty ?? 0, notor: n.notorietyBounty ?? 0, gold: n.goldBounty ?? 0 };
     return { name: n.name, vuln: n.vulnerability, armored: !!n.armored, harm: s.harm, stars: s.stars ?? 0, atk: s.attackTime, move: s.moveTime, length: n.weapon?.length ?? 0,
         missile: !!n.weapon?.missile, archer: n.type === 'Archer', fame: n.fameBounty ?? 0, notor: n.notorietyBounty ?? 0, gold: n.goldBounty ?? 0 };
 }
 
+// A monster in the fight goes over to him (Control Bats, Guide Spider or Octopus): it leaves the sheet and is sent at his foes from the next round on.
+// A Tremendous monster that had seized him lets go.
+export function monsterJoins(st, data, den) {
+    const c = st.combat;
+    den.dead = true; den.controlled = true; den.assigned = false; den.engagedBy = null;
+    for (const p of c.dens.filter(d => d.partOf === den.uid)) p.dead = true;
+    if (den.pickedUp) { den.pickedUp = false; den.side = 'light'; }
+    const hire = { uid: nextUid(st), kind: 'mon', id: den.id, dead: false };
+    (c.hires ??= []).push(hire);
+    return hire;
+}
+// It is free of him again (the spell ended or was broken): an ordinary monster where it stands, and, in a fight, a foe again from the next round.
+export function monsterLeaves(st, data, m) {
+    const c = st.combat;
+    if (!c || c.ended || m.loc?.c !== c.at) return;
+    for (const h of c.hires ?? []) if (h.kind === 'mon' && h.id === m.id) h.dead = true;
+    let den = c.dens.find(d => d.kind === 'mon' && d.id === m.id);
+    if (!den) den = addDen(st, data, { kind: 'mon', id: m.id });
+    den.dead = false; den.controlled = false; den.assigned = false; den.engagedBy = null; den.pacified = false; den.bystander = false;
+    for (const p of c.dens.filter(d => d.partOf === den.uid)) p.dead = false;
+}
+// A hireling or controlled monster is dead: out of the fight, out of the world, out of every spell it was in.
+function hireDies(st, data, hire) {
+    if (hire.kind === 'mon') {
+        const m = st.mons.find(x => x.id === hire.id);
+        if (m) { m.dead = true; m.hired = false; m.controlledUntil = null; m.hiredUntil = null; m.tie = null; m.loc = null; }
+        targetGone(st, data, { kind: 'mon', id: hire.id });
+    } else {
+        const n = st.nats.find(x => x.id === hire.id);
+        if (n) { n.dead = true; n.hired = false; n.loc = null; }
+        targetGone(st, data, { kind: 'nat', id: hire.id });
+    }
+}
+
 function hireStrikes(st, data, h, log) {
-    const c = st.combat, den = c.dens.find(d => d.uid === h.den), hs = hireStats(data, c.hires.find(x => x.uid === h.hire).id), ds = denSide(st, data, den);
+    const c = st.combat, hire = c.hires.find(x => x.uid === h.hire), den = c.dens.find(d => d.uid === h.den), hs = hireStats(data, hire.id, hire.kind, st), ds = denSide(st, data, den);
     let level = lvl(hs.harm) + (ds.armored ? Math.max(0, hs.stars - 1) : hs.stars);
     if (hs.missile) level += missileRoll(st, `${hs.name}'s missile roll`, hs.archer);
     if (level >= lvl(ds.vuln)) {
@@ -1044,22 +1123,23 @@ function hireStrikes(st, data, h, log) {
         for (const p of c.dens.filter(d => d.partOf === den.uid)) p.dead = true;
         if (den.kind === 'mon') { const m = st.mons.find(x => x.id === den.id); m.dead = true; m.loc = null; }
         else if (den.kind === 'nat') { const n = st.nats.find(x => x.id === den.id); n.dead = true; n.loc = null; dropNativeGoods(st, data, n); }
+        targetGone(st, data, { kind: den.kind, id: den.id });
         // the hirer collects the bounty, unmultiplied, and the kill does not count toward his daily total
         st.ch.fame += ds.fame ?? 0; st.ch.notoriety += ds.notor ?? 0;
-        if (data.natives[c.hires.find(x => x.uid === h.hire).id]?.leader) st.ch.gold += ds.gold ?? 0;         // the gold bounty goes only to a hired leader's kill (8.7.3 b)
+        if (hire.kind === 'mon' || data.natives[hire.id]?.leader) st.ch.gold += ds.gold ?? 0;         // the gold bounty goes only to a hired leader's or a controlled monster's kill (8.7.3 b)
         log(`${hs.name} kills the ${ds.name} for you.`);
         c.eventful = true;
     } else log(`${hs.name} hits the ${ds.name} but does not kill it.`);
 }
 
 function denStrikesHire(st, data, den, hireUid, log) {
-    const c = st.combat, hire = c.hires.find(x => x.uid === hireUid), hs = hireStats(data, hire.id), ds = denSide(st, data, den);
+    const c = st.combat, hire = c.hires.find(x => x.uid === hireUid), hs = hireStats(data, hire.id, hire.kind, st), ds = denSide(st, data, den);
     let level = lvl(ds.harm) + (hs.armored ? Math.max(0, ds.stars - 1) : ds.stars);
     if (ds.attack === 'missile') level += missileRoll(st, `${ds.name}'s missile roll (at ${hs.name})`, ds.type === 'Archer');
     if (ds.attack === 'spell') level = 4;
     if (level >= lvl(hs.vuln)) {
         hire.dead = true;
-        const n = st.nats.find(x => x.id === hire.id); n.dead = true; n.hired = false; n.loc = null;
+        hireDies(st, data, hire);
         st.ch.notoriety -= hs.notor;
         log(`The ${ds.name} kills ${hs.name}; you lose ${hs.notor} Notoriety.`);
         c.eventful = true;

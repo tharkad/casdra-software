@@ -1,6 +1,6 @@
 import { die, noteRoll } from './core.js';
 import { meetingResult } from './tables.js';
-import { oneDie } from './modifiers.js';
+import { oneDie, tableMod } from './modifiers.js';
 
 // Rolls on the Meeting Table: normally two dice, higher counts. Special advantages change it: Fear rolls one die, Honor subtracts one
 // from each die (never below 1). Used for trading, hiring and the battle roll at the start of an evening.
@@ -12,7 +12,8 @@ export function meetingDice(st, data = null) {
     const raw = Array.from({ length: n }, () => die(st));
     const honor = hasAdv(st, 'honor') ? 1 : 0;
     const used = raw.map(d => Math.max(1, d - honor));
-    return { dice: honor ? raw.map((d, i) => (used[i] === d ? `${d}` : `${d}-1`)) : raw, raw, used, value: Math.max(...used) };
+    const mod = tableMod(st, data, 'meeting');                      // Bad Luck adds one (4.1.2)
+    return { dice: honor ? raw.map((d, i) => (used[i] === d ? `${d}` : `${d}-1`)) : raw, raw, used, value: Math.max(1, Math.min(6, Math.max(...used) + mod)) };
 }
 
 // What a Meeting Table result means for the meeting itself, in words a player can follow (the table's own words are about prices and deals).

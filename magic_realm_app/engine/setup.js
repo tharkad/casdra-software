@@ -5,7 +5,7 @@ import { makeItem, defOf, priceOf } from './items.js';
 import { tileLetter } from './summon.js';
 import { beginDay } from './day.js';
 import { dealSpells } from './runes.js';
-import { castable } from './spells.js';
+import { castable, ATTACK_SPELLS } from './spells.js';
 
 // Building a new game (rules digest 01 section 3): map, chits, dwellings, denizens, treasure, then the character.
 
@@ -151,7 +151,9 @@ function startingSpells(data, c, chosen = null) {
     const all = Object.values(data.spells ?? {});
     const okId = id => all.some(s => s.id === id && types.includes(s.type));
     if (Array.isArray(chosen) && chosen.length === want && chosen.every(okId) && new Set(chosen).size === chosen.length) return [...chosen];
-    return all.filter(s => castable(s) && types.includes(s.type)).slice(0, want).map(s => s.id);
+    // attack spells first (the computer players and the first fights need them), then the rest in card order
+    const pickable = all.filter(s => castable(s) && types.includes(s.type));
+    return [...pickable.filter(s => ATTACK_SPELLS[s.id]), ...pickable.filter(s => !ATTACK_SPELLS[s.id])].slice(0, want).map(s => s.id);
 }
 
 export function makeCharacter(st, data, id, vp, opt = {}) {

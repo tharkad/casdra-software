@@ -64,6 +64,7 @@ export function mountMap(host) {
         let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
         const tileDefs = Object.fromEntries(tiles.map(t => [t.id, t]));
         for (const p of placements) {
+            const side = p.side ?? model.side ?? 'normal';          // each tile shows its own side: an enchanted tile is turned over
             const tile = tileDefs[p.id], def = tile.sides[side], lay = layoutSide(tile, side);
             const [cx, cy] = hexCenter(p.q, p.r, S), a = p.rot * Math.PI / 3;
             minX = Math.min(minX, cx - S); maxX = Math.max(maxX, cx + S); minY = Math.min(minY, cy - S * .87); maxY = Math.max(maxY, cy + S * .87);

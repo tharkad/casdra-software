@@ -1,5 +1,6 @@
 import { say } from './core.js';
 import { tileOf, numOf, graph } from './world.js';
+import { fxTags, HERO } from './magic/fx.js';
 
 // What happens when a character's turn ends (rules digest 02 section 5.2 and digest 05 section 5.2):
 // prowling monsters in his tile come to him, the map chits of his tile turn up, and chits summon boxes of prowling monsters.
@@ -26,6 +27,11 @@ export function tileLetter(data, tile) {
 
 function monstersInBox(st, boxId) { return st.mons.filter(m => !m.dead && !m.hired && m.loc?.box === boxId); }
 
+// Peace with Nature (the Druid's advantage, or the energized spell): at the end of his own turn the Warning and Sound chits of his tile do not summon.
+// They are shown to him but turned face down again, so they call normally for anyone else (7.13.5b). Site chits and dwellings act as usual.
+export const peaceWithNature = st => (st.ch.adv ?? []).includes('peace-with-nature') || fxTags(st, HERO, 'noSummon').length > 0;
+const quietChit = c => c.kind === 'warning' || c.kind === 'sound';
+
 export function endOfTurn(st, data) {
     const here = st.ch.at, tile = tileOf(here);
     const out = { at: here, tile, prowl: st.prowl, arrivals: [], flipped: [], chits: [], natives: [] };
@@ -38,11 +44,16 @@ export function endOfTurn(st, data) {
     }
     // 2. chits in the tile turn face up (with the optional Quiet Monsters rule, 10.B.1, not if he is hidden: they stay down and call no one)
     const quiet = !!st.options?.quietMonsters && st.ch.hidden;
+    const peace = peaceWithNature(st);
     const flipped = [];
     for (const c of st.chits) {
         if (quiet) break;
         if (c.tile !== tile || c.up || c.pile) continue;
         if (c.kind === 'warning' && c.letter === 'V') continue;       // valley warnings were exchanged for dwellings at setup
+        if (peace && quietChit(c)) {                                   // he sees it, but it stays face down and has not called anyone
+            if (!(st.ch.seen ??= []).includes(c.id)) { st.ch.seen.push(c.id); say(st, `Peace with Nature: you see the ${c.name}${c.kind === 'sound' ? ' ' + c.num : ''} chit, but it keeps quiet and is turned face down again.`, 'discover'); }
+            continue;
+        }
         c.up = true;
         if (c.kind === 'sound' || c.kind === 'site') c.clearing = c.num;
         flipped.push(c);
@@ -58,7 +69,8 @@ export function endOfTurn(st, data) {
             say(st, `${c.kind === 'lost-city' ? 'The Lost City' : 'The Lost Castle'} is revealed!`, 'discover');
             for (const id of pile.splice(0)) {
                 const pc = st.chits.find(x => x.id === id);
-                pc.pile = false; pc.tile = tile; pc.up = true;
+                pc.pile = false; pc.tile = tile; pc.up = !(peace && quietChit(pc));
+                if (!pc.up) { if (!(st.ch.seen ??= []).includes(pc.id)) st.ch.seen.push(pc.id); continue; }
                 if (pc.kind === 'sound' || pc.kind === 'site') pc.clearing = pc.num;
                 flipped.push(pc);
             }
@@ -75,7 +87,7 @@ export function endOfTurn(st, data) {
     if (!quiet) for (const c of st.chits.filter(x => faceUp(x) && x.summoned)) {
         report[c.id] ??= { id: c.id, kind: c.kind, name: c.name, letter: c.letter ?? null, num: c.num ?? null, summons: [], dest: null, already: true, why: 'it has already called out today' };
     }
-    if (!quiet) for (const c of [...st.chits.filter(x => faceUp(x) && !x.summoned)].sort((a, b) => rank(a) - rank(b))) {
+    if (!quiet) for (const c of [...st.chits.filter(x => faceUp(x) && !x.summoned && !(peace && quietChit(x)))].sort((a, b) => rank(a) - rank(b))) {
         const row = boxesOfRow(data, st.prowl);
         const matching = row.filter(b => boxMatches(b, c, letter));
         const box = matching.find(b => monstersInBox(st, b.id).length);
@@ -123,7 +135,7 @@ function chitText(c, tile) {
 // Monsters that block him at the end of a phase: any unhired monster in his clearing, if he is not hidden.
 export function blockers(st) {
     if (st.ch.hidden || st.ch.onRoad) return [];
-    return st.mons.filter(m => !m.dead && !m.hired && m.loc?.c === st.ch.at);
+    return st.mons.filter(m => !m.dead && !m.hired && !m.pacify?.length && m.loc?.c === st.ch.at);        // a pacified monster (Deal with Goblins) does not block him
 }
 
 // Midnight housekeeping for chits and monster arrivals.

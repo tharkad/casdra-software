@@ -1,6 +1,7 @@
 import { say } from './core.js';
 import { hasCurse } from './effects.js';
 import { meetingOutcome, drinksCost } from './meeting.js';
+import { targetGone } from './magic/fx.js';
 
 // The Hire activity (rules digest 05 section 4.5). He pays a native group to join him for 14 days.
 // Simplification noted in docs: a hired leader follows like any other hireling instead of taking his own turn.
@@ -13,6 +14,12 @@ export function hireOptions(st, data) {
     for (const g of Object.values(data.groups)) {
         const mine = st.nats.filter(n => !n.dead && n.hired && n.loc?.c === here && data.natives[n.id].group === g.id);
         if (mine.length) out.push({ group: g.id, rehire: true, members: mine.map(m => m.id), names: mine.map(m => data.natives[m.id].name), wage: mine.reduce((s, m) => s + data.natives[m.id].wage, 0) });
+    }
+    // Monsters a spell has pacified (Deal with Goblins) may be hired too, a kind at a time, at the Neutral column: the wage is their Notoriety bounty (7.7.2, per card).
+    const calm = st.mons.filter(m => !m.dead && !m.hired && m.pacify?.length && m.loc?.c === here), kinds = [...new Set(calm.map(m => data.monsters[m.id].name))];
+    for (const name of kinds) {
+        const members = calm.filter(m => data.monsters[m.id].name === name);
+        out.push({ group: name, monsters: true, members: members.map(m => m.id), names: members.map(() => name), wage: members.reduce((s, m) => s + (data.monsters[m.id].notoriety || 1), 0) });
     }
     for (const g of Object.values(data.groups)) {
         let members = st.nats.filter(n => !n.dead && !n.hired && n.loc?.c === here && data.natives[n.id].group === g.id);
@@ -57,7 +64,7 @@ export function hireAction(st, data, p, a) {
             if (st.ch.gold < p.price) throw new Error('not enough gold');
             st.ch.gold -= p.price;
             if (p.rehire) { for (const id of p.members) { const n = st.nats.find(x => x.id === id); n.hiredUntil += 14; } say(st, `You extend the hire of ${p.names.join(', ')} by 14 days.`, 'trade'); return `You extend the hire of ${p.names.join(', ')} for ${p.price} gold.`; }
-            hire(st, data, p.members, p.group);
+            if (p.monsters) hireMonsters(st, data, p.members); else hire(st, data, p.members, p.group);
             return `You hire ${p.names.join(', ')} for ${p.price} gold.`;
         }
         return 'You decide not to hire anyone.';
@@ -68,18 +75,18 @@ export function hireAction(st, data, p, a) {
     const g = opt.group;
     // Drinks (7.6.5b / 7.7.1b): paid for everyone of the group in his clearing, hired or not, even if he hires only one.
     let drinks = false;
-    if (a.drinks) {
+    if (a.drinks && !opt.monsters) {
         if (hasCurse(st, 'Ashes')) throw new Error('Your gold is worthless under the Ashes curse.');
         const cost = drinksCost(st, data, g);
         if (st.ch.gold < cost) throw new Error('not enough gold');
         st.ch.gold -= cost; drinks = true;
         say(st, `You buy drinks for the ${g} (${cost} gold): they warm to you.`, 'trade');
     }
-    const { res, r, note, rolls } = meetingOutcome(st, (st.ch.rel?.[g] ?? 0) + (drinks ? 1 : 0), `Meeting roll: hiring from the ${g}`, data);
+    const { res, r, note, rolls } = meetingOutcome(st, opt.monsters ? 0 : (st.ch.rel?.[g] ?? 0) + (drinks ? 1 : 0), `Meeting roll: hiring the ${g}${opt.monsters ? ' (the Neutral column)' : ''}`, data);
     const why = `${drinks ? 'Drinks; ' : ''}${note}rolled ${r.dice.join('+')}: ${res}`;
     if (res.startsWith('Price')) {
         const mult = Number(res.split('x')[1]);
-        st.pending = { type: 'hire-offer', group: g, members: opt.members, names: opt.names, wage: opt.wage, mult, price: opt.wage * mult, why, rehire: !!opt.rehire, rollIds: rolls, affordable: st.ch.gold >= opt.wage * mult };
+        st.pending = { type: 'hire-offer', group: g, members: opt.members, names: opt.names, wage: opt.wage, mult, price: opt.wage * mult, why, rehire: !!opt.rehire, monsters: !!opt.monsters, rollIds: rolls, affordable: st.ch.gold >= opt.wage * mult };
         return undefined;
     }
     if (res === 'Boon') {
@@ -93,6 +100,16 @@ export function hireAction(st, data, p, a) {
     return `The ${g} block you.`;
 }
 
+// Monsters hired from a pacifying spell (Deal with Goblins): underlings for 14 days that follow him and fight for him (7.7.2). Hired, they no longer depend on the spell.
+function hireMonsters(st, data, ids) {
+    for (const id of ids) {
+        const m = st.mons.find(x => x.id === id);
+        m.hired = true; m.hiredUntil = st.day + 13; m.loc = { c: st.ch.at }; m.pacify = null; m.tie = { kind: 'hire' };
+        targetGone(st, data, { kind: 'mon', id });
+    }
+    say(st, `You hire ${ids.map(i => data.monsters[i].name).join(', ')} for 14 days.`, 'trade');
+}
+
 function hire(st, data, ids, group) {
     for (const id of ids) {
         const n = st.nats.find(x => x.id === id);
@@ -104,7 +121,7 @@ function hire(st, data, ids, group) {
 // Hirelings follow him wherever he goes.
 export function followHero(st) {
     for (const n of st.nats) if (n.hired && !n.dead) n.loc = { c: st.ch.at };
-    for (const m of st.mons) if (m.hired && m.controlledUntil && !m.dead) m.loc = { c: st.ch.at };       // monsters under a Control spell
+    for (const m of st.mons) if (m.hired && !m.dead) m.loc = { c: st.ch.at };       // monsters under a Control spell, or hired
 }
 
 export function expireHires(st, data) {
@@ -114,5 +131,13 @@ export function expireHires(st, data) {
             say(st, `${data.natives[n.id].name}'s term of hire ends.`, 'trade');
         }
     }
+    for (const m of st.mons) {
+        if (m.hired && m.hiredUntil != null && (st.day >= m.hiredUntil || st.ch.dead)) {
+            m.hired = false; m.hiredUntil = null; m.tie = null;
+            say(st, `The ${data.monsters[m.id].name}'s term of hire ends.`, 'trade');
+        }
+    }
 }
 export function hirelings(st) { return st.nats.filter(n => n.hired && !n.dead); }
+// Monsters that fight for him: controlled by a spell, or hired from a pacified kind.
+export function monsterHires(st) { return st.mons.filter(m => m.hired && !m.dead); }

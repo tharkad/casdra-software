@@ -1,19 +1,23 @@
 import { clone, die, roll2, int, say, lvl, shuffle, noteRoll, tally } from './core.js';
 import { hides, PEER, LOCATE, meetingResult } from './tables.js';
-import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, tileClearings, graph } from './world.js';
+import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, tileClearings, graph, tileName } from './world.js';
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
 import * as combat from './combat.js';
 import { makeItem, defOf, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain, noteFind } from './items.js';
-import { lootFrom, lootSiteCard, groundPileAt, sitesHere, effortOptions, payEffort } from './search.js';
+import { lootFrom, lootSiteCard, groundPileAt, sitesHere, effortOptions, payEffort, applySearchResult, peerBlocked } from './search.js';
 import { hasCurse, liftCursesAtChapel } from './effects.js';
 import { tell } from './story.js';
 import { runesTargets, readRunes, learnSpell } from './runes.js';
 import { restartAfterDeath } from './setup.js';
 import { activeHorse } from './items.js';
-import { extraActs, oneDie, locateMod } from './modifiers.js';
+import { extraActs, oneDie, locateMod, modRoll, modNote } from './modifiers.js';
 import { beginTrade, tradeAction } from './trade.js';
 import { scoreGame } from './score.js';
 import { canCastUsefully, enchantableChits, TYPE_COLOR, dayColors } from './spells.js';
+import { flipTile, tileEnchantOptions } from './magic/colour.js';
+import { expireDue, breakAllFrom, fxTags, HERO } from './magic/fx.js';
+import { energizePass, deenergizePass, energizeWith } from './magic/energize.js';
+import { activatePhase } from './magic/phase.js';
 import { beginHire, hireAction, followHero, expireHires } from './hire.js';
 
 // The day loop (rules digest 01 section 4): Birdsong plan, Sunrise, Daylight phases, Sunset, Evening combat, Midnight.
@@ -29,6 +33,7 @@ export function beginDay(st, data) {
     st.turn = null;
     st.ch.hiddenEnemies = false;
     st.ch.killsToday = 0;
+    energizePass(st, data, 'dawn');                                   // Permanent spells whose colour fills the land today wake (4.6.7h)
     // What the day just ended changed, for the morning review (the report reads st.report; nothing in the rules does).
     if (st.mark) st.report = { day: st.mark.day, fame: st.ch.fame - st.mark.fame, notoriety: st.ch.notoriety - st.mark.notoriety, gold: st.ch.gold - st.mark.gold };
     st.mark = { day: st.day, fame: st.ch.fame, notoriety: st.ch.notoriety, gold: st.ch.gold };
@@ -140,6 +145,8 @@ function finishPhase(st, data, text) {
     const t = st.turn;
     t.results[t.i] = text;
     say(st, `Phase ${t.i + 1}: ${text}`, 'phase', tell.phase(st, text));
+    expireDue(st, data, 'phase-end');
+    energizePass(st, data, 'phase');
     if (st.ch.dead) return died(st, data);
     // End-of-phase blocking by monsters in his clearing.
     const bl = blockers(st);
@@ -195,7 +202,8 @@ function hostilesHere(st, data) {
 function evening(st, data) {
     if (st.ch.dead) return died(st, data);
     st.period = 'evening';
-    // Day spells that control monsters end at Sunset, just before combat begins (rule 8.1.1).
+    // Day spells end at Sunset, just before combat begins (rule 8.1.1).
+    expireDue(st, data, 'sunset');
     for (const m of st.mons) if (m.hired && m.controlledUntil && st.day >= m.controlledUntil) { m.hired = false; m.controlledUntil = null; say(st, `Your control of the ${data.monsters[m.id].name} ends with the Sunset.`, 'combat'); }
     if (st.ch.onRoad) { midnight(st, data); return; }
     if (!hostilesHere(st, data)) { say(st, 'A quiet evening.', 'day', tell.quiet(st)); return midnight(st, data); }
@@ -223,6 +231,7 @@ function runAway(st, data) {
 
 function died(st, data) {
     expireHires(st, data);
+    breakAllFrom(st, data, HERO);                          // what he cast through his chits ends with him
     // what he carried lies where he fell, and the day's chits go back face down as at Midnight
     const items = st.ch.items.filter(i => !i.destroyed).map(i => ({ ...i, active: false, alerted: false }));
     if (items.length && st.ch.at) st.abandoned[st.ch.at] = [...(st.abandoned[st.ch.at] ?? []), ...items];
@@ -248,7 +257,10 @@ function gameEnds(st, data) {
 
 function midnight(st, data) {
     st.period = 'midnight';
+    expireDue(st, data, 'midnight');                       // Combat spells end at Midnight (8.9.2)
+    deenergizePass(st, data);                              // Permanent spells fall inert unless a source that stays still fills their place
     for (const it of st.ch.items) if (it.kind === 'weapon') it.alerted = false;
+    for (const c of st.ch.chits) if (c.alerted) { c.alerted = false; if (c.state === 'active') c.state = 'fatigued'; }          // an alerted Magic chit that was not used tires at Midnight
     // potions are good until Midnight, then they go back to the box they came from
     const cardOf = it => data.treasures[it.card ?? (it.kind === 'treasure' ? it.id : '')];      // a card that became a counter keeps its card
     const spent = st.ch.items.filter(it => cardOf(it)?.discardTo);
@@ -266,6 +278,7 @@ function midnight(st, data) {
         // still out on the road overnight: the next day's plan must begin with a Move to either end
     }
     if (gameEnds(st, data)) {
+        expireDue(st, data, 'game-end');                  // all spells are broken when the game ends (9.3.1)
         st.period = 'over';
         st.over = { reason: 'finished', day: st.day };
         st.score = scoreGame(st, data);
@@ -291,7 +304,7 @@ function executeSlot(st, data, slot, i) {
         case 'move': return doMove(st, data, slot);
         case 'hide': { t.climb = null; return doHide(st, data); }
         case 'rest': { t.climb = null; return doRest(st, data); }
-        case 'alert': { t.climb = null; return doAlert(st, data); }
+        case 'alert': { t.climb = null; return doAlert(st, data, slot); }
         case 'search': { t.climb = null; return doSearch(st, data, slot); }
         case 'enchant': { t.climb = null; return doEnchant(st, data); }
         case 'trade': { t.climb = null; return beginTrade(st, data) ? 'wait' : 'No one here will trade with you.'; }
@@ -312,13 +325,14 @@ function doEnchant(st, data) {
     if (t.enchants === 1) return 'You meditate and gather your power: the first Enchant phase of a day only prepares you, so a second Enchant phase is needed to enchant.';
     const opts = enchantableChits(st);
     if (!opts.length) return 'You have no ready Magic chit of Type I to V to enchant.';
-    st.pending = { type: 'enchant-choice', options: opts.map(c => ({ chit: c.id, numeral: c.numeral, time: c.time, effort: c.effort, color: TYPE_COLOR[c.numeral] })) };
+    // a chit may be turned into a colour chit, or (where its colour of magic is present) held back and used to enchant the tile he stands on
+    st.pending = { type: 'enchant-choice', options: [...opts.map(c => ({ kind: 'chit', chit: c.id, numeral: c.numeral, time: c.time, effort: c.effort, color: TYPE_COLOR[c.numeral] })), ...tileEnchantOptions(st, data)] };
     return 'wait';
 }
 
 function doMove(st, data, slot) {
     const t = st.turn, from = st.ch.onRoad ? null : st.ch.at;
-    const to = slot.to;
+    let to = slot.to;
     if (st.ch.onRoad) {
         const r = st.ch.onRoad;
         if (to !== r.from && to !== r.to) return 'You cannot reach that from the road.';
@@ -327,9 +341,12 @@ function doMove(st, data, slot) {
         followHero(st);
         return arrive(st, data, to);
     }
+    // Lost: the Lost Table picks the clearing he reaches, by any road (7.3.1)
+    let lost = false;
+    if (lostActive(st)) { const m = lostMove(st, data, from, to); if (m.text) { t.climb = null; return m.text; } to = m.to; lost = true; }
     const road = roadsFrom(st, data, from).find(r => r.to === to);
     if (!road) { t.climb = null; return `There is no road from here to ${nameOfClearing(to)}: the move is lost.`; }
-    if (!road.usable) { t.climb = null; return `You do not know the way to ${nameOfClearing(to)}: the move is lost.`; }
+    if (!road.usable && !lost) { t.climb = null; return `You do not know the way to ${nameOfClearing(to)}: the move is lost.`; }
     if (isCave(st, data, to) && (t.kinds ? t.kinds[st.turn.i] === 'sunlight' : (st.turn.i >= 2 && st.turn.i < (t.base ?? 4)))) { t.climb = null; return 'You cannot enter a cave in a sunlight phase.'; }
     if (isMountain(st, data, to) && t.climb !== to) {
         t.climb = to;
@@ -350,6 +367,15 @@ function doMove(st, data, slot) {
     return text;
 }
 
+const lostActive = st => !st.ch.onRoad && !!st.ch.at && (fxTags(st, HERO, 'randomMove').length > 0 || fxTags(st, { kind: 'tile', id: tileOf(st.ch.at) }, 'randomMove').length > 0);
+// One die is a clearing number among the clearings joined to this one (undiscovered paths too). None: the phase is lost; several: his recorded one, else the first.
+function lostMove(st, data, from, wanted) {
+    const d = die(st), cands = roadsFrom(st, data, from).filter(r => numOf(r.to) === d);
+    noteRoll(st, 'Lost', [d], d, cands.length ? `you wander toward ${nameOfClearing(cands[0].to)}` : 'no clearing with that number');
+    if (!cands.length) return { text: `Lost: you wander in circles (rolled ${d}) and the move is lost.` };
+    return { to: (cands.find(r => r.to === wanted) ?? cands[0]).to };
+}
+
 function arrive(st, data, to) {
     return `You move to ${nameOfClearing(to)}.`;
 }
@@ -359,12 +385,23 @@ function doHide(st, data) {
     if (st.ch.hidden) return 'You are already hidden.';
     const r = oneDie(st, 'hide', st.ch.at, data) ? { dice: [die(st)], value: 0 } : roll2(st);
     if (r.value === 0) r.value = r.dice[0];
-    noteRoll(st, 'Hide', r.dice, r.value, hides(r.value) ? 'You hide' : 'You are seen');
+    modRoll(st, data, 'hide', r);
+    noteRoll(st, 'Hide', r.dice, r.value, (hides(r.value) ? 'You hide' : 'You are seen') + modNote(r));
     if (hides(r.value)) { st.ch.hidden = true; return `You hide (rolled ${r.dice.join('+')}).`; }
     return `You fail to hide (rolled ${r.dice.join('+')}).`;
 }
 
-function doAlert(st, data) {
+// The Alert activity readies the active weapon, or alerts one Magic chit (4.6.3c, 7.9.3): an alerted Magic chit has time 0, so it can be played
+// in the Encounter step against the fastest creature; if it is not used it tires at Midnight.
+function doAlert(st, data, slot = {}) {
+    if (slot?.magic) {
+        const chit = st.ch.chits.find(c => c.id === slot.magic);
+        if (!chit || chit.type !== 'magic') return 'There is no such Magic chit to alert.';
+        if (chit.state !== 'active') return `That Magic chit is not ready (${chit.state === 'fatigued' ? 'tired' : chit.state}).`;
+        if (chit.alerted) return `Magic ${chit.numeral} is already alerted.`;
+        chit.alerted = true;
+        return `You alert Magic ${chit.numeral}${chit.time}${'*'.repeat(chit.effort)}: it will act at time 0 until Midnight.`;
+    }
     const w = st.ch.items.find(i => i.kind === 'weapon' && i.active);
     if (!w) return 'You have no weapon to ready.';
     if (w.alerted) return `Your ${nameOf(data, w)} is already alerted.`;
@@ -416,7 +453,7 @@ function applyRest(st, o) {
 // Which tables he may search on where he stands (rule 7.5: he records only "S" at Birdsong and names the table when he does it).
 export function searchTables(st, data = null) {
     const here = st.ch.at;
-    return ['peer', 'locate', 'loot', ...((st.abandoned[here] ?? []).length ? ['ground'] : []), ...(st.ch.siteCards?.[here]?.length ? ['sitecard'] : []), ...(data && runesTargets(st, data).length ? ['runes'] : [])];
+    return [...(peerBlocked(st, data, here) ? [] : ['peer']), 'locate', 'loot', ...((st.abandoned[here] ?? []).length ? ['ground'] : []), ...(st.ch.siteCards?.[here]?.length ? ['sitecard'] : []), ...(data && runesTargets(st, data).length ? ['runes'] : [])];
 }
 
 function doSearch(st, data, slot) {
@@ -435,13 +472,15 @@ function doSearch(st, data, slot) {
         else { st.pending = { type: 'effort-cost', site: 'Cairns', options: opts, resume: 'search', slot: { act: 'search', table: 'loot' } }; return 'wait'; }
     }
     if (table === 'runes') return readRunes(st, data, slot.target ?? null);
+    if (table === 'peer' && peerBlocked(st, data, st.ch.at)) return 'Fog hangs over this tile: nobody can use the Peer table here.';
     let r;
     if (oneDie(st, table === 'loot' || table === 'ground' || table === 'sitecard' ? 'loot' : 'search', st.ch.at, data)) { const d1 = die(st); r = { dice: [d1], value: d1 }; } else r = roll2(st);
     const rawDice = [...r.dice];
     if (table === 'locate') { const m = locateMod(st, tileOf(st.ch.at), data); if (m) { r.value = Math.max(1, r.value + m); r.dice = [...r.dice, `${m}`]; } }
+    modRoll(st, data, table, r);                                       // Illusion and Bad Luck add one (4.1.2)
     const SEARCH_WHAT = { peer: 'Search: Peer', locate: 'Search: Locate', loot: 'Search: Loot', ground: 'Search: Loot the ground', sitecard: 'Search: Site card' };
     const tableList = table === 'peer' ? PEER : table === 'locate' ? LOCATE : null;
-    noteRoll(st, SEARCH_WHAT[table] ?? 'Search', rawDice, r.value, tableList ? tableList[Math.min(5, r.value - 1)] ?? '' : '');
+    noteRoll(st, SEARCH_WHAT[table] ?? 'Search', rawDice, r.value, (tableList ? tableList[Math.min(5, r.value - 1)] ?? '' : '') + modNote(r));
     if (table === 'sitecard') return lootSiteCard(st, data, r) ?? 'There is no such place here.';
     const here = st.ch.at;
     if (table === 'peer' || table === 'locate') {
@@ -457,37 +496,6 @@ function doSearch(st, data, slot) {
     }
     if (table === 'loot' || table === 'ground') return lootFrom(st, data, r, table === 'ground');
     return 'Nothing happens.';
-}
-
-function applySearchResult(st, data, table, res, dice) {
-    const here = st.ch.at, tile = tileOf(here);
-    const bits = [];
-    const lead = `${table === 'peer' ? 'Peer' : 'Locate'} (${dice.join('+')}): ${res}.`;
-    if (/Clues/.test(res)) {
-        const ids = st.chits.filter(c => c.tile === tile && !c.up && !c.pile).map(c => c.id);
-        for (const id of ids) if (!st.ch.seen.includes(id)) st.ch.seen.push(id);
-        bits.push(`You learn what the ${ids.length} unrevealed chit${ids.length === 1 ? '' : 's'} here are.`);
-    }
-    if (/Hidden enemies/.test(res)) { st.ch.hiddenEnemies = true; bits.push('You can now find hidden foes today.'); }
-    if (/Paths/.test(res)) bits.push(discoverPaths(st, data, here, 'hidden'));
-    if (/Passages/.test(res)) bits.push(discoverPaths(st, data, here, 'secret'));
-    if (/Discover chits/.test(res)) {
-        const ids = st.chits.filter(c => c.kind === 'site' && c.tile === tile && c.num === numOf(here) && !c.pile).map(c => c.id);
-        for (const id of ids) { if (!st.ch.discovered.sites.includes(id)) { st.ch.discovered.sites.push(id); tally(st, 'sitesDiscovered'); noteFind(st, { kind: 'site', id, name: st.chits.find(c => c.id === id)?.name, clearing: here }); } if (!st.ch.seen.includes(id)) st.ch.seen.push(id); }
-        bits.push(ids.length ? `You discover a site here: ${ids.map(id => st.chits.find(c => c.id === id).name).join(', ')}.` : 'There is no site in this clearing.');
-    }
-    if (res === 'Nothing') bits.push('You find nothing.');
-    return [lead, ...bits.filter(Boolean)].join(' ');
-}
-
-function discoverPaths(st, data, clearing, kind) {
-    const found = [];
-    for (const r of roadsFrom(st, data, clearing)) {
-        if (r.kind !== kind) continue;
-        const key = pathKey(clearing, r.to);
-        if (!st.ch.discovered.paths.includes(key)) { st.ch.discovered.paths.push(key); found.push(nameOfClearing(r.to)); }
-    }
-    return found.length ? `You discover the ${kind === 'hidden' ? 'hidden path' : 'secret passage'} to ${found.join(', ')}.` : '';
 }
 
 // ---- the action entry point ----
@@ -542,12 +550,21 @@ export function apply(st0, data, action) {
         }
         case 'enchant-choice': {
             if (p.type !== 'enchant-choice') throw new Error('nothing to enchant');
-            const o = p.options.find(x => x.chit === action.chit);
+            const kind = action.kind ?? 'chit';
+            const o = p.options.find(x => x.chit === action.chit && (x.kind ?? 'chit') === kind);
             if (!o) throw new Error('choose one of the chits offered');
             st.pending = null;
             const ch = st.ch.chits.find(x => x.id === o.chit);
-            ch.state = 'enchanted';
-            const text = `You enchant your Magic ${o.numeral}${o.time}${'*'.repeat(o.effort)}: it now holds ${o.color} magic until you play it.`;
+            let text;
+            if (kind === 'tile') {
+                // the Magic chit is not played (it stays ready); a colour chit that supplied the colour is used up
+                if (o.supply) { st.ch.chits.find(x => x.id === o.supply).state = 'fatigued'; }
+                const to = flipTile(st, data, o.tile);
+                text = `You enchant the tile with ${o.color} magic: ${tileName(o.tile)} is turned to its ${to} side.`;
+            } else {
+                ch.state = 'enchanted';
+                text = `You enchant your Magic ${o.numeral}${o.time}${'*'.repeat(o.effort)}: it now holds ${o.color} magic until you play it.`;
+            }
             say(st, text, 'info');
             finishPhase(st, data, text);
             return settle(st, data, st.turn?.auto);
@@ -564,8 +581,8 @@ export function apply(st0, data, action) {
         }
         case 'learn-spell': {
             if (p.type !== 'learn-spell') throw new Error('no spell is being offered');
+            const text = learnSpell(st, data, !!action.learn, p, action.erase);          // (throws, leaving the question open, when he must erase one and has not said which)
             st.pending = null;
-            const text = learnSpell(st, data, !!action.learn, p);
             finishPhase(st, data, text);
             return settle(st, data, st.turn?.auto);
         }
@@ -610,6 +627,19 @@ export function apply(st0, data, action) {
         case 'restart': {
             if (p.type !== 'over') throw new Error('not at the end of a game');
             return restartAfterDeath(st, data, action.vp);
+        }
+        case 'protect': {
+            // a held Phase spell (Protection from Magic) is activated like an item before the phase runs; it ends with the phase
+            if (p.type !== 'phase') throw new Error('you can only use it at the start of a phase');
+            activatePhase(st, data, action.fx, 'phase');
+            st.pending = p;
+            return st;
+        }
+        case 'energize': {
+            if (p.type !== 'phase' && p.type !== 'plan') throw new Error('you can only energize a spell at the start of a phase or while planning');
+            energizeWith(st, data, action.fx, action.colorChit);
+            st.pending = p;
+            return st;
         }
         case 'tidy': {
             if (p.type !== 'phase' && p.type !== 'plan') throw new Error('you can only rearrange your gear between phases (in a fight, use your Encounter action)');

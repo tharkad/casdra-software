@@ -1,5 +1,6 @@
 import { lvl } from './core.js';
 import { activeHorse } from './items.js';
+import { fxTags, HERO } from './magic/fx.js';
 
 // What the treasure cards he is using do for him (digest 04 section 3.1 and the effect sections of the Treasures list).
 // Only items with active === true count, and treasures are active as soon as he owns them.
@@ -16,6 +17,7 @@ export function extraActs(st, data, { startsInCave = false, intoCave = false } =
     for (const id of treasureIds(st)) if (EXTRA[id]) out.push(EXTRA[id]);
     if ((st.ch.adv ?? []).includes('health')) out.push('rest');             // the White Knight's extra Rest phase
     if ((st.ch.adv ?? []).includes('aura-of-power')) out.push('enchant');   // the Sorcerer's extra spell (Enchant) phase
+    for (const t of fxTags(st, HERO, 'extraPhase')) out.push(t.value);       // Day and energized Permanent spells: Blend Into Background (hide), See Hidden Signs (search), Sense Danger (alert)
     return out;
 }
 
@@ -74,3 +76,21 @@ export function convertCard(data, it) {
     else if (wep?.card) { it.card = it.id; it.kind = 'weapon'; it.id = it.id + '-1'; }
     return it;
 }
+
+// ---- modifiers to table rolls from spells (4.1.2): Illusion adds one on every Search table, Bad Luck on every table. The result stays within 1-6.
+// Never the Monster Roll (4.1.3). A spell on the hero or on the tile he stands in counts while it is in force.
+const SEARCH_TABLES = new Set(['peer', 'locate', 'loot', 'ground', 'sitecard', 'runes', 'magicsight']);
+export function tableMod(st, data, kind) {
+    if (st.ch.dead) return 0;
+    const who = [HERO]; if (st.ch.at) who.push({ kind: 'tile', id: st.ch.at.slice(0, 2) });
+    let m = 0;
+    for (const r of who) for (const { value } of fxTags(st, r, 'tableMod')) if (value.kinds === 'all' || (value.kinds === 'search' && SEARCH_TABLES.has(kind))) m += value.delta;
+    return m;
+}
+// Apply it to a roll { dice, value }: the roll gets .mod when something changed it.
+export function modRoll(st, data, kind, r) {
+    const m = tableMod(st, data, kind);
+    if (m) { r.value = Math.max(1, Math.min(6, r.value + m)); r.mod = m; }
+    return r;
+}
+export const modNote = r => (r.mod ? ` (spell ${r.mod > 0 ? '+' : ''}${r.mod})` : '');

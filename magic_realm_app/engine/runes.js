@@ -1,6 +1,6 @@
 import { say, roll2, die, noteRoll } from './core.js';
 import { nameOf } from './items.js';
-import { oneDie } from './modifiers.js';
+import { oneDie, modRoll, modNote } from './modifiers.js';
 import { rollCurse } from './effects.js';
 import { sitesHere } from './search.js';
 
@@ -8,6 +8,9 @@ import { sitesHere } from './search.js';
 // The 47 spell cards are dealt at setup into boxes: the treasure sites (Altar, Shrine, Statue), the visitors, and the artifacts and books. A card is
 // never taken from its box: reading its runes lets a character with a Magic chit of the same numeral *learn* it (and, for an artifact or book, awakens it).
 // st.spellBox = { sites: {name: [{id, awake}]}, visitors: {...}, items: {...} } (items are keyed by the treasure's name).
+
+// He may record at most 14 spells (digest 04 section 2.3; RealmSpeak's own limit): learning a 15th means erasing one.
+export const MAX_SPELLS = 14;
 
 export const spellOf = (data, id) => data.spells?.[id] ?? Object.values(data.spells ?? {}).find(s => s.id === id) ?? null;
 
@@ -55,9 +58,10 @@ export function readRunes(st, data, targetKey) {
     const t = targets.find(x => x.key === targetKey) ?? targets[0];
     let r;
     if (oneDie(st, 'runes', st.ch.at, data)) { const d1 = die(st); r = { dice: [d1], value: d1 }; } else r = roll2(st);
+    modRoll(st, data, 'runes', r);
     const res = data.tables.readRunes[String(r.value)];
     const LABEL = { 'learn-and-awaken': 'Learn and awaken', awaken: 'Awaken', curse: 'Curse!', nothing: 'Nothing' };
-    noteRoll(st, 'Search: Read runes', r.dice, r.value, LABEL[res] ?? res);
+    noteRoll(st, 'Search: Read runes', r.dice, r.value, (LABEL[res] ?? res) + modNote(r));
     const lead = `You read the runes of ${t.label.toLowerCase()} (${r.dice.join('+')}):`;
     if (res === 'nothing') return `${lead} nothing.`;
     if (res === 'curse') return `${lead} a curse! ${rollCurse(st, data)}.`;
@@ -66,7 +70,7 @@ export function readRunes(st, data, targetKey) {
     if (!sp) return `${lead} the writing is smudged.`;
     const learnable = res === 'learn-and-awaken' && ownsChitOf(st, sp.type) && !(st.ch.learned ?? []).includes(sp.id);
     if (learnable) {
-        st.pending = { type: 'learn-spell', spell: sp.id, from: t.label, lead };
+        st.pending = { type: 'learn-spell', spell: sp.id, from: t.label, lead, full: (st.ch.spells ?? []).length >= MAX_SPELLS };
         return 'wait';
     }
     const why = res === 'awaken' ? 'you may only look at it' : !ownsChitOf(st, sp.type) ? `you have no Type ${sp.type} Magic chit to learn it with` : 'you have already learned it';
@@ -74,9 +78,14 @@ export function readRunes(st, data, targetKey) {
 }
 
 // He decides whether to write the spell down.
-export function learnSpell(st, data, learn, p) {
+export function learnSpell(st, data, learn, p, erase = null) {
     const sp = spellOf(data, p.spell);
     if (learn) {
+        if ((st.ch.spells ?? []).length >= MAX_SPELLS) {
+            if (!erase || !st.ch.spells.includes(erase)) throw new Error(`you may know at most ${MAX_SPELLS} spells: say which one to erase`);
+            st.ch.spells = st.ch.spells.filter(x => x !== erase); st.ch.learned = (st.ch.learned ?? []).filter(x => x !== erase);
+            say(st, `You erase ${spellOf(data, erase)?.name ?? erase} from your sheet to make room.`, 'info');
+        }
         (st.ch.spells ??= []).push(sp.id);
         (st.ch.learned ??= []).push(sp.id);
         const text = `${p.lead} you learn ${sp.name} (Type ${sp.type}, ${sp.color ?? 'any colour'}).`;

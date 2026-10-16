@@ -19,7 +19,9 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
     const m = ui.melee;
     const send = a => { ui.melee = null; act({ type: 'combat', ...a }); };
     const foes = c.dens.filter(d => !d.dead && d.kind !== 'horse');
-    const cs = { active: 0, fatigued: 0, wounded: 0, enchanted: 0 }; st.ch.chits.forEach(x => { cs[x.state] = (cs[x.state] ?? 0) + 1; });
+    // hirelings and monsters his spells have won over fight beside him
+    const allies = (c.hires ?? []).filter(x => !x.dead).map(x => `${x.kind === 'mon' ? data.monsters[x.id]?.name : data.natives[x.id]?.name}${x.kind === 'mon' ? ' (controlled)' : ''}`);
+    const cs = { active: 0, fatigued: 0, wounded: 0, enchanted: 0, committed: 0 }; st.ch.chits.forEach(x => { cs[x.state] = (cs[x.state] ?? 0) + 1; });
     const gear = st.ch.items.filter(i => i.kind === 'armor' && i.active).map(i => `${nameOf(data, i)}${i.damaged ? ' (damaged)' : i.destroyed ? ' (destroyed)' : ''}`);
     const header = h('div', { class: 'cb-head' },
         h('b', {}, `Evening at ${nameOfClearing(c.at)}`),
@@ -27,7 +29,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             peek ? h('button', { class: 'peekbtn', 'data-act': 'peek-gear', onclick: peek.gear }, 'Belongings') : null,
             peek ? h('button', { class: 'peekbtn', 'data-act': 'peek-map', onclick: peek.map }, 'Map') : null,
             st.pending?.spellOnly ? null : h('em', {}, `Round ${c.round}`)));
-    const state = h('div', { class: 'cb-state' }, h('span', {}, `Chits: ${cs.active} ready \u00B7 ${cs.fatigued} tired \u00B7 ${cs.wounded} wounded${cs.enchanted ? ` \u00B7 ${cs.enchanted} enchanted` : ''}`), h('span', {}, gear.join(', ') || 'no armor'));
+    const state = h('div', { class: 'cb-state' }, h('span', {}, `Chits: ${cs.active} ready \u00B7 ${cs.fatigued} tired \u00B7 ${cs.wounded} wounded${cs.enchanted ? ` \u00B7 ${cs.enchanted} enchanted` : ''}${cs.committed ? ` \u00B7 ${cs.committed} tied to a spell` : ''}`), h('span', {}, gear.join(', ') || 'no armor'));
     // A tap on a creature turns its counter over: the other side, with its own numbers, and what changed.
     ui.flipped ??= {};
     const SIDE_NAME = { light: 'light side', dark: 'dark side', red: 'red side' };
@@ -59,6 +61,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             counter,
             h('div', { class: 'foe-text' },
                 h('b', {}, s.name), h('em', { class: 'sidetag' }, other ? (showRev ? `reverse: ${sideTag}` : sideTag) : ''),
+                d.pacified ? h('span', { class: 'foe-kind' }, 'Pacified by your spell: it will not fight unless you name it.') : null,
                 // what the numbers on its counter mean, in the words the rules use
                 h('span', { class: 'foe-kind' }, [s.size ? WORD[s.size] ?? s.size : '', b.vuln && b.vuln !== '\u2013' ? `killed by ${WORD[b.vuln] ?? b.vuln} harm` : ''].filter(Boolean).join(' \u00B7 ')),
                 h('div', { class: 'foe-stats' },
@@ -180,9 +183,9 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
                 body.push(h('p', { class: 'quiet-q' }, 'Would you like to cast a spell?'));
                 for (const x of o.casts) {
                     const sp = data.spells?.[x.spell], chit = st.ch.chits.find(c => c.id === x.chit);
-                    body.push(h('button', { class: `btn castcard${x.useful ? ' primary' : ''}`, 'data-act': 'cast', 'data-spell': x.spell, onclick: () => send({ kind: 'encounter', act: 'cast', spell: x.spell, chit: x.chit }) },
+                    body.push(h('button', { class: `btn castcard${x.useful ? ' primary' : ''}`, 'data-act': 'cast', 'data-spell': x.spell, onclick: () => send({ kind: 'encounter', act: 'cast', spell: x.spell, chit: x.chit, item: x.item }) },
                         h('span', { class: 'col' }, h('b', {}, `Cast ${x.name}`), h('span', { class: 'what' }, what(x)),
-                            h('small', {}, `Uses your Magic ${chit?.numeral ?? ''}${x.time}${'*'.repeat(x.effort)}, which is tired afterwards${sp?.color ? ` \u00B7 ${sp.color} magic` : ''}`))));
+                            h('small', {}, x.item ? `From your ${x.from}, at time 0; no Magic chit is used${sp?.color ? ` \u00B7 ${sp.color} magic` : ''}` : `Uses your Magic ${chit?.numeral ?? ''}${x.time}${'*'.repeat(x.effort)}, which is tired afterwards${sp?.color ? ` \u00B7 ${sp.color} magic` : ''}`))));
                 }
             }
             body.push(h('button', { class: 'btn quiet-no', 'data-act': 'pass', onclick: () => send({ kind: 'encounter', act: 'pass' }) }, 'Not tonight'));
@@ -196,17 +199,17 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             body.push(h('button', { class: 'btn primary', 'data-act': 'stay-hidden', onclick: () => send({ kind: 'encounter', act: 'stay' }) }, 'Stay hidden: let the evening pass'));
         }
         body.push(h('button', { class: `btn${(p.spellOnly && o.casts.some(x => x.useful)) || (o.canStay && !p.spellOnly) ? '' : ' primary'}`, 'data-act': 'pass', onclick: () => send({ kind: 'encounter', act: 'pass' }) }, p.spellOnly ? 'Do nothing' : o.canStay ? 'Strike from hiding' : 'Go on to the fight'));
-        if (o.blocked?.length && !o.casts.length) {
-            body.push(h('h3', {}, 'Spells you know'));
-            for (const x of o.blocked) body.push(h('p', { class: 'hint' }, h('b', {}, `${x.name}: `), x.why));
+        if (o.blocked?.length) {
+            body.push(h('details', { class: 'ask blocked-spells', open: !o.casts.length || null }, h('summary', {}, h('b', {}, o.casts.length ? 'Spells you cannot cast now' : 'Spells you know')),
+                ...o.blocked.map(x => h('p', { class: 'hint' }, h('b', {}, `${x.name}: `), x.why))));
         }
         if (o.casts.length) {
             body.push(h('h3', {}, 'Cast a spell'));
             body.push(h('p', { class: 'hint' }, 'The Magic chit you play is the spell\'s cost; it counts toward the two asterisks of the round and is tired afterwards.'));
             for (const x of o.casts) {
                 const sp = data.spells?.[x.spell];
-                body.push(h('button', { class: `btn${p.spellOnly && x.useful ? ' primary' : ''}`, 'data-act': 'cast', 'data-spell': x.spell, onclick: () => send({ kind: 'encounter', act: 'cast', spell: x.spell, chit: x.chit }) },
-                    h('span', { class: 'col' }, h('b', {}, x.name), h('small', {}, `Type ${sp?.type ?? ''} \u00B7 ${sp?.color ?? 'any'} \u00B7 Magic ${st.ch.chits.find(c => c.id === x.chit)?.numeral}${x.time}${'*'.repeat(x.effort)}${x.useful ? '' : ' \u00B7 nothing to mend'}`))));
+                body.push(h('button', { class: `btn${p.spellOnly && x.useful ? ' primary' : ''}`, 'data-act': 'cast', 'data-spell': x.spell, onclick: () => send({ kind: 'encounter', act: 'cast', spell: x.spell, chit: x.chit, item: x.item }) },
+                    h('span', { class: 'col' }, h('b', {}, x.name), h('small', {}, `Type ${sp?.type ?? ''} \u00B7 ${sp?.color ?? 'any'} \u00B7 ${x.item ? `from your ${x.from}, time 0` : `Magic ${st.ch.chits.find(c => c.id === x.chit)?.numeral}${x.time}${'*'.repeat(x.effort)}`}${x.useful ? '' : ' \u00B7 nothing to mend'}`))));
                 if (sp?.text) body.push(h('p', { class: 'hint' }, sp.text));
             }
         }
@@ -240,6 +243,23 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         body.push(h('div', { class: 'cb-sec' }, h('b', {}, '1. Who do you strike?'),
             h('div', { class: 'seg3 wrap' }, h('button', { class: `segb${m.target == null ? ' on' : ''}`, onclick: () => { m.target = null; render(); } }, 'No one'),
                 ...o.targets.map(d => h('button', { class: `segb${m.target === d.uid ? ' on' : ''}`, onclick: () => { m.target = d.uid; render(); } }, denSide(st, data, d).name)))));
+        // spells cast this round that need a target named (8.4.2)
+        const sameRef = (x, y) => x.kind === y.kind && String(x.id) === String(y.id);
+        for (const a of o.aims ?? []) {
+            m.aim ??= {};
+            const sel = m.aim[a.spell] ??= a.options.slice(0, a.min).map(x => x.ref);
+            body.push(h('div', { class: 'cb-sec', 'data-aim': a.spell }, h('b', {}, `Aim ${a.name}`),
+                h('p', { class: 'hint' }, a.max === 1 ? 'Choose what it is aimed at.' : `Choose ${a.min === a.max ? a.min : `${a.min} to ${a.max}`}.`),
+                h('div', { class: 'seg3 wrap' }, ...a.options.map(opt => {
+                    const on = sel.some(r => sameRef(r, opt.ref));
+                    return h('button', { class: `segb${on ? ' on' : ''}`, 'data-aim-opt': `${opt.ref.kind}:${opt.ref.id}`, onclick: () => {
+                        if (a.max === 1) m.aim[a.spell] = [opt.ref];
+                        else if (on) m.aim[a.spell] = sel.filter(r => !sameRef(r, opt.ref));
+                        else if (sel.length < a.max) m.aim[a.spell] = [...sel, opt.ref];
+                        render();
+                    } }, opt.label);
+                }))));
+        }
         // 2 attack
         const spl = o.attackSpell ? data.spells?.[o.attackSpell.spell] : null;
         // the time the attack goes off at: a weapon's own printed time for the side showing, else the Fight chit's
@@ -272,7 +292,8 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             m.fightChit && !m.target ? h('span', { class: 'bad' }, 'Pick whom to strike, or play no Fight chit') : null,
             h('button', { class: 'btn primary big', 'data-act': 'commit', disabled: ast > 2 || (m.fightChit && !m.target) || null, onclick: () => {
                 const boxes = {}; o.boxable.forEach((d, i) => { boxes[d.uid] = m.boxes[d.uid] ?? (i % 3); });
-                send({ kind: 'melee', target: m.target, fightChit: m.fightChit, attackDir: m.attackDir, moveChit: m.moveChit, moveDir: m.moveDir, shieldDir: o.shield ? m.shieldDir : null, boxes });
+                const spellAim = {}; for (const a of o.aims ?? []) spellAim[a.spell] = { targets: m.aim?.[a.spell] ?? a.options.slice(0, a.min).map(x => x.ref) };
+                send({ kind: 'melee', target: m.target, fightChit: m.fightChit, attackDir: m.attackDir, moveChit: m.moveChit, moveDir: m.moveDir, shieldDir: o.shield ? m.shieldDir : null, boxes, spellAim });
             } }, 'Commit and roll')));
     } else if (p.type === 'combat-wounds') {
         ui.pickChits ??= [];
@@ -312,6 +333,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             ...(meetingQuestion && !decideFirst ? [decision] : []),
             // After a round: what happened comes first (it is the first chance to read it), then the choice it leaves, then the table.
             ...(decideFirst ? [headline, last, decision] : []),
+            allies.length ? h('div', { class: 'ask allies', role: 'note' }, h('b', {}, 'On your side'), h('p', {}, allies.join(', '))) : null,
             h('div', { class: 'cb-foes' }, ...foeEls), st.pending?.spellOnly ? null : gearBlock, diceBlock,
             ...(decideFirst ? [] : meetingQuestion ? [last] : [last, decision])));
 }
