@@ -99,7 +99,7 @@ export function layoutLabels(groups, obstacles = [], { rings = 12, step = 9, anc
             if (better) { boxes = lone; side = 'split'; ring = maxRing; area = worst; far = true; best = { ...best, owned: allOwned }; }
         }
         for (const r of boxes) placed.push(grow(r, MARGIN));
-        out.set(g.id, { boxes, side, ring, overlap: area, leader: ring > 0 || far || best.owned === false || (best.outside ?? 0) > 0 });      // a name that could not stay on its tile is tied to its clearing
+        out.set(g.id, { boxes, side, ring, overlap: area, outside: best.outside ?? 0, leader: ring > 0 || far || best.owned === false || (best.outside ?? 0) > 0 });      // a name that could not stay on its tile is tied to its clearing
     }
     return out;
 }

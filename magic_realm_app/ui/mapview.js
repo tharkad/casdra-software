@@ -186,12 +186,28 @@ export function mountMap(host) {
             g.append(tg);
         }
         // names last, once every counter and number is known: nothing may cover anything else
-        const placed = layoutLabels(groups, obstacles, { anchors });
+        // A crowded tile gets smaller pills: the layout is tried at full size, then smaller, and the size that leaves the fewest overlaps, tethers and
+        // names off their own tile wins (a little preference for the bigger one).
+        let best = null;
+        for (const sc of [1, 0.85, 0.72, 0.6]) {
+            const scaled = groups.map(g0 => ({ ...g0, boxes: g0.boxes.map(b => ({ w: b.w * sc, h: b.h * sc })) }));
+            const placed0 = layoutLabels(scaled, obstacles, { anchors });
+            let score = (1 - sc) * 40;
+            for (const r of placed0.values()) score += r.overlap * 100 + (r.leader ? 60 : 0) + r.ring * 8 + (r.outside ?? 0) * 500;
+            if (!best || score < best.score) best = { sc, placed: placed0, score };
+            if (score - (1 - sc) * 40 < 0.01) break;                     // nothing overlaps, nothing is tethered: this size will do
+        }
+        const placed = best.placed, labelScale = best.sc;
         const leaders = sv('g', { class: 'leaders', 'pointer-events': 'none' });
         const names = sv('g', { class: 'names', 'pointer-events': 'none' });
         for (const gr of groups) {
             const r = placed.get(gr.id), make = makeLabel.get(gr.id);
-            r.boxes.forEach((box, i) => names.append(make(box, i)));
+            r.boxes.forEach((box, i) => {
+                // drawn at its own size and scaled down as a whole, so the text and the number circle shrink with the pill
+                const el = make({ x: box.x, y: box.y, w: box.w / labelScale, h: box.h / labelScale }, i);
+                if (labelScale !== 1) el.setAttribute('transform', `${el.getAttribute('transform')} scale(${labelScale})`);
+                names.append(el);
+            });
             if (r.leader) {
                 const b = r.boxes[0];
                 const tx = Math.max(b.x, Math.min(gr.ax, b.x + b.w)), ty = Math.max(b.y, Math.min(gr.ay, b.y + b.h));
