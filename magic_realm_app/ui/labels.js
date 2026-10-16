@@ -42,7 +42,7 @@ function corner(side, ax, ay, r, W, H, h0) {
  * @param anchors   [{ id, x, y }]  every clearing's centre; a group with `own` set to its clearing's id is kept nearer to that clearing than to any other
  * @returns Map id -> { boxes:[{x,y,w,h}], side, ring, leader:boolean, overlap:number }
  */
-export function layoutLabels(groups, obstacles = [], { rings = 12, step = 9, anchors = [] } = {}) {
+export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anchors = [] } = {}) {
     const fixed = obstacles.map(o => ({ x: o.x - o.r, y: o.y - o.r, w: 2 * o.r, h: 2 * o.r }));
     const placed = [];
     const out = new Map();
@@ -74,7 +74,8 @@ export function layoutLabels(groups, obstacles = [], { rings = 12, step = 9, anc
                 }
                 // a counter's name belongs on its own tile: a group may carry `inside(x, y)`, and every corner of a pill that falls outside it costs
                 const outside = g.inside ? rects.reduce((n, r) => n + [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]].filter(([px, py]) => !g.inside(px, py)).length, 0) : 0;
-                const score = area * 100 + dist + (owned ? 0 : 3000 + excess * 5) + outside * 4000;
+                // a name that sits close but nearer another clearing is only mildly disliked (it carries its clearing's number, and gets a thin line); it must not be pushed far away for it
+                const score = area * 100 + dist + (owned ? 0 : 60 + excess * 2) + outside * 700;
                 if (!best || score < best.score) best = { score, rects, side, ring, area, dist, W, H, owned, outside };
                 if (area === 0 && owned && outside === 0) return best;     // candidates run from nearest to farthest
             }

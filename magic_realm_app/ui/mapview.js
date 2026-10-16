@@ -198,7 +198,7 @@ export function mountMap(host) {
         const asBadge = g0 => ({ ...g0, boxes: badgeOf.get(g0.id).boxes, prefer: ['right', 'left', 'below', 'above'], prio: 1 });
         // only when the names truly cannot sit by their clearing: they collide, spill off their tile, or would have to stand well away from it. (A name that sits close
         // but nearer another clearing keeps its place and gets a thin line to its own.)
-        const bad = r => r.overlap > 0 || (r.outside ?? 0) > 0 || r.ring >= 2;
+        const bad = r => r.overlap > 0 || (r.outside ?? 0) >= 3 || r.ring >= 18;       // (a ring is 5 units: eighteen is some ninety units from the clearing)
         let placed = null;
         for (let guard = 0; guard < 40; guard++) {
             placed = layoutLabels(groups.map(g0 => (demoted.has(g0.id) ? asBadge(g0) : g0)), obstacles, { anchors });
