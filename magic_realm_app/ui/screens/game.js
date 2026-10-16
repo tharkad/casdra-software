@@ -52,6 +52,29 @@ function icon(name, size = 18) {
 }
 const COLOR_DOT = { White: '#f2eedc', Black: '#15151c', Grey: '#9aa0aa', Gold: '#e2c068', Purple: '#8f7cc0' };
 
+// Pull a sheet down to put it away: the handle follows the finger, and the sheet goes if it was dragged far enough or flicked; otherwise it springs back.
+function pullDown(handle, target, done) {
+    let y0 = null, dy = 0, t0 = 0;
+    handle.style.touchAction = 'none';
+    handle.addEventListener('pointerdown', e => { if (e.button) return; y0 = e.clientY; dy = 0; t0 = e.timeStamp; target.style.transition = 'none'; try { handle.setPointerCapture(e.pointerId); } catch { /* ignore */ } });
+    handle.addEventListener('pointermove', e => { if (y0 == null) return; dy = Math.max(0, e.clientY - y0); target.style.transform = `translateY(${dy}px)`; });
+    const end = e => {
+        if (y0 == null) return;
+        const v = dy / Math.max(1, e.timeStamp - t0);
+        y0 = null; target.style.transition = 'transform .18s ease-out';
+        if (dy > 90 || (v > 0.8 && dy > 50)) { target.style.transform = 'translateY(100%)'; setTimeout(done, 170); } else target.style.transform = '';
+    };
+    handle.addEventListener('pointerup', end); handle.addEventListener('pointercancel', end);
+    // a swipe down on the content itself, when it is already at its top
+    let ty = null, tx = 0;
+    target.addEventListener('touchstart', e => { ty = target.scrollTop <= 0 ? e.touches[0].clientY : null; tx = e.touches[0].clientX; }, { passive: true });
+    target.addEventListener('touchmove', e => {
+        if (ty == null) return;
+        const d = e.touches[0].clientY - ty, dx = Math.abs(e.touches[0].clientX - tx);
+        if (d > 70 && d > dx * 1.6) { ty = null; target.style.transition = 'transform .18s ease-out'; target.style.transform = 'translateY(100%)'; setTimeout(done, 170); }
+    }, { passive: true });
+}
+
 // A curse makes a number worthless (Ashes: gold, Disgust: Fame): it is still shown, struck through, so it is plain it cannot be used.
 const voidBy = (st, stat) => (stat === 'gold' && (st.ch.curses ?? []).includes('Ashes') ? 'Ashes' : stat === 'fame' && (st.ch.curses ?? []).includes('Disgust') ? 'Disgust' : null);
 const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert', enchant: 'Enchant', nothing: 'Nothing' };
@@ -468,8 +491,18 @@ export function gameScreen(ctx) {
     }
 
     // Sheets that are only for looking can be dismissed by tapping anywhere outside them; those that need an answer cannot.
-    const modal = (title, body, { close } = {}) => h('div', { class: 'sheet-bg', onclick: e => { if (close && e.target === e.currentTarget) close(); } }, h('div', { class: 'sheet2' },
-        h('div', { class: 'sheet2-head' }, h('b', {}, title), close ? h('button', { class: 'x', 'aria-label': 'Close', onclick: close }, '\u2715') : null), body));
+    // Every sheet is the same object: a scrim, a rounded sheet with a grabber and a title, and (when it is only for looking) a way out three ways:
+    // pull it down, tap outside it, or the cross. A sheet that needs an answer has none of them and no grabber.
+    const modal = (title, body, { close } = {}) => {
+        const sheet = h('div', { class: 'sheet2' },
+            h('div', { class: 'sheet-top' },
+                close ? h('div', { class: 'sheet-grab', 'aria-hidden': 'true' }, h('span', { class: 'grip' })) : null,
+                h('div', { class: 'sheet2-head' }, h('b', {}, title), close ? h('button', { class: 'x', 'aria-label': 'Close', onclick: close }, '\u2715') : null)),
+            body);
+        const bg = h('div', { class: 'sheet-bg', onclick: e => { if (close && e.target === e.currentTarget) close(); } }, sheet);
+        if (close) pullDown(sheet.querySelector('.sheet-grab'), sheet, close);
+        return bg;
+    };
 
     // Pictures from the original game, when we have them.
     const picOf = name => { const a = data.art; return a ? (a.weapons?.[name] ?? a.armor?.[name] ?? a.horses?.[name] ?? null) : null; };
@@ -758,7 +791,7 @@ export function gameScreen(ctx) {
                         h('em', {}, `${WEIGHT_WORDS[weightOf(data, it)] ?? ''}`)),
                     h('button', { class: `switch${it.active ? ' on' : ''}`, role: 'switch', 'aria-checked': it.active ? 'true' : 'false', 'data-switch': it.uid, disabled: !canSwitch || it.destroyed || null,
                         'aria-label': `${nameOf(data, it)}: ${it.active ? 'active' : 'inactive'}`, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid }); } }, it.active ? 'Active' : 'Inactive'),
-                    h('button', { class: 'leavebtn', 'aria-label': `Leave the ${nameOf(data, it)} behind`, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid, drop: true }); } }, 'Leave'));
+                );
             }),
             ch.items.length ? null : h('p', { class: 'hint' }, 'Nothing.'),
             ...(() => { const hs = st.nats.filter(n => n.hired && !n.dead); return hs.length ? [h('h3', {}, 'Hirelings'),
@@ -795,18 +828,24 @@ export function gameScreen(ctx) {
     }
 
     function menuSheet() {
-        return modal('Menu', h('div', {},
-            h('button', { class: 'btn', 'data-act': 'menu-bug', onclick: () => { ui.sheet = 'bug'; render(); } }, 'Report a problem'),
-            h('button', { class: 'btn', 'data-act': 'open-calendar', onclick: () => { ui.sheet = 'calendar'; render(); } }, 'Calendar and magic'),
-            h('button', { class: 'btn', onclick: () => { ui.sheet = 'log'; render(); } }, 'Journal'),
-            h('button', { class: 'btn', onclick: () => { ui.sheet = 'help'; render(); } }, 'How to play'),
-            h('button', { class: 'btn', onclick: () => { ui.sheet = 'key'; render(); } }, 'Map key'),
-            h('button', { class: 'btn', 'data-act': 'setup-card', onclick: () => { ui.sheet = 'setupcard'; render(); } }, 'The Setup Card (what the printed card tells you)'),
-            data.art?.misc?.meetingTable ? h('button', { class: 'btn', onclick: () => { ui.sheet = 'tables'; render(); } }, 'Tables (Meeting, Search, Missile, Pit)') : null,
-            h('button', { class: 'btn', onclick: () => { ui.sheet = null; map.fit(); render(); } }, 'Show the whole realm'),
-            h('button', { class: 'btn', onclick: () => ctx.go('title') }, 'Back to the title screen'),
-            h('button', { class: 'btn', onclick: () => { persist(true); ctx.go('history', { id: st.session?.id, back: 'game' }); } }, 'This game\'s record'),
-            h('button', { class: 'btn', onclick: abandon }, 'Abandon this game')),
+        const go = (sheet) => () => { ui.sheet = sheet; render(); };
+        const row = (label, hint, onclick, extra = {}) => h('button', { class: `mrow${extra.danger ? ' danger' : ''}`, 'data-act': extra.act ?? null, onclick },
+            h('span', { class: 't' }, h('span', {}, label), hint ? h('small', {}, hint) : null), extra.danger ? null : h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A'));
+        return modal('Menu', h('div', { class: 'menulist' },
+            h('h4', {}, 'This game'),
+            row('Journal', 'What has happened, day by day', go('log')),
+            row('Calendar and magic', 'The colours of magic through the month', go('calendar'), { act: 'open-calendar' }),
+            row('Show the whole realm', null, () => { ui.sheet = null; map.fit(); render(); }),
+            row('This game\u2019s record', null, () => { persist(true); ctx.go('history', { id: st.session?.id, back: 'game' }); }),
+            h('h4', {}, 'Reference'),
+            row('How to play', null, go('help')),
+            row('Map key', null, go('key')),
+            row('The Setup Card', 'What the printed card tells everyone', go('setupcard'), { act: 'setup-card' }),
+            ...(data.art?.misc?.meetingTable ? [row('Tables', 'Meeting, Search, Missile, Pit', go('tables'))] : []),
+            h('h4', {}, 'Other'),
+            row('Report a problem', null, go('bug'), { act: 'menu-bug' }),
+            row('Back to the title screen', null, () => ctx.go('title')),
+            row('Abandon this game', null, abandon, { danger: true })),
             { close: () => { ui.sheet = null; render(); } });
     }
 
@@ -1066,6 +1105,7 @@ export function gameScreen(ctx) {
             h('div', { class: 'row2' },
                 h('button', { class: `switch big${it.active ? ' on' : ''}`, role: 'switch', 'aria-checked': it.active ? 'true' : 'false', 'data-act': 'item-switch', disabled: !canSwitch || null, onclick: () => { ui.keep = true; act({ type: 'tidy', item: it.uid }); } }, it.active ? 'Active: deactivate it' : 'Inactive: activate it'),
                 h('button', { class: 'btn', onclick: back.close }, 'Back')),
+            canSwitch && !it.destroyed ? h('button', { class: 'btn quiet-no leave', 'data-act': 'item-leave', onclick: () => { ui.keep = true; ui.sheet = ui.itemFrom === 'dock' ? null : 'char'; ui.itemFrom = null; act({ type: 'tidy', item: it.uid, drop: true }); } }, `Leave the ${name} here`) : null,
             canSwitch ? null : h('p', { class: 'hint' }, 'Gear can be changed between phases, not in the middle of one.')), back);
     }
 
@@ -1300,7 +1340,8 @@ export function gameScreen(ctx) {
         const tabs = h('div', { class: 'plan-tabs', role: 'tablist' }, ...Array.from({ length: total }, (_, i) => h('button', { class: `ptab${i === step ? ' on' : ''}${d.slots[i] ? ' set' : ''}`, 'data-tab': i, role: 'tab',
             onclick: () => { ui.planStep = i; ui.pickMove = null; ui.pickSearch = null; render(); } },
             h('b', {}, i + 1), h('small', {}, d.slots[i] ? (ACT_LABEL[d.slots[i].act] ?? d.slots[i].act) : '\u2013'))));
-        const head = h('div', { class: 'plan-head' }, h('b', {}, 'Plan your day'), h('button', { class: 'x', 'aria-label': 'Hide the plan', onclick: () => { ui.planCollapsed = true; render(); } }, '\u25BE'));
+        const grab = h('div', { class: 'sheet-grab', 'aria-hidden': 'true' }, h('span', { class: 'grip' }));
+        const head = h('div', { class: 'plan-head' }, h('b', {}, 'Plan your day'), h('button', { class: 'x', 'aria-label': 'Put the plan away', onclick: () => { ui.planCollapsed = true; render(); } }, '\u25BE'));
         const s = d.slots[step];
         const body = h('div', { class: 'plan-step' },
             h('div', { class: 'slot-head' }, h('b', {}, `Phase ${step + 1} of ${total}`), h('span', {}, slotKind(step, base, extras)), h('em', {}, s ? describeSlot(s) : 'not set'),
@@ -1313,7 +1354,9 @@ export function gameScreen(ctx) {
         // and only once the plan can be played.
         const go = startButton();
         const nav = go ? h('div', { class: 'plan-nav' }, go) : null;
-        return h('div', { class: 'planpanel' }, head, tabs, h('div', { class: 'plan-body' }, body), ...(nav ? [nav] : []));
+        const panel = h('div', { class: 'planpanel' }, grab, head, tabs, h('div', { class: 'plan-body' }, body), ...(nav ? [nav] : []));
+        pullDown(grab, panel, () => { ui.planCollapsed = true; render(); });
+        return panel;
     }
 
     // the plan tucked away so the whole map shows; tap it to bring the plan back

@@ -87,10 +87,18 @@ export function slotsOf(data, it) {
     return [];
 }
 
+// A potion or ointment that is used up: it is never put to use for him (using it spends it, so it is his choice and his moment).
+const ONE_USE = new Set(['flowers-of-rest']);
+export function isOneUse(data, it) {
+    if (it.kind !== 'treasure') return false;
+    const d = defOf(data, it);
+    return ONE_USE.has(it.id) || /one-use|\bpotion\b/i.test(d?.effectText ?? '');
+}
+
 // Puts a newly acquired item into use if the slots it needs are free.
 export function autoEquip(st, data, it) {
     const slots = slotsOf(data, it);
-    if (it.kind === 'treasure' && !slots.length) { it.active = true; return; }
+    if (it.kind === 'treasure' && !slots.length) { if (!isOneUse(data, it)) it.active = true; return; }
     if (!slots.length) return;
     if (BOOTS[it.id] && !bootsStrongEnough(st, data, it)) return;
     const taken = st.ch.items.filter(o => o.uid !== it.uid && o.active && !o.destroyed && slotsOf(data, o).some(s => slots.includes(s)));
