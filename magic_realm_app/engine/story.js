@@ -6,6 +6,8 @@ const The = n => `The ${n}`, the = n => `the ${n}`;
 const harmWord = L => ({ N: 'glances off', L: 'thuds against', M: 'bites into', H: 'hammers', T: 'crashes down on' }[L] ?? 'strikes');
 const pos = box => `${box} position`;
 const DV = { thrust: 'thrusts', swing: 'swings', smash: 'smashes down' };
+// What a missile weapon sends: the story says "arrow", not "blow".
+export const shotOf = w => (/crossbow/i.test(w ?? '') ? 'bolt' : /\bbow\b/i.test(w ?? '') ? 'arrow' : /sling/i.test(w ?? '') ? 'stone' : null);
 
 export const tell = {
     ambush: st => v(st, ['You spring from hiding and strike first: your cover is gone.', 'You lunge out of the shadows; there is no hiding now.']),
@@ -13,9 +15,9 @@ export const tell = {
     shuffle: st => v(st, ['The creatures trade places.', 'The melee churns.']),
     moved: (st, name, from, to, i = 0) => `${The(name)} ${v(st, ['slips', 'scuttles', 'circles', 'shifts', 'lurches'], i)} from ${from} to ${to}.`,
     flipped: (st, box, names) => `In the ${box} box the ${names} show${names.includes(' and ') || names.includes(',') ? '' : 's'} another side.`,
-    myHitBox: (st, weapon, dir, name) => `Your ${weapon} ${DV[dir] ?? dir} at ${the(name)} and finds it there.`,
-    myHitFast: (st, weapon, dir, name, where, mine, its) => `${The(name)} twists into ${where}, but your ${weapon} is quicker (${mine} against ${its}) and lands.`,
-    myMiss: (st, weapon, dir, name, where, mine, its) => `Your ${weapon} ${DV[dir] ?? dir} at empty air: ${the(name)} is in ${where}${its != null ? `, too quick to catch (${its} against your ${mine})` : ''}.`,
+    myHitBox: (st, weapon, dir, name) => (shotOf(weapon) ? `Your ${shotOf(weapon)} flies at ${the(name)} and finds it there.` : `Your ${weapon} ${DV[dir] ?? dir} at ${the(name)} and finds it there.`),
+    myHitFast: (st, weapon, dir, name, where, mine, its) => `${The(name)} twists into ${where}, but your ${shotOf(weapon) ?? weapon} is quicker (${mine} against ${its}) and lands.`,
+    myMiss: (st, weapon, dir, name, where, mine, its) => `Your ${shotOf(weapon) ? `${shotOf(weapon)} flies` : `${weapon} ${DV[dir] ?? dir}`} at empty air: ${the(name)} is in ${where}${its != null ? `, too quick to catch (${its} against your ${mine})` : ''}.`,
     notBack: (st, name, hidden) => (hidden ? `Caught off guard, ${the(name)} cannot answer this round.` : `${The(name)}'s companions have not joined in: no blow comes back.`),
     connectNoMove: (st, name, dir) => `${The(name)}'s ${dir} comes in unchallenged: you played no maneuver.`,
     connectMeets: (st, name, dir, mnv) => `${The(name)}'s ${dir} is aimed at your ${mnv} and finds you.`,
@@ -28,8 +30,9 @@ export const tell = {
     damaged: (st, armor) => v(st, [`Your ${armor} is dented and damaged.`, `Your ${armor} takes the blow and is damaged.`]),
     destroyed: (st, armor, gold) => `Your ${armor} is destroyed${gold ? ` (worth ${gold} gold)` : ''}.`,
     wound: st => v(st, ['The blow gets through: a wound.', 'You are wounded.']),
-    kill: (st, weapon, name, reward) => `Your ${weapon} ${v(st, ['cleaves', 'strikes down', 'cuts down'], 3)} ${the(name)}, which ${v(st, ['crumples', 'falls', 'collapses'], 4)}${reward}.`,
-    tough: (st, weapon, name, L, vuln) => `Your ${weapon} bites ${the(name)}, but harm ${L} cannot fell it (vulnerability ${vuln}).`,
+    kill: (st, weapon, name, reward) => `Your ${shotOf(weapon) ?? weapon} ${shotOf(weapon) ? v(st, ['brings down', 'drops', 'cuts down'], 3) : v(st, ['cleaves', 'strikes down', 'cuts down'], 3)} ${the(name)}, which ${v(st, ['crumples', 'falls', 'collapses'], 4)}${reward}.`,
+    // `shotDelta`: what the Missile Table did to the harm (a missile weapon only): -1 and it lost its sting, +1 and it bit deeper.
+    tough: (st, weapon, name, L, vuln, shotDelta = null) => `Your ${shotOf(weapon) ?? weapon} ${shotOf(weapon) ? 'strikes' : 'bites'} ${the(name)}, but harm ${L} cannot fell it (vulnerability ${vuln})${shotDelta ? `; the shot ${shotDelta < 0 ? 'lost its sting' : 'bit deeper than it looked'}` : ''}.`,
     spent: (st, n) => `${n} of your chits ${n === 1 ? 'is' : 'are'} tired.`,
     wounded: (st, n) => `${n} of your chits ${n === 1 ? 'is' : 'are'} put out of action.`,
     dieDown: st => v(st, ['Both sides draw back: the fighting dies down.', 'The blows stop; neither side presses on.']),
@@ -88,12 +91,12 @@ export function roundSynopsis(events) {
     const m = (re, from = L) => from.map(l => re.exec(l)).filter(Boolean);
     const strikeRe = /^(?:The |the )?(.+?)(?:'s) (?:thrust|swing|smash|bite|club|claw|blow|sting|attack|strike)s? (glances off|thuds against|bites into|hammers|crashes down on) /i;
     const lines = {
-        killed: m(/^Your .+? (?:cleaves|strikes down|cuts down) the (.+?), which /),
+        killed: m(/^Your (.+?) (?:cleaves|strikes down|cuts down|brings down|drops) the (.+?), which /),
         felled: m(/ (?:dies|falls|is slain|is struck down)\b/i),
-        found: m(/^Your .+? (?:thrusts|swings|smashes down) at the (.+?) and finds it there/),
+        found: m(/^Your (?:.+? (?:thrusts|swings|smashes down)|arrow flies|bolt flies|stone flies) at the (.+?) and finds it there/),
         quicker: m(/^The (.+?) twists into .+?, but your .+? is quicker/),
-        missed: m(/^Your .+? (?:thrusts|swings|smashes down) at empty air: the (.+?) is in /),
-        tough: m(/^Your .+? bites the (.+?), but harm .+? cannot fell it/),
+        missed: m(/^Your (?:.+? (?:thrusts|swings|smashes down)|arrow flies|bolt flies|stone flies) at empty air: the (.+?) is in /),
+        tough: m(/^Your (.+?) (?:bites|strikes) the (.+?), but harm (\w) cannot fell it \(vulnerability (\w)\)(; the shot (?:lost its sting|bit deeper than it looked))?/),
         spell: m(/^(?:You cast|Your (?:Stones Fly|Fiery Blast|Lightning Bolt|Make Whole)|.+?: .*(?:hit|hits|miss)\b)/),
         landed: m(strikeRe),
         avoided: m(/ misses: your .+? carries you clear/),
@@ -106,9 +109,15 @@ export function roundSynopsis(events) {
     const out = [];
     // what you did
     if (lines.ran.length) out.push('You broke away and fled.');
-    else if (lines.killed.length) out.push(`You cut down the ${lines.killed[0][1]}${lines.killed.length > 1 ? ` and ${num(lines.killed.length - 1)} more` : ''}.`);
-    else if (lines.found.length || lines.quicker.length) out.push(`Your blow found the ${(lines.found[0] ?? lines.quicker[0])[1]}.`);
-    else if (lines.tough.length) out.push(`Your blow bit the ${lines.tough[0][1]}, but it was not enough to bring it down.`);
+    else if (lines.killed.length) {
+        const [, how, who] = lines.killed[0], shot = ['arrow', 'bolt', 'stone'].includes(how);
+        out.push(`${shot ? `Your ${how} brought down` : 'You cut down'} the ${who}${lines.killed.length > 1 ? ` and ${num(lines.killed.length - 1)} more` : ''}.`);
+    } else if (lines.tough.length) {
+        // it was hit, and that was not enough: say with what, how hard, and what it takes
+        const [, how, who, harm, need, sting] = lines.tough[0], shot = ['arrow', 'bolt', 'stone'].includes(how);
+        const WORD = { N: 'Negligible', L: 'Light', M: 'Medium', H: 'Heavy', T: 'Tremendous' };
+        out.push(`${shot ? `Your ${how} struck` : 'Your blow bit'} the ${who}, but ${WORD[harm] ?? harm} harm was not enough: it takes ${WORD[need] ?? need} to bring it down${sting ? (/lost/.test(sting) ? ', and the shot lost its sting on the way' : ', though the shot bit deeper than it looked') : ''}.`);
+    } else if (lines.found.length || lines.quicker.length) out.push(`Your ${lines.found.length && /^Your (arrow|bolt|stone)/.test(L.find(l => /finds it there/.test(l)) ?? '') ? 'shot' : 'blow'} found the ${(lines.found[0] ?? lines.quicker[0])[1]}.`);
     else if (lines.missed.length) out.push(`You struck at empty air: the ${lines.missed[0][1]} was too quick to catch.`);
     // what came back
     const hit = lines.landed.length, wounds = lines.wounds.length;

@@ -723,13 +723,13 @@ function myHit(st, data, h, ctx) {
     let level = lvl(side.harm), stars = side.stars;
     if (s.armored) stars = Math.max(0, stars - 1);
     level += stars;
-    let note = '';
+    let note = '', shotDelta = null;
     if (side.missile) {
         const bow = /bow$/i.test(ctx.w ? data.weapons[ctx.w.item.id]?.name ?? '' : '');
         const r = (hasAdv(st, 'archer') && bow) || oneDie(st, 'missile') ? (() => { const d1 = die(st); return { dice: [d1], value: d1 }; })() : roll2(st);
         const aim = hasAdv(st, 'aim') ? 1 : 0;
         const v = clamp6(r.value - aim);
-        level += MISSILE[v - 1];
+        level += MISSILE[v - 1]; shotDelta = MISSILE[v - 1];
         noteRoll(st, 'Your missile roll', r.dice, v, `${MISSILE[v - 1] >= 0 ? '+' : ''}${MISSILE[v - 1]} harm level${Math.abs(MISSILE[v - 1]) === 1 ? '' : 's'}${aim ? ' (Aim -1)' : ''}`);
         note = ` (missile roll ${r.dice.join('+')}${aim ? ' -1 for Aim' : ''} -> ${MISSILE[v - 1] >= 0 ? '+' : ''}${MISSILE[v - 1]})`;
     } else if (ctx.fight && ctx.w && lvl(ctx.fight.strength) > lvl(side.harm)) { level += 1; note = ' (strong Fight chit +1)'; }
@@ -761,7 +761,7 @@ function myHit(st, data, h, ctx) {
         c.eventful = true;
     } else {
         tally(st, 'hitsNotKilling');
-        ctx.log(`You hit the ${s.name} for ${finalL} harm${note}; it has vulnerability ${s.vuln} and survives.`, tell.tough(st, ctx.spell ?? (ctx.w ? nameOfItem(st, data, ctx.w.item) : 'bare hands'), s.name, finalL, s.vuln));
+        ctx.log(`You hit the ${s.name} for ${finalL} harm${note}; it has vulnerability ${s.vuln} and survives.`, tell.tough(st, ctx.spell ?? (ctx.w ? nameOfItem(st, data, ctx.w.item) : 'bare hands'), s.name, finalL, s.vuln, shotDelta));
         // a harmless hit still turns the weapon unalerted (handled by caller)
     }
 }
