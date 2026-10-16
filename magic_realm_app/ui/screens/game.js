@@ -23,6 +23,8 @@ import { earned, targets, scoreGame, progress, FACTORS, CATS } from '../../engin
 import { COLORS, COLOR_MEANING, dayColors, isMagicDay, colorSources, castable, castOptions, ATTACK_SPELLS } from '../../engine/spells.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
 import { connect, inviteLink } from '../online.js';
+import { energizeOptions } from '../../engine/magic/energize.js';
+import { heldOptions } from '../../engine/magic/phase.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
 const SAVE_KEY = 'mr-save-v1';
@@ -373,7 +375,15 @@ export function gameScreen(ctx) {
         const spellBar = fxOn.length ? h('button', { class: 'spellbar', 'data-act': 'spells', 'aria-label': `Spells in effect: ${fxOn.map(f => data.spells?.[f.spell]?.name ?? f.spell).join(', ')}. Tap for details`, onclick: () => { ui.sheet = 'spells'; render(); } },
             h('span', { class: 'rl' }, h('small', { class: 'gl' }, 'SPELLS IN EFFECT'), ...fxOn.map(f => h('span', { class: 'cl' }, h('b', {}, data.spells?.[f.spell]?.name ?? f.spell), ` ${fxEnds(f)}`))),
             h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A')) : null;
-        const items = [curseBar, spellBar, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, logText(l)))) : null, body].filter(Boolean);
+        // free spell actions at the start of a phase: wake a permanent spell with a colour chit, or use a Phase spell he is holding
+        const freeActs = p && (p.type === 'phase' || p.type === 'plan') ? [
+            ...energizeOptions(st, data).map(o => h('button', { class: 'btn spellact', 'data-act': 'energize', 'data-fx': o.fx, onclick: () => act({ type: 'energize', fx: o.fx, colorChit: o.chits[0] }) },
+                h('span', { class: 'col' }, h('b', {}, `Energize ${o.name}`), h('small', {}, `Burn an enchanted chit (${o.chits.length} held) to wake it: it works until Midnight`)))),
+            ...(p.type === 'phase' ? heldOptions(st, data).map(o => h('button', { class: 'btn spellact', 'data-act': 'protect', 'data-fx': o.fx, onclick: () => act({ type: 'protect', fx: o.fx }) },
+                h('span', { class: 'col' }, h('b', {}, `Use ${o.name}`), h('small', {}, 'It lasts through this phase (it also holds off your own helpful spells)')))) : []),
+        ] : [];
+        const spellActs = freeActs.length ? h('div', { class: 'spellacts' }, ...freeActs) : null;
+        const items = [curseBar, spellBar, spellActs, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, logText(l)))) : null, body].filter(Boolean);
         const peek = `${st.ch.onRoad ? 'On the road' : where} \u00B7 ${st.ch.hidden ? 'hidden' : 'visible'}`;
         const grab = h('button', { class: 'grab', 'data-act': 'dock-toggle', 'aria-expanded': open ? 'true' : 'false', 'aria-controls': 'dock-body',
             'aria-label': open ? 'Details panel, open. Press to slide it away' : `Details panel, closed${newCount ? `, ${newCount} new` : ''}. Press to open it` },

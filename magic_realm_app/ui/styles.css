@@ -994,3 +994,4 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .perks li { font-family: var(--font-text); font-size: 15.5px; line-height: 1.3; color: var(--dim); padding-left: 12px; position: relative; }
 .perks li::before { content: ''; position: absolute; left: 0; top: .6em; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
 .perks li b { color: var(--text); font-family: var(--font-ui); font-weight: 700; }
+.spellacts { display: flex; flex-direction: column; gap: 6px; margin: 0 0 6px; } .spellact { width: 100%; justify-content: flex-start; text-align: left; border-color: var(--arcane); }

@@ -199,6 +199,8 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             body.push(h('button', { class: 'btn primary', 'data-act': 'stay-hidden', onclick: () => send({ kind: 'encounter', act: 'stay' }) }, 'Stay hidden: let the evening pass'));
         }
         body.push(h('button', { class: `btn${(p.spellOnly && o.casts.some(x => x.useful)) || (o.canStay && !p.spellOnly) ? '' : ' primary'}`, 'data-act': 'pass', onclick: () => send({ kind: 'encounter', act: 'pass' }) }, p.spellOnly ? 'Do nothing' : o.canStay ? 'Strike from hiding' : 'Go on to the fight'));
+        for (const hd of o.held ?? []) body.push(h('button', { class: 'btn primary', 'data-act': 'protect', 'data-fx': hd.fx, onclick: () => send({ kind: 'encounter', act: 'protect', fx: hd.fx }) },
+            h('span', { class: 'col' }, h('b', {}, `Use ${hd.name}`), h('small', {}, 'Instead of a chit action; it lasts through this round'))));
         if (o.blocked?.length) {
             body.push(h('details', { class: 'ask blocked-spells', open: !o.casts.length || null }, h('summary', {}, h('b', {}, o.casts.length ? 'Spells you cannot cast now' : 'Spells you know')),
                 ...o.blocked.map(x => h('p', { class: 'hint' }, h('b', {}, `${x.name}: `), x.why))));
