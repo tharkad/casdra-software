@@ -514,6 +514,7 @@ export function gameScreen(ctx) {
             return out;
         }
         if (ui.peek && ui.sel && p?.type === 'plan') { out.push(clearingSheet()); return out; }
+        if (ui.mapPeek && ui.sheet === 'clearing' && ui.sel) { out.push(clearingSheet()); return out; }       // a clearing looked at while a decision waits: close it to come back to the bar
         if (p?.type === 'turn-end') out.push(turnEndSheet());
         else if (p?.type === 'turn-end') out.push(turnEndSheet());
         else if (p?.type === 'rest') out.push(restSheet(p));
@@ -521,7 +522,8 @@ export function gameScreen(ctx) {
             ask(`You are searching at ${nameOfClearing(st.ch.at)}: choose the table.`, 'Your plan said only Search, and the rules let you name the table when the phase comes. A Search phase is one roll on one table, and each table finds different things, so pick the one that matches what you are after.'),
             ...p.options.map(t => h('button', { class: 'btn', 'data-table': t, onclick: () => act({ type: 'search-table', table: t }) }, h('b', {}, tableName(t)),
                 h('small', {}, { peer: 'look for clues, hidden enemies and hidden paths', locate: 'find passages, clues and sites in this clearing', loot: 'take treasure from a site you have discovered here',
-                    ground: 'pick up what lies on the ground here', sitecard: 'search the place you found with a treasure card: its own table', runes: 'learn a spell from a site here or an artifact or book you carry' }[t] ?? ''))))));
+                    ground: 'pick up what lies on the ground here', sitecard: 'search the place you found with a treasure card: its own table', runes: 'learn a spell from a site here or an artifact or book you carry' }[t] ?? ''))),
+            ...hereBlocks())));
         else if (p?.type === 'effort-cost') out.push(effortSheet(p));
         else if (p?.type === 'runes-target') out.push(modal('Read runes: which?', h('div', {},
             ask('Which runes will you read?', 'A Reading Runes search needs one target: a discovered site here that holds spell cards, or an artifact or book you carry and have active.'),
@@ -547,7 +549,8 @@ export function gameScreen(ctx) {
                     ...tileOpts.map(o => h('button', { class: 'btn', 'data-enchant-tile': o.chit, onclick: () => act({ type: 'enchant-choice', chit: o.chit, kind: 'tile' }) }, `Use Magic ${o.numeral}${o.time}${'*'.repeat(o.effort)} (${o.color})${o.supply ? ', burning a colour chit' : ''}`))) : null)));
         }
         else if (p?.type === 'search-choice') out.push(modal(`${tableName(p.table)}: your choice`, h('div', {}, latestRoll(st) ? rollRow(latestRoll(st)) : null, ask(`You rolled ${p.roll.join('+')}: the table gives you a choice.`, 'This result lets you pick whichever entry of the table you want instead of the one the dice name. Choose the one that helps you most.'),
-            ...p.options.map(r => h('button', { class: 'btn', onclick: () => act({ type: 'search-choice', result: r }) }, r)))));
+            ...p.options.map(r => h('button', { class: 'btn', onclick: () => act({ type: 'search-choice', result: r }) }, r)),
+            ...hereBlocks())));
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));
         else if (p?.type === 'hire' || p?.type === 'hire-offer') out.push(hireSheet(p));
         else if (!ui.welcomeDone && !welcomed() && st.day === 1 && p?.type === 'plan') out.push(modal(`Welcome, ${st.ch.name}`, h('div', {},
@@ -825,6 +828,17 @@ export function gameScreen(ctx) {
         return h('div', { class: 'sitecard' }, e ? h('p', { class: 'setupline card' }, siteCardText(e)) : null, ...status);
     }
 
+    // What a Search here could reach, for the choice sheets: each discovered site's loot stack, what lies on the ground, and any site card he holds.
+    function hereBlocks() {
+        const at = st.ch.at; if (!at || st.ch.onRoad) return [];
+        const tile = tileOf(at), n = numOf(at), out = [];
+        for (const c of st.chits.filter(x => x.kind === 'site' && x.tile === tile && x.num === n && !x.pile && st.ch.discovered.sites.includes(x.id)))
+            out.push(h('details', { class: 'here-block', open: true }, h('summary', {}, `${c.name}: what Loot could reach`), siteLine(c)));
+        const ground = st.abandoned?.[at] ?? [];
+        if (ground.length) out.push(h('div', { class: 'here-block' }, h('h3', {}, 'On the ground'), h('p', { class: 'hint' }, ground.map(i => nameOf(data, i)).join(', ') + '.')));
+        for (const cid of st.ch.siteCards?.[at] ?? []) out.push(h('div', { class: 'here-block' }, siteCardRow(cid)));
+        return out.length ? [h('div', { class: 'here', 'data-here': 'search' }, ...out)] : [h('p', { class: 'hint' }, 'No site here is discovered yet, so Loot would find nothing: Locate is how a site is found.')];
+    }
     function clearingSheet() {
         const id = ui.sel, tile = tileOf(id), n = numOf(id);
         const cdef = data.tile(tile).sides.normal.clearings.find(c => c.n === n);
