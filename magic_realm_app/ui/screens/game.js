@@ -182,6 +182,8 @@ export function gameScreen(ctx) {
             if (!c.up && c.kind === 'site' && disc) { add(c.tile + c.num, { k: 'site', disc: true, label: `\u25C6 ${name} \u2713` }); continue; }
             (chitsByTile[c.tile] ??= []).push({ up: known, name: known ? (c.kind === 'sound' ? `${name} ${c.num}` : name) : '?', id: c.id, kind: known ? c.kind : null, slot: slotOf[c.id] });
         }
+        // a site card he found by looting (the Crypt of the Knight, the Toadstool Circle...) is a place in that clearing, and shows like a discovered site
+        for (const [at, ids] of Object.entries(st.ch.siteCards ?? {})) for (const id of ids) add(at, { k: 'site', disc: true, label: `\u25C6 ${data.treasures?.[id]?.name ?? id} \u2713` });
         for (const d of st.dwellings) {
             const here = d.at === st.ch.at;
             add(d.at, { k: 'dwelling', label: d.kind, img: art?.dwellings?.[d.kind] ?? null });
@@ -809,6 +811,7 @@ export function gameScreen(ctx) {
             if (c.clearing === n && c.up) chitRows.push(row(c.kind, c.kind === 'sound' ? `${c.name} (sound ${c.num})` : `${c.name} (site ${c.num})`, c.kind === 'site' ? siteLine(c) : 'monsters stir here', mrChit(c)));
             else if (!c.up && c.kind === 'site' && c.num === n && st.ch.discovered.sites.includes(c.id)) chitRows.push(row('site', `${c.name} (site ${c.num})`, siteLine(c), mrChit(c)));
         }
+        for (const cid of st.ch.siteCards?.[id] ?? []) chitRows.push(row('site', `${data.treasures?.[cid]?.name ?? cid} (found by looting)`, 'a place you can search here with a Loot phase', null));
         if (chitRows.length) sections.push(['Chits and sites', chitRows]);
         const ground = (st.abandoned[id] ?? []);
         if (ground.length) sections.push(['On the ground', ground.map(i => row('loot', nameOf(data, i), 'anyone here may pick it up with a Loot phase'))]);
@@ -1412,14 +1415,14 @@ export function gameScreen(ctx) {
             ...(s.rows ?? []).map(r => h('p', { class: 'scorerow' }, h('b', {}, r.cat), ` ${r.earned} of ${r.need}`, h('span', {}, ` \u2192 ${r.basic + r.bonus >= 0 ? '+' : ''}${r.basic + r.bonus}`))),
             h('p', { class: 'bigline' }, `Total ${s.total}`, h('small', {}, s.won ? ' (you won)' : ' (not enough)')),
             st.deaths ? h('p', { class: 'hint' }, `You have died ${st.deaths} time${st.deaths === 1 ? '' : 's'} this game.`) : null,
-            canRestart ? h('button', { class: 'btn primary', 'data-act': 'restart', onclick: () => { ui.restartVp = { great: 0, spells: 0, fame: 2, notoriety: 1, gold: 0 }; render(); } }, `Return tomorrow as a new ${st.ch.name}`) : null,
+            canRestart ? h('button', { class: 'btn primary', 'data-act': 'restart', onclick: () => { const total = Math.max(2, Math.ceil(((st.lastDay ?? 28) - st.day) / 7) + 1), fame = Math.min(5, Math.ceil(total * 0.6)); ui.restartVp = { great: 0, spells: 0, fame, notoriety: Math.min(5, total - fame), gold: 0 }; render(); } }, `Return tomorrow as a new ${st.ch.name}`) : null,
             h('button', { class: 'btn', onclick: () => { clearSaved(); ctx.go('title'); } }, 'Back to the title')));
     }
 
     function restartSheet() {
         const weeks = Math.ceil(((st.lastDay ?? 28) - st.day) / 7), total = Math.max(2, weeks + 1), v = ui.restartVp;
         const used = Object.values(v).reduce((a, b) => a + b, 0);
-        const rows = [['fame', 'Fame', 10], ['notoriety', 'Notoriety', 20], ['gold', 'Gold', 30], ['great', 'Great treasures', 1]];
+        const rows = [['fame', 'Fame', 10], ['notoriety', 'Notoriety', 20], ['gold', 'Gold', 30], ['great', 'Great treasures', 1], ['spells', 'Spells', 2]];
         return modal(`A new ${st.ch.name}`, h('div', {},
             ask('Your character is dead: set the goals for the next one.', 'A new character arrives at the Inn tomorrow with fresh chits and gear. The goals you set now are what he will be scored against at the end of the game.'),
             h('p', {}, `He arrives at the Inn tomorrow. With ${weeks} week${weeks === 1 ? '' : 's'} left he has ${total} victory points to spend.`),
@@ -1428,7 +1431,7 @@ export function gameScreen(ctx) {
                 h('div', { class: 'stepper' },
                     h('button', { class: 'step-btn', disabled: v[k] <= 0, onclick: () => { v[k]--; render(); } }, '\u2212'),
                     h('div', { class: 'step-val' }, h('b', {}, String(v[k]))),
-                    h('button', { class: 'step-btn', disabled: used >= total, onclick: () => { v[k]++; render(); } }, '+')))),
+                    h('button', { class: 'step-btn', disabled: used >= total || v[k] >= 5, onclick: () => { v[k]++; render(); } }, '+')))),
             h('p', { class: used === total ? 'hint' : 'hint bad' }, used === total ? 'All points spent.' : `${total - used} left to spend.`),
             h('button', { class: 'btn primary', disabled: used !== total, 'data-act': 'restart-go', onclick: () => { const vp = { ...v }; ui.restartVp = null; ui.sheet = null; act({ type: 'restart', vp }); } }, 'Begin')),
             { close: () => { ui.restartVp = null; render(); } });

@@ -368,9 +368,11 @@ function midnight(st, data) {
     st.companions = [];
     for (const it of st.ch.items) if (it.kind === 'weapon') it.alerted = false;
     for (const c of st.ch.chits) if (c.alerted) { c.alerted = false; if (c.state === 'active') c.state = 'fatigued'; }          // an alerted Magic chit that was not used tires at Midnight
-    // potions are good until Midnight, then they go back to the box they came from
+    // The Midnight housekeeping is for a game that goes on (rule 8.9.2): at the last Midnight nothing is returned and no curse is lifted before the score is worked out.
+    const ending = gameEnds(st, data);
+    // a potion that was activated today is good until Midnight, then it goes back to the box it came from (8.9.2a; one not used is kept)
     const cardOf = it => data.treasures[it.card ?? (it.kind === 'treasure' ? it.id : '')];      // a card that became a counter keeps its card
-    const spent = st.ch.items.filter(it => cardOf(it)?.discardTo);
+    const spent = ending ? [] : st.ch.items.filter(it => it.active && cardOf(it)?.discardTo);
     for (const it of spent) {
         const card = cardOf(it);
         (st.stock[card.discardTo] ??= []).push({ kind: 'treasure', id: card.id });
@@ -378,13 +380,13 @@ function midnight(st, data) {
     }
     if (spent.length) st.ch.items = st.ch.items.filter(it => !spent.includes(it));
     resetChitsAtMidnight(st);
-    if (!st.ch.flying) liftCursesAtChapel(st);                     // (not while he is blown across the land)
+    if (!st.ch.flying && !ending) liftCursesAtChapel(st);                     // (not while he is blown across the land)
     expireHires(st, data);
     st.combat = null;
     if (st.ch.onRoad) {
         // still out on the road overnight: the next day's plan must begin with a Move to either end
     }
-    if (gameEnds(st, data)) {
+    if (ending) {
         expireDue(st, data, 'game-end');                  // all spells are broken when the game ends (9.3.1)
         st.period = 'over';
         st.over = { reason: 'finished', day: st.day };

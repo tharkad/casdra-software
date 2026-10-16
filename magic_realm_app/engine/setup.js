@@ -196,10 +196,20 @@ export function makeCharacter(st, data, id, vp, opt = {}) {
 }
 
 // A character who died may come back the next day as a fresh one at the Inn, with new goals (rules digest 01 section 7).
+// The goals a character is given: the five categories, each a whole number from 0 to 5, adding up to the budget (rule 3.3.6a: one point per week left, plus one).
+export const VP_CATS = ['great', 'spells', 'fame', 'notoriety', 'gold'];
+export function checkVp(vp, total) {
+    const bad = VP_CATS.some(k => !Number.isInteger(vp?.[k] ?? 0) || (vp?.[k] ?? 0) < 0 || (vp?.[k] ?? 0) > 5) || Object.keys(vp ?? {}).some(k => !VP_CATS.includes(k));
+    if (bad) throw new Error('each goal takes from 0 to 5 victory points');
+    const sum = VP_CATS.reduce((a, k) => a + (vp?.[k] ?? 0), 0);
+    if (total != null && sum !== total) throw new Error(`the goals must add up to exactly ${total} victory points (not ${sum})`);
+}
+
 export function restartAfterDeath(st, data, vp) {
     const old = st.ch;
     if (!old.dead) throw new Error('your character is alive');
     if (st.day >= (st.lastDay ?? 28) && st.mode !== 'endless') throw new Error('the game is over');
+    if (vp) checkVp(vp, Math.max(2, Math.ceil(((st.lastDay ?? 28) - st.day) / 7) + 1));
     st.deaths = (st.deaths ?? 0) + 1;                      // from now on gear counters are never conjured from nothing
     const ch = makeCharacter(st, data, old.id, vp, { gear: st.startGear, dwelling: data.characters[old.id].startDwellings[0] });   // a new hero starts at the Inn
     ch.at = chooseStart(st, data, ch);

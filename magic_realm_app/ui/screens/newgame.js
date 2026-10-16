@@ -231,7 +231,15 @@ export function newGameScreen(ctx) {
         }
     }
     const back = () => { if (g.step <= first) { ctx.go(online ? 'online' : 'title', online ? { message: '' } : {}); } else { g.step -= 1; redraw(); } };
+    // the goals must add up to the length's budget (rule 3.3.6a): the quick start, which skips the goals page, spreads it for you
+    const fitVp = () => {
+        const total = vpTotal(g);
+        if (Object.values(g.vp).reduce((a, b) => a + b, 0) === total) return;
+        const fame = Math.min(5, Math.ceil(total * 0.6));
+        g.vp = { great: 0, spells: 0, fame, notoriety: Math.min(5, total - fame), gold: Math.max(0, total - fame - Math.min(5, total - fame)) };
+    };
     const start = () => {
+        fitVp();
         const lastDay = g.length === 'custom' ? g.weeks * 7 : 28;
         if (online) { startOnline(lastDay); return; }
         ctx.go('game', { fresh: true, character: g.character, vp: { ...g.vp }, options: { ...g.options }, startDwelling: g.dwelling, startSpells: (CHARACTERS.find(c => c.id === g.character)?.spells && Array.isArray(g.spells)) ? [...g.spells] : undefined, lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month' });
