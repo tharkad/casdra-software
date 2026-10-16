@@ -60,7 +60,7 @@ export function mountMap(host) {
         const g = sv('g', { class: 'world' });
         const top = sv('g', { class: 'top' });          // labels sit above every tile
         const og = sv('g', { class: 'labels' });         // in world coordinates: positions are decided across tiles
-        const groups = [], obstacles = [], anchors = [], makeLabel = new Map();
+        const groups = [], obstacles = [], anchors = [], makeLabel = new Map(), badgeOf = new Map();
         let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
         const tileDefs = Object.fromEntries(tiles.map(t => [t.id, t]));
         for (const p of placements) {
@@ -137,6 +137,7 @@ export function mountMap(host) {
                 const glyph = c.kind === 'sound' ? '\u266A' : c.kind === 'site' ? '\u25C6' : c.kind === 'warning' ? '!' : '\u2605';
                 const text = `${glyph} ${label}`, id = `chit:${c.id ?? p.id + i}`;
                 groups.push({ id, ax: wx, ay: wy, ar: 3, prio: 3, prefer: ['center', 'below', 'above', 'right', 'left'], inside: insideTile, boxes: [{ w: pillWidth(text), h: PILL_H }] });
+                badgeOf.set(id, { segs: [{ k: c.kind === 'sound' ? 'sound' : c.kind === 'site' ? 'site' : c.kind === 'warning' ? 'warn' : 'star', glyph: glyph }], id: null, boxes: [{ w: 16, h: 12 }] });
                 makeLabel.set(id, box => sv('g', { class: `pill chitpill ${c.kind ?? 'star'}`, transform: `translate(${box.x.toFixed(1)} ${box.y.toFixed(1)})`, 'pointer-events': 'none' },
                     sv('rect', { width: box.w, height: box.h, rx: 6 }), sv('text', { x: 4, y: box.h / 2, dy: '.35em' }, text)));
             });
@@ -168,6 +169,11 @@ export function mountMap(host) {
                     const shown = toks.length > 5 ? [...toks.slice(0, 4), { k: 'more', label: `+${toks.length - 4}` }] : toks;
                     const gid = `clr:${id}`;
                     const prio = Math.min(...shown.map(t => ({ mon: 1, nat: 1, ally: 2, dwelling: 2, site: 3, sound: 3, more: 4 }[t.k] ?? 3)));
+                    // when the names will not fit around the clearing they give way to one small marker: a coloured chip for each kind of thing that is there,
+                    // with its number, and a dotted end that says "tap the clearing to see everything"
+                    const KS = ['mon', 'nat', 'ally', 'dwelling', 'site', 'sound'], count = t => Number(/x(\d+)$/.exec(t.label)?.[1] ?? 1);
+                    const segs = KS.map(k => { const ts = toks.filter(t => t.k === k); return ts.length ? { k, n: ts.reduce((n, t) => n + count(t), 0) } : null; }).filter(Boolean);
+                                    badgeOf.set(gid, { segs, id, num: c.n, boxes: [{ w: 14 + segs.length * 13 + 3, h: 12 }] });
                     groups.push({ id: gid, own: id, kind: shown[0]?.k ?? 'site', ax: cx + x, ay: cy + y, ar: picture ? 10.5 : 13, prio, prefer: ['right', 'left'], inside: insideTile,
                         boxes: shown.map(t => ({ w: pillWidth(t.label, { img: !!t.img }) + NUM_W, h: t.img ? 17 : PILL_H })) });
                     makeLabel.set(gid, (box, i) => {
@@ -186,22 +192,39 @@ export function mountMap(host) {
             g.append(tg);
         }
         // names last, once every counter and number is known: nothing may cover anything else
-        // A crowded tile gets smaller pills: the layout is tried at full size, then smaller, and the size that leaves the fewest overlaps, tethers and
-        // names off their own tile wins (a little preference for the bigger one).
-        let best = null;
-        for (const sc of [1, 0.85, 0.72, 0.6]) {
-            const scaled = groups.map(g0 => ({ ...g0, boxes: g0.boxes.map(b => ({ w: b.w * sc, h: b.h * sc })) }));
-            const placed0 = layoutLabels(scaled, obstacles, { anchors });
-            let score = (1 - sc) * 40;
-            for (const r of placed0.values()) score += r.overlap * 100 + (r.leader ? 60 : 0) + r.ring * 8 + (r.outside ?? 0) * 500;
-            if (!best || score < best.score) best = { sc, placed: placed0, score };
-            if (score - (1 - sc) * 40 < 0.01) break;                     // nothing overlaps, nothing is tethered: this size will do
+        // Every clearing's things are named beside it; where they do not fit close by, that clearing gives way to a small marker (chips by kind, tap to open).
+        // Start with all names at full size, and while some collide, overflow their tile or have to be tethered, turn the worst crowds into markers.
+        const demoted = new Set();
+        const asBadge = g0 => ({ ...g0, boxes: badgeOf.get(g0.id).boxes, prefer: ['right', 'left', 'below', 'above'], prio: 1 });
+        const bad = r => r.leader || r.overlap > 0 || (r.outside ?? 0) > 0;
+        let placed = null;
+        for (let guard = 0; guard < 40; guard++) {
+            placed = layoutLabels(groups.map(g0 => (demoted.has(g0.id) ? asBadge(g0) : g0)), obstacles, { anchors });
+            const failing = groups.filter(g0 => badgeOf.has(g0.id) && !demoted.has(g0.id) && bad(placed.get(g0.id)));
+            if (!failing.length) break;
+            failing.sort((a0, b0) => b0.boxes.length - a0.boxes.length || placed.get(b0.id).overlap - placed.get(a0.id).overlap);
+            demoted.add(failing[0].id);
+            for (const f of failing.slice(1)) if (placed.get(f.id).overlap > 0) demoted.add(f.id);       // a true collision goes at once
         }
-        const placed = best.placed, labelScale = best.sc;
+        const labelScale = 1;
         const leaders = sv('g', { class: 'leaders', 'pointer-events': 'none' });
         const names = sv('g', { class: 'names', 'pointer-events': 'none' });
         for (const gr of groups) {
-            const r = placed.get(gr.id), make = makeLabel.get(gr.id);
+            const r = placed.get(gr.id);
+            if (demoted.has(gr.id)) {
+                const bd = badgeOf.get(gr.id), bx = r.boxes[0];
+                const el = sv('g', { class: 'badge', transform: `translate(${bx.x.toFixed(1)} ${bx.y.toFixed(1)})`, ...(bd.id ? { 'data-clearing': bd.id, 'pointer-events': 'all' } : {}) },
+                    sv('rect', { class: 'bframe', x: -0.5, y: -0.5, width: bx.w + 1, height: bx.h + 1, rx: 4 }),
+                    bd.num != null ? sv('circle', { cx: 8, cy: 6, r: 5.5, class: 'pillnum' }) : null,
+                    bd.num != null ? sv('text', { x: 8, y: 6, dy: '.35em', 'text-anchor': 'middle', class: 'pillnumtxt' }, String(bd.num)) : null,
+                    ...bd.segs.map((sg, i) => sv('g', { class: `bseg ${sg.k}`, transform: `translate(${(bd.num != null ? 15 : 1.5) + i * 13} 0)` },
+                        sv('rect', { x: 0, y: 0, width: 12, height: 12, rx: 3 }),
+                        sv('text', { x: 6, y: 6, dy: '.35em', 'text-anchor': 'middle' }, sg.glyph ? sg.glyph : sg.k === 'dwelling' ? '\u2302' : sg.k === 'site' ? '\u25C6' : sg.k === 'sound' ? '\u266A' : String(sg.n)))));
+                names.append(el);
+                if (r.leader) leaders.append(sv('line', { x1: gr.ax.toFixed(1), y1: gr.ay.toFixed(1), x2: (bx.x + bx.w / 2).toFixed(1), y2: (bx.y + bx.h / 2).toFixed(1), class: `leader ${gr.kind ?? 'site'}` }));
+                continue;
+            }
+            const make = makeLabel.get(gr.id);
             r.boxes.forEach((box, i) => {
                 // drawn at its own size and scaled down as a whole, so the text and the number circle shrink with the pill
                 const el = make({ x: box.x, y: box.y, w: box.w / labelScale, h: box.h / labelScale }, i);

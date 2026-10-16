@@ -1003,3 +1003,16 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .formbar.fly { border-color: #7fb4e8; background: rgba(127, 180, 232, .12); } .formbar.fly .gl { color: #9cc8f2; }
 .morphname { display: block; font-size: 10px; line-height: 1.1; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .morphnote b { text-transform: none; }
+
+/* a clearing whose names do not fit: one marker with a chip for each kind of thing there (monsters, people, dwellings, sites, sounds) and a dotted end */
+.realm-svg .badge { cursor: pointer; }
+.realm-svg .bseg rect { stroke: #0c0e14; stroke-width: 1; }
+.realm-svg .bseg text { font-size: 8px; font-weight: 800; fill: #fff; font-family: var(--font-ui); }
+.realm-svg .bseg.mon rect { fill: #a33; } .realm-svg .bseg.nat rect { fill: #3d6fb8; } .realm-svg .bseg.ally rect { fill: #2f8f6a; }
+.realm-svg .bseg.dwelling rect { fill: #8a6d2c; } .realm-svg .bseg.site rect { fill: #6a4fa8; } .realm-svg .bseg.sound rect { fill: #7a5a2e; }
+.realm-svg .bseg.more rect { fill: #3a3d4e; }
+.realm-svg .bseg.warn rect { fill: #8a4a24; } .realm-svg .bseg.star rect { fill: #5b4d86; }
+.realm-svg .badge .bframe { fill: rgba(12, 14, 20, .55); stroke: rgba(255, 255, 255, .65); stroke-width: 1; stroke-dasharray: 2 2; }
+.realm-svg .badge .pillnum { fill: #0c0e14; stroke: rgba(255, 255, 255, .85); stroke-width: 1; }
+.realm-svg .badge .pillnumtxt { font-size: 8.5px; font-weight: 800; fill: #fff; font-family: var(--font-ui); }
+.realm-svg .names .badge[data-clearing], .realm-svg .names .badge[data-clearing] * { pointer-events: all; }
