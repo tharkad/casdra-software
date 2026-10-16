@@ -449,13 +449,18 @@ export function encounterOptions(st, data) {
 }
 const canRunNow = (move, st, data) => move.length > 0 && runDestinations(st, data).length > 0;
 
+// Is the cast the player named one of the options the screen lists? (a Magic chit cast, or an item's spell card)
+const isOffered = (casts, a) => casts.some(o => o.spell === a.spell && (a.item ? o.item === a.item : o.chit === a.chit && !o.item));
+
 export function encounterAction(st, data, a) {
     const c = st.combat;
     if (c.step !== 'encounter') throw new Error('not in the encounter step');
     if (c.spellOnly) {
         // only a spell can be cast; anything else is a pass
         if (a.act === 'gear') { gearAction(st, data, a); st.pending = { type: 'combat-encounter', round: c.round, spellOnly: true }; return; }       // (the evening is still held for his spell)
+        if (a.act !== 'cast' && a.act !== 'pass') throw new Error('nothing is fighting you: you may cast a spell, switch a belonging or do nothing');       // (a stray Run or Fly is not a way to end the evening)
         if (a.act === 'cast') {
+            if (!isOffered(quietCasts(st, data, true), a)) throw new Error('you cannot cast that spell now');       // (only what the cast screen lists: not one already cast tonight)
             castSpell(st, data, a.spell, a.chit, a.item); applyAim(st, data, a.spellAim); resolveSpells(st, data);
             // Rule 8.1.3a: a quiet clearing still gets its rounds, one spell to a round. When another spell is worth casting, the next round is held for it
             // (not the same spell again: a second one on the same target would only be nullified).
@@ -473,6 +478,7 @@ export function encounterAction(st, data, a) {
     }
     const opt = encounterOptions(st, data);
     if (a.act === 'cast') {
+        if (!isOffered(opt.casts, a)) throw new Error('you cannot cast that now: a Magic chit must be no slower than the fastest creature facing you');       // (8.3.7a.2: the same list the screen shows)
         castSpell(st, data, a.spell, a.chit, a.item);
         return enterMelee(st, data);
     }
@@ -523,6 +529,7 @@ function gearAction(st, data, a) {
     if (st.ch.morph && !a.drop) throw new Error('your gear is of no use to a creature');
     const it = st.ch.items.find(i => i.uid === a.item);
     if (!it) throw new Error('no such item');
+    if (it.destroyed && !a.drop) throw new Error('that item is destroyed');
     if (a.drop) {
         st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
         st.abandoned[c.at] = [...(st.abandoned[c.at] ?? []), { ...it, active: false, alerted: false }];
@@ -583,6 +590,8 @@ export function meleePlay(st, data, p) {
     const c = st.combat;
     if (c.step !== 'melee') throw new Error('not in the melee step');
     const o = meleeOptions(st, data);
+    for (const k of ['attackDir', 'moveDir', 'shieldDir']) if (p[k] != null && !(Number.isInteger(p[k]) && p[k] >= 0 && p[k] <= 2)) throw new Error(`${k} must be a direction from 0 to 2`);
+    if (p.target != null && !o.targets.some(d => d.uid === p.target)) throw new Error('that creature is not one you can strike');
     const w = o.weapon, notes = [];
     c.roundRollFrom = st.rollSeq ?? 0;            // the dice tray in the fight shows this round's rolls only
     c.killed = [];                                  // what he killed this round, for the screen to lead with

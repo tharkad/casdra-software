@@ -175,6 +175,7 @@ function pickPhase(st, data, slot, { soft = false } = {}) {
     let choice = slot && slot.act !== 'nothing' ? o.acts.find(a => a.act === slot.act) : null;
     if (slot && slot.act !== 'nothing' && !choice) { if (!soft) throw new Error(`${slot.act} is not an activity you can do in this phase`); slot = null; }
     if (choice && slot.act === 'move' && !slot.to) { if (!soft) throw new Error('choose where to move'); choice = null; slot = null; }
+    if (choice && slot.act === 'move' && !soft && !o.moves.includes(slot.to)) throw new Error('there is no road from here to that clearing');       // (the picker lists the roads he may take)
     if (!choice) { choice = o.acts.find(a => a.kind !== 'extra') ?? o.acts[0]; slot = null; }   // nothing chosen: the phase is spent doing nothing
     consume(t.pro, choice);
     t.kinds[t.i] = choice.kind;
@@ -811,6 +812,7 @@ export function apply(st0, data, action) {
             const it = st.ch.items.find(i => i.uid === action.item);
             if (!it) throw new Error('no such item');
             if (st.ch.morph && !action.drop) throw new Error('your gear is of no use to a creature');
+            if (it.destroyed && !action.drop) throw new Error('that item is destroyed');
             if (action.drop) {
                 // 4.3.2: he may abandon a belonging at the start of any phase; it lies where he stands
                 const where = st.ch.at ?? st.ch.onRoad?.from;
