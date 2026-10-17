@@ -1096,3 +1096,10 @@ details.here-block summary { cursor: pointer; font-family: var(--font-display); 
 .trade-bar .tb-actions { gap: 10px; } .trade-bar .tb-actions .btn { flex: 1; margin: 0; width: auto; }
 .trade-bar .tb-actions .btn.primary { flex: 1.4; }
 .trade-bar .tb-actions .btn { min-width: 0; }
+/* The result of the phase just played: told first, large, before the next one is offered */
+.phase-result { border-left: 4px solid #6fcf97; background: rgba(111,207,151,.09); border-radius: 12px; padding: 10px 14px 12px; }
+.phase-result.bad { border-left-color: #e0775a; background: rgba(224,119,90,.09); }
+.phase-result .pr-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.phase-result .pr-head small { font-family: var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); font-size: 13px; }
+.phase-result .pr-line { margin: 4px 0 0; font-size: 21px; line-height: 1.3; }
+.daydid-row.latest { border-left: 3px solid var(--gold-deep); padding-left: 8px; }

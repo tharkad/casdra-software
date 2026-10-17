@@ -359,7 +359,6 @@ export function gameScreen(ctx) {
             const slot = st.plan[p.i];
             body = h('div', { class: 'phase' },
                 ask(`Phase ${p.i + 1} of ${st.plan.length}: ${describeSlot(slot)}.`, 'This is the action you planned. Press the button to carry it out. Anything that needs your decision will stop and ask.', { compact: true }),
-                h('div', { class: 'phase-info' }, h('b', {}, `Phase ${p.i + 1} of ${st.plan.length}`), h('span', {}, describeSlot(slot))),
                 slot?.act === 'search' && !st.ch.onRoad ? h('p', { class: 'hint', 'data-hint': 'search-where' }, searchWhere(st.ch.at)) : null);
             actions = h('div', { class: 'row-end' },
                 h('button', { class: 'btn primary', 'data-act': 'next', onclick: () => act({ type: 'next' }) }, describeSlot(slot)));
@@ -388,6 +387,13 @@ export function gameScreen(ctx) {
         } else if (ui.dockAuto && !transient.length) { ui.dockOpen = ui.dockPref ?? false; ui.dockAuto = false; }
         if (prowlNew) ui.prowlPopped = st.day;
         ui.attnSig = sig;
+        // The phase that was just played is told first and large, before the next one is offered; the drawer opens for it once, so a pulled-down drawer cannot hide what happened.
+        const rn = (p?.type === 'phase' || p?.type === 'phase-pick') && p.i > 0 ? p.i : null, rkey = rn ? `${st.day}:${rn}` : null;
+        if (rkey && ui.resultKey !== rkey) { ui.resultKey = rkey; ui.dockOpen = true; }
+        const rl = rn ? phaseResultLine(rn) : null;
+        const resultCard = rl ? h('div', { class: `phase-result ${rl.bad ? 'bad' : 'good'}`, role: 'status', 'data-phase-result': String(rn) },
+            h('div', { class: 'pr-head' }, h('small', {}, `Phase ${rn}${st.plan?.[rn - 1] ? `: ${describeSlot(st.plan[rn - 1])}` : ''}`)),
+            h('p', { class: 'pr-line' }, rl.text)) : null;
         const open = ui.dockOpen !== false;
         // spells in force: one line, tap for the card text, what is tied to what, and when each ends
         const fxOn = (st.fx ?? []).filter(f => f.state !== 'done');
@@ -406,7 +412,7 @@ export function gameScreen(ctx) {
         const formBar = st.ch.morph ? h('div', { class: 'formbar', 'data-act': 'form' }, h('small', { class: 'gl' }, 'YOU ARE A CREATURE'), h('b', {}, st.ch.morph.creature?.name ?? 'a creature'), h('span', {}, 'You cannot cast, trade, hire or enchant until the spell ends.'))
             : st.ch.mist ? h('div', { class: 'formbar mist', 'data-act': 'form' }, h('small', { class: 'gl' }, 'YOU ARE MIST'), h('span', {}, `You can only Move and Hide; nothing can block you. Your ${st.ch.mist.items?.length ?? 0} things and ${st.ch.mist.gold ?? 0} gold are held in the spell.`))
             : st.ch.flying ? h('div', { class: 'formbar fly', 'data-act': 'form' }, h('small', { class: 'gl' }, 'YOU ARE FLYING'), h('span', {}, `Over ${tileName(st.ch.flying.tile)}. You land at a clearing on it by a die roll.`)) : null;
-        const items = [curseBar, formBar, spellBar, spellActs, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, logText(l)))) : null, body].filter(Boolean);
+        const items = [resultCard, curseBar, formBar, spellBar, spellActs, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length && !resultCard ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, logText(l)))) : null, body].filter(Boolean);
         const peek = `${st.ch.onRoad ? 'On the road' : where} \u00B7 ${st.ch.hidden ? 'hidden' : 'visible'}`;
         const grab = h('button', { class: 'grab', 'data-act': 'dock-toggle', 'aria-expanded': open ? 'true' : 'false', 'aria-controls': 'dock-body',
             'aria-label': open ? 'Details panel, open. Press to slide it away' : `Details panel, closed${newCount ? `, ${newCount} new` : ''}. Press to open it` },
@@ -489,6 +495,14 @@ export function gameScreen(ctx) {
         if (t !== 'sitecard') return TABLE_LABEL[t] ?? t;
         const id = st.ch.siteCards?.[st.ch.at]?.[0];
         return id ? `Loot the ${data.treasures?.[id]?.name ?? 'site card'}` : TABLE_LABEL[t];
+    }
+    // What a phase that has just been played came to, in the current voice: the story line, or the exact words (dice and all).
+    function phaseResultLine(n, fallback = null) {
+        const l = [...st.log].reverse().find(x => x.k === 'phase' && x.day === st.day && x.t.startsWith(`Phase ${n}:`));
+        if (!l) return fallback ? { text: fallback.replace(/^Phase \d+:\s*/, ''), bad: false } : null;
+        const detail = l.t.replace(/^Phase \d+:\s*/, '');
+        const bad = /fail to hide|you are seen|nothing at that depth|cancelled|are lost|blocked|no one here|will not|cannot/i.test(detail);
+        return { text: voice() === 'story' ? (l.s ?? detail.replace(/ \(rolled [^)]*\)/, '')) : detail, bad };
     }
     function describeSlot(s) {
         if (!s || s.act === 'nothing') return 'Do nothing';
@@ -955,7 +969,8 @@ export function gameScreen(ctx) {
         const lines = [];
         const KIND = { warning: 'warning chit', sound: 'sound chit', site: 'site chit', 'lost-city': 'the Lost City', 'lost-castle': 'the Lost Castle' };
         const monsterIcon = n => data.art?.monstersColor?.[n] ?? data.art?.monsters?.[n] ?? null;
-        for (const c of t.chits) {
+        const quietChits = t.chits.filter(c => !(c.summons?.length));
+        for (const c of t.chits.filter(c => c.summons?.length)) {
             const counts = new Map(); for (const n of c.summons) counts.set(n, (counts.get(n) ?? 0) + 1);
             const where = c.dest === t.at ? 'to your clearing' : c.dest ? `to clearing ${numOf(c.dest)}` : '';
             const out = counts.size
@@ -963,6 +978,7 @@ export function gameScreen(ctx) {
                 : h('span', { class: 'callout' }, h('small', {}, `Calls nothing out today${c.why ? `: ${c.why}` : ''}.`));
             lines.push(h('div', { class: 'crow chit' }, mrChit(c), out));
         }
+        if (quietChits.length) lines.push(h('div', { class: 'crow chit quiet', 'data-quiet-chits': String(quietChits.length) }, h('small', {}, voice() === 'story' ? `The other chits stay quiet today: ${[...new Set(quietChits.map(c => c.name ?? c.kind))].join(', ')}.` : `Call nothing out today (row not prowling; Monster Roll ${st.prowl ?? '?'}): ${[...new Set(quietChits.map(c => c.name ?? c.kind))].join(', ')}.`)));
         for (const a of t.arrivals.filter(a => a.why === 'prowls in your tile')) lines.push(h('div', { class: 'crow mon' }, h('b', {}, `${a.name} arrives`), h('small', {}, `it was prowling in this tile and comes to your clearing`)));
         for (const nn of t.natives) lines.push(h('div', { class: 'crow nat' }, h('b', {}, `The ${nn.group} appear`), h('small', {}, `${nn.count} of them, at the ${nn.at}`)));
         if (t.blocked) lines.push(h('div', { class: 'crow mon' }, h('b', {}, t.blockers.length ? `Blocked by ${[...new Set(t.blockers)].join(', ')}` : 'Your turn was cut short'), h('small', {}, 'the rest of your turn was lost')));
@@ -971,7 +987,7 @@ export function gameScreen(ctx) {
         // Blocked: the phases still to come, extra ones included, are lost with the rest of the turn.
         const lostPhases = (t.blocked ? (st.plan ?? []).map((s, i) => ({ i, s })).filter(x => x.i >= (t.plan?.length ?? 0) && x.s && x.s.act !== 'nothing').map(x => ({ i: x.i, what: describeSlot(x.s) })) : []);
         const summary = t.plan?.length ? h('details', { class: 'daydid', open: true }, h('summary', {}, 'What you did today'),
-            ...t.plan.map((r, i) => h('p', { class: `daydid-row${hide(r) ? ' hide' : ''}` }, h('b', {}, `Phase ${i + 1}`), ` ${(r ?? 'nothing').replace(/^Phase \d+:\s*/, '')}`)),
+            ...t.plan.map((r, i) => h('p', { class: `daydid-row${hide(r) ? ' hide' : ''}${i === t.plan.length - 1 ? ' latest' : ''}` }, h('b', {}, `Phase ${i + 1}`), ` ${phaseResultLine(i + 1, r ?? 'nothing')?.text ?? (r ?? 'nothing').replace(/^Phase \d+:\s*/, '')}`)),
             ...lostPhases.map(l => h('p', { class: 'daydid-row lost' }, h('b', {}, `Phase ${l.i + 1}`), ` ${l.what}: lost, because you were blocked.`))) : null;
         const why = t.blocked ? `${t.blockers.length ? [...new Set(t.blockers)].join(', ') + ' closed in' : 'Your turn was cut short'}, so you are seen${lostPhases.length ? ` and your remaining ${lostPhases.length === 1 ? 'phase is' : 'phases are'} lost` : ''}.`
             : t.closedIn?.length ? `${[...new Set(t.closedIn)].join(', ')} found you after your turn was over, so you are seen. No phase was lost.`
