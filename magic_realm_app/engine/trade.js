@@ -148,6 +148,9 @@ export function tradeAction(st, data, p, a) {
     throw new Error('unknown trade action');
 }
 
+// What a deal cost in Fame, said in its journal line (a sale that wins Fame is said elsewhere, by the result).
+const feeNote = fame => (fame > 0 ? ` It cost you ${fame} Fame.` : '');
+
 function takeBought(st, data, g, idx) {
     const raw = st.stock[g].splice(idx, 1)[0];
     const it = makeItem(st, raw.kind, raw.id, { damaged: !!raw.damaged, ...(raw.card ? { card: raw.card } : {}) });
@@ -175,10 +178,10 @@ function offerAction(st, data, p, a) {
         // A boon taken free: the group drops one level and he owes it until he buys the level back (7.6.5e).
         if (a.boon) {
             if (!p.boon) throw new Error('that is not a boon');
-            const it = takeBought(st, data, g, p.idx);
+            const fameBefore = st.ch.fame, it = takeBought(st, data, g, p.idx);
             st.ch.rel[g] = Math.max(-2, (st.ch.rel[g] ?? 0) - 1);
             (st.ch.boons ??= []).push({ group: g, price: p.base, what: nameOf(data, it), day: st.day });
-            say(st, `The ${g} give you the ${nameOf(data, it)} as a boon, and think a little less of you for it.`, 'trade');
+            say(st, `The ${g} give you the ${nameOf(data, it)} as a favour. They think a little less of you until you win it back.${feeNote(fameBefore - st.ch.fame)}`, 'trade');
             return `The ${g} give you the ${nameOf(data, it)} free.`;
         }
         // Rule 7.6.5c: part or all of the price may be paid in belongings at their basic Gold price. The seller keeps any overpayment
@@ -207,8 +210,8 @@ function offerAction(st, data, p, a) {
             say(st, `You win back the ${g}'s goodwill for ${cost}${over}.`, 'trade');
             return `You win back the ${g}'s goodwill for ${cost}.`;
         }
-        const got = takeBought(st, data, g, p.idx);
-        say(st, `You buy the ${nameOf(data, got)} from the ${g} for ${cost}${over}.`, 'trade');
+        const fameBefore = st.ch.fame, got = takeBought(st, data, g, p.idx);
+        say(st, `You buy the ${nameOf(data, got)} from the ${g} for ${cost}${over}.${feeNote(fameBefore - st.ch.fame)}`, 'trade');
         return `You buy the ${nameOf(data, got)} for ${cost}.`;
     }
     if (p.repay != null) {                                   // he turned down his one chance to win back the level

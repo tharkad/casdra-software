@@ -2,6 +2,7 @@ import { say } from './core.js';
 import { hasCurse } from './effects.js';
 import { meetingOutcome, drinksCost } from './meeting.js';
 import { targetGone } from './magic/fx.js';
+import { isCave } from './world.js';
 
 // The Hire activity (rules digest 05 section 4.5). He pays a native group to join him for 14 days.
 // Simplification noted in docs: a hired leader follows like any other hireling instead of taking his own turn.
@@ -66,14 +67,14 @@ export function hireAction(st, data, p, a) {
             else hire(st, data, p.members, p.group);
             st.ch.rel[p.group] = Math.max(-2, (st.ch.rel[p.group] ?? 0) - 1);
             (st.ch.boons ??= []).push({ group: p.group, price: p.wage, what: p.names.join(', '), day: st.day });
-            say(st, `The ${p.group} join you as a boon; they think a little less of you for it.`, 'trade');
+            say(st, `${p.names.join(', ')} join you as a favour. They think a little less of you until you win it back.`, 'trade');
             return `${p.names.join(', ')} join you free.`;
         }
         if (a.act === 'accept') {
             if (st.ch.gold < p.price) throw new Error('not enough gold');
             st.ch.gold -= p.price;
-            if (p.rehire) { for (const id of p.members) { const n = st.nats.find(x => x.id === id); n.hiredUntil += 14; } say(st, `You extend the hire of ${p.names.join(', ')} by 14 days.`, 'trade'); return `You extend the hire of ${p.names.join(', ')} for ${p.price} gold.`; }
-            if (p.monsters) hireMonsters(st, data, p.members); else hire(st, data, p.members, p.group);
+            if (p.rehire) { for (const id of p.members) { const n = st.nats.find(x => x.id === id); n.hiredUntil += 14; } say(st, `You extend the hire of ${p.names.join(', ')} by 14 days, paying ${p.price} gold.`, 'trade'); return `You extend the hire of ${p.names.join(', ')} for ${p.price} gold.`; }
+            if (p.monsters) hireMonsters(st, data, p.members, p.price); else hire(st, data, p.members, p.group, p.price);
             return `You hire ${p.names.join(', ')} for ${p.price} gold.`;
         }
         return 'You decide not to hire anyone.';
@@ -110,27 +111,30 @@ export function hireAction(st, data, p, a) {
 }
 
 // Monsters hired from a pacifying spell (Deal with Goblins): underlings for 14 days that follow him and fight for him (7.7.2). Hired, they no longer depend on the spell.
-function hireMonsters(st, data, ids) {
+function hireMonsters(st, data, ids, paid) {
     for (const id of ids) {
         const m = st.mons.find(x => x.id === id);
         m.hired = true; m.hiredUntil = st.day + 13; m.loc = { c: st.ch.at }; m.pacify = null; m.tie = { kind: 'hire' };
         targetGone(st, data, { kind: 'mon', id });
     }
-    say(st, `You hire ${ids.map(i => data.monsters[i].name).join(', ')} for 14 days.`, 'trade');
+    say(st, `You hire ${ids.map(i => data.monsters[i].name).join(', ')} for 14 days, paying ${paid} gold.`, 'trade');
 }
 
-function hire(st, data, ids, group) {
+function hire(st, data, ids, group, paid) {
     for (const id of ids) {
         const n = st.nats.find(x => x.id === id);
         n.hired = true; n.hiredUntil = st.day + 13; n.hiredDay = st.day; n.loc = { c: st.ch.at };
     }
-    say(st, `You hire ${ids.map(i => data.natives[i].name).join(', ')} of the ${group} for 14 days.`, 'trade');
+    say(st, `You hire ${ids.map(i => data.natives[i].name).join(', ')} of the ${group} for 14 days, paying ${paid} gold.`, 'trade');
 }
 
 // Hirelings follow him wherever he goes, except natives hired today: they cannot follow until the next Birdsong (7.11.3), so a Move later in
 // the day leaves them where he hired them. On a later day they are with him again (they catch up; a hireling is never lost by being left behind).
-export function followHero(st) {
-    for (const n of st.nats) if (n.hired && !n.dead && n.hiredDay !== st.day) n.loc = { c: st.ch.at };
+// Rule 2.3.3b: a native horse is removed from the map while its rider is in a cave, and hired natives follow the same rule. So a hireling
+// is off the map (no clearing) while he is in a cave, and is with him again on the first clearing outside.
+export function followHero(st, data) {
+    const inCave = !!st.ch.at && isCave(st, data, st.ch.at);
+    for (const n of st.nats) if (n.hired && !n.dead && n.hiredDay !== st.day) n.loc = inCave ? null : { c: st.ch.at };
     for (const m of st.mons) if (m.hired && !m.dead) m.loc = { c: st.ch.at };       // monsters under a Control spell, or hired
 }
 

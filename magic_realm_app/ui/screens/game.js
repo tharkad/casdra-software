@@ -340,7 +340,8 @@ export function gameScreen(ctx) {
                 h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A'));
         });
         const gainNames = fresh.map(it => nameOf(data, it)).concat((st.finds ?? []).filter(f => f.n > ui.findSeen).map(f => f.name).filter(Boolean));
-        const recent = recent0.filter(l => !gainNames.some(n => logText(l).includes(n)));
+        // a line that names a new item is dropped (its gain box says it), except a deal's own line: that one says what was paid
+        const recent = recent0.filter(l => l.k === 'trade' || !gainNames.some(n => logText(l).includes(n)));
         const prowl = st.period === 'daylight' && st.prowl ? h('button', { class: 'prowl', 'data-act': 'prowl', onclick: () => { ui.sheet = 'dice'; render(); } },
             h('b', {}, voice() === 'story' ? 'The wilds stir' : `Monster roll ${st.prowl}`), h('span', {}, prowlers().join(', ') || 'no one stirs'),
             st.day % 7 === 0 ? h('small', { class: 'weekend' }, (voice() === 'story' ? 'The week turns: the creatures of the wilds are called home to where they began, the slain among them.' : `Week\u2019s end: row ${st.prowl} was called back to where it began, the slain among them.`)) : null) : null;
@@ -933,7 +934,7 @@ export function gameScreen(ctx) {
 
     function charSheet() {
         const ch = st.ch;
-        const chitEl = c => h('div', { class: `chit2 ${c.type} ${c.state}` }, h('b', {}, c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`), h('span', {}, '*'.repeat(c.effort) || ' '), h('small', {}, c.type === 'move' ? 'Move' : c.type === 'fight' ? 'Fight' : 'Magic'));
+        const chitEl = c => h('div', { class: `chit2 ${c.type} ${c.state}` }, h('b', {}, c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`), h('span', {}, '*'.repeat(c.effort) || '\u00A0'), h('small', {}, c.type === 'move' ? 'Move' : c.type === 'fight' ? 'Fight' : 'Magic'));
         const portrait = data.art?.characters?.[ch.id];
         return modal(ch.name, h('div', {},
             portrait ? h('button', { class: 'portrait', 'aria-label': 'Show the character card', onclick: () => { ui.sheet = 'card'; render(); } }, h('img', { src: portrait, alt: ch.name }), data.art?.cards?.[ch.id] ? h('small', {}, 'Tap for the character card') : null) : null,
@@ -984,7 +985,7 @@ export function gameScreen(ctx) {
             ...COLORS.map(c => h('p', { class: 'calrow' }, colorChip(c), h('span', {}, COLOR_MEANING[c]))),
             h('h3', {}, `In your clearing (${nameOfClearing(st.ch.at)})`),
             here.length ? h('div', {}, ...here.map(x => h('p', { class: 'calrow' }, colorChip(x.color), h('span', {}, x.why)))) : h('p', { class: 'hint' }, 'No colour of magic is present here today.'),
-            h('p', { class: 'hint' }, 'In this build the colours come from the seventh day and from a Chapel (White). Enchanted tiles and cards will add more once Enchant is built.')),
+            h('p', { class: 'hint' }, 'Colours of magic come from the seventh day and from a Chapel (White).')),
             { close: () => { ui.sheet = null; render(); } });
     }
 
@@ -1228,7 +1229,7 @@ export function gameScreen(ctx) {
         const color = sp.color ?? 'any';
         return cardEl({ title: sp.name, kind: sp.color ?? 'any', tag: `Type ${sp.type} spell \u00B7 ${color === 'any' ? 'any colour of magic' : `${color} magic`} \u00B7 ${sp.duration}`,
             stats: [...(target ? [['Target', target]] : []), ['Cast with', `a Magic chit of type ${sp.type}`], ['Colour needed', color === 'any' ? 'any' : color]], text: body,
-            notes: [castable(sp) ? 'You cast this in the Encounter step of the evening, where its colour of magic is present. If nothing is fighting you the evening is still held (rule 8.1.3a) and the game stops to ask whether you want to cast it, when there is something for it to do.' : 'This spell cannot be cast in this build yet.'] });
+            notes: [castable(sp) ? 'You cast this in the Encounter step of the evening, where its colour of magic is present. If nothing is fighting you the evening is still held (rule 8.1.3a) and the game stops to ask whether you want to cast it, when there is something for it to do.' : 'This spell cannot be cast yet.'] });
     }
     function spellSheet() {
         const sp = data.spells?.[ui.spellId];
@@ -1316,8 +1317,8 @@ export function gameScreen(ctx) {
             faces.push(itemFace({ name, picture: pic, face: 'Not alerted', big: `${u.harm}${fmtT(u.attackTime)}`, stars: u.stars ?? 0, corner: `(${d.length})`, current: !it.alerted && !it.destroyed }));
             faces.push(itemFace({ name, picture: pic, face: 'Alerted', big: `${a.harm}${a.attackTime == null ? '' : a.attackTime}`, stars: a.stars ?? 0, corner: `(${d.length})${a.attackTime == null ? ' time: your chit' : ''}`, current: it.alerted && !it.destroyed }));
             facts.push(`${d.missile ? 'A missile weapon' : 'A striking weapon'}, length ${d.length}, weight ${WEIGHT_WORDS[d.weight]}.`);
-            facts.push(`Not alerted: harm ${u.harm}${'*'.repeat(u.stars ?? 0)}, attack time ${fmtT(u.attackTime)}.`);
-            facts.push(`Alerted: harm ${a.harm}${'*'.repeat(a.stars ?? 0)}, ${a.attackTime == null ? 'no printed attack time: the Fight chit you play gives the time' : `attack time ${a.attackTime}`}.`);
+            facts.push(`Not alerted: harm\u00A0${u.harm}${'*'.repeat(u.stars ?? 0)}, attack time\u00A0${fmtT(u.attackTime)}.`);
+            facts.push(`Alerted: harm ${a.harm}${'*'.repeat(a.stars ?? 0)}, ${a.attackTime == null ? 'no printed attack time: the Fight chit you play gives the time' : `attack time\u00A0${a.attackTime}`}.`);
             facts.push('Alert it in an Alert phase, or as your Encounter action in a fight; it goes back to not alerted at Midnight and after a blow that lands.');
         } else if (it.kind === 'armor') {
             const dir = (d.protects ?? []).join(', ');
@@ -1445,7 +1446,7 @@ export function gameScreen(ctx) {
                 result.length > 5 ? h('p', { class: 'hint' }, `and ${result.length - 5} more: see the overview.`) : null,
                 h('div', { class: 'row2' },
                     h('button', { class: 'btn', 'data-act': 'report-next', onclick: () => { ui.reportPage = `${day}:overview`; render(); } }, 'Day Overview'),
-                    h('button', { class: 'btn primary', 'data-act': 'report-ok', onclick: () => { ui.reportedDay = st.day; render(); } }, 'On to the next day'))));
+                    h('button', { class: 'btn primary', 'data-act': 'report-ok', onclick: () => { ui.reportedDay = st.day; render(); } }, `On to day ${st.day}`))));
         }
         // group the day's lines under the phase or the evening they belong to
         const groups = [];
@@ -1460,8 +1461,8 @@ export function gameScreen(ctx) {
                 ? h('details', { class: 'repstep' }, h('summary', {}, g.head), ...roundBoxes(g.kids))
                 : h('p', { class: 'repstep plain' }, g.head)),
             h('div', { class: 'row2' },
-                h('button', { class: 'btn', onclick: () => { ui.reportPage = null; render(); } }, 'Back to the result'),
-                h('button', { class: 'btn primary', 'data-act': 'report-ok', onclick: () => { ui.reportedDay = st.day; render(); } }, 'On to the next day'))));
+                h('button', { class: 'btn', onclick: () => { ui.reportPage = null; render(); } }, 'Result'),
+                h('button', { class: 'btn primary', 'data-act': 'report-ok', onclick: () => { ui.reportedDay = st.day; render(); } }, `On to day ${st.day}`))));
     }
 
     function logSheet() {
@@ -1473,9 +1474,10 @@ export function gameScreen(ctx) {
     function deathBox() {
         const o = st.over ?? {};
         const by = o.by ? o.by.replace(/ #\d+$/, '') : null;
+        const where = nameOfClearing(o.at ?? st.ch.at).replace(/ (\d+)$/, '\u00A0$1');       // the place's number stays with its name
         return h('div', { class: 'deathbox', role: 'alert' },
             h('b', {}, 'You have died'),
-            h('span', { class: 'dwho' }, by ? `Slain by the ${by} at ${nameOfClearing(o.at ?? st.ch.at)}, on day ${o.day ?? st.day}.` : `Fallen at ${nameOfClearing(o.at ?? st.ch.at)}, on day ${o.day ?? st.day}.`),
+            h('span', { class: 'dwho' }, by ? `Slain by the ${by} at ${where}, on day ${o.day ?? st.day}.` : `Fallen at ${where}, on day ${o.day ?? st.day}.`),
             o.text && !by ? h('small', {}, o.text) : null,
             h('span', { class: 'dstats' }, `Fame ${st.ch.fame} \u00B7 Notoriety ${st.ch.notoriety} \u00B7 ${st.ch.gold} gold`));
     }
@@ -1541,8 +1543,11 @@ export function gameScreen(ctx) {
         const others = d.slots.map((x, j) => (j === i ? null : x));
         const baseOver = over(others);
         const out = [];
-        out.push(h('div', { class: 'chips2 six' },
-            ...['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(flySources(st, data).length || st.ch.flying ? ['fly'] : []), 'nothing'].map(a => {
+        // the chips in rows by count: 8 in four columns, 9 in three (3x3), 10 in five: 'Nothing' is never alone on a row
+        const acts = ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(flySources(st, data).length || st.ch.flying ? ['fly'] : []), 'nothing'];
+        const cols = acts.length === 9 ? 3 : acts.length === 10 ? 5 : 4;
+        out.push(h('div', { class: `chips2 six cols${cols}` },
+            ...acts.map(a => {
                 const cursed = (st.ch.curses ?? []).some(n => CURSE_ACT[n] === a), refused = actRefusal(st, a);
                 const dim = cursed || !!refused || (a !== 'nothing' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver);
                 return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${cursed ? ' cursed' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, title: refused ?? undefined, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a], cursed ? h('small', {}, ' \u2620') : null);

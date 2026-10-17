@@ -3,6 +3,9 @@ import { emblem } from '../emblem.js';
 import { VERSION } from '../version.js';
 import { serverAvailable } from '../online.js';
 
+// Settings has no screen of its own yet: its title button is hidden (not removed), and the route stays so it returns with the screen.
+const SETTINGS_READY = false;
+
 // The title screen. The main choices sit in the lower half where a thumb rests; the upper half is the brand.
 export function titleScreen(ctx) {
     const last = ctx.saved[0];
@@ -28,9 +31,9 @@ export function titleScreen(ctx) {
             h('button', { class: `btn ${last ? '' : 'primary'} big`, 'data-act': 'new', onclick: () => { if (last) confirmNew.hidden = false; else ctx.go('newgame'); } }, 'New game'),
             confirmNew,
             onlineBtn,
-            h('div', { class: 'row3' },
+            h('div', { class: SETTINGS_READY ? 'row3' : 'row2' },
                 h('button', { class: 'btn', 'data-act': 'rules', onclick: () => ctx.go('rules') }, 'Rules'),
                 h('button', { class: 'btn', 'data-act': 'history', onclick: () => ctx.go('history') }, 'History'),
-                h('button', { class: 'btn', 'data-act': 'settings', onclick: () => ctx.go('settings') }, 'Settings'))),
+                SETTINGS_READY ? h('button', { class: 'btn', 'data-act': 'settings', onclick: () => ctx.go('settings') }, 'Settings') : null)),
         h('footer', { class: 'fine' }, 'An unofficial fan project. ', h('b', {}, 'Magic Realm'), ' belongs to its owners. ', h('span', { class: 'ver' }, `v${VERSION}`)));
 }

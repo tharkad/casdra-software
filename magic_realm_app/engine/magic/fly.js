@@ -107,7 +107,7 @@ export function landHero(st, data, why = 'You land') {
     if (!nums.includes(n)) n = Math.min(...nums);
     const to = f.tile + n;
     st.ch.flying = null; st.ch.at = to; st.ch.arrivedFrom = null;
-    followHero(st);
+    followHero(st, data);
     say(st, `${why} in ${nameOfClearing(to)}.`, 'phase');
     return { to, cave: isCave(st, data, to) };
 }

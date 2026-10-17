@@ -160,11 +160,14 @@ function startingSpells(data, c, chosen = null) {
 
 export function makeCharacter(st, data, id, vp, opt = {}) {
     const c = data.characters[id];
+    // Rule 3.3.5: a hero starts at a dwelling his card lists (the first one by default). Anything else is refused, never sent to the Inn.
+    const dwelling = opt.dwelling ?? c.startDwellings[0];
+    if (!c.startDwellings.includes(dwelling)) throw new Error(`the ${c.name} may start only at ${c.startDwellings.join(' or ')}, not at "${dwelling}"`);
     const ch = {
         id, name: c.name, weight: c.weight, at: null, hidden: true, dead: false, gold: c.startGold ?? 10, fame: 0, notoriety: 0,
         chits: c.chits.map((x, i) => ({ id: `${id}-${i + 1}`, type: x.type, strength: x.strength, time: x.time, effort: x.effort ?? 0, state: 'active', stage: x.stage, numeral: x.magicNumeral ?? null })),
         items: [], rel: { ...c.relationships, ...knightsRel(st, id, c.relationships) }, discovered: { paths: [], sites: [] }, seen: [], hiddenEnemies: false, killsToday: 0,
-        vp: vp ?? { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 }, onRoad: null, startDwelling: opt.dwelling ?? c.startDwellings[0], startValue: 10,
+        vp: vp ?? { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 }, onRoad: null, startDwelling: dwelling, startValue: 10,
         adv: (c.advantages ?? []).map(a => a.key), spells: startingSpells(data, c, opt.spells), learned: [],
     };
     // The starting weapon and armor are taken from the native group that owns them (never bought). A counter exists once: look in the

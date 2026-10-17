@@ -156,7 +156,7 @@ function charsStep(g, redraw, ctx) {
             onclick: () => { g.character = c.id; if (!c.starts.includes(g.dwelling)) g.dwelling = c.starts[0]; redraw(); } },
             h('span', { class: 'dot' }),
             h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, c.name, h('em', {}, c.weight)), ...charBlurb(c))))),
-        h('p', { class: 'hint' }, who.gear ? `${who.her ? 'She begins with her' : 'He begins with his'} ${who.gear}, taken from the natives' stock as the rules say. More characters will come.` : `${who.her ? 'She' : 'He'} begins with no weapon or armor: buy or find them, or fight with the Fight chit.`),
+        h('p', { class: 'hint' }, who.gear ? `${who.her ? 'She begins with her' : 'He begins with his'} ${who.gear}, taken from the natives' stock as the rules say.` : `${who.her ? 'She' : 'He'} begins with no weapon or armor: buy or find them, or fight with the Fight chit.`),
         h('img', { class: 'cardpic', src: `art/characterdetail/${CARD_FILE[who.id] ?? who.id.replace('-', '_')}.jpg`, alt: `${who.name} character card`, onerror: e => e.target.remove() }),
         h('h2', { class: 'q' }, who.starts.length > 1 ? 'Where do you start?' : `Where ${who.her ? 'she' : 'he'} starts`),
         h('div', { class: 'choices', role: 'radiogroup' }, ...who.starts.map(d => h('button', { class: `choice${g.dwelling === d ? ' on' : ''}`, role: 'radio', 'aria-checked': g.dwelling === d, 'data-dwelling': d,

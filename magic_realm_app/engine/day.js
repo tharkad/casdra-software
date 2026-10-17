@@ -400,7 +400,7 @@ function midnight(st, data) {
         return;
     }
     st.day += 1;
-    if (!st.ch.onRoad) followHero(st);                 // natives hired yesterday (who could not follow him on that day's Move) are with him again by Birdsong (7.11.3)
+    if (!st.ch.onRoad) followHero(st, data);                 // natives hired yesterday (who could not follow him on that day's Move) are with him again by Birdsong (7.11.3)
     beginDay(st, data);
 }
 
@@ -488,7 +488,7 @@ function doMove(st, data, slot) {
         if (to !== r.from && to !== r.to) return 'You cannot reach that from the road.';
         if (isMountain(st, data, to) && t.climb !== to) { t.climb = to; return `You begin the climb toward ${nameOfClearing(to)}.`; }
         st.ch.arrivedFrom = to === r.to ? r.from : r.to; st.ch.at = to; st.ch.onRoad = null; t.climb = null;
-        followHero(st);
+        followHero(st, data);
         return arrive(st, data, to);
     }
     // Lost: the Lost Table picks the clearing he reaches, by any road (7.3.1)
@@ -506,7 +506,7 @@ function doMove(st, data, slot) {
     const dropped = dropHeavy(st, data);
     st.ch.arrivedFrom = from;
     st.ch.at = to;
-    followHero(st);
+    followHero(st, data);
     if (isCave(st, data, to)) {
         const h = activeHorse(st);
         if (h) { h.active = false; say(st, 'Your horse cannot go into the caves and stays outside, unridden.', 'info'); }

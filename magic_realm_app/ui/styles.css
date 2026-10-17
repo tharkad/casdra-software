@@ -44,7 +44,7 @@ button { font: inherit; color: inherit; }
 .btn { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: var(--tap); padding: 0 20px; border-radius: 12px; border: 1px solid var(--line);
     background: var(--panel); font-family: var(--font-ui); font-weight: 500; font-size: 19px; letter-spacing: .02em; cursor: pointer; text-align: center; }
 .btn:active { transform: translateY(1px); background: var(--panel2); }
-.btn.primary { background: linear-gradient(180deg, #e2c068, #c19532); border-color: #f1d27f; color: #1b1405; font-weight: 700; }
+.btn.primary { background: linear-gradient(180deg, #e2c068, #c19532); border-color: #f1d27f; color: #1b1405; font-weight: 700; white-space: nowrap; }
 .btn.primary:active { background: linear-gradient(180deg, #c19532, #a87a22); }
 .btn.big { min-height: 50px; font-size: 19px; }
 .btn small { display: block; font-size: 13px; font-weight: 400; color: var(--dim); }
@@ -186,7 +186,12 @@ button { font: inherit; color: inherit; }
 /* ---- combat ---- */
 .combat { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; overflow-y: auto; padding: 10px var(--gutter) 16px; gap: 10px; }
 .cb-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
-.cb-head b { font-family: var(--font-display); letter-spacing: .08em; }
+.cb-head { flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.cb-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cb-head b { font-family: var(--font-display); font-size: 15px; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.cb-round { font-style: normal; font-size: 12.5px; letter-spacing: .04em; white-space: nowrap; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--gold-deep); color: var(--gold); }
+.cb-head .cb-peek { margin-left: auto; }
+.cb-head .peekbtn { padding: 0 9px; font-size: 14px; }
 .cb-foes { display: flex; flex-direction: column; gap: 6px; }
 .foe { border: 1px solid #5a2f2f; background: #241519; border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; font-size: 15px; }
 .foe b { font-size: 17px; } .foe span { color: var(--dim); } .foe em { font-style: normal; color: #ff9c8a; }
@@ -230,6 +235,8 @@ button { font: inherit; color: inherit; }
 .slot { gap: 6px; padding: 8px 10px; }
 .plan > .hint { font-size: 14.5px; }
 .chips2.six { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.chips2.six.cols3 { grid-template-columns: repeat(3, 1fr); }
+.chips2.six.cols5 { grid-template-columns: repeat(5, 1fr); }
 .chips2.six .chip { padding: 0 2px; font-size: 14px; min-height: 42px; border-radius: 12px; }
 .clearbtn { border: 0; background: none; color: var(--dim); font-size: 14px; text-decoration: underline; padding: 0 4px; cursor: pointer; }
 .maptools { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
@@ -781,6 +788,8 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .vpchip small { font-size: 10px; letter-spacing: .16em; color: var(--dim); }
 .vpchip b { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .vpchip.neg b { color: #f08a8a; }
+/* the Gold / Fame / Notoriety button is the tap area for the sheet: it fills the bar's height (at least 44px) instead of hugging its numbers */
+.status .stats { align-self: stretch; min-height: 44px; }
 @media (max-width: 400px) { .stats { gap: 10px; } .statbox b { font-size: 16px; } .daybox b { font-size: 16px; } .vpchip { padding-left: 8px; } .daybox span { letter-spacing: .1em; } }
 @media (max-width: 360px) { .stats { gap: 7px; } .statbox svg { width: 15px; height: 15px; } }
 .bugbtn { display: none; }
@@ -945,6 +954,8 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .roadlock { border: 1px solid #e2c068; border-radius: 12px; padding: 10px 12px; background: color-mix(in srgb, #e2c068 10%, transparent); display: flex; flex-direction: column; gap: 6px; }
 .roadlock .rl-head { display: flex; align-items: center; gap: 8px; color: #e2c068; }
 .roadlock p { margin: 0; font-size: 15.5px; line-height: 1.4; }
+/* the two road ends are full-width rows: a place name with its number never splits across two lines */
+.roadlock .row2 { grid-template-columns: 1fr; }
 .ptab small svg { vertical-align: -1px; margin-right: 2px; }
 
 /* ---- online: the Play online screen, the race standings, and the "someone is here" dot ---- */
