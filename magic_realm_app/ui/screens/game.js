@@ -734,7 +734,7 @@ export function gameScreen(ctx) {
 
     // One treasure site the way the printed Setup Card words it; the same sentence heads the site in the clearing sheet.
     // A site card he found by looting: what each Loot roll on it gives (the card's own table), and what it demands.
-    function siteCardRow(cid) {
+    function siteCardRow(cid, bare = false) {
         const box = st.twt?.[cid], name = data.treasures?.[cid]?.name ?? box?.name ?? cid;
         const T = data.tables?.twtSiteTables?.[box?.box ?? name] ?? {};
         const gave = n => (st.gone ?? {})[n] ? ' (already taken)' : '';
@@ -756,7 +756,7 @@ export function gameScreen(ctx) {
             }
         };
         const tm = (box?.box ?? name) === 'Crypt of the Knight' ? 'Needs a Tremendous-strength chit or the Lost Keys on every roll.' : 'Needs: nothing special.';
-        return h('div', { class: 'crow site', 'data-sitecard': cid }, h('div', { class: 'crow-t' }, h('b', {}, `${name} (found by looting)`), h('small', {}, `A place you can search here with a Loot phase, one roll on its own table. ${tm}`),
+        return h('div', { class: 'crow site', 'data-sitecard': cid }, h('div', { class: 'crow-t' }, bare ? null : h('b', {}, `${name} (found by looting)`), h('small', {}, `A place you can search here with a Loot phase, one roll on its own table. ${tm}`),
             h('div', { class: 'twtrows' }, ...Object.entries(T).map(([roll, res]) => h('div', { class: 'twtrow' }, h('b', {}, roll), h('span', {}, what(res)))))));
     }
     function siteCardText(e) {
@@ -835,15 +835,15 @@ export function gameScreen(ctx) {
             h('h3', {}, title), ...body, why ? h('p', { class: 'hint' }, why) : null,
             h('button', { class: 'btn primary', 'data-table': table, disabled, onclick: () => go(table) }, label));
         const sites = st.ch.onRoad ? [] : st.chits.filter(x => x.kind === 'site' && x.tile === tile && x.num === n && !x.pile && st.ch.discovered.sites.includes(x.id));
-        if (opts.includes('peer')) cards.push(card('peer', 'Peer', [h('p', {}, 'Look around the clearing: the Peer table turns up clues, hidden enemies and hidden paths.')], 'peer', 'Peer here'));
-        if (opts.includes('locate')) cards.push(card('locate', 'Locate', [h('p', {}, 'Search the clearing for passages, clues and sites you have not discovered yet.')], 'locate', 'Locate here'));
+        if (opts.includes('peer')) cards.push(card('peer', 'Peer around the clearing', [h('p', {}, 'The Peer table turns up clues, hidden enemies and hidden paths.')], 'peer', 'Peer'));
+        if (opts.includes('locate')) cards.push(card('locate', 'Locate what is hidden', [h('p', {}, 'Search the clearing for passages, clues and sites you have not discovered yet.')], 'locate', 'Locate'));
         if (opts.includes('loot')) {
-            if (sites.length) for (const c of sites) cards.push(card('loot', c.name, [siteLine(c)], 'loot', `Loot the ${c.name}`));
-            else cards.push(card('loot', 'Loot', [h('p', {}, 'Take treasure from a site you have discovered in this clearing.')], 'loot', 'Loot', { disabled: true, why: 'No site here is discovered yet. Locate is how a site is found.' }));
+            if (sites.length) for (const c of sites) cards.push(card('loot', `Loot the ${c.name}`, [siteLine(c)], 'loot', 'Loot'));
+            else cards.push(card('loot', 'Loot a site', [h('p', {}, 'Take treasure from a site you have discovered in this clearing.')], 'loot', 'Loot', { disabled: true, why: 'No site here is discovered yet. Locate is how a site is found.' }));
         }
-        if (opts.includes('ground')) { const g = st.abandoned?.[at] ?? []; cards.push(card('ground', 'On the ground', [h('p', {}, g.length ? `${g.map(i => nameOf(data, i)).join(', ')}.` : 'Nothing lies here.')], 'ground', 'Pick up what lies here', { disabled: !g.length })); }
-        if (opts.includes('sitecard')) for (const cid of st.ch.siteCards?.[at] ?? []) cards.push(card('sitecard', data.treasures?.[cid]?.name ?? 'Site card', [siteCardRow(cid)], 'sitecard', `Loot the ${data.treasures?.[cid]?.name ?? 'site card'}`));
-        if (opts.includes('runes')) cards.push(card('runes', 'Read runes', [h('p', {}, 'Learn a spell from a site here, or from an artifact or book you carry.')], 'runes', 'Read the runes'));
+        if (opts.includes('ground')) { const g = st.abandoned?.[at] ?? []; cards.push(card('ground', 'Take what lies here', [h('p', {}, g.length ? `${g.map(i => nameOf(data, i)).join(', ')}.` : 'Nothing lies here.')], 'ground', 'Take it', { disabled: !g.length })); }
+        if (opts.includes('sitecard')) for (const cid of st.ch.siteCards?.[at] ?? []) cards.push(card('sitecard', `Loot the ${data.treasures?.[cid]?.name ?? 'site card'}`, [siteCardRow(cid, true)], 'sitecard', 'Loot'));
+        if (opts.includes('runes')) cards.push(card('runes', 'Read the runes', [h('p', {}, 'Learn a spell from a site here, or from an artifact or book you carry.')], 'runes', 'Read'));
         for (const t of opts.filter(x => !['peer', 'locate', 'loot', 'ground', 'sitecard', 'runes'].includes(x))) cards.push(card(t, tableName(t), [], t, tableName(t)));
         return cards;
     }
