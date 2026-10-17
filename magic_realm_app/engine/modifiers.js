@@ -1,6 +1,9 @@
 import { lvl } from './core.js';
 import { activeHorse } from './items.js';
 import { fxTags, HERO } from './magic/fx.js';
+import { chitTime } from './rules/chitTime.js';
+import { tableResult } from './rules/tableResult.js';
+import { runesDiceCount } from './rules/runesDiceCount.js';
 
 // What the treasure cards he is using do for him (digest 04 section 3.1 and the effect sections of the Treasures list).
 // Only items with active === true count, and treasures are active as soon as he owns them.
@@ -50,16 +53,18 @@ export const NO_EFFORT_LIMIT = 99;
 export const effortLimit = st => (hasTreasure(st, 'potion-of-energy') ? NO_EFFORT_LIMIT : hasTreasure(st, 'girtle-of-energy') ? 3 : 2);
 
 // Treasures 6: the Draught of Speed (2 asterisks time 2, 1 asterisk 3, none 4) and the Garb of Speed (3, 4, 5) fix the time number of every action chit by its
-// asterisks. A character with both takes the Draught's numbers. Returns the chit's time as it is played (the printed time when neither is in force).
+// asterisks, the Magic chits included. A character with both takes the Draught's numbers. Returns the chit's time as it is played (the printed time when neither is
+// in force). The numbers are the kernel rules/chitTime.js; this is only the glue that reads the two cards.
 export function chitSpeed(st, chit) {
-    const base = hasTreasure(st, 'draught-of-speed') ? 2 : hasTreasure(st, 'garb-of-speed') ? 3 : null;
-    if (base == null) return chit.time;
-    return base + Math.max(0, 2 - Math.min(2, chit.effort ?? 0));
+    return chitTime(chit.time, chit.effort ?? 0, hasTreasure(st, 'draught-of-speed'), hasTreasure(st, 'garb-of-speed'));
 }
 
 // The six tiles whose names end in "Woods" (Deep, Linden, Maple, Nut, Oak, Pine). The Deep Woods is a mountain tile for chits and climbing,
 // so this goes by name, not by the tile's group.
 export const isTrackingTile = (data, where) => /Woods$/.test(data.tile(where.slice(0, 2))?.name ?? '');
+
+// The advantage that changes a Reading Runes roll: 'lore' (Wizard, Sorceror) and 'learning' (Pilgrim) roll one die, 'knowledge' (Witch, Magician) subtracts one; else 'none'.
+export const runesAdvantage = st => { const adv = st.ch.adv ?? []; return ['lore', 'learning', 'knowledge'].find(k => adv.includes(k)) ?? 'none'; };
 
 // Tables are normally rolled with two dice, taking the higher. Some cards let him roll one.
 import { clearingType as clearingKind } from './world.js';
@@ -76,7 +81,7 @@ export function oneDie(st, kind, where = null, data = null) {
         if (adv.includes('cave-knowledge') && clearingKind(st, data, where) === 'cave') return true;
     }
     if (kind === 'hide' && adv.includes('concealment')) return true;
-    if (kind === 'runes' && adv.includes('lore')) return true;                   // the Wizard rolls one die when Reading Runes
+    if (kind === 'runes' && runesDiceCount(runesAdvantage(st), false) === 1) return true;          // Lore (Wizard, Sorceror) and Learning (Pilgrim): one die when Reading Runes (kernel rules/runesDiceCount.js)
     return false;
 }
 
@@ -103,17 +108,34 @@ export function convertCard(data, it) {
 // ---- modifiers to table rolls from spells (4.1.2): Illusion adds one on every Search table, Bad Luck on every table. The result stays within 1-6.
 // Never the Monster Roll (4.1.3). A spell on the hero or on the tile he stands in counts while it is in force.
 const SEARCH_TABLES = new Set(['peer', 'locate', 'loot', 'ground', 'sitecard', 'runes', 'magicsight']);
-export function tableMod(st, data, kind) {
+// The modifiers a spell puts on a table roll (Bad Luck, Illusion), without the Cloven Hoof.
+export function spellMod(st, data, kind) {
     if (st.ch.dead || st.ch.mist) return 0;                      // mist is not affected by spells aimed at others (Melt into Mist)
     const who = [HERO]; if (st.ch.at) who.push({ kind: 'tile', id: st.ch.at.slice(0, 2) });
     let m = 0;
     for (const r of who) for (const { value } of fxTags(st, r, 'tableMod')) if (value.kinds === 'all' || (value.kinds === 'search' && SEARCH_TABLES.has(kind))) m += value.delta;
     return m;
 }
-// Apply it to a roll { dice, value }: the roll gets .mod when something changed it.
+// Cloven Hoof (Treasures 5): "Whenever a character rolls on a table while he is in the same clearing with the Cloven Hoof, he adds one to his result." The card is in his
+// clearing when he carries it (it is active as soon as he owns it) or when it lies on the ground there. Anyone else's roll is not modelled (nobody else rolls tables here).
+export function hoofHere(st) {
+    const at = st.ch.at;
+    if (!at || st.ch.dead) return false;
+    if (hasTreasure(st, 'cloven-hoof')) return true;
+    return (st.abandoned?.[at] ?? []).some(i => i.kind === 'treasure' && i.id === 'cloven-hoof' && !i.destroyed);
+}
+// Everything that is added to a table roll: the spells' modifiers and the Cloven Hoof's one.
+export const tableMod = (st, data, kind) => spellMod(st, data, kind) + (hoofHere(st) ? 1 : 0);
+// Apply it to a roll { dice, value }: the roll gets .mod (spells) and .hoof when something changed it. The sum and the 1 to 6 limit are the kernel rules/tableResult.js.
 export function modRoll(st, data, kind, r) {
-    const m = tableMod(st, data, kind);
-    if (m) { r.value = Math.max(1, Math.min(6, r.value + m)); r.mod = m; }
+    const m = spellMod(st, data, kind), hoof = hoofHere(st);
+    if (m || hoof) { r.value = tableResult(r.value, m, hoof); if (m) r.mod = m; if (hoof) r.hoof = true; }
     return r;
 }
-export const modNote = r => (r.mod ? ` (spell ${r.mod > 0 ? '+' : ''}${r.mod})` : '');
+export const modNote = r => {
+    const parts = [];
+    if (r.mod) parts.push(`spell ${r.mod > 0 ? '+' : ''}${r.mod}`);
+    if (r.hoof) parts.push('Cloven Hoof +1');
+    if (r.know) parts.push('Knowledge -1');
+    return parts.length ? ` (${parts.join(', ')})` : '';
+};

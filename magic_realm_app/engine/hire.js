@@ -92,7 +92,7 @@ export function hireAction(st, data, p, a) {
         st.ch.gold -= cost; drinks = true;
         say(st, `You buy drinks for the ${g} (${cost} gold): they warm to you.`, 'trade');
     }
-    const { res, r, note, rolls } = meetingOutcome(st, opt.monsters ? 0 : relFor(st, g) + (drinks ? 1 : 0), `Meeting roll: hiring ${opt.monsters ? `the ${g} (the Neutral column)` : `from the ${g}`}`, data);
+    const { res, r, note, rolls } = meetingOutcome(st, opt.monsters ? 0 : relFor(st, g) + (drinks ? 1 : 0), `Meeting roll: hiring ${opt.monsters ? `the ${g} (the Neutral column)` : `from the ${g}`}`, data, false, 'hire');
     const why = `${drinks ? 'Drinks; ' : ''}${note}rolled ${r.dice.join('+')}: ${res}`;
     if (res.startsWith('Price')) {
         const mult = Number(res.split('x')[1]);

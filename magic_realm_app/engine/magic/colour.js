@@ -29,6 +29,8 @@ export function nextDayWith(color, from, lastDay = 28) {
 export function colorSources(st, data, clearing) {
     const out = dayColors(st.day, st.lastDay ?? 28).map(color => ({ color, why: `day ${st.day} fills the land with magic`, calendar: true }));
     if (st.dwellings.some(d => d.kind === 'Chapel' && d.at === clearing)) out.push({ color: 'White', why: 'the Chapel in this clearing' });
+    // the Cloven Hoof (Treasures 5): once face up it is a source of Black magic for everyone in its clearing (the hero's clearing when he carries it, active)
+    if (clearing && clearing === st.ch.at && st.ch.items.some(i => i.kind === 'treasure' && i.id === 'cloven-hoof' && i.active && !i.destroyed)) out.push({ color: 'Black', why: 'the Cloven Hoof in this clearing' });
     // an enchanted tile: each of its clearings carries the colours printed on that side (4.6.2)
     const p = clearing ? st.placements.find(x => x.id === tileOf(clearing)) : null;
     if (p?.side === 'enchanted') {

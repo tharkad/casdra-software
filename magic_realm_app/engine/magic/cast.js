@@ -1,6 +1,6 @@
 import { say } from '../core.js';
 import { nameOf } from '../items.js';
-import { effortLimit } from '../modifiers.js';
+import { effortLimit, chitSpeed } from '../modifiers.js';
 import { COLORS, TYPE_COLOR, colorChits, colorsAt, nextDayWith } from './colour.js';
 import { HANDLERS, handlerOf, spellDef } from './registry.js';
 import { addFx, breakFx, fxTags, HERO, sameRef } from './fx.js';
@@ -20,7 +20,8 @@ export const ATTACK_SPELLS = new Proxy({}, { get: (_, k) => attacks()[k], has: (
 export const castable = sp => !!(sp && (sp.implemented || handlerOf(sp.id)));
 export const knownSpells = (st, data) => (st.ch.spells ?? []).map(id => spellDef(data, id)).filter(castable);
 
-const timeOf = chit => (chit.alerted ? 0 : chit.time);
+// The time a Magic chit acts at: 0 when alerted, else its printed time, or the number its asterisks fix under a Draught or Garb of Speed (kernel rules/chitTime.js via chitSpeed).
+const timeOf = (st, chit) => (chit.alerted ? 0 : chitSpeed(st, chit));
 
 // A Pentangle keeps every new spell off its target (it stops only spells aimed at him). A spell with no aim list whose only target is the caster (`selfOnly`)
 // is barred while he stands in one.
@@ -54,8 +55,8 @@ export function castOptions(st, data, { slowest = 99 } = {}) {
             if (chit.type !== 'magic' || chit.state !== 'active' || chit.numeral !== spell.type || chit.alt?.mf) continue;          // a chit changed by Unleash Power is no Magic chit
             if (c?.played?.[chit.id]) continue;
             if (spent + chit.effort > effortLimit(st)) continue;
-            if (timeOf(chit) > slowest) continue;
-            const opt = { spell: spell.id, name: spell.name, colorChit: supply?.id ?? null, chit: chit.id, effort: chit.effort, time: timeOf(chit) };
+            if (timeOf(st, chit) > slowest) continue;
+            const opt = { spell: spell.id, name: spell.name, colorChit: supply?.id ?? null, chit: chit.id, effort: chit.effort, time: timeOf(st, chit) };
             opt.useful = h?.useful ? !!h.useful(st, data, opt) : true;
             opt.quiet = !opt.useful && !!h?.quiet?.(st, data, opt);
             out.push(opt);
@@ -116,7 +117,7 @@ export function blockedSpells(st, data, { slowest = 99 } = {}) {
         { const why = legalOf(st, data, h, spell); if (why !== true) { out.push({ ...base, why }); continue; } }
         const ready = st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active' && c.numeral === spell.type && !c.alt?.mf);
         if (!ready.length) { out.push({ ...base, why: `You have no ready Magic ${spell.type} chit.` }); continue; }
-        if (st.combat && ready.every(c => timeOf(c) > slowest)) out.push({ ...base, why: `Your Magic ${spell.type} chit is too slow: a Magic chit must be no slower than the fastest creature facing you (time ${slowest}). Alert it in an Alert phase and it acts at time 0.` });
+        if (st.combat && ready.every(c => timeOf(st, c) > slowest)) out.push({ ...base, why: `Your Magic ${spell.type} chit is too slow: a Magic chit must be no slower than the fastest creature facing you (time ${slowest}). Alert it in an Alert phase and it acts at time 0.` });
     }
     return out;
 }

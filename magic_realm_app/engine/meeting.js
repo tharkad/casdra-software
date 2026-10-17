@@ -1,19 +1,24 @@
 import { die, noteRoll } from './core.js';
 import { meetingResult } from './tables.js';
-import { oneDie, tableMod } from './modifiers.js';
+import { oneDie, spellMod, hoofHere } from './modifiers.js';
+import { meetingDiceCount } from './rules/meetingDiceCount.js';
+import { tableResult } from './rules/tableResult.js';
 
 // Rolls on the Meeting Table: normally two dice, higher counts. Special advantages change it: Fear rolls one die, Honor subtracts one
 // from each die (never below 1). Used for trading, hiring and the battle roll at the start of an evening.
 export const hasAdv = (st, key) => (st.ch.adv ?? []).includes(key);
 
-export function meetingDice(st, data = null) {
-    // Fear, Tracking in the Woods tiles, and a Lucky Charm each give one die (they do not stack)
-    const n = hasAdv(st, 'fear') || (data && oneDie(st, 'meeting', st.ch.at, data)) ? 1 : 2;
+// `activity` is what the roll is for: 'trade' (buying or repaying), 'hire', or 'battle' (the Evening roll); anything else counts as 'battle'. Only the Swordsman's Barter
+// cares (one die during Trade only). How many dice, and how the result is formed from the dice, the spells and the Cloven Hoof, are the kernels
+// rules/meetingDiceCount.js and rules/tableResult.js. Honor takes one from each die first (never below 1): the engine's long-standing order, a ruling is open (docs/process/RULINGS-NEEDED.md).
+export function meetingDice(st, data = null, activity = null) {
+    // Fear, Barter in a Trade, Tracking in the Woods tiles, Cave Knowledge, and a Lucky Charm each give one die (they do not stack)
+    const advantage = hasAdv(st, 'fear') ? 'fear' : hasAdv(st, 'barter') ? 'barter' : hasAdv(st, 'honor') ? 'honor' : 'none';
+    const n = meetingDiceCount(advantage, activity === 'trade' || activity === 'hire' ? activity : 'battle', !!(data && oneDie(st, 'meeting', st.ch.at, data)));
     const raw = Array.from({ length: n }, () => die(st));
     const honor = hasAdv(st, 'honor') ? 1 : 0;
     const used = raw.map(d => Math.max(1, d - honor));
-    const mod = tableMod(st, data, 'meeting');                      // Bad Luck adds one (4.1.2)
-    return { dice: honor ? raw.map((d, i) => (used[i] === d ? `${d}` : `${d}-1`)) : raw, raw, used, value: Math.max(1, Math.min(6, Math.max(...used) + mod)) };
+    return { dice: honor ? raw.map((d, i) => (used[i] === d ? `${d}` : `${d}-1`)) : raw, raw, used, value: tableResult(Math.max(...used), spellMod(st, data, 'meeting'), hoofHere(st)) };    // Bad Luck adds one (4.1.2), the Cloven Hoof one
 }
 
 // What a Meeting Table result means for the meeting itself, in words a player can follow (the table's own words are about prices and deals).
@@ -50,10 +55,10 @@ export const meetingMeaning = (res, evening = false) => (evening ? EVENING_MEANI
 
 // One whole Meeting Table roll in a column, following Trouble (roll again as Unfriendly) and Opportunity (roll again one level friendlier).
 // Returns { res, r, note }: the final result, the last dice, and a note on what chained.
-export function meetingOutcome(st, col, what = 'Meeting Table', data = null, evening = false) {
+export function meetingOutcome(st, col, what = 'Meeting Table', data = null, evening = false, activity = evening ? 'battle' : null) {
     const seen = [];
     const rollOnce = (c, label) => {
-        const r = meetingDice(st, data), res = meetingResult(c, r.value);
+        const r = meetingDice(st, data, activity), res = meetingResult(c, r.value);
         seen.push(noteRoll(st, label, r.raw, r.value, meetingMeaning(res, evening), r.used).n);
         return { r, res };
     };

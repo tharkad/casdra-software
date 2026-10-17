@@ -1,6 +1,7 @@
 import { say, roll2, die, noteRoll } from './core.js';
 import { nameOf } from './items.js';
-import { oneDie, modRoll, modNote } from './modifiers.js';
+import { oneDie, spellMod, hoofHere, runesAdvantage, modNote } from './modifiers.js';
+import { runesRollResult } from './rules/runesRollResult.js';
 import { rollCurse } from './effects.js';
 import { sitesHere } from './search.js';
 
@@ -61,7 +62,10 @@ export function readRunes(st, data, targetKey) {
     const t = targets.find(x => x.key === targetKey) ?? targets[0];
     let r;
     if (oneDie(st, 'runes', st.ch.at, data)) { const d1 = die(st); r = { dice: [d1], value: d1 }; } else r = roll2(st);
-    modRoll(st, data, 'runes', r);
+    // Knowledge (Witch, Magician) lowers the die by one (never below 1); then the spells' and the Cloven Hoof's additions; at most 6. Kernel rules/runesRollResult.js.
+    // (Open ruling: the order of the floor and the additions only matters for a die of 1 with an addition in force, docs/process/RULINGS-NEEDED.md.)
+    { const adv = runesAdvantage(st), m = spellMod(st, data, 'runes'), hoof = hoofHere(st), before = r.value;
+      r.value = runesRollResult(r.value, adv, m + (hoof ? 1 : 0)); if (m) r.mod = m; if (hoof) r.hoof = true; if (adv === 'knowledge' && before > 1) r.know = true; }
     const res = data.tables.readRunes[String(r.value)];
     const LABEL = { 'learn-and-awaken': 'Learn and awaken', awaken: 'Awaken', curse: 'Curse!', nothing: 'Nothing' };
     noteRoll(st, 'Search: Read runes', r.dice, r.value, (LABEL[res] ?? res) + modNote(r));

@@ -218,6 +218,16 @@ function runPhase(st, data) {
     finishPhase(st, data, r);
 }
 
+// Backing out of a Trade or Hire before anything was dealt: the phase has not been spent, and he is back at the prompt where he pressed the button.
+// Once he has sold, bought drinks or rolled for a deal, the phase is committed and has to be finished.
+function cancelDealing(st, data, p) {
+    const fresh = (p.type === 'trade' && !p.mode && !(p.sold?.length) && !p.drinks) || p.type === 'hire';
+    if (!fresh) throw new Error('you have already begun dealing: finish this phase');
+    const t = st.turn; t.auto = false;
+    st.pending = t.pro ? proPending(st, data) : { type: 'phase', i: t.i };
+    return st;
+}
+
 function finishPhase(st, data, text) {
     const t = st.turn;
     t.results[t.i] = text;
@@ -765,6 +775,7 @@ export function apply(st0, data, action) {
         }
         case 'hire': {
             if (p.type !== 'hire' && p.type !== 'hire-offer') throw new Error('not hiring');
+            if (action.act === 'back') return cancelDealing(st, data, p);
             st.pending = null;
             const done = hireAction(st, data, p, action);
             if (done) finishPhase(st, data, done);
@@ -772,6 +783,7 @@ export function apply(st0, data, action) {
         }
         case 'trade': {
             if (p.type !== 'trade' && p.type !== 'trade-offer') throw new Error('not trading');
+            if (action.act === 'back') return cancelDealing(st, data, p);
             st.pending = null;
             const done = tradeAction(st, data, p, action);
             if (done) finishPhase(st, data, done);

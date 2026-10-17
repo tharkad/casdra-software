@@ -16,6 +16,7 @@ import { releaseFoes } from './magic/mist.js';
 import { blockedSpells, castOptions, castSpell, resolveSpells, canCastQuietly, previewAim, aimOptions, applyAim } from './spells.js';
 import { tell } from './story.js';
 import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
+import { mayAttackHero } from './rules/mayAttackHero.js';
 import { makeItem, autoEquip, toggleItem, activeHorse, onPackHorse } from './items.js';
 import { isCave, roadsFrom, tileName } from './world.js';
 
@@ -283,10 +284,13 @@ export function payOrFight(st, data, pay) {
 }
 
 // ---- encounter step ----
+// Heavenly Protection (Pilgrim): Demons and the Imp cannot attack him or be assigned to him; he can still attack them (kernel rules/mayAttackHero.js).
+const barredFromHero = (st, data, d) => d.kind === 'mon' && !mayAttackHero(data.monsters[d.id].family, st.ch.adv ?? []);
+
 function assignAll(st, data) {
     const c = st.combat;
     if (st.ch.hidden) return;
-    for (const d of c.dens) if (!d.dead && !d.assigned && !d.bystander && !d.pacified && d.kind !== 'part' && d.kind !== 'horse') d.assigned = true;      // a creature a spell has made peaceful is not set on him
+    for (const d of c.dens) if (!d.dead && !d.assigned && !d.bystander && !d.pacified && !barredFromHero(st, data, d) && d.kind !== 'part' && d.kind !== 'horse') d.assigned = true;      // a creature a spell has made peaceful is not set on him
 }
 
 // His own horse is played like a Move chit, either side up (walking or galloping), whichever he can use; it is played once a round.
@@ -352,7 +356,7 @@ function enterEncounter(st, data) {
         say(st, 'Nothing here wants a fight.', 'combat');
         return;
     }
-    if (!c.choiceMade && live.every(d => d.bystander)) {
+    if (!c.choiceMade && live.every(d => d.bystander || barredFromHero(st, data, d))) {          // (a Demon or Imp against a Pilgrim stands by, like a peaceful native)
         c.step = 'choice';
         st.pending = { type: 'combat-choice', groups: [...new Set(live.map(d => (d.kind === 'nat' ? data.natives[d.id].group : data.monsters[d.id].name)))] };
         return;
@@ -670,7 +674,7 @@ export function meleePlay(st, data, p) {
     if (st.ch.hidden && target) { st.ch.hidden = false; log('You strike from hiding and are revealed.', tell.ambush(st)); }
     for (const t of new Set([target, ...spTargets].filter(Boolean))) if (t.pacified) breakPacify(st, data, t, log);          // he named a pacified monster: the pacifying spell is broken
     for (const t of new Set([target, ...spTargets].filter(Boolean))) {
-        if (t.assigned) continue;
+        if (t.assigned || barredFromHero(st, data, t)) continue;          // (attacking a Demon or Imp does not set it on a Pilgrim)
         // attacking an unassigned denizen makes it fight back; attacking a native brings its whole group in
         if (t.kind === 'nat') {
             // the group begins to battle him at once, but nobody was assigned to answer this round: no blow comes back until the next

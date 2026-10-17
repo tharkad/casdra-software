@@ -132,7 +132,7 @@ export function gameScreen(ctx) {
 
     function commit(next) { st = next; ctx.state = st; if (!race) saveGame(st); render(); }
     function act(action) {
-        ui.combatMap = false; ui.mapPeek = false;
+        ui.combatMap = false; ui.mapPeek = false; if (action.type !== 'tidy') ui.tradePick = null;
         if (action.type !== 'tidy') { ui.gainSeen = st.gainSeq ?? 0; ui.findSeen = st.findSeq ?? 0; }          // what he found last time is old news once he does something else
         if (race) { actRemote(action); return; }
         try {
@@ -671,8 +671,32 @@ export function gameScreen(ctx) {
                     h('button', { class: 'btn', onclick: () => { ui.payWith = null; act({ type: 'trade', act: 'decline' }); } }, 'No thanks'))));
         }
         const goods = stockOf(st, data, p.group), mine = sellable(st, data);
+        const sel = (ui.tradePick ??= { buy: null, sell: [], info: null });
+        sel.sell = sel.sell.filter(u => mine.some(m => m.uid === u));
+        if (sel.buy != null && !goods.some(g => g.idx === sel.buy)) sel.buy = null;
+        const fresh = !p.mode && !(p.sold?.length) && !p.drinks;
+        const chosenSell = mine.filter(m => sel.sell.includes(m.uid)), sellSum = chosenSell.reduce((n, m) => n + m.price, 0);
+        const chosenBuy = sel.buy != null ? goods.find(g => g.idx === sel.buy) : null;
+        const pickBuy = idx => { sel.buy = sel.buy === idx ? null : idx; if (sel.buy != null) sel.sell = []; render(); };
+        const pickSell = uid => { const k = sel.sell.indexOf(uid); if (k >= 0) sel.sell.splice(k, 1); else { sel.sell.push(uid); sel.buy = null; } render(); };
+        const infoOf = it => { const { card, faces, facts } = itemParts(it); return h('div', { class: 'ti-info itemsheet' }, card ?? h('div', { class: 'faces' }, ...faces), ...facts.map(t => h('p', {}, t))); };
+        // one row: a box to select it, and the rest of the row opens what it is
+        const item = ({ key, name, sub, price, selected, disabled, onSelect, info }) => h('div', { class: `tradeitem${selected ? ' sel' : ''}${disabled ? ' off' : ''}`, 'data-item': key },
+            h('div', { class: 'ti-row' },
+                h('button', { class: 'ti-check', role: 'checkbox', 'aria-checked': selected ? 'true' : 'false', 'aria-label': `${selected ? 'Deselect' : 'Select'} ${name}`, disabled: disabled || null, onclick: onSelect }, selected ? '\u2713' : ''),
+                h('button', { class: 'ti-body', 'aria-expanded': sel.info === key ? 'true' : 'false', onclick: () => { sel.info = sel.info === key ? null : key; render(); } },
+                    ico(name), h('span', { class: 'rl' }, h('b', {}, name), h('small', {}, sub)), h('em', {}, `${price}g`), h('span', { class: 'ti-i', 'aria-hidden': 'true' }, sel.info === key ? '\u25BE' : '\u25B8'))),
+            sel.info === key ? info : null);
+        const summary = chosenBuy ? `Buy the ${chosenBuy.name}. Its price comes from a roll on the Meeting Table (basic ${chosenBuy.base} gold).`
+            : chosenSell.length ? `Sell ${chosenSell.length} thing${chosenSell.length === 1 ? '' : 's'} for ${sellSum} gold.`
+                : p.mode === 'sell' ? `You have sold ${p.sold.length} thing${p.sold.length === 1 ? '' : 's'} so far. Sell more, or press Done.`
+                    : 'Tick the things you want to sell, or one thing to buy. Tap a name to see what it is.';
+        const go = () => {
+            if (chosenBuy) { const idx = sel.buy; ui.tradePick = null; act({ type: 'trade', act: 'buy', idx }); }
+            else if (chosenSell.length) { const items = chosenSell.map(m => m.uid); ui.tradePick = null; act({ type: 'trade', act: 'sell', items }); }
+        };
         return modal(`Trade with the ${p.group}`, h('div', { class: 'trade' },
-            ask(`Trade phase with the ${p.group} at ${nameOfClearing(st.ch.at)}.`, 'Sell your things at their basic price, or choose one thing to buy: a purchase is priced by a roll on the Meeting Table, so how they feel about you matters. Press Done when you have finished.'),
+            ask(`Trade phase with the ${p.group} at ${nameOfClearing(st.ch.at)}.`, 'Sell any number of things at their basic price, or buy one thing: a purchase is priced by a roll on the Meeting Table, so how they feel about you matters.', { compact: true }),
             ...(() => {
                 const choices = groupChoices(p);
                 return choices.length > 1 ? [h('h3', {}, 'Trade with'),
@@ -680,7 +704,7 @@ export function gameScreen(ctx) {
                         onclick: () => { if (!c.selected) act({ type: 'trade', act: 'group', group: c.group }); } }, `${c.selected ? '\u2713 ' : ''}${c.group}`))),
                     h('p', { class: 'hint' }, c0Hint(choices))] : [];
             })(),
-            h('p', { class: 'hint' }, `Relationship: ${REL_NAMES[String(st.ch.rel?.[p.group] ?? 0)]}. You have ${st.ch.gold} gold. In one Trade phase you may sell any number of things, or buy one.${(st.ch.rel?.[p.group] ?? 0) <= -2 ? ' They are your enemies: expect an insult or a fight, not a price.' : ''}`),
+            h('p', { class: 'hint' }, `Relationship: ${REL_NAMES[String(st.ch.rel?.[p.group] ?? 0)]}. You have ${st.ch.gold} gold.${(st.ch.rel?.[p.group] ?? 0) <= -2 ? ' They are your enemies: expect an insult or a fight, not a price.' : ''}`),
             ...(() => {
                 const cost = drinksCost(st, data, p.group), owed = (st.ch.boons ?? []).map((b, n) => ({ ...b, n })).filter(b => b.group === p.group);
                 return [
@@ -693,12 +717,17 @@ export function gameScreen(ctx) {
                 ];
             })(),
             h('h3', {}, 'For sale'),
-            ...(goods.length ? goods.map(g => h('button', { class: 'btn row', disabled: p.mode === 'sell', onclick: () => act({ type: 'trade', act: 'buy', idx: g.idx }) },
-                ico(g.name), h('span', { class: 'rl' }, h('b', {}, g.name), h('small', {}, g.sub)), h('em', {}, `${g.base}g`))) : [h('p', { class: 'hint' }, 'Nothing for sale.')]),
-            h('h3', {}, 'Sell yours'),
-            ...(mine.length ? mine.map(m => h('button', { class: 'btn row', disabled: p.mode === 'buy', onclick: () => act({ type: 'trade', act: 'sell', item: m.uid }) },
-                ico(m.name), h('span', { class: 'rl' }, h('b', {}, m.name), h('small', {}, m.sub)), h('em', {}, `${m.price}g`))) : [h('p', { class: 'hint' }, 'You have nothing to sell.')]),
-            h('button', { class: 'btn primary', onclick: () => act({ type: 'trade', act: 'done' }) }, 'Done')));
+            ...(goods.length ? goods.map(g => item({ key: `buy:${g.idx}`, name: g.name, sub: g.sub, price: g.base, selected: sel.buy === g.idx, disabled: p.mode === 'sell', onSelect: () => pickBuy(g.idx), info: infoOf({ kind: g.kind, id: g.id }) })) : [h('p', { class: 'hint' }, 'Nothing for sale.')]),
+            h('h3', {}, 'Yours'),
+            ...(mine.length ? mine.map(m => item({ key: `sell:${m.uid}`, name: m.name, sub: m.sub, price: m.price, selected: sel.sell.includes(m.uid), disabled: p.mode === 'buy', onSelect: () => pickSell(m.uid), info: infoOf(st.ch.items.find(i => i.uid === m.uid)) })) : [h('p', { class: 'hint' }, 'You have nothing to sell.')]),
+            h('div', { class: 'trade-bar' },
+                h('p', { class: 'tb-sum', 'data-trade-summary': '1' }, summary),
+                h('div', { class: 'row-end tb-actions' },
+                    fresh ? h('button', { class: 'btn', 'data-act': 'trade-cancel', onclick: () => { ui.tradePick = null; act({ type: 'trade', act: 'back' }); } }, 'Cancel')
+                        : h('button', { class: 'btn', 'data-act': 'trade-done', onclick: () => { ui.tradePick = null; act({ type: 'trade', act: 'done' }); } }, 'Done'),
+                    h('button', { class: 'btn primary', 'data-act': 'trade-go', disabled: !(chosenBuy || chosenSell.length) || null, onclick: go },
+                        chosenBuy ? `Buy ${chosenBuy.name}` : chosenSell.length ? `Sell ${chosenSell.length} for ${sellSum}g` : 'Choose first'))
+                ,fresh ? null : h('p', { class: 'hint' }, 'You have begun dealing, so this phase can only be finished.'))));
     }
 
     function hireSheet(p) {
@@ -729,7 +758,7 @@ export function gameScreen(ctx) {
                 h('span', { class: 'rl' }, h('b', {}, `${ui.drinks ? '\u2713 ' : ''}Buy drinks first`), h('small', {}, 'one gold for each of them here, hired or not; one level friendlier for the roll')), h('em', {}, ui.drinks ? 'on' : 'off')),
             ...p.options.map(o => { const dc = drinksCost(st, data, o.group); return h('button', { class: 'btn row', disabled: ui.drinks && st.ch.gold < dc, onclick: () => { const drinks = !!ui.drinks; ui.drinks = false; act({ type: 'hire', act: 'pick', group: o.group, rehire: !!o.rehire, drinks }); } },
                 nativePic(o.members?.[0]) ? h('img', { class: 'ico', src: nativePic(o.members[0]), alt: '' }) : null, h('span', { class: 'rl' }, h('b', {}, `${o.group}${o.rehire ? ' (extend hire)' : ''}`), h('small', {}, o.names.join(', ') + (ui.drinks ? ` (drinks ${dc}g)` : ''))), h('em', {}, `wages ${o.wage}g`)); }),
-            h('button', { class: 'btn', onclick: () => act({ type: 'hire', act: 'cancel' }) }, 'Never mind')));
+            h('button', { class: 'btn', 'data-act': 'hire-back', onclick: () => act({ type: 'hire', act: 'back' }) }, 'Back')));
     }
 
     // One treasure site the way the printed Setup Card words it; the same sentence heads the site in the clearing sheet.
@@ -1321,10 +1350,8 @@ export function gameScreen(ctx) {
             h('button', { class: 'btn', onclick: back.close }, 'Back')), back);
     }
 
-    function itemSheet() {
-        const it = st.ch.items.find(i => i.uid === ui.itemUid);
-        const back = { close: () => { ui.sheet = ui.itemFrom === 'dock' ? null : 'char'; ui.itemFrom = null; render(); } };
-        if (!it) return modal('Belonging', h('p', { class: 'hint' }, 'You no longer have it.'), back);
+    // The card or faces, and the plain facts, of an item: a belonging of his (it.uid) or a thing on someone's shelf ({ kind, id }).
+    function itemParts(it) {
         const d = defOf(data, it), name = nameOf(data, it), pic = picOf(name) ?? (d?.name ? picOf(d.name) : null);
         const faces = [], facts = [];
         let card = null;
@@ -1368,6 +1395,13 @@ export function gameScreen(ctx) {
             const fm = d?.fame ?? 0, nt = d?.notoriety ?? 0;
             if (fm || nt) facts.push(`Owning it adds ${[fm ? `Fame ${fm > 0 ? '+' : ''}${fm}` : '', nt ? `Notoriety ${nt > 0 ? '+' : ''}${nt}` : ''].filter(Boolean).join(' and ')} to your totals.`);
         }
+        return { name, card, faces, facts };
+    }
+    function itemSheet() {
+        const it = st.ch.items.find(i => i.uid === ui.itemUid);
+        const back = { close: () => { ui.sheet = ui.itemFrom === 'dock' ? null : 'char'; ui.itemFrom = null; render(); } };
+        if (!it) return modal('Belonging', h('p', { class: 'hint' }, 'You no longer have it.'), back);
+        const { name, card, faces, facts } = itemParts(it);
         const canSwitch = (st.pending?.type === 'phase' || st.pending?.type === 'plan') && !it.destroyed;
         return modal(name, h('div', { class: 'itemsheet' },
             card ?? h('div', { class: 'faces' }, ...faces),

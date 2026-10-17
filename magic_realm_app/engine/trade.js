@@ -52,18 +52,21 @@ export function tradeAction(st, data, p, a) {
     const g = p.group;
     if (a.act === 'sell') {
         if (p.mode === 'buy') throw new Error('you cannot both buy and sell in one phase');
-        const it = st.ch.items.find(i => i.uid === a.item && !i.destroyed);
-        if (!it) throw new Error('no such item');
-        const price = priceOf(data, it);
-        st.ch.gold += price;
-        st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
-        (st.stock[g] ??= []).push({ kind: it.kind, id: it.id, damaged: false, ...(it.card ? { card: it.card } : {}) });     // a card that became a counter stays linked to its card
-        // A treasure with a Fame reward pays it when sold to the right group.
-        const d = it.card ? data.treasures[it.card] : defOf(data, it);
-        let bonus = '';
-        if (d?.fameReward && d.fameReward.group === g) { st.ch.fame += d.fameReward.points; bonus = ` and the ${g} reward you ${d.fameReward.points} Fame`; }
-        say(st, `You sell the ${nameOf(data, it)} to the ${g} for ${price} gold${bonus}.`, 'trade');
-        p.mode = 'sell'; p.sold.push(it.uid);
+        const uids = [...new Set(a.items ?? [a.item])];                      // one thing, or several chosen together
+        for (const u of uids) if (!st.ch.items.some(i => i.uid === u && !i.destroyed)) throw new Error('no such item');
+        for (const u of uids) {
+            const it = st.ch.items.find(i => i.uid === u && !i.destroyed);
+            const price = priceOf(data, it);
+            st.ch.gold += price;
+            st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
+            (st.stock[g] ??= []).push({ kind: it.kind, id: it.id, damaged: false, ...(it.card ? { card: it.card } : {}) });     // a card that became a counter stays linked to its card
+            // A treasure with a Fame reward pays it when sold to the right group.
+            const d = it.card ? data.treasures[it.card] : defOf(data, it);
+            let bonus = '';
+            if (d?.fameReward && d.fameReward.group === g) { st.ch.fame += d.fameReward.points; bonus = ` and the ${g} reward you ${d.fameReward.points} Fame`; }
+            say(st, `You sell the ${nameOf(data, it)} to the ${g} for ${price} gold${bonus}.`, 'trade');
+            p.mode = 'sell'; p.sold.push(it.uid);
+        }
         st.pending = p;
         return undefined;
     }
@@ -93,7 +96,7 @@ export function tradeAction(st, data, p, a) {
         if (k < 0) throw new Error(`you owe the ${g} no boon`);
         if (hasCurse(st, 'Ashes')) throw new Error('Your gold is worthless under the Ashes curse: nobody will deal.');
         const b = debts[k];
-        const { res, r, note, rolls } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0), `Meeting roll: repaying the ${g}`, data);
+        const { res, r, note, rolls } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0), `Meeting roll: repaying the ${g}`, data, false, 'trade');
         const why = `${note}rolled ${r.dice.join('+')}: ${res}`;
         st.ch.hiddenAfterBlock = false;
         if (res.startsWith('Price') || res === 'Boon') {
@@ -117,7 +120,7 @@ export function tradeAction(st, data, p, a) {
         if (hasCurse(st, 'Ashes')) throw new Error('Your gold is worthless under the Ashes curse: nobody will sell to you.');
         const base = priceOf(data, it);
         // Resolve the meeting roll (with the friendly/trouble re-rolls); drinks make the group one level friendlier.
-        const { res, r, note, rolls } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0), `Meeting roll: buying from the ${g}`, data);
+        const { res, r, note, rolls } = meetingOutcome(st, relOf(st, g) + (p.drinks ? 1 : 0), `Meeting roll: buying from the ${g}`, data, false, 'trade');
         st.ch.hiddenAfterBlock = false;
         if (res.startsWith('Price')) {
             const mult = Number(res.split('x')[1]);

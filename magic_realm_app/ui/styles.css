@@ -1075,3 +1075,21 @@ details.here-block summary { cursor: pointer; font-family: var(--font-display); 
 .ov-line { margin: 2px 0 0; font-size: 15px; color: var(--dim); }
 .ov-details summary { cursor: pointer; color: var(--dim); font-size: 14.5px; }
 .ov-actions { gap: 10px; flex-wrap: wrap; } .ov-actions .btn { flex: 1 1 200px; margin: 0; width: auto; }
+/* Trade: a box to select each thing, the rest of the row opens what it is, and a bar at the bottom that does the deal */
+.tradeitem { border: 1px solid rgba(255,255,255,.12); border-radius: 12px; margin-top: 8px; background: rgba(255,255,255,.03); overflow: hidden; }
+.tradeitem.sel { border-color: var(--gold, #e3c36a); background: rgba(227,195,106,.09); }
+.tradeitem.off { opacity: .5; }
+.ti-row { display: flex; align-items: stretch; }
+.ti-check { flex: 0 0 52px; min-height: 56px; border: 0; border-right: 1px solid rgba(255,255,255,.1); background: none; color: var(--gold, #e3c36a); font-size: 24px; cursor: pointer; }
+.ti-check::before { content: ''; display: inline-block; width: 24px; height: 24px; border: 2px solid var(--dim); border-radius: 7px; vertical-align: middle; box-sizing: border-box; margin-right: -24px; }
+.tradeitem.sel .ti-check::before { border-color: var(--gold, #e3c36a); }
+.ti-body { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; padding: 8px 12px 8px 10px; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
+.ti-body .rl { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ti-body .rl small { color: var(--dim); }
+.ti-body em { font-style: normal; font-variant-numeric: tabular-nums; color: var(--gold, #e3c36a); }
+.ti-i { color: var(--dim); width: 16px; text-align: center; }
+.ti-info { padding: 6px 12px 12px; border-top: 1px solid rgba(255,255,255,.08); }
+.trade-bar { position: sticky; bottom: 0; margin: 14px calc(-1 * var(--gutter, 16px)) 0; padding: 10px var(--gutter, 16px) calc(6px + env(safe-area-inset-bottom, 0px)); background: var(--panel); border-top: 1px solid var(--gold-deep); }
+.trade-bar .tb-sum { margin: 0 0 8px; font-size: 16px; }
+.trade-bar .tb-actions { gap: 10px; } .trade-bar .tb-actions .btn { flex: 1; margin: 0; width: auto; }
+.trade-bar .tb-actions .btn.primary { flex: 1.4; }
