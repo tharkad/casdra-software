@@ -1089,7 +1089,10 @@ details.here-block summary { cursor: pointer; font-family: var(--font-display); 
 .ti-body em { font-style: normal; font-variant-numeric: tabular-nums; color: var(--gold, #e3c36a); }
 .ti-i { color: var(--dim); width: 16px; text-align: center; }
 .ti-info { padding: 6px 12px 12px; border-top: 1px solid rgba(255,255,255,.08); }
-.trade-bar { position: sticky; bottom: 0; margin: 14px calc(-1 * var(--gutter, 16px)) 0; padding: 10px var(--gutter, 16px) calc(6px + env(safe-area-inset-bottom, 0px)); background: var(--panel); border-top: 1px solid var(--gold-deep); }
+.sheet2.has-footer { overflow: hidden; padding-bottom: 0; gap: 0; }
+.sheet2.has-footer .sheet-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px; }
+.trade-bar { flex: none; margin: 0 calc(-1 * var(--gutter, 16px)); padding: 10px var(--gutter, 16px) calc(10px + var(--safe-b)); background: var(--panel); border-top: 1px solid var(--gold-deep); }
 .trade-bar .tb-sum { margin: 0 0 8px; font-size: 16px; }
 .trade-bar .tb-actions { gap: 10px; } .trade-bar .tb-actions .btn { flex: 1; margin: 0; width: auto; }
 .trade-bar .tb-actions .btn.primary { flex: 1.4; }
+.trade-bar .tb-actions .btn { min-width: 0; }

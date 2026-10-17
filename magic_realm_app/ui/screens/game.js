@@ -597,15 +597,16 @@ export function gameScreen(ctx) {
     // Sheets that are only for looking can be dismissed by tapping anywhere outside them; those that need an answer cannot.
     // Every sheet is the same object: a scrim, a rounded sheet with a grabber and a title, and (when it is only for looking) a way out three ways:
     // pull it down, tap outside it, or the cross. A sheet that needs an answer has none of them and no grabber.
-    const modal = (title, body, { close } = {}) => {
+    const modal = (title, body, { close, footer } = {}) => {
         // a sheet that needs an answer can be set aside to look at the map, and brought back (the decision may depend on what is on the map)
         if (!close && ui.mapPeek) return h('div', { class: 'combat-back' }, h('button', { class: 'btn primary big', 'data-act': 'back-to-choice', onclick: () => { ui.mapPeek = false; render(); } }, `Back to: ${title}`));
-        const sheet = h('div', { class: 'sheet2' },
+        const sheet = h('div', { class: `sheet2${footer ? ' has-footer' : ''}` },
             h('div', { class: 'sheet-top' },
                 close ? h('div', { class: 'sheet-grab', 'aria-hidden': 'true' }, h('span', { class: 'grip' })) : null,
                 h('div', { class: 'sheet2-head' }, h('b', {}, title), close ? h('button', { class: 'x', 'aria-label': 'Close', onclick: close }, '\u2715')
                     : h('button', { class: 'peekmap', 'data-act': 'peek-sheet-map', onclick: () => { ui.mapPeek = true; render(); } }, 'Map'))),
-            body);
+            footer ? h('div', { class: 'sheet-scroll' }, body) : body,
+            footer ?? null);
         const bg = h('div', { class: 'sheet-bg', onclick: e => { if (close && e.target === e.currentTarget) close(); } }, sheet);
         if (close) pullDown(sheet.querySelector('.sheet-grab'), sheet, close);
         return bg;
@@ -695,6 +696,14 @@ export function gameScreen(ctx) {
             if (chosenBuy) { const idx = sel.buy; ui.tradePick = null; act({ type: 'trade', act: 'buy', idx }); }
             else if (chosenSell.length) { const items = chosenSell.map(m => m.uid); ui.tradePick = null; act({ type: 'trade', act: 'sell', items }); }
         };
+        const tradeBar = h('div', { class: 'trade-bar' },
+                h('p', { class: 'tb-sum', 'data-trade-summary': '1' }, summary),
+                h('div', { class: 'row-end tb-actions' },
+                    fresh ? h('button', { class: 'btn', 'data-act': 'trade-cancel', onclick: () => { ui.tradePick = null; act({ type: 'trade', act: 'back' }); } }, 'Cancel')
+                        : h('button', { class: 'btn', 'data-act': 'trade-done', onclick: () => { ui.tradePick = null; act({ type: 'trade', act: 'done' }); } }, 'Done'),
+                    h('button', { class: 'btn primary', 'data-act': 'trade-go', disabled: !(chosenBuy || chosenSell.length) || null, onclick: go },
+                        chosenBuy ? `Buy ${chosenBuy.name}` : chosenSell.length ? `Sell ${chosenSell.length} for ${sellSum}g` : 'Choose first')),
+                fresh ? null : h('p', { class: 'hint' }, 'You have begun dealing, so this phase can only be finished.'));
         return modal(`Trade with the ${p.group}`, h('div', { class: 'trade' },
             ask(`Trade phase with the ${p.group} at ${nameOfClearing(st.ch.at)}.`, 'Sell any number of things at their basic price, or buy one thing: a purchase is priced by a roll on the Meeting Table, so how they feel about you matters.', { compact: true }),
             ...(() => {
@@ -719,15 +728,8 @@ export function gameScreen(ctx) {
             h('h3', {}, 'For sale'),
             ...(goods.length ? goods.map(g => item({ key: `buy:${g.idx}`, name: g.name, sub: g.sub, price: g.base, selected: sel.buy === g.idx, disabled: p.mode === 'sell', onSelect: () => pickBuy(g.idx), info: infoOf({ kind: g.kind, id: g.id }) })) : [h('p', { class: 'hint' }, 'Nothing for sale.')]),
             h('h3', {}, 'Yours'),
-            ...(mine.length ? mine.map(m => item({ key: `sell:${m.uid}`, name: m.name, sub: m.sub, price: m.price, selected: sel.sell.includes(m.uid), disabled: p.mode === 'buy', onSelect: () => pickSell(m.uid), info: infoOf(st.ch.items.find(i => i.uid === m.uid)) })) : [h('p', { class: 'hint' }, 'You have nothing to sell.')]),
-            h('div', { class: 'trade-bar' },
-                h('p', { class: 'tb-sum', 'data-trade-summary': '1' }, summary),
-                h('div', { class: 'row-end tb-actions' },
-                    fresh ? h('button', { class: 'btn', 'data-act': 'trade-cancel', onclick: () => { ui.tradePick = null; act({ type: 'trade', act: 'back' }); } }, 'Cancel')
-                        : h('button', { class: 'btn', 'data-act': 'trade-done', onclick: () => { ui.tradePick = null; act({ type: 'trade', act: 'done' }); } }, 'Done'),
-                    h('button', { class: 'btn primary', 'data-act': 'trade-go', disabled: !(chosenBuy || chosenSell.length) || null, onclick: go },
-                        chosenBuy ? `Buy ${chosenBuy.name}` : chosenSell.length ? `Sell ${chosenSell.length} for ${sellSum}g` : 'Choose first'))
-                ,fresh ? null : h('p', { class: 'hint' }, 'You have begun dealing, so this phase can only be finished.'))));
+            ...(mine.length ? mine.map(m => item({ key: `sell:${m.uid}`, name: m.name, sub: m.sub, price: m.price, selected: sel.sell.includes(m.uid), disabled: p.mode === 'buy', onSelect: () => pickSell(m.uid), info: infoOf(st.ch.items.find(i => i.uid === m.uid)) })) : [h('p', { class: 'hint' }, 'You have nothing to sell.')])
+            ), { footer: tradeBar });
     }
 
     function hireSheet(p) {
