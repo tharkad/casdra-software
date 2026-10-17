@@ -26,9 +26,13 @@ export function parseInvite(text) {
     if (!m) return null;
     return { game: m[1], invite: m[2], server: m[3] ? decodeURIComponent(m[3]) : null };
 }
-export function inviteLink(race) {
-    const base = location.href.split('#')[0], same = race.server === location.origin;
-    return `${base}#race=${race.game}.${race.invite}${same ? '' : '&s=' + encodeURIComponent(race.server)}`;
+// The link a creator shares. When the server was started with MR_PUBLIC_URL and serves the app itself (health says so), that address is used: the host may be
+// reached by the creator as http://100.x.y.z:8010 or localhost while friends must open https://name.tailnet.ts.net. Otherwise it is the page the creator is on.
+export function inviteLink(race, here = { href: location.href, origin: location.origin }, health = lastHealth) {
+    const tail = `#race=${race.game}.${race.invite}`;
+    if (health?.publicUrl && health.static && String(race.server).replace(/\/+$/, '') === health.server) return `${health.publicUrl.replace(/\/+$/, '')}/${tail}`;
+    const base = here.href.split('#')[0], same = race.server === here.origin;
+    return `${base}${tail}${same ? '' : '&s=' + encodeURIComponent(race.server)}`;
 }
 
 export class ApiError extends Error { constructor(status, message, body) { super(message); this.status = status; this.body = body; } }
@@ -112,5 +116,11 @@ export function connect(race, { onStandings, onStatus } = {}) {
 
 // Is there a game server to talk to? The title screen shows "Play online" only when there is (a static copy of the app has none).
 export async function serverAvailable() {
-    try { const r = await fetch(`${serverUrl()}/api/health`, { cache: 'no-store' }); return r.ok && (await r.json()).ok === true; } catch { return false; }
+    try {
+        const server = serverUrl(), r = await fetch(`${server}/api/health`, { cache: 'no-store' }), j = await r.json();
+        if (r.ok && j.ok === true) { lastHealth = { server, publicUrl: typeof j.publicUrl === 'string' ? j.publicUrl : null, static: j.static === true }; return true; }
+        return false;
+    } catch { return false; }
 }
+/** What the server last said about itself (set by serverAvailable): where friends should be sent, and whether it serves the app. */
+let lastHealth = null;
