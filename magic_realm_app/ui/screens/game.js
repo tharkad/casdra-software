@@ -279,7 +279,10 @@ export function gameScreen(ctx) {
         const viewKey = `${st.pending?.type ?? ''}|${st.combat?.round ?? ''}|${ui.sheet ?? ''}`;
         const scrolled = new Map();
         if (ui.scrollKey === viewKey) layer.querySelectorAll('.cb-scroll, .sheet2, .sheet-scroll, .plan-body, .journal').forEach(el => scrolled.set(el.className, el.scrollTop));
+        const sameView = ui.scrollKey === viewKey;
         layer.replaceChildren(...sheets());
+        // the same question redrawn (a tick, a tap) must not slide in again: the entrance animation is for a new question only
+        if (sameView) layer.querySelectorAll('.sheet-bg, .sheet2').forEach(el => { el.style.animation = 'none'; });
         ui.scrollKey = viewKey;
         if (scrolled.size) layer.querySelectorAll('.cb-scroll, .sheet2, .sheet-scroll, .plan-body, .journal').forEach(el => { const t = scrolled.get(el.className); if (t) el.scrollTop = t; });
         if (ui.toast) layer.append(h('div', { class: 'toast' }, ui.toast));
@@ -614,7 +617,7 @@ export function gameScreen(ctx) {
 
     // Pictures from the original game, when we have them.
     const picOf = name => { const a = data.art; return a ? (a.weapons?.[name] ?? a.armor?.[name] ?? a.horses?.[name] ?? null) : null; };
-    const ico = (name, cls = 'ico') => { const s = picOf(name); return s ? h('img', { class: cls, src: s, alt: '', loading: 'lazy' }) : null; };
+    const ico = (name, cls = 'ico') => { const s = picOf(name); return s ? h('img', { class: cls, src: s, alt: '', decoding: 'sync' }) : null; };
     const nativePic = id => data.art?.natives?.[id] ?? null;
 
     function diceSheet() {
