@@ -27,7 +27,7 @@ import { energizeOptions } from '../../engine/magic/energize.js';
 import { heldOptions } from '../../engine/magic/phase.js';
 import { flySources, flyTiles } from '../../engine/magic/fly.js';
 import { planState, moveOptions, actRefusal } from '../planlogic.js';
-import { timed, dayCap, lengthLine, overTitle, SPELLS_HOW } from '../gametext.js';
+import { timed, dayCap, lastDayOf, lengthLine, overTitle, SPELLS_HOW } from '../gametext.js';
 
 // The game screen: status strip, map, a dock that follows the day, and sheets for the plan, the character and the log.
 const SAVE_KEY = 'mr-save-v1';
@@ -1504,14 +1504,40 @@ export function gameScreen(ctx) {
         const dead = st.over?.reason === 'died';
         const canRestart = dead && st.mode !== 'endless' && st.day < (st.lastDay ?? 28);
         if (canRestart && ui.restartVp) return restartSheet();
-        return modal(overTitle(st, dead), h('div', {},
-            dead ? deathBox() : null,
-            dead ? h('p', {}, 'Your character is dead and scores -100.') : null,
-            ...(s.rows ?? []).map(r => h('p', { class: 'scorerow' }, h('b', {}, r.cat), ` ${r.earned} of ${r.need}`, h('span', {}, ` \u2192 ${r.basic + r.bonus >= 0 ? '+' : ''}${r.basic + r.bonus}`))),
-            h('p', { class: 'bigline' }, `Total ${s.total}`, h('small', {}, s.won ? ' (you won)' : ' (not enough)')),
-            st.deaths ? h('p', { class: 'hint' }, `You have died ${st.deaths} time${st.deaths === 1 ? '' : 's'} this game.`) : null,
-            canRestart ? h('button', { class: 'btn primary', 'data-act': 'restart', onclick: () => { const total = Math.max(2, Math.ceil(((st.lastDay ?? 28) - st.day) / 7) + 1), fame = Math.min(5, Math.ceil(total * 0.6)); ui.restartVp = { great: 0, spells: 0, fame, notoriety: Math.min(5, total - fame), gold: 0 }; render(); } }, `Return tomorrow as a new ${st.ch.name}`) : null,
-            h('button', { class: 'btn', onclick: () => { clearSaved(); ctx.go('title'); } }, 'Back to the title')));
+        const sign = n => (n > 0 ? `+${n}` : n < 0 ? `\u2212${Math.abs(n)}` : '0');
+        const NAME = { great: 'Great Treasures', spells: 'Spells', fame: 'Fame', notoriety: 'Notoriety', gold: 'Gold' };
+        const rows = s.rows ?? [], active = rows.filter(r => r.need > 0), idle = rows.filter(r => !(r.need > 0));
+        const goalCard = r => {
+            const pts = r.basic + r.bonus, met = r.diff >= 0, frac = Math.max(0, Math.min(1, r.need ? r.earned / r.need : 0));
+            return h('section', { class: `ovgoal ${r.cat} ${met ? 'met' : 'short'}` },
+                h('span', { class: 'ov-name' }, NAME[r.cat] ?? r.cat),
+                h('div', { class: 'ov-top' },
+                    h('div', { class: 'ov-fig' }, h('b', {}, String(r.earned)), h('small', {}, ` of ${r.need}`)),
+                    h('div', { class: `ov-pts ${pts >= 0 ? 'up' : 'down'}` }, sign(pts))),
+                h('div', { class: 'goalbar', role: 'img', 'aria-label': `${r.earned} of ${r.need}` }, h('i', { style: `width:${Math.round(frac * 100)}%` })),
+                h('p', { class: 'ov-line' }, met ? (r.diff > 0 ? `Past the goal by ${r.diff}.` : 'Exactly on the goal.') : `Short by ${-r.diff}: counted three times.`));
+        };
+        const hero = st.ch?.name ?? 'Your hero', days = st.day;
+        const verdict = dead ? null : s.won
+            ? h('div', { class: 'ov-hero win', role: 'status' },
+                h('small', {}, 'Victory'),
+                h('div', { class: 'ov-total' }, sign(s.total)),
+                h('p', {}, `${hero} ends the ${lastDayOf(st) === 28 ? 'month' : 'game'} on day ${days}, and the Realm is kept.`))
+            : h('div', { class: 'ov-hero lose', role: 'status' },
+                h('small', {}, 'Not enough'),
+                h('div', { class: 'ov-total' }, sign(s.total)),
+                h('p', {}, `${hero} ends the ${lastDayOf(st) === 28 ? 'month' : 'game'} on day ${days} short of what was set out to do.`));
+        return modal(overTitle(st, dead), h('div', { class: 'oversheet' },
+            dead ? deathBox() : verdict,
+            dead ? h('p', { class: 'hint' }, 'A dead character scores \u2212100.') : null,
+            dead
+                ? h('details', { class: 'ov-details' }, h('summary', {}, 'What you had earned'), ...active.map(goalCard))
+                : h('div', { class: 'ov-goals' }, ...active.map(goalCard)),
+            !dead && idle.length ? h('details', { class: 'ov-details' }, h('summary', {}, 'Goals you put no points on'), ...idle.map(r => h('p', { class: 'hint' }, `${NAME[r.cat] ?? r.cat}: ${r.earned} earned.`))) : null,
+            st.deaths ? h('p', { class: 'hint' }, `You died ${st.deaths} time${st.deaths === 1 ? '' : 's'} on the way.`) : null,
+            h('div', { class: 'row-end ov-actions' },
+                canRestart ? h('button', { class: 'btn primary', 'data-act': 'restart', onclick: () => { const total = Math.max(2, Math.ceil(((st.lastDay ?? 28) - st.day) / 7) + 1), fame = Math.min(5, Math.ceil(total * 0.6)); ui.restartVp = { great: 0, spells: 0, fame, notoriety: Math.min(5, total - fame), gold: 0 }; render(); } }, `Return tomorrow as a new ${st.ch.name}`) : null,
+                h('button', { class: `btn${canRestart ? '' : ' primary'}`, 'data-act': 'over-title', onclick: () => { clearSaved(); ctx.go('title'); } }, 'Back to the title'))));
     }
 
     function restartSheet() {

@@ -1055,3 +1055,23 @@ details.here-block summary { cursor: pointer; font-family: var(--font-display); 
 .searchcard h3 { margin: 0; }
 .searchcard .btn { margin-top: 4px; width: 100%; }
 .searchcard .crow, .searchcard .sitecard { margin: 0; }
+/* The end-of-game sheet: a verdict, then one card per goal with its name set into the border */
+.oversheet { display: flex; flex-direction: column; gap: 14px; }
+.ov-hero { text-align: center; border-radius: 16px; padding: 14px 16px 12px; border: 1px solid var(--gold-deep); background: linear-gradient(180deg, rgba(226,192,104,.16), rgba(226,192,104,.04)); }
+.ov-hero small { font-family: var(--font-display); letter-spacing: .24em; text-transform: uppercase; font-size: 13px; color: var(--gold, #e3c36a); }
+.ov-hero.lose { background: rgba(255,255,255,.03); border-color: rgba(255,255,255,.18); }
+.ov-hero.lose small { color: var(--dim); }
+.ov-total { font-family: var(--font-display); font-size: 64px; line-height: 1.05; color: var(--gold, #e3c36a); font-variant-numeric: tabular-nums; }
+.ov-hero.lose .ov-total { color: var(--text); }
+.ov-hero p { margin: 4px 0 0; font-size: 17px; }
+.ov-goals { display: flex; flex-direction: column; gap: 18px; padding-top: 6px; }
+.ovgoal { position: relative; border: 1.5px solid var(--cat, rgba(255,255,255,.25)); border-radius: 14px; padding: 16px 14px 10px; }
+.ovgoal .ov-name { position: absolute; top: -11px; left: 12px; padding: 0 8px; background: var(--panel); color: var(--cat, var(--text)); font-family: var(--font-display); font-size: 13px; letter-spacing: .14em; text-transform: uppercase; }
+.ovgoal.fame { --cat: #6f9be0; } .ovgoal.notoriety { --cat: #e0775a; } .ovgoal.gold { --cat: #e3c36a; } .ovgoal.great { --cat: #a98be0; } .ovgoal.spells { --cat: #5fc1b3; }
+.ov-top { display: flex; justify-content: space-between; align-items: baseline; }
+.ov-fig b { font-size: 30px; font-variant-numeric: tabular-nums; } .ov-fig small { font-size: 16px; color: var(--dim); }
+.ov-pts { font-family: var(--font-display); font-size: 26px; font-variant-numeric: tabular-nums; }
+.ov-pts.up { color: #8fd49a; } .ov-pts.down { color: #ff9c8a; }
+.ov-line { margin: 2px 0 0; font-size: 15px; color: var(--dim); }
+.ov-details summary { cursor: pointer; color: var(--dim); font-size: 14.5px; }
+.ov-actions { gap: 10px; flex-wrap: wrap; } .ov-actions .btn { flex: 1 1 200px; margin: 0; width: auto; }
