@@ -519,12 +519,9 @@ export function gameScreen(ctx) {
         if (p?.type === 'turn-end') out.push(turnEndSheet());
         else if (p?.type === 'turn-end') out.push(turnEndSheet());
         else if (p?.type === 'rest') out.push(restSheet(p));
-        else if (p?.type === 'search-table') out.push(modal('Search: which table?', h('div', {},
-            ask(`You are searching at ${nameOfClearing(st.ch.at)}: choose the table.`, 'Your plan said only Search, and the rules let you name the table when the phase comes. A Search phase is one roll on one table, and each table finds different things, so pick the one that matches what you are after.'),
-            ...p.options.map(t => h('button', { class: 'btn', 'data-table': t, onclick: () => act({ type: 'search-table', table: t }) }, h('b', {}, tableName(t)),
-                h('small', {}, { peer: 'look for clues, hidden enemies and hidden paths', locate: 'find passages, clues and sites in this clearing', loot: 'take treasure from a site you have discovered here',
-                    ground: 'pick up what lies on the ground here', sitecard: 'search the place you found with a treasure card: its own table', runes: 'learn a spell from a site here or an artifact or book you carry' }[t] ?? ''))),
-            ...hereBlocks())));
+        else if (p?.type === 'search-table') out.push(modal('Search here', h('div', { class: 'searchcards' },
+            ask(`You search at ${nameOfClearing(st.ch.at)}.`, 'A Search phase is one roll on one table, and each place or table finds different things. Read what each could give you, then press the button at the bottom of the one you want.'),
+            ...searchCards(p))));
         else if (p?.type === 'effort-cost') out.push(effortSheet(p));
         else if (p?.type === 'runes-target') out.push(modal('Read runes: which?', h('div', {},
             ask('Which runes will you read?', 'A Reading Runes search needs one target: a discovered site here that holds spell cards, or an artifact or book you carry and have active.'),
@@ -830,6 +827,26 @@ export function gameScreen(ctx) {
     }
 
     // What a Search here could reach, for the choice sheets: each discovered site's loot stack, what lies on the ground, and any site card he holds.
+    // One card per thing that can be searched here: what it is, what could come of it, and the button that does it at the bottom of the card.
+    function searchCards(p) {
+        const at = st.ch.at, tile = tileOf(at), n = numOf(at), opts = p.options ?? [], cards = [];
+        const go = t => act({ type: 'search-table', table: t });
+        const card = (cls, title, body, table, label, { disabled = false, why = null } = {}) => h('section', { class: `searchcard ${cls}`, 'data-card': table },
+            h('h3', {}, title), ...body, why ? h('p', { class: 'hint' }, why) : null,
+            h('button', { class: 'btn primary', 'data-table': table, disabled, onclick: () => go(table) }, label));
+        const sites = st.ch.onRoad ? [] : st.chits.filter(x => x.kind === 'site' && x.tile === tile && x.num === n && !x.pile && st.ch.discovered.sites.includes(x.id));
+        if (opts.includes('peer')) cards.push(card('peer', 'Peer', [h('p', {}, 'Look around the clearing: the Peer table turns up clues, hidden enemies and hidden paths.')], 'peer', 'Peer here'));
+        if (opts.includes('locate')) cards.push(card('locate', 'Locate', [h('p', {}, 'Search the clearing for passages, clues and sites you have not discovered yet.')], 'locate', 'Locate here'));
+        if (opts.includes('loot')) {
+            if (sites.length) for (const c of sites) cards.push(card('loot', c.name, [siteLine(c)], 'loot', `Loot the ${c.name}`));
+            else cards.push(card('loot', 'Loot', [h('p', {}, 'Take treasure from a site you have discovered in this clearing.')], 'loot', 'Loot', { disabled: true, why: 'No site here is discovered yet. Locate is how a site is found.' }));
+        }
+        if (opts.includes('ground')) { const g = st.abandoned?.[at] ?? []; cards.push(card('ground', 'On the ground', [h('p', {}, g.length ? `${g.map(i => nameOf(data, i)).join(', ')}.` : 'Nothing lies here.')], 'ground', 'Pick up what lies here', { disabled: !g.length })); }
+        if (opts.includes('sitecard')) for (const cid of st.ch.siteCards?.[at] ?? []) cards.push(card('sitecard', data.treasures?.[cid]?.name ?? 'Site card', [siteCardRow(cid)], 'sitecard', `Loot the ${data.treasures?.[cid]?.name ?? 'site card'}`));
+        if (opts.includes('runes')) cards.push(card('runes', 'Read runes', [h('p', {}, 'Learn a spell from a site here, or from an artifact or book you carry.')], 'runes', 'Read the runes'));
+        for (const t of opts.filter(x => !['peer', 'locate', 'loot', 'ground', 'sitecard', 'runes'].includes(x))) cards.push(card(t, tableName(t), [], t, tableName(t)));
+        return cards;
+    }
     function hereBlocks() {
         const at = st.ch.at; if (!at || st.ch.onRoad) return [];
         const tile = tileOf(at), n = numOf(at), out = [];
