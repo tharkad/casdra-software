@@ -1452,7 +1452,7 @@ export function gameScreen(ctx) {
         const rep = st.report?.day === day ? st.report : null;
         const sign = n => (n > 0 ? `+${n}` : String(n));
         const chips = rep ? [['Fame', rep.fame], ['Notoriety', rep.notoriety], ['Gold', rep.gold]].filter(x => x[1]) : [];
-        const heads = prev.filter(l => /^You kill |^You die|^Every action chit|^You wound |dies\b|^Loot \(|^You take|^You buy|^You pay|curse/i.test(l.t) || ['loot', 'curse', 'discover'].includes(l.k));
+        const heads = prev.filter(l => !(voice() === 'story' && l.k === 'roll') && (/^You kill |^You die|^Every action chit|^You wound |dies\b|^Loot \(|^You take|^You buy|^You pay|curse/i.test(l.t) || ['loot', 'curse', 'discover'].includes(l.k)));
         const seen = new Set(), result = [];
         for (const l of heads) { const t = logText(l).trim(); if (!seen.has(t)) { seen.add(t); result.push(l); } }
         if (ui.reportPage !== day + ':overview') {
