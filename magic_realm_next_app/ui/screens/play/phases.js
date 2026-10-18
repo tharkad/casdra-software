@@ -8,7 +8,8 @@ import { meetLines, playerOf as playerNameOf } from '../../meet.js';
 import { logText, voice } from '../../voice.js';
 import { act } from './actions.js';
 import { ACT_LABEL, TABLE_LABEL, modal, mrChit } from './kit.js';
-import { spellCard } from './sheet_char.js';
+import { mountSheet } from '../kit/common.js';
+import { learnContent } from '../kit/spells.js';
 import { render } from './shell.js';
 
 // Where a Search will be made, and what the map already shows of sites on this tile: a site in another clearing is not found from here.
@@ -34,7 +35,7 @@ export function phaseResultLine(G, n, fallback = null) {
     if (!l) return fallback ? { text: fallback.replace(/^Phase \d+:\s*/, ''), bad: false } : null;
     const detail = l.t.replace(/^Phase \d+:\s*/, '');
     const bad = /fail to hide|you are seen|nothing at that depth|cancelled|are lost|blocked|no one here|will not|cannot/i.test(detail);
-    return { text: voice() === 'story' ? (l.s ?? detail.replace(/ \(rolled [^)]*\)/, '')) : detail, bad };
+    return { text: voice() === 'story' ? logText(l, G.st) : detail, bad };
 }
 
 export function describeSlot(G, s) {
@@ -78,14 +79,14 @@ export function turnEndSheet(G) {
         : t.closedIn?.length ? `${[...new Set(t.closedIn)].join(', ')} found you after your turn was over, so you are seen. No phase was lost.`
         : t.hidden ? 'Nothing here can be set on you this evening unless you strike first.' : 'Whatever shares your clearing will fight you this evening.';
     const status = h('div', { class: `endstatus ${t.hidden ? 'hidden' : 'seen'}`, 'data-no-turn': t.noTurn ? '1' : null }, h('b', {}, t.noTurn ? 'You have no turn today' : t.hidden ? 'You are hidden' : 'You are in plain sight'), h('small', {}, why),
-        noTurnLine ? h('small', {}, logText(noTurnLine)) : null);
+        noTurnLine ? h('small', {}, logText(noTurnLine, G.st)) : null);
     const callouts = lines.length ? [h('h3', {}, 'At the end of your turn'), ...lines] : [];
     // Blocked by other characters (7.12): told first, in a card of its own, with who did it
     const bl = G.shared && !t.noTurn ? meetLines(G.st, G.st.ch.id).filter(l => l.kind === 'blocked').at(-1) : null;
     const blockCardEl = bl && t.blocked ? h('div', { class: 'phase-result bad meet-result', role: 'status', 'data-meet-result': 'blocked' }, h('div', { class: 'pr-head' }, h('small', {}, 'Blocked')), h('p', { class: 'pr-line' }, voice() === 'story' ? bl.story : bl.text)) : null;
     return modal(G, `End of your turn at ${nameOfClearing(t.at)}`, h('div', { class: 'clearing' },
         blockCardEl, status, summary, ...callouts,
-        h('button', { class: 'btn primary', 'data-act': 'turn-ok', onclick: () => act(G, { type: 'continue' }) }, 'End turn')));
+        h('button', { class: 'btn primary', 'data-act': 'turn-ok', onclick: () => act(G, { type: 'continue' }) }, 'End turn')), { kind: 'result' });
 }
 
 // Prophecy: the details of the phase being chosen (where to, which table, which chit), then it is sent.
@@ -98,7 +99,7 @@ export function pickSheet(G, p) {
         rows.push(h('p', { class: 'hint' }, 'Ready your weapon, or alert a Magic chit (time 0, tires at Midnight if unused).'), h('button', { class: 'btn', onclick: () => send({ act: 'alert' }) }, 'Weapon'),
             ...G.st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active').map(c => h('button', { class: 'btn', 'data-pick-magic': c.id, onclick: () => send({ act: 'alert', magic: c.id }) }, `Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}`)));
     } else rows.push(h('button', { class: 'btn primary', onclick: () => send({ act: act2 }) }, `Do it: ${ACT_LABEL[act2] ?? act2}`));
-    return modal(G, `Phase ${p.i + 1}: ${ACT_LABEL[act2] ?? act2}`, h('div', { class: 'restsheet' }, ...rows), { close: () => { G.ui.pickAct = null; render(G); } });
+    return modal(G, `Phase ${p.i + 1}: ${ACT_LABEL[act2] ?? act2}`, h('div', { class: 'restsheet' }, ...rows), { close: () => { G.ui.pickAct = null; render(G); }, kind: 'decision' });
 }
 
 // Resting: the twelve chits are on the table; tap the one you want back. A chit worth two asterisks needs "change": then tap the ready
@@ -167,21 +168,5 @@ export function restSheet(G, p) {
 }
 
 // Reading Runes found a card he can learn.
-export function learnSheet(G, p) {
-    // Magic Sight (Perceive a spell): all the cards are shown and he may learn one (he does not awaken it)
-    if (p.sight && p.choices?.length) return modal(G, 'Magic Sight: the spells you perceive', h('div', { class: 'itemsheet' },
-        ask(`${p.from ?? 'Magic Sight'}: you see these spell cards.`, 'You may write one of them on your sheet if you hold a Magic chit of its Type. The card stays where it is.'),
-        ...p.choices.map(c => h('button', { class: 'btn', 'data-learn': c.spell, disabled: !c.learnable || null, onclick: () => act(G, { type: 'learn-spell', learn: true, spell: c.spell }) },
-            h('span', { class: 'col' }, h('b', {}, c.name), h('small', {}, `Type ${c.type}${c.color ? ` \u00B7 ${c.color}` : ''}${c.learnable ? '' : ' \u00B7 you cannot learn it'}`)))),
-        h('button', { class: 'btn', onclick: () => act(G, { type: 'learn-spell', learn: false }) }, 'Leave them')));
-    const sp = G.data.spells?.[p.spell];
-    const erase = G.ui.erase ?? null;
-    return modal(G, 'Read the runes', h('div', { class: 'itemsheet' },
-        ask(`${p.from}: the runes show a spell.`, `You hold a Type ${sp?.type} Magic chit, so you may write it on your sheet. The card stays where it is.`),
-        sp ? spellCard(G, sp) : null,
-        p.full ? h('div', { class: 'ask' }, h('b', {}, 'Your sheet is full (14 spells).'), h('p', {}, 'To learn this one you must erase another. Choose which:'),
-            ...(G.st.ch.spells ?? []).map(id => h('button', { class: `btn${erase === id ? ' primary' : ''}`, 'data-erase': id, onclick: () => { G.ui.erase = id; render(G); } }, G.data.spells?.[id]?.name ?? id))) : null,
-        h('div', { class: 'row2' },
-            h('button', { class: 'btn primary', 'data-act': 'learn', disabled: (p.full && !erase) || null, onclick: () => { const e = G.ui.erase; G.ui.erase = null; act(G, { type: 'learn-spell', learn: true, erase: e }); } }, 'Learn it'),
-            h('button', { class: 'btn', 'data-act': 'leave', onclick: () => { G.ui.erase = null; act(G, { type: 'learn-spell', learn: false }); } }, 'Leave it'))));
-}
+// Reading Runes: the runes show a spell (P2: built in screens/kit/spells.js).
+export function learnSheet(G, p) { return mountSheet(G, learnContent(G, p)); }

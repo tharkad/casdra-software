@@ -69,7 +69,7 @@ export function vpNow(G) { try { return G.st.period === 'over' && G.st.ch.dead ?
 
 // The one mutable object of the game screen. Fields:
 //   ctx            the router context (go(), params, saved, state, data)
-//   root, mapBox, strip, dock, tray, layer, mapTools     the screen's DOM: status strip, map, dice tray, dock, sheet layer
+//   root, mapBox, strip, tray (also `dock`), layer, mapTools     the screen's DOM: status strip, map, the tray (the decision layer), sheet layer; mapTools is the one map button
 //   st, data, map  the engine state (a seat's view when online), the loaded game data, the mounted map (see mapview.js)
 //   ui             the UI state bag: sheet, sel, draft, toast, dockOpen... (all plain data; sheets() reads G.ui.sheet to decide what is on screen)
 //   race, conn, standings, inflight, here          online race: the seat, the connection, the standings, a request in flight, presence
@@ -77,14 +77,14 @@ export function vpNow(G) { try { return G.st.period === 'over' && G.st.ch.dead ?
 //                                                   what the others did in plain sight, whether I had a decision last render, my meetings (meet.js)
 //   rec, persistTimer, mySeat, lastHero, table      the game record (engine/gamerecord.js) and its write timer, my seat number, the last tile the map centred on, the table's agreements
 export function newPlayState(ctx) {
-    const mapBox = h('div', { class: 'mapbox gamemap' });
+    const mapBox = h('div', { class: 'ds-map mapbox gamemap' });
+    const tray = h('footer', { class: 'ds-tray gdock' });
     const G = {
         ctx,
-        root: h('main', { class: 'screen game', 'data-screen': 'game' }),
+        root: h('main', { class: 'screen game ds-screen', 'data-screen': 'game' }),
         mapBox,
-        strip: h('header', { class: 'status' }),
-        dock: h('footer', { class: 'gdock' }),
-        tray: h('div', { class: 'tray' }),
+        strip: h('header', { class: 'ds-strip status' }),
+        dock: tray, tray,                                  // (the tray replaced the dock, the dice bar and the drawer: `dock` stays as another name for it)
         layer: h('div', { class: 'layer' }),
         mapTools: null,
         lastHero: null, st: null, data: null, map: null, ui: { sheet: null, sel: null, draft: null, toast: null },
@@ -99,15 +99,10 @@ export function newPlayState(ctx) {
         rec: null, persistTimer: null,
         table: null,
     };
-    G.mapTools = h('div', { class: 'maptools' },
-        h('button', { 'aria-label': 'Centre on me', onclick: () => G.map?.focus(G.st.ch.onRoad ? G.st.ch.onRoad.from : G.st.ch.at) }, '\u25CE'),
-        h('button', { 'aria-label': 'Show the whole realm', onclick: () => G.map?.fit() }, '\u2922'));
-    mapBox.append(G.mapTools);
-    // a tall dock (a result card, a decision) can leave the map too short for two buttons one above the other: then they sit side by side
-    if (typeof ResizeObserver === 'function') new ResizeObserver(() => G.mapTools.classList.toggle('row', mapBox.clientHeight > 0 && mapBox.clientHeight < 112)).observe(mapBox);
-    G.root.append(G.strip, mapBox, G.tray, G.dock, G.layer);
+    // The one map button (bottom right of the map; wireShell puts it on the map once there is a map): the whole realm when the map is zoomed in, the crosshair (back to me) when it is zoomed out; a long press does the other. render() sets its icon.
+    G.mapTools = h('button', { type: 'button', class: 'ds-map-btn', 'data-act': 'fit', 'aria-label': 'Show the whole realm' });
+    G.root.append(G.strip, mapBox, tray, G.layer);
     G.mySeat = (G.race ?? G.shared)?.seat;
     if (G.race) G.ui.sheet = ctx.params?.invited ? 'race' : null;
-    try { if (localStorage.getItem('mr-dock-open') === '0') G.ui.dockOpen = false; } catch { /* ignore */ }
     return G;
 }

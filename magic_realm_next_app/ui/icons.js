@@ -1,7 +1,6 @@
 // icons.js: the design system's icons and art helpers (docs/design/redesign/DESIGN-SYSTEM.md section 5).
 // `I` holds the 24px line-icon path data copied VERBATIM from mockups/ds.js (MR.I): stroke 1.75, round caps, currentColor (the .ds-i rule in css/core.css draws them).
 // Game art comes first: art(path) is any picture under app/art, actIcon(name, size) the 32px pixel action art (art/actions/*.gif) drawn pixelated at 20/24/28/32/48/64.
-// This is NOT the header icon set in screens/play/kit.js (that one stays for the old shell until P0b retires it).
 import { h, sv } from './dom.js';
 
 export const ART = 'art/';

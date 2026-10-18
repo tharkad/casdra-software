@@ -1,6 +1,6 @@
 import { h } from './dom.js';
 import { isStory, voiceChip } from './voice.js';
-import { narrateRoll } from '../engine/story.js';
+import { rollDetail, storyRoll } from './storyvoice.js';
 
 // Dice for the tray, the history sheet and the offer sheets. A roll is { n, day, what, dice, used?, value, result }.
 const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
@@ -19,11 +19,11 @@ export function diceOf(r) {
 }
 
 export function rollRow(r, { compact = false, chip = false } = {}) {
-    const tale = isStory() ? narrateRoll(r) : null;
+    const tale = isStory() ? storyRoll(r) : null;
     return h('div', { class: `rollrow${compact ? ' compact' : ''}${r.what === 'Monster roll' ? ' monster' : ''}${tale ? ' tale' : ''}` },
         h('div', { class: 'rr-what' }, tale ? tale.title : r.what, chip ? voiceChip() : null),
         h('div', { class: 'rr-body' }, diceOf(r),
-            tale ? h('span', { class: 'rr-res' }, tale.line) : r.result ? h('span', { class: 'rr-res' }, r.result) : h('span', { class: 'rr-res dim' }, `counts ${r.value}`)));
+            tale ? h('span', { class: 'rr-res' }, tale.line) : r.result ? h('span', { class: 'rr-res' }, r.result) : h('span', { class: 'rr-res dim' }, rollDetail(r) ?? `counts ${r.value}`)));
 }
 
 export const rollsByIds = (st, ids) => (ids ?? []).map(n => (st.rolls ?? []).find(r => r.n === n)).filter(Boolean);

@@ -3,25 +3,14 @@
    Cascade order is part of the meaning: a rule that overrides an earlier rule of the same specificity must stay in a file that loads after it. Move rules between files
    only with a screenshot diff (tools/ui_snapshots.py). New rules for a screen go at the END of the file that owns it. */
 /* the three recorded totals: a coloured box each, its name sitting on the top border like a fieldset heading */
-.stats { gap: 6px; align-items: center; padding-top: 6px; }
-.statbox { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 46px; height: 32px; padding: 7px 6px 0;
-    border: 2px solid var(--sb, #888); border-radius: 8px; background: color-mix(in srgb, var(--sb, #888) 14%, transparent); }
-.statbox small { position: absolute; top: -8px; left: 4px; padding: 0 3px; line-height: 14px; font-size: 9.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
-    color: var(--sb, #888); background: var(--bg, #0f1117); white-space: nowrap; }
-.statbox b { font-size: 15.5px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
-.statbox.gold { --sb: #e2c068; } .statbox.gold b { color: #f1d27f; }
-.statbox.fame { --sb: #7fb0ea; }
-.statbox.notor { --sb: #e0806a; }
-@media (max-width: 380px) { .stats { gap: 4px; } .statbox { min-width: 42px; padding: 7px 3px 0; } .statbox small { left: 2px; font-size: 8.5px; padding: 0 2px; } .statbox b { font-size: 14px; } .status { gap: 4px; } }
+
+ 
+
 /* keep the whole top bar on screen with three-digit totals */
-.status { gap: 6px; }
-.status .back { width: 38px; }
+
 .bugbtn { width: 36px; height: 36px; font-size: 18px; }
-button.daybox { min-width: 0; overflow: hidden; padding: 0 2px; }
-.daybox span { overflow: hidden; text-overflow: ellipsis; }
-.daybox b { font-size: 16px; letter-spacing: .05em; }
+
 @media (max-width: 400px) { .bugbtn { display: none; } }
-@media (max-width: 380px) { .vpchip { min-width: 40px; padding: 0 5px; } }
 
 /* the connector from a displaced name to its clearing: thin, from the edge of the circle */
 .realm-svg .leader { stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: round; opacity: .95; }
@@ -31,14 +20,6 @@ button.daybox { min-width: 0; overflow: hidden; padding: 0 2px; }
 .realm-svg .leader.site, .realm-svg .leader.sound, .realm-svg .leader.more { stroke: #d2c2ee; }
 
 /* planning on a phone: a short panel whose middle scrolls, so the map keeps most of the screen */
-.planpanel { max-height: 34vh; gap: 6px; }
-.plan-head { min-height: 28px; }
-.plan-head .x { height: 28px; }
-.ptab { min-height: 40px; }
-.plan-nav .btn { min-height: 44px; font-size: 17px; }
-.plan-step { gap: 6px; }
-@media (max-height: 700px) { .planpanel { max-height: 40vh; } }
-.tray[hidden] { display: none; }
 
 /* a phone turned on its side: the layout is for portrait only, so a cover asks for it to be turned back (the game underneath is untouched) */
 #turnup { display: none; }
@@ -81,8 +62,7 @@ button.daybox { min-width: 0; overflow: hidden; padding: 0 2px; }
 .realm-svg .pill.disc rect { stroke: #f1d27f; stroke-width: 2.4; }
 
 /* what was just found, and the pile at a site drawn top first */
-.gainbar.find { border-color: #8fb7e8; background: linear-gradient(180deg, rgba(143, 183, 232, .20), rgba(80, 120, 180, .10)); box-shadow: 0 0 0 1px #000, 0 0 18px rgba(143, 183, 232, .25); }
-.gainbar.find .gl, .gainbar.find .chev { color: #8fb7e8; }
+
 .lootstack { margin: 8px 0 4px; padding: 8px; border-radius: 12px; background: rgba(0, 0, 0, .25); border: 1px solid var(--line, #3a4258); }
 .ls-head { font-size: 11px; letter-spacing: .14em; font-weight: 700; color: #e2c068; display: flex; flex-direction: column; gap: 1px; margin-bottom: 6px; }
 .ls-head small { letter-spacing: 0; font-weight: 400; color: var(--dim); }
@@ -100,76 +80,37 @@ button.daybox { min-width: 0; overflow: hidden; padding: 0 2px; }
 .ls-spells { display: flex; flex-direction: column; gap: 1px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line, #3a4258); font-size: 13px; }
 
 /* curses: always in view while they last */
-.cursebar { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; margin: 0 0 6px; border-radius: 12px; text-align: left; cursor: pointer;
-    background: linear-gradient(180deg, rgba(150, 40, 60, .38), rgba(90, 20, 40, .30)); border: 2px solid #d0506a; color: var(--text); box-shadow: 0 0 14px rgba(208, 80, 106, .30); }
-.cursebar .skull, .gainbar.curse .skull, .curserow .skull { font-size: 28px; color: #ff8aa0; flex: none; line-height: 1; }
-.cursebar .rl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.cursebar .gl, .gainbar.curse .gl { color: #ff8aa0; letter-spacing: .14em; font-size: 11px; font-weight: 700; }
-.cursebar .cl { font-size: 14px; line-height: 1.25; }
-.cursebar .chev, .gainbar.curse .chev { font-size: 28px; color: #ff8aa0; flex: none; line-height: 1; }
-.gainbar.find.curse { border-color: #d0506a; background: linear-gradient(180deg, rgba(150, 40, 60, .42), rgba(90, 20, 40, .30)); box-shadow: 0 0 0 1px #000, 0 0 20px rgba(208, 80, 106, .4); }
-.daybox .cursedmark { font-style: normal; color: #ff8aa0; margin-left: 4px; }
+
+.curserow .skull { font-size: 28px; color: #ff8aa0; flex: none; line-height: 1; }
+
 .chip.cursed { border-color: #d0506a; text-decoration: line-through; }
 .curserow { display: flex; gap: 12px; align-items: flex-start; padding: 8px 10px; margin: 6px 0; border-left: 4px solid #d0506a; background: rgba(150, 40, 60, .15); border-radius: 8px; }
 .curserow p { margin: 2px 0 0; }
 
 /* a number a curse has made worthless: shown, struck through */
 .repchip.void, s.void { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: #ff8aa0; }
-.statbox.void { opacity: .65; border-color: #d0506a; }
+
 .repchip.void { opacity: .7; }
 
 /* ---- the top bar, redrawn: one flat bar, icon and number, one score, no boxes ---- */
-.status { min-height: 56px; gap: 4px; padding: 0 var(--gutter); background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 92%, #fff 8%), var(--bg)); border-bottom: 1px solid color-mix(in srgb, var(--gold, #c9a24a) 35%, transparent); }
-.status .back { width: 40px; height: 44px; margin: 0 0 0 -10px; display: grid; place-items: center; color: var(--text); opacity: .85; }
-.status .back svg { display: block; }
-button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border: 0; border-radius: 0; background: none; box-shadow: none; display: flex; flex-direction: column; gap: 2px; text-align: left; overflow: visible; cursor: pointer; }
-.daybox.magic { box-shadow: none; border-radius: 0; }
-.daybox b { display: flex; align-items: baseline; gap: 2px; font-family: var(--font-display); font-size: 18px; letter-spacing: .06em; line-height: 1.05; text-transform: uppercase; white-space: nowrap; }
-.daybox b small { font-size: 12px; color: var(--dim); letter-spacing: .02em; text-transform: none; }
-.daybox span { display: flex; align-items: center; gap: 5px; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); white-space: nowrap; overflow: visible; }
-.daybox .mdot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, .45); flex: none; }
-.daybox .cursedmark { display: inline-flex; align-self: center; margin-left: 6px; color: #ff6f8c; }
-.daybox .cursedmark svg { display: block; }
-.stats { gap: 14px; align-items: center; padding: 0 4px; border: 0; background: none; }
-.statbox { display: inline-flex; align-items: center; gap: 5px; min-width: 0; height: auto; padding: 0; border: 0; border-radius: 0; background: none; color: var(--sb); }
-.statbox small { display: none; }
-.statbox b { font-size: 17px; font-weight: 700; letter-spacing: .01em; color: var(--text); font-variant-numeric: tabular-nums; }
-.statbox svg { display: block; flex: none; }
-.statbox.gold { --sb: #e2c068; } .statbox.fame { --sb: #7fb0ea; } .statbox.notor { --sb: #e0806a; }
-.statbox.gold b { color: #f1d27f; }
-.statbox.void { opacity: .6; border: 0; }
-.vpchip { align-self: stretch; min-width: 0; height: auto; margin-left: 4px; padding: 0 0 0 12px; border: 0; border-left: 1px solid var(--line); border-radius: 0; background: none; align-items: flex-end; justify-content: center; gap: 1px; }
-.vpchip small { font-size: 10px; letter-spacing: .16em; color: var(--dim); }
-.vpchip b { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.vpchip.neg b { color: #f08a8a; }
+
+  
+
 /* the Gold / Fame / Notoriety button is the tap area for the sheet: it fills the bar's height (at least 44px) instead of hugging its numbers */
-.status .stats { align-self: stretch; min-height: 44px; }
-@media (max-width: 400px) { .stats { gap: 10px; } .statbox b { font-size: 16px; } .daybox b { font-size: 16px; } .vpchip { padding-left: 8px; } .daybox span { letter-spacing: .1em; } }
-@media (max-width: 360px) { .stats { gap: 7px; } .statbox svg { width: 15px; height: 15px; } }
+
 .bugbtn { display: none; }
 
 /* ---- the drawer: a grabber, what explains (slides away), what you press (stays) ---- */
-.gdock { padding: 0; gap: 0; border-top: 1px solid var(--line); box-shadow: 0 -10px 18px -14px rgba(0, 0, 0, .8); }
+
 .grab { display: flex; flex: none; flex-direction: column; align-items: center; gap: 3px; width: 100%; min-height: 36px; padding: 8px var(--gutter) 6px; border: 0; background: none; color: var(--dim); cursor: grab; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .grab:active { cursor: grabbing; }
 .grab .grip { flex: none; width: 38px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--text) 38%, transparent); }
 .grab .peek { display: none; align-items: center; gap: 8px; font-size: 13px; letter-spacing: .04em; padding: 3px 0 1px; }
-.gdock.closed .grab .peek { display: flex; }
+
 .grab .badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #e2c068; color: #1b1608; font-size: 11px; font-weight: 800; display: inline-grid; place-items: center; }
 .grab .chev { font-size: 15px; line-height: 1; transform: translateY(1px); color: var(--dim); }
-.dock-body { overflow: hidden; height: auto; transition: height .26s cubic-bezier(.2, .8, .2, 1); }
-.dock-body.dragging { transition: none; }
-.dock-body.closed { height: 0; visibility: hidden; }
-.dock-inner { display: flex; flex-direction: column; gap: 8px; padding: 4px var(--gutter) 8px; max-height: 46vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-.dock-actions { padding: 4px var(--gutter) calc(10px + env(safe-area-inset-bottom, 0px)); }
-.dock-actions .btn { width: 100%; }
-@media (prefers-reduced-motion: reduce) { .dock-body { transition: none; } }
-.dock-plan { padding: 8px var(--gutter) calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; }
-.dock-inner .lastlog { max-height: none; overflow: visible; }
+
 /* the pinned action buttons: tall enough for a thumb, no taller */
-.dock-actions .btn, .dock-actions .btn.big { min-height: 46px; padding: 0 16px; font-size: 18px; border-radius: 12px; }
-.dock-actions .row2 { gap: 8px; }
-.plan-nav .btn { min-height: 46px; width: 100%; }
 
 /* the quiet evening that stops to ask about a spell */
 .quiet { padding: 4px 2px 2px; }
@@ -186,24 +127,15 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .quiet-h { margin-top: 6px; }
 
 /* ---- one sheet pattern: grabber, title, body; pulled down, tapped away or crossed out ---- */
-.sheet-bg { animation: scrim-in .18s ease-out; }
-.sheet2 { animation: sheet-up .22s cubic-bezier(.2, .8, .2, 1); will-change: transform; }
-.sheet-top { position: sticky; top: -12px; z-index: 2; margin: -12px calc(-1 * var(--gutter)) 0; padding: 0 var(--gutter); background: var(--panel); }
-.sheet-grab { display: grid; place-items: center; height: 24px; margin: 0 calc(-1 * var(--gutter)); cursor: grab; }
-.sheet-grab .grip, .planpanel .sheet-grab .grip { width: 38px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--text) 38%, transparent); }
-.planpanel .sheet-grab { height: 20px; margin: -4px 0 -2px; }
-.sheet2-head { min-height: 44px; }
+
 @keyframes sheet-up { from { transform: translateY(28px); opacity: .6; } to { transform: none; opacity: 1; } }
 @keyframes scrim-in { from { background: rgba(5, 6, 10, 0); } }
-@media (prefers-reduced-motion: reduce) { .sheet2, .sheet-bg { animation: none; } }
 
 /* a belonging in the list: its name, one compact switch and a quiet Leave, all on one line */
 .itemrow { grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; }
 .itemrow .btn.row { margin-top: 0; width: auto; }
 .itemrow .switch { align-self: center; height: 38px; min-width: 84px; padding: 0 12px; border-radius: 19px; font-size: 14px; }
-.itemrow .leavebtn { align-self: center; height: 38px; min-width: 0; margin: 0; padding: 0 6px; border: 0; background: none; color: var(--dim); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
 .itemrow { grid-template-columns: 1fr auto; }
-.sheet2 .btn.leave { color: var(--dim); }
 
 /* the menu is a list: left-aligned rows with a chevron, hairlines between, the one destructive row set apart */
 .menulist { display: flex; flex-direction: column; margin: 4px calc(-1 * var(--gutter)) 0; }
@@ -214,15 +146,8 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .menulist .mrow .chev { color: var(--dim); font-size: 22px; line-height: 1; flex: none; }
 .menulist .mrow.danger { color: #f08a8a; }
 .menulist h4 { margin: 16px var(--gutter) 4px; font-family: var(--font-display); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); font-weight: 400; }
-.itemsheet .row2 { align-items: stretch; } .itemsheet .row2 .btn, .itemsheet .row2 .switch.big { height: 48px; min-height: 48px; margin-top: 0; }
 
 /* a total with its recorded part under it */
-.statbox .sv { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.05; }
-.statbox.two b { font-size: 16px; }
-.statbox .sv small { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; margin-top: 1px; }
-.statbox.void .sv b { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: #ff8aa0; }
-.statbox .sv small { display: block; }
-.statbox .sv small { position: static; top: auto; left: auto; padding: 0; background: none; line-height: 1.1; text-transform: none; letter-spacing: 0; font-weight: 400; }
 
 /* the evening meeting's results: first on every combat step */
 .cb-results { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px; }
@@ -249,11 +174,6 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .goalbar i { border-radius: 6px 0 0 6px; }
 .goalbar::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 2px; background: color-mix(in srgb, var(--text) 55%, transparent); }
 
-
-.prowl .weekend { display: block; margin-top: 3px; font-size: 13px; color: var(--dim); font-weight: 400; }
-@media (max-height: 720px) { .maptools { gap: 6px; } .maptools button { width: 38px; height: 38px; font-size: 19px; } }
-@media (max-height: 720px) { .dock-inner { max-height: 34vh; } }
-
 /* ---- readable descriptions: body text in boxes is never smaller than 14px, and what a creature's numbers mean is said in words ---- */
 .foe { padding: 10px 12px; gap: 3px; }
 .foe b, .cb-foes .foe b { font-size: 18.5px; line-height: 1.15; }
@@ -274,24 +194,18 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .ask p { font-size: 15.5px; line-height: 1.4; } .ask b { font-size: 16.5px; }
 .ask.compact p { font-size: 14.5px; } .ask.compact b { font-size: 15.5px; }
 .card-stats, .card-note, .pitnote .pitrow { font-size: 15px; }
-.btn .col small, .btn.row .rl small, .itemrow .rl small, .spellrow .rl small, .castcard small, .menulist .mrow small { font-size: 14px; }
-.where2 em, .slot-head span, .planbar-main small, .scorerow2 .hint { font-size: 14.5px; }
+.btn .col small, .btn.row .rl small, .itemrow .rl small, .castcard small, .menulist .mrow small { font-size: 14px; }
+.scorerow2 .hint { font-size: 14.5px; }
 .sc-key, .sc-title small, .sc-title em, .sc-guard small, .sc-t small, .sc-treasure > small, .sc-spell, .sc-need, .sc-good, .sc-chip { font-size: 14px; }
 .ls-label, .ls-card, .ls-spells, .ls-note, .ls-spells small, .ls-r { font-size: 14px; }
-.rr-what, .histrow small, .lane-h small, .lane-foe, .cb-results .res-h, .cb-results .res-pill, .gainbar em, .gainbar small, .gainbar .gl { font-size: 14px; }
+.rr-what, .histrow small, .lane-h small, .lane-foe, .cb-results .res-h, .cb-results .res-pill { font-size: 14px; }
 .sr-math summary, .sr-idle summary, .storysheet summary, .res-dice summary, .storysheet .sx { font-size: 14.5px; }
-.ptab small, .chit2 small, .tag { font-size: 12.5px; }
+.chit2 small, .tag { font-size: 12.5px; }
 .grab .peek { font-size: 14px; }
 
-/* the last round: told first, in a few sentences; the full lines fold away */
-.cb-last .cb-synopsis { margin: 4px 0 8px; font-family: var(--font-text); font-size: 18px; line-height: 1.4; color: var(--text); }
-.cb-last .cb-steps summary { color: var(--dim); font-size: 14.5px; cursor: pointer; padding: 4px 0; }
-.cb-last .cb-steps p { font-size: 15px; line-height: 1.35; margin: 3px 0; color: var(--dim); }
-.cb-last .cb-steps p.hd { color: var(--text); margin-top: 8px; }
 
 /* the dice tray is a row: the roll (a button that opens the dice) and the Story / Detail switch */
-.tray { cursor: default; gap: 6px; }
-.tray-main { flex: 1; min-width: 0; text-align: left; border: 0; background: none; color: inherit; padding: 0; cursor: pointer; }
+
 .voicechip { display: inline-flex; flex: none; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-size: 12.5px; letter-spacing: .02em; }
 .voicechip .vc { border: 0; background: transparent; color: var(--dim); padding: 4px 9px; min-height: 30px; cursor: pointer; font: inherit; }
 .voicechip .vc.on { background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--gold); }
@@ -299,23 +213,17 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .rollrow.tale .rr-res { font-family: var(--font-text); font-size: 17px; line-height: 1.3; font-style: italic; }
 
 .res-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.cb-last .res-head b { font-size: 15px; }
 .cb-results .res-verdict.tale { font-family: var(--font-text); font-style: italic; font-size: 17.5px; }
 .cb-results .res-dice { display: flex; flex-direction: column; gap: 4px; }
-.cb-last .cb-steps { margin-top: 4px; }
 
 /* a phase the rules have already decided */
-.roadlock { border: 1px solid #e2c068; border-radius: 12px; padding: 10px 12px; background: color-mix(in srgb, #e2c068 10%, transparent); display: flex; flex-direction: column; gap: 6px; }
-.roadlock .rl-head { display: flex; align-items: center; gap: 8px; color: #e2c068; }
-.roadlock p { margin: 0; font-size: 15.5px; line-height: 1.4; }
+
 /* the two road ends are full-width rows: a place name with its number never splits across two lines */
-.roadlock .row2 { grid-template-columns: 1fr; }
-.ptab small svg { vertical-align: -1px; margin-right: 2px; }
 
 /* ---- online: the Play online screen, the race standings, and the "someone is here" dot ---- */
 .pdot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #5b6275; flex: none; }
 .pdot.on { background: #58c98b; box-shadow: 0 0 0 3px rgba(88, 201, 139, .22); }
-.status .back { position: relative; }
+
 .pdot.corner { position: absolute; top: 8px; right: 4px; width: 9px; height: 9px; }
 .racelist { display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; }
 .raceplayer { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
@@ -327,25 +235,17 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .btn[hidden] { display: none; }
 
 /* ---- spells in effect ---- */
-.spellbar { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; margin: 0 0 6px; border-radius: 12px; text-align: left; cursor: pointer; color: var(--text);
-    background: linear-gradient(180deg, rgba(110, 96, 190, .30), rgba(60, 50, 120, .24)); border: 1.5px solid var(--arcane); }
-.spellbar .rl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.spellbar .gl { color: var(--arcane); letter-spacing: .14em; font-size: 11px; font-weight: 700; }
-.spellbar .cl { font-size: 14px; line-height: 1.25; }
-.spellbar .chev { font-size: 28px; color: var(--arcane); flex: none; line-height: 1; }
+
 .cursesheet .curserow .skull { color: var(--arcane); }
 .blocked-spells summary { cursor: pointer; }
-.cursesheet .curserow.fxrow { border-left-color: var(--arcane); background: rgba(110, 96, 190, .14); }
 
 /* ---- character cards in the new-game list: who likes him, what he is good at ---- */
 .relnames { color: var(--text); min-width: 0; }
 .spellacts { display: flex; flex-direction: column; gap: 6px; margin: 0 0 6px; } .spellact { width: 100%; justify-content: flex-start; text-align: left; border-color: var(--arcane); }
-.pickrow { display: flex; flex-wrap: wrap; gap: 8px; } .pickrow .btn { flex: 1 1 30%; }
-.formbar { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; margin: 0 0 6px; border-radius: 12px; border: 1.5px solid var(--gold); background: rgba(217, 180, 90, .12); }
-.formbar .gl { color: var(--gold); letter-spacing: .14em; font-size: 11px; font-weight: 700; }
-.formbar span { font-size: 14px; color: var(--dim); }
-.formbar.mist { border-color: #9aa0aa; background: rgba(154, 160, 170, .12); } .formbar.mist .gl { color: #c9ced8; }
-.formbar.fly { border-color: #7fb4e8; background: rgba(127, 180, 232, .12); } .formbar.fly .gl { color: #9cc8f2; }
+ 
+
+ 
+ 
 .morphname { display: block; font-size: 10px; line-height: 1.1; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .morphnote b { text-transform: none; }
 
@@ -368,7 +268,6 @@ button.daybox, .daybox { flex: 1 1 auto; min-width: 0; padding: 4px 6px; border:
 .sr-part { display: flex; justify-content: space-between; gap: 12px; padding: 5px 2px 5px 18px; font-size: 14.5px; border-bottom: 1px solid rgba(255,255,255,.06); }
 .sr-part b { font-variant-numeric: tabular-nums; }
 .sr-part.total { border-bottom: 0; color: var(--gold, #e3c36a); }
-.sheet2 .peekmap { border: 1px solid var(--gold-deep); background: none; color: var(--gold, #e3c36a); border-radius: 999px; padding: 6px 16px; font-family: var(--font-display); font-size: 14px; letter-spacing: .08em; cursor: pointer; }
 
 /* Encounter-step belongings (CE-01): name, switch, leave */
 .gearrow { grid-template-columns: 1fr auto auto; }
@@ -422,8 +321,7 @@ details.here-block summary { cursor: pointer; font-family: var(--font-display); 
 .ti-body em { font-style: normal; font-variant-numeric: tabular-nums; color: var(--gold, #e3c36a); }
 .ti-i { color: var(--dim); width: 16px; text-align: center; }
 .ti-info { padding: 6px 12px 12px; border-top: 1px solid rgba(255,255,255,.08); }
-.sheet2.has-footer { overflow: hidden; padding-bottom: 0; gap: 0; }
-.sheet2.has-footer .sheet-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px; }
+
 .trade-bar { flex: none; margin: 0 calc(-1 * var(--gutter, 16px)); padding: 10px var(--gutter, 16px) calc(10px + var(--safe-b)); background: var(--panel); border-top: 1px solid var(--gold-deep); }
 .trade-bar .tb-sum { margin: 0 0 8px; font-size: 16px; }
 .trade-bar .tb-actions { gap: 10px; } .trade-bar .tb-actions .btn { flex: 1; margin: 0; width: auto; }

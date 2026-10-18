@@ -1,4 +1,4 @@
-// play/sheets.js: which sheet or card is on screen: sheets() decides, from the pending question and G.ui.sheet, what the layer shows; diceSheet is the dice and Monster roll sheet.
+// play/sheets.js: which sheet or card is on screen: sheets() decides, from the pending question and G.ui.sheet, what the layer shows; the Journal is journal.js.
 import { nameOf } from '../../../engine/items.js';
 import { nameOfClearing, tileName } from '../../../engine/world.js';
 import { ask } from '../../ask.js';
@@ -9,22 +9,33 @@ import { HELP } from '../info.js';
 import { meetSheet, offerSheet } from '../meetui.js';
 import { endOptionSheet, leaveSheet, quitSheet } from '../tableui.js';
 import { abandon, act } from './actions.js';
-import { combatHost, sharedFightHost } from './combat.js';
+import { combatHost, fightBeat, sharedFightHost } from './combat.js';
 import { mc, modal, tc } from './kit.js';
 import { effortSheet, learnSheet, pickSheet, restSheet, tableName, turnEndSheet } from './phases.js';
-import { logSheet, overSheet, reportSheet } from './results.js';
+import { overSheet, reportSheet } from './results.js';
+import { journalSheet } from './journal.js';
 import { drawSheet, fightOverSheet, playersSheet, sharedOverSheet, sharedRestartSheet } from './shared.js';
-import { cardInfoSheet, charSheet, cursesSheet, itemSheet, spellSheet, spellsSheet } from './sheet_char.js';
+import { cardInfoSheet, charSheet, cursesSheet, itemSheet, slotSheet, spellSheet, spellsSheet } from './sheet_char.js';
 import { clearingSheet, hereBlocks, searchCards } from './sheet_clearing.js';
 import { bugSheet, calendarSheet, menuSheet, raceSheet, scoreSheet, setupCardSheet } from './sheet_info.js';
 import { hireSheet, tradeSheet } from './sheet_trade.js';
-import { prowlers, render } from './shell.js';
+import { render } from './shell.js';
 import { setWelcomed, vpNow, welcomed } from './state.js';
 
 // ---- sheets ----
-export function sheets(G) {
+// A look at the belongings, the Journal, the menu, the calendar... while a question waits on a sheet: the question stays where it is (under the scrim) and the look opens over it;
+// closing the look gives the question back. (A fight, the draw and the other full-screen things have their own hosts and are not covered.)
+const LOOKS = new Set(['char', 'menu', 'calendar', 'score', 'journal', 'dice', 'log', 'curses', 'spells', 'spell', 'item', 'cardinfo', 'key', 'help', 'tables', 'setupcard', 'card']);
+const QUESTIONS = new Set(['turn-end', 'rest', 'search-table', 'search-choice', 'effort-cost', 'runes-target', 'learn-spell', 'enchant-choice', 'trade', 'trade-offer', 'hire', 'hire-offer']);
+
+export function sheets(G, lookOnly = false) {
+    if (!lookOnly && LOOKS.has(G.ui.sheet) && QUESTIONS.has(G.st.pending?.type)) {
+        const look = G.ui.sheet; G.ui.sheet = null;
+        let under; try { under = sheets(G); } finally { G.ui.sheet = look; }
+        return [...under, ...sheets(G, true)];
+    }
     const out = [];
-    const p = G.st.pending;
+    const p = lookOnly ? null : G.st.pending;
     if (G.ui.sheet === 'bug') { out.push(bugSheet(G)); return out; }
     if (G.shared && G.ui.sheet === 'draw') { out.push(drawSheet(G)); return out; }
     if (G.shared && p?.type === 'restart') { out.push(sharedRestartSheet(G, p)); if (G.ui.sheet === 'menu') out.push(menuSheet(G)); return out; }
@@ -32,9 +43,9 @@ export function sheets(G) {
     if (G.shared && G.ui.sheet === 'fightover') { out.push(fightOverSheet(G)); return out; }
     // A shared fight: a seat that is in it (or was, and watches) gets the shared frame; the map is one tap away at every step. Anyone else only sees the banner in the dock.
     if (G.shared && G.st.battle?.members?.[G.st.ch.id] && sharedFightHost(G, out)) return out;
-    if (p?.type?.startsWith('combat')) { combatHost(G, out); return out; }
+    if (p?.type?.startsWith('combat') || fightBeat(G)) { combatHost(G, out); return out; }
     if (G.ui.peek && G.ui.sel && p?.type === 'plan') { out.push(clearingSheet(G)); return out; }
-    if (G.ui.mapPeek && G.ui.sheet === 'clearing' && G.ui.sel) { out.push(clearingSheet(G)); return out; }       // a clearing looked at while a decision waits: close it to come back to the bar
+    const lookAt = G.ui.mapPeek && G.ui.sheet === 'clearing' && G.ui.sel;       // a clearing looked at while a decision waits (the decision sheet is peeked): it opens over the bar
     if (p?.type === 'turn-end') out.push(turnEndSheet(G));
     else if (p?.type === 'turn-end') out.push(turnEndSheet(G));
     else if (p?.type === 'rest') out.push(restSheet(G, p));
@@ -78,9 +89,10 @@ export function sheets(G) {
         h('p', {}, h('b', {}, 'Then the day plays out'), ', a phase at a time, and anything you meet is called out by the chits you turn up.'),
         h('p', {}, h('b', {}, 'Each evening'), ' you fight whoever shares your clearing, playing your chits in secret.'),
         h('p', { class: 'hint' }, 'Tap your gold, Fame and Notoriety for your chits and gear. The menu has the map key and a short guide.'),
-        h('button', { class: 'btn primary', 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }, 'Begin'))));
+        h('button', { class: 'btn primary', 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }, 'Begin')), { kind: 'result' }));
     else if (p?.type === 'plan' && G.st.day > 1 && G.ui.reportedDay !== G.st.day && G.ui.sheet !== 'plan') out.push(reportSheet(G));
     else if (G.ui.sheet === 'char') out.push(charSheet(G));
+    else if (G.ui.sheet === 'slot') out.push(slotSheet(G));
     else if (G.ui.sheet === 'clearing' && G.ui.sel) out.push(clearingSheet(G));
     else if (G.ui.sheet === 'menu') out.push(menuSheet(G));
     else if (G.ui.sheet === 'confirm-abandon' && !G.race) out.push(modal(G, 'Abandon this game?', h('div', { class: 'confirmbox' },
@@ -96,11 +108,10 @@ export function sheets(G) {
     else if (G.ui.sheet === 'over' && G.shared) out.push(sharedOverSheet(G));
     else if (G.ui.sheet === 'over' || G.ui.restartVp) out.push(overSheet(G));
     else if (G.ui.sheet === 'card') out.push(modal(G, G.st.ch.name, h('div', {}, G.data.art?.cards?.[G.st.ch.id] ? h('img', { class: 'cardpic', src: G.data.art.cards[G.st.ch.id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
-    else if (G.ui.sheet === 'dice') out.push(diceSheet(G));
+    else if (G.ui.sheet === 'journal' || G.ui.sheet === 'dice' || G.ui.sheet === 'log') out.push(journalSheet(G));
     else if (G.ui.sheet === 'tables') out.push(modal(G, 'Tables', h('div', { class: 'tables' },
         ...[['Meeting Table', 'meetingTable'], ['Search table', 'searchTable'], ['Missile table', 'missileTable'], ['Power of the Pit', 'pitTable']].filter(([, k]) => G.data.art?.misc?.[k])
             .flatMap(([t, k]) => [h('h3', {}, t), h('img', { class: 'tablepic', src: G.data.art.misc[k], alt: t })])), { close: () => { G.ui.sheet = null; render(G); } }));
-    else if (G.ui.sheet === 'log') out.push(logSheet(G));
     else if (G.ui.sheet === 'setupcard') out.push(setupCardSheet(G));
     else if (G.ui.sheet === 'item') out.push(itemSheet(G));
     else if (G.ui.sheet === 'cardinfo') out.push(cardInfoSheet(G));
@@ -116,17 +127,6 @@ export function sheets(G) {
             ['? on a dotted line', 'A hidden path or secret passage printed on the tile that you have not discovered yet: you cannot use it until you do'],
             ['\u25C7', 'You: solid when you are seen, hollow when you are hidden']].map(([k, t]) => h('p', {}, h('b', {}, k), ' ', t))), { close: () => { G.ui.sheet = null; render(G); } }));
     else if (G.ui.sheet === 'help') out.push(modal(G, 'How to play', h('div', {}, ...HELP.flatMap(([t, x]) => [h('h3', {}, t), h('p', {}, x)])), { close: () => { G.ui.sheet = null; render(G); } }));
+    if (lookAt && out.length) out.push(clearingSheet(G));
     return out;
-}
-
-export function diceSheet(G) {
-    const rolls = [...(G.st.rolls ?? [])].reverse().slice(0, 30);
-    const mon = G.st.prowl ? h('div', { class: 'monroll' },
-        h('b', {}, `Today's Monster roll: ${G.st.prowl}`),
-        h('p', {}, `Monsters of row ${G.st.prowl} prowl today. At the end of your turn any that are in your tile come to you, and chits that turn up can call more.`),
-        h('p', { class: 'prowlers' }, prowlers(G).join(', ') || 'None of them are left in the realm.')) : null;
-    return modal(G, 'Dice', h('div', { class: 'dicesheet' }, mon,
-        h('h3', {}, 'Your rolls'),
-        ...(rolls.length ? rolls.map(r => h('div', { class: 'histrow' }, h('small', {}, `Day ${r.day}`), rollRow(r))) : [h('p', { class: 'hint' }, 'Nothing has been rolled yet.')])),
-        { close: () => { G.ui.sheet = null; render(G); } });
 }

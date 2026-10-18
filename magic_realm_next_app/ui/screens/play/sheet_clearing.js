@@ -221,5 +221,5 @@ export function clearingSheet(G) {
     return modal(G, nameOfClearing(id), h('div', { class: 'clearing' },
         h('p', { class: 'hint' }, mtn),
         ...sections.flatMap(([title, rows]) => [h('h3', {}, title), ...rows])),
-        { close: () => { if (G.ui.peek) { G.ui.peek = false; G.ui.sel = null; } else { G.ui.sheet = null; G.ui.sel = null; } render(G); } });
+        { close: () => { if (G.ui.peek) { G.ui.peek = false; G.ui.sel = null; } else { G.ui.sheet = null; G.ui.sel = null; } render(G); }, detent: 'half', eyebrow: 'Clearing' });
 }

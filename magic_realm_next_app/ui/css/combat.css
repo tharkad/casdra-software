@@ -1,4 +1,5 @@
-/* css/combat.css: The first combat screen (screens/combatui.js).
+/* css/combat.css: The first combat screen (screens/combatui.js). P1 retired the solo fight from it (the combat scene, css/ds-combat.css); what is left here is the SHARED fight's step screens (screens/sharedfight.js
+   re-uses combatui.js) and goes with P6.
    The css/ files are CONTIGUOUS SLICES of the old single styles.css, loaded by index.html in this order (base, front, shell, combat, map, plan, sheets, play, shared).
    Cascade order is part of the meaning: a rule that overrides an earlier rule of the same specificity must stay in a file that loads after it. Move rules between files
    only with a screenshot diff (tools/ui_snapshots.py). New rules for a screen go at the END of the file that owns it. */
@@ -15,8 +16,6 @@
 .foe { border: 1px solid #5a2f2f; background: #241519; border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; font-size: 15px; }
 .foe b { font-size: 17px; } .foe span { color: var(--dim); } .foe em { font-style: normal; color: #ff9c8a; }
 .foe.target { border-color: var(--gold); }
-.cb-last { border-left: 3px solid var(--gold-deep); padding: 4px 10px; background: rgba(217, 180, 90, .06); }
-.cb-last p { margin: 2px 0; font-size: 15.5px; font-family: var(--font-text); }
 .cb-body { display: flex; flex-direction: column; gap: 10px; }
 .cb-body h3 { margin: 4px 0 0; font-family: var(--font-display); font-size: 15px; letter-spacing: .1em; text-transform: uppercase; }
 .cb-sec { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--panel); }

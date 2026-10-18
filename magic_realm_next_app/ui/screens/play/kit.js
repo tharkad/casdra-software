@@ -1,6 +1,8 @@
-// play/kit.js: building blocks shared by every play module: the icon set, the sheet frame (modal), pull-down gesture, item pictures, magic-colour chips, the context objects
+// play/kit.js: building blocks shared by every play module: the sheet frame (modal, over ds.js sheet()), pull-down gesture, item pictures, magic-colour chips, the context objects
 // (mc, tc) handed to meetui.js / tableui.js, and the constants (curse texts, action labels) the plan, dock and sheets all read.
 import { h } from '../../dom.js';
+import { btn, setDetent, sheet } from '../../ds.js';
+import { icon as dsIcon } from '../../icons.js';
 import { act } from './actions.js';
 import { itemParts } from './sheet_char.js';
 import { render } from './shell.js';
@@ -16,27 +18,6 @@ export const CURSE_PLAIN = {
     Ashes: 'Your gold is worthless: you cannot spend it, so you cannot buy, hire or pay.',
     Disgust: 'Your Fame is worthless: you cannot lose it, so paying an insult in Fame is not possible and Challenges mean a fight.',
 };
-
-// The header's icons: one family (24 grid, 1.8 round stroke, currentColor) so they read as a set.
-const ICON = {
-    menu: ['M4 7h16', 'M4 12h16', 'M4 17h16'],
-    coin: ['M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z', 'M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6z'],
-    fame: ['M12 3.2l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.5l6.1-.7z'],
-    notor: ['M12 3c.8 3.4 5 5.4 5 10a5 5 0 0 1-10 0c0-2 1-3.2 2.2-4.2 0 2 .9 3 1.9 3 .2-3-1.1-5 .9-8.8z'],
-    lock: ['M7.5 11V8a4.5 4.5 0 0 1 9 0v3', 'M6 11h12v9H6z', 'M12 14.5v2'],
-    skull: ['M12 3.5a7 7 0 0 0-7 7c0 2.4 1.2 4.2 3 5.3v3.2h8v-3.2c1.8-1.1 3-2.9 3-5.3a7 7 0 0 0-7-7z', 'M9 11.2h.01', 'M15 11.2h.01', 'M10.5 19v-2.2', 'M13.5 19v-2.2'],
-};
-
-export function icon(name, size = 18) {
-    const ns = 'http://www.w3.org/2000/svg', el = document.createElementNS(ns, 'svg');
-    el.setAttribute('viewBox', '0 0 24 24'); el.setAttribute('width', size); el.setAttribute('height', size); el.setAttribute('class', `ico-${name}`);
-    el.setAttribute('fill', 'none'); el.setAttribute('stroke', 'currentColor'); el.setAttribute('stroke-width', '1.8'); el.setAttribute('stroke-linecap', 'round'); el.setAttribute('stroke-linejoin', 'round');
-    el.setAttribute('aria-hidden', 'true');
-    for (const d of ICON[name]) { const p = document.createElementNS(ns, 'path'); p.setAttribute('d', d); el.append(p); }
-    return el;
-}
-
-export const COLOR_DOT = { White: '#f2eedc', Black: '#15151c', Grey: '#9aa0aa', Gold: '#e2c068', Purple: '#8f7cc0' };
 
 // Pull a sheet down to put it away: the handle follows the finger, and the sheet goes if it was dragged far enough or flicked; otherwise it springs back.
 export function pullDown(handle, target, done) {
@@ -64,28 +45,79 @@ export function pullDown(handle, target, done) {
 // A curse makes a number worthless (Ashes: gold, Disgust: Fame): it is still shown, struck through, so it is plain it cannot be used.
 export const voidBy = (st, stat) => (stat === 'gold' && (st.ch.curses ?? []).includes('Ashes') ? 'Ashes' : stat === 'fame' && (st.ch.curses ?? []).includes('Disgust') ? 'Disgust' : null);
 
+// The picture of an action: the 32px pixel art in art/actions (Enchant is the spell hand, Nothing the barred circle).
+const ACT_ART = { move: 'move', hide: 'hide', search: 'search', trade: 'trade', hire: 'hire', rest: 'rest', alert: 'alert', enchant: 'spell', nothing: 'ban', fly: 'fly', follow: 'follow' };
+export const actArt = a => ACT_ART[a] ?? 'ban';
+
+// One line over the tray, 3.2 seconds, gold rule (red when it is a refusal). Never raw engine text.
+export function showToast(G, text, bad = false, ms = 3200) {
+    clearTimeout(G.ui.toastTimer);
+    G.ui.toast = text; G.ui.toastWhy = !bad; render(G);
+    G.ui.toastTimer = setTimeout(() => { G.ui.toast = null; G.ui.toastWhy = false; if (G.root.isConnected) render(G); }, ms);
+}
+
 export const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert', enchant: 'Enchant', fly: 'Fly', follow: 'Follow', nothing: 'Nothing' };
 
 export const TABLE_LABEL = { peer: 'Peer', locate: 'Locate', loot: 'Loot', ground: 'Ground', sitecard: 'Site card', runes: 'Read runes', magicsight: 'Magic Sight', 'magicsight-take': 'Magic Sight: take' };
 
 export function tc(G) { return { st: G.st, data: G.data, answer: G.answer, crew: G.crew, ui: G.ui, render: () => render(G), modal: modal.bind(null, G), act: act.bind(null, G), table: G.table, mySeat: G.mySeat }; }
 
-// Sheets that are only for looking can be dismissed by tapping anywhere outside them; those that need an answer cannot.
-// Every sheet is the same object: a scrim, a rounded sheet with a grabber and a title, and (when it is only for looking) a way out three ways:
-// pull it down, tap outside it, or the cross. A sheet that needs an answer has none of them and no grabber.
-export function modal(G, title, body, { close, footer } = {}) {
-    // a sheet that needs an answer can be set aside to look at the map, and brought back (the decision may depend on what is on the map)
-    if (!close && G.ui.mapPeek) return h('div', { class: 'combat-back' }, h('button', { class: 'btn primary big', 'data-act': 'back-to-choice', onclick: () => { G.ui.mapPeek = false; render(G); } }, `Back to: ${title}`));
-    const sheet = h('div', { class: `sheet2${footer ? ' has-footer' : ''}` },
-        h('div', { class: 'sheet-top' },
-            close ? h('div', { class: 'sheet-grab', 'aria-hidden': 'true' }, h('span', { class: 'grip' })) : null,
-            h('div', { class: 'sheet2-head' }, h('b', {}, title), close ? h('button', { class: 'x', 'aria-label': 'Close', onclick: close }, '\u2715')
-                : h('button', { class: 'peekmap', 'data-act': 'peek-sheet-map', onclick: () => { G.ui.mapPeek = true; render(G); } }, 'Map'))),
-        footer ? h('div', { class: 'sheet-scroll' }, body) : body,
-        footer ?? null);
-    const bg = h('div', { class: 'sheet-bg', onclick: e => { if (close && e.target === e.currentTarget) close(); } }, sheet);
-    if (close) pullDown(sheet.querySelector('.sheet-grab'), sheet, close);
-    return bg;
+// ---- the sheet system (P0b) ----
+// Every sheet of the play screen is the design system's one component (ds.js sheet(): `.ds-sheet`), in one of three kinds:
+//   information  (a close handler is given): a scrim, tap outside or the cross or a pull down puts it away; opens `hug` (content height, 78% at most) unless a detent is named
+//   decision     (no close handler): no scrim, the map is live above it; the first touch on the map drops it to `peek` (title bar + one button: a question is waiting, it is never dismissed),
+//                a tap on its head or handle brings it back; the Map button in the head does the same drop
+//   result       (kind: 'result'): a scrim, no way out but its own button
+// The legacy class names stay on the new elements as test hooks (`sheet2`, `sheet2-head`, `sheet-bg`, `sheet-scroll`, `sheet-grab`); their old rules are gone.
+
+// Move a mounted sheet to another detent with the height animating (a `hug` sheet has no height to animate from, so it is measured first).
+export function moveDetent(el, detent, { remember = true } = {}) {
+    if (!el || el.dataset.detent === detent) return;
+    const from = el.getBoundingClientRect().height;
+    el.style.transition = 'none'; el.style.height = `${from}px`; void el.offsetHeight;
+    setDetent(el, detent, { remember });
+    el.style.height = ''; const to = el.getBoundingClientRect().height;   // what the new detent asks for
+    el.style.height = `${from}px`; void el.offsetHeight;
+    el.style.transition = ''; el.style.height = `${to}px`;
+    const done = () => { el.removeEventListener('transitionend', done); el.style.height = ''; };
+    el.addEventListener('transitionend', done); setTimeout(done, 420);
+}
+
+// A decision sheet that was put aside to look at the map: the head or the handle brings it back.
+function peekWire(G, el, scrim) {
+    const back = () => { if (!G.ui.mapPeek) return; G.ui.mapPeek = false; moveDetent(el, el.dataset.full || 'hug'); el.classList.remove('peeked'); scrim?.classList.remove('none'); G.ui.onSheetMove?.(); };
+    const go = () => { if (G.ui.mapPeek) return; G.ui.mapPeek = true; moveDetent(el, 'peek', { remember: false }); el.classList.add('peeked'); scrim?.classList.add('none'); G.ui.onSheetMove?.(); };
+    for (const part of el.querySelectorAll('.ds-grab, .ds-sheet-head h2')) part.addEventListener('click', () => { if (G.ui.mapPeek) back(); });
+    el.querySelectorAll('[data-act=back-to-choice]').forEach(b => b.addEventListener('click', back));
+    el.querySelectorAll('[data-act=peek-sheet-map]').forEach(b => b.addEventListener('click', go));
+    // dragging the handle down drops to peek, dragging a peeked one up brings it back
+    const grab = el.querySelector('.ds-grab'); let y0 = null;
+    grab.style.touchAction = 'none';
+    grab.addEventListener('pointerdown', e => { if (e.button) return; y0 = e.clientY; try { grab.setPointerCapture(e.pointerId); } catch { /* ignore */ } });
+    grab.addEventListener('pointerup', e => { if (y0 == null) return; const dy = e.clientY - y0; y0 = null; if (dy > 40) go(); else if (dy < -40) back(); });
+    G.ui.peekGo = go;
+}
+
+export function modal(G, title, body, { close, footer, kind, detent, eyebrow, head, cls, attrs, noPull, bare } = {}) {
+    const k = kind ?? (close ? 'info' : 'decision'), decision = k === 'decision';
+    const peeked = (decision || k === 'result') && !!G.ui.mapPeek;
+    const full = detent ?? 'hug';
+    // what the peek bar offers when the sheet has no foot of its own: the one way back
+    const peekFoot = decision || k === 'result' ? h('div', { class: 'ds-sheet-foot peek-foot' }, h('span', { class: 'lead ds-lead-text' }, 'The map is yours.'), btn('Back to the question', 'primary', { 'data-act': 'back-to-choice' })) : null;
+    const foot = [footer ?? null, footer ? null : peekFoot].filter(Boolean);
+    const mapBtn = decision || k === 'result' ? h('button', { type: 'button', class: 'ds-btn quiet sm peekmap', 'data-act': 'peek-sheet-map', 'aria-label': 'Look at the map' }, dsIcon('eye'), 'Map') : null;
+    const frag = sheet({ title, eyebrow, detent: peeked ? 'peek' : full, decision, x: !!close, scrim: k !== 'decision', onClose: close, head: head ?? mapBtn, body: bare ? body : h('div', { class: 'legacy' }, body), foot,
+        cls: `sheet2 ${k}${cls ? ' ' + cls : ''}${footer ? ' has-footer' : ''}${peeked ? ' peeked' : ''}`, attrs });
+    if (peeked) frag.scrim?.classList.add('none');
+    const el = frag.sheet; el.dataset.full = full; el.dataset.kind = k;
+    el.querySelector('.ds-sheet-body').classList.add('sheet-scroll');
+    el.querySelector('.ds-sheet-head').classList.add('sheet2-head');
+    el.querySelector('.ds-grab').classList.add('sheet-grab');
+    if (frag.scrim) frag.scrim.classList.add('sheet-bg');
+    if (k === 'result') frag.scrim?.removeAttribute('data-close');
+    if (decision || k === 'result') peekWire(G, el, frag.scrim);
+    else if (close && !noPull) pullDown(el.querySelector('.ds-grab'), el, close);
+    return frag;
 }
 
 // Pictures from the original game, when we have them.

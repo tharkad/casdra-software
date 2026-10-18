@@ -1,6 +1,6 @@
 import { rollRow } from '../dice.js';
 import { monsterCounter, itemFace } from '../counter.js';
-import { roundSynopsis, narrateRoll } from '../../engine/story.js';
+import { narrateRoll } from '../../engine/story.js';
 import { isStory, voiceChip } from '../voice.js';
 import { ask } from '../ask.js';
 import { h } from '../dom.js';
@@ -17,9 +17,9 @@ const DIRS = ['Thrust', 'Swing', 'Smash'], MNV = ['Charge', 'Dodge', 'Duck'];
 // A number is kept with the word before it (a non-breaking space), so "attack time 6" or "Round 1" never breaks with the number alone on a line.
 const nb = s => String(s).replace(/ (?=\d)/g, '\u00A0');
 
-// `shared`: a fight of several characters in one clearing (screens/sharedfight.js passes { header, frame, fight }): the same step screens, but only YOUR sheet is shown and the page is laid out
-// by the shared frame. Solo and race games never pass it, and for them nothing below differs.
-export function combatSheet({ st, data, act, ui, render, peek, shared = null }) {
+// The step screens of a SHARED fight: a fight of several characters in one clearing (screens/sharedfight.js passes `shared` = { header, frame, fight }): only YOUR sheet is shown and the page is laid
+// out by the shared frame. The one-character fight (solo and race) is the combat scene (screens/combat_scene.js); this file keeps the old step screens for the shared fight until P6 re-skins it.
+export function combatSheet({ st, data, act, ui, render, shared }) {
     const p = st.pending, c = st.combat;
     const onMine = d => !!(d.assigned || (d.partOf && c.dens.find(o => o.uid === d.partOf)?.assigned));          // (a shared fight: on my sheet, or a part of a creature that is)
     ui.melee ??= { target: (shared?.fight?.pvp && c.charge?.on ? `char:${c.charge.on}` : null) ?? c.dens.find(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse' && (!shared || d.assigned))?.uid ?? null, fightChit: null, attackDir: 0, moveChit: null, moveDir: 0, shieldDir: 0, boxes: {} };
@@ -37,15 +37,7 @@ export function combatSheet({ st, data, act, ui, render, peek, shared = null }) 
     const allies = (c.hires ?? []).filter(x => !x.dead).map(x => `${x.kind === 'mon' ? data.monsters[x.id]?.name : data.natives[x.id]?.name}${x.kind === 'mon' ? ' (controlled)' : ''}`);
     const cs = { active: 0, fatigued: 0, wounded: 0, enchanted: 0, committed: 0 }; st.ch.chits.forEach(x => { cs[x.state] = (cs[x.state] ?? 0) + 1; });
     const gear = st.ch.items.filter(i => i.kind === 'armor' && i.active).map(i => `${nameOf(data, i)}${i.damaged ? ' (damaged)' : i.destroyed ? ' (destroyed)' : ''}`);
-    // One row: the place (its number kept with its name, so it never wraps alone) and the round as a chip; the two peeks sit at the right,
-    // and only drop to a line of their own on a narrow phone.
-    const header = shared?.header ?? h('div', { class: 'cb-head' },
-        h('div', { class: 'cb-title' },
-            h('b', { class: 'cb-place' }, nameOfClearing(c.at).replace(/ (\d+)$/, '\u00A0$1')),
-            st.pending?.spellOnly ? null : h('em', { class: 'cb-round' }, `Round\u00A0${c.round}`)),
-        h('span', { class: 'cb-peek' },
-            peek ? h('button', { class: 'peekbtn', 'data-act': 'peek-gear', onclick: peek.gear }, 'Belongings') : null,
-            peek ? h('button', { class: 'peekbtn', 'data-act': 'peek-map', onclick: peek.map }, 'Map') : null));
+    const header = shared.header;
     const state = h('div', { class: 'cb-state' }, h('span', {}, `Chits: ${cs.active} ready \u00B7 ${cs.fatigued} tired \u00B7 ${cs.wounded} wounded${cs.enchanted ? ` \u00B7 ${cs.enchanted} enchanted` : ''}${cs.committed ? ` \u00B7 ${cs.committed} tied to a spell` : ''}`), h('span', {}, gear.join(', ') || 'no armor'));
     // A tap on a creature turns its counter over: the other side, with its own numbers, and what changed.
     ui.flipped ??= {};
@@ -146,10 +138,6 @@ export function combatSheet({ st, data, act, ui, render, peek, shared = null }) 
                 c.round > 1 || isStory() ? null : h('div', { class: 'res-dice' }, ...rolls.map(r => rollRow(r, { compact: true }))));
         })) : null;
     const diceBlock = dice.length ? h('div', { class: 'cb-dice' }, ...dice.map(r => rollRow(r, { compact: true }))) : null;
-    // The round, told first in a few sentences (Story) or line by line with every number (Detail): the same switch as every box that describes a roll.
-    const last = c.events?.length ? h('div', { class: 'cb-last' }, h('div', { class: 'res-head' }, h('b', {}, 'Last round'), voiceChip()),
-        isStory() ? h('p', { class: 'cb-synopsis' }, roundSynopsis(c.events) || 'The round passed.')
-            : h('div', { class: 'cb-steps' }, ...c.events.map(e => h('p', { class: e.startsWith('  ') ? 'sub' : /^(Round \d+:|Order of blows|Boxes as|Repositioning)/.test(e) ? 'hd' : '' }, nb(e.trim()))))) : null;
     // 8.3.7d, 4.3.2: with no chit played he may switch ONE belonging on or off, or leave one behind. In a fight that is the Encounter action (the Melee step follows);
     // on a quiet evening it is free and the step stays open.
     const gearSection = quiet => {
@@ -456,44 +444,14 @@ export function combatSheet({ st, data, act, ui, render, peek, shared = null }) 
             h('div', { class: 'chitrow' }, ...changers.map(ch => chitBtn(ch, (ui.changeChit ?? changers[0].id) === ch.id, () => { ui.changeChit = ch.id; render(); })))));
         body.push(h('button', { class: 'btn primary', disabled: sum < p.need || sum - p.need > 1, onclick: () => { const ids = ui.pickChits, change = changers.length > 1 ? (ui.changeChit ?? changers[0].id) : null; ui.pickChits = null; ui.changeChit = null; send({ kind: 'fatigue', chits: ids, change }); } }, 'Fatigue these'));
     }
-    // Wounds and fatigue are decisions the player must not miss: they come first, above the foes and the account of the last round, so the
-    // tiles and the confirm button are on screen the moment the question is asked.
-    const decideFirst = p.type === 'combat-wounds' || p.type === 'combat-fatigue' || p.type === 'combat-over';
-    // What the round did comes first: a kill, or the whole fight won, before the housekeeping of wounds and fatigue.
-    const liveFoes = c.dens.some(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse' && d.assigned);       // anyone not set against him is not a foe
-    const killed = c.killed ?? [];
-    const names = killed.map(n => `the ${n}`).join(' and ');
-    const price = p.type === 'combat-over' ? 'The evening is yours' : p.type === 'combat-wounds' ? 'The wounds below are the price' : 'The tiredness below is the price';
-    const gain = c.roundGain ?? { fame: 0, notoriety: 0, gold: 0 };
-    const gainChips = [['Fame', gain.fame], ['Notoriety', gain.notoriety], ['gold', gain.gold]].filter(x => x[1]).map(([n, v]) => h('span', { class: `gain-chip ${n.toLowerCase()}` }, `${v > 0 ? '+' : ''}${v} ${n}`));
-    const headline = decideFirst && (killed.length || !liveFoes)
-        ? h('div', { class: 'cb-victory', role: 'status' }, h('b', {}, liveFoes ? `You killed ${names}.` : 'The fight is won.'),
-            gainChips.length ? h('div', { class: 'gain-chips' }, ...gainChips) : null,
-            h('span', {}, liveFoes ? 'Others are still on their feet.' : p.type === 'combat-over' ? 'Nothing hostile is left standing.' : `${killed.length ? `You killed ${names}: n` : 'N'}othing hostile is left standing. ${price}; settle it and the evening is yours.`))
-        : (!decideFirst && killed.length && p.type === 'combat-encounter')
-            ? h('div', { class: 'cb-victory', role: 'status' }, h('b', {}, liveFoes ? `You killed ${names}.` : 'The fight is won.'), gainChips.length ? h('div', { class: 'gain-chips' }, ...gainChips) : null)
-            : null;
     const decision = h('div', { class: 'cb-body' }, ...body.filter(Boolean));
-    const meetingQuestion = ['combat-pay', 'combat-drinks', 'combat-choice'].includes(p.type);
-    if (shared) {
-        // a shared fight: what the round did was shown on the reveal card (sharedfight.js), so there is no kill banner or "last round" box here; only your own sheet is listed
-        return h('div', { class: 'combat sf', 'data-sf': 'step', 'data-ask-type': p.type }, header, shared.frame, state,
-            h('div', { class: 'cb-scroll sf-scroll' }, resultsBlock, decision,
-                allies.length ? h('div', { class: 'ask allies', role: 'note' }, h('b', {}, 'On your side'), h('p', {}, allies.join(', '))) : null,
-                // the decision comes first; the counters of your creatures and your own gear are one tap away (tap a counter to turn it over)
-                foeEls.length ? h('details', { class: 'sf-more', 'data-sf-foes': '', open: ui.sfFoesOpen || null, ontoggle: e => { ui.sfFoesOpen = e.target.open; } },
-                    h('summary', {}, h('b', {}, 'Your creatures'), h('small', {}, ` ${foes.map(d => denSide(st, data, d).name).join(', ')}`)), h('div', { class: 'cb-foes' }, ...foeEls)) : null,
-                st.pending?.spellOnly || !gearBlock ? null : h('details', { class: 'sf-more', 'data-sf-gear': '', open: ui.sfGearOpen || null, ontoggle: e => { ui.sfGearOpen = e.target.open; } }, h('summary', {}, h('b', {}, 'Your weapon and armor')), gearBlock),
-                diceBlock));
-    }
-    return h('div', { class: 'combat' }, header, state,
-        h('div', { class: 'cb-scroll' },
-            resultsBlock,
-            // A question that comes straight out of the meeting (pay, buy drinks, leave them be) sits right under its results, not under a page of creatures.
-            ...((meetingQuestion || p.type === 'combat-shift') && !decideFirst ? [decision] : []),         // (the Bracelets / Cloak offer too: the dice have just moved the creatures, and it is all that is being asked)
-            // After a round: what happened comes first (it is the first chance to read it), then the choice it leaves, then the table.
-            ...(decideFirst ? [headline, last, decision] : meetingQuestion || p.type === 'combat-shift' ? [] : [headline, last]),       // the kill, then the story of the round, lead every step
+    // a shared fight: what the round did was shown on the reveal card (sharedfight.js), so there is no kill banner or "last round" box here; only your own sheet is listed
+    return h('div', { class: 'combat sf', 'data-sf': 'step', 'data-ask-type': p.type }, header, shared.frame, state,
+        h('div', { class: 'cb-scroll sf-scroll' }, resultsBlock, decision,
             allies.length ? h('div', { class: 'ask allies', role: 'note' }, h('b', {}, 'On your side'), h('p', {}, allies.join(', '))) : null,
-            h('div', { class: 'cb-foes' }, ...foeEls), st.pending?.spellOnly ? null : gearBlock, diceBlock,
-            ...(decideFirst ? [] : meetingQuestion ? [last] : p.type === 'combat-shift' ? [] : [decision])));
+            // the decision comes first; the counters of your creatures and your own gear are one tap away (tap a counter to turn it over)
+            foeEls.length ? h('details', { class: 'sf-more', 'data-sf-foes': '', open: ui.sfFoesOpen || null, ontoggle: e => { ui.sfFoesOpen = e.target.open; } },
+                h('summary', {}, h('b', {}, 'Your creatures'), h('small', {}, ` ${foes.map(d => denSide(st, data, d).name).join(', ')}`)), h('div', { class: 'cb-foes' }, ...foeEls)) : null,
+            st.pending?.spellOnly || !gearBlock ? null : h('details', { class: 'sf-more', 'data-sf-gear': '', open: ui.sfGearOpen || null, ontoggle: e => { ui.sfGearOpen = e.target.open; } }, h('summary', {}, h('b', {}, 'Your weapon and armor')), gearBlock),
+            diceBlock));
 }

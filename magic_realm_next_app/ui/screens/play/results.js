@@ -43,7 +43,7 @@ export function reportSheet(G) {
             result.length > 5 ? h('p', { class: 'hint' }, `and ${result.length - 5} more: see the overview.`) : null,
             h('div', { class: 'row2' },
                 h('button', { class: 'btn', 'data-act': 'report-next', onclick: () => { G.ui.reportPage = `${day}:overview`; render(G); } }, 'Day Overview'),
-                h('button', { class: 'btn primary', 'data-act': 'report-ok', onclick: () => { G.ui.reportedDay = G.st.day; render(G); } }, `On to day ${G.st.day}`))));
+                h('button', { class: 'btn primary', 'data-act': 'report-ok', onclick: () => { G.ui.reportedDay = G.st.day; render(G); } }, `On to day ${G.st.day}`))), { kind: 'result' });
     }
     // group the day's lines under the phase or the evening they belong to
     const groups = [];
@@ -59,12 +59,7 @@ export function reportSheet(G) {
             : h('p', { class: 'repstep plain' }, g.head)),
         h('div', { class: 'row2' },
             h('button', { class: 'btn', onclick: () => { G.ui.reportPage = null; render(G); } }, 'Result'),
-            h('button', { class: 'btn primary', 'data-act': 'report-ok', onclick: () => { G.ui.reportedDay = G.st.day; render(G); } }, `On to day ${G.st.day}`))));
-}
-
-export function logSheet(G) {
-    return modal(G, 'Journal', h('div', { class: 'journal' }, h('div', { class: 'res-head' }, h('span', { class: 'hint' }, voice() === 'story' ? 'Told as a story' : 'In exact words'), voiceChip()), ...[...G.st.log].reverse().slice(0, 80).map(l => h('p', { class: `j-${l.k}` }, h('small', {}, `Day ${l.day}`), ' ', logText(l)))),
-        { close: () => { G.ui.sheet = null; render(G); } });
+            h('button', { class: 'btn primary', 'data-act': 'report-ok', onclick: () => { G.ui.reportedDay = G.st.day; render(G); } }, `On to day ${G.st.day}`))), { kind: 'result' });
 }
 
 // How it ended, said loudly: who or what did it, where, which day, and what he had earned.
@@ -117,7 +112,7 @@ export function overSheet(G) {
         G.st.deaths ? h('p', { class: 'hint' }, `You died ${G.st.deaths} time${G.st.deaths === 1 ? '' : 's'} on the way.`) : null,
         h('div', { class: 'row-end ov-actions' },
             canRestart ? h('button', { class: 'btn primary', 'data-act': 'restart', onclick: () => { const total = Math.max(2, Math.ceil(((G.st.lastDay ?? 28) - G.st.day) / 7) + 1), fame = Math.min(5, Math.ceil(total * 0.6)); G.ui.restartVp = { great: 0, spells: 0, fame, notoriety: Math.min(5, total - fame), gold: 0 }; render(G); } }, `Return tomorrow as a new ${G.st.ch.name}`) : null,
-            h('button', { class: `btn${canRestart ? '' : ' primary'}`, 'data-act': 'over-title', onclick: () => { clearSaved(); G.ctx.go('title'); } }, 'Back to the title'))));
+            h('button', { class: `btn${canRestart ? '' : ' primary'}`, 'data-act': 'over-title', onclick: () => { clearSaved(); G.ctx.go('title'); } }, 'Back to the title'))), { kind: 'result' });
 }
 
 function restartSheet(G) {

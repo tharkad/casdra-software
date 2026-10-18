@@ -1,0 +1,108 @@
+/* css/ds-shell.css (P0b): the play shell: the strip, the map region, the tray, the sheet frame around the old sheet contents, the Journal. Linked after the ds-*.css files.
+   Everything here is either a rule the core components do not have (they are the design's, in core.css), or an override of one, marked "override:". */
+
+/* ---- the screen: the tray stands on the bottom of the phone, under the home indicator (its own padding keeps the buttons clear of it) ---- */
+#app:has(> .game.ds-screen) { padding-bottom: 0; }
+.game.ds-screen { padding: 0; position: relative; animation: none; }
+.game .layer { z-index: 10; }
+.game { font-variant-numeric: lining-nums tabular-nums; }
+
+/* ---- the strip ---- */
+.ds-strip .menu { position: relative; }
+.ds-strip .pdot.corner { top: 8px; right: 6px; }
+.ds-stat.void { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--danger); opacity: .65; }
+.ds-day span { display: flex; align-items: center; gap: 5px; }
+.ds-day .mdot { width: 8px; height: 8px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .45); }
+.ds-day .cursedmark { display: inline-flex; color: var(--danger); } .ds-day .cursedmark .ds-i { width: 14px; height: 14px; }
+
+/* ---- the map region ---- */
+.ds-map-btn { z-index: 3; }
+.ds-map-btn .ds-i { width: 24px; height: 24px; }
+
+/* ---- the tray ---- */
+.ds-tray { --tray-max: 335px; }
+.ds-last { position: relative; }
+.ds-newdot { position: absolute; right: calc(var(--gutter) + 2px); top: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--gold-hi); box-shadow: 0 0 0 2px var(--surface-2); }
+.ds-tray .tray-body { display: flex; flex-direction: column; gap: 8px; padding: 2px var(--gutter) 4px; overflow-y: auto; overscroll-behavior: contain; max-height: calc(var(--tray-max) - 156px - var(--safe-b));
+    -webkit-mask-image: linear-gradient(#000 calc(100% - 14px), transparent); mask-image: linear-gradient(#000 calc(100% - 14px), transparent); }
+.ds-tray.shared .tray-body { max-height: calc(var(--tray-max) - 156px - 52px - var(--safe-b)); }
+.ds-tray.planning .tray-body, .ds-tray.planning.shared .tray-body { padding: 0; overflow: visible; -webkit-mask-image: none; mask-image: none; max-height: none; }
+.ds-tray .pstrip { margin: 0; background: none; }
+.ds-hint-line { margin: 0; font: 400 14px/1.3 var(--font-ui); color: var(--ink-2); }
+.ds-hint-line.bad { color: var(--danger); }
+.ds-tray .ds-actions .ds-btn.primary .col small { color: inherit; }
+.ds-pips.many .ds-pip { width: 22px; height: 30px; } .ds-pips.many .ds-pip img { width: 16px; height: 16px; } .ds-pips.many { gap: 2px; }
+.ds-pip.locked.now::before { border-color: var(--st-locked); background: rgba(142, 166, 208, .12); }
+.ds-tray .pickacts { margin: 0; }
+.ds-tray .spellacts { display: flex; flex-wrap: wrap; gap: 8px; }
+.ds-tray .ds-chip.spellact { min-height: 44px; }
+.ds-tray.idle .ds-situ { opacity: .8; }
+/* override: while a decision sheet is up the tray stands hidden under it (it keeps its height, so the map does not jump) */
+.game:has(.layer > .ds-sheet.decision) .ds-tray { opacity: 0; pointer-events: none; }
+
+/* ---- the plan tray ---- */
+.ds-tray.planning .ds-actions { padding-top: 6px; padding-bottom: 8px; min-height: calc(var(--tap-main) + 14px); }
+.ds-plan > * + * { margin-top: 4px; }
+.ds-plan .ds-acts.n8 .ds-act:last-child { grid-column: span 2; }
+.ds-plan .ds-acts.n10 { grid-template-columns: repeat(5, 1fr); } .ds-plan .ds-acts.n11 { grid-template-columns: repeat(4, 1fr); }
+.ds-plan .ds-acts.n10 .ds-act, .ds-plan .ds-acts.n11 .ds-act { flex-direction: column; justify-content: center; gap: 2px; min-height: 58px; padding: 0 2px; font-size: 14px; text-align: center; }
+.ds-plan .ds-act[aria-disabled] { cursor: pointer; }
+.ds-plan .ds-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ds-plan .ds-tabs.many { gap: 3px; } .ds-plan .ds-tabs.many .ds-tab small img { display: block; }
+.ds-plan .ds-tab .ds-i { width: 16px; height: 16px; }
+.ds-plan .ds-tab { padding: 0 2px; min-width: 0; } .ds-plan .ds-tab small { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: clip; }
+.ds-plan .roadlock { display: flex; flex-direction: column; gap: 6px; } .ds-plan .roadlock .row2 { display: grid; grid-template-columns: 1fr; gap: 6px; } .ds-plan .roadlock .ds-btn { min-height: 44px; font-size: 16px; }
+
+/* ---- the sheet frame around the old sheet contents (the shim: what `.sheet2` used to give them; P2/P4 retire it screen by screen) ---- */
+.ds-sheet-body > .legacy { display: flex; flex-direction: column; gap: 10px; }
+.ds-sheet .legacy h3 { margin: 6px 0 0; font: 600 14px/1.2 var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+.ds-sheet .legacy p { margin: 4px 0; font: 400 17px/1.35 var(--font-voice); }
+.ds-sheet .legacy .btn { width: 100%; margin-top: 8px; }
+.ds-sheet .peekmap { margin-right: -6px; color: var(--gold); } .ds-sheet .peekmap .ds-i { width: 18px; height: 18px; }
+.ds-sheet .peek-foot { display: none; }
+.ds-sheet[data-detent="peek"] .peek-foot { display: flex; }
+.ds-sheet[data-detent="peek"] .ds-sheet-head h2, .ds-sheet[data-detent="peek"] .ds-grab { cursor: pointer; }
+.ds-sheet.has-footer .ds-sheet-foot { padding: 0; border-top: 0; background: none; }
+.ds-sheet.has-footer .ds-sheet-foot > * { width: 100%; margin: 0; padding: 10px var(--gutter) 12px; border-top: 1px solid var(--line-1); background: none; position: static; }   /* the old footer bars (trade-bar, sf-bar, meet bars): the sheet's own padding clears the home indicator */
+.ds-sheet[data-detent="hug"] .ds-sheet-body { min-height: 0; }
+.ds-sheet-body { -webkit-mask-image: linear-gradient(#000 calc(100% - 18px), transparent); mask-image: linear-gradient(#000 calc(100% - 18px), transparent); padding-bottom: 22px; }
+.ds-sheet.decision, .ds-sheet.result { z-index: 8; }
+.combat-back { z-index: 9; }
+
+/* ---- the Journal ---- */
+.journal-sheet .ds-sheet-body { padding-top: 0; }
+.journal .ds-notes { margin: 6px 0 4px; }
+.journal .ds-note { cursor: pointer; } .journal .ds-note.on { border-color: var(--gold); }
+.journal .ds-found .ds-px, .journal .ds-found img { width: 32px; height: 32px; flex: none; object-fit: contain; }
+.journal .ds-found.curse { border-color: var(--danger); background: var(--danger-wash); } .journal .ds-found.curse .eyebrow { color: var(--danger); }
+.ds-log { display: flex; flex-direction: column; margin: 0; padding: 0; }
+.ds-log li { list-style: none; padding: 9px 0; border-top: 1px solid var(--line-1); display: flex; gap: 10px; font: 400 17px/1.35 var(--font-voice); }
+.ds-log li .ph { flex: none; width: 24px; font: 700 13px/22px var(--font-ui); color: var(--ink-3); text-align: center; }
+.ds-log li.j-combat span:last-child { color: #f0c0a0; } .ds-log li.j-block span:last-child { color: #ff9c8a; } .ds-log li.j-trade span:last-child { color: var(--gold); }
+.journal .ds-sheet-head .ds-voice-sw { margin-right: 4px; }
+
+/* ---- toast ---- */
+.ds-toast { bottom: 140px; pointer-events: none; }          /* a toast never swallows the tap on the button under it */
+
+/* ---- short phones ---- */
+@media (max-height: 700px) { .ds-tray .tray-body { max-height: calc(var(--tray-max) - 148px); } .ds-tray.shared .tray-body { max-height: calc(var(--tray-max) - 148px - 52px); } }
+
+/* override: a decision sheet that hugs its content never grows past `half` (46%, 52% on a short phone): the map above it stays at least 43% / 41% of the screen and the rest scrolls */
+.ds-sheet.decision[data-detent="hug"] { max-height: 46%; }
+@media (max-height: 700px) { .ds-sheet.decision[data-detent="hug"] { max-height: 52%; } }
+.journal .ds-note { position: relative; } .journal .ds-note::after { content: ""; position: absolute; inset: -4px 0; }   /* 36px chip, 44px hit area */
+
+/* ---- loading and error (mockup 08 j3, j4) ---- */
+.ds-state-host { position: absolute; inset: 0; display: grid; place-items: center; }
+.ds-state-host .ds-state { margin: 0; }
+.tray-skel { padding: 6px var(--gutter) calc(18px + var(--safe-b)); display: flex; flex-direction: column; gap: 12px; }
+.ds-error-details { max-width: 280px; word-break: break-word; user-select: text; }
+.ds-tray.error .ds-actions .lead, .ds-tray.error .ds-actions { gap: 12px; }
+
+.ds-map-btn[hidden] { display: none; }
+.ds-plan .ds-sub-scroll { max-height: 150px; overflow-y: auto; overscroll-behavior: contain; }
+
+/* override: the Kit is a reading sheet that must show its eight slots and the first pack row on a 360x640 phone: its tall is 84%, not 78% (P2's acceptance) */
+.ds-sheet.kit-sheet[data-detent="tall"] { --sheet-h: 84%; }
+/* override: core hides every scrim after a decision sheet; a look (Kit, menu, Journal) opened over a waiting question has its own scrim, which must show */
+.ds-sheet.decision ~ .ds-scrim:not(.none) { display: block; }

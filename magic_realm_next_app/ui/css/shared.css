@@ -229,10 +229,10 @@
 /* ---- characters meeting (docs/design/multiplayer-meetui.md): the Meet sheet, an offer made to me, decisions in the dock, results, policies ---- */
 .meet-row { display: flex; gap: 8px; align-items: stretch; }
 .meet-row .row-end { flex: 1; min-width: 0; }
-.dock-actions .meet-row .row-end .btn { width: 100%; min-width: 0; }
-.dock-actions .meet-row .meetbtn { flex: none; width: auto; min-width: 0; padding: 0 16px; }
-.dock-actions .row2.mt-two { grid-template-columns: 1fr 1.25fr; gap: 8px; }
-.dock-actions .row2.mt-two .btn { margin: 0; min-width: 0; padding: 0 10px; }
+.ds-actions .meet-row .row-end .btn { width: 100%; min-width: 0; }
+.ds-actions .meet-row .meetbtn { flex: none; width: auto; min-width: 0; padding: 0 16px; }
+.ds-actions .row2.mt-two { grid-template-columns: 1fr 1.25fr; gap: 8px; }
+.ds-actions .row2.mt-two .btn { margin: 0; min-width: 0; padding: 0 10px; }
 .mt-card + .hint { margin: 0; }
 .mt-gold { border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px; margin-top: 8px; padding: 8px 10px; background: rgba(255, 255, 255, .03); display: flex; flex-direction: column; gap: 6px; }
 .mt-gold.sel { border-color: var(--gold, #e3c36a); background: rgba(227, 195, 106, .09); }
@@ -273,7 +273,7 @@
 .phase-result.meet-result .pr-head small { font-size: 12px; }
 .phase-result.meet-result .pr-line { font-size: 18.5px; line-height: 1.25; margin-top: 1px; }
 .phase-result.meet-result .mr-x { position: absolute; top: 2px; right: 2px; width: 36px; height: 36px; margin: 0; border: 0; background: none; color: var(--dim); font-size: 16px; cursor: pointer; }
-.maptools.row { flex-direction: row; }
+
 .pc-meet { right: 15px; top: 2px; bottom: auto; }
 .dock-stack { display: flex; flex-direction: column; gap: 6px; }
 

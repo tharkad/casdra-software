@@ -3,7 +3,6 @@ import { loadData } from '../../../engine/data.js';
 import { daySnapshot, finalize, newRecord } from '../../../engine/gamerecord.js';
 import { upgradeState } from '../../../engine/party.js';
 import { newGame } from '../../../engine/setup.js';
-import { h } from '../../dom.js';
 import { getRecord, putRecord } from '../../gamestore.js';
 import { mountMap } from '../../mapview.js';
 import { connect } from '../../online.js';
@@ -11,10 +10,12 @@ import { party } from '../../party.js';
 import { ApiError, connectShared } from '../../shared_online.js';
 import { VERSION } from '../../version.js';
 import { act, applyAnswer, refresh } from './actions.js';
-import { mapModel, render } from './shell.js';
+import { mapModel, render, wireShell } from './shell.js';
+import { plainReason, showError, showLoading } from './states.js';
 import { loadSaved, myId, noteError, persist, saveGame } from './state.js';
 
 export function boot(G) {
+    showLoading(G);
     (async () => {
         try {
             G.data = await loadData('data/');
@@ -22,12 +23,21 @@ export function boot(G) {
             if (G.shared) {
                 G.sconn = connectShared(G.shared, { onUpdate: applyAnswer.bind(null, G), onStatus: s => { const was = G.here; G.here = s === 'here'; if (G.here && was === false) G.sconn.view().catch(() => {}); } });
                 let first;
-                try { first = await G.sconn.view(); } catch (e) { G.root.append(h('div', { class: 'note' }, e instanceof ApiError && (e.status === 401 || e.status === 404) ? 'This game is no longer on the server.' : e.message)); return; }
+                try { first = await G.sconn.view(); } catch (e) {
+                    const gone = e instanceof ApiError && (e.status === 401 || e.status === 404);
+                    showError(G, { title: gone ? 'This game is gone' : 'The table would not open', text: gone ? 'This game is no longer on the server.' : plainReason(e), details: e.message, glyph: gone ? 'flag' : 'warn',
+                        back: { label: 'Back', go: () => G.ctx.go('online') }, retry: gone ? null : () => G.ctx.go('game', G.ctx.params) });
+                    return;
+                }
                 if (first.phase === 'lobby') { G.ctx.go('sharedlobby', { game: G.shared }); return; }
-                if (first.phase === 'archived' || first.view == null) { G.root.append(h('div', { class: 'note', 'data-archived': '' }, h('p', {}, 'This game was archived.'), h('p', { class: 'hint' }, 'Nobody played it for a long time, so the server put it away. Ask the host or whoever runs the server to bring it back.'), h('button', { class: 'btn', 'data-act': 'forget', onclick: () => { G.sconn.unwatch(); G.ctx.go('online'); } }, 'Back'))); return; }
+                if (first.phase === 'archived' || first.view == null) {
+                    showError(G, { title: 'This game was put away', text: 'Nobody played it for a long time, so the server put it away. Ask the host or whoever runs the server to bring it back.', glyph: 'hourglass', back: { label: 'Back', act: 'forget', go: () => { G.sconn.unwatch(); G.ctx.go('online'); } } });
+                    G.mapBox.querySelector('.ds-state-host').dataset.archived = '';
+                    return;
+                }
                 G.st = upgradeState(first.view); G.answer = first; G.standings = first.standings ?? []; G.ctx.state = G.st; G.crew = party(G.st, first, myId(G));
                 if (G.st.period === 'over') { G.ui.overAuto = true; G.ui.sheet = 'over'; }          // (a finished game opens on its result)
-                G.map = mountMap(G.mapBox);
+                G.map = mountMap(G.mapBox); wireShell(G);
                 G.mapBox.addEventListener('pointerdown', () => { G.ui.touched = Date.now(); }, { capture: true });
                 window.__mr.game = { get st() { return G.st; }, act: act.bind(null, G), data: G.data, ui: G.ui, render: () => render(G), shared: G.shared, get sconn() { return G.sconn; }, get answer() { return G.answer; }, get standings() { return G.standings; }, get crew() { return G.crew; }, get feed() { return G.feed; }, get map() { return G.map; } };
                 G.map.set(mapModel(G), { refit: true });
@@ -43,7 +53,7 @@ export function boot(G) {
                 const v = await G.conn.view();
                 G.st = v.view; G.standings = v.standings; G.ctx.state = G.st;
                 G.conn.start();
-                G.map = mountMap(G.mapBox);
+                G.map = mountMap(G.mapBox); wireShell(G);
                 window.__mr.game = { get st() { return G.st; }, act: act.bind(null, G), data: G.data, ui: G.ui, render: () => render(G), race: G.race, get standings() { return G.standings; } };
                 G.map.set(mapModel(G), { refit: true });
                 render(G);
@@ -72,7 +82,7 @@ export function boot(G) {
             persist(G, true);
             window.addEventListener('error', e => noteError(G, null, e.error ?? e.message, 'js'));
             window.addEventListener('pagehide', () => persist(G, true));
-            G.map = mountMap(G.mapBox);
+            G.map = mountMap(G.mapBox); wireShell(G);
             window.__mr.game = { get st() { return G.st; }, act: act.bind(null, G), data: G.data, ui: G.ui, render: () => render(G) };
             G.map.set(mapModel(G), { refit: true });
             render(G);
@@ -80,7 +90,7 @@ export function boot(G) {
             window.addEventListener('resize', () => G.map?.fit(false));
         } catch (e) {
             console.error(e);
-            G.root.append(h('div', { class: 'note' }, 'Could not start the game: ' + e.message));
+            showError(G, { text: plainReason(e), details: e.message, back: { label: 'Back to the title', go: () => G.ctx.go('title') }, retry: () => G.ctx.go('game', G.ctx.params) });
         }
     })();
 }
