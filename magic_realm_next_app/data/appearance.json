@@ -1,0 +1,1053 @@
+{
+ "meta": {
+  "sources": [
+   "RealmSpeak MagicRealmData.xml (magic_realm/utility/components/resources/data)",
+   "digest 05_characters_natives_monsters_victory.md section 5.2",
+   "digest 01_overview_setup_day.md section 3"
+  ],
+  "notes": "Boxes are in RealmSpeak object order within each row, then site-guardian boxes, then visitor boxes; the printed left-to-right order of the chart was not verifiable (OPEN). summonedBy: for kind warning the chit is that exact warning chit (name + tile-group letter); for kind sound the letter is the tile group (C or M) of the tile holding the sound chit, equivalent to the digest wording \"tile holds a warning chit of that letter\". No letter means the chit works anywhere. {\"site\": X} means the treasure-site chit or TWT site card X. The 8 treasure-site guardians appear as kind \"site\" boxes; Ghosts are placed with the Bones V warning chit. Lost City / Lost Castle hold 5 map chits each and no monsters in RealmSpeak data; digest 01 step 2 mentions pictured monsters and 8 leftovers (probably the 8 site guardians) - OPEN.",
+  "counts": {
+   "boxes": 36
+  }
+ },
+ "rows": [
+  {
+   "row": 1,
+   "boxes": [
+    {
+     "id": "dragon-flying-heavy",
+     "kind": "chart",
+     "boxNum": null,
+     "monsters": [
+      "heavy-flying-dragon-1",
+      "heavy-flying-dragon-2"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Flutter",
+       "kind": "sound"
+      },
+      {
+       "chit": "Smoke",
+       "kind": "warning",
+       "letter": "M"
+      }
+     ]
+    },
+    {
+     "id": "dragon-heavy",
+     "kind": "chart",
+     "boxNum": 1,
+     "monsters": [
+      "heavy-dragon-1"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Smoke",
+       "kind": "warning",
+       "letter": "C"
+      },
+      {
+       "chit": "Slither",
+       "kind": "sound"
+      },
+      {
+       "chit": "Roar",
+       "kind": "sound",
+       "letter": "C"
+      }
+     ]
+    },
+    {
+     "id": "dragon-tremendous",
+     "kind": "chart",
+     "boxNum": 2,
+     "monsters": [
+      "tremendous-dragon-2"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Smoke",
+       "kind": "warning",
+       "letter": "C"
+      },
+      {
+       "chit": "Slither",
+       "kind": "sound"
+      },
+      {
+       "chit": "Roar",
+       "kind": "sound",
+       "letter": "C"
+      }
+     ]
+    },
+    {
+     "id": "site-hoard",
+     "kind": "site",
+     "boxNum": null,
+     "monsters": [
+      "tremendous-flying-dragon-1"
+     ],
+     "summonedBy": [
+      {
+       "site": "Hoard"
+      }
+     ]
+    },
+    {
+     "id": "site-lair",
+     "kind": "site",
+     "boxNum": null,
+     "monsters": [
+      "tremendous-dragon-1"
+     ],
+     "summonedBy": [
+      {
+       "site": "Lair"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "row": 2,
+   "boxes": [
+    {
+     "id": "vipers",
+     "kind": "chart",
+     "boxNum": null,
+     "monsters": [
+      "viper-1",
+      "viper-2"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Dank",
+       "kind": "warning",
+       "letter": "W"
+      }
+     ]
+    },
+    {
+     "id": "serpent-heavy",
+     "kind": "chart",
+     "boxNum": 1,
+     "monsters": [
+      "heavy-serpent-1",
+      "heavy-serpent-2"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Dank",
+       "kind": "warning",
+       "letter": "C"
+      },
+      {
+       "chit": "Slither",
+       "kind": "sound"
+      }
+     ]
+    },
+    {
+     "id": "serpent-tremendous",
+     "kind": "chart",
+     "boxNum": 2,
+     "monsters": [
+      "tremendous-serpent-1"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Dank",
+       "kind": "warning",
+       "letter": "C"
+      },
+      {
+       "chit": "Slither",
+       "kind": "sound"
+      }
+     ]
+    },
+    {
+     "id": "site-altar",
+     "kind": "site",
+     "boxNum": null,
+     "monsters": [
+      "demon-1"
+     ],
+     "summonedBy": [
+      {
+       "site": "Altar"
+      }
+     ]
+    },
+    {
+     "id": "site-shrine",
+     "kind": "site",
+     "boxNum": null,
+     "monsters": [
+      "winged-demon-1"
+     ],
+     "summonedBy": [
+      {
+       "site": "Shrine"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "row": 3,
+   "boxes": [
+    {
+     "id": "wolves",
+     "kind": "chart",
+     "boxNum": null,
+     "monsters": [
+      "wolf-1",
+      "wolf-2",
+      "wolf-3",
+      "wolf-4",
+      "wolf-5",
+      "wolf-6"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Ruins",
+       "kind": "warning",
+       "letter": "W"
+      }
+     ]
+    },
+    {
+     "id": "ogres",
+     "kind": "chart",
+     "boxNum": null,
+     "monsters": [
+      "ogre-1",
+      "ogre-2"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Bones",
+       "kind": "warning",
+       "letter": "W"
+      }
+     ]
+    },
+    {
+     "id": "goblins-axe",
+     "kind": "chart",
+     "boxNum": 1,
+     "monsters": [
+      "axe-goblin-1",
+      "axe-goblin-2",
+      "axe-goblin-3",
+      "axe-goblin-4",
+      "axe-goblin-5",
+      "axe-goblin-6"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Ruins",
+       "kind": "warning",
+       "letter": "C"
+      },
+      {
+       "chit": "Patter",
+       "kind": "sound",
+       "letter": "C"
+      },
+      {
+       "chit": "Howl",
+       "kind": "sound",
+       "letter": "C"
+      }
+     ]
+    },
+    {
+     "id": "goblins-spear",
+     "kind": "chart",
+     "boxNum": 2,
+     "monsters": [
+      "spear-goblin-1",
+      "spear-goblin-2",
+      "spear-goblin-3",
+      "spear-goblin-4",
+      "spear-goblin-5",
+      "spear-goblin-6"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Ruins",
+       "kind": "warning",
+       "letter": "C"
+      },
+      {
+       "chit": "Patter",
+       "kind": "sound",
+       "letter": "C"
+      },
+      {
+       "chit": "Howl",
+       "kind": "sound",
+       "letter": "C"
+      }
+     ]
+    },
+    {
+     "id": "goblins-sword",
+     "kind": "chart",
+     "boxNum": 3,
+     "monsters": [
+      "sword-goblin-1",
+      "sword-goblin-2",
+      "sword-goblin-3",
+      "sword-goblin-4",
+      "sword-goblin-5",
+      "sword-goblin-6"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Ruins",
+       "kind": "warning",
+       "letter": "C"
+      },
+      {
+       "chit": "Patter",
+       "kind": "sound",
+       "letter": "C"
+      },
+      {
+       "chit": "Howl",
+       "kind": "sound",
+       "letter": "C"
+      }
+     ]
+    },
+    {
+     "id": "site-pool",
+     "kind": "site",
+     "boxNum": null,
+     "monsters": [
+      "octopus-1"
+     ],
+     "summonedBy": [
+      {
+       "site": "Pool"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "row": 4,
+   "boxes": [
+    {
+     "id": "giant-1",
+     "kind": "chart",
+     "boxNum": 1,
+     "monsters": [
+      "giant-1"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Bones",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Roar",
+       "kind": "sound",
+       "letter": "M"
+      },
+      {
+       "chit": "Stink",
+       "kind": "warning",
+       "letter": "M"
+      }
+     ]
+    },
+    {
+     "id": "giant-2",
+     "kind": "chart",
+     "boxNum": 2,
+     "monsters": [
+      "giant-2"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Bones",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Roar",
+       "kind": "sound",
+       "letter": "M"
+      },
+      {
+       "chit": "Stink",
+       "kind": "warning",
+       "letter": "M"
+      }
+     ]
+    },
+    {
+     "id": "troll-heavy",
+     "kind": "chart",
+     "boxNum": 1,
+     "monsters": [
+      "heavy-troll-1",
+      "heavy-troll-2"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Stink",
+       "kind": "warning",
+       "letter": "C"
+      },
+      {
+       "chit": "Bones",
+       "kind": "warning",
+       "letter": "C"
+      },
+      {
+       "chit": "Roar",
+       "kind": "sound",
+       "letter": "C"
+      }
+     ]
+    },
+    {
+     "id": "troll-tremendous",
+     "kind": "chart",
+     "boxNum": 2,
+     "monsters": [
+      "tremendous-troll-2"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Stink",
+       "kind": "warning",
+       "letter": "C"
+      },
+      {
+       "chit": "Bones",
+       "kind": "warning",
+       "letter": "C"
+      },
+      {
+       "chit": "Roar",
+       "kind": "sound",
+       "letter": "C"
+      }
+     ]
+    },
+    {
+     "id": "site-vault",
+     "kind": "site",
+     "boxNum": null,
+     "monsters": [
+      "tremendous-troll-1"
+     ],
+     "summonedBy": [
+      {
+       "site": "Vault"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "row": 5,
+   "boxes": [
+    {
+     "id": "spider-heavy-1",
+     "kind": "chart",
+     "boxNum": 1,
+     "monsters": [
+      "heavy-spider-1"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Stink",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Dank",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Patter",
+       "kind": "sound",
+       "letter": "M"
+      }
+     ]
+    },
+    {
+     "id": "spider-heavy-2",
+     "kind": "chart",
+     "boxNum": 2,
+     "monsters": [
+      "heavy-spider-2"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Stink",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Dank",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Patter",
+       "kind": "sound",
+       "letter": "M"
+      }
+     ]
+    },
+    {
+     "id": "spider-heavy-3",
+     "kind": "chart",
+     "boxNum": 3,
+     "monsters": [
+      "heavy-spider-3"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Stink",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Dank",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Patter",
+       "kind": "sound",
+       "letter": "M"
+      }
+     ]
+    },
+    {
+     "id": "site-cairns",
+     "kind": "site",
+     "boxNum": null,
+     "monsters": [
+      "tremendous-spider-1"
+     ],
+     "summonedBy": [
+      {
+       "site": "Cairns"
+      }
+     ]
+    },
+    {
+     "id": "site-statue",
+     "kind": "site",
+     "boxNum": null,
+     "monsters": [
+      "imp-1"
+     ],
+     "summonedBy": [
+      {
+       "site": "Statue"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "row": 6,
+   "boxes": [
+    {
+     "id": "bat-1",
+     "kind": "chart",
+     "boxNum": 1,
+     "monsters": [
+      "giant-bat-1"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Ruins",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Bones",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Flutter",
+       "kind": "sound"
+      },
+      {
+       "chit": "Howl",
+       "kind": "sound",
+       "letter": "M"
+      }
+     ]
+    },
+    {
+     "id": "bat-2",
+     "kind": "chart",
+     "boxNum": 2,
+     "monsters": [
+      "giant-bat-2",
+      "giant-bat-3"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Ruins",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Bones",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Flutter",
+       "kind": "sound"
+      },
+      {
+       "chit": "Howl",
+       "kind": "sound",
+       "letter": "M"
+      }
+     ]
+    },
+    {
+     "id": "bat-3",
+     "kind": "chart",
+     "boxNum": 3,
+     "monsters": [
+      "giant-bat-4",
+      "giant-bat-5",
+      "giant-bat-6"
+     ],
+     "summonedBy": [
+      {
+       "chit": "Ruins",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Bones",
+       "kind": "warning",
+       "letter": "M"
+      },
+      {
+       "chit": "Flutter",
+       "kind": "sound"
+      },
+      {
+       "chit": "Howl",
+       "kind": "sound",
+       "letter": "M"
+      }
+     ]
+    },
+    {
+     "id": "visitor-company",
+     "kind": "visitor",
+     "boxNum": null,
+     "monsters": [],
+     "summonedBy": [
+      {
+       "leaderOf": "Company"
+      }
+     ]
+    },
+    {
+     "id": "visitor-woodfolk",
+     "kind": "visitor",
+     "boxNum": null,
+     "monsters": [],
+     "summonedBy": [
+      {
+       "leaderOf": "Woodfolk"
+      }
+     ]
+    },
+    {
+     "id": "visitor-patrol",
+     "kind": "visitor",
+     "boxNum": null,
+     "monsters": [],
+     "summonedBy": [
+      {
+       "leaderOf": "Patrol"
+      }
+     ]
+    },
+    {
+     "id": "visitor-lancers",
+     "kind": "visitor",
+     "boxNum": null,
+     "monsters": [],
+     "summonedBy": [
+      {
+       "leaderOf": "Lancers"
+      }
+     ]
+    },
+    {
+     "id": "visitor-bashkars",
+     "kind": "visitor",
+     "boxNum": null,
+     "monsters": [],
+     "summonedBy": [
+      {
+       "leaderOf": "Bashkars"
+      }
+     ]
+    },
+    {
+     "id": "visitor-altar-meadow",
+     "kind": "visitor",
+     "boxNum": null,
+     "monsters": [],
+     "summonedBy": [
+      {
+       "site": "Enchanted Meadow"
+      },
+      {
+       "site": "Altar"
+      }
+     ]
+    },
+    {
+     "id": "visitor-shrine-circle",
+     "kind": "visitor",
+     "boxNum": null,
+     "monsters": [],
+     "summonedBy": [
+      {
+       "site": "Toadstool Circle"
+      },
+      {
+       "site": "Shrine"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "lostCity": {
+  "monsters": [],
+  "mapChits": 5,
+  "chitPrintedNumber": 3,
+  "ignored": true
+ },
+ "lostCastle": {
+  "monsters": [],
+  "mapChits": 5,
+  "chitPrintedNumber": 1,
+  "ignored": true
+ },
+ "leftover": [],
+ "ghosts": {
+  "monsters": [
+   "ghost-1",
+   "ghost-2"
+  ],
+  "placedBy": "Bones V valley warning",
+  "prowlsEveryDay": true
+ },
+ "siteGuardians": {
+  "Hoard": "tremendous-flying-dragon-1",
+  "Lair": "tremendous-dragon-1",
+  "Shrine": "winged-demon-1",
+  "Altar": "demon-1",
+  "Vault": "tremendous-troll-1",
+  "Pool": "octopus-1",
+  "Cairns": "tremendous-spider-1",
+  "Statue": "imp-1"
+ },
+ "mapChits": [
+  {
+   "kind": "warning",
+   "name": "Bones",
+   "letter": "V",
+   "rsName": "Bones V"
+  },
+  {
+   "kind": "warning",
+   "name": "Bones",
+   "letter": "C",
+   "rsName": "Bones C"
+  },
+  {
+   "kind": "warning",
+   "name": "Bones",
+   "letter": "W",
+   "rsName": "Bones W"
+  },
+  {
+   "kind": "warning",
+   "name": "Bones",
+   "letter": "M",
+   "rsName": "Bones M"
+  },
+  {
+   "kind": "warning",
+   "name": "Dank",
+   "letter": "V",
+   "rsName": "Dank V"
+  },
+  {
+   "kind": "warning",
+   "name": "Dank",
+   "letter": "C",
+   "rsName": "Dank C"
+  },
+  {
+   "kind": "warning",
+   "name": "Dank",
+   "letter": "W",
+   "rsName": "Dank W"
+  },
+  {
+   "kind": "warning",
+   "name": "Dank",
+   "letter": "M",
+   "rsName": "Dank M"
+  },
+  {
+   "kind": "warning",
+   "name": "Ruins",
+   "letter": "V",
+   "rsName": "Ruins V"
+  },
+  {
+   "kind": "warning",
+   "name": "Ruins",
+   "letter": "C",
+   "rsName": "Ruins C"
+  },
+  {
+   "kind": "warning",
+   "name": "Ruins",
+   "letter": "W",
+   "rsName": "Ruins W"
+  },
+  {
+   "kind": "warning",
+   "name": "Ruins",
+   "letter": "M",
+   "rsName": "Ruins M"
+  },
+  {
+   "kind": "warning",
+   "name": "Smoke",
+   "letter": "V",
+   "rsName": "Smoke V"
+  },
+  {
+   "kind": "warning",
+   "name": "Smoke",
+   "letter": "C",
+   "rsName": "Smoke C"
+  },
+  {
+   "kind": "warning",
+   "name": "Smoke",
+   "letter": "W",
+   "rsName": "Smoke W"
+  },
+  {
+   "kind": "warning",
+   "name": "Smoke",
+   "letter": "M",
+   "rsName": "Smoke M"
+  },
+  {
+   "kind": "warning",
+   "name": "Stink",
+   "letter": "V",
+   "rsName": "Stink V"
+  },
+  {
+   "kind": "warning",
+   "name": "Stink",
+   "letter": "C",
+   "rsName": "Stink C"
+  },
+  {
+   "kind": "warning",
+   "name": "Stink",
+   "letter": "W",
+   "rsName": "Stink W"
+  },
+  {
+   "kind": "warning",
+   "name": "Stink",
+   "letter": "M",
+   "rsName": "Stink M"
+  },
+  {
+   "kind": "site",
+   "name": "Hoard",
+   "number": 6
+  },
+  {
+   "kind": "site",
+   "name": "Lair",
+   "number": 3
+  },
+  {
+   "kind": "site",
+   "name": "Altar",
+   "number": 1
+  },
+  {
+   "kind": "site",
+   "name": "Shrine",
+   "number": 4
+  },
+  {
+   "kind": "site",
+   "name": "Pool",
+   "number": 6
+  },
+  {
+   "kind": "site",
+   "name": "Vault",
+   "number": 3
+  },
+  {
+   "kind": "site",
+   "name": "Cairns",
+   "number": 5
+  },
+  {
+   "kind": "site",
+   "name": "Statue",
+   "number": 2
+  },
+  {
+   "kind": "lost",
+   "name": "Lost Castle",
+   "number": 1,
+   "numberIgnored": true
+  },
+  {
+   "kind": "lost",
+   "name": "Lost City",
+   "number": 3,
+   "numberIgnored": true
+  },
+  {
+   "kind": "sound",
+   "name": "Flutter",
+   "numbers": [
+    1,
+    2
+   ]
+  },
+  {
+   "kind": "sound",
+   "name": "Patter",
+   "numbers": [
+    2,
+    5
+   ]
+  },
+  {
+   "kind": "sound",
+   "name": "Slither",
+   "numbers": [
+    3,
+    6
+   ]
+  },
+  {
+   "kind": "sound",
+   "name": "Howl",
+   "numbers": [
+    4,
+    5
+   ]
+  },
+  {
+   "kind": "sound",
+   "name": "Roar",
+   "numbers": [
+    4,
+    6
+   ]
+  }
+ ],
+ "valleyWarnings": {
+  "Bones": "Ghosts",
+  "Dank": "Chapel",
+  "Ruins": "Guard house",
+  "Smoke": "House",
+  "Stink": "Inn"
+ },
+ "woodsWarnings": {
+  "Smoke": "Small Campfire",
+  "Stink": "Large Campfire"
+ },
+ "visitorChits": [
+  {
+   "id": "scholar",
+   "pair": "scholar_pillage"
+  },
+  {
+   "id": "shaman",
+   "pair": "shaman_escort"
+  },
+  {
+   "id": "warlock",
+   "pair": "warlock_foodale"
+  },
+  {
+   "id": "crone",
+   "pair": "crone_raid"
+  },
+  {
+   "id": "escort_party",
+   "pair": "shaman_escort"
+  },
+  {
+   "id": "food_ale",
+   "pair": "warlock_foodale"
+  },
+  {
+   "id": "pillage",
+   "pair": "scholar_pillage"
+  },
+  {
+   "id": "raid",
+   "pair": "crone_raid"
+  },
+  {
+   "id": "conquer",
+   "pair": "conquer_war"
+  },
+  {
+   "id": "war",
+   "pair": "conquer_war"
+  },
+  {
+   "id": "revolt",
+   "pair": "revolt_quest"
+  },
+  {
+   "id": "quest",
+   "pair": "revolt_quest"
+  }
+ ]
+}

@@ -1,0 +1,277 @@
+{
+ "tiles": {
+  "BL": {
+   "normal": "art/tiles/BL-normal.gif",
+   "enchanted": "art/tiles/BL-enchanted.gif"
+  },
+  "AV": {
+   "normal": "art/tiles/AV-normal.gif",
+   "enchanted": "art/tiles/AV-enchanted.gif"
+  },
+  "BV": {
+   "normal": "art/tiles/BV-normal.gif",
+   "enchanted": "art/tiles/BV-enchanted.gif"
+  },
+  "CV": {
+   "normal": "art/tiles/CV-normal.gif",
+   "enchanted": "art/tiles/CV-enchanted.gif"
+  },
+  "DV": {
+   "normal": "art/tiles/DV-normal.gif",
+   "enchanted": "art/tiles/DV-enchanted.gif"
+  },
+  "EV": {
+   "normal": "art/tiles/EV-normal.gif",
+   "enchanted": "art/tiles/EV-enchanted.gif"
+  },
+  "LW": {
+   "normal": "art/tiles/LW-normal.gif",
+   "enchanted": "art/tiles/LW-enchanted.gif"
+  },
+  "MW": {
+   "normal": "art/tiles/MW-normal.gif",
+   "enchanted": "art/tiles/MW-enchanted.gif"
+  },
+  "NW": {
+   "normal": "art/tiles/NW-normal.gif",
+   "enchanted": "art/tiles/NW-enchanted.gif"
+  },
+  "OW": {
+   "normal": "art/tiles/OW-normal.gif",
+   "enchanted": "art/tiles/OW-enchanted.gif"
+  },
+  "PW": {
+   "normal": "art/tiles/PW-normal.gif",
+   "enchanted": "art/tiles/PW-enchanted.gif"
+  },
+  "CL": {
+   "normal": "art/tiles/CL-normal.gif",
+   "enchanted": "art/tiles/CL-enchanted.gif"
+  },
+  "CR": {
+   "normal": "art/tiles/CR-normal.gif",
+   "enchanted": "art/tiles/CR-enchanted.gif"
+  },
+  "LE": {
+   "normal": "art/tiles/LE-normal.gif",
+   "enchanted": "art/tiles/LE-enchanted.gif"
+  },
+  "MT": {
+   "normal": "art/tiles/MT-normal.gif",
+   "enchanted": "art/tiles/MT-enchanted.gif"
+  },
+  "DW": {
+   "normal": "art/tiles/DW-normal.gif",
+   "enchanted": "art/tiles/DW-enchanted.gif"
+  },
+  "CN": {
+   "normal": "art/tiles/CN-normal.gif",
+   "enchanted": "art/tiles/CN-enchanted.gif"
+  },
+  "CA": {
+   "normal": "art/tiles/CA-normal.gif",
+   "enchanted": "art/tiles/CA-enchanted.gif"
+  },
+  "HP": {
+   "normal": "art/tiles/HP-normal.gif",
+   "enchanted": "art/tiles/HP-enchanted.gif"
+  },
+  "RU": {
+   "normal": "art/tiles/RU-normal.gif",
+   "enchanted": "art/tiles/RU-enchanted.gif"
+  }
+ },
+ "monsters": {
+  "Tremendous Flying Dragon": "art/monsters/dragon_flying.gif",
+  "Tremendous Flying Dragon head": "art/monsters/dragon_head_flying.gif",
+  "Tremendous Dragon": "art/monsters/dragon.gif",
+  "Tremendous Dragon head": "art/monsters/dragon_head.gif",
+  "Giant": "art/monsters/giant.gif",
+  "Giant club": "art/monsters/club.gif",
+  "Winged Demon": "art/monsters/demon_flying.gif",
+  "Demon": "art/monsters/demon.gif",
+  "Tremendous Troll": "art/monsters/troll.gif",
+  "Octopus": "art/monsters/octopus.gif",
+  "Tremendous Serpent": "art/monsters/serpent.gif",
+  "Tremendous Spider": "art/monsters/spider.gif",
+  "Heavy Flying Dragon": "art/monsters/dragon_flying.gif",
+  "Heavy Dragon": "art/monsters/dragon.gif",
+  "Heavy Troll": "art/monsters/troll.gif",
+  "Heavy Serpent": "art/monsters/serpent.gif",
+  "Giant Bat": "art/monsters/bat.gif",
+  "Heavy Spider": "art/monsters/spider.gif",
+  "Imp": "art/monsters/imp.gif",
+  "Viper": "art/monsters/serpent.gif",
+  "Ghost": "art/monsters/ghost.gif",
+  "Ogre": "art/monsters/giant.gif",
+  "Spear Goblin": "art/monsters/goblin_spear.gif",
+  "Sword Goblin": "art/monsters/goblin_sword.gif",
+  "Axe Goblin": "art/monsters/goblin_axe.gif",
+  "Wolf": "art/monsters/wolf.gif"
+ },
+ "natives": {
+  "B1": "art/natives_c/raider_b.gif",
+  "B2": "art/natives_c/raider_b.gif",
+  "B3": "art/natives_c/raider_b.gif",
+  "B4": "art/natives_c/raider_b.gif",
+  "B5": "art/natives_c/raider_b.gif",
+  "BHQ": "art/natives_c/raider_b.gif",
+  "C1": "art/natives_c/short_swordsman_c.gif",
+  "C2": "art/natives_c/pikeman_c.gif",
+  "C3": "art/natives_c/pikeman_c.gif",
+  "C4": "art/natives_c/pikeman_c.gif",
+  "C5": "art/natives_c/great_swordsman_c.gif",
+  "C6": "art/natives_c/crossbowman_c.gif",
+  "CHQ": "art/natives_c/short_swordsman_c.gif",
+  "G1": "art/natives_c/great_swordsman_g.gif",
+  "G2": "art/natives_c/great_swordsman_g.gif",
+  "GHQ": "art/natives_c/great_swordsman_g.gif",
+  "L1": "art/natives_c/lancer_l.gif",
+  "L2": "art/natives_c/lancer_l.gif",
+  "L3": "art/natives_c/lancer_l.gif",
+  "LHQ": "art/natives_c/lancer_l.gif",
+  "O1": "art/natives_c/knight_o.gif",
+  "O2": "art/natives_c/knight_o.gif",
+  "O3": "art/natives_c/knight_o.gif",
+  "OHQ": "art/natives_c/knight_o.gif",
+  "P1": "art/natives_c/short_swordsman_p.gif",
+  "P2": "art/natives_c/short_swordsman_p.gif",
+  "PHQ": "art/natives_c/short_swordsman_p.gif",
+  "R1": "art/natives_c/great_axeman_r.gif",
+  "R2": "art/natives_c/great_axeman_r.gif",
+  "R3": "art/natives_c/short_swordsman_r.gif",
+  "R4": "art/natives_c/archer_r.gif",
+  "R5": "art/natives_c/assassin_r.gif",
+  "R6": "art/natives_c/swordsman_r.gif",
+  "R7": "art/natives_c/swordsman_r.gif",
+  "RHQ": "art/natives_c/assassin_r.gif",
+  "S1": "art/natives_c/pikeman_s.gif",
+  "S2": "art/natives_c/pikeman_s.gif",
+  "S3": "art/natives_c/crossbowman_s.gif",
+  "SHQ": "art/natives_c/great_swordsman_s.gif",
+  "W1": "art/natives_c/archer_w.gif",
+  "W2": "art/natives_c/archer_w.gif",
+  "WHQ": "art/natives_c/archer_w.gif"
+ },
+ "dwellings": {
+  "Inn": "art/dwellings/inn.gif",
+  "House": "art/dwellings/house.gif",
+  "Chapel": "art/dwellings/chapel.gif",
+  "Guard house": "art/dwellings/guard.gif",
+  "Guard": "art/dwellings/guard.gif",
+  "Small Campfire": "art/dwellings/small_fire.gif",
+  "Large Campfire": "art/dwellings/large_fire.gif",
+  "Hut": "art/dwellings/hut.gif"
+ },
+ "weapons": {
+  "Bane Sword": "art/weapons/great_sword.gif",
+  "Truesteel Sword": "art/weapons/broadsword.gif",
+  "Devil Sword": "art/weapons/broadsword.gif",
+  "Living Sword": "art/weapons/thrusting_sword.gif",
+  "Medium Bow": "art/weapons/medium_bow.gif",
+  "Light Bow": "art/weapons/light_bow.gif",
+  "Crossbow": "art/weapons/crossbow.gif",
+  "Staff": "art/weapons/staff.gif",
+  "Great Sword": "art/weapons/great_sword.gif",
+  "Broadsword": "art/weapons/broadsword.gif",
+  "Morning Star": "art/weapons/morning_star.gif",
+  "Great Axe": "art/weapons/great_axe.gif",
+  "Thrusting Sword": "art/weapons/thrusting_sword.gif",
+  "Short Sword": "art/weapons/short_sword.gif",
+  "Axe": "art/weapons/axe.gif",
+  "Mace": "art/weapons/mace.gif",
+  "Spear": "art/weapons/spear.gif"
+ },
+ "armor": {
+  "Tremendous Suit of Armor": "art/armor/suitofarmor.gif",
+  "Suit of Armor": "art/armor/suitofarmor.gif",
+  "Helmet": "art/armor/helmet.gif",
+  "Shield": "art/armor/shield.gif",
+  "Breastplate": "art/armor/breastplate.gif",
+  "Gold Helmet": "art/armor/helmet.gif",
+  "Jade Shield": "art/armor/shield.gif",
+  "Silver Breastplate": "art/armor/breastplate.gif"
+ },
+ "horses": {
+  "Workhorse": "art/steed_c/horse.gif",
+  "Pony": "art/steed_c/pony.gif",
+  "Warhorse": "art/steed_c/warhorse.gif"
+ },
+ "characters": {
+  "witch-king": "art/characters/witch_king.gif",
+  "berserker": "art/characters/berserker.gif",
+  "white-knight": "art/characters/white_knight.gif",
+  "druid": "art/characters/druid.gif",
+  "pilgrim": "art/characters/pilgrim.gif",
+  "witch": "art/characters/witch.gif",
+  "dwarf": "art/characters/dwarf.gif",
+  "elf": "art/characters/elf.gif",
+  "sorceror": "art/characters/sorceror.gif",
+  "black-knight": "art/characters/black_knight.gif",
+  "magician": "art/characters/magician.gif",
+  "wizard": "art/characters/wizard.gif",
+  "captain": "art/characters/captain.gif",
+  "amazon": "art/characters/amazon.gif",
+  "swordsman": "art/characters/swordsman.gif"
+ },
+ "curses": {
+  "Ashes": "art/curse/ashes.gif",
+  "Disgust": "art/curse/disgust.gif",
+  "Eyemist": "art/curse/eyemist.gif",
+  "Illhealth": "art/curse/illhealth.gif",
+  "Squeak": "art/curse/squeak.gif",
+  "Wither": "art/curse/wither.gif"
+ },
+ "misc": {
+  "meetingTable": "art/tables/meeting.gif",
+  "missileTable": "art/tables/missile.gif",
+  "searchTable": "art/tables/search.gif",
+  "pitTable": "art/tables/powerofthepit.gif"
+ },
+ "monstersColor": {
+  "Tremendous Flying Dragon": "art/monsters_c/dragon_flying.gif",
+  "Tremendous Flying Dragon head": "art/monsters_c/dragon_head_flying.gif",
+  "Tremendous Dragon": "art/monsters_c/dragon.gif",
+  "Tremendous Dragon head": "art/monsters_c/dragon_head.gif",
+  "Giant": "art/monsters_c/giant.gif",
+  "Giant club": "art/monsters_c/club.gif",
+  "Winged Demon": "art/monsters_c/demon_flying.gif",
+  "Demon": "art/monsters_c/demon.gif",
+  "Tremendous Troll": "art/monsters_c/troll.gif",
+  "Octopus": "art/monsters_c/octopus.gif",
+  "Tremendous Serpent": "art/monsters_c/serpent.gif",
+  "Tremendous Spider": "art/monsters_c/spider.gif",
+  "Heavy Flying Dragon": "art/monsters_c/dragon_flying.gif",
+  "Heavy Dragon": "art/monsters_c/dragon.gif",
+  "Heavy Troll": "art/monsters_c/troll.gif",
+  "Heavy Serpent": "art/monsters_c/serpent.gif",
+  "Giant Bat": "art/monsters_c/bat.gif",
+  "Heavy Spider": "art/monsters_c/spider.gif",
+  "Imp": "art/monsters_c/imp.gif",
+  "Viper": "art/monsters_c/serpent.gif",
+  "Ghost": "art/monsters_c/ghost.gif",
+  "Ogre": "art/monsters_c/giant.gif",
+  "Spear Goblin": "art/monsters_c/goblin_spear.gif",
+  "Sword Goblin": "art/monsters_c/goblin_sword.gif",
+  "Axe Goblin": "art/monsters_c/goblin_axe.gif",
+  "Wolf": "art/monsters_c/wolf.gif"
+ },
+ "cards": {
+  "woods-girl": "art/characterdetail/woodsgirl.jpg",
+  "witch-king": "art/characterdetail/witch_king.jpg",
+  "berserker": "art/characterdetail/berserker.jpg",
+  "white-knight": "art/characterdetail/white_knight.jpg",
+  "druid": "art/characterdetail/druid.jpg",
+  "pilgrim": "art/characterdetail/pilgrim.jpg",
+  "witch": "art/characterdetail/witch.jpg",
+  "dwarf": "art/characterdetail/dwarf.jpg",
+  "elf": "art/characterdetail/elf.jpg",
+  "sorceror": "art/characterdetail/sorceror.jpg",
+  "black-knight": "art/characterdetail/black_knight.jpg",
+  "magician": "art/characterdetail/magician.jpg",
+  "wizard": "art/characterdetail/wizard.jpg",
+  "captain": "art/characterdetail/captain.jpg",
+  "amazon": "art/characterdetail/amazon.jpg",
+  "swordsman": "art/characterdetail/swordsman.jpg"
+ }
+}

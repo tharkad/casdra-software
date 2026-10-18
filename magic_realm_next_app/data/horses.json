@@ -1,0 +1,838 @@
+{
+ "meta": {
+  "sources": [
+   "RealmSpeak MagicRealmData.xml (magic_realm/utility/components/resources/data)",
+   "digest 05_characters_natives_monsters_victory.md section 4.2",
+   "prototype /Users/tharkad/casdra/magic-realm-server/mr-*.json"
+  ],
+  "notes": "Two forms: purchasable counters (17, native=true when the counter starts in a native group box on the Setup Card) and native mounts (17, ridden by one native, mountOf). walk = trot side, gallop = gallop side; strength is the printed letter, moves the time. kind: pony, workhorse (RealmSpeak \"horse\"), warhorse. sameStatsAs lists counters of the other form with identical statistics (exists in both a native and a purchasable form). Warhorses are armored with vulnerability T.",
+  "counts": {
+   "purchasable": 17,
+   "mounts": 32
+  }
+ },
+ "horses": [
+  {
+   "id": "mount-b1",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 5
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 3
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "B1",
+   "startBox": null,
+   "moveBonus": "double",
+   "sameStatsAs": [
+    "pony-2"
+   ]
+  },
+  {
+   "id": "mount-b2",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 5
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 4
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "B2",
+   "startBox": null,
+   "moveBonus": "double",
+   "sameStatsAs": [
+    "pony-1"
+   ]
+  },
+  {
+   "id": "mount-b3",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 4
+   },
+   "gallop": {
+    "strength": "L",
+    "moves": 3
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "B3",
+   "startBox": null,
+   "moveBonus": "double",
+   "sameStatsAs": [
+    "pony-6"
+   ]
+  },
+  {
+   "id": "mount-b4",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 5
+   },
+   "gallop": {
+    "strength": "L",
+    "moves": 3
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "B4",
+   "startBox": null,
+   "moveBonus": "double",
+   "sameStatsAs": [
+    "pony-3"
+   ]
+  },
+  {
+   "id": "mount-b5",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "L",
+    "moves": 5
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 2
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "B5",
+   "startBox": null,
+   "moveBonus": "double",
+   "sameStatsAs": []
+  },
+  {
+   "id": "mount-bhq",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 4
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 3
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "BHQ",
+   "startBox": null,
+   "moveBonus": "double",
+   "sameStatsAs": [
+    "pony-5"
+   ]
+  },
+  {
+   "id": "mount-l1",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 5
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 3
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "L1",
+   "startBox": null,
+   "moveBonus": "double",
+   "sameStatsAs": [
+    "pony-2"
+   ]
+  },
+  {
+   "id": "mount-l2",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 5
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 4
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "L2",
+   "startBox": null,
+   "moveBonus": "double",
+   "sameStatsAs": [
+    "pony-1"
+   ]
+  },
+  {
+   "id": "mount-l3",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "L",
+    "moves": 4
+   },
+   "gallop": {
+    "strength": "L",
+    "moves": 2
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "L3",
+   "startBox": null,
+   "moveBonus": "double",
+   "sameStatsAs": [
+    "pony-7"
+   ]
+  },
+  {
+   "id": "mount-lhq",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 4
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 3
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "LHQ",
+   "startBox": null,
+   "moveBonus": "double",
+   "sameStatsAs": [
+    "pony-5"
+   ]
+  },
+  {
+   "id": "mount-o1",
+   "name": "Warhorse",
+   "kind": "warhorse",
+   "vulnerability": "T",
+   "armored": true,
+   "walk": {
+    "strength": "H",
+    "moves": 6
+   },
+   "gallop": {
+    "strength": "H",
+    "moves": 4
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "O1",
+   "startBox": null,
+   "moveBonus": null,
+   "sameStatsAs": [
+    "warhorse-3"
+   ]
+  },
+  {
+   "id": "mount-o2",
+   "name": "Warhorse",
+   "kind": "warhorse",
+   "vulnerability": "T",
+   "armored": true,
+   "walk": {
+    "strength": "T",
+    "moves": 7
+   },
+   "gallop": {
+    "strength": "T",
+    "moves": 5
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "O2",
+   "startBox": null,
+   "moveBonus": null,
+   "sameStatsAs": [
+    "warhorse-1"
+   ]
+  },
+  {
+   "id": "mount-o3",
+   "name": "Warhorse",
+   "kind": "warhorse",
+   "vulnerability": "T",
+   "armored": true,
+   "walk": {
+    "strength": "T",
+    "moves": 7
+   },
+   "gallop": {
+    "strength": "H",
+    "moves": 4
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "O3",
+   "startBox": null,
+   "moveBonus": null,
+   "sameStatsAs": [
+    "warhorse-2"
+   ]
+  },
+  {
+   "id": "mount-ohq",
+   "name": "Warhorse",
+   "kind": "warhorse",
+   "vulnerability": "T",
+   "armored": true,
+   "walk": {
+    "strength": "T",
+    "moves": 5
+   },
+   "gallop": {
+    "strength": "T",
+    "moves": 3
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "OHQ",
+   "startBox": null,
+   "moveBonus": null,
+   "sameStatsAs": [
+    "warhorse-4"
+   ]
+  },
+  {
+   "id": "mount-p1",
+   "name": "Workhorse",
+   "kind": "workhorse",
+   "vulnerability": "H",
+   "armored": false,
+   "walk": {
+    "strength": "H",
+    "moves": 7
+   },
+   "gallop": {
+    "strength": "H",
+    "moves": 6
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "P1",
+   "startBox": null,
+   "moveBonus": "extra",
+   "sameStatsAs": [
+    "workhorse-2"
+   ]
+  },
+  {
+   "id": "mount-p2",
+   "name": "Workhorse",
+   "kind": "workhorse",
+   "vulnerability": "H",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 6
+   },
+   "gallop": {
+    "strength": "H",
+    "moves": 6
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "P2",
+   "startBox": null,
+   "moveBonus": "extra",
+   "sameStatsAs": []
+  },
+  {
+   "id": "mount-phq",
+   "name": "Workhorse",
+   "kind": "workhorse",
+   "vulnerability": "H",
+   "armored": false,
+   "walk": {
+    "strength": "H",
+    "moves": 7
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 5
+   },
+   "gold": null,
+   "native": true,
+   "purchasable": false,
+   "mountOf": "PHQ",
+   "startBox": null,
+   "moveBonus": "extra",
+   "sameStatsAs": [
+    "workhorse-3"
+   ]
+  },
+  {
+   "id": "pony-1",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 5
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 4
+   },
+   "gold": 12,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Bashkar Dwelling",
+   "moveBonus": "double",
+   "magic": false,
+   "sameStatsAs": [
+    "mount-b2",
+    "mount-l2"
+   ]
+  },
+  {
+   "id": "pony-2",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 5
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 3
+   },
+   "gold": 14,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Bashkar Dwelling",
+   "moveBonus": "double",
+   "magic": false,
+   "sameStatsAs": [
+    "mount-b1",
+    "mount-l1"
+   ]
+  },
+  {
+   "id": "pony-3",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 5
+   },
+   "gallop": {
+    "strength": "L",
+    "moves": 3
+   },
+   "gold": 12,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Bashkar Dwelling",
+   "moveBonus": "double",
+   "magic": false,
+   "sameStatsAs": [
+    "mount-b4"
+   ]
+  },
+  {
+   "id": "pony-4",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 5
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 2
+   },
+   "gold": 16,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Bashkar Dwelling",
+   "moveBonus": "double",
+   "magic": false,
+   "sameStatsAs": []
+  },
+  {
+   "id": "pony-5",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 4
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 3
+   },
+   "gold": 15,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Bashkar Dwelling",
+   "moveBonus": "double",
+   "magic": false,
+   "sameStatsAs": [
+    "mount-bhq",
+    "mount-lhq"
+   ]
+  },
+  {
+   "id": "pony-6",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 4
+   },
+   "gallop": {
+    "strength": "L",
+    "moves": 3
+   },
+   "gold": 14,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Bashkar Dwelling",
+   "moveBonus": "double",
+   "magic": false,
+   "sameStatsAs": [
+    "mount-b3"
+   ]
+  },
+  {
+   "id": "pony-7",
+   "name": "Pony",
+   "kind": "pony",
+   "vulnerability": "M",
+   "armored": false,
+   "walk": {
+    "strength": "L",
+    "moves": 4
+   },
+   "gallop": {
+    "strength": "L",
+    "moves": 2
+   },
+   "gold": 16,
+   "native": false,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Enchanted Meadow",
+   "moveBonus": "double",
+   "magic": true,
+   "sameStatsAs": [
+    "mount-l3"
+   ]
+  },
+  {
+   "id": "warhorse-1",
+   "name": "Warhorse",
+   "kind": "warhorse",
+   "vulnerability": "T",
+   "armored": true,
+   "walk": {
+    "strength": "T",
+    "moves": 7
+   },
+   "gallop": {
+    "strength": "T",
+    "moves": 5
+   },
+   "gold": 22,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Chapel",
+   "moveBonus": null,
+   "magic": false,
+   "sameStatsAs": [
+    "mount-o2"
+   ]
+  },
+  {
+   "id": "warhorse-2",
+   "name": "Warhorse",
+   "kind": "warhorse",
+   "vulnerability": "T",
+   "armored": true,
+   "walk": {
+    "strength": "T",
+    "moves": 7
+   },
+   "gallop": {
+    "strength": "H",
+    "moves": 4
+   },
+   "gold": 20,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Chapel",
+   "moveBonus": null,
+   "magic": false,
+   "sameStatsAs": [
+    "mount-o3"
+   ]
+  },
+  {
+   "id": "warhorse-3",
+   "name": "Warhorse",
+   "kind": "warhorse",
+   "vulnerability": "T",
+   "armored": true,
+   "walk": {
+    "strength": "H",
+    "moves": 6
+   },
+   "gallop": {
+    "strength": "H",
+    "moves": 4
+   },
+   "gold": 18,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Chapel",
+   "moveBonus": null,
+   "magic": false,
+   "sameStatsAs": [
+    "mount-o1"
+   ]
+  },
+  {
+   "id": "warhorse-4",
+   "name": "Warhorse",
+   "kind": "warhorse",
+   "vulnerability": "T",
+   "armored": true,
+   "walk": {
+    "strength": "T",
+    "moves": 5
+   },
+   "gallop": {
+    "strength": "T",
+    "moves": 3
+   },
+   "gold": 25,
+   "native": false,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Crypt of the Knight",
+   "moveBonus": null,
+   "magic": true,
+   "sameStatsAs": [
+    "mount-ohq"
+   ]
+  },
+  {
+   "id": "workhorse-1",
+   "name": "Workhorse",
+   "kind": "workhorse",
+   "vulnerability": "H",
+   "armored": false,
+   "walk": {
+    "strength": "T",
+    "moves": 8
+   },
+   "gallop": {
+    "strength": "H",
+    "moves": 6
+   },
+   "gold": 12,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Inn",
+   "moveBonus": "extra",
+   "magic": false,
+   "sameStatsAs": []
+  },
+  {
+   "id": "workhorse-2",
+   "name": "Workhorse",
+   "kind": "workhorse",
+   "vulnerability": "H",
+   "armored": false,
+   "walk": {
+    "strength": "H",
+    "moves": 7
+   },
+   "gallop": {
+    "strength": "H",
+    "moves": 6
+   },
+   "gold": 11,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Inn",
+   "moveBonus": "extra",
+   "magic": false,
+   "sameStatsAs": [
+    "mount-p1"
+   ]
+  },
+  {
+   "id": "workhorse-3",
+   "name": "Workhorse",
+   "kind": "workhorse",
+   "vulnerability": "H",
+   "armored": false,
+   "walk": {
+    "strength": "H",
+    "moves": 7
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 5
+   },
+   "gold": 11,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Inn",
+   "moveBonus": "extra",
+   "magic": false,
+   "sameStatsAs": [
+    "mount-phq"
+   ]
+  },
+  {
+   "id": "workhorse-4",
+   "name": "Workhorse",
+   "kind": "workhorse",
+   "vulnerability": "H",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 6
+   },
+   "gallop": {
+    "strength": "M",
+    "moves": 5
+   },
+   "gold": 10,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Inn",
+   "moveBonus": "extra",
+   "magic": false,
+   "sameStatsAs": []
+  },
+  {
+   "id": "workhorse-5",
+   "name": "Workhorse",
+   "kind": "workhorse",
+   "vulnerability": "H",
+   "armored": false,
+   "walk": {
+    "strength": "M",
+    "moves": 6
+   },
+   "gallop": {
+    "strength": "L",
+    "moves": 4
+   },
+   "gold": 9,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Inn",
+   "moveBonus": "extra",
+   "magic": false,
+   "sameStatsAs": []
+  },
+  {
+   "id": "workhorse-6",
+   "name": "Workhorse",
+   "kind": "workhorse",
+   "vulnerability": "H",
+   "armored": false,
+   "walk": {
+    "strength": "L",
+    "moves": 5
+   },
+   "gallop": {
+    "strength": "L",
+    "moves": 4
+   },
+   "gold": 8,
+   "native": true,
+   "purchasable": true,
+   "mountOf": null,
+   "startBox": "Inn",
+   "moveBonus": "extra",
+   "magic": false,
+   "sameStatsAs": []
+  }
+ ]
+}

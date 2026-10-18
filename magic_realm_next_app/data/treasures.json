@@ -1,0 +1,1602 @@
+{
+ "meta": {
+  "sources": [
+   "RealmSpeak MagicRealmData.xml (magic_realm/utility/components/resources/data)",
+   "digest 04_magic_treasure_search.md sections 3.1-3.3",
+   "prototype /Users/tharkad/casdra/magic-realm-server/mr-*.json (effect-section ordering only)"
+  ],
+  "notes": "kind: large (23), small (45), twt (6). fame is the Fame value counted while owned; where a card lists a native group, RealmSpeak stores the sale reward in the same field, so it is reported in fameReward and fame is 0. gold null for TWT cards (they have no sale price; goldReward holds the 50/20 gold of Chest/Remains). weight N = no weight printed. effectSection is the rulebook section implied by the prototype listing order and digest 04 lists (primary), alsoSections the additional memberships; Imperial Tabard has no section (null, OPEN). effectText is an own-words paraphrase. magic.numeral = Roman numeral of artifact/book (magic.numerals lists both for two-type books), magic.colour = colour source or spell colour.",
+  "counts": {
+   "cards": 74
+  }
+ },
+ "treasures": [
+  {
+   "id": "imperial-tabard",
+   "name": "Imperial Tabard",
+   "kind": "large",
+   "great": true,
+   "weight": "M",
+   "gold": 17,
+   "fame": 0,
+   "notoriety": -10,
+   "fameReward": {
+    "group": "Guard",
+    "points": 20
+   },
+   "discardTo": null,
+   "effectSection": null,
+   "effectText": "No special effect; a valuable large item that earns Fame when sold to the Guard.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "chest",
+   "name": "Chest",
+   "kind": "twt",
+   "great": false,
+   "weight": "T",
+   "gold": null,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 1,
+   "effectText": "Locked box; opens only with the Lost Keys; the card is swapped for its two large treasures plus 50 gold.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "substitute"
+   ],
+   "alsoSections": [
+    4
+   ],
+   "twtNumber": 1,
+   "goldReward": 50
+  },
+  {
+   "id": "mouldy-skeleton",
+   "name": "Mouldy Skeleton",
+   "kind": "twt",
+   "great": false,
+   "weight": "N",
+   "gold": null,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 1,
+   "effectText": "Substitute card: forces a Curse roll when drawn, then leaves play; its three armor counters go on top of the pile being searched.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "substitute"
+   ],
+   "twtNumber": 3,
+   "goldReward": null
+  },
+  {
+   "id": "remains-of-thief",
+   "name": "Remains of Thief",
+   "kind": "twt",
+   "great": false,
+   "weight": "N",
+   "gold": null,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 1,
+   "effectText": "Substitute card: forces a Curse roll when drawn, then leaves play; finder keeps its goods and 20 gold.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "substitute"
+   ],
+   "twtNumber": 2,
+   "goldReward": 20
+  },
+  {
+   "id": "toadstool-circle",
+   "name": "Toadstool Circle",
+   "kind": "twt",
+   "great": false,
+   "weight": "N",
+   "gold": null,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 1,
+   "effectText": "Site card that stays in place; black colour source; gives an extra spell phase in its clearing; has its own six-result loot table.",
+   "magic": {
+    "numeral": null,
+    "numerals": [],
+    "colour": "black"
+   },
+   "spellCount": 0,
+   "tags": [
+    "site-card"
+   ],
+   "alsoSections": [
+    13
+   ],
+   "twtNumber": 4,
+   "goldReward": null
+  },
+  {
+   "id": "crypt-of-the-knight",
+   "name": "Crypt of the Knight",
+   "kind": "twt",
+   "great": false,
+   "weight": "N",
+   "gold": null,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 1,
+   "effectText": "Site card that stays in place; every roll needs the Lost Keys or Tremendous strength; own loot table (warhorse, armor, Bane Sword, treasure, gold, curse).",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "site-card"
+   ],
+   "twtNumber": 5,
+   "goldReward": null
+  },
+  {
+   "id": "enchanted-meadow",
+   "name": "Enchanted Meadow",
+   "kind": "twt",
+   "great": false,
+   "weight": "N",
+   "gold": null,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 1,
+   "effectText": "Site card that stays in place; own loot table (pony, Truesteel Sword, wish, full heal, curse, nothing).",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "site-card"
+   ],
+   "twtNumber": 6,
+   "goldReward": null
+  },
+  {
+   "id": "crystal-ball",
+   "name": "Crystal Ball",
+   "kind": "large",
+   "great": false,
+   "weight": "M",
+   "gold": 20,
+   "fame": 0,
+   "notoriety": 5,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 2,
+   "effectText": "Lets a regular phase be used to Peer or to act on spells at any clearing.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "ancient-telescope",
+   "name": "Ancient Telescope",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 5,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 2,
+   "effectText": "Gives an extra Peer, usable from a mountain clearing to other mountain clearings.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "cloak-of-mist",
+   "name": "Cloak of Mist",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 4,
+   "fame": 0,
+   "notoriety": 2,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 2,
+   "effectText": "Gives an extra Hide phase.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "magic-spectacles",
+   "name": "Magic Spectacles",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 6,
+   "fame": 0,
+   "notoriety": 2,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 2,
+   "effectText": "Gives an extra Search phase.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "regent-of-jewels",
+   "name": "Regent of Jewels",
+   "kind": "large",
+   "great": true,
+   "weight": "L",
+   "gold": 67,
+   "fame": 0,
+   "notoriety": 10,
+   "fameReward": {
+    "group": "Soldiers",
+    "points": 10
+   },
+   "discardTo": null,
+   "effectSection": 2,
+   "effectText": "Gives an extra Trade phase; earns Fame when sold to the Soldiers.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "royal-sceptre",
+   "name": "Royal Sceptre",
+   "kind": "small",
+   "great": true,
+   "weight": "L",
+   "gold": 8,
+   "fame": 0,
+   "notoriety": -15,
+   "fameReward": {
+    "group": "Guard",
+    "points": 20
+   },
+   "discardTo": null,
+   "effectSection": 2,
+   "effectText": "Gives an extra Hire phase; earns Fame when sold to the Guard.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "seven-league-boots",
+   "name": "Seven League Boots",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 5,
+   "fame": 0,
+   "notoriety": 2,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 2,
+   "effectText": "Boots: Move T5 and one extra Move phase.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "boots"
+   ],
+   "alsoSections": [
+    8
+   ]
+  },
+  {
+   "id": "shielded-lantern",
+   "name": "Shielded Lantern",
+   "kind": "small",
+   "great": false,
+   "weight": "L",
+   "gold": 8,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 2,
+   "effectText": "Gives an extra phase while in caves.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "toadstool-ring",
+   "name": "Toadstool Ring",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 9,
+   "fame": 0,
+   "notoriety": 3,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 2,
+   "effectText": "Gives an extra spell phase.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "dragon-essence",
+   "name": "Dragon Essence",
+   "kind": "small",
+   "great": true,
+   "weight": "N",
+   "gold": 3,
+   "fame": -10,
+   "notoriety": 20,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 3,
+   "effectText": "Counts as a Smoke warning chit; purple colour source once face up.",
+   "magic": {
+    "numeral": null,
+    "numerals": [],
+    "colour": "purple"
+   },
+   "spellCount": 0,
+   "tags": [],
+   "alsoSections": [
+    13
+   ]
+  },
+  {
+   "id": "flowers-of-rest",
+   "name": "Flowers of Rest",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 2,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 3,
+   "effectText": "Holder loses a turn to recover all fatigue; gold colour source once face up.",
+   "magic": {
+    "numeral": null,
+    "numerals": [],
+    "colour": "gold"
+   },
+   "spellCount": 0,
+   "tags": [],
+   "alsoSections": [
+    7,
+    13
+   ]
+  },
+  {
+   "id": "poultice-of-health",
+   "name": "Poultice of Health",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 2,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": "Shaman",
+   "effectSection": 3,
+   "effectText": "A Rest action counts double; one-use potion that returns to the Shaman.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "potion"
+   ]
+  },
+  {
+   "id": "timeless-jewel",
+   "name": "Timeless Jewel",
+   "kind": "large",
+   "great": false,
+   "weight": "L",
+   "gold": 34,
+   "fame": 0,
+   "notoriety": 7,
+   "fameReward": {
+    "group": "Soldiers",
+    "points": 5
+   },
+   "discardTo": null,
+   "effectSection": 3,
+   "effectText": "Holder does not have to record moves in advance; must be deactivated to end the effect.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "amulet",
+   "name": "Amulet",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 5,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": "Shaman",
+   "effectSection": 4,
+   "effectText": "Cancels one spell or curse; one-use potion that returns to the Shaman.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "potion"
+   ]
+  },
+  {
+   "id": "withered-claw",
+   "name": "Withered Claw",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 3,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": "Shaman",
+   "effectSection": 4,
+   "effectText": "Roll for both a wish and a curse; one-use potion that returns to the Shaman.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "potion"
+   ]
+  },
+  {
+   "id": "cloven-hoof",
+   "name": "Cloven Hoof",
+   "kind": "small",
+   "great": true,
+   "weight": "N",
+   "gold": 4,
+   "fame": -20,
+   "notoriety": 40,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 5,
+   "effectText": "Adds one to every table roll made by anyone in its clearing; black colour source once face up.",
+   "magic": {
+    "numeral": null,
+    "numerals": [],
+    "colour": "black"
+   },
+   "spellCount": 0,
+   "tags": [],
+   "alsoSections": [
+    13
+   ]
+  },
+  {
+   "id": "deft-gloves",
+   "name": "Deft Gloves",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 10,
+   "fame": 0,
+   "notoriety": 6,
+   "fameReward": {
+    "group": "Order",
+    "points": 5
+   },
+   "discardTo": null,
+   "effectSection": 5,
+   "effectText": "Gloves: Fight L2; roll one die when looting.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "gloves"
+   ],
+   "alsoSections": [
+    9
+   ]
+  },
+  {
+   "id": "lost-keys",
+   "name": "Lost Keys",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 5,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 5,
+   "effectText": "Opens the Chest, the Crypt of the Knight and the Vault.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "lucky-charm",
+   "name": "Lucky Charm",
+   "kind": "large",
+   "great": false,
+   "weight": "N",
+   "gold": 14,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 5,
+   "effectText": "Roll one die instead of two on every table.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "magic-wand",
+   "name": "Magic Wand",
+   "kind": "large",
+   "great": true,
+   "weight": "N",
+   "gold": 17,
+   "fame": -10,
+   "notoriety": 10,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 5,
+   "effectText": "Owner picks the red die on spell-related rolls (wish, curse, pit, missile spells and similar).",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "map-of-lost-castle",
+   "name": "Map of Lost Castle",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 3,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 5,
+   "effectText": "Minus one on Locate rolls in the Lost Castle tile.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "map-of-lost-city",
+   "name": "Map of Lost City",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 3,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 5,
+   "effectText": "Minus one on Locate rolls in the Lost City tile.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "map-of-ruins",
+   "name": "Map of Ruins",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 3,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 5,
+   "effectText": "Minus one on Locate rolls in any Ruins clearing.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "phantom-glass",
+   "name": "Phantom Glass",
+   "kind": "small",
+   "great": false,
+   "weight": "L",
+   "gold": 8,
+   "fame": 0,
+   "notoriety": 2,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 5,
+   "effectText": "Holder searches with Magic Sight.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "shoes-of-stealth",
+   "name": "Shoes of Stealth",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 7,
+   "fame": 0,
+   "notoriety": 2,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 5,
+   "effectText": "Boots: Move L3; roll one die when hiding.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "boots"
+   ],
+   "alsoSections": [
+    8
+   ]
+  },
+  {
+   "id": "belt-of-strength",
+   "name": "Belt of Strength",
+   "kind": "large",
+   "great": false,
+   "weight": "N",
+   "gold": 16,
+   "fame": 3,
+   "notoriety": 6,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 6,
+   "effectText": "Chit asterisks set force: two asterisks T, one H, none M.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "draught-of-speed",
+   "name": "Draught of Speed",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 6,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": "Warlock",
+   "effectSection": 6,
+   "effectText": "Chit asterisks set speed: two asterisks 2, one 3, none 4; one-use potion.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "potion"
+   ]
+  },
+  {
+   "id": "garb-of-speed",
+   "name": "Garb of Speed",
+   "kind": "large",
+   "great": false,
+   "weight": "N",
+   "gold": 16,
+   "fame": 2,
+   "notoriety": 6,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 6,
+   "effectText": "Chit asterisks set speed: two asterisks 3, one 4, none 5.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "vial-of-healing",
+   "name": "Vial of Healing",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 2,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": "Chapel",
+   "effectSection": 7,
+   "effectText": "Turns all wounds into fatigue; one-use potion that returns to the Chapel box.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "potion"
+   ]
+  },
+  {
+   "id": "elven-slippers",
+   "name": "Elven Slippers",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 5,
+   "fame": 0,
+   "notoriety": 2,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 8,
+   "effectText": "Boots: Move L2.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "boots"
+   ]
+  },
+  {
+   "id": "power-boots",
+   "name": "Power Boots",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 8,
+   "fame": 0,
+   "notoriety": 3,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 8,
+   "effectText": "Boots: Move H4.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "boots"
+   ]
+  },
+  {
+   "id": "quick-boots",
+   "name": "Quick Boots",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 8,
+   "fame": 1,
+   "notoriety": 2,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 8,
+   "effectText": "Boots: Move M3.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "boots"
+   ]
+  },
+  {
+   "id": "gloves-of-strength",
+   "name": "Gloves of Strength",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 8,
+   "fame": 0,
+   "notoriety": 6,
+   "fameReward": {
+    "group": "Order",
+    "points": 5
+   },
+   "discardTo": null,
+   "effectSection": 9,
+   "effectText": "Gloves: Fight T5; earns Fame when sold to the Order.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "gloves"
+   ]
+  },
+  {
+   "id": "handy-gloves",
+   "name": "Handy Gloves",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 6,
+   "fame": 1,
+   "notoriety": 2,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 9,
+   "effectText": "Gloves: Fight M3.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "gloves"
+   ]
+  },
+  {
+   "id": "power-gauntlets",
+   "name": "Power Gauntlets",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 7,
+   "fame": 3,
+   "notoriety": 4,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 9,
+   "effectText": "Gloves: Fight H4.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "gloves"
+   ]
+  },
+  {
+   "id": "alchemists-mixture",
+   "name": "Alchemist's Mixture",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 4,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": "Warlock",
+   "effectSection": 10,
+   "effectText": "One thrown missile attack of Medium harm with three sharpness, length 11; one-use potion.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "potion",
+    "weapon"
+   ]
+  },
+  {
+   "id": "bejeweled-dwarf-vest",
+   "name": "Bejeweled Dwarf Vest",
+   "kind": "large",
+   "great": true,
+   "weight": "M",
+   "gold": 27,
+   "fame": 0,
+   "notoriety": 5,
+   "fameReward": {
+    "group": "Soldiers",
+    "points": 10
+   },
+   "discardTo": null,
+   "effectSection": 10,
+   "effectText": "Armor card: Heavy toughness against thrusts; destroyed by Heavy harm or more.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "armor"
+   ]
+  },
+  {
+   "id": "golden-arm-band",
+   "name": "Golden Arm Band",
+   "kind": "large",
+   "great": false,
+   "weight": "L",
+   "gold": 15,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": {
+    "group": "Lancers",
+    "points": 3
+   },
+   "discardTo": null,
+   "effectSection": 10,
+   "effectText": "Armor card: Medium toughness against swings.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "armor"
+   ]
+  },
+  {
+   "id": "golden-crown",
+   "name": "Golden Crown",
+   "kind": "large",
+   "great": true,
+   "weight": "H",
+   "gold": 50,
+   "fame": 0,
+   "notoriety": -15,
+   "fameReward": {
+    "group": "Guard",
+    "points": 20
+   },
+   "discardTo": null,
+   "effectSection": 10,
+   "effectText": "Armor card: Medium toughness against smashes.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "armor"
+   ]
+  },
+  {
+   "id": "ointment-of-steel",
+   "name": "Ointment of Steel",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 4,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": "Shaman",
+   "effectSection": 10,
+   "effectText": "Counts as Tremendous armor against any blow; one-use potion.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "potion",
+    "armor"
+   ]
+  },
+  {
+   "id": "gripping-dust",
+   "name": "Gripping Dust",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 5,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": "Warlock",
+   "effectSection": 11,
+   "effectText": "Keeps the active weapon alerted; one-use potion.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "potion"
+   ]
+  },
+  {
+   "id": "oil-of-poison",
+   "name": "Oil of Poison",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 3,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": "Crone",
+   "effectSection": 11,
+   "effectText": "Adds one sharpness to the active weapon; one-use potion.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "potion"
+   ]
+  },
+  {
+   "id": "ointment-of-bite",
+   "name": "Ointment of Bite",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 5,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": "Crone",
+   "effectSection": 11,
+   "effectText": "Weapon hits when attack time ties the target maneuver time; one-use potion.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "potion"
+   ]
+  },
+  {
+   "id": "penetrating-grease",
+   "name": "Penetrating Grease",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 4,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": "Crone",
+   "effectSection": 11,
+   "effectText": "Weapon ignores all armor; one-use potion.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "potion"
+   ]
+  },
+  {
+   "id": "reflecting-grease",
+   "name": "Reflecting Grease",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 3,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": "Crone",
+   "effectSection": 12,
+   "effectText": "Any armor stops wounds; one-use potion.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "potion"
+   ]
+  },
+  {
+   "id": "girtle-of-energy",
+   "name": "Girtle of Energy",
+   "kind": "large",
+   "great": false,
+   "weight": "N",
+   "gold": 13,
+   "fame": 2,
+   "notoriety": 4,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 12,
+   "effectText": "Raises the per-round effort limit to three asterisks.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "potion-of-energy",
+   "name": "Potion of Energy",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 5,
+   "fame": 0,
+   "notoriety": 0,
+   "fameReward": null,
+   "discardTo": "Warlock",
+   "effectSection": 12,
+   "effectText": "Removes the per-round effort limit; one-use potion.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": [
+    "potion"
+   ]
+  },
+  {
+   "id": "battle-bracelets",
+   "name": "Battle Bracelets",
+   "kind": "large",
+   "great": false,
+   "weight": "N",
+   "gold": 12,
+   "fame": 2,
+   "notoriety": 4,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 12,
+   "effectText": "After the plays are revealed, may move his attack to any attack circle if every target has a maneuver time of 5 or more.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "elusive-cloak",
+   "name": "Elusive Cloak",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 10,
+   "fame": 0,
+   "notoriety": 2,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 12,
+   "effectText": "After the plays are revealed, may move his maneuver to any maneuver square if every attack aimed at him has an attack time of 5 or more.",
+   "magic": null,
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "golden-icon",
+   "name": "Golden Icon",
+   "kind": "large",
+   "great": true,
+   "weight": "T",
+   "gold": 100,
+   "fame": -10,
+   "notoriety": 20,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 13,
+   "effectText": "Grey colour source once face up; very heavy and very valuable.",
+   "magic": {
+    "numeral": null,
+    "numerals": [],
+    "colour": "grey"
+   },
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "sacred-grail",
+   "name": "Sacred Grail",
+   "kind": "large",
+   "great": true,
+   "weight": "M",
+   "gold": 12,
+   "fame": 0,
+   "notoriety": -25,
+   "fameReward": {
+    "group": "Order",
+    "points": 50
+   },
+   "discardTo": null,
+   "effectSection": 13,
+   "effectText": "White colour source once face up; earns a large Fame reward from the Order.",
+   "magic": {
+    "numeral": null,
+    "numerals": [],
+    "colour": "white"
+   },
+   "spellCount": 0,
+   "tags": []
+  },
+  {
+   "id": "beast-pipes",
+   "name": "Beast Pipes",
+   "kind": "small",
+   "great": false,
+   "weight": "N",
+   "gold": 8,
+   "fame": -5,
+   "notoriety": 5,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 14,
+   "effectText": "Artifact holding one Type VIII spell.",
+   "magic": {
+    "numeral": "VIII",
+    "numerals": [
+     "VIII"
+    ],
+    "colour": null
+   },
+   "spellCount": 1,
+   "tags": [
+    "artifact"
+   ],
+   "visitorPrices": {
+    "Scholar": 20,
+    "Crone": 20
+   }
+  },
+  {
+   "id": "blasted-jewel",
+   "name": "Blasted Jewel",
+   "kind": "large",
+   "great": true,
+   "weight": "H",
+   "gold": 30,
+   "fame": -15,
+   "notoriety": 15,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 14,
+   "effectText": "Artifact holding one Type V spell.",
+   "magic": {
+    "numeral": "V",
+    "numerals": [
+     "V"
+    ],
+    "colour": null
+   },
+   "spellCount": 1,
+   "tags": [
+    "artifact"
+   ],
+   "visitorPrices": {
+    "Scholar": 20
+   }
+  },
+  {
+   "id": "enchanters-skull",
+   "name": "Enchanter's Skull",
+   "kind": "large",
+   "great": true,
+   "weight": "L",
+   "gold": 17,
+   "fame": -10,
+   "notoriety": 10,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 14,
+   "effectText": "Artifact holding one Type IV spell.",
+   "magic": {
+    "numeral": "IV",
+    "numerals": [
+     "IV"
+    ],
+    "colour": null
+   },
+   "spellCount": 1,
+   "tags": [
+    "artifact"
+   ],
+   "visitorPrices": {
+    "Scholar": 20,
+    "Warlock": 20
+   }
+  },
+  {
+   "id": "eye-of-the-idol",
+   "name": "Eye of the Idol",
+   "kind": "large",
+   "great": false,
+   "weight": "M",
+   "gold": 34,
+   "fame": -5,
+   "notoriety": 10,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 14,
+   "effectText": "Artifact holding one Type II spell.",
+   "magic": {
+    "numeral": "II",
+    "numerals": [
+     "II"
+    ],
+    "colour": null
+   },
+   "spellCount": 1,
+   "tags": [
+    "artifact"
+   ],
+   "visitorPrices": {
+    "Scholar": 20
+   }
+  },
+  {
+   "id": "glimmering-ring",
+   "name": "Glimmering Ring",
+   "kind": "large",
+   "great": false,
+   "weight": "N",
+   "gold": 15,
+   "fame": 0,
+   "notoriety": 10,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 14,
+   "effectText": "Artifact holding one Type III spell.",
+   "magic": {
+    "numeral": "III",
+    "numerals": [
+     "III"
+    ],
+    "colour": null
+   },
+   "spellCount": 1,
+   "tags": [
+    "artifact"
+   ],
+   "visitorPrices": {
+    "Scholar": 20,
+    "Shaman": 20
+   }
+  },
+  {
+   "id": "glowing-gem",
+   "name": "Glowing Gem",
+   "kind": "large",
+   "great": false,
+   "weight": "N",
+   "gold": 15,
+   "fame": 0,
+   "notoriety": 10,
+   "fameReward": {
+    "group": "Soldiers",
+    "points": 5
+   },
+   "discardTo": null,
+   "effectSection": 14,
+   "effectText": "Artifact holding one Type VII spell.",
+   "magic": {
+    "numeral": "VII",
+    "numerals": [
+     "VII"
+    ],
+    "colour": null
+   },
+   "spellCount": 1,
+   "tags": [
+    "artifact"
+   ],
+   "visitorPrices": {
+    "Scholar": 20
+   }
+  },
+  {
+   "id": "hidden-ring",
+   "name": "Hidden Ring",
+   "kind": "large",
+   "great": true,
+   "weight": "N",
+   "gold": 20,
+   "fame": -10,
+   "notoriety": 10,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 14,
+   "effectText": "Artifact holding one Type VI spell.",
+   "magic": {
+    "numeral": "VI",
+    "numerals": [
+     "VI"
+    ],
+    "colour": null
+   },
+   "spellCount": 1,
+   "tags": [
+    "artifact"
+   ],
+   "visitorPrices": {
+    "Scholar": 20
+   }
+  },
+  {
+   "id": "sacred-statue",
+   "name": "Sacred Statue",
+   "kind": "small",
+   "great": true,
+   "weight": "L",
+   "gold": 10,
+   "fame": 0,
+   "notoriety": -5,
+   "fameReward": {
+    "group": "Order",
+    "points": 10
+   },
+   "discardTo": null,
+   "effectSection": 14,
+   "effectText": "Artifact holding one Type I spell; earns Fame when sold to the Order.",
+   "magic": {
+    "numeral": "I",
+    "numerals": [
+     "I"
+    ],
+    "colour": null
+   },
+   "spellCount": 1,
+   "tags": [
+    "artifact"
+   ],
+   "visitorPrices": {
+    "Scholar": 20
+   }
+  },
+  {
+   "id": "black-book",
+   "name": "Black Book",
+   "kind": "small",
+   "great": true,
+   "weight": "L",
+   "gold": 10,
+   "fame": -15,
+   "notoriety": 15,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 14,
+   "effectText": "Spell book with four spells: two Type V and two Type VIII.",
+   "magic": {
+    "numeral": "V",
+    "numerals": [
+     "V",
+     "VIII"
+    ],
+    "colour": null
+   },
+   "spellCount": 4,
+   "tags": [
+    "book"
+   ],
+   "visitorPrices": {
+    "Scholar": 50,
+    "Crone": 50
+   }
+  },
+  {
+   "id": "book-of-lore",
+   "name": "Book of Lore",
+   "kind": "small",
+   "great": false,
+   "weight": "L",
+   "gold": 10,
+   "fame": -5,
+   "notoriety": 10,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 14,
+   "effectText": "Spell book with four Type IV spells.",
+   "magic": {
+    "numeral": "IV",
+    "numerals": [
+     "IV"
+    ],
+    "colour": null
+   },
+   "spellCount": 4,
+   "tags": [
+    "book"
+   ],
+   "visitorPrices": {
+    "Scholar": 50,
+    "Warlock": 50
+   }
+  },
+  {
+   "id": "good-book",
+   "name": "Good Book",
+   "kind": "small",
+   "great": false,
+   "weight": "L",
+   "gold": 10,
+   "fame": 5,
+   "notoriety": 5,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 14,
+   "effectText": "Spell book with four spells: two Type I and two Type VII.",
+   "magic": {
+    "numeral": "I",
+    "numerals": [
+     "I",
+     "VII"
+    ],
+    "colour": null
+   },
+   "spellCount": 4,
+   "tags": [
+    "book"
+   ],
+   "visitorPrices": {
+    "Scholar": 50
+   }
+  },
+  {
+   "id": "scroll-of-alchemy",
+   "name": "Scroll of Alchemy",
+   "kind": "small",
+   "great": true,
+   "weight": "L",
+   "gold": 10,
+   "fame": -10,
+   "notoriety": 15,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 14,
+   "effectText": "Spell book with four Type VI spells.",
+   "magic": {
+    "numeral": "VI",
+    "numerals": [
+     "VI"
+    ],
+    "colour": null
+   },
+   "spellCount": 4,
+   "tags": [
+    "book"
+   ],
+   "visitorPrices": {
+    "Scholar": 50,
+    "Warlock": 50
+   }
+  },
+  {
+   "id": "scroll-of-nature",
+   "name": "Scroll of Nature",
+   "kind": "small",
+   "great": false,
+   "weight": "L",
+   "gold": 10,
+   "fame": 0,
+   "notoriety": 5,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 14,
+   "effectText": "Spell book with four spells: two Type II and two Type III.",
+   "magic": {
+    "numeral": "II",
+    "numerals": [
+     "II",
+     "III"
+    ],
+    "colour": null
+   },
+   "spellCount": 4,
+   "tags": [
+    "book"
+   ],
+   "visitorPrices": {
+    "Scholar": 50,
+    "Shaman": 50
+   }
+  },
+  {
+   "id": "dragonfang-necklace",
+   "name": "Dragonfang Necklace",
+   "kind": "small",
+   "great": true,
+   "weight": "N",
+   "gold": 8,
+   "fame": 0,
+   "notoriety": 12,
+   "fameReward": {
+    "group": "Lancers",
+    "points": 12
+   },
+   "discardTo": null,
+   "effectSection": 15,
+   "effectText": "Holds a unique spell that controls one dragon (purple colour).",
+   "magic": {
+    "numeral": null,
+    "numerals": [],
+    "colour": "purple"
+   },
+   "spellCount": 1,
+   "tags": []
+  },
+  {
+   "id": "eye-of-the-moon",
+   "name": "Eye of the Moon",
+   "kind": "large",
+   "great": false,
+   "weight": "M",
+   "gold": 13,
+   "fame": 0,
+   "notoriety": 13,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 15,
+   "effectText": "Holds a unique spell that shows or changes the coming weather (grey colour).",
+   "magic": {
+    "numeral": null,
+    "numerals": [],
+    "colour": "grey"
+   },
+   "spellCount": 1,
+   "tags": []
+  },
+  {
+   "id": "flying-carpet",
+   "name": "Flying Carpet",
+   "kind": "large",
+   "great": false,
+   "weight": "M",
+   "gold": 17,
+   "fame": 0,
+   "notoriety": 12,
+   "fameReward": null,
+   "discardTo": null,
+   "effectSection": 15,
+   "effectText": "Holds a permanent Fly M2 spell powered by purple colour.",
+   "magic": {
+    "numeral": null,
+    "numerals": [],
+    "colour": "purple"
+   },
+   "spellCount": 1,
+   "tags": []
+  }
+ ]
+}

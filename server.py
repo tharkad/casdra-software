@@ -8041,6 +8041,44 @@ class Handler(BaseHTTPRequestHandler):
             except FileNotFoundError:
                 self.send_error(404)
 
+        elif path == "/magic-realm-next":
+            # Trailing-slash redirect: relative module imports in index.html must resolve under /magic-realm-next/.
+            self.send_response(301)
+            self.send_header("Location", "/magic-realm-next/")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        elif path == "/magic-realm-next/" or path.startswith("/magic-realm-next/"):
+            # Magic Realm on a phone: plain ES modules, JSON data, bundled fonts. Mirror of the magic-realm repo's app/ (tools/deploy.py).
+            rel_path = "index.html" if path == "/magic-realm-next/" else unquote(path[len("/magic-realm-next/"):])
+            asset_root = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "magic_realm_next_app"))
+            resolved = os.path.realpath(os.path.join(asset_root, rel_path))
+            if os.path.commonpath([resolved, asset_root]) != asset_root:
+                self.send_error(404)
+                return
+            ext = os.path.splitext(resolved)[1].lower()
+            content_type = {
+                ".html": "text/html; charset=utf-8",
+                ".js": "text/javascript",
+                ".css": "text/css",
+                ".json": "application/json",
+                ".woff2": "font/woff2",
+                ".png": "image/png",
+                ".svg": "image/svg+xml",
+                ".txt": "text/plain; charset=utf-8",
+            }.get(ext, "application/octet-stream")
+            try:
+                with open(resolved, "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-cache" if ext in (".html", ".js", ".css", ".json") else "public, max-age=86400")
+                self.end_headers()
+                self.wfile.write(data)
+            except FileNotFoundError:
+                self.send_error(404)
+
         elif path == "/noble-fraction":
             # Same trailing-slash redirect as /fires-of-midway: relative module imports
             # in index.html must resolve under /noble-fraction/.

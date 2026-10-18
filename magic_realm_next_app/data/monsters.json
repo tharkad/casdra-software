@@ -1,0 +1,1916 @@
+{
+ "meta": {
+  "sources": [
+   "RealmSpeak MagicRealmData.xml (magic_realm/utility/components/resources/data)",
+   "digest 05_characters_natives_monsters_victory.md section 5.1 (cross-check)",
+   "digest 03_combat.md section 4.4 (lengths)"
+  ],
+  "notes": "Base-game counters only (objects flagged original_game in the XML). light = side showing in Daylight / start of combat. dark = tactics flip side (null for Tremendous monsters, which never flip tactically). red = Tremendous pick-up side (harm \"T\" means it kills outright; attackTime is the circled time). Parts (heads, clubs) have light and dark. harm null = side has no attack (Spear Goblin light). Missing length = 0 (tooth and claw). Spell attacks: attack \"spell\" with Roman numeral in \"spell\". Imp numeral differs between RealmSpeak (VIII) and 3.1 erratum (V); V used, RealmSpeak value kept in light.spellRealmSpeak. Ghost homeRow null, prowlsEveryDay true (RealmSpeak monster_die 99). Names expand RealmSpeak T/H prefixes to Tremendous/Heavy.",
+  "counts": {
+   "monsters": 59,
+   "parts": 5
+  }
+ },
+ "monsters": [
+  {
+   "id": "tremendous-flying-dragon-1",
+   "name": "Tremendous Flying Dragon",
+   "family": "Dragon",
+   "size": "T",
+   "vulnerability": "T",
+   "armored": true,
+   "flies": true,
+   "fame": 12,
+   "notoriety": 12,
+   "homeRow": 1,
+   "homeBox": "site-hoard",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 3,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": null,
+   "red": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 6,
+    "moveTime": 4
+   },
+   "parts": [
+    {
+     "id": "tremendous-flying-dragon-1-head",
+     "name": "head",
+     "light": {
+      "harm": "M",
+      "stars": 0,
+      "attackTime": 3,
+      "length": 7
+     },
+     "dark": {
+      "harm": "T",
+      "stars": 0,
+      "attackTime": 3,
+      "length": 7
+     },
+     "optionalBreathLength": 13
+    }
+   ]
+  },
+  {
+   "id": "tremendous-dragon-1",
+   "name": "Tremendous Dragon",
+   "family": "Dragon",
+   "size": "T",
+   "vulnerability": "T",
+   "armored": true,
+   "flies": false,
+   "fame": 10,
+   "notoriety": 10,
+   "homeRow": 1,
+   "homeBox": "site-lair",
+   "light": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 6,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": null,
+   "red": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 3,
+    "moveTime": 6
+   },
+   "parts": [
+    {
+     "id": "tremendous-dragon-1-head",
+     "name": "head",
+     "light": {
+      "harm": "H",
+      "stars": 0,
+      "attackTime": 4,
+      "length": 9
+     },
+     "dark": {
+      "harm": "T",
+      "stars": 0,
+      "attackTime": 4,
+      "length": 9
+     },
+     "optionalBreathLength": 15
+    }
+   ]
+  },
+  {
+   "id": "tremendous-dragon-2",
+   "name": "Tremendous Dragon",
+   "family": "Dragon",
+   "size": "T",
+   "vulnerability": "T",
+   "armored": true,
+   "flies": false,
+   "fame": 10,
+   "notoriety": 10,
+   "homeRow": 1,
+   "homeBox": "dragon-tremendous",
+   "light": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 6,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": null,
+   "red": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 3,
+    "moveTime": 6
+   },
+   "parts": [
+    {
+     "id": "tremendous-dragon-2-head",
+     "name": "head",
+     "light": {
+      "harm": "H",
+      "stars": 0,
+      "attackTime": 4,
+      "length": 9
+     },
+     "dark": {
+      "harm": "T",
+      "stars": 0,
+      "attackTime": 4,
+      "length": 9
+     },
+     "optionalBreathLength": 15
+    }
+   ]
+  },
+  {
+   "id": "giant-1",
+   "name": "Giant",
+   "family": "Giant",
+   "size": "T",
+   "vulnerability": "T",
+   "armored": false,
+   "flies": false,
+   "fame": 8,
+   "notoriety": 8,
+   "homeRow": 4,
+   "homeBox": "giant-1",
+   "light": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": null,
+   "red": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 6
+   },
+   "parts": [
+    {
+     "id": "giant-1-club",
+     "name": "club",
+     "light": {
+      "harm": "H",
+      "stars": 0,
+      "attackTime": 6,
+      "length": 8
+     },
+     "dark": {
+      "harm": "T",
+      "stars": 0,
+      "attackTime": 4,
+      "length": 8
+     }
+    }
+   ]
+  },
+  {
+   "id": "giant-2",
+   "name": "Giant",
+   "family": "Giant",
+   "size": "T",
+   "vulnerability": "T",
+   "armored": false,
+   "flies": false,
+   "fame": 8,
+   "notoriety": 8,
+   "homeRow": 4,
+   "homeBox": "giant-2",
+   "light": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": null,
+   "red": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 6
+   },
+   "parts": [
+    {
+     "id": "giant-2-club",
+     "name": "club",
+     "light": {
+      "harm": "H",
+      "stars": 0,
+      "attackTime": 6,
+      "length": 8
+     },
+     "dark": {
+      "harm": "T",
+      "stars": 0,
+      "attackTime": 4,
+      "length": 8
+     }
+    }
+   ]
+  },
+  {
+   "id": "winged-demon-1",
+   "name": "Winged Demon",
+   "family": "Demon",
+   "size": "T",
+   "vulnerability": "T",
+   "armored": false,
+   "flies": true,
+   "fame": 8,
+   "notoriety": 8,
+   "homeRow": 2,
+   "homeBox": "site-shrine",
+   "light": {
+    "harm": null,
+    "stars": 0,
+    "attackTime": 3,
+    "moveTime": 3,
+    "length": 17,
+    "attack": "spell",
+    "spell": "V"
+   },
+   "dark": null,
+   "red": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 2
+   },
+   "parts": []
+  },
+  {
+   "id": "demon-1",
+   "name": "Demon",
+   "family": "Demon",
+   "size": "T",
+   "vulnerability": "T",
+   "armored": false,
+   "flies": false,
+   "fame": 8,
+   "notoriety": 8,
+   "homeRow": 2,
+   "homeBox": "site-altar",
+   "light": {
+    "harm": null,
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 4,
+    "length": 17,
+    "attack": "spell",
+    "spell": "V"
+   },
+   "dark": null,
+   "red": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4
+   },
+   "parts": []
+  },
+  {
+   "id": "tremendous-troll-1",
+   "name": "Tremendous Troll",
+   "family": "Troll",
+   "size": "T",
+   "vulnerability": "T",
+   "armored": true,
+   "flies": false,
+   "fame": 8,
+   "notoriety": 8,
+   "homeRow": 4,
+   "homeBox": "site-vault",
+   "light": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": null,
+   "red": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 6
+   },
+   "parts": []
+  },
+  {
+   "id": "tremendous-troll-2",
+   "name": "Tremendous Troll",
+   "family": "Troll",
+   "size": "T",
+   "vulnerability": "T",
+   "armored": true,
+   "flies": false,
+   "fame": 8,
+   "notoriety": 8,
+   "homeRow": 4,
+   "homeBox": "troll-tremendous",
+   "light": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": null,
+   "red": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 6
+   },
+   "parts": []
+  },
+  {
+   "id": "octopus-1",
+   "name": "Octopus",
+   "family": "Octopus",
+   "size": "T",
+   "vulnerability": "T",
+   "armored": false,
+   "flies": false,
+   "fame": 8,
+   "notoriety": 8,
+   "homeRow": 3,
+   "homeBox": "site-pool",
+   "light": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 2,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": null,
+   "red": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3
+   },
+   "parts": []
+  },
+  {
+   "id": "tremendous-serpent-1",
+   "name": "Tremendous Serpent",
+   "family": "Serpent",
+   "size": "T",
+   "vulnerability": "T",
+   "armored": true,
+   "flies": false,
+   "fame": 7,
+   "notoriety": 7,
+   "homeRow": 2,
+   "homeBox": "serpent-tremendous",
+   "light": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": null,
+   "red": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 5
+   },
+   "parts": []
+  },
+  {
+   "id": "tremendous-spider-1",
+   "name": "Tremendous Spider",
+   "family": "Spider",
+   "size": "T",
+   "vulnerability": "T",
+   "armored": false,
+   "flies": false,
+   "fame": 6,
+   "notoriety": 6,
+   "homeRow": 5,
+   "homeBox": "site-cairns",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": null,
+   "red": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 4
+   },
+   "parts": []
+  },
+  {
+   "id": "heavy-flying-dragon-1",
+   "name": "Heavy Flying Dragon",
+   "family": "Dragon",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": true,
+   "flies": true,
+   "fame": 5,
+   "notoriety": 5,
+   "homeRow": 1,
+   "homeBox": "dragon-flying-heavy",
+   "light": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "heavy-flying-dragon-2",
+   "name": "Heavy Flying Dragon",
+   "family": "Dragon",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": true,
+   "flies": true,
+   "fame": 5,
+   "notoriety": 5,
+   "homeRow": 1,
+   "homeBox": "dragon-flying-heavy",
+   "light": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "heavy-dragon-1",
+   "name": "Heavy Dragon",
+   "family": "Dragon",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": true,
+   "flies": false,
+   "fame": 5,
+   "notoriety": 5,
+   "homeRow": 1,
+   "homeBox": "dragon-heavy",
+   "light": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "heavy-troll-1",
+   "name": "Heavy Troll",
+   "family": "Troll",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": true,
+   "flies": false,
+   "fame": 5,
+   "notoriety": 5,
+   "homeRow": 4,
+   "homeBox": "troll-heavy",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "heavy-troll-2",
+   "name": "Heavy Troll",
+   "family": "Troll",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": true,
+   "flies": false,
+   "fame": 5,
+   "notoriety": 5,
+   "homeRow": 4,
+   "homeBox": "troll-heavy",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "heavy-serpent-1",
+   "name": "Heavy Serpent",
+   "family": "Serpent",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": true,
+   "flies": false,
+   "fame": 4,
+   "notoriety": 4,
+   "homeRow": 2,
+   "homeBox": "serpent-heavy",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "heavy-serpent-2",
+   "name": "Heavy Serpent",
+   "family": "Serpent",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": true,
+   "flies": false,
+   "fame": 4,
+   "notoriety": 4,
+   "homeRow": 2,
+   "homeBox": "serpent-heavy",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "giant-bat-1",
+   "name": "Giant Bat",
+   "family": "Bat",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": false,
+   "flies": true,
+   "fame": 3,
+   "notoriety": 3,
+   "homeRow": 6,
+   "homeBox": "bat-1",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 3,
+    "moveTime": 2,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "giant-bat-2",
+   "name": "Giant Bat",
+   "family": "Bat",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": false,
+   "flies": true,
+   "fame": 3,
+   "notoriety": 3,
+   "homeRow": 6,
+   "homeBox": "bat-2",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 3,
+    "moveTime": 2,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "giant-bat-3",
+   "name": "Giant Bat",
+   "family": "Bat",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": false,
+   "flies": true,
+   "fame": 3,
+   "notoriety": 3,
+   "homeRow": 6,
+   "homeBox": "bat-2",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 3,
+    "moveTime": 2,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "giant-bat-4",
+   "name": "Giant Bat",
+   "family": "Bat",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": false,
+   "flies": true,
+   "fame": 3,
+   "notoriety": 3,
+   "homeRow": 6,
+   "homeBox": "bat-3",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 3,
+    "moveTime": 2,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "giant-bat-5",
+   "name": "Giant Bat",
+   "family": "Bat",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": false,
+   "flies": true,
+   "fame": 3,
+   "notoriety": 3,
+   "homeRow": 6,
+   "homeBox": "bat-3",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 3,
+    "moveTime": 2,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "giant-bat-6",
+   "name": "Giant Bat",
+   "family": "Bat",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": false,
+   "flies": true,
+   "fame": 3,
+   "notoriety": 3,
+   "homeRow": 6,
+   "homeBox": "bat-3",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 3,
+    "moveTime": 2,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "heavy-spider-1",
+   "name": "Heavy Spider",
+   "family": "Spider",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": false,
+   "flies": false,
+   "fame": 3,
+   "notoriety": 3,
+   "homeRow": 5,
+   "homeBox": "spider-heavy-1",
+   "light": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 6,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "heavy-spider-2",
+   "name": "Heavy Spider",
+   "family": "Spider",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": false,
+   "flies": false,
+   "fame": 3,
+   "notoriety": 3,
+   "homeRow": 5,
+   "homeBox": "spider-heavy-2",
+   "light": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 6,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "heavy-spider-3",
+   "name": "Heavy Spider",
+   "family": "Spider",
+   "size": "H",
+   "vulnerability": "H",
+   "armored": false,
+   "flies": false,
+   "fame": 3,
+   "notoriety": 3,
+   "homeRow": 5,
+   "homeBox": "spider-heavy-3",
+   "light": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 6,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "imp-1",
+   "name": "Imp",
+   "family": "Imp",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 2,
+   "notoriety": 1,
+   "homeRow": 5,
+   "homeBox": "site-statue",
+   "light": {
+    "harm": null,
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 2,
+    "length": 17,
+    "attack": "spell",
+    "spell": "V",
+    "spellRealmSpeak": "VIII"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": [],
+   "note": "RealmSpeak data prints Type VIII for the Imp light-side attack; 3.1 erratum 2.7.3 (per digest 05) says Type V. Type V used."
+  },
+  {
+   "id": "viper-1",
+   "name": "Viper",
+   "family": "Serpent",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 2,
+   "homeRow": 2,
+   "homeBox": "vipers",
+   "light": {
+    "harm": "M",
+    "stars": 2,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 2,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "viper-2",
+   "name": "Viper",
+   "family": "Serpent",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 2,
+   "homeRow": 2,
+   "homeBox": "vipers",
+   "light": {
+    "harm": "M",
+    "stars": 2,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 2,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "ghost-1",
+   "name": "Ghost",
+   "family": "Ghost",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 0,
+   "notoriety": 2,
+   "homeRow": null,
+   "homeBox": "ghosts",
+   "light": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 2,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": [],
+   "prowlsEveryDay": true
+  },
+  {
+   "id": "ghost-2",
+   "name": "Ghost",
+   "family": "Ghost",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 0,
+   "notoriety": 2,
+   "homeRow": null,
+   "homeBox": "ghosts",
+   "light": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 2,
+    "moveTime": 2,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": [],
+   "prowlsEveryDay": true
+  },
+  {
+   "id": "ogre-1",
+   "name": "Ogre",
+   "family": "Ogre",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 0,
+   "notoriety": 2,
+   "homeRow": 3,
+   "homeBox": "ogres",
+   "light": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "ogre-2",
+   "name": "Ogre",
+   "family": "Ogre",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 0,
+   "notoriety": 2,
+   "homeRow": 3,
+   "homeBox": "ogres",
+   "light": {
+    "harm": "T",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "spear-goblin-1",
+   "name": "Spear Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-spear",
+   "light": {
+    "harm": null,
+    "stars": 0,
+    "attackTime": null,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "none"
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 10,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "spear-goblin-2",
+   "name": "Spear Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-spear",
+   "light": {
+    "harm": null,
+    "stars": 0,
+    "attackTime": null,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "none"
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 10,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "spear-goblin-3",
+   "name": "Spear Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-spear",
+   "light": {
+    "harm": null,
+    "stars": 0,
+    "attackTime": null,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "none"
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 10,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "spear-goblin-4",
+   "name": "Spear Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-spear",
+   "light": {
+    "harm": null,
+    "stars": 0,
+    "attackTime": null,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "none"
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 10,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "spear-goblin-5",
+   "name": "Spear Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-spear",
+   "light": {
+    "harm": null,
+    "stars": 0,
+    "attackTime": null,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "none"
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 10,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "spear-goblin-6",
+   "name": "Spear Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-spear",
+   "light": {
+    "harm": null,
+    "stars": 0,
+    "attackTime": null,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "none"
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 10,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "sword-goblin-1",
+   "name": "Sword Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-sword",
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6,
+    "moveTime": 3,
+    "length": 8,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 8,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "sword-goblin-2",
+   "name": "Sword Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-sword",
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6,
+    "moveTime": 3,
+    "length": 8,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 8,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "sword-goblin-3",
+   "name": "Sword Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-sword",
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6,
+    "moveTime": 3,
+    "length": 8,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 8,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "sword-goblin-4",
+   "name": "Sword Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-sword",
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6,
+    "moveTime": 3,
+    "length": 8,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 8,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "sword-goblin-5",
+   "name": "Sword Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-sword",
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6,
+    "moveTime": 3,
+    "length": 8,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 8,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "sword-goblin-6",
+   "name": "Sword Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-sword",
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6,
+    "moveTime": 3,
+    "length": 8,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5,
+    "length": 8,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "axe-goblin-1",
+   "name": "Axe Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-axe",
+   "light": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 2,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 2,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "axe-goblin-2",
+   "name": "Axe Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-axe",
+   "light": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 2,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 2,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "axe-goblin-3",
+   "name": "Axe Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-axe",
+   "light": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 2,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 2,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "axe-goblin-4",
+   "name": "Axe Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-axe",
+   "light": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 2,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 2,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "axe-goblin-5",
+   "name": "Axe Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-axe",
+   "light": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 2,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 2,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "axe-goblin-6",
+   "name": "Axe Goblin",
+   "family": "Goblin",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 1,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "goblins-axe",
+   "light": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 2,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 2,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "wolf-1",
+   "name": "Wolf",
+   "family": "Wolf",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 0,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "wolves",
+   "light": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "wolf-2",
+   "name": "Wolf",
+   "family": "Wolf",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 0,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "wolves",
+   "light": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "wolf-3",
+   "name": "Wolf",
+   "family": "Wolf",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 0,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "wolves",
+   "light": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 4,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "wolf-4",
+   "name": "Wolf",
+   "family": "Wolf",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 0,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "wolves",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 3,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "wolf-5",
+   "name": "Wolf",
+   "family": "Wolf",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 0,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "wolves",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 3,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  },
+  {
+   "id": "wolf-6",
+   "name": "Wolf",
+   "family": "Wolf",
+   "size": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "flies": false,
+   "fame": 0,
+   "notoriety": 1,
+   "homeRow": 3,
+   "homeBox": "wolves",
+   "light": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 5,
+    "moveTime": 3,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": 3,
+    "moveTime": 4,
+    "length": 0,
+    "attack": "weapon"
+   },
+   "red": null,
+   "parts": []
+  }
+ ]
+}
