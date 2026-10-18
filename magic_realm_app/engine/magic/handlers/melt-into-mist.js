@@ -1,5 +1,5 @@
 import { B } from '../bridge.js';
-import { HERO, nullifyFx, restoreFx, sameRef } from '../fx.js';
+import { HERO, nullifyFx, restoreFx, sameRef, elsewhere } from '../fx.js';
 import { nullifyIfDuplicate, spellName } from '../util.js';
 import { releaseFoes } from '../mist.js';
 
@@ -47,7 +47,7 @@ export default {
         st.ch.items = []; st.ch.gold = 0;
         fx.data.held = [];
         for (const f of st.fx ?? []) {
-            if (f === fx || f.state !== 'live' || !f.targets.some(t => sameRef(t, HERO))) continue;
+            if (f === fx || f.state !== 'live' || elsewhere(st, f) || !f.targets.some(t => sameRef(t, HERO))) continue;
             nullifyFx(st, data, f.id); fx.data.held.push(f.id);
             ctx.say(`${spellName(data, f.spell)} is held off by the mist.`);
         }

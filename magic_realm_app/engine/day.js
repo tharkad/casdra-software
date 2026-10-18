@@ -3,16 +3,17 @@ import { hides, PEER, LOCATE, meetingResult } from './tables.js';
 import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, tileClearings, graph, tileName } from './world.js';
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
 import * as combat from './combat.js';
+import * as battle from './battle.js';
 import { makeItem, defOf, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain, noteFind } from './items.js';
 import { lootFrom, lootSiteCard, groundPileAt, sitesHere, effortOptions, payEffort, applySearchResult, peerBlocked } from './search.js';
 import { hasCurse, liftCursesAtChapel } from './effects.js';
 import { tell } from './story.js';
 import { runesTargets, readRunes, learnSpell } from './runes.js';
-import { restartAfterDeath } from './setup.js';
+import { restartAfterDeath, restartChar } from './setup.js';
 import { activeHorse } from './items.js';
 import { extraActs, hasTreasure, noSunlight, oneDie, locateMod, modRoll, modNote } from './modifiers.js';
 import { beginTrade, tradeAction } from './trade.js';
-import { scoreGame } from './score.js';
+import { scoreGame, scoreParty } from './score.js';
 import { canCastQuietly, enchantableChits, TYPE_COLOR, dayColors } from './spells.js';
 import { flipTile, tileEnchantOptions } from './magic/colour.js';
 import { expireDue, breakAllFrom, fxTags, fxList, HERO } from './magic/fx.js';
@@ -25,6 +26,8 @@ import { MORPH_REFUSED } from './magic/morph.js';
 import { beginHire, hireAction, followHero, expireHires } from './hire.js';
 import { planFlyError, flySources, flyTiles, carries, startFlight, landHero } from './magic/fly.js';
 import { ownedGold } from './magic/mist.js';
+import { resolveWho, settleActor, ownerOf, withActor, isMulti as multi, livingIds, playerNameOf } from './party.js';
+import * as meet from './meet.js';
 
 // The day loop (rules digest 01 section 4): Birdsong plan, Sunrise, Daylight phases, Sunset, Evening combat, Midnight.
 // A game is a plain object; apply(state, data, action) returns the next state and never mutates its input.
@@ -33,8 +36,38 @@ export const LAST_DAY = 28;
 export const PHASES = { basic: 2, sunlight: 2 };
 
 // ---- starting a day ----
+// Birdsong. With one character this is the day it always was. With several, the realm's own chores happen once (the Hurricane Winds' creatures come down, the day is named) and each
+// seat then begins its own day: a living character gets a plan to record, a dead one is asked about starting again (9.1.2). Nobody's day moves on until all of them have answered
+// (the Birdsong barrier, see `planned`).
 export function beginDay(st, data) {
     landDenizens(st, data);
+    if (!multi(st)) return beginChar(st, data);
+    st.period = 'birdsong';
+    st.dayRec = null;
+    delete st.follows;                                                 // (a day's Follow is over: docs/design/multiplayer-step4.md)
+    say(st, `Day ${st.day} begins.`, 'day', null, { who: null });
+    for (const id of st.order) withActor(st, id, () => beginChar(st, data));
+    // Several seats starting again on the same morning (9.1.2b): the die decides who picks first. A seat may start again as the same character at once; one who wants ANOTHER character waits
+    // for those ahead of him to answer (restartChar), so that two cannot grab the same one by being quick. The order is on the table.
+    const dead = st.asks.filter(a => a.pending.type === 'restart');
+    if (dead.length > 1) { const order = shuffle(st, dead.map(a => a.who)); for (const a of dead) a.pending.pickOrder = order.slice(); say(st, `${order.map(id => playerNameOf(st, id)).join(', then ')} start again, in that order of choosing a character.`, 'day', null, { who: null }); }
+}
+
+// One character's Birdsong chores: he is the actor.
+export function beginChar(st, data) {
+    const several = multi(st);
+    if (several && st.ch.gone) {                                       // he left the map (R-21): no plan, no restart; his score was fixed the moment he went
+        st.plan = null; st.turn = null; st.combat = null; st.pending = null;
+        st.ch.today.stage = 'gone';
+        return;
+    }
+    if (several && st.ch.dead) {                                       // the seat's character died yesterday or earlier: it must say who starts now
+        st.plan = null; st.turn = null; st.combat = null;
+        st.ch.today.stage = 'dead';
+        st.pending = restartAsk(st, data);
+        return;
+    }
+    if (several) { const t = st.ch.today; t.stage = 'plan'; delete t.noTurn; delete t.blockSaid; delete t.blockVote; delete t.followVote; delete t.voidFollow; }
     if (st.ch.flying) landHero(st, data, 'You come down');            // blown away by Hurricane Winds, or flown out of a fight: down before the plan is recorded (7.3.3b)
     st.period = 'birdsong';
     st.plan = null;
@@ -46,13 +79,21 @@ export function beginDay(st, data) {
     // What the day just ended changed, for the morning review (the report reads st.report; nothing in the rules does).
     if (st.mark) st.report = { day: st.mark.day, fame: st.ch.fame - st.mark.fame, notoriety: st.ch.notoriety - st.mark.notoriety, gold: ownedGold(st) - st.mark.gold };
     st.mark = { day: st.day, fame: st.ch.fame, notoriety: st.ch.notoriety, gold: ownedGold(st) };
-    say(st, `Day ${st.day} begins.`, 'day');
+    if (!several) say(st, `Day ${st.day} begins.`, 'day');
     // Phantasm (and any other companion): the piece appears beside him at Birdsong and gets a turn of its own to record
     st.companions = [];
     for (const f of fxList(st, { spell: 'phantasm', target: HERO })) spawnCompanion(st, data, { kind: 'phantasm', fx: f.id });
     st.pending = { type: 'plan' };
     if (st.companions.length) st.pending.companions = companionInfo(st, data);
     if (prophecyOn(st)) st.pending.prophecy = true;                  // Prophecy: no turn to record; he chooses each phase as it comes (action 'pick')
+}
+
+// The question a dead character's seat is asked at the next Birdsong: new goals for the weeks left (9.1.2, 10.E.2.5) and, if the seat likes, a different character that nobody else
+// is using. The calendar does not move; the barrier waits for the answer and then for his new plan.
+function restartAsk(st, data) {
+    const d = st.ch.death ?? {};
+    const taken = new Set(st.order.filter(id => id !== st.ch.id));
+    return { type: 'restart', death: d, budget: Math.max(2, Math.ceil(((st.lastDay ?? LAST_DAY) - (st.day - 1)) / 7) + 1), characters: Object.keys(data.characters).filter(id => !taken.has(id)) };
 }
 
 // Creatures that Hurricane Winds carried off land at the start of the day, before the Monster Roll and the plan: a die picks a clearing of the tile, rolled again
@@ -108,6 +149,7 @@ export function planKinds(st, data, slots) {
         }
         if (s.act === 'move' && !s.to) errors.push(`Phase ${i + 1}: choose where to move.`);
         if (s.act === 'fly') { const e = planFlyError(st, data, slots, i); if (e) errors.push(`Phase ${i + 1}: ${e}`); }
+        if (s.act === 'follow') { const e = meet.followPlanError(st, slots, i, st.ch); if (e) errors.push(`Phase ${i + 1}: ${e}`); }
         if (st.ch.mist && s.act !== 'move' && s.act !== 'hide') errors.push(`Phase ${i + 1}: as mist you can only move and hide.`);
     });
     return { kinds, errors, total: ph.total, base: ph.base, lantern: ph.lantern, sunlight: ph.sunlight, extras: ph.extras };
@@ -118,7 +160,23 @@ export function validatePlan(st, data, slots) {
     return { total: v.total, sunlight: v.sunlight, errors: v.errors, kinds: v.kinds };
 }
 
+// A plan comes from outside the engine (a phone, a server): before it is recorded every slot must be nothing or a { act } whose names are text. One that is not (a move "to" nothing a clearing could be
+// called) used to be recorded and then threw every time its phase was played, so that the seat could do nothing again, and in a shared game the table waits for every seat (SOAK-3).
+const SLOT_TEXT = ['act', 'to', 'table', 'who'];
+function slotShapeError(slots) {
+    if (!Array.isArray(slots)) return 'A plan is a list of phases.';
+    if (slots.length > 16) return 'A plan has at most sixteen phases.';
+    for (let i = 0; i < slots.length; i++) {
+        const s = slots[i];
+        if (s == null) continue;
+        if (typeof s !== 'object' || Array.isArray(s)) return `Phase ${i + 1}: choose an activity.`;          // ({} is an empty phase, as the games on record have it)
+        for (const k of SLOT_TEXT) if (s[k] != null && (typeof s[k] !== 'string' || s[k].length > 40)) return `Phase ${i + 1}: the ${k === 'to' ? 'place to move to' : k === 'who' ? 'character to follow' : k} must be a name.`;
+    }
+    return null;
+}
+
 function submitPlan(st, data, slots, companions = null, choose = false) {
+    { const bad = slotShapeError(slots); if (bad) throw new Error(bad); }
     planCompanions(st, data, companions ?? {});                    // (throws before anything changes)
     st.planFree = prophecyOn(st) && (choose || !slots?.length);    // Prophecy: no recorded plan (an empty one, or `choose`) means he picks each phase as it comes; a recorded plan is simply played
     if (st.planFree) {
@@ -126,7 +184,7 @@ function submitPlan(st, data, slots, companions = null, choose = false) {
         st.planBase = 4; st.planBlazing = null; st.planKinds = null;
         st.ch.arrivedFrom = null;
         st.plan = []; st.planFull = (slots ?? []).slice();
-        return sunrise(st, data);
+        return planned(st, data);
     }
     const v = validatePlan(st, data, slots);
     if (v.errors.length) throw new Error(v.errors[0]);
@@ -138,19 +196,35 @@ function submitPlan(st, data, slots, companions = null, choose = false) {
     st.plan = slots.slice(0, v.total).map(s => s ? { ...s } : null);
     while (st.plan.length < v.total) st.plan.push(null);
     st.planFull = slots;
-    sunrise(st, data);
+    planned(st, data);
+}
+
+// His plan is recorded. With one character the sun rises at once. With several, plans are secret and simultaneous (6.2.3): a recorded plan waits until every living character has
+// recorded one and every dead one has started again; the last to answer lets the day go on.
+function planned(st, data) {
+    if (!multi(st)) return sunrise(st, data);
+    st.ch.today.stage = 'planned';
+    if (st.order.every(id => ['planned', 'gone'].includes(st.chars[id].today.stage))) sunrise(st, data);
 }
 
 // ---- sunrise: the Monster Roll ----
+// Once a day, for everybody: the Monster Roll, the week's regeneration and the day's colour (6.3). With several characters the Attention chits are then drawn at random one by one (7.1.1)
+// and that order is the order of the whole day's turns.
 function sunrise(st, data) {
+    const table = multi(st) ? { who: null } : null;              // (a line or a roll of the whole table belongs to no one character)
     st.period = 'sunrise';
     st.prowl = die(st);
-    noteRoll(st, 'Monster roll', [st.prowl], st.prowl, `row ${st.prowl} prowls today`);
+    noteRoll(st, 'Monster roll', [st.prowl], st.prowl, `row ${st.prowl} prowls today`, null, table);
     st.rolls.at(-1).tale = tell.wilds(st, data);                       // the story voice says what prowls, not which row
     const magic = dayColors(st.day, st.lastDay ?? 28), week = st.day % 7 === 0 ? regenerate(st, data) : null;
-    say(st, `Dawn of day ${st.day}: row ${st.prowl} prowls.${magic.length ? ` The land is filled with ${magic.join(' and ')} magic until midnight.` : ''}`, 'day', tell.dawn(st, data, { magic }));
-    if (week) say(st, `Regeneration: row ${st.prowl} creatures return to their homes.`, 'day', tell.weekEnd(st, data, week));
-    // He becomes unhidden when his own turn begins.
+    say(st, `Dawn of day ${st.day}: row ${st.prowl} prowls.${magic.length ? ` The land is filled with ${magic.join(' and ')} magic until midnight.` : ''}`, 'day', tell.dawn(st, data, { magic }), table);
+    if (week) say(st, `Regeneration: row ${st.prowl} creatures return to their homes.`, 'day', tell.weekEnd(st, data, week), table);
+    if (multi(st)) { const { gone } = meet.declareFollows(st); drawChits(st, gone); return nextTurn(st, data); }
+    beginTurn(st, data);
+}
+
+// His chit is drawn and his turn begins: he is no longer hidden (7.1.2: a character becomes unhidden when his own chit is drawn; so on day 1 everyone is, in turn).
+function beginTurn(st, data) {
     st.ch.hidden = false;
     st.period = 'daylight';
     st.turn = { i: 0, climb: null, blocked: false, results: [], movedHere: null, auto: false, base: st.planBase ?? 4, kinds: st.planKinds ?? null };
@@ -160,6 +234,71 @@ function sunrise(st, data) {
         if (st.turn.pro.blazing) st.planBlazing = st.ch.at;
         st.pending = proPending(st, data);
     } else st.pending = { type: 'phase', i: 0 };
+}
+
+// ---- the shared Daylight (several characters) ----
+// 7.1.1: the Attention chits of the characters are mixed and drawn at random one at a time; that is the order of the Daylight turns (and, ruling R-6, of the evening). The draw is an
+// event the table can see: `st.dayRec = { day, order, i, first }` for today and `st.draws` for every day so far (`i` points at the turn being played). The first character drawn
+// "leads" the day (8.3.2). It uses the game's own generator, after the Monster Roll, so the same seed and the same plans give the same draw.
+function drawChits(st, gone = []) {
+    const ids = livingIds(st).filter(id => !st.follows?.[id] && !gone.includes(id)), order = ids.length > 1 ? shuffle(st, ids) : ids.slice();       // (a follower has no chit: his turn is his guide's; a cancelled follow has no turn)
+    st.dayRec = { day: st.day, order, i: 0, first: order[0] ?? null };
+    if (st.follows) st.dayRec.follow = Object.entries(st.follows).reduce((m, [f, g]) => { (m[g] ??= []).push(f); return m; }, {});
+    (st.draws ??= []).push({ day: st.day, order: order.slice() });
+    if (st.draws.length > 60) st.draws.shift();
+    const names = order.map(id => st.chars[id].name);
+    say(st, names.length ? `The chits are drawn: ${names.map((n, k) => (k === 0 ? `${n} first` : n)).join(', then ')}.` : 'Nobody has a chit to draw today.', 'day', null, { who: null });
+}
+
+// The next character in the drawn order takes his whole turn; when nobody is left the sun sets.
+function nextTurn(st, data) {
+    const rec = st.dayRec;
+    while (rec.i < rec.order.length && st.chars[rec.order[rec.i]].dead) rec.i++;
+    if (rec.i >= rec.order.length) return sunsetAll(st, data);
+    return withActor(st, rec.order[rec.i], () => {
+        st.ch.today.stage = 'turn';
+        say(st, `${st.ch.name}'s chit is drawn.`, 'day');
+        meet.guideStarts(st, st.actor);                                 // his followers are unhidden with him (7.11.4)
+        if (st.ch.today.noTurn) return noTurn(st, data);
+        beginTurn(st, data);
+    });
+}
+
+// Blocked before his chit was drawn (7.12.4): he has no turn today, takes nothing from it and calls nothing to him. He is told at the end of the turn he did not have.
+function noTurn(st, data) {
+    st.ch.hidden = false;
+    st.period = 'daylight';
+    say(st, `${st.ch.name} was caught before his turn began: he has no turn today.`, 'block');
+    const here = st.ch.at;
+    st.turn = { i: 0, climb: null, blocked: true, results: [], movedHere: null, auto: false, base: st.planBase ?? 4, kinds: st.planKinds ?? null, noTurn: true };
+    st.turn.end = { at: here, tile: here ? tileOf(here) : null, prowl: st.prowl, arrivals: [], flipped: [], chits: [], natives: [] };
+    st.turnEnd = { ...st.turn.end, day: st.day, blocked: true, blockers: [], closedIn: [], plan: [], hidden: false, companions: [], noTurn: true };
+    meet.releaseFollowers(st, data);                                   // (his followers had nothing to follow)
+    st.pending = { type: 'turn-end' };
+}
+
+// Monsters that came into a clearing when someone's turn ended block every unhidden character standing there (7.12.3, 7.12.3a): a character whose chit is not yet drawn loses his
+// whole turn; one who has played already was seen and nothing more. Monsters that were in a clearing already block only the one whose phase just ended (7.12.3b), and a hidden
+// character is not blocked (7.12.2b, 7.13.5).
+function blockOthers(st, data, res) {
+    const rec = st.dayRec;
+    for (const id of rec.order.slice(rec.i + 1)) {
+        const c = st.chars[id];
+        if (c.dead || c.hidden || c.onRoad || c.flying || c.mist || !c.at) continue;
+        const here = res.arrivals.filter(a => a.to === c.at);
+        if (!here.length) continue;
+        c.today.noTurn = true;
+        say(st, `${here.map(a => a.name).join(', ')} close in on ${c.name} before his chit is drawn: he is blocked and will have no turn today.`, 'block', null, { who: id });
+    }
+}
+
+// His turn is over and acknowledged (or he fell): the next chit is drawn.
+function turnDone(st, data) {
+    meet.lapsePhaseOffers(st, 'the turn is over');
+    meet.releaseFollowers(st, data);                                   // following stops when the guide's turn is over (7.11.8)
+    st.ch.today.stage = 'done';
+    st.dayRec.i++;
+    return nextTurn(st, data);
 }
 
 // Prophecy: the question for the phase to come, or null when no phase is left.
@@ -213,6 +352,8 @@ function regenerate(st, data) {
 // ---- daylight: one phase at a time ----
 function runPhase(st, data) {
     const t = st.turn, i = t.i, slot = st.plan[i];
+    if (multi(st)) meet.lapsePhaseOffers(st, 'the phase has begun');
+    if (multi(st) && meet.beforeActivity(st, data) === 'wait') return;      // the followers may stop now (7.11.5); the phase goes on when they have answered
     const r = executeSlot(st, data, slot, i);
     if (r === 'wait') return;                     // a decision is pending
     finishPhase(st, data, r);
@@ -229,6 +370,11 @@ function cancelDealing(st, data, p) {
 }
 
 function finishPhase(st, data, text) {
+    const r = finishPhase0(st, data, text);
+    if (multi(st) && st.turn) meet.syncHidden(st);                     // a Hide result, a block: the guide's followers share his hidden status (7.11.6b)
+    return r;
+}
+function finishPhase0(st, data, text) {
     const t = st.turn;
     t.results[t.i] = text;
     say(st, `Phase ${t.i + 1}: ${text}`, 'phase', tell.phase(st, text));
@@ -247,10 +393,27 @@ function finishPhase(st, data, text) {
         t.results[t.i] += ' (blocked)';
         return endDaylight(st, data);
     }
+    // ...and by the other characters in his clearing, by each one's standing policy (7.12.2, R-4)
+    if (multi(st)) {
+        const b = meet.blockCheck(st, data);
+        if (b === 'wait') return;
+        if (b === true) return afterBlock(st, data, true);
+    }
+    nextPhase(st, data);
+}
+function nextPhase(st, data) {
+    const t = st.turn;
     t.i++;
     if (t.pro) { st.pending = proPending(st, data); return st.pending ? undefined : endDaylight(st, data); }
     if (t.i >= st.plan.length) return endDaylight(st, data);
     st.pending = { type: 'phase', i: t.i };
+}
+// The block check is settled (the last blocker has answered, or nobody had to be asked): a blocked actor's turn is over, otherwise it goes on.
+function afterBlock(st, data, blocked) {
+    const t = st.turn;
+    if (blocked) { t.results[t.i] += ' (blocked)'; return endDaylight(st, data); }
+    nextPhase(st, data);
+    meet.syncHidden(st);
 }
 
 // Violent Storm (Day): a character who ends a phase in a woods or mountain clearing of the stormed tile that has no Inn, House, Chapel or Guardhouse (a campfire does not
@@ -276,11 +439,17 @@ function stormCheck(st, data) {
 }
 
 function endDaylight(st, data) {
+    const r = endDaylight0(st, data);
+    if (multi(st) && st.turn) meet.syncHidden(st);
+    return r;
+}
+function endDaylight0(st, data) {
     // A flier must land at the end of his last phase (7.3.3b.3); he can be blocked and summoned as soon as he is down.
     if (st.ch.flying) landHero(st, data);
     // His turn is over: the world reacts.
     const res = endOfTurn(st, data);
     st.turn.end = res;
+    if (multi(st)) blockOthers(st, data, res);                       // what arrived finds the others standing in its clearing too
     const bl = blockers(st);
     // Blocked in the middle of the turn costs him the rest of it; creatures that only arrive now (a chit calling them, prowlers in the tile) find
     // him after the turn is over: nothing is lost, but he is seen.
@@ -292,12 +461,13 @@ function endDaylight(st, data) {
     // Show him what the end of his turn did, before the evening begins.
     const names = bl.map(m => data.monsters[m.id].name);
     st.turnEnd = { ...res, day: st.day, blocked: blockedMid, blockers: blockedMid ? names : [], closedIn: blockedMid ? [] : names, plan: st.turn.results.slice(), hidden: !!st.ch.hidden, companions: st.turn.companions ?? [] };
-    st.period = 'turn-end';
+    if (!multi(st)) st.period = 'turn-end';                           // (with several the day stays in Daylight until the last chit has been played)
     // He always stops here: the end of the turn is where he sees whether he is hidden or seen going into the evening.
     st.pending = { type: 'turn-end' };
 }
 
 function afterTurnEnd(st, data) {
+    if (multi(st)) return turnDone(st, data);
     st.period = 'sunset';
     sunset(st, data);
 }
@@ -306,6 +476,56 @@ function sunset(st, data) {
     say(st, 'The sun sets.', 'day', tell.sunset(st, st.ch.onRoad ? 'the road' : nameOfClearing(st.ch.at)));
     evening(st, data);
 }
+
+// Day spells end at Sunset, just before combat begins (rule 8.1.1), and a control that has run its course lets go.
+function sunsetChores(st, data) {
+    expireDue(st, data, 'sunset');
+    for (const m of st.mons) if (m.hired && m.controlledUntil && st.day >= m.controlledUntil) { m.hired = false; delete m.hiredBy; m.controlledUntil = null; say(st, `Your control of the ${data.monsters[m.id].name} ends with the Sunset.`, 'combat'); }
+}
+
+// Every character has played his turn: Sunset. The evening is fought one clearing at a time (ruling R-11), in the order of today's turns (R-6): the clearing of the character drawn first,
+// then the clearing of the first drawn among those not yet fought. A clearing with several characters is ONE fight (battle.js); a character alone in his is the one-character evening.
+function sunsetAll(st, data) {
+    st.period = 'sunset';
+    // the order of the day's turns, each guide's followers just after him, then whoever had no turn at all (a cancelled follow)
+    const turns = st.dayRec.order.flatMap(id => [id, ...(st.dayRec.follow?.[id] ?? [])]);
+    const order = [...turns, ...st.order.filter(id => !turns.includes(id))].filter(id => !st.chars[id].dead), units = [], at = new Map();
+    for (const id of order) {
+        const c = st.chars[id];
+        if (c.onRoad || c.flying || c.mist || !c.at) { units.push({ at: null, ids: [id] }); continue; }             // (on a road, in the air or as mist: no clearing, no fight)
+        let u = at.get(c.at);
+        if (!u) { u = { at: c.at, ids: [] }; at.set(c.at, u); units.push(u); }
+        u.ids.push(id);
+    }
+    st.evening = { order, units, i: -1 };
+    sunsetChores(st, data);
+    return nextEvening(st, data);
+}
+
+function nextEvening(st, data) {
+    const ev = st.evening;
+    ev.i++;
+    while (ev.i < ev.units.length && ev.units[ev.i].ids.every(id => st.chars[id].dead)) ev.i++;
+    if (ev.i >= ev.units.length) return meet.openWindow(st) ? undefined : midnight(st, data);          // (those who stand together may trade first, when one asked for it: R-5)
+    const u = ev.units[ev.i], ids = u.ids.filter(id => !st.chars[id].dead);
+    if (ids.length === 1) return withActor(st, ids[0], () => sunset(st, data));
+    return sharedEvening(st, data, u.at, ids);
+}
+
+// Several characters stand in one clearing. With nothing hostile there and no spell worth casting the evening is quiet (R-18); otherwise they fight together.
+function sharedEvening(st, data, at, ids) {
+    st.period = 'evening';
+    for (const id of ids) withActor(st, id, () => say(st, 'The sun sets.', 'day', tell.sunset(st, nameOfClearing(at))));
+    const hostile = st.mons.some(m => !m.dead && !m.hired && m.loc?.c === at) || st.nats.some(n => !n.dead && !n.hired && n.loc?.c === at) || ids.some(id => withActor(st, id, () => canCastQuietly(st, data))) || battle.mayFight(st, ids);          // (the last: with the pvp switch on, two players' characters in one clearing hold their evening)
+    if (!hostile) {
+        for (const id of ids) withActor(st, id, () => say(st, 'A quiet evening.', 'day', tell.quiet(st)));
+        return nextEvening(st, data);
+    }
+    if (battle.startBattle(st, data, at, ids) === 'done') return nextEvening(st, data);
+}
+
+// His evening is over: the next character's, or Midnight.
+const eveningDone = (st, data) => (multi(st) ? nextEvening(st, data) : midnight(st, data));
 
 function hostilesHere(st, data) {
     const here = st.ch.at;
@@ -317,12 +537,10 @@ function hostilesHere(st, data) {
 function evening(st, data) {
     if (st.ch.dead) return died(st, data);
     st.period = 'evening';
-    // Day spells end at Sunset, just before combat begins (rule 8.1.1).
-    expireDue(st, data, 'sunset');
-    for (const m of st.mons) if (m.hired && m.controlledUntil && st.day >= m.controlledUntil) { m.hired = false; m.controlledUntil = null; say(st, `Your control of the ${data.monsters[m.id].name} ends with the Sunset.`, 'combat'); }
-    if (st.ch.onRoad || st.ch.flying) { midnight(st, data); return; }          // (on a road, or still in the air: no clearing, no fight)
-    if (st.ch.mist) { say(st, 'As mist you take no part in any fight: the evening passes.', 'day', tell.quiet(st)); return midnight(st, data); }
-    if (!hostilesHere(st, data)) { say(st, 'A quiet evening.', 'day', tell.quiet(st)); return midnight(st, data); }
+    if (!multi(st)) sunsetChores(st, data);
+    if (st.ch.onRoad || st.ch.flying) return eveningDone(st, data);          // (on a road, or still in the air: no clearing, no fight)
+    if (st.ch.mist) { say(st, 'As mist you take no part in any fight: the evening passes.', 'day', tell.quiet(st)); return eveningDone(st, data); }
+    if (!hostilesHere(st, data)) { say(st, 'A quiet evening.', 'day', tell.quiet(st)); return eveningDone(st, data); }
     combat.startCombat(st, data, st.ch.at);
     afterCombatStep(st, data);
 }
@@ -335,7 +553,7 @@ function afterCombatStep(st, data) {
         if (c.why === 'ran') runAway(st, data);
         st.combat = null;
         if (st.ch.dead) return died(st, data);
-        return midnight(st, data);
+        return eveningDone(st, data);
     }
 }
 
@@ -347,7 +565,9 @@ function runAway(st, data) {
     st.ch.hidden = false;
 }
 
-function died(st, data) {
+// A character fell. With one character that is the end of the game. With several it is his own end (rule 9.1.1): his belongings lie where he fell, what he cast ends, his hirelings are
+// let go, and the day goes on without him; at the next Birdsong his seat is asked who starts now (rule 9.1.2).
+function died(st, data, carryOn = true) {
     st.companions = [];
     expireHires(st, data);
     breakAllFrom(st, data, HERO);                          // what he cast through his chits ends with him
@@ -355,6 +575,14 @@ function died(st, data) {
     const items = st.ch.items.filter(i => !i.destroyed).map(i => ({ ...i, active: false, alerted: false }));
     if (items.length && st.ch.at) st.abandoned[st.ch.at] = [...(st.abandoned[st.ch.at] ?? []), ...items];
     st.ch.items = [];
+    if (multi(st)) {
+        st.combat = null; st.turn = null; st.pending = null;
+        st.ch.death = { day: st.day, by: st.slain?.by ?? null, text: st.slain?.text ?? null, at: st.slain?.at ?? st.ch.at };
+        st.ch.today.stage = 'dead';
+        say(st, `${st.ch.name}'s adventure ends here.`, 'day');
+        if (!carryOn) return;                                                              // (he fell in a fight shared with others: the fight goes on without him, battle.js)
+        return st.period === 'daylight' ? turnDone(st, data) : eveningDone(st, data);       // (from the middle of his own turn, or from his evening)
+    }
     resetChitsAtMidnight(st);
     st.combat = null;
     st.period = 'over';
@@ -365,52 +593,93 @@ function died(st, data) {
 }
 
 // A timed game ends at the last midnight; sudden death ends when every goal is met; an endless game never ends.
+// (Several characters: sudden death ends the game at the first midnight when any living character meets every goal. Ruling R-20 would ask him; that is step 6.)
 function gameEnds(st, data) {
     if (st.mode === 'endless') return false;
     if (st.mode === 'sudden') {
-        const s = scoreGame(st, data);
-        return s.rows.length > 0 && s.rows.every(r => r.diff >= 0);
+        if (multi(st)) return !!(st.sudden && st.sudden.day === st.day && st.sudden.ended);            // (R-20: each qualifying player was asked, and one of them said end)
+        return goalsMet(st, data);
     }
     return st.day >= (st.lastDay ?? LAST_DAY);
 }
 
+const goalsMet = (st, data) => { const s = scoreGame(st, data); return s.rows.length > 0 && s.rows.every(r => r.diff >= 0); };
+
+// Sudden Death with several characters (10.E.3, ruling R-20): at a Midnight when a living character has met every goal, HE is asked whether the game ends; he need not end it. Each qualifying
+// player is asked once; the first to say end ends the game for everybody at this Midnight, and when all have declined it goes on. Returns true when Midnight may go on (nobody qualifies, or all
+// have answered), false when it waits for the answers.
+function suddenAsk(st, data) {
+    if (st.sudden?.day === st.day) return !!st.sudden.done;
+    const ids = livingIds(st).filter(id => withActor(st, id, () => goalsMet(st, data)));
+    if (!ids.length) return true;
+    st.sudden = { day: st.day, ids, ended: false, done: false };
+    say(st, `Sudden Death: ${ids.map(id => playerNameOf(st, id)).join(' and ')} ${ids.length === 1 ? 'has' : 'have'} met every goal and may end the game now.`, 'day', null, { who: null });
+    for (const id of ids) st.asks.push({ who: id, pending: { type: 'end-option', day: st.day } });
+    return false;
+}
+function endOption(st, data, a) {
+    const s = st.sudden, who = st.actor;
+    st.pending = null;
+    if (a.end) {
+        s.ended = true;
+        for (const k of [...st.asks]) if (k.pending.type === 'end-option') st.asks.splice(st.asks.indexOf(k), 1);          // (the game ends: the others need not answer)
+        say(st, `${playerNameOf(st, who)} ends the game.`, 'day', null, { who: null });
+    } else say(st, `${playerNameOf(st, who)} plays on.`, 'day', null, { who: null });
+    if (st.asks.some(k => k.pending.type === 'end-option')) return st;
+    s.done = true;
+    return midnight(st, data);
+}
+
+// Midnight, once for the whole table: the realm's chores happen once, each living character's own housekeeping in turn (rule 8.9.2). With one character the order of the chores is
+// the order they always had.
 function midnight(st, data) {
     st.period = 'midnight';
+    if (multi(st) && st.mode === 'sudden' && !suddenAsk(st, data)) return;
+    const each = fn => { if (multi(st)) { for (const id of livingIds(st)) withActor(st, id, fn); } else fn(); };
     expireDue(st, data, 'midnight');                       // Combat spells end at Midnight (8.9.2)
-    deenergizePass(st, data);                              // Permanent spells fall inert unless a source that stays still fills their place
-    st.ch.wishStrength = null;                              // a Wish of Strength not used today is lost
-    st.companions = [];
-    for (const it of st.ch.items) if (it.kind === 'weapon') it.alerted = false;
-    for (const c of st.ch.chits) if (c.alerted) { c.alerted = false; if (c.state === 'active') c.state = 'fatigued'; }          // an alerted Magic chit that was not used tires at Midnight
+    each(() => {
+        deenergizePass(st, data);                          // Permanent spells fall inert unless a source that stays still fills their place
+        st.ch.wishStrength = null;                          // a Wish of Strength not used today is lost
+        st.companions = [];
+        for (const it of st.ch.items) if (it.kind === 'weapon') it.alerted = false;
+        for (const c of st.ch.chits) if (c.alerted) { c.alerted = false; if (c.state === 'active') c.state = 'fatigued'; }          // an alerted Magic chit that was not used tires at Midnight
+    });
     // The Midnight housekeeping is for a game that goes on (rule 8.9.2): at the last Midnight nothing is returned and no curse is lifted before the score is worked out.
     const ending = gameEnds(st, data);
     // a potion that was activated today is good until Midnight, then it goes back to the box it came from (8.9.2a; one not used is kept)
     const cardOf = it => data.treasures[it.card ?? (it.kind === 'treasure' ? it.id : '')];      // a card that became a counter keeps its card
-    const spent = ending ? [] : st.ch.items.filter(it => it.active && cardOf(it)?.discardTo);
-    for (const it of spent) {
-        const card = cardOf(it);
-        (st.stock[card.discardTo] ??= []).push({ kind: 'treasure', id: card.id });
-        say(st, `The ${card.name} is used up and returns to the ${card.discardTo}.`, 'info');
-    }
-    if (spent.length) st.ch.items = st.ch.items.filter(it => !spent.includes(it));
+    each(() => {
+        const spent = ending ? [] : st.ch.items.filter(it => it.active && cardOf(it)?.discardTo);
+        for (const it of spent) {
+            const card = cardOf(it);
+            (st.stock[card.discardTo] ??= []).push({ kind: 'treasure', id: card.id });
+            say(st, `The ${card.name} is used up and returns to the ${card.discardTo}.`, 'info');
+        }
+        if (spent.length) st.ch.items = st.ch.items.filter(it => !spent.includes(it));
+    });
     resetChitsAtMidnight(st);
-    if (!st.ch.flying && !ending) liftCursesAtChapel(st);                     // (not while he is blown across the land)
-    expireHires(st, data);
-    st.combat = null;
-    if (st.ch.onRoad) {
-        // still out on the road overnight: the next day's plan must begin with a Move to either end
-    }
+    each(() => {
+        if (!st.ch.flying && !ending) liftCursesAtChapel(st);                     // (not while he is blown across the land)
+        expireHires(st, data);
+        st.combat = null;
+    });
+    if (multi(st)) { for (const id of st.order) if (st.chars[id].dead) withActor(st, id, () => { st.combat = null; }); st.evening = null; }
     if (ending) {
         expireDue(st, data, 'game-end');                  // all spells are broken when the game ends (9.3.1)
         st.period = 'over';
         st.over = { reason: 'finished', day: st.day };
+        say(st, 'The month ends.', 'day', null, multi(st) ? { who: null } : null);
+        if (multi(st)) {
+            st.score = scoreParty(st, data);
+            for (const id of st.order) withActor(st, id, () => { st.pending = { type: 'over' }; });
+            return;
+        }
         st.score = scoreGame(st, data);
-        say(st, 'The month ends.', 'day');
         st.pending = { type: 'over' };
         return;
     }
     st.day += 1;
-    if (!st.ch.onRoad) followHero(st, data);                 // natives hired yesterday (who could not follow him on that day's Move) are with him again by Birdsong (7.11.3)
+    each(() => { if (!st.ch.onRoad) followHero(st, data); });                 // natives hired yesterday (who could not follow him on that day's Move) are with him again by Birdsong (7.11.3)
     beginDay(st, data);
 }
 
@@ -453,6 +722,7 @@ function executeSlot(st, data, slot, i) {
 function doFly(st, data, slot) {
     const t = st.turn;
     t.climb = null;
+    if (multi(st)) for (const f of meet.followersOf(st, st.actor)) meet.dropFollower(st, data, f, 'cannot follow a flier');          // (7.11.6a.5: only a follower who can fly follows a flier; none is modelled)
     if (!flyTiles(st, data).includes(slot.to)) return 'That tile is too far away to fly to: the phase is lost.';
     let src = null;
     if (!st.ch.flying) {
@@ -517,6 +787,10 @@ function doMove(st, data, slot) {
     st.ch.arrivedFrom = from;
     st.ch.at = to;
     followHero(st, data);
+    if (multi(st)) {
+        if (!lost && (road.kind === 'hidden' || road.kind === 'secret')) meet.spyOnPath(st, data, st.ch.id, from, to);      // those who see him use it learn it (4.5.6b.1)
+        meet.carry(st, data, from, to, road, isCave(st, data, to));                                                   // and his followers go with him (7.11.6a)
+    }
     if (isCave(st, data, to)) {
         const h = activeHorse(st);
         if (h) { h.active = false; say(st, 'Your horse cannot go into the caves and stays outside, unridden.', 'info'); }
@@ -554,6 +828,10 @@ function doHide(st, data) {
 // The Alert activity readies the active weapon, or alerts one Magic chit (4.6.3c, 7.9.3): an alerted Magic chit has time 0, so it can be played
 // in the Encounter step against the fastest creature; if it is not used it tires at Midnight.
 function doAlert(st, data, slot = {}) {
+    if (multi(st)) for (const f of meet.followersOf(st, st.actor)) withActor(st, f, () => {            // each follower who is a character does the same (7.11.6f): he readies his weapon
+        const w = st.ch.items.find(i => i.kind === 'weapon' && i.active);
+        if (w && !w.alerted) { w.alerted = true; say(st, `You ready your ${nameOf(data, w)}.`, 'info'); }
+    });
     if (slot?.magic) {
         if (st.ch.morph) return 'A creature has no Magic chit to alert.';
         const chit = st.ch.chits.find(c => c.id === slot.magic);
@@ -572,6 +850,10 @@ function doAlert(st, data, slot = {}) {
 
 // Resting: each Rest phase returns one asterisk of effort (a wounded chit takes two rests per asterisk).
 function doRest(st, data) {
+    if (multi(st)) for (const f of meet.followersOf(st, st.actor)) withActor(st, f, () => {            // each follower who is a character rests too (7.11.6f); he cannot choose now, so the first way offered
+        const o = hasCurse(st, 'Ill Health') ? [] : restOptions(st);
+        if (o.length) { applyRest(st, o[0]); say(st, `You rest (${o[0].text}).`, 'info'); }
+    });
     if (hasCurse(st, 'Ill Health')) return 'Ill Health: you cannot rest.';
     const opts = restOptions(st);
     if (!opts.length) return 'You have nothing to rest.';
@@ -664,10 +946,26 @@ function doSearch(st, data, slot) {
 }
 
 // ---- the action entry point ----
+// `action.who` names the character who is answering (default: the only one with a question waiting, else the current actor). While the action runs the engine works
+// for that character: st.ch, st.pending, st.plan, st.turn and st.combat are his. `action.by` (a player id, supplied by a server) must own him. With one character none of this shows.
 export function apply(st0, data, action) {
     const st = clone(st0);
+    if (action?.type === 'table') { tableAct(st, data, action); return st; }       // the table's own decisions (an agreed end, leaving the map): see below
+    const who = resolveWho(st, action);
+    if (action?.by != null && ownerOf(st, who) !== action.by) throw new Error('that is not your character');
+    st.actor = who;
+    // a seat marked away is played by the autopilot (server/autopilot.mjs): every answer it gives is labelled in the log, in public words (a plan or a play is not told)
+    if (action.auto && multi(st)) say(st, `${playerNameOf(st, who)}'s autopilot answers: ${action.type}${action.kind ? ' ' + action.kind : ''}.`, 'day', null, { who: null });
+    step(st, data, action);
+    settleActor(st, who);
+    return st;
+}
+
+function step(st, data, action) {
+    if (action.type === 'meet') return meet.act(st, data, action);          // characters meeting: an offer, an answer, a policy (meet.js); anyone may, with or without a question
     const p = st.pending;
-    if (!p) throw new Error('nothing to do');
+    if (multi(st) && st.offers && meet.openOffer(st, st.actor) && p) throw new Error(`wait: ${st.chars[meet.openOffer(st, st.actor).to].name} has not answered your offer yet (withdraw it to go on)`);
+    if (!p) throw new Error(multi(st) ? `${st.ch.name} has nothing to answer now (it is not his turn, or the others are still to answer)` : 'nothing to do');
     switch (action.type) {
         case 'plan': {
             if (p.type !== 'plan') throw new Error('not planning');
@@ -791,9 +1089,13 @@ export function apply(st0, data, action) {
         }
         case 'combat': {
             if (!st.combat) throw new Error('no combat');
-            const kindFor = { 'combat-pay': 'pay', 'combat-drinks': 'drinks', 'combat-choice': 'choice', 'combat-encounter': 'encounter', 'combat-melee': 'melee', 'combat-shift': 'shift', 'combat-wounds': 'wounds', 'combat-fatigue': 'fatigue', 'combat-over': 'over' };
+            const kindFor = { 'combat-pay': 'pay', 'combat-drinks': 'drinks', 'combat-choice': 'choice', 'combat-encounter': 'encounter', 'combat-melee': 'melee', 'combat-shift': 'shift', 'combat-wounds': 'wounds', 'combat-fatigue': 'fatigue', 'combat-over': 'over', 'combat-lure': 'lure', 'combat-charge': 'charge' };
             if (kindFor[p.type] !== action.kind) throw new Error(`that is not what the fight is waiting for (${kindFor[p.type] ?? p.type})`);
             st.pending = null;
+            if (st.combat.shared) {                                // a fight with other characters in it (battle.js): the fight takes the answer and goes on as far as it can
+                if (battle.answer(st, data, action) === 'done') nextEvening(st, data);
+                return st;
+            }
             combatAction(st, data, action);
             afterCombatStep(st, data);
             return st;
@@ -804,7 +1106,12 @@ export function apply(st0, data, action) {
             afterTurnEnd(st, data);
             return st;
         }
+        case 'end-option': {
+            if (p.type !== 'end-option') throw new Error('nobody is asking whether the game ends');
+            return endOption(st, data, action);
+        }
         case 'restart': {
+            if (p.type === 'restart') return restartChar(st, data, action.vp, action.character ?? null);        // (several characters: the seat starts again at this Birdsong)
             if (p.type !== 'over') throw new Error('not at the end of a game');
             return restartAfterDeath(st, data, action.vp);
         }
@@ -892,3 +1199,99 @@ function autoplay(st, data) {
     }
     if (st.turn && st.pending?.type !== 'phase' && st.pending?.type !== 'phase-pick') st.turn.auto = false;
 }
+
+// ---- the table's own decisions (action { type: 'table', kind, ... }, the server's: they are events of the log like any other) ----
+//   end    the players agreed to stop (9.2.1): the game is scored as if the month had ended now, whatever is going on
+//   leave  a character leaves the map (R-21, 9.2.2b): his score is fixed at once, his hirelings are let go, his things leave play, his seat does not start again (no new character)
+// The server checks the vote that lets `end` be sent; the engine only does it. `leave` is a character's: it needs `who`, and `by` must own him.
+function tableAct(st, data, a) {
+    if (st.period === 'over') throw new Error('the game is over');
+    if (a.kind === 'end') return endGame(st, data, a.reason ?? 'agreed');
+    if (a.kind === 'note') { say(st, String(a.text ?? '').slice(0, 240), 'day', null, { who: null }); return st; }          // the table's own line (a seat marked away, a seat back): written by the server
+    if (a.kind === 'leave') {
+        const who = resolveWho(st, a);
+        if (a.by != null && ownerOf(st, who) !== a.by) throw new Error('that is not your character');
+        st.actor = who;
+        leaveMap(st, data);
+        settleActor(st, who);
+        return st;
+    }
+    throw new Error(`unknown table action ${a.kind}`);
+}
+
+// The game ends now, scored as at the end of the month. Everything in flight (a fight, an offer, a trade window, a question) is dropped: nothing can be answered after the end.
+function endGame(st, data, reason) {
+    expireDue(st, data, 'game-end');                                     // all spells are broken when the game ends (9.3.1)
+    st.battle = null; st.offers = []; st.evening = null;
+    for (const k of ['tradeWindow', 'blockCheck', 'followCheck']) delete st[k];
+    if (st.sudden && !st.sudden.done) st.sudden.done = true;
+    st.asks = [];
+    for (const id of st.order) { const t = st.chars[id].today; if (t) { t.combat = null; t.turn = null; } }
+    st.period = 'over';
+    st.over = { reason, day: st.day };
+    const why = { agreed: 'The players agree to end the game here.', limit: 'The game has reached its length limit and ends here.', left: 'Nobody is left on the map: the game ends.' }[reason] ?? 'The game ends here.';
+    say(st, why, 'day', null, multi(st) ? { who: null } : null);
+    if (multi(st)) {
+        st.score = scoreParty(st, data);
+        for (const id of st.order) withActor(st, id, () => { st.pending = { type: 'over' }; });
+        settleActor(st, st.order.includes(st.actor) ? st.actor : st.order[0]);
+        return st;
+    }
+    st.score = scoreGame(st, data);
+    st.pending = { type: 'over' };
+    return st;
+}
+
+// The actor leaves the map. Allowed from a clearing, at the start of his own phase or while he plans (the printed edge-of-the-map road is not modelled; ruling R-21).
+function leaveMap(st, data) {
+    const c = st.ch, p = st.pending;
+    if (!multi(st)) throw new Error('you cannot leave the map: end the game instead');
+    if (c.dead) throw new Error('your character is dead');
+    if (!p || !['plan', 'phase', 'phase-pick'].includes(p.type)) throw new Error('you can leave the map when you plan, or at the start of one of your phases');
+    if (!c.at || c.onRoad || c.flying || c.mist) throw new Error('you can leave the map only from a clearing');
+    if (meet.openOffer(st, st.actor)) throw new Error('you have an offer open: withdraw it first');
+    c.goneScore = scoreGame(st, data);                                  // fixed now (9.3.1a): what he holds this moment is what counts
+    c.gone = { day: st.day };
+    st.companions = [];
+    expireHires(st, data);
+    breakAllFrom(st, data, HERO);
+    c.items = [];                                                       // (they leave play with him)
+    c.dead = true; c.hidden = false;
+    c.death = { day: st.day, by: null, text: null, at: c.at, left: true };
+    say(st, `${c.name} leaves the map.`, 'day', null, { who: null });
+    const midTurn = p.type !== 'plan';
+    st.pending = null;
+    st.combat = null; st.plan = null;
+    if (st.order.every(id => st.chars[id].gone)) return endGame(st, data, 'left');
+    if (!midTurn) {                                                     // at the Birdsong barrier: perhaps his plan was the one the day was waiting for
+        c.today.stage = 'gone';
+        if (st.order.every(id => ['planned', 'gone'].includes(st.chars[id].today.stage))) sunrise(st, data);
+        return st;
+    }
+    st.turn = null;
+    const id = st.actor;
+    turnDone(st, data);
+    st.chars[id].today.stage = 'gone';                                   // (turnDone marks a turn as played; he has left, which is not the same)
+    return st;
+}
+
+// The fight shared by several characters needs two things this file does: a character who falls and one who runs.
+battle.hooks.died = (st, data) => died(st, data, false);
+battle.hooks.runAway = (st, data) => runAway(st, data);
+
+// What the meetings between characters (meet.js) need of this file.
+meet.hooks.afterBlock = (st, data, blocked) => afterBlock(st, data, blocked);
+meet.hooks.resumePhase = (st, data) => runPhase(st, data);
+meet.hooks.toMidnight = (st, data) => midnight(st, data);
+meet.hooks.followHero = (st, data) => followHero(st, data);
+// A follower's turn ends in the middle of his guide's (he stopped following, or could not go on): the end of a turn as endDaylight does it, without the question that stops a turn that is his own.
+meet.hooks.followerEnds = (st, data) => {
+    const res = endOfTurn(st, data);
+    blockOthers(st, data, res);
+    const bl = blockers(st), names = bl.map(m => data.monsters[m.id].name);
+    if (bl.length) { st.ch.hidden = false; say(st, `${names.join(', ')} close in on you.`, 'block'); }
+    st.turnEnd = { ...res, day: st.day, blocked: false, blockers: [], closedIn: names, plan: [], hidden: !!st.ch.hidden, companions: [], follower: true };
+};
+
+// For tests and tools that set a clearing up by hand: open the evening of a state whose `dayRec` names the order of the day's turns (every character's turn played).
+export { sunsetAll as beginEvening };

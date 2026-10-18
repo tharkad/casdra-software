@@ -35,12 +35,12 @@ function sendHome(ctx, o) {
         const d = o.den;
         d.dead = true;
         for (const p of c.dens.filter(x => x.partOf === d.uid)) p.dead = true;
-        if (d.kind === 'mon') { const m = st.mons.find(x => x.id === d.id), def = data.monsters[d.id]; m.loc = { box: def.homeBox }; m.hired = false; m.controlledUntil = null; }
+        if (d.kind === 'mon') { const m = st.mons.find(x => x.id === d.id), def = data.monsters[d.id]; m.loc = { box: def.homeBox }; m.hired = false; delete m.hiredBy; m.controlledUntil = null; }
         else { const n = st.nats.find(x => x.id === d.id), g = data.groups[data.natives[d.id].group]; n.loc = g.garrison ? { c: st.garrisonAt[g.garrison] } : { box: g.id }; }
     } else {
         o.hire.dead = true;
         const n = st.nats.find(x => x.id === o.hire.id), g = data.groups[data.natives[n.id].group];
-        n.hired = false; n.loc = g.garrison ? { c: st.garrisonAt[g.garrison] } : { box: g.id };
+        n.hired = false; delete n.hiredBy; n.loc = g.garrison ? { c: st.garrisonAt[g.garrison] } : { box: g.id };
     }
 }
 

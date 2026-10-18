@@ -3,6 +3,7 @@ import { ask } from '../ask.js';
 import { dwellingLine } from '../dwelling_line.js';
 import { ATTACK_SPELLS, castable } from '../../engine/spells.js';
 import { createRace, joinRace, peekRace, serverUrl } from '../online.js';
+import { createShared, joinShared, chooseShared } from '../shared_online.js';
 
 // New game: a three-step wizard (game type, optional rules, character and goals).
 // Everything here is a *choice about the rules*, so the facts come from docs/rules/01 and 06 (see the notes beside each option).
@@ -146,16 +147,23 @@ function spellChooser(g, who, redraw) {
     ].filter(Boolean);
 }
 
+// who holds this character already at a shared table (the seat that is choosing now may keep its own)
+const takenBy = (g, id) => (g.race?.seats ?? []).find(x => x.character === id && x.seat !== g.mySeat)?.name ?? null;
+
 function charsStep(g, redraw, ctx) {
     const total = vpTotal(g), used = Object.values(g.vp).reduce((a, b) => a + b, 0);
     const who = CHARACTERS.find(c => c.id === g.character) ?? CHARACTERS[0];
     return [
         h('h2', { class: 'q' }, 'Your character'),
         ask('Choose who you will play and where the first day begins.', 'Each character has different chits, gear and friends among the natives. The starting place decides who is near you on day 1.', { compact: true }),
-        h('div', { class: 'choices', role: 'radiogroup' }, ...CHARACTERS.map(c => h('button', { class: `choice${g.character === c.id ? ' on' : ''}`, role: 'radio', 'aria-checked': g.character === c.id, 'data-char': c.id,
-            onclick: () => { g.character = c.id; if (!c.starts.includes(g.dwelling)) g.dwelling = c.starts[0]; redraw(); } },
-            h('span', { class: 'dot' }),
-            h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, c.name, h('em', {}, c.weight)), ...charBlurb(c))))),
+        h('div', { class: 'choices', role: 'radiogroup' }, ...CHARACTERS.map(c => {
+            const by = takenBy(g, c.id);                               // a shared table: no two seats may play the same character
+            return h('button', { class: `choice${g.character === c.id ? ' on' : ''}${by ? ' taken' : ''}`, role: 'radio', 'aria-checked': g.character === c.id, 'data-char': c.id, disabled: by ? true : null,
+                onclick: () => { g.character = c.id; if (!c.starts.includes(g.dwelling)) g.dwelling = c.starts[0]; redraw(); } },
+                h('span', { class: 'dot' }),
+                h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, c.name, h('em', {}, by ? `taken by ${by}` : c.weight)), ...(by ? [] : charBlurb(c))));
+        })),
+        g._shared ? h('p', { class: 'hint', 'data-sealed': '' }, 'Your goals and starting spells are sealed: the others see them only when the game is over.') : null,
         h('p', { class: 'hint' }, who.gear ? `${who.her ? 'She begins with her' : 'He begins with his'} ${who.gear}, taken from the natives' stock as the rules say.` : `${who.her ? 'She' : 'He'} begins with no weapon or armor: buy or find them, or fight with the Fight chit.`),
         h('img', { class: 'cardpic', src: `art/characterdetail/${CARD_FILE[who.id] ?? who.id.replace('-', '_')}.jpg`, alt: `${who.name} character card`, onerror: e => e.target.remove() }),
         h('h2', { class: 'q' }, who.starts.length > 1 ? 'Where do you start?' : `Where ${who.her ? 'she' : 'he'} starts`),
@@ -188,9 +196,36 @@ const OPTION_GROUPS = [
     ] },
 ];
 
-function optionsStep(g, redraw, go) {
+// A SHARED game: how many sit at the table, and whether characters may fight each other. Plain words first; the rule numbers are for those who look.
+function tableStep(g, redraw) {
+    g.seats ??= 2;
+    const pvp = !!g.options.pvp, dayEnd = g.options.dayEnd !== false;
+    return [
+        h('h2', { class: 'q' }, 'Who is at the table?'),
+        ask('Choose how many players will share this realm.', 'Everyone plays one character on one map, in turn. The game starts when every seat is taken and everyone has picked a character; nobody can join late.', { compact: true }),
+        h('div', { class: 'seg seats', role: 'radiogroup', 'aria-label': 'Players' }, [2, 3, 4].map(n => h('button', { class: `seg-btn${g.seats === n ? ' on' : ''}`, role: 'radio', 'aria-checked': g.seats === n, 'data-seats': n, onclick: () => { g.seats = n; redraw(); } }, `${n} players`))),
+        h('button', { class: `choice${pvp ? ' on' : ''}`, role: 'switch', 'aria-checked': pvp ? 'true' : 'false', 'data-option': 'pvp', onclick: () => { g.options.pvp = !pvp; redraw(); } },
+            h('span', { class: 'dot' }),
+            h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, 'Players may fight each other', h('em', {}, pvp ? 'on' : 'off')),
+                h('span', { class: 'choice-line' }, pvp
+                    ? 'On: in the evening a character can charge another player\u2019s character, or name them in the secret plays, and send hirelings against them. Whoever is struck down loses everything to the one who did it: their Notoriety, their gold and all their belongings. They return at the next Birdsong with a new character.'
+                    : 'Off: you share the map and the monsters, you race on points, but nobody can attack another player\u2019s character.'),
+                h('span', { class: 'choice-line' }, pvp ? 'Turn it on only if everyone at the table has agreed: a death is real, and there is no taking it back once the game has begun.'
+                    : 'Turn it on if you want a table where characters can fight, rob and kill each other. It cannot be changed once the game has begun.'))),
+        // after the evening's fights, characters standing together may trade before Midnight (a lobby option, on unless the host turns it off: it is kept with the game)
+        h('button', { class: `choice${dayEnd ? ' on' : ''}`, role: 'switch', 'aria-checked': dayEnd ? 'true' : 'false', 'data-option': 'dayEnd', onclick: () => { g.options.dayEnd = !dayEnd; redraw(); } },
+            h('span', { class: 'dot' }),
+            h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, 'Trade at the end of the day', h('em', {}, dayEnd ? 'on' : 'off')),
+                h('span', { class: 'choice-line' }, dayEnd
+                    ? 'On: after the evening\u2019s fights, characters who stand together may trade before Midnight. Each player can still turn it off for their own character.'
+                    : 'Off: characters trade only at the start of a phase of someone\u2019s turn, not after the fights.'))),
+    ];
+}
+
+function optionsStep(g, redraw, go, shared = false) {
     g.options ??= {};
     return [
+        ...(shared ? tableStep(g, redraw) : []),
         h('h2', { class: 'q' }, 'Optional rules'),
         h('p', { class: 'hint' }, 'The printed rules are the default. Switch on only what you want; you cannot change these once the game has begun.'),
         ...OPTION_GROUPS.flatMap(grp => [
@@ -212,21 +247,38 @@ export function newGameScreen(ctx) {
     const g = ctx.newGame ?? (ctx.newGame = defaultGame());
     const root = h('main', { class: 'screen newgame', 'data-screen': 'newgame' });
     const redraw = () => { root.replaceChildren(...build()); const body = root.querySelector('.body'); if (body && g._scroll) body.scrollTop = g._scroll; };
-    const online = ctx.onlineIntent ?? null;                     // set by the Play online screen: this wizard is choosing a seat in a race
-    const first = online?.mode === 'join' ? STEPS.length - 1 : 0;       // someone joining takes the race's rules and only chooses a character
+    const online = ctx.onlineIntent ?? null;                     // set by the Play online screen: this wizard is choosing a seat in a race, or opening / joining a shared table
+    const first = online && online.mode !== 'create' ? STEPS.length - 1 : 0;       // someone joining takes the game's rules and only chooses a character
+    const kindOf = () => online?.kind === 'shared' ? 'shared' : 'race';
     if (online && !g._online) {
         g._online = true;
+        g._shared = kindOf() === 'shared';
+        if (g._shared) g.options = { ...g.options, pvp: false };
+        if (online.mode === 'choose') {                               // changing my character in the lobby: the seats are known already
+            g.step = first; g.race = { seats: online.seats ?? [], players: [] }; g.mySeat = online.mySeat;
+            if (online.current) { g.character = online.current; const cc = CHARACTERS.find(c => c.id === g.character); if (cc && !cc.starts.includes(g.dwelling)) g.dwelling = cc.starts[0]; }
+        }
         if (online.mode === 'join') {
-            g.step = first; g.loading = true; g.note = 'Looking up the race\u2026';
+            g.step = first; g.loading = true; g.note = 'Looking up the game\u2026';
             peekRace(online.server, online.invite).then(r => {
                 g.loading = false; g.note = null; g.race = r;
+                online.kind = r.kind === 'shared' ? 'shared' : 'race'; g._shared = online.kind === 'shared';
                 g.options = { ...g.options, ...r.options };
                 if (r.mode === 'sudden') g.length = 'sudden'; else if (r.mode === 'endless') g.length = 'endless'; else if (r.lastDay === 28) g.length = 'month'; else { g.length = 'custom'; g.weeks = Math.round(r.lastDay / 7); }
+                if (g._shared) {                                      // start from a character nobody holds
+                    const free = CHARACTERS.find(c => !takenBy(g, c.id)); if (free) { g.character = free.id; g.dwelling = free.starts[0]; }
+                    if (r.status && r.status !== 'lobby') g.note = 'That game has already started: nobody joins late.';
+                }
                 redraw();
             }).catch(e => { g.loading = false; g.note = e.message; redraw(); });
         }
     }
-    const back = () => { if (g.step <= first) { ctx.go(online ? 'online' : 'title', online ? { message: '' } : {}); } else { g.step -= 1; redraw(); } };
+    const back = () => {
+        if (g.step <= first) {
+            if (online?.mode === 'choose') ctx.go('sharedlobby', { game: online.game });
+            else ctx.go(online ? 'online' : 'title', online ? { message: '' } : {});
+        } else { g.step -= 1; redraw(); }
+    };
     // the goals must add up to the length's budget (rule 3.3.6a): the quick start, which skips the goals page, spreads it for you
     const fitVp = () => {
         const total = vpTotal(g);
@@ -242,30 +294,45 @@ export function newGameScreen(ctx) {
     };
     async function startOnline(lastDay) {
         const choices = { character: g.character, vp: { ...g.vp }, startDwelling: g.dwelling, startSpells: (CHARACTERS.find(c => c.id === g.character)?.spells && Array.isArray(g.spells)) ? [...g.spells] : undefined };
-        g.note = online.mode === 'join' ? 'Taking your seat\u2026' : 'Setting up the race\u2026'; g.busy = true; redraw();
+        const mode = g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month';
+        const shared = kindOf() === 'shared';
+        g.note = online.mode === 'join' ? 'Taking your seat\u2026' : online.mode === 'choose' ? 'Saving\u2026' : shared ? 'Setting up the table\u2026' : 'Setting up the race\u2026'; g.busy = true; redraw();
         try {
+            if (online.mode === 'choose') {
+                const game = online.game; await chooseShared(game, choices);
+                ctx.onlineIntent = null; ctx.newGame = null; ctx.go('sharedlobby', { game }); return;
+            }
+            if (shared) {
+                const game = online.mode === 'join' ? await joinShared(online.server, online.invite, online.name, choices)
+                    : await createShared(serverUrl(), online.name, { ...choices, maxSeats: g.seats ?? 2, lastDay, options: { ...g.options }, mode });
+                ctx.onlineIntent = null; ctx.newGame = null; ctx.go('sharedlobby', { game, invited: online.mode === 'create' }); return;
+            }
             const race = online.mode === 'join' ? await joinRace(online.server, online.invite, online.name, choices)
-                : await createRace(serverUrl(), online.name, { ...choices, lastDay, options: { ...g.options }, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month' });
+                : await createRace(serverUrl(), online.name, { ...choices, lastDay, options: { ...g.options }, mode });
             ctx.onlineIntent = null; ctx.newGame = null;
             ctx.go('game', { online: race, invited: online.mode === 'create' });
         } catch (e) { g.busy = false; g.note = e.message; redraw(); }
     }
     const next = () => { if (g.step < STEPS.length - 1) { g.step += 1; g._scroll = 0; redraw(); } };
 
+    const title = () => !online ? 'New game' : online.mode === 'choose' ? 'Your character' : kindOf() === 'shared' ? (online.mode === 'join' ? 'Join the shared game' : 'Start a shared game') : (online.mode === 'join' ? 'Join the race' : 'Start a race');
+    const goLabel = () => !online ? 'Start the game' : online.mode === 'choose' ? 'Save my choice' : online.mode === 'join' ? 'Take my seat' : kindOf() === 'shared' ? 'Open the table' : 'Start the race';
+
     function build() {
         const last = g.step === STEPS.length - 1;
+        const shared = kindOf() === 'shared';
         return [
             h('header', { class: 'bar' },
-                h('button', { class: 'back', 'aria-label': 'Back', onclick: back }, '‹'),
-                h('h1', {}, online ? (online.mode === 'join' ? 'Join the race' : 'Start a race') : 'New game')),
-            online?.mode === 'join' ? null : h('div', { class: 'progress', 'aria-label': `Step ${g.step + 1} of ${STEPS.length}: ${STEPS[g.step].label}` },
+                h('button', { class: 'back', 'aria-label': 'Back', onclick: back }, '\u2039'),
+                h('h1', {}, title())),
+            online && online.mode !== 'create' ? null : h('div', { class: 'progress', 'aria-label': `Step ${g.step + 1} of ${STEPS.length}: ${STEPS[g.step].label}` },
                 h('div', { class: 'ticks' }, STEPS.map((s, i) => h('span', { class: `tick${i < g.step ? ' done' : ''}${i === g.step ? ' now' : ''}` }))),
                 h('div', { class: 'where' }, h('b', {}, STEPS[g.step].label), h('span', {}, `Step ${g.step + 1} of ${STEPS.length}`))),
-            h('div', { class: 'body', onscroll: e => { g._scroll = e.target.scrollTop; } }, g.step === 0 ? typeStep(g, redraw) : g.step === STEPS.length - 1 ? charsStep(g, redraw, ctx) : optionsStep(g, redraw, ctx.go)),
+            h('div', { class: 'body', onscroll: e => { g._scroll = e.target.scrollTop; } }, g.step === 0 ? typeStep(g, redraw) : g.step === STEPS.length - 1 ? charsStep(g, redraw, ctx) : optionsStep(g, redraw, ctx.go, shared && online?.mode === 'create')),
             h('footer', { class: 'dock' },
-                g.note ? h('div', { class: 'sum', role: 'status' }, g.note) : online?.mode === 'join' && g.race ? h('div', { class: 'sum' }, `${summary(g)} \u00b7 with ${g.race.players.join(', ')}`) : h('div', { class: 'sum' }, summary(g)),
-                h('button', { class: 'btn primary big', 'data-act': last ? 'start' : 'next', disabled: g.loading || g.busy || last && (Object.values(g.vp).reduce((a, b) => a + b, 0) !== vpTotal(g) || (CHARACTERS.find(c => c.id === g.character)?.spells && (g.spells ?? []).length !== CHARACTERS.find(c => c.id === g.character).spells.n)), onclick: last ? start : next },
-                    last ? (online ? (online.mode === 'join' ? 'Take my seat' : 'Start the race') : 'Start the game') : `Next: ${STEPS[g.step + 1].label}`),
+                g.note ? h('div', { class: 'sum', role: 'status' }, g.note) : online?.mode === 'join' && g.race ? h('div', { class: 'sum' }, `${summary(g)} \u00b7 with ${g.race.players.join(', ')}${g.race.open ? ` \u00b7 ${g.race.open === 1 ? 'one seat' : `${g.race.open} seats`} open` : ''}`) : h('div', { class: 'sum' }, summary(g)),
+                h('button', { class: 'btn primary big', 'data-act': last ? 'start' : 'next', disabled: g.loading || g.busy || (last && online?.mode === 'join' && g.race?.status && g.race.status !== 'lobby') || last && (Object.values(g.vp).reduce((a, b) => a + b, 0) !== vpTotal(g) || (CHARACTERS.find(c => c.id === g.character)?.spells && (g.spells ?? []).length !== CHARACTERS.find(c => c.id === g.character).spells.n)), onclick: last ? start : next },
+                    last ? goLabel() : `Next: ${STEPS[g.step + 1].label}`),
                 g.step === 0 && !online ? h('button', { class: 'btn', 'data-act': 'quick', onclick: start }, 'Start now with the defaults') : null),
         ].filter(Boolean);
     }

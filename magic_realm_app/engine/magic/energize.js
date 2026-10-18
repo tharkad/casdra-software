@@ -2,7 +2,7 @@ import { say } from '../core.js';
 import { tileClearings, tileOf } from '../world.js';
 import { colorSources, colorChits, TYPE_COLOR } from './colour.js';
 import { spellDef } from './registry.js';
-import { idleFx, wakeFx, sameRef, heldDown } from './fx.js';
+import { idleFx, wakeFx, sameRef, heldDown, elsewhere } from './fx.js';
 
 // Energizing Permanent spells (rules 4.6.7h; docs/design/magic/00-framework.md section 3.1). A Permanent spell lives forever but acts only while it is
 // energized. fx.state is 'live' (energized) or 'inert'; fx.energized is null or { by: 'cast'|'auto'|'chit', day }.
@@ -35,7 +35,7 @@ export function fxSupply(st, data, fx, { calendar = true } = {}) {
 }
 // A stronger Permanent spell that is energized on the same target keeps a weaker one asleep (4.6.10f: Melt into Mist 3 beats Transform 2 beats Absorb Essence 1); the
 // weaker one stays inert and its colour chit is not spent (RealmSpeak RealmUtility.java:648-665).
-export const outranked = (st, fx) => (st.fx ?? []).some(o => o !== fx && o.dur === 'permanent' && o.state === 'live' && (o.strength ?? 0) > (fx.strength ?? 0) && o.targets.some(t => fx.targets.some(u => sameRef(t, u))));
+export const outranked = (st, fx) => (st.fx ?? []).some(o => o !== fx && (o.who ?? null) === (fx.who ?? null) && o.dur === 'permanent' && o.state === 'live' && (o.strength ?? 0) > (fx.strength ?? 0) && o.targets.some(t => fx.targets.some(u => sameRef(t, u))));
 const fits = (def, supply) => (def?.color ? supply.has(def.color) : supply.size > 0);          // a spell of "any" colour wants some colour
 
 // Wake every inert Permanent spell whose colour fills its place now. Returns how many woke.
@@ -43,7 +43,7 @@ export function energizePass(st, data, why = 'pass') {
     let n = 0;
     // the stronger transmorph spell first (of equal ones the latest cast), so that a weaker one on the same target finds it already in place (fx.js claim)
     for (const fx of (st.fx ?? []).slice().sort((a, b) => b.strength - a.strength || Number(b.id.slice(1)) - Number(a.id.slice(1)))) {
-        if (fx.dur !== 'permanent' || fx.state !== 'inert' || outranked(st, fx)) continue;
+        if (fx.dur !== 'permanent' || fx.state !== 'inert' || outranked(st, fx) || elsewhere(st, fx)) continue;
         if (fits(spellDef(data, fx.spell), fxSupply(st, data, fx)) && wakeFx(st, data, fx.id, 'auto')) { n++; say(st, `${spellDef(data, fx.spell)?.name ?? fx.spell} is energized again.`, 'info'); }
     }
     return n;
@@ -52,12 +52,12 @@ export function energizePass(st, data, why = 'pass') {
 export function deenergizePass(st, data) {
     let n = 0;
     for (const fx of (st.fx ?? []).slice()) {
-        if (fx.dur !== 'permanent' || fx.state !== 'live') continue;
+        if (fx.dur !== 'permanent' || fx.state !== 'live' || elsewhere(st, fx)) continue;
         if (!fits(spellDef(data, fx.spell), fxSupply(st, data, fx, { calendar: false }))) { idleFx(st, data, fx.id); n++; say(st, `${spellDef(data, fx.spell)?.name ?? fx.spell} falls inert at Midnight.`, 'info'); }
     }
     // a spell held off by a shield (Pentangle, Melt into Mist) falls inert too, so that it does not come back energized when the shield ends (RS deenergizePermanentSpells)
     for (const fx of st.fx ?? []) {
-        if (fx.dur !== 'permanent' || fx.state !== 'nullified' || fx.data?.duplicate) continue;
+        if (fx.dur !== 'permanent' || fx.state !== 'nullified' || fx.data?.duplicate || elsewhere(st, fx)) continue;
         if (!fits(spellDef(data, fx.spell), fxSupply(st, data, fx, { calendar: false }))) { fx.state = 'inert'; fx.energized = null; n++; }
     }
     return n;
@@ -67,7 +67,7 @@ export function deenergizePass(st, data) {
 export function energizeOptions(st, data) {
     const out = [];
     for (const fx of st.fx ?? []) {
-        if (fx.dur !== 'permanent' || fx.state !== 'inert' || outranked(st, fx) || heldDown(st, fx)) continue;
+        if (fx.dur !== 'permanent' || fx.state !== 'inert' || outranked(st, fx) || heldDown(st, fx) || elsewhere(st, fx)) continue;
         const places = fxPlaces(st, data, fx);
         if (st.ch.flying ? !places.some(p => p && tileOf(p) === st.ch.flying.tile) : !places.includes(st.ch.at ?? '-')) continue;           // (a flier is over a tile, not in a clearing)
         const def = spellDef(data, fx.spell);

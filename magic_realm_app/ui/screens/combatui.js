@@ -10,25 +10,36 @@ import { roadsFrom, nameOfClearing, tileName } from '../../engine/world.js';
 import { chitLabel } from '../../engine/day.js';
 import { nameOf, weightOf, defOf } from '../../engine/items.js';
 import { lvl } from '../../engine/core.js';
+import { meleeTargets } from './pvpui.js';
 
 // The evening fight: a vertical, one-hand layout. Foes on top, then the choice in front of you, then the chits you may play.
 const DIRS = ['Thrust', 'Swing', 'Smash'], MNV = ['Charge', 'Dodge', 'Duck'];
 // A number is kept with the word before it (a non-breaking space), so "attack time 6" or "Round 1" never breaks with the number alone on a line.
 const nb = s => String(s).replace(/ (?=\d)/g, '\u00A0');
 
-export function combatSheet({ st, data, act, ui, render, peek }) {
+// `shared`: a fight of several characters in one clearing (screens/sharedfight.js passes { header, frame, fight }): the same step screens, but only YOUR sheet is shown and the page is laid out
+// by the shared frame. Solo and race games never pass it, and for them nothing below differs.
+export function combatSheet({ st, data, act, ui, render, peek, shared = null }) {
     const p = st.pending, c = st.combat;
-    ui.melee ??= { target: c.dens.find(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse')?.uid ?? null, fightChit: null, attackDir: 0, moveChit: null, moveDir: 0, shieldDir: 0, boxes: {} };
+    const onMine = d => !!(d.assigned || (d.partOf && c.dens.find(o => o.uid === d.partOf)?.assigned));          // (a shared fight: on my sheet, or a part of a creature that is)
+    ui.melee ??= { target: (shared?.fight?.pvp && c.charge?.on ? `char:${c.charge.on}` : null) ?? c.dens.find(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse' && (!shared || d.assigned))?.uid ?? null, fightChit: null, attackDir: 0, moveChit: null, moveDir: 0, shieldDir: 0, boxes: {} };
     const m = ui.melee;
+    // what holds a chit back at the Encounter step: a creature ("the Ogre, which moves 4") or another player's charge ("Ann\u2019s charge, which moves 3")
+    const gateWords = g => {
+        const by = /^(.+), charging you$/.exec(g.name);
+        if (!by) return `the ${g.name}, which moves ${g.speed}`;
+        const who = shared?.fight?.members.find(x => x.character === by[1]);
+        return `${who ? who.player : by[1]}\u2019s charge, which moves ${g.speed}`;
+    };
     const send = a => { ui.melee = null; ui.quiet = null; act({ type: 'combat', ...a }); };
-    const foes = c.dens.filter(d => !d.dead && d.kind !== 'horse');
+    const foes = c.dens.filter(d => !d.dead && d.kind !== 'horse' && (!shared || onMine(d)));
     // hirelings and monsters his spells have won over fight beside him
     const allies = (c.hires ?? []).filter(x => !x.dead).map(x => `${x.kind === 'mon' ? data.monsters[x.id]?.name : data.natives[x.id]?.name}${x.kind === 'mon' ? ' (controlled)' : ''}`);
     const cs = { active: 0, fatigued: 0, wounded: 0, enchanted: 0, committed: 0 }; st.ch.chits.forEach(x => { cs[x.state] = (cs[x.state] ?? 0) + 1; });
     const gear = st.ch.items.filter(i => i.kind === 'armor' && i.active).map(i => `${nameOf(data, i)}${i.damaged ? ' (damaged)' : i.destroyed ? ' (destroyed)' : ''}`);
     // One row: the place (its number kept with its name, so it never wraps alone) and the round as a chip; the two peeks sit at the right,
     // and only drop to a line of their own on a narrow phone.
-    const header = h('div', { class: 'cb-head' },
+    const header = shared?.header ?? h('div', { class: 'cb-head' },
         h('div', { class: 'cb-title' },
             h('b', { class: 'cb-place' }, nameOfClearing(c.at).replace(/ (\d+)$/, '\u00A0$1')),
             st.pending?.spellOnly ? null : h('em', { class: 'cb-round' }, `Round\u00A0${c.round}`)),
@@ -159,7 +170,7 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             ...rows);
     };
     const body = [];
-    const chitBtn = (ch, sel, on, ok = true) => h('button', { class: `chit3 ${ch.type}${sel ? ' sel' : ''}`, disabled: !ok, onclick: on }, h('b', {}, ch.type === 'magic' ? `${ch.numeral ?? ''}${ch.time}` : `${ch.strength}${ch.time}`), h('span', {}, '*'.repeat(ch.effort) || '\u00A0'));
+    const chitBtn = (ch, sel, on, ok = true) => h('button', { class: `chit3 ${ch.type}${sel ? ' sel' : ''}`, 'data-chit': ch.id, disabled: !ok, onclick: on }, h('b', {}, ch.type === 'magic' ? `${ch.numeral ?? ''}${ch.time}` : `${ch.strength}${ch.time}`), h('span', {}, '*'.repeat(ch.effort) || '\u00A0'));
     // A spell that needs a target named (8.4.2): its legal targets and the questions it asks. `store` keeps the choices ({ aim, aimParams }): the melee plan, or the quiet-evening cast.
     const sameRef = (x, y) => x.kind === y.kind && String(x.id) === String(y.id);
     const aimSheet = (a, store) => {
@@ -259,10 +270,12 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             { const g = gearSection(true); if (g) body.push(g); }
             if (!picked) body.push(h('button', { class: 'btn quiet-no', 'data-act': 'pass', onclick: () => send({ kind: 'encounter', act: 'pass' }) }, c.quietDone?.length ? 'That is enough' : 'Not tonight'));
         } else {
-        if (c.round === 1 && c.intro?.length) body.push(h('div', { class: 'ask', role: 'note' }, h('b', {}, 'How this came about'), ...c.intro.map(t => h('p', {}, t))));
+        // (a fight between characters with no creature in it: "the creatures here will come for you" would be untrue, so that line is left out)
+        const intro = (c.intro ?? []).filter(t => !(shared?.fight?.pvp && !st.battle?.dens?.some(d => !d.dead && (d.kind === 'mon' || d.kind === 'nat')) && /creatures here will come for you/.test(t)));
+        if (c.round === 1 && intro.length) body.push(h('div', { class: 'ask', role: 'note' }, h('b', {}, 'How this came about'), ...intro.map(t => h('p', {}, t))));
         body.push(ask(p.spellOnly ? 'Evening: nothing is fighting you. Do you want to cast a spell?' : `Round\u00A0${c.round}, Encounter step: you may take one action before the melee.`,
             p.spellOnly ? 'Spells are cast in the evening (rule 8.1.3a: a quiet clearing still gets its rounds), so the game stops here to let you cast one now. You may also do nothing.'
-                : `Before plays are chosen you may ready your weapon, run from the fight, cast a spell, switch a belonging, or simply go on. ${o.why?.gate ? `A chit you play here has to be faster than every creature facing you: the slowest is the ${o.why.gate.name}, which moves ${o.why.gate.speed}, so a chit must be time\u00A0${o.why.gate.speed - 1} or lower.` : 'Nothing is set on you, so no creature holds your chits back: any chit that is strong enough may be played here.'}`));
+                : `Before plays are chosen you may ready your weapon, run from the fight, cast a spell, switch a belonging, or simply go on. ${o.why?.gate ? `A chit you play here has to be faster than every creature facing you: the slowest is ${gateWords(o.why.gate)}, so a chit must be time\u00A0${o.why.gate.speed - 1} or lower.` : 'Nothing is set on you, so no creature holds your chits back: any chit that is strong enough may be played here.'}`));
         if (o.canStay && !p.spellOnly) {
             body.push(h('p', { class: 'hint' }, 'You are hidden. Creatures cannot be set on a hidden character, so nothing here can attack you. You may stay hidden and let the evening pass, or strike from hiding: you get the first blow, but you are revealed.'));
             body.push(h('button', { class: 'btn primary', 'data-act': 'stay-hidden', onclick: () => send({ kind: 'encounter', act: 'stay' }) }, 'Stay hidden: let the evening pass'));
@@ -312,9 +325,14 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
     } else if (p.type === 'combat-melee') {
         const o = meleeOptions(st, data);
         const w = o.weapon;
+        let treachery = false;                                              // (a target that wants a confirm first: own hireling, someone dealt with)
+        // a charger may name only the one he charged; a target that is no longer legal is dropped
+        if (shared?.fight?.pvp && m.target && !o.targets.some(t => t.uid === m.target)) m.target = o.targets.find(t => t.kind === 'character' && st.combat.charge?.on === t.id)?.uid ?? null;
         const wname = w ? nameOf(data, w.item) + (w.item.alerted ? ' (alerted)' : '') : 'bare hands';
         body.push(ask(`Round\u00A0${c.round}, Melee: choose your plays.`,
-            'Pick whom you strike and in which direction, the maneuver that defends you, and where the creatures stand in the three boxes. Plays are chosen together; then the dice shuffle the creatures and the blows land. You may play at most ' + (o.effortLimit >= NO_EFFORT_LIMIT ? 'as many asterisks of effort as you like (your Potion of Energy lifts the limit).' : o.effortLimit === 3 ? 'three asterisks of effort (your Girtle of Energy gives you the extra one).' : 'two asterisks of effort.')));
+            (shared ? (shared.fight?.pvp ? 'Your play is sealed, whom it names too, until everyone has chosen; then every play is shown at once. You may name a creature on another sheet, a character or a hireling. '
+                : 'Your play is sealed: nobody sees it until everyone has chosen, then every play is shown at once. You may name a creature on another character\u2019s sheet; a blow that kills it is yours. ')
+                : 'Pick whom you strike and in which direction, the maneuver that defends you, and where the creatures stand in the three boxes. Plays are chosen together; then the dice shuffle the creatures and the blows land. ') + 'You may play at most ' + (o.effortLimit >= NO_EFFORT_LIMIT ? 'as many asterisks of effort as you like (your Potion of Energy lifts the limit).' : o.effortLimit === 3 ? 'three asterisks of effort (your Girtle of Energy gives you the extra one).' : 'two asterisks of effort.')));
         // the three lanes: where the creatures stand (before the dice move them) and which way you attack, maneuver and guard
         body.push(h('div', { class: 'board' }, ...[0, 1, 2].map(b => h('div', { class: 'lane' },
             h('div', { class: 'lane-h' }, h('b', {}, MNV[b]), h('small', {}, DIRS[b])),
@@ -322,9 +340,17 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
                 .filter(Boolean).map(t => h('span', { class: 'tag' }, t))),
             ...o.boxable.filter((d, i) => (m.boxes[d.uid] ?? (i % 3)) === b).map(d => h('div', { class: 'lane-foe' }, denSide(st, data, d).name))))));
         // 1 target
-        body.push(h('div', { class: 'cb-sec' }, h('b', {}, '1. Who do you strike?'),
-            h('div', { class: 'seg3 wrap' }, h('button', { class: `segb${m.target == null ? ' on' : ''}`, onclick: () => { m.target = null; render(); } }, 'No one'),
-                ...o.targets.map(d => h('button', { class: `segb${m.target === d.uid ? ' on' : ''}`, onclick: () => { m.target = d.uid; render(); } }, denSide(st, data, d).name)))));
+        const creatureBtn = d => {
+            // a shared fight: a creature on another character's sheet may be named too; say whose it is, so the choice is clear
+            const owner = shared && !d.assigned ? (d.sheet ? shared.fight.members.find(x => x.id === d.sheet) : null) : null;
+            return h('button', { class: `segb${m.target === d.uid ? ' on' : ''}`, 'data-target': d.uid, onclick: () => { m.target = d.uid; render(); } },
+                denSide(st, data, d).name + (shared && !d.assigned ? (owner ? ` (${owner.player}\u2019s)` : ' (loose)') : ''));
+        };
+        // character against character (the lobby switch): characters and other players' hirelings are targets too, shown as cards with what the rules let you know of them
+        const pvpList = shared?.fight?.pvp && o.targets.some(t => t.kind === 'character' || t.kind === 'hire') ? meleeTargets({ st, data, o, m, shared, render, denName: creatureBtn }) : null;
+        if (pvpList) treachery = pvpList.blocked;
+        body.push(h('div', { class: 'cb-sec', 'data-sec': 'targets' }, h('b', {}, '1. Who do you strike?'),
+            ...(pvpList ? pvpList.els : [h('div', { class: 'seg3 wrap' }, h('button', { class: `segb${m.target == null ? ' on' : ''}`, onclick: () => { m.target = null; render(); } }, 'No one'), ...o.targets.map(creatureBtn))])));
         // spells cast this round that need a target named (8.4.2)
         for (const a of o.aims ?? []) body.push(aimSheet(a, m));
         // a creature he has become (Absorb Essence, Transform): its counter plays for him
@@ -376,11 +402,11 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
         const ast = o.asterisksPlayed + [m.fightChit, m.moveChit].map(id => st.ch.chits.find(x => x.id === id)?.effort ?? 0).reduce((a, b) => a + b, 0);
         body.push(h('div', { class: 'cb-go' },
             h('span', { class: ast > limit ? 'bad' : '' }, limit >= NO_EFFORT_LIMIT ? `Effort\u00A0${ast} (no limit)` : `Effort\u00A0${ast}/${limit}`),
-            h('button', { class: 'btn primary big', 'data-act': 'commit', disabled: ast > limit || null, onclick: () => {
+            h('button', { class: 'btn primary big', 'data-act': 'commit', disabled: ast > limit || treachery || null, onclick: () => {
                 const boxes = {}; o.boxable.forEach((d, i) => { boxes[d.uid] = m.boxes[d.uid] ?? (i % 3); });
                 const spellAim = {}; for (const a of o.aims ?? []) spellAim[a.spell] = aimOf(a, m);
                 send({ kind: 'melee', weaponSide: m.fightChit && !m.target && w ? (m.weaponSide ?? 'alerted') : undefined, parts: m.parts && Object.keys(m.parts).length ? { ...m.parts } : undefined, target: m.target, fightChit: m.fightChit, attackDir: m.attackDir, moveChit: m.moveChit, moveDir: m.moveDir, shieldDir: o.shield ? m.shieldDir : null, boxes, spellAim });
-            } }, 'Commit and roll')));
+            } }, shared ? 'Seal your play' : 'Commit and roll')));
     } else if (p.type === 'combat-shift') {
         // Battle Bracelets / Elusive Cloak (Treasures 12): the plays are revealed and the dice have moved the creatures; he may still move his attack circle or maneuver square.
         const o = shiftOptions(st, data);
@@ -449,6 +475,17 @@ export function combatSheet({ st, data, act, ui, render, peek }) {
             : null;
     const decision = h('div', { class: 'cb-body' }, ...body.filter(Boolean));
     const meetingQuestion = ['combat-pay', 'combat-drinks', 'combat-choice'].includes(p.type);
+    if (shared) {
+        // a shared fight: what the round did was shown on the reveal card (sharedfight.js), so there is no kill banner or "last round" box here; only your own sheet is listed
+        return h('div', { class: 'combat sf', 'data-sf': 'step', 'data-ask-type': p.type }, header, shared.frame, state,
+            h('div', { class: 'cb-scroll sf-scroll' }, resultsBlock, decision,
+                allies.length ? h('div', { class: 'ask allies', role: 'note' }, h('b', {}, 'On your side'), h('p', {}, allies.join(', '))) : null,
+                // the decision comes first; the counters of your creatures and your own gear are one tap away (tap a counter to turn it over)
+                foeEls.length ? h('details', { class: 'sf-more', 'data-sf-foes': '', open: ui.sfFoesOpen || null, ontoggle: e => { ui.sfFoesOpen = e.target.open; } },
+                    h('summary', {}, h('b', {}, 'Your creatures'), h('small', {}, ` ${foes.map(d => denSide(st, data, d).name).join(', ')}`)), h('div', { class: 'cb-foes' }, ...foeEls)) : null,
+                st.pending?.spellOnly || !gearBlock ? null : h('details', { class: 'sf-more', 'data-sf-gear': '', open: ui.sfGearOpen || null, ontoggle: e => { ui.sfGearOpen = e.target.open; } }, h('summary', {}, h('b', {}, 'Your weapon and armor')), gearBlock),
+                diceBlock));
+    }
     return h('div', { class: 'combat' }, header, state,
         h('div', { class: 'cb-scroll' },
             resultsBlock,

@@ -41,7 +41,7 @@ export default {
         const name = data.monsters[m.id].name;
         // let go of everything bewitching it: its spells end, a controlled or hired monster is nobody's
         targetGone(st, data, { kind: 'mon', id: m.id });
-        m.hired = false; m.controlledUntil = null; m.hiredUntil = null; m.tie = null; m.pacify = null;
+        m.hired = false; delete m.hiredBy; m.controlledUntil = null; m.hiredUntil = null; m.tie = null; m.pacify = null;
         // out of the fight: no blow of its lands, nothing is assigned to it, it pays nobody
         for (const h of c.hires ?? []) if (h.kind === 'mon' && h.id === m.id) h.dead = true;
         const den = c.dens.find(d => d.kind === 'mon' && d.id === m.id);

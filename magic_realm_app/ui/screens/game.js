@@ -2,6 +2,7 @@ import { h } from '../dom.js';
 import { mountMap } from '../mapview.js';
 import { loadData } from '../../engine/data.js';
 import { newGame } from '../../engine/setup.js';
+import { upgradeState, hirelingsOf } from '../../engine/party.js';
 import { apply, phasesFor, validatePlan, planKinds, restOptions, chitLabel, LAST_DAY } from '../../engine/day.js';
 import { roadsFrom, isMountain, isCave, nameOfClearing, tileOf, numOf, tileName } from '../../engine/world.js';
 import { nameOf, defOf, priceOf, weightOf, summaryOf } from '../../engine/items.js';
@@ -12,7 +13,15 @@ import { drinksCost } from '../../engine/meeting.js';
 import { rollRow, rollsByIds, latestRoll, diceOf } from '../dice.js';
 import { voiceChip, logText, onVoice, voice } from '../voice.js';
 import { combatSheet } from './combatui.js';
+import { sharedFightSheet, overCard, revealKey } from './sharedfight.js';
+import { meetSheet, offerSheet, blockCard, followCard, windowCard, waitingCard, resultCards, policyBlock, followPicker, newDraft as newMeetDraft } from './meetui.js';
+import { meetState, meetButton, meetLines, isMeetLine, playerOf as playerNameOf } from '../meet.js';
+import { fightOf, fightSummary } from '../fight.js';
+import { myFall } from '../pvp.js';
+import { deathCallout } from './pvpui.js';
 import { HELP } from './info.js';
+import { tableCards, pendingVote, awayCard, welcomeCard, seatNote, tableActions, endOptionSheet, quitSheet, leaveSheet, endSheet, autopilotRecord } from './tableui.js';
+import { markable, gone } from '../table.js';
 import { newRecord, daySnapshot, finalize } from '../../engine/gamerecord.js';
 import { putRecord, getRecord } from '../gamestore.js';
 import { VERSION } from '../version.js';
@@ -23,6 +32,9 @@ import { earned, targets, scoreGame, progress, FACTORS, CATS } from '../../engin
 import { COLORS, COLOR_MEANING, dayColors, isMagicDay, colorSources, castable, castOptions, ATTACK_SPELLS } from '../../engine/spells.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
 import { connect, inviteLink } from '../online.js';
+import { connectShared, ApiError } from '../shared_online.js';
+import { party, situation, drawInfo, observe, publicLines, turnOrderLine, markers as partyMarkers, tagText, waitingText } from '../party.js';
+import { playersStrip, waitBanner, drawCard, rosterRows, playersBody, counterIcon } from '../shared_ui.js';
 import { energizeOptions } from '../../engine/magic/energize.js';
 import { heldOptions } from '../../engine/magic/phase.js';
 import { flySources, flyTiles } from '../../engine/magic/fly.js';
@@ -85,7 +97,7 @@ function pullDown(handle, target, done) {
 
 // A curse makes a number worthless (Ashes: gold, Disgust: Fame): it is still shown, struck through, so it is plain it cannot be used.
 const voidBy = (st, stat) => (stat === 'gold' && (st.ch.curses ?? []).includes('Ashes') ? 'Ashes' : stat === 'fame' && (st.ch.curses ?? []).includes('Disgust') ? 'Disgust' : null);
-const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert', enchant: 'Enchant', fly: 'Fly', nothing: 'Nothing' };
+const ACT_LABEL = { move: 'Move', hide: 'Hide', search: 'Search', trade: 'Trade', hire: 'Hire', rest: 'Rest', alert: 'Alert', enchant: 'Enchant', fly: 'Fly', follow: 'Follow', nothing: 'Nothing' };
 const TABLE_LABEL = { peer: 'Peer', locate: 'Locate', loot: 'Loot', ground: 'Ground', sitecard: 'Site card', runes: 'Read runes', magicsight: 'Magic Sight', 'magicsight-take': 'Magic Sight: take' };
 
 const WELCOME_KEY = 'mr-welcomed-v1';
@@ -93,7 +105,7 @@ const welcomed = () => { try { return !!localStorage.getItem(WELCOME_KEY); } cat
 const setWelcomed = () => { try { localStorage.setItem(WELCOME_KEY, '1'); } catch { /* ignore */ } };
 
 export function saveGame(st) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(st)); } catch { /* storage may be unavailable */ } }
-export function loadSaved() { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch { return null; } }
+export function loadSaved() { try { const s = localStorage.getItem(SAVE_KEY); return s ? upgradeState(JSON.parse(s)) : null; } catch { return null; } }       // (a save is plain data; upgradeState reads any version and puts the st.ch / st.pending accessors back)
 export function clearSaved() { try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ } }
 
 export function gameScreen(ctx) {
@@ -108,11 +120,23 @@ export function gameScreen(ctx) {
         h('button', { 'aria-label': 'Centre on me', onclick: () => map?.focus(st.ch.onRoad ? st.ch.onRoad.from : st.ch.at) }, '\u25CE'),
         h('button', { 'aria-label': 'Show the whole realm', onclick: () => map?.fit() }, '\u2922'));
     mapBox.append(mapTools);
+    // a tall dock (a result card, a decision) can leave the map too short for two buttons one above the other: then they sit side by side
+    if (typeof ResizeObserver === 'function') new ResizeObserver(() => mapTools.classList.toggle('row', mapBox.clientHeight > 0 && mapBox.clientHeight < 112)).observe(mapBox);
     root.append(strip, mapBox, tray, dock, layer);
     let lastHero = null, st = null, data = null, map = null, ui = { sheet: null, sel: null, draft: null, toast: null };
     // Online: this screen is one seat in a race. The server holds the game; `st` is the view it sent, and every action goes to it.
     const race = ctx.params?.online ?? null;
     let conn = null, standings = [], inflight = false, here = false;
+    // Shared: this screen is one seat at a shared table. One engine state for everybody lives on the server; `st` is this seat's redacted view of it (upgradeState puts st.ch and st.pending on
+    // it for MY character), and every answer goes to the server. `answer` is the whole reply (who the game waits for, the standings, presence); `crew` is the table read from it (party.js).
+    const shared = ctx.params?.shared ?? null;
+    let sconn = null, answer = null, crew = [], feed = [], hadAsk = false, ms = null;          // ms: my meetings (meet.js): with whom I may give or trade now, my policies, my open offer
+    const myId = () => answer?.you?.character ?? st?.actor ?? null;
+    // the meeting lines I have already looked at: everything up to here is old news (a result card tells what came after)
+    const meetEnd = () => { const l = st?.log ? meetLines(st, myId()) : []; return l.length ? l.at(-1).i + 1 : 0; };
+    const logEnd = () => (st?.logSkipped ?? 0) + (st?.log?.length ?? 0);          // (the first line ever is 0, whatever the server trimmed from this view)
+    const newMeetLines = () => { if (!shared) return []; if (ui.meetSeen == null || ui.meetSeen > logEnd()) ui.meetSeen = meetEnd(); return meetLines(st, myId()).filter(l => l.i >= ui.meetSeen); };
+    const mySeat = (race ?? shared)?.seat;
     if (race) ui.sheet = ctx.params?.invited ? 'race' : null;
     try { if (localStorage.getItem('mr-dock-open') === '0') ui.dockOpen = false; } catch { /* ignore */ }
 
@@ -130,11 +154,12 @@ export function gameScreen(ctx) {
         persist();
     }
 
-    function commit(next) { st = next; ctx.state = st; if (!race) saveGame(st); render(); }
+    function commit(next) { st = next; ctx.state = st; if (!race && !shared) saveGame(st); render(); }
     function act(action) {
         ui.combatMap = false; ui.mapPeek = false; if (action.type !== 'tidy') ui.tradePick = null;
-        if (action.type !== 'tidy') { ui.gainSeen = st.gainSeq ?? 0; ui.findSeen = st.findSeq ?? 0; }          // what he found last time is old news once he does something else
+        if (action.type !== 'tidy') { ui.gainSeen = st.gainSeq ?? 0; ui.findSeen = st.findSeq ?? 0; if (shared) ui.meetSeen = meetEnd(); }          // what he found last time is old news once he does something else
         if (race) { actRemote(action); return; }
+        if (shared) { actShared(action); return; }
         try {
             const next = apply(st, data, action);
             rec?.moves.push(JSON.parse(JSON.stringify(action)));
@@ -156,9 +181,180 @@ export function gameScreen(ctx) {
             ui.toast = e.message; render(); setTimeout(() => { ui.toast = null; render(); }, 2600);
         } finally { inflight = false; ui.busy = false; render(); }
     }
+    // ---- a shared table ----
+    // Every answer the server gives (the reply to my own action, a push, a poll) comes through here. An older one than I hold is ignored.
+    function applyAnswer(a) {
+        if (!a || a.view == null) return;
+        if (answer && a.seq < answer.seq) return;
+        const before = st;
+        tableNews(answer, a);
+        answer = a; standings = a.standings ?? [];
+        st = upgradeState(a.view); ctx.state = st;
+        crew = party(st, a, myId());
+        if (st.pending?.type !== 'restart') { ui.sharedRestartVp = null; ui.sharedRestartChar = null; }
+        // the game just ended: the result is told first (places, a shared victory, the realm laid bare), once
+        if (st.period === 'over' && !ui.overAuto) { ui.overAuto = true; ui.sheet = 'over'; ui.mapPeek = false; }
+        // what the others did in plain sight since I last looked (they moved, hid, fell): the table's own lines are in the log
+        if (before?.chars && before.day === st.day) { const seen = observe(before, st, myId()); if (seen.length) feed = [...feed, ...seen].slice(-6); }
+        else if (before && before.day !== st.day) feed = [];
+        if (map) render();
+    }
+    async function actShared(action) {
+        if (inflight) return;
+        inflight = true; ui.busy = true; render();
+        try { await sconn.act(action); }
+        catch (e) {
+            ui.meetSent = false;
+            ui.toast = e.status === 409 ? 'The game had moved on; it has been brought up to date.' : e.message; render(); setTimeout(() => { ui.toast = null; render(); }, 2600);
+        } finally { inflight = false; ui.busy = false; render(); }
+    }
+    // The table's agreements (docs/design/multiplayer-harden-ui.md): a call that changes them takes the answer it gets back through applyAnswer, like any other; one at a time.
+    async function tableCall(fn) {
+        if (ui.tableBusy) return;
+        ui.tableBusy = true; render();
+        try { await fn(); } catch (e) { ui.toast = e.message; setTimeout(() => { ui.toast = null; render(); }, 3200); } finally { ui.tableBusy = false; render(); }
+    }
+    const table = { away: body => { if (body.kind === 'withdraw') ui.skipNote = true; return tableCall(() => sconn.away(body)); }, quit: body => { if (body.kind === 'withdraw') ui.skipNote = true; return tableCall(() => sconn.quit(body)); } };
+    // A vote that ended without the table agreeing is told once (the card that asked is gone; nobody should wonder what became of it): who it was about, and that the game goes on as before.
+    function tableNews(was, now) {
+        if (!was?.votes || !now?.votes) return;
+        const skip = ui.skipNote; ui.skipNote = false;
+        const t = was.votes.away;
+        if (t && !now.votes.away && !(now.away ?? []).includes(t.target) && !skip) {
+            const back = (now.standings ?? []).find(x => x.seat === t.target)?.present;
+            ui.tableNote = { text: back ? `${t.targetName} is back, so the vote to mark them away ended.` : `The vote to mark ${t.targetName} away did not pass: the game keeps waiting for them.` };
+        }
+        if (was.votes.quit && !now.votes.quit && now.view?.period !== 'over' && !skip) ui.tableNote = { text: 'The vote to end the game did not pass: play goes on.' };
+        if (now.votes.away || now.votes.quit) ui.tableNote = null;
+    }
+    const tc = () => ({ st, data, answer, crew, ui, render, modal, act, table, mySeat });
+    const backKey = () => `mr-back-${shared.game}`;
+    const backSeen = k => { try { return localStorage.getItem(backKey()) === k; } catch { return false; } };
+    const markBackSeen = k => { try { localStorage.setItem(backKey(), k); } catch { /* ignore */ } };
+    const clearTag = () => { clearTimeout(ui.tagTimer); ui.tagTimer = setTimeout(() => { if (ui.tag) { ui.tag = null; if (root.isConnected) render(); } }, 6000); };
+    function showPlayer(p) {
+        ui.tag = ui.tag === p.id ? null : p.id; clearTag();
+        const at = p.at ?? p.onRoad?.from;
+        if (at && ui.tag) (p.mine ? map.focus(at) : map.pan(at));
+        render();
+    }
+    // The end of a fight I took part in is an event too: a card with what each character took away, shown once per fight on this device (the fight is read from the lines the server sends its participants).
+    const overKey = () => `mr-fight-${shared.game}`;
+    const overSeen = k => { try { return localStorage.getItem(overKey()) === k; } catch { return false; } };
+    const markOverSeen = k => { try { localStorage.setItem(overKey(), k); } catch { /* ignore */ } };
+    function maybeShowFightOver() {
+        if (st.battle || ui.sheet || st.pending?.type === 'restart') return;
+        const me = myId(), sum = fightSummary(st, me);
+        if (!sum.over || !sum.lines.length || sum.day < st.day - 1 || overSeen(sum.key) || ui.fightOverKey === sum.key) return;
+        ui.fightOverKey = sum.key; ui.sheet = 'fightover';
+    }
+    function closeFightOver() { markOverSeen(ui.fightOverKey ?? fightSummary(st, myId()).key); ui.sheet = ui.sheet === 'fightover' ? null : ui.sheet; render(); }
+    function fightOverSheet() {
+        const done = h('div', { class: 'trade-bar sf-bar' }, h('button', { class: 'btn primary big', 'data-act': 'fight-over-ok', onclick: closeFightOver }, 'On through the night'));
+        return modal('The fight is over', overCard({ st, data, people: crew, myId: myId() }), { close: closeFightOver, footer: done });
+    }
+    // The draw of the chits (7.1.1) is an event: it is shown once a day, the first time this device sees it.
+    const drawKey = () => `mr-draw-${shared.game}`;
+    const drawSeen = day => { try { return Number(localStorage.getItem(drawKey())) >= day; } catch { return false; } };
+    const markDrawSeen = day => { try { localStorage.setItem(drawKey(), String(day)); } catch { /* ignore */ } };
+    function maybeShowDraw() {
+        if (ui.sheet && ui.sheet !== 'draw') return;
+        if (st.battle || st.period === 'evening' || st.period === 'sunset') return;                 // (the chits were drawn at dawn: not now, in the middle of a fight)
+        const d = drawInfo(st);
+        if (!d || d.day !== st.day || drawSeen(d.day) || ui.draw?.day === d.day && ui.sheet !== 'draw') return;
+        const p = st.pending;
+        if (p && !['phase', 'phase-pick', 'turn-end', 'plan'].includes(p.type)) return;
+        if (ui.sheet === 'draw') return;
+        const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+        ui.sheet = 'draw'; ui.draw = { day: d.day, step: reduce ? d.order.length : 0, fresh: !reduce };
+        if (!reduce) {
+            clearInterval(ui.drawTimer);
+            ui.drawTimer = setInterval(() => {
+                if (!root.isConnected || !ui.draw) { clearInterval(ui.drawTimer); return; }
+                ui.draw.step++; if (ui.draw.step >= d.order.length) clearInterval(ui.drawTimer);
+                render();
+            }, 850);
+        }
+    }
+    function endDraw() { clearInterval(ui.drawTimer); if (ui.draw) markDrawSeen(ui.draw.day); ui.sheet = ui.sheet === 'draw' ? null : ui.sheet; ui.draw = ui.draw ? { ...ui.draw, closed: true } : null; render(); }
+    function drawSheet() {
+        const d = drawInfo(st), dd = ui.draw;
+        if (!d) { ui.sheet = null; return h('div'); }
+        const dawn = st.log.find(l => l.day === st.day && /^Dawn of day/.test(l.t));
+        const dawnText = dawn ? (voice() === 'story' ? (dawn.s ?? dawn.t) : dawn.t) : null;
+        const prowling = st.prowl ? (voice() === 'story' ? `The wilds stir: ${prowlers().join(', ') || 'no one'}.` : `Monster Roll ${st.prowl}: ${prowlers().join(', ') || 'none left'}.`) : null;
+        const finished = dd.step >= d.order.length;
+        return modal(`Day ${st.day}: the chits`, drawCard({ view: st, draw: d, people: crew, step: dd.step, finished, fresh: dd.fresh, dawn: dawnText, prowling,
+            onSkip: () => { clearInterval(ui.drawTimer); ui.draw.step = d.order.length; ui.draw.fresh = false; render(); }, onDone: endDraw }), { close: endDraw });
+    }
+    // The banner that stands in for the phase buttons when it is not my move: what is going on, why I cannot act, and what is happening in plain sight.
+    function sharedBanner() {
+        const sit = situation(st, answer, myId());
+        if (sit.kind === 'mine' || sit.kind === 'you-away') return null;          // (marked away: the card in the dock says it, with the button)
+        const pretty = t => String(t).replace(/\b([A-Z]{2,3}\d)\b/g, m => { try { return nameOfClearing(m); } catch { return m; } });          // (a clearing's code, in the words of the map)
+        const lines = [...publicLines(st, myId(), 4).filter(l => sit.kind !== 'following' || !/ follows /.test(l.t)).map(l => ({ t: pretty(logText(l)) })), ...feed.slice(-3)].filter((l, i, a) => !i || (l.s ?? l.t) !== (a[i - 1].s ?? a[i - 1].t)).slice(-4);
+        return waitBanner(sit, { feed: lines, orderLine: turnOrderLine(st) });
+    }
+    function playersSheet() {
+        const c = tc();
+        return modal('The table', playersBody(crew, { view: st, answer, orderLine: turnOrderLine(st), copyInvite: shared.invite ? copyInvite : null, rowExtra: p => seatNote(c, p),
+            foot: tableActions(c, { onQuit: () => { ui.sheet = 'quit-confirm'; render(); }, onLeave: () => { ui.sheet = 'leave-confirm'; render(); } }) }), { close: () => { ui.sheet = null; render(); } });
+    }
+    // The camera: it follows the player whose turn it is, softly, but never while I have a decision to make, a sheet open or my finger on the map; and it comes back to me when my turn begins.
+    function sharedCamera() {
+        if (!shared || !map) return;
+        const mine = !!st.pending && st.pending.type !== 'over';
+        if (mine) {
+            if (!hadAsk && st.period === 'daylight') { const at = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at; if (at && !map.visible(at)) map.pan(at); }
+            hadAsk = true; return;
+        }
+        hadAsk = false;
+        if (ui.sheet || ui.sel || Date.now() - (ui.touched ?? 0) < 6000) return;
+        // a fight is on: the map shows where (once per fight)
+        if (st.battle?.at) { const key = `fight|${st.day}|${st.battle.at}`; if (ui.followKey !== key) { ui.followKey = key; map.pan(st.battle.at); } return; }
+        const who = crew.find(p => p.status === 'playing' && !p.mine);
+        const at = who?.at ?? who?.onRoad?.from;
+        if (!at) return;
+        const key = `${st.day}|${who.id}|${at}`;
+        if (ui.followKey === key) return;
+        ui.followKey = key; map.pan(at);
+    }
+    // A fallen character comes back at the next Birdsong: new goals for the weeks left, and (if he likes) another character that nobody at the table is using.
+    function sharedRestartSheet(p0) {
+        // a seat that restarted a moment ago may have taken one of the characters the question listed: only the ones nobody holds now (my own fallen one is mine to take again)
+        const p = { ...p0, characters: p0.characters.filter(id => id === st.ch.id || !st.order.includes(id)) };
+        const total = p.budget, v = (ui.sharedRestartVp ??= (() => { const fame = Math.min(5, Math.ceil(total * 0.6)); return { great: 0, spells: 0, fame, notoriety: Math.min(5, total - fame), gold: 0 }; })());
+        ui.sharedRestartChar ??= p.characters.includes(st.ch.id) ? st.ch.id : p.characters[0];
+        const used = Object.values(v).reduce((a, b) => a + b, 0), d = p.death ?? {};
+        const rows = [['fame', 'Fame', 10], ['notoriety', 'Notoriety', 20], ['gold', 'Gold', 30], ['great', 'Great treasures', 1], ['spells', 'Spells', 2]];
+        const by = d.by ? String(d.by).replace(/ #\d+$/, '') : null, fall = st.battle?.pvp || st.options?.pvp ? myFall(st, crew, st.ch.id) : null;
+        return modal(`${st.ch.name} has fallen`, h('div', { class: 'restsheet', 'data-restart': '' },
+            // struck down by another player's character (the switch `pvp`): the same callout as on the reveal, with what was taken
+            fall ? deathCallout({ st, f: null, k: fall, viewerId: st.ch.id, next: 'Choose who returns, below.' })
+            : h('div', { class: 'deathbox', role: 'alert' }, h('b', {}, 'You have died'), h('span', { class: 'dwho' }, by ? `Slain by the ${by}${d.at ? ` at ${nameOfClearing(d.at)}` : ''}, on day ${d.day ?? st.day - 1}.` : `Fallen${d.at ? ` at ${nameOfClearing(d.at)}` : ''}, on day ${d.day ?? st.day - 1}.`)),
+            ask('Choose who comes back, and set new goals.', `The others are waiting to begin day ${st.day}. Your new character arrives at the Inn today with fresh chits and gear; with ${total} victory points to spend on the weeks that are left.`, { compact: true }),
+            h('h3', {}, 'Who returns'),
+            h('div', { class: 'choices', role: 'radiogroup' }, ...p.characters.map(id => h('button', { class: `choice${ui.sharedRestartChar === id ? ' on' : ''}`, role: 'radio', 'aria-checked': ui.sharedRestartChar === id, 'data-restart-char': id, onclick: () => { ui.sharedRestartChar = id; render(); } },
+                h('span', { class: 'dot' }), h('span', { class: 'choice-main' }, h('span', { class: 'choice-title' }, data.characters[id]?.name ?? id, h('em', {}, id === st.ch.id ? 'the same again' : ''))))) ),
+            h('h3', {}, 'New goals'),
+            ...rows.map(([k, label, f]) => h('div', { class: 'vprow' },
+                h('div', { class: 'vp-l' }, h('b', {}, label), h('small', {}, v[k] ? `goal: ${v[k] * f}` : 'no goal')),
+                h('div', { class: 'stepper' },
+                    h('button', { class: 'step-btn', disabled: v[k] <= 0, onclick: () => { v[k]--; render(); } }, '\u2212'),
+                    h('div', { class: 'step-val' }, h('b', {}, String(v[k]))),
+                    h('button', { class: 'step-btn', disabled: used >= total || v[k] >= 5, onclick: () => { v[k]++; render(); } }, '+')))),
+            h('p', { class: used === total ? 'hint' : 'hint bad' }, used === total ? 'All points spent.' : `${total - used} left to spend.`),
+            h('div', { class: 'row-end' }, h('button', { class: 'btn primary', disabled: used !== total, 'data-act': 'restart-go', onclick: () => { const vp = { ...v }, character = ui.sharedRestartChar; ui.sharedRestartVp = null; ui.sharedRestartChar = null; act({ type: 'restart', vp, character }); } }, 'Return'))));
+    }
+    // The end of a shared game: the verdict, every place (a tie is a shared victory), each character's goals, and the realm laid bare (R-19, R-26): app/ui/screens/tableui.js.
+    function sharedOverSheet() {
+        return endSheet(tc(), { title: overTitle(st, false), onBack: () => { sconn?.unwatch(); ctx.go('online'); }, close: () => { ui.sheet = null; render(); } });
+    }
+
     // Back from a lost connection (or another device): take the server's word for where the game is.
     async function refresh() { try { const v = await conn.view(); standings = v.standings; if (!inflight && JSON.stringify(v.view) !== JSON.stringify(st)) commit(v.view); else render(); } catch { /* the next try will do */ } }
     function abandon() {
+        if (shared) { sconn?.unwatch(); ctx.go('online'); return; }
         if (race) { conn?.stop(); ctx.go('online'); return; }
         if (rec && st) { finalize(rec, st); rec.meta.result = 'abandoned'; clearTimeout(persistTimer); putRecord(rec); }
         clearSaved(); ctx.go('title');
@@ -199,7 +395,16 @@ export function gameScreen(ctx) {
         for (const m of mons) add(m.at, { k: 'mon', label: m.n > 1 ? `${m.name} x${m.n}` : m.name, img: monImg[m.name] });
         for (const n of nats) add(n.at, { k: 'nat', label: n.n > 1 ? `${n.name} x${n.n}` : n.name, img: natImg[n.name] });
         const hires = st.nats.filter(n => n.hired && !n.dead);
-        if (hires.length && st.ch.at) add(st.ch.at, { k: 'ally', label: `Your hirelings x${hires.length}` });
+        if (shared) {
+            // a hireling is its hirer's alone (7.7): each character's are shown where that character stands, named for him
+            const here = new Map();                                      // clearing -> owner -> how many
+            for (const n of hires) { const owner = n.hiredBy ?? st.ch.id, at = st.chars[owner]?.at; if (!at || st.chars[owner]?.onRoad) continue; const m = here.get(at) ?? here.set(at, new Map()).get(at); m.set(owner, (m.get(owner) ?? 0) + 1); }
+            // one pill a clearing (two would crowd it into a marker): "Your hirelings x2", "Ann\u2019s hirelings x1", or "Hirelings: Ann 1, Tom 1" when several have them here
+            for (const [at, owners] of here) {
+                const list = [...owners].sort((a, b) => st.order.indexOf(a[0]) - st.order.indexOf(b[0]));
+                add(at, { k: 'ally', label: list.length === 1 ? `${list[0][0] === st.ch.id ? 'Your' : `${playerNameOf(st, list[0][0])}\u2019s`} hirelings x${list[0][1]}` : `Hirelings: ${list.map(([o, k]) => `${o === st.ch.id ? 'yours' : playerNameOf(st, o)} ${k}`).join(', ')}` });
+            }
+        } else if (hires.length && st.ch.at) add(st.ch.at, { k: 'ally', label: `Your hirelings x${hires.length}` });
         const planPath = ui.draft ? plannedClearings() : [];
         // while a Move phase is being set, the clearings he can walk to are ringed on the map: the map is where moves are chosen
         ui.moveTargets = []; ui.moveMaybe = [];
@@ -226,7 +431,10 @@ export function gameScreen(ctx) {
                 }
                 ui.sel = id; ui.sheet = 'clearing'; render();
             },
+            party: shared ? partyMarkers(crew) : undefined, tagged: shared ? ui.tag : undefined,
+            onMarker: shared ? id => { const p = crew.find(x => x.id === id); if (p) showPlayer(p); } : undefined,
             onBackground: () => {
+                if (ui.tag) { ui.tag = null; render(); return; }
                 if (ui.sheet === 'plan' && st.pending?.type === 'plan' && ui.draft && !ui.planCollapsed) { ui.planCollapsed = true; ui.sel = null; render(); return; }   // like a popover: tapping outside tucks it away
                 if (ui.sheet === 'clearing') ui.sheet = null;
                 ui.sel = null; render();
@@ -258,7 +466,7 @@ export function gameScreen(ctx) {
         const tot = vpNow();
         strip.replaceChildren(
             h('button', { class: 'back', 'aria-label': 'Menu', 'data-act': 'menu', onclick: () => { ui.sheet = ui.sheet === 'menu' ? null : 'menu'; render(); } }, icon('menu', 22),
-                race && standings.some(x => x.present && x.seat !== race.seat) ? h('i', { class: 'pdot on corner', 'aria-label': 'Others are here' }) : null),
+                (race || shared) && standings.some(x => x.present && x.seat !== mySeat) ? h('i', { class: 'pdot on corner', 'aria-label': 'Others are here' }) : null),
             h('button', { class: `daybox${magicToday.length ? ' magic' : ''}`, 'data-act': 'calendar', 'aria-label': 'Calendar and the colours of magic', onclick: () => { ui.sheet = ui.sheet === 'calendar' ? null : 'calendar'; render(); } },
                 h('b', {}, `Day ${st.day}`, h('small', {}, dayCap(st)), cursed ? h('i', { class: 'cursedmark', 'aria-label': 'cursed' }, icon('skull', 15)) : null),
                 h('span', {}, st.period === 'over' ? 'finished' : st.period, ...magicToday.map(c => h('i', { class: 'mdot', title: `${c} magic`, style: `background:${COLOR_DOT[c] ?? '#aaa'}` })))),
@@ -268,15 +476,18 @@ export function gameScreen(ctx) {
                 h('small', {}, 'VP'), h('b', {}, tot > 0 ? `+${tot}` : String(tot))));
         map.set(mapModel());
         const hero = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at;
+        if (shared) { crew = party(st, answer, myId()); ms = meetState(st, data, myId(), answer?.table); sharedCamera(); }
         if (hero !== lastHero) { const first = lastHero === null; lastHero = hero; map.focus(hero, undefined, !first); }
         // A Move phase that is about to be played: show where he is and where he is going, so the press is a decision with the road in view.
         { const pp = st.pending, slot = pp?.type === 'phase' ? st.plan?.[pp.i] : null;
           if (slot?.act === 'move' && slot.to) { const key = `${st.day}.${pp.i}.${slot.to}`; if (ui.framedMove !== key) { ui.framedMove = key; map.frame([hero, slot.to]); } } }
+        if (shared) { maybeShowDraw(); maybeShowFightOver(); }
         renderTray();
         renderDock();
         // Sheets are rebuilt on every change; keep each scrolling area where it was while the same question is still on screen
         // (tapping a chit or a target must not throw the view back to the top). A new question starts at the top.
-        const viewKey = `${st.pending?.type ?? ''}|${st.combat?.round ?? ''}|${ui.sheet ?? ''}`;
+        const sfKey = shared && st.battle?.members?.[st.ch.id] ? `${st.battle.round}.${st.battle.step}.${st.battle.members[st.ch.id].state}.${revealKey(st, { at: st.battle.at }) && ui.revealSeen !== revealKey(st, { at: st.battle.at }) ? 'r' : ''}` : '';
+        const viewKey = `${st.pending?.type ?? ''}|${st.combat?.round ?? ''}|${ui.sheet ?? ''}|${sfKey}`;
         const scrolled = new Map();
         if (ui.scrollKey === viewKey) layer.querySelectorAll('.cb-scroll, .sheet2, .sheet-scroll, .plan-body, .journal').forEach(el => scrolled.set(el.className, el.scrollTop));
         const sameView = ui.scrollKey === viewKey;
@@ -322,7 +533,7 @@ export function gameScreen(ctx) {
         const tonight = (st.period === 'daylight' || st.period === 'birdsong') && !st.combat && !st.ch.onRoad ? castOptions(st, data).filter(o => (o.useful || o.quiet) && !ATTACK_SPELLS[o.spell]) : [];
         const tonightBar = tonight.length ? h('p', { class: 'hint tonight', 'data-act': 'cast-tonight' }, `\u2728 You can cast ${[...new Set(tonight.map(o => o.name))].join(', ')} this evening: the game will stop and ask you, even if nothing attacks.`) : null;
         const info = h('div', { class: 'where2' }, h('span', { class: 'you' }, 'You are at'), h('b', {}, st.ch.onRoad ? 'on the road' : where), st.ch.hidden ? h('em', {}, 'hidden') : h('em', { class: 'seen' }, 'visible'));
-        const recent0 = [...st.log].reverse().filter(l => l.k !== 'day' && l.k !== 'roll').slice(0, 3).reverse();
+        const recent0 = [...st.log].reverse().filter(l => l.k !== 'day' && l.k !== 'roll' && !(shared && isMeetLine(l))).slice(0, 3).reverse();
         ui.gainSeen ??= st.gainSeq ?? 0;
         const fresh = (st.gains ?? []).filter(x => x.n > ui.gainSeen && st.ch.items.some(i => i.uid === x.uid)).map(x => st.ch.items.find(i => i.uid === x.uid));
         const gainBars = fresh.map(it => {
@@ -350,7 +561,8 @@ export function gameScreen(ctx) {
             st.day % 7 === 0 ? h('small', { class: 'weekend' }, (voice() === 'story' ? 'The week turns: the creatures of the wilds are called home to where they began, the slain among them.' : `Week\u2019s end: row ${st.prowl} was called back to where it began, the slain among them.`)) : null) : null;
         // What the drawer shows: `body` is everything that explains (it slides away), `actions` is what you press (it stays).
         let body = null, actions = null;
-        if (!p) body = h('div', { class: 'note' }, 'Working...');
+        const banner = shared && !p ? sharedBanner() : null;
+        if (!p) body = shared ? null : h('div', { class: 'note' }, 'Working...');
         else if (p.type === 'plan' && ui.sheet === 'plan' && ui.draft) { dock.classList.remove('closed'); dock.replaceChildren(h('div', { class: 'dock-plan' }, ui.planCollapsed ? planBar() : planPanel())); return; }
         else if (p.type === 'plan') {
             body = ask(`Day ${st.day}, Birdsong: plan your day.`, `You choose one action for each of your ${phasesFor(st, data, []).total} phases now, in secret; they are then played in order after the Monster Roll.${st.ch.onRoad ? ' You are still out on the road after running away, so your first phase is a Move to one end of it, already set for you.' : ''}`, { compact: true });
@@ -370,9 +582,41 @@ export function gameScreen(ctx) {
             actions = h('div', { class: 'pickrow' }, ...p.acts.map(a => h('button', { class: `btn${a.kind === 'extra' ? '' : ' primary'}`, 'data-pick-act': a.act, onclick: () => { ui.pickAct = ui.pickAct === a.act ? null : a.act; render(); } }, ACT_LABEL[a.act] ?? a.act)),
                 h('button', { class: 'btn', 'data-act': 'next', onclick: () => act({ type: 'next' }) }, 'Follow the suggestion'));
         } else if (p.type === 'over') {
-            body = st.ch.dead || st.over?.reason === 'died' ? deathBox() : null;
-            actions = h('button', { class: 'btn primary big', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result');
+            body = shared ? h('div', { class: 'note' }, 'The game is over.') : st.ch.dead || st.over?.reason === 'died' ? deathBox() : null;
+            actions = h('button', { class: 'btn primary big', 'data-act': 'see-result', onclick: () => { ui.sheet = 'over'; render(); } }, 'See your result');
+        } else if (p.type === 'restart') {
+            body = ask('You have fallen.', 'Choose who returns and set new goals; then the day goes on.', { compact: true });
+            actions = null;
+        } else if (shared && p.type === 'end-option') {
+            body = ask('Sudden Death: you have met every goal.', 'The game waits for you to say whether it ends at this Midnight. The question is on screen; the map is one tap away.', { compact: true });
+        } else if (shared && p.type === 'meet-offer') {
+            body = ask(`${playerNameOf(st, p.from)} has made you an offer.`, 'The offer is on screen. Look at it, then accept or decline; the map is one tap away.', { compact: true });
+        } else if (shared && (p.type === 'meet-block' || p.type === 'meet-follow' || p.type === 'meet-window')) {
+            if (p.type === 'meet-window' && ui.windowDay !== st.day) { ui.windowDay = st.day; ui.windowLog = logEnd(); }          // (what counts as "traded" starts when the window opens)
+            const k = (p.type === 'meet-block' ? blockCard : p.type === 'meet-follow' ? followCard : windowCard)(mc(), p);
+            body = k.body; actions = k.actions;
         } else body = h('div', { class: 'note' }, 'Decision needed...');
+        // Meeting other characters: my own offer is open (the game waits and says so), or I may meet someone now
+        let meetBtn = null;
+        if (shared && ms) {
+            if (ms.made && (!p || p.type === 'phase' || p.type === 'phase-pick' || p.type === 'meet-window')) { const w = waitingCard(mc()); body = w.body; actions = w.actions; }
+            else if (!p && crew.find(x => x.mine)?.status === 'following') {
+                // I follow someone: his turn is mine. I may stop at the start of any of his activities (the game says so if it is not the moment)
+                actions = h('button', { class: 'btn', 'data-act': 'stop-follow', onclick: () => act({ type: 'meet', kind: 'stop-follow' }) }, `Stop following ${playerNameOf(st, st.follows?.[st.ch.id] ?? '')}`.trim());
+            }
+            else if (p?.type === 'phase' && st.ch.hidden && Object.values(st.follows ?? {}).includes(st.ch.id) && !ms.made) {
+                // a hidden guide may leave behind followers who have not found hidden enemies (7.11.6a.1); the game says if every one has
+                const g = playerNameOf(st, Object.keys(st.follows).find(f => st.follows[f] === st.ch.id));
+                const lb = h('button', { class: 'btn meetbtn', 'data-act': 'ditch', onclick: () => act({ type: 'meet', kind: 'ditch' }) }, 'Leave them behind');
+                body = h('div', { class: 'dock-stack' }, body, h('p', { class: 'hint', 'data-hint': 'ditch' }, `You are hidden and ${g} follows you. You may slip away and leave ${g} behind, unless they have found hidden enemies today.`));
+                actions = h('div', { class: 'meet-row' }, lb, actions);
+            }
+            else if (ms.partners.length && (!p || p.type === 'phase' || p.type === 'phase-pick')) {
+                const mb = meetButton(ms, st, myId());
+                meetBtn = h('button', { class: 'btn meetbtn', 'data-act': 'meet', 'data-meet-certain': mb.certain ? '1' : '0', 'aria-label': `Meet ${mb.names}: give or trade`, onclick: () => { ui.meet = null; ui.sheet = 'meet'; render(); } }, mb.label);
+                actions = actions ? h('div', { class: 'meet-row' }, meetBtn, actions) : meetBtn;
+            }
+        }
 
         // The drawer: a grabber on top, then what explains, then what you press. Pulled down, only the grabber and the buttons are left.
         const newCount = findBars.length + gainBars.length + (curseJustFell ? 1 : 0);
@@ -412,7 +656,24 @@ export function gameScreen(ctx) {
         const formBar = st.ch.morph ? h('div', { class: 'formbar', 'data-act': 'form' }, h('small', { class: 'gl' }, 'YOU ARE A CREATURE'), h('b', {}, st.ch.morph.creature?.name ?? 'a creature'), h('span', {}, 'You cannot cast, trade, hire or enchant until the spell ends.'))
             : st.ch.mist ? h('div', { class: 'formbar mist', 'data-act': 'form' }, h('small', { class: 'gl' }, 'YOU ARE MIST'), h('span', {}, `You can only Move and Hide; nothing can block you. Your ${st.ch.mist.items?.length ?? 0} things and ${st.ch.mist.gold ?? 0} gold are held in the spell.`))
             : st.ch.flying ? h('div', { class: 'formbar fly', 'data-act': 'form' }, h('small', { class: 'gl' }, 'YOU ARE FLYING'), h('span', {}, `Over ${tileName(st.ch.flying.tile)}. You land at a clearing on it by a die roll.`)) : null;
-        const items = [resultCard, curseBar, formBar, spellBar, spellActs, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length && !resultCard ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, logText(l)))) : null, body].filter(Boolean);
+        const orderLine = shared && !banner ? turnOrderLine(st) : null;
+        const mlines = newMeetLines();
+        if (mlines.length && ui.meetKey !== mlines.at(-1).i) { ui.meetKey = mlines.at(-1).i; ui.dockOpen = true; }              // a deal, a block, a spy's notice: told first, and the drawer opens for it once
+        const meetCards = resultCards(mc(), mlines);
+        // the table's agreements come first: a vote I must answer, that I am marked away, that I am welcome back (each opens the drawer once)
+        let tableEls = [];
+        if (shared && answer) {
+            const tcx = tc(), pv = pendingVote(answer, mySeat), rec = autopilotRecord(st, playerNameOf(st, st.ch.id)), back = !answer.you?.away && rec.back >= 0 && rec.key && !backSeen(rec.key) ? rec : null;
+            const note = ui.tableNote ? h('div', { class: 'tb-card note', 'data-table-card': 'note', role: 'status' }, ask(ui.tableNote.text, null, { compact: true }),
+                h('div', { class: 'row-end' }, h('button', { class: 'btn', 'data-act': 'note-ok', onclick: () => { ui.tableNote = null; render(); } }, 'Got it'))) : null;
+            tableEls = [...(note ? [note] : []), ...(answer.you?.away ? [awayCard(tcx)] : []), ...(back ? [welcomeCard(tcx, back, () => { markBackSeen(back.key); render(); })] : []), ...tableCards(tcx)];
+            const nk = (pv?.key ?? '') + (answer.you?.away ? '|away' : '') + (back ? `|back${back.key}` : '') + (ui.tableNote ? `|note${ui.tableNote.text}` : '');
+            if (nk && ui.tableKey !== nk) { ui.tableKey = nk; ui.dockOpen = true; }
+        }
+        // a decision about another character (block, follow, the trade window) comes first, before the day's other notes: it is what the game waits for
+        const decisionFirst = !!(shared && ((p && /^meet-(block|follow|window)$/.test(p.type)) || ms?.made));
+        const items = [...tableEls, ...meetCards, decisionFirst ? body : null, banner, resultCard, curseBar, formBar, spellBar, spellActs, magicBar, info, tonightBar, ...findBars, ...gainBars, prowl, recent.length && !resultCard && !banner ? h('div', { class: 'lastlog' }, ...recent.map((l, i) => h('p', { class: i === recent.length - 1 ? 'new' : '' }, logText(l)))) : null, decisionFirst ? null : body,
+            orderLine ? h('p', { class: 'wc-order', 'data-order': '' }, orderLine) : null].filter(Boolean);
         const peek = `${st.ch.onRoad ? 'On the road' : where} \u00B7 ${st.ch.hidden ? 'hidden' : 'visible'}`;
         const grab = h('button', { class: 'grab', 'data-act': 'dock-toggle', 'aria-expanded': open ? 'true' : 'false', 'aria-controls': 'dock-body',
             'aria-label': open ? 'Details panel, open. Press to slide it away' : `Details panel, closed${newCount ? `, ${newCount} new` : ''}. Press to open it` },
@@ -421,7 +682,10 @@ export function gameScreen(ctx) {
                 h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u2303')));
         const wrap = h('div', { class: `dock-body${open ? '' : ' closed'}`, id: 'dock-body' }, h('div', { class: 'dock-inner' }, ...items));
         dock.classList.toggle('closed', !open);
-        dock.replaceChildren(...[grab, wrap, actions ? h('div', { class: 'dock-actions' }, actions) : null].filter(Boolean));
+        const waitingIds = new Set((answer?.waitingFor ?? []).map(w => w.character));
+        const meetIds = new Set(shared && ms ? ms.partners.map(x => x.id) : []);
+        const tapChip = x => { if (meetIds.has(x.id) && !ms.made) { ui.meet = newMeetDraft(); ui.meet.to = x.id; ui.sheet = 'meet'; render(); } else showPlayer(x); };
+        dock.replaceChildren(...[shared ? playersStrip(crew, { onTap: tapChip, waitingIds, meetIds }) : null, grab, wrap, actions ? h('div', { class: 'dock-actions' }, actions) : null].filter(Boolean));
         wireDrawer(grab, wrap);
     }
 
@@ -508,6 +772,7 @@ export function gameScreen(ctx) {
         if (!s || s.act === 'nothing') return 'Do nothing';
         if (s.act === 'move') return `Move to ${nameOfClearing(s.to).replace(/ (\d+)$/, '\u00A0$1')}`;       // the number never wraps on its own line
         if (s.act === 'search') return s.table ? `Search: ${tableName(s.table)}` : 'Search';
+        if (s.act === 'follow') return s.who ? `Follow ${playerNameOf(st, s.who)}` : 'Follow';
         return ACT_LABEL[s.act] ?? s.act;
     }
 
@@ -516,6 +781,31 @@ export function gameScreen(ctx) {
         const out = [];
         const p = st.pending;
         if (ui.sheet === 'bug') { out.push(bugSheet()); return out; }
+        if (shared && ui.sheet === 'draw') { out.push(drawSheet()); return out; }
+        if (shared && p?.type === 'restart') { out.push(sharedRestartSheet(p)); if (ui.sheet === 'menu') out.push(menuSheet()); return out; }
+        if (shared && p?.type === 'end-option') { out.push(endOptionSheet(tc(), p)); return out; }
+        if (shared && ui.sheet === 'fightover') { out.push(fightOverSheet()); return out; }
+        // A shared fight: a seat that is in it (or was, and watches) gets the shared frame; the map is one tap away at every step. Anyone else only sees the banner in the dock.
+        if (shared && st.battle?.members?.[st.ch.id]) {
+            if (ui.combatMap) {
+                if (ui.sheet === 'clearing' && ui.sel) out.push(clearingSheet());
+                out.push(h('div', { class: 'combat-back' }, h('button', { class: 'btn primary big', 'data-act': 'back-to-fight', onclick: () => { ui.combatMap = false; render(); } }, 'Back to the fight')));
+                return out;
+            }
+            const sheet = sharedFightSheet({ st, data, act, ui, render, crew, answer, peek: { gear: () => { ui.sheet = 'char'; render(); }, map: () => { ui.combatMap = true; ui.sheet = null; render(); } } });
+            if (sheet) {
+                out.push(sheet);
+                if (ui.sheet === 'char') out.push(charSheet());
+                else if (ui.sheet === 'item') out.push(itemSheet());
+                else if (ui.sheet === 'cardinfo') out.push(cardInfoSheet());
+                else if (ui.sheet === 'spell') out.push(spellSheet());
+                else if (ui.sheet === 'players') out.push(playersSheet());
+                else if (ui.sheet === 'dice') out.push(diceSheet());
+                else if (ui.sheet === 'log') out.push(logSheet());
+                else if (ui.sheet === 'card') out.push(modal(st.ch.name, h('div', {}, data.art?.cards?.[st.ch.id] ? h('img', { class: 'cardpic', src: data.art.cards[st.ch.id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { ui.sheet = 'char'; render(); } }));
+                return out;
+            }
+        }
         if (p?.type?.startsWith('combat')) {
             // The fight can be set aside to look at the map, or covered by the belongings sheets, and then picked up again.
             if (ui.combatMap) {
@@ -568,6 +858,8 @@ export function gameScreen(ctx) {
             ...hereBlocks())));
         else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(p));
         else if (p?.type === 'hire' || p?.type === 'hire-offer') out.push(hireSheet(p));
+        else if (shared && p?.type === 'meet-offer') { out.push(offerSheet(mc(), p)); if (ui.sheet === 'players') out.push(playersSheet()); }
+        else if (shared && ui.sheet === 'meet') out.push(meetSheet(mc()));
         else if (!ui.welcomeDone && !welcomed() && st.day === 1 && p?.type === 'plan') out.push(modal(`Welcome, ${st.ch.name}`, h('div', {},
             h('p', {}, `You are at the ${st.ch.startDwelling}${st.ch.items.length ? ' with ' + st.ch.items.map(i => nameOf(data, i)).join(', ') : ' with no weapon or armor yet: trade for some'}. ${lengthLine(st)}`),
             h('p', {}, h('b', {}, 'Each morning'), ' you plan up to four phases in secret: move, hide, search, trade, hire, rest or alert.'),
@@ -585,7 +877,11 @@ export function gameScreen(ctx) {
             h('button', { class: 'btn primary big', 'data-act': 'keep-playing', onclick: () => { ui.sheet = null; render(); } }, 'Keep playing'),
             h('button', { class: 'btn danger', 'data-act': 'confirm-abandon', onclick: abandon }, 'Abandon this game')), { close: () => { ui.sheet = null; render(); } }));
         else if (ui.sheet === 'race' && race) out.push(raceSheet());
+        else if (ui.sheet === 'players' && shared) out.push(playersSheet());
+        else if (ui.sheet === 'quit-confirm' && shared) out.push(quitSheet(tc()));
+        else if (ui.sheet === 'leave-confirm' && shared) out.push(leaveSheet(tc(), vpNow()));
         else if (ui.sheet === 'calendar') out.push(calendarSheet());
+        else if (ui.sheet === 'over' && shared) out.push(sharedOverSheet());
         else if (ui.sheet === 'over' || ui.restartVp) out.push(overSheet());
         else if (ui.sheet === 'card') out.push(modal(st.ch.name, h('div', {}, data.art?.cards?.[st.ch.id] ? h('img', { class: 'cardpic', src: data.art.cards[st.ch.id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { ui.sheet = 'char'; render(); } }));
         else if (ui.sheet === 'dice') out.push(diceSheet());
@@ -633,6 +929,9 @@ export function gameScreen(ctx) {
     const picOf = name => { const a = data.art; return a ? (a.weapons?.[name] ?? a.armor?.[name] ?? a.horses?.[name] ?? null) : null; };
     const ico = (name, cls = 'ico') => { const s = picOf(name); return s ? h('img', { class: cls, src: s, alt: '', decoding: 'sync' }) : null; };
     const nativePic = id => data.art?.natives?.[id] ?? null;
+    // the meeting screens (meetui.js) are given what they need and own no state: `ui.meet` is the draft of an offer, `ms` what I may do now
+    const itemInfoOf = it => { const { card, faces, facts } = itemParts(it); return h('div', { class: 'ti-info itemsheet' }, card ?? h('div', { class: 'faces' }, ...faces), ...facts.map(t => h('p', {}, t))); };
+    const mc = () => ({ st, data, act, ui, render, modal, itemInfo: itemInfoOf, ico, ms });
 
     function diceSheet() {
         const rolls = [...(st.rolls ?? [])].reverse().slice(0, 30);
@@ -905,6 +1204,26 @@ export function gameScreen(ctx) {
         for (const cid of st.ch.siteCards?.[at] ?? []) out.push(h('div', { class: 'here-block' }, siteCardRow(cid)));
         return out.length ? [h('div', { class: 'here', 'data-here': 'search' }, ...out)] : [h('p', { class: 'hint' }, 'No site here is discovered yet, so Loot would find nothing: Locate is how a site is found.')];
     }
+    // Meeting the others in the clearing I stand in: who I may give or trade with now, who I may not (and why), and who follows whom today.
+    function meetRowsFor(id, row) {
+        if (!ms || st.ch.at !== id || st.ch.onRoad) return [];
+        const out = [];
+        for (const p of ms.partners) out.push(h('button', { class: 'btn row meetwith', 'data-act': 'meet-with', 'data-meet-with': p.id, onclick: () => { ui.meet = newMeetDraft(); ui.meet.to = p.id; ui.sheet = 'meet'; render(); } },
+            h('span', { class: 'rl' }, h('b', {}, `Meet ${p.player}`), h('small', {}, ms.window === 'dayend' ? 'Give or trade before Midnight' : 'Give or trade: nothing changes hands until they accept')), h('em', {}, '\u203A')));
+        for (const o of ms.others) out.push(row('meet off', `${o.player}: not now`, o.why));
+        for (const [f, g] of Object.entries(st.follows ?? {})) if (st.chars[f]?.at === id || st.chars[g]?.at === id) out.push(row('meet', `${playerNameOf(st, f)} follows ${playerNameOf(st, g)} today`, 'A follower goes wherever the guide goes and is called out with him.'));
+        return out;
+    }
+    // Hired natives and creatures in a clearing belong to the character who hired them (7.7): they follow him and fight for him alone.
+    function companionRows(id, row) {
+        const out = [], by = new Map();
+        for (const o of [...st.nats, ...st.mons]) if (o.hired && !o.dead && o.hiredBy && o.loc?.c === id) (by.get(o.hiredBy) ?? by.set(o.hiredBy, []).get(o.hiredBy)).push(o);
+        for (const [owner, list] of by) {
+            const mine = owner === st.ch.id, nm = o => data.natives[o.id]?.name ?? data.monsters[o.id]?.name ?? o.id, until = Math.max(...list.map(o => o.hiredUntil ?? o.controlledUntil ?? 0));
+            out.push(row('nat', `${list.map(nm).join(', ')}`, `${mine ? 'Hired by you' : `Hired by ${playerNameOf(st, owner)}`}: they follow ${mine ? 'you' : 'their employer'} and fight for no one else${until ? `, until the end of day ${until}` : ''}.`, data.art?.natives?.[list[0].id]));
+        }
+        return out;
+    }
     function clearingSheet() {
         const id = ui.sel, tile = tileOf(id), n = numOf(id);
         const cdef = data.tile(tile).sides.normal.clearings.find(c => c.n === n);
@@ -914,7 +1233,12 @@ export function gameScreen(ctx) {
         // you
         const srcs = colorSources(st, data, id);
         if (srcs.length) sections.push(['Magic here', srcs.map(x => row('magic', x.color, x.why, colorChip(x.color)))]);
-        if (here) sections.push(['You', [row('me', st.ch.name, st.ch.hidden ? 'hidden: monsters cannot block you' : 'in plain sight')]]);
+        if (shared) {
+            const who = rosterRows(crew, id, row); if (who.length) sections.push(['Who is here', who]);
+            const meetRows = meetRowsFor(id, row);
+            if (meetRows.length) sections.push(['Meeting', meetRows]);
+        }
+        else if (here) sections.push(['You', [row('me', st.ch.name, st.ch.hidden ? 'hidden: monsters cannot block you' : 'in plain sight')]]);
         // dwelling and the people who live there
         const dw = st.dwellings.filter(d => d.at === id);
         const natHere = st.nats.filter(x => !x.dead && !x.hired && x.loc?.c === id);
@@ -924,6 +1248,7 @@ export function gameScreen(ctx) {
         const people = Object.entries(byGroup).map(([g, list]) => row('nat', `${g}: ${list.length} native${list.length === 1 ? '' : 's'}`,
             `${REL[String(st.ch.rel?.[g] ?? 0)]} to you; ${list.map(x => x.name.replace(/^\w+ /, '')).join(', ')}`, data.art?.natives?.[(list.find(x => x.leader) ?? list[0]).id]));
         if (dw.length || people.length) sections.push(['Dwellings and natives', [...dw.map(d => row('dwelling', d.kind, `${setupDwelling(d.kind) || 'a dwelling: natives live and trade here'}`, data.art?.dwellings?.[d.kind])), ...people]]);
+        if (shared) { const comp = companionRows(id, row); if (comp.length) sections.push(['Companions', comp]); }
         // monsters
         const mons = {};
         for (const m of st.mons.filter(m => !m.dead && m.loc?.c === id)) (mons[data.monsters[m.id].name] ??= []).push(m);
@@ -989,13 +1314,20 @@ export function gameScreen(ctx) {
         const summary = t.plan?.length ? h('details', { class: 'daydid', open: true }, h('summary', {}, 'What you did today'),
             ...t.plan.map((r, i) => h('p', { class: `daydid-row${hide(r) ? ' hide' : ''}${i === t.plan.length - 1 ? ' latest' : ''}` }, h('b', {}, `Phase ${i + 1}`), ` ${phaseResultLine(i + 1, r ?? 'nothing')?.text ?? (r ?? 'nothing').replace(/^Phase \d+:\s*/, '')}`)),
             ...lostPhases.map(l => h('p', { class: 'daydid-row lost' }, h('b', {}, `Phase ${l.i + 1}`), ` ${l.what}: lost, because you were blocked.`))) : null;
-        const why = t.blocked ? `${t.blockers.length ? [...new Set(t.blockers)].join(', ') + ' closed in' : 'Your turn was cut short'}, so you are seen${lostPhases.length ? ` and your remaining ${lostPhases.length === 1 ? 'phase is' : 'phases are'} lost` : ''}.`
+        // Shared Daylight (7.12.4): monsters that arrived at someone else's turn's end closed in on him before his own chit was drawn; he has no turn today.
+        const noTurnLine = t.noTurn ? [...st.log].reverse().find(l => l.k === 'block' && l.day === st.day && l.who === st.ch.id) : null;
+        const why = t.noTurn ? `Creatures closed in on you before your chit was drawn, so you are seen and have no turn today. Nothing was lost but the turn.`
+            : t.blocked ? `${t.blockers.length ? [...new Set(t.blockers)].join(', ') + ' closed in' : 'Your turn was cut short'}, so you are seen${lostPhases.length ? ` and your remaining ${lostPhases.length === 1 ? 'phase is' : 'phases are'} lost` : ''}.`
             : t.closedIn?.length ? `${[...new Set(t.closedIn)].join(', ')} found you after your turn was over, so you are seen. No phase was lost.`
             : t.hidden ? 'Nothing here can be set on you this evening unless you strike first.' : 'Whatever shares your clearing will fight you this evening.';
-        const status = h('div', { class: `endstatus ${t.hidden ? 'hidden' : 'seen'}` }, h('b', {}, t.hidden ? 'You are hidden' : 'You are in plain sight'), h('small', {}, why));
+        const status = h('div', { class: `endstatus ${t.hidden ? 'hidden' : 'seen'}`, 'data-no-turn': t.noTurn ? '1' : null }, h('b', {}, t.noTurn ? 'You have no turn today' : t.hidden ? 'You are hidden' : 'You are in plain sight'), h('small', {}, why),
+            noTurnLine ? h('small', {}, logText(noTurnLine)) : null);
         const callouts = lines.length ? [h('h3', {}, 'At the end of your turn'), ...lines] : [];
+        // Blocked by other characters (7.12): told first, in a card of its own, with who did it
+        const bl = shared && !t.noTurn ? meetLines(st, st.ch.id).filter(l => l.kind === 'blocked').at(-1) : null;
+        const blockCardEl = bl && t.blocked ? h('div', { class: 'phase-result bad meet-result', role: 'status', 'data-meet-result': 'blocked' }, h('div', { class: 'pr-head' }, h('small', {}, 'Blocked')), h('p', { class: 'pr-line' }, voice() === 'story' ? bl.story : bl.text)) : null;
         return modal(`End of your turn at ${nameOfClearing(t.at)}`, h('div', { class: 'clearing' },
-            status, summary, ...callouts,
+            blockCardEl, status, summary, ...callouts,
             h('button', { class: 'btn primary', 'data-act': 'turn-ok', onclick: () => act({ type: 'continue' }) }, 'End turn')));
     }
 
@@ -1023,8 +1355,14 @@ export function gameScreen(ctx) {
                 );
             }),
             ch.items.length ? null : h('p', { class: 'hint' }, 'Nothing.'),
-            ...(() => { const hs = st.nats.filter(n => n.hired && !n.dead); return hs.length ? [h('h3', {}, 'Hirelings'),
+            ...(() => {
+                if (shared) {                            // a hireling is its hirer's alone (7.7): list only mine, with the creatures I control
+                    const hs = hirelingsOf(st, ch.id).filter(o => !o.dead);
+                    return hs.length ? [h('h3', {}, 'Hirelings'), ...hs.map(o => h('p', { 'data-hireling': o.id }, `${data.natives[o.id]?.name ?? data.monsters[o.id]?.name ?? o.id} \u2014 yours alone; term ends at midnight of day ${o.hiredUntil ?? o.controlledUntil}`))] : [];
+                }
+                const hs = st.nats.filter(n => n.hired && !n.dead); return hs.length ? [h('h3', {}, 'Hirelings'),
                 ...hs.map(n => h('p', {}, `${data.natives[n.id].name} \u2014 term ends at midnight of day ${n.hiredUntil}`))] : []; })(),
+            ...(shared && ms ? policyBlock(mc()) : []),
             h('h3', {}, 'Standing'),
             h('p', {}, Object.entries(ch.rel).map(([g, r]) => `${g}: ${REL_NAMES[String(r)]}`).join(' · '))),
             { close: () => { ui.sheet = null; render(); } });
@@ -1092,6 +1430,8 @@ export function gameScreen(ctx) {
         const row = (label, hint, onclick, extra = {}) => h('button', { class: `mrow${extra.danger ? ' danger' : ''}`, 'data-act': extra.act ?? null, onclick },
             h('span', { class: 't' }, h('span', {}, label), hint ? h('small', {}, hint) : null), extra.danger ? null : h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A'));
         return modal('Menu', h('div', { class: 'menulist' },
+            ...(shared ? [h('h4', {}, 'The table'),
+                row('Players and turn order', (() => { const mk = markable(answer, mySeat); return mk.length ? `${mk[0].name} has been gone ${mk[0].text}: the table can mark them away` : `${crew.length} players \u00b7 ${standings.filter(x => x.present).length} here now`; })(), go('players'), { act: 'open-players' })] : []),
             ...(race ? [h('h4', {}, 'The race'),
                 row('Standings', `${standings.filter(x => x.present).length} here now`, go('race'), { act: 'open-race' }),
                 ...(race.invite ? [row('Invite someone', 'Copy the link to send them', copyInvite, { act: 'invite' })] : [])] : []),
@@ -1099,7 +1439,7 @@ export function gameScreen(ctx) {
             row('Journal', 'What has happened, day by day', go('log')),
             row('Calendar and magic', 'The colours of magic through the month', go('calendar'), { act: 'open-calendar' }),
             row('Show the whole realm', null, () => { ui.sheet = null; map.fit(); render(); }),
-            ...(race ? [] : [row('This game\u2019s record', null, () => { persist(true); ctx.go('history', { id: st.session?.id, back: 'game' }); })]),
+            ...(race || shared ? [] : [row('This game\u2019s record', null, () => { persist(true); ctx.go('history', { id: st.session?.id, back: 'game' }); })]),
             h('h4', {}, 'Reference'),
             row('How to play', null, go('help')),
             row('Map key', null, go('key')),
@@ -1107,8 +1447,8 @@ export function gameScreen(ctx) {
             ...(data.art?.misc?.meetingTable ? [row('Tables', 'Meeting, Search, Missile, Pit', go('tables'))] : []),
             h('h4', {}, 'Other'),
             row('Report a problem', null, go('bug'), { act: 'menu-bug' }),
-            row('Back to the title screen', null, () => { conn?.stop(); ctx.go('title'); }),
-            row(race ? 'Leave the race (your game stays on the server)' : 'Abandon this game', null, race ? abandon : () => { ui.sheet = 'confirm-abandon'; render(); }, { danger: true })),
+            row('Back to the title screen', null, () => { conn?.stop(); sconn?.unwatch(); ctx.go('title'); }),
+            row(shared ? 'Put the game down (it waits for you on the server)' : race ? 'Leave the race (your game stays on the server)' : 'Abandon this game', null, race || shared ? abandon : () => { ui.sheet = 'confirm-abandon'; render(); }, { danger: true })),
             { close: () => { ui.sheet = null; render(); } });
     }
 
@@ -1642,15 +1982,19 @@ export function gameScreen(ctx) {
         const baseOver = over(others);
         const out = [];
         // the chips in rows by count: 8 in four columns, 9 in three (3x3), 10 in five: 'Nothing' is never alone on a row
-        const acts = ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(flySources(st, data).length || st.ch.flying ? ['fly'] : []), 'nothing'];
+        const followDay = d.slots[0]?.act === 'follow';
+        // Follow (7.11): only in the first phase, only with another character in my clearing; it takes the whole day, so with it chosen the other phases have nothing to record
+        if (followDay && i > 0) return [h('p', { class: 'hint', 'data-hint': 'follow-day' }, `You follow ${playerNameOf(st, d.slots[0].who)} today: there is nothing else to record. Pick another action in phase 1 to plan your own day.`)];
+        const acts = ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(flySources(st, data).length || st.ch.flying ? ['fly'] : []), ...(shared && i === 0 && ms?.followable?.length ? ['follow'] : []), 'nothing'];
         const cols = acts.length === 9 ? 3 : acts.length === 10 ? 5 : 4;
         out.push(h('div', { class: `chips2 six cols${cols}` },
             ...acts.map(a => {
                 const cursed = (st.ch.curses ?? []).some(n => CURSE_ACT[n] === a), refused = actRefusal(st, a);
-                const dim = cursed || !!refused || (a !== 'nothing' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver);
+                const dim = cursed || !!refused || (a !== 'nothing' && a !== 'follow' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver);
                 return h('button', { class: `chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${cursed ? ' cursed' : ''}`, 'data-slot': i, 'data-pick': a, disabled: dim, title: refused ?? undefined, onclick: () => pick(i, a, at[i]) }, ACT_LABEL[a], cursed ? h('small', {}, ' \u2620') : null);
             })));
         if (s?.act === 'search' && at[i]) out.push(h('p', { class: 'hint', 'data-hint': 'search-where' }, searchWhere(at[i])));
+        if (s?.act === 'follow' && i === 0) out.push(...followPicker(mc(), s, who => { d.slots = Array(9).fill(null); d.slots[0] = { act: 'follow', who }; ui.planNote = null; render(); }));
         // Alert: ready the weapon, or alert a Magic chit so that it can cast against fast creatures (it acts at time 0, and tires at Midnight if unused)
         const readyMagic = st.ch.chits.filter(x => x.type === 'magic' && x.state === 'active');
         if (s?.act === 'alert' && readyMagic.length) {
@@ -1676,6 +2020,9 @@ export function gameScreen(ctx) {
         }
         if (ui.pickMove === i || s?.act === 'move') {
             out.push(h('p', { class: 'hint' }, at[i] || st.ch.onRoad ? 'Tap a ringed clearing on the map to go there.' : 'You are on a road; move to one of its ends first.'));
+            // where monsters wait: they block you at the end of the phase unless you are hidden, so the ones you could walk into are named
+            const monsBy = new Map(); for (const m of st.mons) if (!m.dead && !m.hired && m.loc?.c && (ui.moveTargets ?? []).includes(m.loc.c)) monsBy.set(m.loc.c, [...(monsBy.get(m.loc.c) ?? []), data.monsters[m.id].name]);
+            if (monsBy.size) out.unshift(h('p', { class: 'hint bad', 'data-hint': 'monsters-ahead' }, `Red rings have monsters (${[...monsBy].map(([c, n]) => `${nameOfClearing(c)}: ${[...new Set(n)].join(', ')}`).join('; ')}). If you are in plain sight when the phase ends there, they block you and your turn is lost. Hiding first keeps you safe.`));
             if (ui.moveMaybe?.length) out.push(h('p', { class: 'hint' }, `Dotted rings: ${ui.moveMaybe.map(nameOfClearing).join(', ')} lie along a hidden path or secret passage you have not found. Your earlier Search may find it; if it has not by then, this Move is lost.`));
         }
         if (planInfo().lantern) out.push(h('p', { class: 'hint', 'data-hint': 'lantern' }, 'Your Shielded Lantern gives one more phase for any activity, but only if you start that phase in a cave clearing: out in the open it is cancelled.'));
@@ -1687,6 +2034,7 @@ export function gameScreen(ctx) {
         const d = ui.draft, { total, kinds } = planInfo();
         // A phase that no longer exists (a move into a cave takes the sunlight phases away) is dropped, not refused.
         const slots = d.slots.map((s, i) => (!s || s.act === 'nothing' || i >= total || kinds[i] === 'over' ? null : s));
+        if (slots[0]?.act === 'follow') for (let k = 1; k < slots.length; k++) slots[k] = null;
         ui.draft = null; ui.sheet = null; ui.planStep = 0; ui.planCollapsed = false; ui.peek = false; ui.sel = null;
         act({ type: 'plan', slots });
     }
@@ -1694,6 +2042,7 @@ export function gameScreen(ctx) {
     // The first phase that has nothing attached yet (null when every phase has an action, or 'Nothing' chosen on purpose).
     function firstUnset() {
         const d = ui.draft, { total } = planInfo();
+        if (d.slots[0]?.act === 'follow') return d.slots[0].who ? null : 0;              // (Follow is the whole day: nothing else to fill, once it names a guide)
         for (let i = 0; i < total; i++) if (!d.slots[i]) return i;
         return null;
     }
@@ -1747,7 +2096,7 @@ export function gameScreen(ctx) {
     // the plan tucked away so the whole map shows; tap it to bring the plan back
     function planBar() {
         const d = ui.draft, { total } = planInfo();
-        const parts = d.slots.slice(0, total).map((s, i) => `${i + 1} ${s ? describeSlot(s) : '–'}`);
+        const parts = d.slots[0]?.act === 'follow' ? [describeSlot(d.slots[0])] : d.slots.slice(0, total).map((s, i) => `${i + 1} ${s ? describeSlot(s) : '–'}`);
         return h('div', { class: 'planbar' },
             h('button', { class: 'planbar-main', 'data-act': 'plan-open', onclick: () => { ui.planCollapsed = false; render(); } }, h('b', {}, 'Your plan'), h('small', {}, parts.join(' · '))),
             startButton());
@@ -1769,6 +2118,10 @@ export function gameScreen(ctx) {
         ui.pickMove = null; ui.pickSearch = null;
         if (a === 'move') { ui.pickMove = i; ui.pickFly = null; render(); return; }
         if (a === 'fly') { ui.pickFly = i; ui.pickMove = null; d.slots[i] = { act: 'fly' }; render(); return; }
+        if (a === 'follow') {
+            if (d.slots.some((x, k) => k > 0 && x)) ui.planNote = 'Follow takes the whole day, so the other phases were cleared.';
+            d.slots = Array(9).fill(null); d.slots[0] = { act: 'follow' }; ui.planStep = 0; render(); return;
+        }
         d.slots[i] = { act: a };
         ui.planNote = null;
         pruneOver();
@@ -1809,6 +2162,25 @@ export function gameScreen(ctx) {
         try {
             data = await loadData('data/');
             ctx.data = data;
+            if (shared) {
+                sconn = connectShared(shared, { onUpdate: applyAnswer, onStatus: s => { const was = here; here = s === 'here'; if (here && was === false) sconn.view().catch(() => {}); } });
+                let first;
+                try { first = await sconn.view(); } catch (e) { root.append(h('div', { class: 'note' }, e instanceof ApiError && (e.status === 401 || e.status === 404) ? 'This game is no longer on the server.' : e.message)); return; }
+                if (first.phase === 'lobby') { ctx.go('sharedlobby', { game: shared }); return; }
+                if (first.phase === 'archived' || first.view == null) { root.append(h('div', { class: 'note', 'data-archived': '' }, h('p', {}, 'This game was archived.'), h('p', { class: 'hint' }, 'Nobody played it for a long time, so the server put it away. Ask the host or whoever runs the server to bring it back.'), h('button', { class: 'btn', 'data-act': 'forget', onclick: () => { sconn.unwatch(); ctx.go('online'); } }, 'Back'))); return; }
+                st = upgradeState(first.view); answer = first; standings = first.standings ?? []; ctx.state = st; crew = party(st, first, myId());
+                if (st.period === 'over') { ui.overAuto = true; ui.sheet = 'over'; }          // (a finished game opens on its result)
+                map = mountMap(mapBox);
+                mapBox.addEventListener('pointerdown', () => { ui.touched = Date.now(); }, { capture: true });
+                window.__mr.game = { get st() { return st; }, act, data, ui, render, shared, get sconn() { return sconn; }, get answer() { return answer; }, get standings() { return standings; }, get crew() { return crew; }, get feed() { return feed; }, get map() { return map; } };
+                map.set(mapModel(), { refit: true });
+                render();
+                sconn.watch();
+                // (the trade window after the day's fights is a lobby option, on by default and kept with the game: the server gives every character the standing choice; nothing is sent from here)
+                requestAnimationFrame(() => { map.fit(false); map.focus(st.ch.onRoad ? st.ch.onRoad.from : st.ch.at, 1.5, false); lastHero = st.ch.at; });
+                window.addEventListener('resize', () => map?.fit(false));
+                return;
+            }
             if (race) {
                 conn = connect(race, { onStandings: list => { standings = list; if (root.isConnected) render(); else conn.stop(); }, onStatus: s => { const was = here; here = s === 'here'; if (here && was === false) refresh(); } });
                 const v = await conn.view();

@@ -1,4 +1,4 @@
-import { nullifyFx, restoreFx, sameRef } from '../fx.js';
+import { nullifyFx, restoreFx, sameRef, elsewhere } from '../fx.js';
 import { characters, nullifyIfDuplicate, spellName } from '../util.js';
 
 // Pentangle (V / Black / Combat): one character, native or monster. The Demon, Winged Demon and Imp cannot attack the target; all spells and curses that bewitch him
@@ -22,7 +22,7 @@ export default {
         if (nullifyIfDuplicate(st, fx)) return;
         fx.data.held = [];
         for (const f of st.fx ?? []) {
-            if (f === fx || f.state !== 'live' || !f.targets.some(t => sameRef(t, fx.targets[0]))) continue;
+            if (f === fx || f.state !== 'live' || elsewhere(st, f) || !f.targets.some(t => sameRef(t, fx.targets[0]))) continue;
             nullifyFx(st, data, f.id); fx.data.held.push(f.id);
             ctx.say(`${spellName(data, f.spell)} is held off by the Pentangle.`);
         }

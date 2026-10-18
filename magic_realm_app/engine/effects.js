@@ -36,7 +36,7 @@ export function rollCurse(st, data, target = HERO, roller = HERO) {
     }
     if (mine) {
         st.findSeq = (st.findSeq ?? 0) + 1;
-        (st.finds ??= []).push({ n: st.findSeq, day: st.day, kind: 'curse', name: row.name, effect: row.effect });
+        (st.finds ??= []).push({ n: st.findSeq, day: st.day, ...(st.order?.length > 1 ? { who: st.actor } : null), kind: 'curse', name: row.name, effect: row.effect });
         if (st.finds.length > 40) st.finds.shift();
     }
     say(st, `A curse falls on ${mine ? 'you' : charName(st, target)}: ${row.name}. ${row.effect}`, 'curse');

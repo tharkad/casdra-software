@@ -6,11 +6,12 @@ import { gameScreen, loadSaved } from './screens/game.js';
 import { helpScreen, stub } from './screens/info.js';
 import { historyScreen } from './screens/history.js';
 import { onlineScreen } from './screens/online.js';
+import { sharedLobbyScreen } from './screens/lobby.js';
 import { parseInvite } from './online.js';
 
 // A very small router: the app is a stack of full-screen views. Each screen is a function (ctx) -> element.
 const app = document.getElementById('app');
-const SCREENS = { title: titleScreen, newgame: newGameScreen, realm: realmScreen, game: gameScreen, rules: helpScreen, history: historyScreen, online: onlineScreen,
+const SCREENS = { title: titleScreen, newgame: newGameScreen, realm: realmScreen, game: gameScreen, rules: helpScreen, history: historyScreen, online: onlineScreen, sharedlobby: sharedLobbyScreen,
     settings: stub('Settings', 'No settings yet. Your game saves itself on this device after every step.') };
 
 const ctx = {

@@ -45,7 +45,8 @@ const told = l => {
     return null;
 };
 // A log line in the current voice: the story when it has one, else its plain words.
-export const logText = l => (mode === 'story' ? (l.s ?? storyOf(l.t) ?? told(l) ?? l.t) : l.t);
+// A line of the table about characters carries `p`: the same sentence told with the players' names, which is how a table talks ("Ann follows Mike.").
+export const logText = l => (l.p ? l.p : mode === 'story' ? (l.s ?? storyOf(l.t) ?? told(l) ?? l.t) : l.t);
 
 // The little switch every such box carries.
 export function voiceChip() {

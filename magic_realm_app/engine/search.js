@@ -6,6 +6,8 @@ import { fxTags } from './magic/fx.js';
 import { rollCurse, hasCurse, pit } from './effects.js';
 import { roll2 } from './core.js';
 import { convertCard, oneDie, modRoll, modNote } from './modifiers.js';
+import { isMulti } from './party.js';
+import { spyOnLoot, snap, shareFind, followersOf } from './meet.js';
 
 // Looting: a discovered site in the clearing, or things lying on the ground (rules digest 04 section 3.4).
 
@@ -83,6 +85,7 @@ export function lootFrom(st, data, r, groundOnly = false, { paid = false, sight 
         else { st.pending = { type: 'effort-cost', site: site.name, options: opts, resume: 'loot', r, ground: groundOnly, sight }; return 'wait'; }
     }
     pileList.splice(idx, 1);
+    if (site && isMulti(st)) spyOnLoot(st, data, st.ch.id, { siteId: site.id });                         // the characters who see him loot it learn the site (4.5.6b.2)
     const card = it.kind === 'treasure' ? data.treasures[it.id] : null;
     if (card?.kind === 'twt' && it.id !== 'chest') return takeTwt(st, data, pileList, it, card, r, label);
     const item = it.uid ? it : makeItem(st, it.kind, it.id);
@@ -139,6 +142,7 @@ export function lootSiteCard(st, data, r) {
     const here = st.ch.at, ids = st.ch.siteCards?.[here] ?? [];
     if (!ids.length) return null;
     const id = ids[0], box = st.twt[id], v = r.value;
+    if (isMulti(st)) spyOnLoot(st, data, st.ch.id, { cardId: id });                                       // a Site card searched: the card and the chit it came from are seen
     const give = (name, kind) => {
         const ct = counterNamed(data, name, box.box);
         if (!ct) return `The ${name} is gone.`;
@@ -182,6 +186,13 @@ export const peerBlocked = (st, data, clearing) => !!clearing && fxTags(st, { ki
 
 // What a Peer or Locate result gives, for the clearing searched (his own, or one named from afar by Talk to Wise Bird).
 export function applySearchResult(st, data, table, res, dice, here = st.ch.at) {
+    // his followers share what he finds (7.11.6c)
+    const before = isMulti(st) && followersOf(st, st.actor).length ? snap(st.ch) : null;
+    const out = searchResult(st, data, table, res, dice, here);
+    if (before) shareFind(st, before);
+    return out;
+}
+function searchResult(st, data, table, res, dice, here) {
     const tile = tileOf(here);
     const bits = [];
     const lead = `${table === 'peer' ? 'Peer' : table === 'magicsight' ? 'Magic Sight' : 'Locate'} (${dice.join('+')}): ${res}.`;

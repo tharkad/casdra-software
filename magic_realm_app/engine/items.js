@@ -11,7 +11,7 @@ export function makeItem(st, kind, id, extra = {}) {
 // What he has just come by, for the screen to make a fuss of (display only; the rules never read it).
 export function noteGain(st, it) {
     st.gainSeq = (st.gainSeq ?? 0) + 1;
-    (st.gains ??= []).push({ n: st.gainSeq, uid: it.uid, day: st.day });
+    (st.gains ??= []).push({ n: st.gainSeq, uid: it.uid, day: st.day, ...(st.order?.length > 1 ? { who: st.actor } : null) });          // (several characters: whose find it was)
     if (st.gains.length > 40) st.gains.shift();
 }
 
@@ -19,7 +19,7 @@ export function noteGain(st, it) {
 // { kind: 'card', id } opens the card; { kind: 'site', clearing } opens the clearing.
 export function noteFind(st, f) {
     st.findSeq = (st.findSeq ?? 0) + 1;
-    (st.finds ??= []).push({ n: st.findSeq, day: st.day, ...f });
+    (st.finds ??= []).push({ n: st.findSeq, day: st.day, ...(st.order?.length > 1 ? { who: st.actor } : null), ...f });
     if (st.finds.length > 40) st.finds.shift();
 }
 

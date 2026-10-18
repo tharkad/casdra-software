@@ -1,4 +1,5 @@
 import { isMountain, tileName, tileOf } from '../world.js';
+import { hoofCarriedNear } from '../modifiers.js';
 
 // Colours of magic (rules 4.6.2, 6.1.2). The seventh day of each week fills the whole land with one colour (White and Black together on day 7,
 // then Grey on 14, Purple on 21 and Gold on 28), from the morning until midnight. A Chapel supplies White in its own clearing. Enchanted tiles and
@@ -30,7 +31,8 @@ export function colorSources(st, data, clearing) {
     const out = dayColors(st.day, st.lastDay ?? 28).map(color => ({ color, why: `day ${st.day} fills the land with magic`, calendar: true }));
     if (st.dwellings.some(d => d.kind === 'Chapel' && d.at === clearing)) out.push({ color: 'White', why: 'the Chapel in this clearing' });
     // the Cloven Hoof (Treasures 5): once face up it is a source of Black magic for everyone in its clearing (the hero's clearing when he carries it, active)
-    if (clearing && clearing === st.ch.at && st.ch.items.some(i => i.kind === 'treasure' && i.id === 'cloven-hoof' && i.active && !i.destroyed)) out.push({ color: 'Black', why: 'the Cloven Hoof in this clearing' });
+    if (clearing && ((clearing === st.ch.at && st.ch.items.some(i => i.kind === 'treasure' && i.id === 'cloven-hoof' && i.active && !i.destroyed))
+        || hoofCarriedNear(st, clearing) || (st.order?.length > 1 && (st.abandoned?.[clearing] ?? []).some(i => i.kind === 'treasure' && i.id === 'cloven-hoof' && !i.destroyed)))) out.push({ color: 'Black', why: 'the Cloven Hoof in this clearing' });
     // an enchanted tile: each of its clearings carries the colours printed on that side (4.6.2)
     const p = clearing ? st.placements.find(x => x.id === tileOf(clearing)) : null;
     if (p?.side === 'enchanted') {

@@ -1,4 +1,4 @@
-import { HERO, fxList, nullifyFx, restoreFx, sameRef } from '../fx.js';
+import { HERO, fxList, nullifyFx, restoreFx, sameRef, elsewhere } from '../fx.js';
 import { startFx, targetsOr } from '../helpers.js';
 import { handlerOf } from '../registry.js';
 // Protection from Magic (VII / Gold / Phase, one character): casting only PREPARES it. The record is `held` and the Magic chit stays committed; the target
@@ -10,7 +10,7 @@ import { handlerOf } from '../registry.js';
 // the tag `shield` makes effects.js rollCurse and pit report "protected" without rolling. His own helpful Day effects are suspended too (the button should
 // warn); a Blend Into Background phase already on the plan still happens. DECISION (spec question 12): unlike RealmSpeak he is NOT made immune to a Demon
 // or Imp's attack itself, only to their Power of the Pit and curse. Spec: docs/design/magic/02-day-spells.md section 17.
-const onHim = (st, o) => o.state === 'live' && o.targets.some(t => sameRef(t, HERO));
+const onHim = (st, o) => o.state === 'live' && !elsewhere(st, o) && o.targets.some(t => sameRef(t, HERO));
 export default {
     id: 'protection-from-magic', dur: 'phase', benevolent: true,
     // worth preparing when something bewitches him, or a Demon or Imp is in the fight; one held at a time is plenty

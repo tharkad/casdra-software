@@ -117,13 +117,20 @@ export function spellMod(st, data, kind) {
     return m;
 }
 // Cloven Hoof (Treasures 5): "Whenever a character rolls on a table while he is in the same clearing with the Cloven Hoof, he adds one to his result." The card is in his
-// clearing when he carries it (it is active as soon as he owns it) or when it lies on the ground there. Anyone else's roll is not modelled (nobody else rolls tables here).
+// clearing when he carries it (it is active as soon as he owns it), when it lies on the ground there, or when another character carries it there (the roll of whoever is acting).
 export function hoofHere(st) {
     const at = st.ch.at;
     if (!at || st.ch.dead) return false;
     if (hasTreasure(st, 'cloven-hoof')) return true;
-    return (st.abandoned?.[at] ?? []).some(i => i.kind === 'treasure' && i.id === 'cloven-hoof' && !i.destroyed);
+    if ((st.abandoned?.[at] ?? []).some(i => i.kind === 'treasure' && i.id === 'cloven-hoof' && !i.destroyed)) return true;
+    return hoofCarriedNear(st, at);
 }
+// Several characters: the Hoof works for everyone in its clearing, whoever carries it (4.4.2b: "whenever a character rolls on a table while he is in the same clearing with the Cloven Hoof").
+// Another character's card counts while it is active in his hands and he stands in that clearing (not on a road, not in the air).
+export const hoofCarriedNear = (st, at) => !!at && (st.order?.length ?? 0) > 1 && st.order.some(id => {
+    const c = st.chars[id];
+    return id !== st.actor && c.at === at && !c.dead && !c.onRoad && !c.flying && c.items.some(i => i.kind === 'treasure' && i.id === 'cloven-hoof' && i.active && !i.destroyed);
+});
 // Everything that is added to a table roll: the spells' modifiers and the Cloven Hoof's one.
 export const tableMod = (st, data, kind) => spellMod(st, data, kind) + (hoofHere(st) ? 1 : 0);
 // Apply it to a roll { dice, value }: the roll gets .mod (spells) and .hoof when something changed it. The sum and the 1 to 6 limit are the kernel rules/tableResult.js.

@@ -24,7 +24,7 @@ export function takeControl(ctx, dens, { text }) {
         const m = st.mons.find(x => x.id === d.id && !x.dead && !x.hired);
         if (!m) continue;
         monsterJoins(st, data, d);
-        m.hired = true; m.controlledUntil = st.day + 1; m.hiredUntil = null; m.tie = { kind: 'control' };
+        m.hired = true; m.hiredBy = st.ch.id; m.controlledUntil = st.day + 1; m.hiredUntil = null; m.tie = { kind: 'control' };
         taken.push(m);
     }
     if (!taken.length) return null;
@@ -39,7 +39,7 @@ export function releaseControl(ctx, fx) {
     for (const t of fx.targets) {
         const m = monOf(st, t);
         if (!m || !m.hired || m.tie?.kind !== 'control') continue;
-        m.hired = false; m.controlledUntil = null; m.tie = null;
+        m.hired = false; delete m.hiredBy; m.controlledUntil = null; m.tie = null;
         ctx.say(`Your control of the ${data.monsters[m.id].name} ends.`);
         monsterLeaves(st, data, m);
     }

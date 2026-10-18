@@ -3,10 +3,12 @@ import { EDGES, hexCenter, edgeDir, corners, worldEdge } from '../engine/hex.js'
 import { layoutSide, chitSlotsFor } from '../engine/layout.js';
 import { tileName } from '../engine/world.js';
 import { layoutLabels, pillWidth, PILL_H } from './labels.js';
+import { shapeEl, fan, tagText } from './party.js';
 
 // The pannable, zoomable realm map. It draws whatever model it is given; it knows nothing about the rules.
 // model = { tiles, placements, side, showHidden, discovered:Set(pathKeys), chitsByTile:{tile:[chit]}, dwellings:[{kind,at}], tokens:{clearing:[{k,label}]},
-//           hero, selected, plan:[clearing...], targets:[clearing...], targetsMaybe:[clearing...], onTap(clearingId), onBackground() }
+//           hero, selected, plan:[clearing...], targets:[clearing...], targetsMaybe:[clearing...], onTap(clearingId), onBackground(),
+//           party?:[marker] (a SHARED game: one counter per character, see party.js markers()), tagged?:id, onMarker?(id) }
 
 const S = 100;
 const NUM_W = 17;            // room at the start of a clearing's pill for the circle with its number
@@ -18,6 +20,13 @@ const PATH = { open: { stroke: '#d8cba8', w: 2.4 }, tunnel: { stroke: '#9a8fb8',
 const rot = ([x, y], a) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
 const pk = (a, b) => (a < b ? `${a}~${b}` : `${b}~${a}`);
 
+// A badge's chips: monsters, natives and companions carry a small picture (claw marks, a figure) so that what is in the clearing reads at a glance; a count follows when there is more than one.
+const ICON_KINDS = new Set(['mon', 'nat', 'ally']);
+const segW = sg => (ICON_KINDS.has(sg.k) && sg.n > 1 ? 21 : 13);
+function chipIcon(kind) {
+    if (kind === 'mon') return sv('g', { class: 'bicon claw' }, ...[[3, 9.5, 5, 2.5], [5.6, 9.5, 7.6, 2.5], [8.2, 9.5, 10.2, 2.5]].map(([x1, y1, x2, y2]) => sv('line', { x1, y1, x2, y2 })));
+    return sv('g', { class: 'bicon person' }, sv('circle', { cx: 6, cy: 3.9, r: 1.9 }), sv('path', { d: 'M2.4 10.2 Q2.4 6.3 6 6.3 Q9.6 6.3 9.6 10.2 Z' }));
+}
 export function mountMap(host) {
     const svg = sv('svg', { class: 'realm-svg', width: '100%', height: '100%' });
     host.append(svg);
@@ -45,6 +54,18 @@ export function mountMap(host) {
             const k = Math.max(minK, Math.min(maxK, size[0] / (maxX - minX), size[1] / (maxY - minY)));
             go({ k, x: size[0] / 2 - (minX + maxX) / 2 * k, y: size[1] / 2 - (minY + maxY) / 2 * k }, animate);
         },
+        // follow someone else: glide to a clearing at the zoom the player already has (never zooms, never jumps)
+        pan(clearingId, animate = true) {
+            const p = posOf.get(clearingId); if (!p || !view) return;
+            size = [host.clientWidth || size[0], host.clientHeight || size[1]];
+            go({ k: view.k, x: size[0] / 2 - p[0] * view.k, y: size[1] / 2 - p[1] * view.k }, animate);
+        },
+        /** Is this clearing inside the part of the map the player is looking at? */
+        visible(clearingId, margin = 30) {
+            const p = posOf.get(clearingId); if (!p || !view) return false;
+            const x = p[0] * view.k + view.x, y = p[1] * view.k + view.y;
+            return x > margin && y > margin && x < size[0] - margin && y < size[1] - margin;
+        },
         focus(clearingId, k, animate = true) {
             const p = posOf.get(clearingId); if (!p) return;
             size = [host.clientWidth || size[0], host.clientHeight || size[1]];
@@ -62,11 +83,12 @@ export function mountMap(host) {
         const og = sv('g', { class: 'labels' });         // in world coordinates: positions are decided across tiles
         const groups = [], obstacles = [], anchors = [], makeLabel = new Map(), badgeOf = new Map();
         let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
-        const tileDefs = Object.fromEntries(tiles.map(t => [t.id, t]));
+        const tileDefs = Object.fromEntries(tiles.map(t => [t.id, t])), tileCentre = new Map();
         for (const p of placements) {
             const side = p.side ?? model.side ?? 'normal';          // each tile shows its own side: an enchanted tile is turned over
             const tile = tileDefs[p.id], def = tile.sides[side], lay = layoutSide(tile, side);
             const [cx, cy] = hexCenter(p.q, p.r, S), a = p.rot * Math.PI / 3;
+            tileCentre.set(p.id, [cx, cy]);
             minX = Math.min(minX, cx - S); maxX = Math.max(maxX, cx + S); minY = Math.min(minY, cy - S * .87); maxY = Math.max(maxY, cy + S * .87);
             const pos = Object.fromEntries(def.clearings.map(c => [c.n, rot(lay.pos[c.n], a).map(v => v * S)]));
             for (const c of def.clearings) posOf.set(p.id + c.n, [cx + pos[c.n][0], cy + pos[c.n][1]]);
@@ -148,8 +170,10 @@ export function mountMap(host) {
                 const cg = sv('g', { class: `clr${sel ? ' sel' : ''}${onPlan ? ' plan' : ''}`, transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})`, 'data-clearing': id });
                 cg.append(sv('circle', { r: 19, fill: 'transparent' }));
                 if (onPlan) cg.append(sv('circle', { r: 17, class: 'planring' }));
-                if (isTarget) cg.append(sv('circle', { r: 20, class: 'targetring' }));
-                else if (isMaybe) cg.append(sv('circle', { r: 20, class: 'targetring maybe' }));          // a hidden path a Search earlier in the plan may find
+                const dangerHere = (isTarget || isMaybe) && (model.tokens?.[id] ?? []).some(t => t.k === 'mon');          // monsters there: they block you at the end of the phase unless you are hidden
+                if (isTarget) cg.append(sv('circle', { r: 20, class: `targetring${dangerHere ? ' danger' : ''}` }));
+                else if (isMaybe) cg.append(sv('circle', { r: 20, class: 'targetring maybe' }));
+                if (dangerHere) cg.append(sv('g', { class: 'dangermark', transform: 'translate(13 -17)', 'pointer-events': 'none' }, sv('circle', { r: 6.5 }), ...[[-3, 3.5, -1.2, -3.5], [-0.2, 3.5, 1.8, -3.5], [2.6, 3.5, 4.6, -3.5]].map(([x1, y1, x2, y2]) => sv('line', { x1: x1 - 0.5, y1, x2: x2 - 0.5, y2 }))));          // a hidden path a Search earlier in the plan may find
                 if (model.goingTo === id) cg.append(sv('circle', { r: 22, class: 'goingring' }));
                 if (picture) {
                     // an upright number over the printed one, so it reads whichever way the tile is turned
@@ -160,7 +184,7 @@ export function mountMap(host) {
                     cg.append(sv('text', { 'text-anchor': 'middle', dy: '.35em', class: 'num' }, String(c.n)));
                 }
                 // where he stands: a dotted ring drawn just above the tile picture and under every number, label and chit
-                if (model.hero === id) tg.append(sv('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 24, class: `youring${model.heroHidden ? ' hid' : ''}`, 'pointer-events': 'none' }));
+                if (model.hero === id && !model.party?.length) tg.append(sv('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 24, class: `youring${model.heroHidden ? ' hid' : ''}`, 'pointer-events': 'none' }));
                 tg.append(cg);
                 // things standing in this clearing, each with its name; where they go is decided by layoutLabels once every tile is known
                 obstacles.push({ x: cx + x, y: cy + y, r: picture ? 10.5 : 13 });
@@ -174,7 +198,7 @@ export function mountMap(host) {
                     // with its number, and a dotted end that says "tap the clearing to see everything"
                     const KS = ['mon', 'nat', 'ally', 'dwelling', 'site', 'sound'], count = t => Number(/x(\d+)$/.exec(t.label)?.[1] ?? 1);
                     const segs = KS.map(k => { const ts = toks.filter(t => t.k === k); return ts.length ? { k, n: ts.reduce((n, t) => n + count(t), 0) } : null; }).filter(Boolean);
-                                    badgeOf.set(gid, { segs, id, num: c.n, boxes: [{ w: 14 + segs.length * 13 + 3, h: 12 }] });
+                                    badgeOf.set(gid, { segs, id, num: c.n, boxes: [{ w: 14 + segs.reduce((w, sg) => w + segW(sg), 0) + 3, h: 12 }] });
                     groups.push({ id: gid, own: id, kind: shown[0]?.k ?? 'site', ax: cx + x, ay: cy + y, ar: picture ? 10.5 : 13, prio, prefer: ['right', 'left'], inside: insideTile,
                         boxes: shown.map(t => ({ w: pillWidth(t.label, { img: !!t.img }) + NUM_W, h: t.img ? 17 : PILL_H })) });
                     makeLabel.set(gid, (box, i) => {
@@ -191,6 +215,49 @@ export function mountMap(host) {
                 }
             });
             g.append(tg);
+        }
+
+        // ---- the players of a shared game: one counter each, standing on their clearing (fanned out when several share it), on the road's middle, or over their tile ----
+        // They are drawn above the tiles and under the names, and they are obstacles for the names: no pill is ever laid over a counter.
+        const markerLayer = sv('g', { class: 'party' }), tagLayer = sv('g', { class: 'ptag', 'pointer-events': 'none' });
+        {
+            const at = new Map(), place = new Map();
+            const posFor = m => {
+                if (m.at && posOf.has(m.at)) return { key: m.at, p: posOf.get(m.at), anchored: true };
+                if (m.road && posOf.has(m.road.from) && posOf.has(m.road.to)) { const a = posOf.get(m.road.from), b = posOf.get(m.road.to); return { key: `road:${m.road.from}~${m.road.to}`, p: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], anchored: false }; }
+                if (m.air && tileCentre.has(m.air)) return { key: `air:${m.air}`, p: tileCentre.get(m.air), anchored: false };
+                return null;
+            };
+            for (const m of model.party ?? []) { const q = posFor(m); if (!q) continue; (at.get(q.key) ?? at.set(q.key, { q, list: [] }).get(q.key)).list.push(m); }
+            for (const { q, list } of at.values()) {
+                // the viewer's own counter first, so it takes the middle of the fan when there is a choice
+                list.sort((x, y) => (y.mine ? 1 : 0) - (x.mine ? 1 : 0) || (x.letter < y.letter ? -1 : 1));
+                const R = list.some(m => m.mine) ? 8.5 : 7;
+                const spots = q.anchored ? fan(list.length, R, model.art?.tiles ? 24 : 25) : list.map((_, i) => ({ dx: (i - (list.length - 1) / 2) * (R * 2 + 3), dy: 0 }));
+                // the viewer's counter at the centre-bottom of an odd fan, the others around it
+                const order = list.length === 3 ? [1, 0, 2] : list.length === 2 ? [0, 1] : list.map((_, i) => i);
+                list.forEach((m, i) => place.set(m.id, { x: q.p[0] + spots[order[i]].dx, y: q.p[1] + spots[order[i]].dy, r: m.mine ? 8.5 : 7 }));
+            }
+            for (const m of model.party ?? []) {
+                const pl = place.get(m.id); if (!pl) continue;
+                const sh = shapeEl(m.shape, pl.r);
+                const body = sv(sh.tag, { ...Object.fromEntries(Object.entries(sh.attrs).map(([k, v]) => [k, typeof v === 'number' ? +v.toFixed(2) : v])), class: 'pc-shape', fill: m.hidden || m.dead ? 'rgba(12,14,20,.55)' : m.color, stroke: m.dead ? '#8b8f9a' : m.color,
+                    'stroke-width': m.hidden ? 1.8 : 1.2, 'stroke-dasharray': m.hidden ? '2.2 2' : null });
+                const g = sv('g', { class: `pc${m.mine ? ' me' : ''}${m.hidden ? ' hid' : ''}${m.dead ? ' dead' : ''}${m.active ? ' active' : ''}${m.away ? ' away' : ''}`, transform: `translate(${pl.x.toFixed(1)} ${pl.y.toFixed(1)})`, 'data-marker': m.id, 'data-player': m.name, 'aria-label': tagText(m), 'pointer-events': 'all' },
+                    sv('circle', { r: pl.r + 6, fill: 'transparent', class: 'pc-hit' }),
+                    m.active ? sv('circle', { r: pl.r + 4, class: 'pc-pulse' }) : null,
+                    m.mine ? sv('circle', { r: pl.r + 2.6, class: 'pc-me' }) : null,
+                    body,
+                    sv('text', { class: 'pc-letter', 'text-anchor': 'middle', dy: '.36em', 'font-size': pl.r * 1.25, fill: m.hidden || m.dead ? m.color : '#14161e' }, m.dead ? '×' : m.letter));
+                markerLayer.append(g);
+                obstacles.push({ x: pl.x, y: pl.y, r: pl.r + 2.5 });
+                if (model.tagged === m.id) {
+                    const text = tagText(m), w = pillWidth(text) + 6, hgt = PILL_H + 3;
+                    tagLayer.append(sv('g', { class: 'tag', transform: `translate(${(pl.x - w / 2).toFixed(1)} ${(pl.y - pl.r - hgt - 5).toFixed(1)})` },
+                        sv('rect', { width: w, height: hgt, rx: 6 }), sv('text', { x: w / 2, y: hgt / 2, dy: '.35em', 'text-anchor': 'middle' }, text),
+                        sv('path', { d: `M${w / 2 - 4} ${hgt} L${w / 2} ${hgt + 4} L${w / 2 + 4} ${hgt}`, class: 'tagtip' })));
+                }
+            }
         }
         // names last, once every counter and number is known: nothing may cover anything else
         // Every clearing's things are named beside it; where they do not fit close by, that clearing gives way to a small marker (chips by kind, tap to open).
@@ -221,9 +288,11 @@ export function mountMap(host) {
                     sv('rect', { class: 'bframe', x: -0.5, y: -0.5, width: bx.w + 1, height: bx.h + 1, rx: 4 }),
                     bd.num != null ? sv('circle', { cx: 8, cy: 6, r: 5.5, class: 'pillnum' }) : null,
                     bd.num != null ? sv('text', { x: 8, y: 6, dy: '.35em', 'text-anchor': 'middle', class: 'pillnumtxt' }, String(bd.num)) : null,
-                    ...bd.segs.map((sg, i) => sv('g', { class: `bseg ${sg.k}`, transform: `translate(${(bd.num != null ? 15 : 1.5) + i * 13} 0)` },
-                        sv('rect', { x: 0, y: 0, width: 12, height: 12, rx: 3 }),
-                        sv('text', { x: 6, y: 6, dy: '.35em', 'text-anchor': 'middle' }, sg.glyph ? sg.glyph : sg.k === 'dwelling' ? '\u2302' : sg.k === 'site' ? '\u25C6' : sg.k === 'sound' ? '\u266A' : String(sg.n)))));
+                    ...(() => { let ox = bd.num != null ? 15 : 1.5; return bd.segs.map(sg => { const w = segW(sg), g = sv('g', { class: `bseg ${sg.k}`, transform: `translate(${ox} 0)` },
+                        sv('rect', { x: 0, y: 0, width: w - 1, height: 12, rx: 3 }),
+                        ICON_KINDS.has(sg.k) ? chipIcon(sg.k) : null,
+                        ICON_KINDS.has(sg.k) ? (sg.n > 1 ? sv('text', { x: 15.5, y: 6, dy: '.35em', 'text-anchor': 'middle' }, String(sg.n)) : null)
+                            : sv('text', { x: 6, y: 6, dy: '.35em', 'text-anchor': 'middle' }, sg.glyph ? sg.glyph : sg.k === 'dwelling' ? '\u2302' : sg.k === 'site' ? '\u25C6' : sg.k === 'sound' ? '\u266A' : String(sg.n))); ox += w; return g; }); })());
                 names.append(el);
                 if (r.leader) leaders.append(sv('line', { x1: gr.ax.toFixed(1), y1: gr.ay.toFixed(1), x2: (bx.x + bx.w / 2).toFixed(1), y2: (bx.y + bx.h / 2).toFixed(1), class: `leader ${gr.kind ?? 'site'}` }));
                 continue;
@@ -245,7 +314,7 @@ export function mountMap(host) {
             }
         }
         og.append(leaders, names);
-        top.append(og);
+        top.append(markerLayer, og, tagLayer);
         g.append(top);
         bounds = { minX, minY, maxX, maxY };
         svg.replaceChildren(g);
@@ -272,19 +341,21 @@ export function mountMap(host) {
         stopFlight();
         const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (!animate || reduce || !view) { view = to; apply(); return; }
-        const [w, h] = size, from = { ...view };
-        const world = v => [(w / 2 - v.x) / v.k, (h / 2 - v.y) / v.k];
-        const [fx, fy] = world(from), [tx, ty] = world(to);
+        const [w0, h0] = size, from = { ...view };
+        const world = (v, w, h) => [(w / 2 - v.x) / v.k, (h / 2 - v.y) / v.k];
+        const [fx, fy] = world(from, w0, h0), [tx, ty] = world(to, w0, h0);
         const dist = Math.hypot(tx - fx, ty - fy) * Math.max(from.k, to.k), zoom = Math.abs(Math.log(to.k / from.k));
         const ms = Math.min(650, 260 + dist * 0.35 + zoom * 180);
         const t0 = performance.now();
         const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+        // the map's box may change size while the camera flies (the drawer opens or closes): the target is a point of the world, so it is kept in the middle of whatever size the map has now
         const step = now => {
+            const [w, h] = size;
             const u = Math.min(1, (now - t0) / ms), e = ease(u);
             const k = from.k * Math.pow(to.k / from.k, e), cx = fx + (tx - fx) * e, cy = fy + (ty - fy) * e;
             view = { k, x: w / 2 - cx * k, y: h / 2 - cy * k }; apply();
             flight = u < 1 ? requestAnimationFrame(step) : null;
-            if (u >= 1) { view = to; apply(); }
+            if (u >= 1) { view = { k: to.k, x: w / 2 - tx * to.k, y: h / 2 - ty * to.k }; apply(); }
         };
         flight = requestAnimationFrame(step);
     }
@@ -320,6 +391,8 @@ export function mountMap(host) {
     svg.addEventListener('wheel', e => { stopFlight(); e.preventDefault(); const r = svg.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
     svg.addEventListener('click', e => {
         if (moved) { moved = false; return; }
+        const mk = e.target.closest?.('[data-marker]');
+        if (mk && model?.onMarker) { e.stopPropagation(); model.onMarker(mk.getAttribute('data-marker')); return; }
         const g = e.target.closest?.('[data-clearing]');
         if (g) { e.stopPropagation(); model?.onTap?.(g.getAttribute('data-clearing')); }
         else model?.onBackground?.();

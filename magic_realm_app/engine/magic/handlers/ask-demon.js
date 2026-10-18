@@ -3,9 +3,11 @@
 //
 // There is no other player in a solo game (the engine is one hero against the denizens, docs/design/multi-character-and-multiplayer.md), so the spell is learnable and counts for
 // the Spells goal but is not offered: it is listed with "needs another player" among the spells he cannot cast. The request is already in its final shape for hot-seat and online
-// play: casting posts { id, from, to, text, kind:'demon', answer:null } on st.asks, and only the asker and the answerer may see it. `st.chars` is the list of characters
-// when there are several (the first is st.ch); with it, `params` are `to` (the answerer's character id) and `text` (the question or a catalogue key). Decision (03 question 6): disabled when solo.
-export const otherPlayers = st => (st.chars ?? []).filter(c => c.id !== 'ch');
+// play: casting posts { id, from, to, text, kind:'demon', answer:null } on st.questions, and only the asker and the answerer may see it (st.asks is the engine's own list of
+// questions waiting for a character's answer, party.js; these are questions one player puts to another). The other characters at the table are the other records of
+// st.chars, and st.others (effects.js) for a stand-in; `params` are `to` (the answerer's character id) and `text` (the question or a catalogue key). Decision (03 question 6):
+// disabled when solo.
+export const otherPlayers = st => [...(st.order ?? []).filter(id => id !== st.actor).map(id => st.chars[id]), ...Object.entries(st.others ?? {}).map(([id, c]) => ({ id, ...c }))];
 const demons = (st, data) => (st.combat?.dens ?? []).filter(d => d.kind === 'mon' && !d.dead && data.monsters[d.id]?.family === 'Demon');
 
 // Questions a computer-run or absent player can be asked: key -> [text, how to answer for a character record]
@@ -34,8 +36,8 @@ export default {
         const t = ctx.targets[0], alive = t && demons(st, data).some(d => d.id === t.id);
         if (!alive) { ctx.log('Ask Demon: the Demon is gone before the spell takes hold.'); return; }          // it fizzles; the chit tires (resolveCasts)
         const to = ctx.params.to ?? otherPlayers(st)[0]?.id, text = ctx.params.text ?? 'gold';
-        const ask = { id: 'a' + ((st.asks?.length ?? 0) + 1), from: 'ch', to, text, kind: 'demon', day: st.day, answer: null };
-        (st.asks ??= []).push(ask);
+        const ask = { id: 'a' + ((st.questions?.length ?? 0) + 1), from: 'ch', to, text, kind: 'demon', day: st.day, answer: null };
+        (st.questions ??= []).push(ask);
         ctx.log(`Ask Demon: you put a question to ${to}.`);
     },
     ai: { role: 'utility' },
