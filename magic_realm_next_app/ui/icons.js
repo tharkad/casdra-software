@@ -38,6 +38,9 @@ export const iconHtml = (name, cls = '') => `<svg class="${cls ? `ds-i ${cls}` :
 // A picture from the original game's art folder (never recoloured, cropped or stretched): art('monsters_c/wolf.gif', 'cls', 'alt').
 export const art = (path, cls = '', alt = '') => h('img', { class: cls, src: `${ART}${path}`, alt, draggable: 'false' });
 // The 32px action art (move, hide, search, trade, hire, rest, alert, spell, ban, peer, cache, fly, follow, ...) at an integer multiple of its size.
-export const actIcon = (name, size = 32) => h('img', { class: 'ds-px', width: size, height: size, src: `${ART}actions/${name}.gif`, alt: '' });
+// 'dash' is the picture of "Nothing": a quiet grey dash, not the red prohibition sign (which reads as an error: QA-134).
+export const actIcon = (name, size = 32) => (name === 'dash'
+    ? h('span', { class: 'ds-dash', style: `width:${size}px;height:${size}px`, 'aria-hidden': 'true' }, icon('minus'))
+    : h('img', { class: 'ds-px', width: size, height: size, src: `${ART}actions/${name}.gif`, alt: '' }));
 // A die face on the cream tile (the Journal, the last-action line, the result card).
 export const die = (n, cls = '') => h('span', { class: cls ? `ds-die ${cls}` : 'ds-die' }, n);

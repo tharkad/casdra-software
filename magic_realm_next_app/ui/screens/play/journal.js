@@ -12,6 +12,7 @@ import { die, icon } from '../../icons.js';
 import { isMeetLine } from '../../meet.js';
 import { rollDetail, storyRoll } from '../../storyvoice.js';
 import { isStory, logText } from '../../voice.js';
+import { seatText } from './shared.js';
 import { CURSE_PLAIN, ico, modal, moveDetent } from './kit.js';
 import { prowlers, render } from './shell.js';
 
@@ -95,7 +96,7 @@ function logSections(G) {
             day = l.day; out.push(sect(l.day === st.day ? 'Today' : l.day === st.day - 1 ? 'Yesterday' : `Day ${l.day}`, l.day === st.day ? 'newest first' : '')); ul = h('ul', { class: 'ds-log' }); out.push(ul);
         }
         const ph = /^Phase (\d+)/.exec(l.t)?.[1] ?? (l.r != null ? `R${l.r}` : l.k === 'day' ? '—' : '·');
-        const text = l.k === 'phase' && !isStory() ? l.t.replace(/^Phase \d+:\s*/, '') : logText(l);
+        const text = l.k === 'phase' && !isStory() ? l.t.replace(/^Phase \d+:\s*/, '') : (G.shared ? seatText(G, l) : logText(l));
         if (isStory() && text === lastText && l.day === day) continue;                  // (a loot line and its phase line are told with the same words: once)
         lastText = text;
         ul.append(h('li', { class: `j-${l.k}` }, h('span', { class: 'ph' }, ph), h('span', {}, glueNumbers(text))));

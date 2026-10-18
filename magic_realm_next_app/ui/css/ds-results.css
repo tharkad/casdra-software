@@ -22,7 +22,7 @@
 .ds-dayres .line .ds-counter .ds-i { width: 22px; height: 22px; color: var(--danger); }
 .ds-dayres .line .what { min-width: 0; }
 .ds-dayres .ds-frames { margin-top: 20px; }
-.ds-frame.void .v { text-decoration: line-through; opacity: .6; }
+.ds-frame.void .v { color: var(--ink-3); opacity: .8; }
 /* the overview: a phase line with the round boxes under it */
 .ds-dayres.overview .repstep { margin: 0; border-top: 1px solid var(--line-1); }
 .ds-dayres.overview .repstep > summary, .ds-dayres.overview p.repstep { display: flex; gap: 10px; align-items: baseline; min-height: 44px; padding: 10px 0; font: 400 17px/1.35 var(--font-voice); list-style: none; cursor: pointer; }
@@ -153,3 +153,34 @@
 .ds-tray .pickacts .ds-act { flex-direction: column; justify-content: center; gap: 2px; min-height: 54px; padding: 2px; font-size: 14px; text-align: center; }
 .ds-tray .pickacts .ds-act img { width: 24px; height: 24px; }
 .ds-tray .pickacts .ds-act.on { border: 2px solid var(--gold); background: var(--gold-wash-2); }
+
+/* ---- G1 (fix wave 2) ---- */
+/* QA-101: a choice sheet grows to what it holds (the pile, all the readings), up to 70% (the map keeps 25% above it, the hero in view), and then scrolls under its foot; DR-27: the fade at the foot of the scroll is 28px and the rows snap, so a row is never cut mid-line */
+.ds-sheet.decision.pick-sheet[data-detent="hug"], .ds-sheet.decision.chit-sheet[data-detent="hug"] { max-height: 70%; }
+.pick-sheet .ds-sheet-body, .chit-sheet .ds-sheet-body { -webkit-mask-image: linear-gradient(#000 calc(100% - 28px), transparent); mask-image: linear-gradient(#000 calc(100% - 28px), transparent); padding-bottom: 30px; scroll-snap-type: y proximity; scroll-padding: 4px 0 30px; }
+.pick-sheet .ds-ask, .pick-sheet .ds-opt, .pick-sheet .ds-optgroup { scroll-snap-align: start; }
+/* QA-110: the Rest sheet's chits are picked, then the foot does it; the folded list of ready chits */
+.chit-sheet .rest-ready { margin: 0; } .chit-sheet .rest-ready > summary { color: var(--ink-2); font: 500 15px/1.2 var(--font-ui); }
+.chit-sheet .rest-ready .ds-chitgrid { margin-top: 4px; }
+.ds-chitgrid .ds-chit.on { border-color: var(--gold-hi); box-shadow: 0 0 0 3px rgba(241, 210, 127, .38); background: var(--gold-wash-2); }
+.ds-opt-foot > .ds-btn.quiet { flex: 0 0 auto; }
+/* QA-102: the restart sheet's goals are ds-rows with a stepper; the foot carries the one primary */
+.restart-goals { display: flex; flex-direction: column; gap: 8px; }
+.restart-goals .ds-row.vprow { margin: 0; padding: 6px 10px 6px 12px; min-height: 60px; border: 1px solid var(--line-1); background: var(--surface-3); border-radius: var(--r-md); justify-content: space-between; }
+.restart-goals .vprow .main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.restart-goals .vprow .main b { font: 700 17px/1.2 var(--font-ui); } .restart-goals .vprow .main span { font: 400 14px/1.25 var(--font-voice); color: var(--ink-2); }
+.restart-goals .vprow .stepper { width: 150px; flex: none; }
+.restart-goals .vprow .step-btn { width: 44px; height: 44px; border-radius: var(--r-md); font-size: 26px; }
+.restart-goals .vprow .step-val b { font-size: 22px; }
+.ds-opt-foot .lead.bad { color: var(--warn); }
+.ds-opt-foot .ds-btn.primary[disabled] { flex: 0 1 62%; }
+
+/* QA-109 / QA-117: a win is VICTORY (big, gold, the trophy glowing); a loss is quiet and cold ("Short of your goals"); every goal that moved the score is a visible row and the rows add up to the total */
+.ds-end.won .end-hero h1 { font-size: 40px; letter-spacing: .16em; line-height: 1.05; margin: 8px 0 10px; text-shadow: 0 0 26px rgba(241, 210, 127, .35); }
+.ds-end.won .end-mark.win { filter: drop-shadow(0 0 14px rgba(241, 210, 127, .55)); }
+.ds-end.lost .end-hero h1 { font-size: 26px; color: var(--ink-2); letter-spacing: .08em; }
+.ds-end .end-deed { margin: 10px 0 0; font: italic 400 16px/1.3 var(--font-voice); color: var(--ink-2); text-wrap: balance; }
+.ds-end .ds-egoal.idle { min-height: 56px; border-style: dashed; }
+.ds-end .ds-egoal.idle .top b { color: var(--ink-2); }
+.ds-dayres .dayres-score { margin: 14px 0 0; text-align: center; font: 400 15px/1.35 var(--font-voice); color: var(--ink-2); text-wrap: balance; }
+.clearing-sheet .none-known { margin: 10px 0 4px; color: var(--ink-2); }

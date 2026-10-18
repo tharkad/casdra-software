@@ -8,7 +8,8 @@ import { mc } from '../play/kit.js';
 import { render } from '../play/shell.js';
 import { h } from '../../dom.js';
 import { art } from '../../icons.js';
-import { moodTag, nativeArt, say } from './common.js';
+import { goldEl, moodTag, nativeArt, say } from './common.js';
+import { tieNumber } from '../../names.js';
 
 // Everyone who is with this character and alive: natives and monsters he hired, and creatures a spell put under his command.
 export function hirelings(G) { return hirelingsOf(G.st, G.st.ch.id).filter(o => !o.dead); }
@@ -75,7 +76,7 @@ function groups(G) {
 function titleOf(G, g) {
     const n = g.members.length;
     if (g.kind === 'mon') return n > 1 ? `${g.group} ×${n}` : g.group;
-    if (g.solo) return G.data.natives[g.members[0].id].name;
+    if (g.solo) return tieNumber(G.data.natives[g.members[0].id].name);
     const lead = g.members.filter(o => G.data.natives[o.id].leader).length, rest = n - lead;
     if (!rest) return `${g.group} leader`;
     return h('span', {}, `${g.group} ×${rest}`, lead ? h('span', { class: 'ds-dim kit-lead' }, ' and their leader') : null);
@@ -91,7 +92,7 @@ function groupCard(G, g, ctl) {
         g.controlled ? null : h('div', { class: `ds-daypips${low ? ' low' : ''}`, 'aria-hidden': 'true' }, Array.from({ length: 14 }, (_, i) => h('i', { class: i < days ? null : 'off' }))),
         h('div', { class: 'cs' }, g.members.map(o => counter(G, o))),
         h('p', { class: 'ds-meta kit-orders' }, `${g.controlled ? 'Under your spell. ' : ''}${g.kind === 'mon' && g.members.length === 1 ? 'It fights' : 'They fight'} beside you without orders.${fl ? ` ${fl[0].toUpperCase()}${fl.slice(1)}.` : ''}${G.shared ? ` ${g.members.length === 1 && g.kind === 'mon' ? 'It is' : 'They are'} yours alone.` : ''}`),
-        g.controlled ? null : [h('button', { type: 'button', class: 'ds-btn sm is-dim', 'data-act': 'extend', 'aria-disabled': 'true', onclick: () => ctl.say('Extending is done in a Hire phase, beside them.') }, `Extend 14 days · wages ${wages}g`),
+        g.controlled ? null : [h('button', { type: 'button', class: 'ds-btn sm is-dim', 'data-act': 'extend', 'aria-disabled': 'true', onclick: () => ctl.say('Extending is done in a Hire phase, beside them.') }, `Extend 14 days · wages ${wages} Gold`),
             h('div', { class: 'ds-why kit-extwhy' }, 'Extending is done in a Hire phase, beside them.')]);
 }
 
@@ -105,7 +106,7 @@ export function companyTab(G) {
         h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Where you stand')),
         h('div', { class: 'kit-moods' }, Object.entries(ch.rel ?? {}).map(([g, r]) => moodTag(r, g))),
         h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'You owe')),
-        owed.length ? h('div', { class: 'ds-list' }, owed.map(b => h('div', { class: 'ds-row kit-owe', 'data-owe': b.group }, h('span', { class: 'main' }, h('b', {}, `The ${b.group}’s ${b.what}`), h('span', {}, 'Buy their goodwill back in a Trade phase beside them: one roll, then it is lost for good.')), h('span', { class: 'end' }, `${b.price}g`))))
+        owed.length ? h('div', { class: 'ds-list' }, owed.map(b => h('div', { class: 'ds-row kit-owe', 'data-owe': b.group }, h('span', { class: 'main' }, h('b', {}, `The ${b.group}’s ${b.what}`), h('span', {}, 'Buy their goodwill back in a Trade phase beside them: one roll, then it is lost for good.')), h('span', { class: 'end' }, goldEl(G, b.price)))))
             : h('p', { class: 'ds-text kit-none' }, 'Nothing. No favours to repay.'),
         ...(G.shared && G.ms ? policyBlock(mc(G)) : []));
 }

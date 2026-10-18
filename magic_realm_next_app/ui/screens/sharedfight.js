@@ -21,8 +21,9 @@ import { combatScene } from './combat_scene.js';
 import { chargeBody, deathCallout, pvpChips, pvpHow } from './pvpui.js';
 import { foeEl, foeSize, heroEl } from '../combat/stage.js';
 import { onMine, foesPhrase, cap } from '../combat/model.js';
+import { fixNames } from '../names.js';
 
-const nb = s => String(s).replace(/ (?=\d)/g, ' ');
+const nb = s => fixNames(String(s)).replace(/ (?=\d)/g, '\u00A0');          // (the spelling of a name is one thing everywhere: QA-125)
 const WORD = { N: 'Negligible', L: 'Light', M: 'Medium', H: 'Heavy', T: 'Tremendous' };
 const tag = (text, cls = '', attrs = {}) => h('span', { class: `ds-tag sf-chip${cls ? ` ${cls}` : ''}`, ...attrs }, nb(text));
 
@@ -115,7 +116,9 @@ function lureSheet({ st, data, p, ui, render, act, f }) {
 function lureNarr(st, data, f, mineNow) {
     const all = [...f.sheets.flatMap(s => s.dens), ...f.loose, ...f.held, ...f.standingBy], seen = new Set(), names = [];
     for (const d of all) if (!seen.has(d.uid)) { seen.add(d.uid); names.push(d.name); }
-    return names.length ? `${cap(foesPhrase(names))} circle${names.length === 1 && !/s$/.test(names[0]) ? 's' : ''} the clearing.` : 'The clearing is quiet.';
+    // (QA-125: "an Ogre", never "a Ogre": the article follows the first letter, whatever the phrase builder wrote)
+    const phrase = fixNames(cap(foesPhrase(names))).replace(/\b([Aa]) (?=[AEIOUaeiou])/g, '$1n ');
+    return names.length ? `${phrase} circle${names.length === 1 && !/s$/.test(names[0]) ? 's' : ''} the clearing.` : 'The clearing is quiet.';
 }
 
 // ---- waiting, and watching ----
@@ -138,10 +141,10 @@ function sealedChip(st, data) {
 }
 const WAIT_WHY = {
     meet: 'Each character deals with the natives here in turn: drinks, a payment, or a fight. Nothing is hidden, and nothing moves until everyone has answered.',
-    lure: 'In the order of today’s draw each character may draw creatures onto his sheet; the dice deal out the rest afterwards.',
+    lure: 'In the order of today’s draw each character may draw creatures onto their sheet; the dice deal out the rest afterwards.',
     charge: 'In the order of the draw each character may charge another, or send hirelings at one. A charge is made in the open; nothing else is told until the plays are shown.',
-    encounter: 'In the order of the draw each character takes one Encounter action against the creatures on his own sheet. The plays follow.',
-    harm: 'Each character settles his own wounds and fatigue. Nothing is rolled; the next round starts when all are done.',
+    encounter: 'In the order of the draw each character takes one Encounter action against the creatures on their own sheet. The plays follow.',
+    harm: 'Each character settles their own wounds and fatigue. Nothing is rolled; the next round starts when all are done.',
     melee: 'Nothing is shown until everyone has played, and a sealed play cannot be changed.',
 };
 const pausedLine = (answer, away) => (answer?.paused && away.length ? h('p', { class: 'ds-hint-line bad' }, `The game is paused: nothing is played for ${joinList(away.map(m => m.player))}. It goes on where it stopped when they come back.`) : null);
@@ -172,9 +175,9 @@ function watchSheet({ f, st }) {
     const me = f.me, still = f.members.filter(m => m.state === 'in' && !m.mine);
     const title = me.why === 'died' ? 'You have fallen.' : me.status === 'fled' ? 'You are out of the fight.' : me.hidden ? 'You are hidden: the fight is not yours.' : 'You are out of the fight.';
     const rest = still.length ? `${joinList(still.map(m => m.player))} ${still.length > 1 ? 'fight' : 'fights'} on. You watch.` : 'Nobody is left in it.';
-    if (me.why === 'died' && f.pvp) {
-        // a character who falls gets the big callout, with who struck him down, what was taken, and what happens next; then he watches the rest
-        const k = allKills(st, f, st.ch.id).find(x => x.victim.id === me.id)
+    if (me.why === 'died') {
+        // a character who falls gets the big callout, with who struck him down, what was taken, and what happens next; then he watches the rest (a fall to a creature too, QA-106)
+        const k = (f.pvp ? allKills(st, f, st.ch.id).find(x => x.victim.id === me.id) : null)
             ?? { victim: me, killers: [], killerName: (() => { const d = factsOf(fightLines(st, st.ch.id).filter(l => l.who === me.id)).died; return d?.by ? String(d.by).replace(/ #\d+$/, '') : null; })(), creature: true, notoriety: 0, gold: null, items: [], belongings: false };
         return { narr: title, tone: 'bad', sheet: h('div', { class: 'cb-sheet sf-sheet sf-watch', 'data-kind': 'watch' }, h('div', { class: 'sf-scroll' }, deathCallout({ st, f, k, viewerId: st.ch.id })), h('div', { class: 'sf-waitline', role: 'status' }, rest)) };
     }
@@ -201,6 +204,8 @@ const playLine = pl => {
     else bits.push(pl.target ? `Strikes ${the(pl)}` : 'No blow');
     return bits;
 };
+// What a seat played, on one line. The Story voice names the blow and the maneuver but never a chit's code ("Fight T5*"); Detail keeps every code (QA-128).
+const playText = (pl, story) => [...playLine(pl), story ? null : pl.fight, pl.maneuver && pl.move ? (story ? pl.maneuver : `${pl.maneuver} · ${pl.move}`) : story ? null : pl.move, pl.shield ? `Shield ${pl.shield}` : null].filter(Boolean).join(' · ');
 function told(lines, member) {
     const ev = lines.filter(l => l.k !== 'roll').map(l => l.s ?? l.t);
     const f = factsOf(lines);
@@ -211,8 +216,11 @@ function told(lines, member) {
 }
 // "Tom" and what happened to him, the name in bold: the told text already starts with it ("You ..." for the viewer, the name for the others)
 function toldRow(lines, member) {
-    const lead = member.mine ? 'You' : member.player, text = told(lines, member), body = text.startsWith(`${lead} `) ? text.slice(lead.length + 1) : text;
-    return h('p', { class: 'sf-told' }, h('b', {}, lead), ' ', body || 'saw nothing of it.');
+    const text = told(lines, member);
+    // the text already begins with who it is about ("You ...", "Your arrow ...", "Ann ...", "Ann’s arrow ..."): the name is set bold where it stands, never said twice (QA-106)
+    const m = member.mine ? /^(Your|You)(?=[\s’'])/.exec(text) : text.startsWith(member.player) && /^[\s’']/.test(text.slice(member.player.length)) ? [member.player] : null;
+    if (m) return h('p', { class: 'sf-told' }, h('b', {}, m[0]), text.slice(m[0].length));
+    return h('p', { class: 'sf-told' }, h('b', {}, member.mine ? 'You' : member.player), ' ', text || 'saw nothing of it.');
 }
 // the short title of a reveal: what fell
 function revealTitle(rows, falls) {
@@ -235,20 +243,32 @@ export function revealCard({ st, data, f, report, plays, round, callouts = true 
     const sig = JSON.stringify([plays.map(p => [p.id, p.target, p.attack, p.fight, p.move, p.maneuver]), rows.map(r => [r.m.id, r.facts.kills.map(k => k.name), r.facts.gain, r.facts.wounds, r.facts.gear.map(g => g.name + g.how)]), pv ? rd.kills.map(k => [k.victim.id, k.killers.map(x => x.id), k.notoriety, k.items]) : null]);
     // a character who falls is a big moment (the owner asked for a large callout): by another character, or by a creature when the table plays with the switch on
     const creatureFalls = rd && (pv || f.pvp) ? rows.filter(r => r.facts.died && !rd.kills.some(k => k.victim === r.m)).map(r => ({ victim: r.m, killers: [], killerName: r.facts.died.by ? String(r.facts.died.by).replace(/ #\d+$/, '') : null, creature: true, notoriety: 0, gold: null, items: [], belongings: false })) : [];
-    const falls = rd && (pv || f.pvp) && callouts ? [...rd.kills, ...creatureFalls] : [];
+    const falls0 = rd && (pv || f.pvp) && callouts ? [...rd.kills, ...creatureFalls] : [];
+    // my own fall to a creature, in a game where characters do not fight each other: the same big moment, told to me ("You have fallen"), never in the third person about myself (QA-106)
+    const myRow = rows.find(r => r.m.mine), myId = myRow?.m.id ?? st.ch?.id ?? st.actor;
+    const ownCreature = callouts && myRow?.facts.died && !falls0.some(k => k.victim.id === myId)
+        ? [{ victim: myRow.m, killers: [], killerName: myRow.facts.died.by ? String(myRow.facts.died.by).replace(/ #\d+$/, '') : null, creature: true, notoriety: 0, gold: null, items: [], belongings: false }] : [];
+    const falls = [...falls0, ...ownCreature];
     // the fall of a character is the callout's to tell: the result sentence below it is left with what else happened
-    const head = report.any ? (pv || falls.length ? pvpHeadline(st, f, report, rd, { omitFalls: falls.length > 0 }) : headline(report)) : 'The plays are shown.';
+    let head;
+    if (!report.any) head = 'The plays are shown.';
+    else if (pv || falls0.length) head = pvpHeadline(st, f, report, rd, { omitFalls: falls0.length > 0 });
+    else if (ownCreature.length) {
+        const rest = { ...report, per: { ...report.per, [myId]: { ...report.per[myId], facts: { ...report.per[myId].facts, died: null } } } };
+        const others = headline(rest);
+        head = others === 'No creature falls.' ? '' : others;
+    } else head = headline(report);
     const left = pv ? rows.map(r => ({ ...r, lines: r.lines.filter(l => !rd.consumed.has(l)) })) : rows;
     const playOf = id => plays.find(p => p.id === id);
     const body = h('div', { class: `sf-reveal${pv ? ' pv' : ''}`, 'data-reveal': String(round), 'data-sig': sig },
-        ...falls.map(k => deathCallout({ st, f, k, viewerId: st.ch?.id ?? st.actor, round })),
-        head ? h('p', { class: `ds-voice lg sf-headline${rows.some(r => r.facts.died) || falls.length ? ' deadly' : ''}` }, head) : null,
+        ...falls.map(k => deathCallout({ st, f, k, viewerId: st.ch?.id ?? st.actor, round, bare: k.victim.id === myId })),
+        head ? h('p', { class: `ds-voice lg sf-headline${rows.some(r => r.facts.died) || falls.length ? ' deadly' : ''}` }, fixNames(head)) : null,
         h('div', { class: 'ds-list sf-results', 'data-sf-result': '' }, ...rows.map(r => {
             const pl = playOf(r.m.id);
             return h('div', { class: `ds-row sf-rrow${r.m.mine ? ' me' : ''}`, 'data-rrow': r.m.id, 'data-play': pl ? r.m.id : null },
                 r.m.person ? pcEl({ ...r.m.person, dead: false }, { size: 30 }) : null,
                 h('div', { class: 'main' }, h('b', {}, r.m.player, r.m.mine ? h('small', {}, ' you') : null),
-                    pl ? h('span', { class: 'sf-playline' }, nb([...playLine(pl), pl.fight, pl.maneuver && pl.move ? `${pl.maneuver} · ${pl.move}` : pl.move, pl.shield ? `Shield ${pl.shield}` : null].filter(Boolean).join(' · '))) : null,
+                    pl ? h('span', { class: 'sf-playline' }, nb(playText(pl, story))) : null,
                     h('span', { class: 'sf-rchips' }, ...(pv ? pvpChips({ m: r.m, facts: r.facts, rd, f }) : resultChips(r.facts)))));
         })),
         h('div', { class: 'sf-how', 'data-sf-how': '' }, h('span', { class: 'ds-eyebrow sf-sub' }, story ? 'How it went' : 'Every line, in order'),
@@ -258,7 +278,7 @@ export function revealCard({ st, data, f, report, plays, round, callouts = true 
             ...left.map(r => story
                 ? (pv && !told(r.lines, r.m) ? null : toldRow(r.lines, r.m))
                 : h('div', { class: 'sf-detail' }, h('b', {}, r.m.player), ...rows.find(x => x.m === r.m).lines.map(l => h('p', { class: l.k === 'roll' ? 'dice' : '' }, nb(r.m.mine ? l.t : third(l.t, r.m.player))))))));
-    return { body, title: revealTitle(rows, falls) };
+    return { body, title: falls.some(k => k.victim.id === myId) || myRow?.facts.died ? 'You have fallen' : fixNames(revealTitle(rows, falls)) };
 }
 
 // ---- the end of a fight ----
@@ -310,7 +330,7 @@ export function overCard({ st, data, people, myId }) {
                             ...mineKills.filter(k => k.belongings).map(k => tag(k.items.length ? `Took ${k.items.length} belonging${k.items.length === 1 ? '' : 's'}` : 'Took their belongings')),
                             !took && !fellTo && hw !== 'fell' && hw !== 'fled' ? tag(x.wounds ? `${x.wounds} wound${x.wounds === 1 ? '' : 's'} and no spoils` : peace ? 'Meant no harm' : 'Took nothing', 'dim') : null)));
             })),
-        report.any ? h('details', { class: 'sf-lastround ds-group', 'data-sf-last': '' }, h('summary', {}, h('b', {}, `The last round (${sum.lastRound})`)),
+        report.any ? h('details', { class: 'sf-lastround ds-group', 'data-sf-last': '' }, h('summary', {}, h('b', {}, isStory() ? 'The last round' : `The last round (${sum.lastRound})`), icon('down')),
             revealCard({ st, data, f: lastFight, report, plays, round: sum.lastRound, callouts: false }).body) : null);
 }
 

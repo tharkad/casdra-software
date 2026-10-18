@@ -100,7 +100,7 @@
 .kit-note.bad { color: var(--danger); font-weight: 600; }
 .kit-noterow { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .kit-noterow .kit-note { flex: 1 1 auto; min-width: 0; }
-.kit-skip { flex: none; margin: -6px 0; padding: 0 0 0 10px; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+.kit-skip { flex: none; margin: -6px 0; padding: 0 0 0 10px; font-size: 14px; }          /* DR-15: the ds quiet button, 44px, no underline (it was the app's only underlined control) */
 .kit-foot-row { display: flex; align-items: center; gap: 10px; }
 .kit-foot-row .ds-btn { margin: 0; min-width: 0; }
 .kit-foot-row .ds-btn:not(.primary) { flex: 0 0 auto; }
@@ -203,3 +203,18 @@
 .kit .ds-counter.lg img { width: 84%; height: 84%; max-width: 84%; max-height: 84%; }
 /* the "-1" Honor mark on the dice of an offer (map.css makes it 11px) */
 .kit .die .dmod { font-size: 12px; }
+
+
+/* ---- G2 (fix wave 2) ---- */
+/* DR-6: Gold is the coin and the number in a row's price slot, never "12g" */
+.kit-gold { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; } .kit-gold .ds-i { width: 15px; height: 15px; }
+/* QA-128: the shared fight's "The last round" disclosure has a chevron, so it reads as something that opens (the screen's file is sharedfight.js / ds-shared.css; this one rule lives here) */
+/* DR-24: equal slot cells (a long name no longer stretches one cell and crowds its neighbours) and a label that never touches the cell's edge; the Breastplate slot is called "Chest" (as its picker asks) */
+.ds-slots { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ds-slot { padding-left: 6px; padding-right: 6px; } .ds-slot .k { letter-spacing: .04em; max-width: 100%; }
+.ds-slot .n { overflow-wrap: anywhere; }
+/* DR-25: the spell rows had a dead band above "The card" (an 8px margin over a 44px centred summary, then the padding below): the summary keeps its 44px hit area but gives the room back */
+.kit-spell .kit-printed { margin-top: 0; } .kit-spell .kit-printed > summary { margin: -8px 0 -10px; }
+.kit-spell .main { gap: 4px; }
+/* DR-12 (the parts in these sheets): no one-word last lines */
+.kit .ds-meta, .kit .ds-voice, .kit .ds-text, .kit-note, .kit .ds-why, .cb-hint { text-wrap: pretty; }

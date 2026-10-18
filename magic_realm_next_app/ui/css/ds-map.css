@@ -1,3 +1,12 @@
 /* css/ds-map.css: owned by P5 (map polish). Empty on purpose: the foundation (P0a) only reserves the file and the link in app/index.html (after core.css, so it wins the cascade).
    Put the P5 package's NEW css here, lifted from the map overlay classes already in core.css (.ds-ring, .ds-hero, .ds-route, .ds-stop, .ds-pin, .ds-token); mapview.js draws them. NOTE: the legacy map rules stay in css/map.css (the refactor slice); this file is for the NEW map-only rules. Core already carries the overlay vocabulary.
    Do not edit another package's ds-*.css; if a core component needs a change, add a package-local override here with a comment. */
+
+/* G1 (fix wave 2) */
+/* QA-107: a hero in the air stands over the middle of the tile, a dark disc with gold wings: he is at no clearing until he lands */
+.mv-ov .ds-hero.air { display: grid; place-items: center; border-style: solid; background: rgba(13, 15, 21, .86); }
+.mv-ov .ds-hero.air::after { display: none; }
+.mv-ov .ds-hero.air .wing { width: 82%; height: 82%; fill: var(--gold-hi, #f1d27f); stroke: none; }
+/* DR-19: a hidden hero is a hollow gold ring with a dark edge outside it, so it holds its own on busy green art (the dashed dark disc was the quietest thing on the map) */
+.mv-ov .ds-hero.hidden, .mv-key .ds-hero.hidden { border-style: solid; border-color: rgba(241, 210, 127, .92); background: rgba(13, 15, 21, .35);
+    box-shadow: 0 0 0 1px rgba(8, 10, 14, .85), 0 0 0 3px rgba(241, 210, 127, .6), 0 0 0 4.5px rgba(8, 10, 14, .7), 0 0 14px rgba(241, 210, 127, .45); }

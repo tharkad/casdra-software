@@ -57,7 +57,7 @@ export function cursesSheet(G) {
         mine.length ? h('p', { class: 'hint' }, atChapel ? 'You are in a Chapel\u2019s clearing: at Midnight it lifts every curse.' : 'A curse stays until Midnight finds you in the clearing of a Chapel, which lifts them all. Walk there before the day ends.') : null,
         h('h3', {}, 'All six curses'),
         ...rows.map(r => h('p', { class: `hint${mine.includes(r.name) ? ' bad' : ''}` }, h('b', {}, r.name + ': '), CURSE_PLAIN[r.name] ?? r.effect)),
-        h('button', { class: 'btn', onclick: back.close }, 'Back')), back);
+        h('button', { type: 'button', class: 'ds-btn block', onclick: back.close }, 'Back')), back);
 }
 
 // A treasure card he found but does not carry (a Mouldy Skeleton, a Toadstool Circle): what it says.
@@ -68,7 +68,7 @@ export function cardInfoSheet(G) {
     const text = G.data.cardtext?.treasures?.[G.ui.cardId] ?? td.effectText ?? '';
     return modal(G, td.name, h('div', { class: 'itemsheet' },
         cardEl({ title: td.name, kind: 'treasure', tag: td.kind === 'twt' ? 'Treasure within Treasure' : 'Treasure', stats: [], text, notes: G.ui.cardId === 'chest' ? [] : ['A treasure within a treasure: it is not carried off; what it holds is described on the card.'] }),
-        h('button', { class: 'btn', onclick: back.close }, 'Back')), back);
+        h('button', { type: 'button', class: 'ds-btn block', onclick: back.close }, 'Back')), back);
 }
 
 // The card or faces, and the plain facts, of an item: a belonging of his (it.uid) or a thing on someone's shelf ({ kind, id }).

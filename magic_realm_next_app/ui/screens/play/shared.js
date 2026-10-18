@@ -1,13 +1,18 @@
 // play/shared.js: the shared-realm host: the things a seat at a shared table sees that a solo game does not: the draw of the chits, the end of a fight I was in, the banner that stands
 // in for the phase buttons when it is not my move, the players sheet, the soft camera, the restart question after a death, and the end of the game.
+import { nameOf } from '../../../engine/items.js';
 import { nameOfClearing } from '../../../engine/world.js';
+import { lengthLine } from '../../gametext.js';
 import { h } from '../../dom.js';
 import { fightSummary } from '../../fight.js';
 import { overTitle } from '../../gametext.js';
-import { drawInfo, joinNames, publicLines, situation, turnOrderLine } from '../../party.js';
+import { drawInfo, joinNames, publicLines, situation, tableText, turnOrderLine } from '../../party.js';
 import { myFall } from '../../pvp.js';
 import { askBox, drawCard, playersBody, waitBanner } from '../../shared_ui.js';
 import { primary, sect as dsSect } from '../../ds.js';
+import { cardSrc, portraitSrc } from '../../front.js';
+import { displayName } from '../../names.js';
+import { CHARACTERS } from '../newgame.js';
 import { footRow } from '../kit/common.js';
 import { logText, voice } from '../../voice.js';
 import { deathCallout } from '../pvpui.js';
@@ -16,7 +21,7 @@ import { autopilotRecord, awaySheet, endSheet, pendingVote, seatNote, tableActio
 import { act, copyInvite } from './actions.js';
 import { modal, showToast, tc } from './kit.js';
 import { prowlers, render } from './shell.js';
-import { backSeen, drawSeen, markBackSeen, markDrawSeen, markOverSeen, myId, overSeen } from './state.js';
+import { backSeen, drawSeen, markBackSeen, markDrawSeen, markOverSeen, myId, overSeen, setWelcomed, welcomed } from './state.js';
 import { playerOf } from '../../meet.js';
 
 function clearTag(G) { clearTimeout(G.ui.tagTimer); G.ui.tagTimer = setTimeout(() => { if (G.ui.tag) { G.ui.tag = null; if (G.root.isConnected) render(G); } }, 6000); }
@@ -85,9 +90,12 @@ export function sharedBanner(G) {
     const sit = situation(G.st, G.answer, myId(G));
     if (sit.kind === 'mine' || sit.kind === 'you-away') return null;          // (marked away: the card in the tray says it, with the button)
     const pretty = t => String(t).replace(/\b([A-Z]{2,3}\d)\b/g, m => { try { return nameOfClearing(m); } catch { return m; } });          // (a clearing's code, in the words of the map)
-    const lines = [...publicLines(G.st, myId(G), 4).filter(l => sit.kind !== 'following' || !/ follows /.test(l.t)).map(l => ({ t: pretty(logText(l)), id: l.who ?? null })), ...G.feed.slice(-3)].filter((l, i, a) => !i || (l.s ?? l.t) !== (a[i - 1].s ?? a[i - 1].t)).slice(-3);
+    const lines = [...publicLines(G.st, myId(G), 4).filter(l => sit.kind !== 'following' || !/ follows /.test(l.t)).map(l => ({ t: pretty(tableText(logText(l), l, G.st, myId(G))), id: l.who ?? null })), ...G.feed.slice(-3)].filter((l, i, a) => !i || (l.s ?? l.t) !== (a[i - 1].s ?? a[i - 1].t)).filter(l => (l.s ?? l.t) !== sit.title).slice(-3);          // (a line that says again what the card's title says is dropped)
     return waitBanner(sit, { feed: lines, orderLine: turnOrderLine(G.st) });
 }
+
+/** One log line in the voice the player chose, told from this seat's side: "You are wounded" for mine, "Ann is wounded" for another's (QA-103, QA-126). For the tray's last-action line and the Journal at a table. */
+export const seatText = (G, l) => tableText(logText(l, G.st), l, G.st, myId(G));
 
 export function playersSheet(G) {
     const c = tc(G);
@@ -98,8 +106,11 @@ export function playersSheet(G) {
 // What the table asks of me, as a sheet: marked away ("I am back"), welcome back (what the autopilot did), a vote I have not answered. Only when nothing else is open and I am not in a fight or
 // in the middle of a question that has a sheet of its own (that question comes first); otherwise it waits, and the tray says only how a vote stands.
 export function tableSheetDue(G) {
-    if (!G.shared || !G.answer || G.ui.sheet) return null;
+    if (!G.shared || !G.answer) return null;
     const st = G.st, p = st.pending;
+    // the welcome of a table (QA-131), once, at the first plan of day 1: the same moment as the solo welcome, which it stands in for at a table
+    if (!G.ui.welcomeDone && !welcomed() && st.day === 1 && p?.type === 'plan' && !st.battle?.members?.[st.ch.id]) return { kind: 'intro' };
+    if (G.ui.sheet) return null;
     if (st.battle?.members?.[st.ch.id] || st.period === 'over') return null;
     if (p && !['plan', 'phase', 'phase-pick'].includes(p.type)) return null;
     if (G.answer.you?.away) return { kind: 'away' };
@@ -108,9 +119,22 @@ export function tableSheetDue(G) {
     const a = pendingVote(G.answer, G.mySeat);
     return a ? { kind: 'vote', a } : null;
 }
+// "Welcome" at a table: who is here, that plans are secret and then the chits are drawn, and that you wait for your turn (the solo welcome says "you fight whoever shares your clearing", which is not the story here).
+function tableIntroSheet(G) {
+    const me = G.crew.find(p => p.mine), others = G.crew.filter(p => !p.mine);
+    const gear = G.st.ch.items.length ? ` with ${joinNames(G.st.ch.items.map(i => nameOf(G.data, i).replace(/ (?=\S+$)/, '\u00A0')))}` : ', with no weapon or armor yet';
+    const who = joinNames(others.map(p => `${p.player} (${p.character})`));
+    const pvp = !!G.st.options?.pvp;
+    const body = h('div', { class: 'welcome table-welcome', 'data-welcome': 'table' },
+        h('p', { class: 'ds-voice' }, `You wake at the ${G.st.ch.startDwelling}${gear}. ${lengthLine(G.st)}`.replace(/ (\d+)/g, '\u00A0$1')),
+        h('p', { class: 'ds-voice' }, others.length ? `${who} ${others.length === 1 ? 'shares' : 'share'} this realm with you, on one map.` : 'You share this realm with the others, on one map.'),
+        h('p', { class: 'ds-voice' }, `Each morning you all plan in secret. Then the chits are drawn and the day is played one turn at a time: you wait for yours and watch the others. At night you fight whatever shares your clearing${pvp ? ', and players may charge one another' : '; nobody can attack another player'}.`));
+    return modal(G, `Welcome, ${me?.player ?? G.st.ch.name}`, body, { kind: 'result', eyebrow: 'A shared game', footer: footRow({ primary: primary('Begin', { 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }) }) });
+}
 export function tableSheet(G) {
     const due = tableSheetDue(G);
     if (!due) return null;
+    if (due.kind === 'intro') return tableIntroSheet(G);
     const c = tc(G);
     return due.kind === 'away' ? awaySheet(c) : due.kind === 'welcome' ? welcomeSheet(c, due.rec, () => { markBackSeen(G, due.rec.key); render(G); }) : voteSheet(c, due.a);
 }
@@ -154,16 +178,27 @@ export function sharedRestartSheet(G, p0) {
     const aheadWhy = ahead.length ? `${joinNames(ahead.map(nameOf))} choose${ahead.length === 1 ? 's' : ''} first (the die decided). You may start again as ${G.st.ch.name} now.` : null;
     const dead = fall ? deathCallout({ st: G.st, f: null, k: fall, viewerId: G.st.ch.id, next: 'Choose who returns, below.' })
         : h('div', { class: 'sf-death deathbox me', role: 'alert' }, h('small', {}, `Day ${d.day ?? G.st.day - 1}${d.at ? ` · ${nameOfClearing(d.at)}` : ''}`), h('b', {}, 'You have fallen'), h('span', { class: 'dwho' }, by ? `Slain by the ${by}.` : 'Your character has died.'));
+    // who returns: the wizard's portrait strip and the card of the one picked (QA-133); a character that an earlier seat chooses first is greyed, and says why when tapped
+    const picks = p.characters.map(id => CHARACTERS.find(c => c.id === id) ?? { id, name: G.data.characters[id]?.name ?? id, weight: null, strongest: null, perks: [], starts: [] });
+    const who = picks.find(c => c.id === G.ui.sharedRestartChar) ?? picks[0];
+    const portrait = c => {
+        const dim = !!aheadWhy && c.id !== own, on = G.ui.sharedRestartChar === c.id;
+        return h('button', { type: 'button', class: `ds-portrait${on ? ' on' : ''}${dim ? ' taken' : ''}`, role: 'radio', 'aria-checked': on ? 'true' : 'false', 'aria-disabled': dim ? 'true' : null, 'data-restart-char': c.id,
+            onclick: () => { if (dim) { showToast(G, aheadWhy); return; } G.ui.sharedRestartChar = c.id; G.ui.sharedRestartFlip = false; render(G); } },
+            h('i', {}, h('img', { src: portraitSrc(c.id), alt: '' })), displayName(c.name), dim ? h('span', { class: 'ds-sr' }, 'not yet: someone chooses first') : null);
+    };
+    const card = h('div', { class: 'ds-who restart-who', 'data-who': who.id },
+        h('button', { type: 'button', class: `ds-card-art${G.ui.sharedRestartFlip ? ' back' : ''}`, style: `background-image:url(${cardSrc(who.id)})`, 'data-flip': '', 'aria-label': G.ui.sharedRestartFlip ? 'Turn the card back over' : 'Turn the card over to read its back',
+            onclick: () => { G.ui.sharedRestartFlip = !G.ui.sharedRestartFlip; render(G); } }),
+        h('div', { class: 'ds-who-main' }, h('h2', { class: 'ds-h2 ds-who-name' }, displayName(who.name)),
+            h('div', { class: 'ds-who-tags' }, who.weight ? h('span', { class: 'ds-tag gold' }, who.weight) : null, who.id === own ? h('span', { class: 'ds-tag' }, 'the same again') : null),
+            who.strongest ? h('p', { class: 'ds-meta' }, `Strongest Move chit ${who.strongest}`) : null,
+            who.perks?.length ? h('dl', { class: 'ds-kv' }, who.perks.flatMap(([t, x]) => [h('dt', {}, t), h('dd', {}, x)])) : null));
     const body = h('div', { class: 'restsheet sf-restart', 'data-restart': '' }, dead,
-        askBox('Choose who comes back, and set new goals.', `The others are waiting to begin day ${G.st.day}. Your new character arrives at the Inn today with fresh chits and gear, and ${total} victory points to spend on the weeks that are left.`),
+        askBox('Choose who comes back, and set new goals.', `Your new character arrives at the Inn with fresh chits and gear, and ${total} victory points to spend. The others wait to begin day ${G.st.day}.`),
         order.length > 1 ? h('p', { class: 'ds-meta', 'data-pick-order': '' }, `The die decided who chooses first: ${joinNames(order.map(x => (x === own ? 'you' : nameOf(x))))}.`) : null,
-        dsSect('Who returns'),
-        h('div', { class: 'ds-choices', role: 'radiogroup' }, ...p.characters.map(id => {
-            const dim = !!aheadWhy && id !== own, on = G.ui.sharedRestartChar === id;
-            return h('button', { type: 'button', class: `ds-choice${on ? ' on' : ''}${dim ? ' dim' : ''}`, role: 'radio', 'aria-checked': on, 'aria-disabled': dim ? 'true' : null, 'data-restart-char': id,
-                onclick: () => { if (dim) { showToast(G, aheadWhy); return; } G.ui.sharedRestartChar = id; render(G); } },
-                h('span', { class: 'main' }, h('b', {}, G.data.characters[id]?.name ?? id, id === own ? h('em', {}, 'the same again') : null), dim ? h('span', { class: 'l' }, 'Not yet: someone chooses first.') : null), h('span', { class: 'dot' }));
-        })),
+        h('div', { class: 'ds-portraits', role: 'radiogroup', 'aria-label': 'Who returns' }, ...picks.map(portrait)),
+        card,
         aheadWhy ? h('p', { class: 'ds-hint-line', 'data-hint': 'restart-order' }, aheadWhy) : null,
         dsSect('New goals', `${used} of ${total} points`),
         h('div', { class: 'ds-list' }, ...rows.map(([k, label, f]) => h('div', { class: 'ds-row sf-goal' },
@@ -174,7 +209,7 @@ export function sharedRestartSheet(G, p0) {
                 h('button', { type: 'button', 'aria-label': `More ${label}`, disabled: used >= total || v[k] >= 5, onclick: () => { v[k]++; render(G); } }, '+'))))));
     const foot = footRow({ note: used === total ? 'All points spent.' : `${total - used} left to spend.`,
         primary: primary('Return', { 'data-act': 'restart-go', disabled: used !== total, onclick: () => { const vp = { ...v }, character = G.ui.sharedRestartChar; G.ui.sharedRestartVp = null; G.ui.sharedRestartChar = null; act(G, { type: 'restart', vp, character }); } }) });
-    return modal(G, `${G.st.ch.name} has fallen`, body, { kind: 'result', detent: 'tall', bare: true, footer: foot });
+    return modal(G, 'Who returns', body, { kind: 'result', detent: 'tall', bare: true, footer: foot });
 }
 
 // The end of a shared game: the verdict, every place (a tie is a shared victory), each character's goals, and the realm laid bare (R-19, R-26): app/ui/screens/tableui.js.

@@ -46,9 +46,9 @@ export function pullDown(handle, target, done) {
 // A curse makes a number worthless (Ashes: gold, Disgust: Fame): it is still shown, struck through, so it is plain it cannot be used.
 export const voidBy = (st, stat) => (stat === 'gold' && (st.ch.curses ?? []).includes('Ashes') ? 'Ashes' : stat === 'fame' && (st.ch.curses ?? []).includes('Disgust') ? 'Disgust' : null);
 
-// The picture of an action: the 32px pixel art in art/actions (Enchant is the spell hand, Nothing the barred circle).
-const ACT_ART = { move: 'move', hide: 'hide', search: 'search', trade: 'trade', hire: 'hire', rest: 'rest', alert: 'alert', enchant: 'spell', nothing: 'ban', fly: 'fly', follow: 'follow' };
-export const actArt = a => ACT_ART[a] ?? 'ban';
+// The picture of an action: the 32px pixel art in art/actions (Enchant is the spell hand, Nothing a grey dash).
+const ACT_ART = { move: 'move', hide: 'hide', search: 'search', trade: 'trade', hire: 'hire', rest: 'rest', alert: 'alert', enchant: 'spell', nothing: 'dash', fly: 'fly', follow: 'follow' };
+export const actArt = a => ACT_ART[a] ?? 'dash';
 
 // One line over the tray, 3.2 seconds, gold rule (red when it is a refusal). Never raw engine text.
 export function showToast(G, text, bad = false, ms = 3200) {

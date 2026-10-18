@@ -198,6 +198,7 @@
   "Warhorse": "art/steed_c/warhorse.gif"
  },
  "characters": {
+  "woods-girl": "art/characters/woodsgirl.gif",
   "witch-king": "art/characters/witch_king.gif",
   "berserker": "art/characters/berserker.gif",
   "white-knight": "art/characters/white_knight.gif",

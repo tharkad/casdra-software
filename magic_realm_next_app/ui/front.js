@@ -4,6 +4,7 @@ import { h } from './dom.js';
 import { icon, art } from './icons.js';
 import { sheet, toast } from './ds.js';
 import { styleOf } from './party.js';
+import { displayName } from './names.js';
 
 const cx = (...a) => a.filter(Boolean).join(' ');
 
@@ -14,6 +15,8 @@ export const appEl = () => document.getElementById('app') ?? document.body;
 export const charFile = id => (id === 'woods-girl' ? 'woodsgirl' : String(id ?? '').replace(/-/g, '_'));
 export const portraitSrc = id => `art/characters/${charFile(id)}.png`;
 export const cardSrc = id => `art/characterdetail/${charFile(id)}.jpg`;
+// A character id as the player reads it: 'black-knight' -> 'Black Knight', 'captain' -> 'Captain', 'sorceror' -> 'Sorcerer' (QA-125).
+export const charLabel = id => displayName(String(id ?? '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
 // The round face of a character (history rows, online rows, lobby).
 export const face = id => h('span', { class: 'face' }, id ? art(`characters/${charFile(id)}.png`) : null);
 
@@ -70,7 +73,7 @@ export function switchRow({ title, line, on, onToggle, attrs = {}, info = null, 
     const rule = info ? h('p', { class: 'ds-rule', hidden: true }, info) : null;
     const i = info ? h('button', { type: 'button', class: 'ds-info', 'aria-label': `About ${title}`, onclick: e => { e.stopPropagation(); open = !open; rule.hidden = !open; i.classList.toggle('on', open); } }, icon('info')) : null;
     const row = h('div', { class: 'ds-switch-row', role: 'switch', tabindex: 0, 'aria-checked': on ? 'true' : 'false', ...attrs, onclick: onToggle, onkeydown: e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onToggle(); } } },
-        h('span', { class: 'main' }, h('b', {}, title, i), h('span', { class: 'ds-sw-line' }, line), rule, note ? h('span', { class: 'ds-sw-note' }, note) : null, label ? h('i', { class: 'st' }, on ? label[1] : label[0]) : null),
+        h('span', { class: 'main' }, h('b', {}, title, i), h('span', { class: 'ds-sw-line' }, typeof line === 'string' ? nb(line) : line), rule, note ? h('span', { class: 'ds-sw-note' }, note) : null, label ? h('i', { class: 'st' }, on ? label[1] : label[0]) : null),
         h('span', { class: cx('ds-toggle', on && 'on'), 'aria-hidden': 'true' }));
     return row;
 }

@@ -248,6 +248,18 @@ rule(/^The Chapel lifts your curses/, () => ['The Chapel lifts your curses.', 'P
 rule(/^Curse: (\w[\w ]*?) on you\.?$/, m => curseTale(m[1]));
 rule(/^Curse: (\w[\w ]*?) on (.+?)\.?$/, m => `A curse falls on ${m[2]}: ${m[1]}.`);
 
+// What a loot line says when the Found box beside it names the thing (QA-112): only the act. The box carries the name, so the headline does not say it twice. null when the line is not a loot of a thing.
+export function lootActLine(entry) {
+    const t = bare(entry?.t ?? '');
+    let m = /^(?:Loot|Magic Sight) \([\d+]+\) at (.+?): you take the .+?\.?$/.exec(t);
+    if (m) return m[1] === 'the things on the ground' ? pickV(entry, ['You sift through the things on the ground.', 'You turn over what lies about.']) : pickV(entry, [`You reach into the ${place(m[1])}.`, `You put your hand into the ${place(m[1])}.`, `You dig into the ${place(m[1])}.`]);
+    m = /^(?:Loot|Magic Sight) \([\d+]+\) at (.+?): .+?! Cursed with (\w[\w ]*?)\./.exec(t);
+    if (m) return `You reach into the ${place(m[1])}, and a bad feeling comes with what you draw: ${m[2]}.`;
+    m = /^(.+?) \([\d+]+\): You take the .+?\.?$/.exec(t);
+    if (m) return `You reach into the ${place(m[1])}.`;
+    return null;
+}
+
 // ---- trade and hire
 rule(/^No one here will trade with you/, () => ['Nobody here will deal with you.', 'Nobody here has a thing to trade with you.']);
 rule(/^There is no one here to hire/, () => ['There is no one here to hire.', 'No one here is for hire.']);
@@ -259,7 +271,7 @@ rule(/^The (.+?) (?:refuse to sell|will not sell)\.?$/, m => [`The ${m[1]} turn 
 rule(/^The (.+?) block you(?: \(.*\))?\.?$/, m => [`The ${m[1]} bar your way.`, `The ${m[1]} step in front of you.`]);
 rule(/^You pay to smooth things over; the (.+?) will not deal/, m => `Your coin buys no goodwill: the ${m[1]} will not deal.`);
 rule(/^You turn the offer down/, () => ['You turn the offer down.', 'You shake your head and turn it down.']);
-rule(/^You hire (.+?) for (\d+) gold\.?$/, m => [`${m[1]} takes your ${m[2]} gold and joins you.`, `${m[2]} gold, and ${m[1]} is yours to command.`]);
+rule(/^You hire (.+?) for (\d+) gold\.?$/, m => { const who = m[1].replace(/ (?=#?\d+$)/, '\u00A0'); return [`${who} takes your ${m[2]} gold and joins you.`, `${m[2]} gold, and ${who} is yours to command.`]; });          // (QA-115: a number that ends a name never wraps alone)
 rule(/^You hire (.+?) of the (.+?) for (\d+) days, paying (\d+) gold\.?$/, m => [`${m[1]} of the ${m[2]} signs on for ${m[3]} days, ${m[4]} gold in hand.`, `${m[4]} gold buys you ${m[1]} for ${m[3]} days.`]);
 rule(/^You hire (.+?) for (\d+) days, paying (\d+) gold\.?$/, m => `${cap(m[1])} bends to your will for ${m[2]} days.`);
 rule(/^You extend the hire of (.+?) by (\d+) days, paying (\d+) gold\.?$/, m => `${cap(m[1])} stays on another ${m[2]} days for ${m[3]} gold.`);
@@ -594,8 +606,10 @@ export function calloutLine(c, t = {}) {
     if (c.why && /already called/.test(c.why)) return pickV(e, [`${chitTitle(c)} has called already.`, `${chitTitle(c)} has nothing left to call today.`]);
     return pickV(e, [`${chitTitle(c)}: nothing answers.`, `Nothing answers ${chitTitle(c)} today.`]);
 }
+// A chit is named by what it is (DR-29): "Dank" alone means nothing to the player; "the Dank warning" says what kind of chit it is.
+const chitKindName = c => (c.kind === 'warning' ? `the ${chitTitle(c)} warning` : c.kind === 'sound' ? `the ${chitTitle(c)} sound` : c.kind === 'site' ? `the ${chitTitle(c)}` : chitTitle(c));
 export function quietChitsLine(chits) {
-    const names = [...new Set(chits.map(chitTitle))];
+    const names = [...new Set(chits.map(chitKindName))];
     return names.length ? `${cap(list(names))} ${names.length === 1 ? 'stays' : 'stay'} quiet today.` : '';
 }
 export function nativesLine(n) {

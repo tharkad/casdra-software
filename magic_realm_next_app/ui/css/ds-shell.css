@@ -10,7 +10,8 @@
 /* ---- the strip ---- */
 .ds-strip .menu { position: relative; }
 .ds-strip .pdot.corner { top: 8px; right: 6px; }
-.ds-stat.void { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--danger); opacity: .65; }
+.ds-stat.void { color: var(--ink-3); }                       /* QA-120: a number a curse has made worthless is grey with a skull beside it (a strike through it read as a stray mark) */
+.ds-stat.void .ds-i { opacity: .6; } .ds-stat .voidmark { display: inline-flex; color: var(--danger); } .ds-stat .voidmark .ds-i { width: 14px; height: 14px; opacity: 1; margin-left: 1px; }
 .ds-day span { display: flex; align-items: center; gap: 5px; }
 .ds-day .mdot { width: 8px; height: 8px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .45); }
 .ds-day .cursedmark { display: inline-flex; color: var(--danger); } .ds-day .cursedmark .ds-i { width: 14px; height: 14px; }
@@ -57,7 +58,8 @@
 .ds-sheet-body > .legacy { display: flex; flex-direction: column; gap: 10px; }
 .ds-sheet .legacy h3 { margin: 6px 0 0; font: 600 14px/1.2 var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
 .ds-sheet .legacy p { margin: 4px 0; font: 400 17px/1.35 var(--font-voice); }
-.ds-sheet .legacy .btn { width: 100%; margin-top: 8px; }
+.ds-sheet .legacy .ds-btn.block { margin-top: 8px; }                      /* (DR-5: the last legacy .btn buttons of the play sheets are ds-btn now) */
+.ds-sheet .legacy .row2 { margin-top: 8px; }
 .ds-sheet .peekmap { margin-right: -6px; color: var(--gold); } .ds-sheet .peekmap .ds-i { width: 18px; height: 18px; }
 .ds-sheet .peek-foot { display: none; }
 .ds-sheet[data-detent="peek"] .peek-foot { display: flex; }
@@ -125,3 +127,16 @@
 :is(.sr-math, .sr-parts, .sr-idle, .repstep, .end-idle, .ds-more, .ds-roads) > summary::-webkit-details-marker { display: none; }
 :is(.sr-math, .sr-parts, .sr-idle, .repstep, .end-idle, .ds-more, .ds-roads) > summary::before { content: ""; flex: none; width: 0; height: 0; border-left: 6px solid currentColor; border-top: 5px solid transparent; border-bottom: 5px solid transparent; transition: transform var(--d-fast); }
 :is(.sr-math, .sr-parts, .sr-idle, .repstep, .end-idle, .ds-more, .ds-roads)[open] > summary::before { transform: rotate(90deg); }
+
+/* DR-22: the Wilds line of a new day is read on up to three lines (label and text running on), not cut off after one: it is the beat that says what is prowling. Every later phase has the one-line rule;
+   a longer line is clamped and the Journal (tap) tells it whole. */
+.ds-last.two { height: auto; min-height: 44px; align-items: flex-start; padding-top: 8px; padding-bottom: 6px; }
+.ds-last.two .txt { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.25; display: block; }
+.ds-last.two .txt b { display: inline; margin-right: 8px; }
+.ds-last.two .txt .clamp { display: inline; }
+.ds-last.two .txt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.ds-last.two > .ds-i { margin-top: 2px; }
+/* DR-9: the empty tab's dash is the secondary ink (the tertiary one measured 4.4:1 on the selected tab) */
+.ds-plan .ds-tab:not(.set) small, .ds-plan .ds-tab:not(.set).on small { color: var(--ink-2); }
+/* DR-12: the prose of every sheet (information, results, the end screens) breaks to even out its last line */
+.ds-sheet p, .ds-sheet .ds-row .main span, .ds-sheet .ds-ask span, .ds-end p, .ds-egoal .egn { text-wrap: pretty; }

@@ -22,22 +22,27 @@ export function loadSaved() { try { const s = localStorage.getItem(SAVE_KEY); re
 
 export function clearSaved() { try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ } }
 
-// The unfinished plan of the morning (QA-20): the draft survives a reload, with which phase was open and whether the plan was on screen. One small record next to the save, for THIS game and THIS day only
-// (localStorage is channel-prefixed by channel.js, so the redesign keeps its own). It is gone the moment the day is started.
+// What survives a reload (QA-20, QA-122): the unfinished plan of the morning (the draft, which phase was open, whether the plan was on screen) and the mark of the phase just played (where the score and
+// the counters stood when it began, so its result card still has its chips, its Found box and its rolls). One small record next to the save, for THIS game and THIS day only (localStorage is
+// channel-prefixed by channel.js, so the redesign keeps its own). The draft is gone the moment the day is started; the mark when the next phase is played.
 const UI_KEY = 'mr-ui-v1';
 export function saveUi(G) {
     try {
-        const st = G.st, d = G.ui.draft;
-        if (G.shared || G.race || !st?.session?.id || st.pending?.type !== 'plan' || !d) { localStorage.removeItem(UI_KEY); return; }
-        localStorage.setItem(UI_KEY, JSON.stringify({ session: st.session.id, day: st.day, draft: d, planStep: G.ui.planStep ?? 0, open: G.ui.sheet === 'plan' }));
+        const st = G.st, d = G.ui.draft, rec = { session: st?.session?.id, day: st?.day };
+        if (G.shared || G.race || !rec.session) { localStorage.removeItem(UI_KEY); return; }
+        if (st.pending?.type === 'plan' && d) Object.assign(rec, { draft: d, planStep: G.ui.planStep ?? 0, open: G.ui.sheet === 'plan' });
+        if ((st.pending?.type === 'phase' || st.pending?.type === 'phase-pick') && G.ui.pmark?.day === st.day) rec.pmark = G.ui.pmark;
+        if (rec.draft || rec.pmark) localStorage.setItem(UI_KEY, JSON.stringify(rec)); else localStorage.removeItem(UI_KEY);
     } catch { /* storage may be unavailable */ }
 }
 export function restoreUi(G) {
     try {
         const raw = localStorage.getItem(UI_KEY), u = raw ? JSON.parse(raw) : null, st = G.st;
-        if (!u || G.shared || G.race || u.session !== st?.session?.id || u.day !== st.day || st.pending?.type !== 'plan' || !Array.isArray(u.draft?.slots)) return false;
-        G.ui.draft = u.draft; G.ui.planStep = u.planStep ?? 0; if (u.open) G.ui.sheet = 'plan';
-        return true;
+        if (!u || G.shared || G.race || u.session !== st?.session?.id || u.day !== st.day) return false;
+        let any = false;
+        if (st.pending?.type === 'plan' && Array.isArray(u.draft?.slots)) { G.ui.draft = u.draft; G.ui.planStep = u.planStep ?? 0; if (u.open) G.ui.sheet = 'plan'; any = true; }
+        if ((st.pending?.type === 'phase' || st.pending?.type === 'phase-pick') && u.pmark?.day === st.day) { G.ui.pmark = u.pmark; any = true; }
+        return any;
     } catch { return false; }
 }
 

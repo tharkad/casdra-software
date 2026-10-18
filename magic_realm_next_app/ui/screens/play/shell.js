@@ -78,7 +78,7 @@ export function mapModel(G) {
     }
     return {
         tiles: G.data.tiles, art: G.data.art, placements: G.st.placements, side: 'normal', showHidden: false, discovered: new Set(G.st.ch.discovered.paths),
-        chitsByTile, tokens, hero: G.st.ch.onRoad || G.st.ch.dead ? null : G.st.ch.at, heroHidden: G.st.ch.hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
+        chitsByTile, tokens, hero: G.st.ch.onRoad || G.st.ch.dead || G.st.ch.flying ? null : G.st.ch.at, heroAir: !G.st.ch.dead && G.st.ch.flying ? G.st.ch.flying.tile : null, heroHidden: G.st.ch.hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
         onTap: id => {
             if (G.ui.sheet === 'plan' && G.st.pending?.type === 'plan' && G.ui.draft) {
                 // planning: a tap on a clearing next to where this phase starts sets the move; any other tap just looks at that clearing
@@ -106,6 +106,9 @@ export function mapModel(G) {
         },
     };
 }
+
+// Where he is for the camera: his clearing, the near end of the road he fled along, or (in the air) the tile he is over, whose id the map also takes.
+const heroSpot = G => (G.st.ch.flying ? G.st.ch.flying.tile : G.st.ch.onRoad ? G.st.ch.onRoad.from : G.st.ch.at);
 
 // ---- the map's overlay (rings, the route, the "why" pin) and its camera: the vocabulary of mapview.js (docs/design/redesign/MAP-API.md) ----
 // Why a road he could see is not open to this Move: said in one sentence on a pin when he taps it (the ring is dashed).
@@ -147,7 +150,8 @@ function overlayFor(G) {
             for (const id of dimWhy(G, i).keys()) rings.push({ id, kind: 'illegal' });
         }
     } else if (p?.type === 'phase-pick' && G.ui.pickAct === 'move') {
-        for (const id of p.moves ?? []) rings.push({ id, kind: 'legal' });
+        const sug = st.planFull?.[st.turn?.i]; const sugTo = sug?.act === 'move' ? sug.to : null;          // (the suggested destination is the filled ring: the primary names it)
+        for (const id of p.moves ?? []) rings.push({ id, kind: id === sugTo ? 'chosen' : 'legal' });
     } else if (p?.type === 'phase' && st.plan?.[p.i]?.act === 'move' && st.plan[p.i].to) {
         route = [hero, st.plan[p.i].to]; rings.push({ id: st.plan[p.i].to, kind: 'legal' });
     }
@@ -170,7 +174,7 @@ function syncCamera(G, force = false) {
     const sh = [...G.layer.querySelectorAll('.ds-sheet')].at(-1);
     if (!G.map || !sh) { if (G.ui.camKey) { G.ui.camKey = null; G.map?.release(); } return; }
     const inset = Math.max(0, Math.round(sh.offsetHeight - (G.layer.getBoundingClientRect().bottom - G.mapBox.getBoundingClientRect().bottom)));
-    const hero = G.st.ch.onRoad ? G.st.ch.onRoad.from : G.st.ch.at, id = G.ui.sheet === 'clearing' && G.ui.sel ? G.ui.sel : hero, key = `${id}|${inset}`;
+    const hero = heroSpot(G), id = G.ui.sheet === 'clearing' && G.ui.sel ? G.ui.sel : hero, key = `${id}|${inset}`;
     if (key === G.ui.camKey && !force) return;
     G.ui.camKey = key; G.map.focus(id, { insetBottom: inset });
 }
@@ -185,23 +189,29 @@ function renderStrip(G) {
     const tot = vpNow(G), dead = G.st.period === 'over' && G.st.ch.dead;
     // The score is counted from the shortfall of each goal, so on the first day it is a large negative number that nothing has earned yet. It stays true (the goals sheet and the end screen show it); the chip
     // says "0 of N" in a neutral colour until the first night has passed (QA-19).
-    const goalVp = Object.values(G.st.ch.vp ?? {}).reduce((a, b) => a + (Number(b) || 0), 0), early = G.st.day === 1 && G.st.period !== 'over' && !G.shared && !G.race && goalVp > 0;
-    const el = strip({ day: G.st.day, total: lastDayOf(G.st), phase: G.st.period === 'over' ? 'finished' : G.st.period, gold: G.st.ch.gold, fame: total('fame', G.st.ch.fame), notor: total('notoriety', G.st.ch.notoriety),
-        vp: early ? `0/${goalVp}` : tot > 0 ? `+${tot}` : String(tot).replace('-', '\u2212'), vpc: dead ? 'bad' : early ? 'idle' : tot > 0 ? 'pos' : 'neg',
+    const goalVp = Object.values(G.st.ch.vp ?? {}).reduce((a, b) => a + (Number(b) || 0), 0), early = G.st.day === 1 && G.st.period !== 'over' && goalVp > 0;          // (a table and a race too: the sealed goals are in the viewer's own st.ch.vp: QA-123)
+    // DR-14: the strip does not run ahead of the Day Result. While the morning report is on screen it keeps the day, the phase and the numbers it showed at midnight; the new day shows when it is closed.
+    const cur = { day: G.st.day, total: lastDayOf(G.st), phase: G.st.period === 'over' ? 'finished' : G.st.period, gold: G.st.ch.gold, fame: total('fame', G.st.ch.fame), notor: total('notoriety', G.st.ch.notoriety),
+        vp: early ? `0/${goalVp}` : tot > 0 ? `+${tot}` : String(tot).replace('-', '\u2212'), vpc: dead ? 'bad' : early ? 'idle' : tot > 0 ? 'pos' : 'neg', early, tot };
+    const reportUp = !G.shared && G.st.pending?.type === 'plan' && G.st.day > 1 && G.ui.reportedDay !== G.st.day && G.ui.sheet !== 'plan';
+    const held = reportUp && G.ui.stripSnap && G.ui.stripSnap.day === G.st.day - 1 ? { ...G.ui.stripSnap, phase: 'midnight' } : null;
+    if (!reportUp) G.ui.stripSnap = cur;
+    const f = held ?? cur;
+    const el = strip({ day: f.day, total: f.total, phase: f.phase, gold: f.gold, fame: f.fame, notor: f.notor, vp: f.vp, vpc: f.vpc,
         attrs: {
             menu: { 'data-act': 'menu', onclick: () => { G.ui.sheet = G.ui.sheet === 'menu' ? null : 'menu'; render(G); } },
             day: { 'data-act': 'calendar', role: 'button', tabindex: '0', 'aria-label': 'Calendar and the colours of magic', onclick: () => { G.ui.sheet = G.ui.sheet === 'calendar' ? null : 'calendar'; render(G); } },
             stats: { 'aria-label': 'Fame, Notoriety and Gold: open your kit', onclick: () => { G.ui.sheet = G.ui.sheet === 'char' ? null : 'char'; render(G); } },
-            vp: { 'data-act': 'vp', role: 'button', tabindex: '0', 'aria-label': early ? `Victory points: none scored yet; your goals are worth ${goalVp}. Tap for your goals` : `Victory points: ${tot}. Tap for your goals`, onclick: () => { G.ui.sheet = G.ui.sheet === 'score' ? null : 'score'; render(G); } },
+            vp: { 'data-act': 'vp', role: 'button', tabindex: '0', 'aria-label': f.early ? `Victory points: none scored yet; your goals are worth ${goalVp}. Tap for your goals` : `Victory points: ${f.tot}. Tap for your goals`, onclick: () => { G.ui.sheet = G.ui.sheet === 'score' ? null : 'score'; render(G); } },
         } });
     if (!timed(G.st)) el.querySelector('.ds-day b small')?.remove();
     // legacy hooks the tests read
     el.querySelector('.ds-day').classList.add('daybox', ...(magicToday.length ? ['magic'] : []));
-    el.querySelector('.ds-stats').classList.add('stats'); el.querySelector('.ds-vp').classList.add('vpchip', ...(tot < 0 && !early ? ['neg'] : []));
+    el.querySelector('.ds-stats').classList.add('stats'); el.querySelector('.ds-vp').classList.add('vpchip', ...(f.tot < 0 && !f.early ? ['neg'] : []));
     // a curse takes the use of a number away: it stays on screen, struck through (the Kit and the curse sheet say why)
     for (const [kind, cls] of [['gold', 'gold'], ['fame', 'fame']]) {
         const w = voidBy(G.st, kind), s = el.querySelector(`.ds-stat.${cls}`); s.dataset.stat = kind;
-        if (w) { s.classList.add('void'); s.title = `Worthless: the ${w} curse`; }
+        if (w) { s.classList.add('void'); s.title = `Worthless: the ${w} curse`; s.append(h('i', { class: 'voidmark', 'aria-label': `worthless: ${w} curse` }, dsIcon('skull'))); }
     }
     el.querySelector('.ds-stat.notor').dataset.stat = 'notoriety';
     // the day's colours of magic and a curse, as two small marks under the phase word; the Journal says what they mean
@@ -238,7 +248,7 @@ export function render(G) {
     // the map last: the tray has its height now, so the map box has its own
     G.map.set(model);
     G.map.setOverlay(overlayFor(G));
-    const hero = G.st.ch.onRoad ? G.st.ch.onRoad.from : G.st.ch.at;
+    const hero = heroSpot(G);
     const moved = hero !== G.lastHero;
     if (moved) { const first = G.lastHero === null; G.lastHero = hero; G.map.focus(hero, undefined, !first); }
     revealChoices(G, hero);
@@ -304,7 +314,7 @@ export function wireShell(G) {
     doneLoading(G); G.mapBox.append(b);
     try { if (history.state?.mrSheet) history.replaceState(null, ''); } catch { /* ignore */ }               // (a reload with a sheet open keeps that entry's mark: the base screen has none)
     G.ui.popHandler = () => onBack(G); addEventListener('popstate', G.ui.popHandler);
-    const hero = () => (G.st.ch.onRoad ? G.st.ch.onRoad.from : G.st.ch.at);
+    const hero = () => heroSpot(G);
     const fitAll = () => G.map.fit(), me = () => G.map.focus(hero(), { k: Math.max(G.map.camera().k ?? 1, 1.5), animate: true });
     b.addEventListener('pointerdown', () => { long = false; clearTimeout(timer); timer = setTimeout(() => { long = true; (b.dataset.mode === 'fit' ? me : fitAll)(); setTimeout(() => syncMapButton(G), 500); }, 520); });
     for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => clearTimeout(timer));

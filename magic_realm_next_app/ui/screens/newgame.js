@@ -7,7 +7,7 @@ import { newGame as startState } from '../../engine/setup.js';
 import { nameOfClearing } from '../../engine/world.js';
 import { createRace, joinRace, peekRace, serverUrl } from '../online.js';
 import { createShared, joinShared, chooseShared } from '../shared_online.js';
-import { bar, cardSrc, foot, openSheet, portraitSrc, sum, switchRow } from '../front.js';
+import { bar, cardSrc, foot, nb, openSheet, portraitSrc, sum, switchRow } from '../front.js';
 import { spellLine, COLOR_ORDER, COLOR_FILE, COLOR_DOT } from '../start_spells.js';
 import { realmThumb } from './realm.js';
 
@@ -41,8 +41,8 @@ export function summary(g) {
     return `${len} · ${vp}`;
 }
 
-const q = text => h('p', { class: 'ds-voice lg ds-q' }, text);
-const why = text => h('p', { class: 'ds-why ds-qwhy' }, text);
+const q = text => h('p', { class: 'ds-voice lg ds-q' }, nb(text));
+const why = text => h('p', { class: 'ds-why ds-qwhy' }, nb(text));
 
 const stepper = (value, unit, min, max, set, { big = false } = {}) => h('div', { class: `ds-stepper${big ? ' ds-stepper-goal' : ''}` },
     h('button', { type: 'button', 'aria-label': 'Fewer', disabled: value <= min, onclick: e => { e.stopPropagation(); set(value - 1); } }, icon('minus')),
@@ -53,7 +53,7 @@ function lengthCard(g, opt, redraw) {
     const on = g.length === opt.id;
     return [h('button', { type: 'button', class: `ds-choice${on ? ' on' : ''}`, role: 'radio', 'aria-checked': on ? 'true' : 'false', 'data-length': opt.id, onclick: () => { g.length = opt.id; redraw(); } },
         h('span', { class: 'dot' }),
-        h('span', { class: 'main' }, h('b', {}, opt.title, h('em', {}, opt.badge(g, on))), h('span', { class: 'l' }, opt.line))),
+        h('span', { class: 'main' }, h('b', {}, opt.title, h('em', {}, opt.badge(g, on))), h('span', { class: 'l' }, nb(opt.line)))),
     on && opt.id === 'custom' ? h('div', { class: 'ds-choice-extra' }, stepper(g.weeks, w => (w === 1 ? 'week' : 'weeks'), 1, 12, v => { g.weeks = v; redraw(); }), why(`${g.weeks + 1} victory points to spend: one for each week, plus one.`)) : null,
     on && opt.id === 'sudden' ? h('div', { class: 'ds-choice-extra' }, stepper(g.suddenVp, () => 'victory points', 1, 12, v => { g.suddenVp = v; redraw(); }), why('The points you spread over Great Treasures, Spells, Fame, Notoriety and Gold.')) : null];
 }
@@ -140,7 +140,7 @@ function spellsBlock(g, who, redraw) {
         const on = chosen.includes(sp.id), file = COLOR_FILE[sp.color] ?? 'white';
         return h('div', { class: `ds-row ds-spellrow${on ? ' sel' : ''}`, role: 'checkbox', tabindex: 0, 'aria-checked': on ? 'true' : 'false', 'data-spell': sp.id, onclick: () => toggle(sp), onkeydown: e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(sp); } } },
             h('span', { class: 'art ds-spellart' }, art(`colormagic/${file}chit.gif`, 'ds-px')),
-            h('span', { class: 'main' }, h('b', {}, sp.name, h('span', { class: 'ds-tag' }, h('i', { class: `ds-dot ${COLOR_DOT[sp.color] ?? 'white'}` }), `Type ${sp.type}`)), h('span', {}, spellLine(sp.id) || sp.duration)),
+            h('span', { class: 'main' }, h('b', {}, sp.name, h('span', { class: 'ds-tag' }, h('i', { class: `ds-dot ${COLOR_DOT[sp.color] ?? 'white'}` }), `Type ${sp.type}`)), h('span', {}, nb(spellLine(sp.id) || sp.duration))),
             h('button', { type: 'button', class: 'ds-info ds-spellinfo', 'aria-label': `The printed card for ${sp.name}`, onclick: e => { e.stopPropagation(); spellCard(sp); } }, icon('info')),
             h('span', { class: 'ds-check' }, icon('check')));
     };
@@ -153,7 +153,7 @@ function spellCard(sp) {
     let close = () => {};
     const full = CARDTEXT[sp.id] ?? '';
     close = openSheet(sheet({ eyebrow: `Type ${sp.type} · ${sp.color ?? 'any colour'} · ${sp.duration}`, title: sp.name, detent: 'half', onClose: () => close(), attrs: { 'data-sheet': 'spell' },
-        body: [spellLine(sp.id) ? h('p', { class: 'ds-voice lg' }, spellLine(sp.id)) : null, full ? h('p', { class: 'ds-text ds-dim ds-printed' }, full) : null] }));
+        body: [spellLine(sp.id) ? h('p', { class: 'ds-voice lg' }, nb(spellLine(sp.id))) : null, full ? h('p', { class: 'ds-text ds-dim ds-printed' }, full) : null] }));
 }
 
 function charsStep(g, redraw, joinNote = null) {
@@ -195,7 +195,7 @@ function goalsStep(g, redraw, online) {
     return [q(who.starts.length > 1 ? 'Where do you begin?' : `Where ${who.her ? 'she' : 'he'} begins`),
         h('div', { class: 'ds-choices', role: 'radiogroup', 'aria-label': 'Starting place' }, who.starts.map(d => h('button', { type: 'button', class: `ds-choice${g.dwelling === d ? ' on' : ''}`, role: 'radio', 'aria-checked': g.dwelling === d ? 'true' : 'false', 'data-dwelling': d,
             onclick: () => { g.dwelling = d; redraw(); } },
-            h('span', { class: 'dot' }), h('span', { class: 'main' }, h('b', {}, DWELL_NAME[d] ?? d, places?.[d] ? h('em', {}, places[d]) : null), h('span', { class: 'l' }, dwellingBrief(d, who)))))),
+            h('span', { class: 'dot' }), h('span', { class: 'main' }, h('b', {}, DWELL_NAME[d] ?? d, places?.[d] ? h('em', {}, places[d]) : null), h('span', { class: 'l' }, nb(dwellingBrief(d, who))))))),
         who.starts.length === 1 ? why(`The ${who.name} has only the ${who.starts[0]} on ${who.her ? 'her' : 'his'} character card.`) : null,
         sect('Your goals', `${total} points to spend`),
         g._shared ? h('p', { class: 'ds-why ds-qwhy', 'data-sealed': '' }, 'Your goals are sealed: the others see them only when the game is over.') : null,
@@ -334,7 +334,7 @@ export function newGameScreen(ctx) {
         }
         return null;
     }
-    const goalsLine = () => GOAL_ORDER.filter(k => g.vp[k]).map(k => `${g.vp[k]} ${VP_ROWS.find(r => r.k === k).label.replace('Great treasures', 'Great treasure')}`).join(', ');
+    const goalsLine = () => GOAL_ORDER.filter(k => g.vp[k]).map(k => `${g.vp[k]}\u00A0${VP_ROWS.find(r => r.k === k).label.replace('Great treasures', 'Great treasure')}`).join(', ');
 
     function build() {
         const last = g.step === STEPS.length - 1, n = STEPS.length - first, at = g.step - first + 1;
@@ -348,7 +348,7 @@ export function newGameScreen(ctx) {
         if (g.note) leftEl = sum(g.note);
         else if (stop) leftEl = sum(h('b', { class: 'bad' }, stop));
         else if (g.step === 2 && who?.spells) leftEl = sum(h('b', { class: 'gold' }, `Spells ${(g.spells ?? []).length} of ${who.spells.n}`));
-        else if (last) leftEl = sum('Goals: ', h('b', {}, goalsLine() || 'none'));
+        else if (last) leftEl = sum('Goals:\u00A0', h('b', {}, goalsLine() || 'none'));
         else if (online?.mode === 'join' && g.race) leftEl = sum(`${summary(g)} · with ${g.race.players.join(', ')}${g.race.open ? ` · ${g.race.open === 1 ? 'one seat' : `${g.race.open} seats`} open` : ''}`);
         else if (g.step === 0 && !online) leftEl = h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'quick', onclick: start }, 'Quick start');
         else leftEl = h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'back', onclick: back }, 'Back');

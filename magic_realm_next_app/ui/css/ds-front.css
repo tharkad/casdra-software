@@ -13,7 +13,8 @@
 .ds-qwhy { margin: -4px 0 10px; }
 .ds-sheet-lede { margin: 4px 0 8px; }
 .ds-sheet-line { margin: 0 0 6px; }
-.ds-slot { min-height: 16px; margin: -2px 0 0; }                           /* a reserved line for a message, so the buttons never jump (review FD-22) */
+.ds-why-slot { min-height: 16px; margin: 8px 0 0; }                         /* a reserved line for a message, so the buttons never jump (review FD-22); not `.ds-slot`: that is the Kit's equipment cell (QA-127, DR-10) */
+.ds-why-slot:empty { border: 0; background: none; }
 
 /* ---- the title ---- */
 .ds-title-head { flex: none; padding-top: 5vh; text-align: center; }
@@ -30,6 +31,9 @@
 .ds-wordmark .b { display: block; margin-top: 6px; font: 700 clamp(46px, 15vw, 66px)/1 var(--font-display); letter-spacing: .06em; background: linear-gradient(180deg, #f6dc8e 0%, #d9b45a 55%, #a87a22 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 .ds-tagline { margin: 14px 0 0; text-align: center; color: var(--ink-2); font-size: 18px; }
 .ds-gear { position: absolute; right: 8px; top: 6px; z-index: 2; }
+.ds-grow:has(> .ds-title-say) { position: relative; }
+.ds-title-say { position: absolute; left: 0; right: 0; bottom: 12px; margin: 0; padding: 10px 14px; box-sizing: border-box; border-radius: var(--r-md); border: 1px solid var(--line-2); border-left: 3px solid var(--danger); background: rgba(21, 25, 37, .97); box-shadow: var(--shadow-2); font: 500 15px/1.3 var(--font-ui); color: var(--ink); visibility: hidden; pointer-events: none; z-index: 3; }   /* DR-10: the answer to the dim Play online floats above the buttons and moves nothing */
+.ds-title-say.on { visibility: visible; }
 .ds-title-nav { flex: none; display: flex; flex-direction: column; gap: 12px; padding-bottom: 12px; }
 .ds-continue { min-height: 60px; }
 .ds-continue small { color: #4a3a12; font-size: 14px; opacity: 1; }
@@ -233,3 +237,7 @@
 .realm .sheet .sheet-head span { color: var(--ink-2); font-size: 15px; }
 .realm .sheet .hint { color: var(--ink-2); font-size: 15px; }
 .roads { margin: 0; padding-left: 20px; font-family: var(--font-voice); font-size: 17px; line-height: 1.4; }
+
+/* ---- G3 (fix wave 2) ---- */
+/* no one-word last lines on the front door (DR-12): the strings bind their last two words with a no-break space, and `pretty` balances what is left where the browser knows it */
+.ds-title :where(p, .sum, .l, .ds-sw-line, .ds-why, .ds-meta, .ds-text, .ds-ask span, .ds-ask b) { text-wrap: pretty; }

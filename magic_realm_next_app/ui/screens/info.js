@@ -101,7 +101,7 @@ export function settingsScreen(ctx) {
                 h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Reading')),
                 field('Tell it as', seg([['story', 'Story'], ['detail', 'Detail']], voice(), v => { setVoice(v); redraw(); }, { label: 'Tell it as', attrOf: id => ({ 'data-voice-pick': id }) }),
                     { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'The Story is short and told in the world’s voice; Detail adds every number.') }),
-                switchRow({ title: 'Calm motion', line: 'No gliding or flipping. The game follows your phone’s setting unless you turn this on.', on: calm(), label: null, attrs: { 'data-option': 'calm' }, onToggle: () => { setCalm(!calm()); redraw(); } }),
+                switchRow({ title: 'Calm motion', line: 'No gliding or flipping. The game follows your phone’s setting unless you turn this on.', on: calm(), attrs: { 'data-option': 'calm' }, onToggle: () => { setCalm(!calm()); redraw(); } }),
                 h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Online')),
                 field('Your name', nameIn),
                 h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'This device')),

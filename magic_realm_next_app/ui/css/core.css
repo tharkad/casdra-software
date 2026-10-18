@@ -337,3 +337,12 @@ html[data-voice-mode="story"] [data-v="detail"], html[data-voice-mode="detail"] 
 /* ---- brief rules the mockup's numbers break (the brief wins): no text under 12px (chit word, counter label, tab count above were 11), and every target 44 ---- */
 .ds-plan-ask .ds-btn { position: relative; }
 .ds-plan-ask .ds-btn::after { content: ""; position: absolute; inset: -4px; }     /* 36px button, 44px hit area */
+
+/* G1: "Nothing" is a grey dash (icons.js actIcon('dash')), not the red prohibition sign; it takes the place of the picture in a pip, a chip, a tab */
+.ds-dash { display: inline-grid; place-items: center; flex: none; color: var(--ink-3); }
+.ds-dash .ds-i { width: 70%; height: 70%; stroke-width: 2.5; }
+.ds-pip .ds-dash { position: relative; opacity: .9; } .ds-pip.done .ds-dash { opacity: .5; } .ds-pip.empty .ds-dash { opacity: 0; }
+.ds-act.dim .ds-dash { opacity: .5; }
+
+/* DR-12: no last line of one word: running text breaks to even out its last line (the nbsp in the strings binds numbers, names and "in secret") */
+.ds-voice, .ds-meta, .ds-lead-text, .ds-why, .ds-ask span, .ds-hint-line, .ds-opt .main span, .ds-plan-ask { text-wrap: pretty; }

@@ -71,8 +71,10 @@ export function oneLine(G, it, { packHorse = false } = {}) {
 export const weightWord = (G, it) => WEIGHT_WORDS[weightOf(G.data, it)] ?? '';
 
 // The gold an item fetches, or that number struck through while the Ashes curse makes gold worthless (the number is still information).
-export function goldEl(G, n, { unit = 'g' } = {}) {
-    return voidBy(G.st, 'gold') ? h('s', { class: 'void', title: 'Worthless: the Ashes curse' }, `${n}${unit}`) : `${n}${unit}`;
+// DR-6: never "12g". In running text pass `unit: ' Gold'` ("12 Gold"); in a row's price slot (no unit) it is the coin glyph and the number, which reads as Gold and fits.
+export function goldEl(G, n, { unit = null } = {}) {
+    const body = unit ? `${n}${unit}` : h('span', { class: 'kit-gold', 'aria-label': `${n} Gold` }, icon('coin'), String(n));
+    return voidBy(G.st, 'gold') ? h('s', { class: 'void', title: 'Worthless: the Ashes curse' }, body) : body;
 }
 export const worthOf = (G, it) => priceOf(G.data, it);
 

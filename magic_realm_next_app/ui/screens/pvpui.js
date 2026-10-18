@@ -5,6 +5,8 @@
 //   reveal      the round between characters: result first, who went for whom, the order of blows, blow by blow
 import { h } from '../dom.js';
 import { btn, primary } from '../ds.js';
+import { icon } from '../icons.js';
+import { fixNames } from '../names.js';
 import { isStory } from '../voice.js';
 import { lineFor } from '../storyvoice.js';
 import { askBox, gainChip, pcEl } from '../shared_ui.js';
@@ -12,7 +14,7 @@ import { joinList } from '../fight.js';
 import { foeCard, confirmBox, needsConfirm } from '../combat/shared.js';
 import { chargeModel, spoilsText, blowStory, missStory, inOrder, pvpHeadline } from '../pvp.js';
 
-const nb = s => String(s).replace(/ (?=\d)/g, '\u00A0');
+const nb = s => fixNames(String(s)).replace(/ (?=\d)/g, '\u00A0');          // (the spelling of a name is one thing everywhere: QA-125)
 const personOf = (f, id) => f.members.find(m => m.id === id)?.person ?? null;
 const tag = (text, cls = '', attrs = {}) => h('span', { class: `ds-tag sf-chip${cls ? ` ${cls}` : ''}`, ...attrs }, nb(text));
 export { foeCard, confirmBox, needsConfirm };
@@ -40,24 +42,33 @@ export function chargeBody({ st, data, p, ui, render, act, f }) {
     const body = [
         askBox(`Round ${p.round}: do you attack someone?`,
             canCharge ? 'A charge is your Encounter action. Everyone sees it made, the one charged may answer only with faster chits, and you may strike nobody else this round. Your secret play comes later.'
-                : 'You cannot charge this round (see why below), but you may still name someone in the secret plays that follow, and send your hirelings.'),
-        ...(f.charges ?? []).filter(x => x.on.mine).map(x => h('p', { class: 'ds-hint-line bad', 'data-pv-charged-me': x.by.id }, nb(`${x.by.player} has charged you with a Move chit of time ${x.time}. In the Encounter step your Fight, Move and Fly chits must be faster than ${x.time}.`))),
+                : 'You cannot charge this round, but you may still name someone in the secret plays that follow, and send your hirelings.'),
+        ...(f.charges ?? []).filter(x => x.on.mine).map(x => h('p', { class: 'ds-hint-line bad', 'data-pv-charged-me': x.by.id }, nb(`${x.by.player} has charged you: in the Encounter step only chits faster than their charge may answer.`))),
         news.length ? h('p', { class: 'ds-hint-line pv-news', 'data-pv-news': '' }, h('b', {}, 'Said so far.'), ' ', news.join(' ')) : null,
         model.hidden ? h('p', { class: 'ds-hint-line bad', 'data-sf-hidden-charge': '' }, 'You are hidden. Charging gives you away.') : null,
         h('div', { class: 'ds-list pv-foes', role: 'radiogroup', 'aria-label': 'Whom you may charge', 'data-pv-targets': '' },
             ...model.targets.map(t => foeCard({ facts: t, person: personOf(f, t.id), on: c.target === t.id, data: { 'data-target': t.id },
                 onclick: () => { c.target = c.target === t.id ? null : t.id; c.sure = false; render(); } }))),
     ];
-    // the Move chit that makes the charge, and why the others cannot
+    // the Move chit that makes the charge, and why the others cannot. One plain sentence; the reasons, chit by chit, sit behind "Why?" (QA-130)
     if (canCharge || model.chits.rows.length) {
+        const gate = model.chits.slowest < 99
+            ? `A charge needs a Move chit strictly faster than everything holding you back (${model.chits.gateText ?? `time ${model.chits.slowest}`}), and strong enough to carry all you own.`
+            : 'A charge needs a Move chit strong enough to carry all you own; no creature is on your sheet to hold it back.';
+        const no = model.chits.rows.filter(r => !r.ok), byWhy = new Map();
+        for (const r of no) byWhy.set(r.why, [...(byWhy.get(r.why) ?? []), r.text]);          // (one line for every reason, not one bracket for every chit)
+        const chargedBy = (f.charges ?? []).find(x => x.on.mine);
+        const notYet = no.length ? h('p', { class: 'cb-hint pv-nochit', 'data-pv-nochit': '' }, `Not available: ${joinList([...byWhy].map(([w, list]) => `${joinList(list)} (${w})`))}.`) : null;
+        // (a charge that can be made says its gate in the open; one that cannot keeps the gate and the list behind "Why?")
+        const why = canCharge ? (notYet ? h('details', { class: 'pv-why', 'data-pv-why': '' }, h('summary', {}, h('b', {}, 'The other chits'), icon('down')), notYet) : null)
+            : h('details', { class: 'pv-why', 'data-pv-why': '' }, h('summary', {}, h('b', {}, 'Why?'), icon('down')), h('p', { class: 'cb-hint' }, gate), notYet);
         body.push(h('div', { class: 'pv-chits', 'data-pv-chits': '' },
-            h('span', { class: 'ds-eyebrow' }, canCharge ? (tgt ? `Charge ${tgt.player} with` : 'The Move chit that would carry a charge') : 'No Move chit can make a charge'),
-            h('p', { class: 'cb-hint' }, model.chits.slowest < 99
-                ? `A charge needs a Move chit strictly faster than everything holding you back (${model.chits.gateText ?? `time ${model.chits.slowest}`}), and strong enough to carry all you own.`
-                : 'A charge needs a Move chit strong enough to carry all you own; no creature is on your sheet to hold it back.'),
+            canCharge ? h('span', { class: 'ds-eyebrow' }, tgt ? `Charge ${tgt.player} with` : 'The Move chit that would carry a charge')
+                : h('p', { class: 'pv-nocharge' }, chargedBy ? `None of your Move chits is faster than ${chargedBy.by.player}’s charge.` : 'None of your Move chits can make a charge.'),
+            canCharge ? h('p', { class: 'cb-hint' }, gate) : null,
             canCharge ? h('div', { class: 'cb-chits', 'data-scope': '' }, ...usable.map(r => h('button', { type: 'button', class: `ds-chit move${c.chit === r.id ? ' sel' : ''}`, 'data-chit': r.id, 'aria-pressed': c.chit === r.id ? 'true' : 'false', onclick: () => { c.chit = r.id; render(); } },
                 h('span', {}, chitFace(r.chit)), h('small', {}, '*'.repeat(r.chit.effort ?? 0) || 'MOVE')))) : null,
-            model.chits.rows.some(r => !r.ok) ? h('p', { class: 'cb-hint pv-nochit', 'data-pv-nochit': '' }, `Not available: ${joinList(model.chits.rows.filter(r => !r.ok).map(r => `${r.text} (${r.why})`))}.`) : null));
+            why));
     }
     // the consequences, in plain words
     if (charging) {
@@ -99,10 +110,10 @@ export function chargeBody({ st, data, p, ui, render, act, f }) {
 
 // ---- the death callout ----
 /** The big callout for a character who has fallen. `k` is a kill (pvp.js); `viewerId` the viewer's character. Nothing here is quieter than the rest of the screen on purpose. */
-export function deathCallout({ st, f, k, viewerId, round = null, compact = false, next: nextText = null }) {
+export function deathCallout({ st, f, k, viewerId, round = null, compact = false, bare = false, next: nextText = null }) {
     const v = k.victim, mineV = v.id === viewerId, killers = k.killers ?? [], mineK = killers.some(x => x.id === viewerId);
     const killerP = joinList(killers.map(x => x.player)), killerBoth = joinList(killers.map(x => `${x.player}’s ${x.character}`));
-    const who = mineV ? 'You have fallen.' : `${v.player}’s ${v.character} has fallen.`;
+    const who = mineV ? 'You have fallen.' : fixNames(`${v.player}’s ${v.character} has fallen.`);
     const by = !killers.length ? (k.killerName ? `Struck down by ${k.creature ? `the ${k.killerName}` : k.killerName}.` : 'Struck down.')
         : mineV ? `${killerBoth}${k.hired ? '’s hireling' : ''} struck you down${round ? ` in round ${round}` : ''}.`
             : mineK ? `You struck down ${v.player}’s ${v.character}${round ? ` in round ${round}` : ''}.`
@@ -112,8 +123,9 @@ export function deathCallout({ st, f, k, viewerId, round = null, compact = false
     let next = mineV ? 'You return at the next Birdsong, with a new character and new goals. Your Fame is lost with this one.' : `${v.player} returns at the next Birdsong, with a new character.`;
     if (nextText) next = nextText;
     const chips = mineK || (!mineV && killers.length) ? [['notor', k.notoriety], ['gold', k.gold]].filter(([, n]) => n).map(([n, val]) => gainChip(n, val, mineK)) : [];
-    return h('div', { class: `sf-death pv-death${mineV ? ' me' : ''}${compact ? ' compact' : ''}`, role: 'alert', 'data-death': v.id, 'data-victim': v.id },
-        h('div', { class: 'pv-dhead' }, v.person ? pcEl({ ...v.person, dead: true }, { size: 40 }) : null,
+    return h('div', { class: `sf-death pv-death${mineV ? ' me' : ''}${compact ? ' compact' : ''}${bare ? ' bare' : ''}`, role: 'alert', 'data-death': v.id, 'data-victim': v.id },
+        // `bare`: the sheet that holds the callout is already titled "You have fallen": no second heading, just the cause, what was taken and what comes next (QA-106)
+        bare ? null : h('div', { class: 'pv-dhead' }, v.person ? pcEl({ ...v.person, dead: true }, { size: 40 }) : null,
             h('span', { class: 'pv-dtitle' }, h('small', {}, 'A character has fallen'), h('b', {}, who))),
         h('p', { class: 'dwho pv-dby' }, nb(by)),
         takes ? h('p', { class: 'pv-dtake' }, nb(takes)) : null,

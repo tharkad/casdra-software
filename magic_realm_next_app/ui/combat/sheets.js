@@ -61,7 +61,7 @@ export function encounterSheet(X) {
     const o = encounterOptions(st, data);
     const round = p.spellOnly ? 'Quiet evening' : `Round ${c.round} · Encounter`;
     const items = st.ch.items.filter(i => !i.destroyed);
-    const itemsBtn = items.length ? h('button', { type: 'button', class: 'ds-btn quiet sm', 'data-act': 'gear-open', onclick: () => { cb.pick = { kind: 'gear' }; render(); } }, p.spellOnly ? 'Items' : 'Switch an item') : null;
+    const itemsBtn = items.length ? h('button', { type: 'button', class: 'ds-btn quiet sm', 'data-act': 'gear-open', onclick: () => { cb.pick = { kind: 'gear' }; render(); } }, p.spellOnly ? 'Items' : 'Switch an item', icon('right')) : null;
     const back = btn('Back', 'quiet', { 'data-act': 'pick-back', onclick: () => { cb.pick = null; cb.quiet = null; render(); } });
     const pick = cb.pick;
     if (pick?.kind === 'alert' && o.canAlert) return alertPick(X, o, round, back);
@@ -390,16 +390,25 @@ export function recordSheet(X, rounds) {
     const { cb, render } = X;
     // Story: the engine's story line, with the numbers in brackets left out ("(4 against your 6)"); Detail: the exact line. A line the engine told no story for (a roll, a position) is Detail only.
     const clean = t => nb(t.replace(/ \((?:[^()]*\d[^()]*)\)/g, '').replace(/\s+([.,;])/g, '$1'));
+    // DR-28: the Record in Story speaks plainly. A sentence that only states a rule ("shows another side") is Detail's; the order of the blows is said as who strikes first.
+    const RULESY = /\bshows another side\b/;
+    const blows = /^Blows in order \((longest|fastest)[^)]*\): (.+?)(?:, then .*)?\.$/;
+    const plainStory = s => {
+        const b = blows.exec(s);
+        if (!b) return clean(s);
+        const first = clean(b[2]).replace(/^your /i, 'the ').replace(/^the /, 'The ');
+        return `${first.charAt(0).toUpperCase()}${first.slice(1)} is ${b[1]}: it strikes first.`;
+    };
     const boxes = [...rounds].reverse().map(({ r, lines }) => {
         let ns = 0, nd = 0;
         return h('div', { class: 'cb-rbox' }, h('span', { class: 'lg' }, `Round ${r}`), ...lines.map(l => {
-            const isRoll = l.k === 'roll', both = !!l.s && !isRoll;
+            const isRoll = l.k === 'roll', both = !!l.s && !isRoll && !RULESY.test(l.s);
             if (!isRoll) nd++; if (both) ns++;
-            const stamps = M.stampsOf(l), plain = l.t.replace(/^\u{1F3B2}\s*/u, '');
+            const stamps = M.stampsOf(l), plain = M.fixNames(l.t.replace(/^\u{1F3B2}\s*/u, ''));
             return h('div', { class: `cb-blow${isRoll ? ' roll' : ''}`, ...(both ? {} : { 'data-v': 'detail' }) },
                 both ? h('span', { class: 'n', 'data-v': 'story' }, String(ns)) : null, h('span', { class: 'n', 'data-v': 'detail' }, isRoll ? '\u2022' : String(nd)),
                 h('span', { class: 't' },
-                    both ? h('span', { 'data-v': 'story' }, clean(l.s), ...stamps.map(([k, t]) => [' ', h('span', { class: `cb-stamp ${k}` }, t)])) : null,
+                    both ? h('span', { 'data-v': 'story' }, plainStory(M.fixNames(l.s)), ...stamps.map(([k, t]) => [' ', h('span', { class: `cb-stamp ${k}` }, t)])) : null,
                     h('span', { 'data-v': 'detail' }, nb(plain), ...(both ? [] : []))));
         }));
     });

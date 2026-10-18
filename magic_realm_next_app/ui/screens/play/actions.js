@@ -1,6 +1,7 @@
 // play/actions.js: how an action reaches the game. act() applies it locally, or sends it to the race (actRemote) or to the shared table (actShared); applyAnswer takes the server's
 // answers back in; tableCall / tableNews are the shared table's agreements; refresh, abandon and copyInvite are the online helpers the menu uses.
 import { apply } from '../../../engine/day.js';
+import { nameOf } from '../../../engine/items.js';
 import { daySnapshot, finalize } from '../../../engine/gamerecord.js';
 import { upgradeState } from '../../../engine/party.js';
 import { putRecord } from '../../gamestore.js';
@@ -10,10 +11,22 @@ import { markPhase } from './result_card.js';
 import { render } from './shell.js';
 import { clearSaved, meetEnd, myId, noteError, persist, saveGame } from './state.js';
 
-function commit(G, next) { G.st = next; G.ctx.state = G.st; if (!G.race && !G.shared) saveGame(G.st); render(G); }
+function commit(G, next) { G.st = next; G.ctx.state = G.st; if (!G.race && !G.shared) saveGame(G.st); render(G); forcedAnswer(G); }
+
+// A question with one possible answer is not asked (QA-118): Magic Sight leaves one table, so the Search goes straight to it.
+export const isForced = p => !!p && p.type === 'search-table' && (p.options ?? []).length === 1 && p.options[0] !== 'sitecard';
+function forcedAnswer(G) {
+    const p = G.st?.pending;
+    if (!isForced(p)) return;
+    const key = `${G.st.day}|${G.st.log?.length ?? 0}|${p.options[0]}`;
+    if (G.ui.forcedKey === key) return;
+    G.ui.forcedKey = key;
+    setTimeout(() => { if (G.root.isConnected && G.st?.pending?.type === 'search-table') act(G, { type: 'search-table', table: p.options[0] }); }, 0);
+}
 
 export function act(G, action) {
     G.ui.combatMap = false; G.ui.mapPeek = false; if (action.type !== 'tidy') G.ui.tradePick = null;
+    if (action.type === 'trade' && action.act === 'buy') { const it = (G.st?.stock?.[G.st.pending?.group] ?? [])[action.idx]; G.ui.lastBuy = it ? { name: nameOf(G.data, it), day: G.st.day } : null; }          // (a refusal does not name the thing: the card says what was asked for)
     if (action.type !== 'tidy') markPhase(G, action);                                // (a phase begins: the result card measures what it brought)
     if (action.type !== 'tidy') { G.ui.gainSeen = G.st.gainSeq ?? 0; G.ui.findSeen = G.st.findSeq ?? 0; if (G.shared) G.ui.meetSeen = meetEnd(G); }          // what he found last time is old news once he does something else
     if (G.race) { actRemote(G, action); return; }
@@ -58,6 +71,7 @@ export function applyAnswer(G, a) {
     if (before?.chars && before.day === G.st.day) { const seen = observe(before, G.st, myId(G)); if (seen.length) G.feed = [...G.feed, ...seen].slice(-6); }
     else if (before && before.day !== G.st.day) G.feed = [];
     if (G.map) render(G);
+    forcedAnswer(G);
 }
 
 async function actShared(G, action) {

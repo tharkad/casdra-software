@@ -4,12 +4,12 @@ import { icon } from '../icons.js';
 import { inviteLink, forgetRace, rememberRace } from '../online.js';
 import { CHARACTERS } from './newgame.js';
 import { sheet } from '../ds.js';
-import { bar, face, foot, openSheet, seatBadge, sum } from '../front.js';
+import { bar, charLabel, face, foot, nb, openSheet, seatBadge, sum } from '../front.js';
 
 // The lobby of a SHARED game (docs/design/online-shared.md): who has taken a seat, who has chosen which character (no two alike), who is ready, and the host's Start.
 // Sealed choices (goals, starting dwelling, starting spells) are made in the new-game wizard's character step and are never shown to the others.
 // When the answer says the game is playing (or over) the screen hands over to the game screen in its shared mode.
-const nameOfChar = id => CHARACTERS.find(c => c.id === id)?.name ?? id;
+const nameOfChar = id => CHARACTERS.find(c => c.id === id)?.name ?? charLabel(id);
 
 export function sharedLobbyScreen(ctx) {
     const game = ctx.params?.game;
@@ -118,22 +118,22 @@ export function sharedLobbyScreen(ctx) {
         else { line = `Everyone is ready. Waiting for ${hostName(seats)} to start.`; why = 'The host presses Start.'; }
         // what the Start button is waiting for, beside it
         const parts = [...notReady.map(s => s.name), openN > 0 ? `${openN === 1 ? 'one' : openN} more` : null].filter(Boolean);
-        const waitText = parts.length ? `Waiting for ${parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0]}.` : 'Everyone is ready.';
+        const waitText = nb(parts.length ? `Waiting for ${parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0]}.` : 'Everyone is ready.');
         const link = inviteLink(game);
         const body = [
             notice ? h('div', { class: 'ds-ask ask ds-notice', role: 'status', 'data-notice': 'host' }, h('span', {}, notice), h('button', { type: 'button', class: 'x', 'aria-label': 'Dismiss', onclick: () => { notice = null; redraw(); } }, icon('close'))) : null,
-            h('div', { class: 'ds-ask ask', 'data-ask': '' }, h('b', {}, line), h('span', {}, why)),
+            h('div', { class: 'ds-ask ask', 'data-ask': '' }, h('b', {}, nb(line)), h('span', {}, nb(why))),
             rulesLine(info),
             h('ol', { class: 'ds-list seatlist', 'aria-label': `The table, ${seats.length} of ${lb.maxSeats}` }, ...seats.map((s, i) => seatRow(s, i, me.seat)), ...Array.from({ length: openN }, (_, i) => emptyRow(openN, seats.length + i))),
             h('div', { class: 'ds-hrow mychoice', 'data-mine': mineChoice ?? '' },
-                face(mineChoice), h('span', { class: 'main' }, h('b', {}, mineChoice ? nameOfChar(mineChoice) : 'Not chosen yet'), h('span', {}, mineChoice ? `begins at the ${lb.mine.startDwelling ?? CHARACTERS.find(c => c.id === mineChoice)?.starts[0] ?? 'Inn'} · goals and spells sealed` : 'Pick one before the game can start')),
+                face(mineChoice), h('span', { class: 'main' }, h('b', {}, mineChoice ? nameOfChar(mineChoice) : 'Not chosen yet'), h('span', {}, nb(mineChoice ? `begins at the ${lb.mine.startDwelling ?? CHARACTERS.find(c => c.id === mineChoice)?.starts[0] ?? 'Inn'} · goals and spells sealed` : 'Pick one before the game can start'))),
                 h('button', { type: 'button', class: 'ds-btn sm', 'data-act': 'change-char', disabled: busy || null, onclick: () => { stop(); ctx.onlineIntent = { mode: 'choose', kind: 'shared', game, mySeat: me.seat, seats: lb.seats, current: mineChoice }; ctx.newGame = null; ctx.go('newgame'); } }, mineChoice ? 'Change' : 'Choose')),
             game.invite && openN > 0 ? h('div', { class: 'invite' },
                 h('button', { type: 'button', class: 'ds-btn block', 'data-act': 'copy-invite', onclick: copyInvite }, icon('link'), copied ? 'Copied' : 'Copy the invite link'),
                 h('p', { class: 'ds-meta ds-linktext', 'data-field': 'invite-link' }, link),
                 me.host && lb.inviteExpires ? (() => { const ex = expiry(lb.inviteExpires); return h('p', { class: `ds-meta${ex.bad ? ' bad' : ''}`, 'data-invite-expiry': ex.bad ? 'soon' : 'ok' }, ex.text); })() : null,
                 me.host ? h('button', { type: 'button', class: 'ds-btn quiet block', 'data-act': 'new-invite', disabled: busy || null, onclick: newInvite }, renewed ? 'New link made' : 'Make a new link') : null,
-                me.host ? h('p', { class: 'ds-meta' }, 'A new link stops the old one working, and is good for the usual three days.') : null) : null,
+                me.host ? h('p', { class: 'ds-meta' }, nb('A new link stops the old one working, and is good for the usual three days.')) : null) : null,
             error ? h('p', { class: 'ds-why bad', role: 'alert' }, error) : null,
             status === 'away' ? h('p', { class: 'ds-why' }, 'Reconnecting…') : null,
             h('button', { type: 'button', class: 'ds-btn quiet block ds-leave', 'data-act': 'leave', onclick: () => showLeave(me, seats) }, 'Leave the table')];

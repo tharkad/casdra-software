@@ -23,9 +23,12 @@ import { ACT_LABEL, actArt, mc, showToast, tc } from './kit.js';
 import { phaseResultLine, searchWhere, tableName } from './phases.js';
 import { newDraft, planTray } from './plan.js';
 import { resultCardFor } from './result_card.js';
-import { sharedBanner, showPlayer, tableSheetDue } from './shared.js';
+import { seatText, sharedBanner, showPlayer, tableSheetDue } from './shared.js';
 import { render } from './shell.js';
 import { logEnd, myId, newMeetLines } from './state.js';
+
+// A line of the log in the current voice; at a table another seat's 'You' lines are told by name (QA-103).
+const lt = (G, l) => (G.shared ? seatText(G, l) : logText(l));
 
 const nb = s => String(s).replace(/ (\d+)$/, ' $1');                      // "Curst Valley 4" never breaks before its number
 
@@ -41,7 +44,7 @@ function lastParts(G) {
     if (birdsong) {
         let j = i; while (j >= 0 && (skip(log[j]) || log[j].k === 'roll' || log[j].day === st.day)) j--;
         const l = j >= 0 && log[j].day === st.day - 1 ? log[j] : null;
-        return { b: 'Last night', t: l ? logText(l) : 'A quiet evening. Nothing came for you.', dice: [] };
+        return { b: 'Last night', t: l ? lt(G, l) : 'A quiet evening. Nothing came for you.', dice: [] };
     }
     const l = log[i];
     if (!l) return { b: 'Your story', t: 'begins here.', dice: [] };
@@ -49,20 +52,24 @@ function lastParts(G) {
     const rollFor = line => (st.rolls ?? []).findLast(r => line.t.includes(`${r.what}: rolled ${r.dice.join('+')}`)) ?? (st.rolls ?? []).findLast(r => line.t.includes(`${r.what}: rolled ${r.dice[0]}`)) ?? null;
     if (l.k === 'roll') {
         const r = rollFor(l), tale = r && isStory() ? storyRoll(r) : null;
-        return { b: tale?.title ?? r?.what ?? 'The dice', t: tale?.line ?? logText(l), dice: r?.dice ?? [] };
+        return { b: tale?.title ?? r?.what ?? 'The dice', t: tale?.line ?? lt(G, l), dice: r?.dice ?? [], wilds: r?.what === 'Monster roll' };
     }
     if (l.k === 'phase') {
         const n = Number(/^Phase (\d+)/.exec(l.t)?.[1]), slot = st.plan?.[n - 1], rl = n ? phaseResultLine(G, n) : null;
         let j = i - 1; while (j >= 0 && (log[j].k === 'info' || log[j].k === 'trade')) j--;          // (a refusal's own line sits between the phase and its dice: QA-10)
         const r = j >= 0 && log[j].k === 'roll' ? rollFor(log[j]) : null;
-        return { b: slot ? (slot.act === 'search' && slot.table ? tableName(G, slot.table).split(':')[0] : ACT_LABEL[slot.act] ?? 'Phase') : 'Phase', t: rl?.text ?? logText(l), dice: r?.dice ?? [], phase: n || null };
+        return { b: slot ? (slot.act === 'search' && slot.table ? tableName(G, slot.table).split(':')[0] : ACT_LABEL[slot.act] ?? 'Phase') : 'Phase', t: rl?.text ?? lt(G, l), dice: r?.dice ?? [], phase: n || null };
     }
-    return { b: LABEL[l.k] ?? 'Lately', t: logText(l), dice: [] };
+    return { b: LABEL[l.k] ?? 'Lately', t: lt(G, l), dice: [] };
 }
 
 function lastLine(G) {
     const x = lastParts(G), news = journalFresh(G).length;
     const el = last({ dice: x.dice.slice(0, 3), b: x.b, t: x.t, attrs: { 'data-act': 'dice', 'aria-label': `The last action: ${x.b}. ${x.t} Open the Journal`, onclick: () => { G.ui.sheet = 'journal'; render(G); } } });
+    // DR-22: the day's one narrative beat, what is prowling, is read in full (two lines) while no phase has been played yet; every later phase has the one-line rule
+    if (x.wilds && G.st.pending?.type === 'phase' && G.st.pending.i === 0) {
+        el.classList.add('two');
+    }
     if (x.phase) el.dataset.phaseResult = String(x.phase);                  // (the phase that was just played, told in the line)
     if (news) el.append(h('i', { class: 'ds-newdot', 'aria-label': `${news} new` }));
     return el;
@@ -74,7 +81,7 @@ function dayPips(G, cur) {
     const list = plan.map((s, i) => {
         const prev = plan[i - 1], locked = s?.act === 'move' && prev?.act === 'move' && prev.to === s.to && isMountain(G.st, G.data, s.to);
         const state = i < cur ? 'done' : i === cur ? 'now' : !s ? 'empty' : '';
-        return [s ? actArt(s.act) : 'ban', locked && i >= cur ? `${state} locked`.trim() : state];
+        return [s ? actArt(s.act) : 'dash', locked && i >= cur ? `${state} locked`.trim() : state];
     });
     return pips(list, { cls: list.length > 5 ? 'many' : '', attrs: { 'aria-label': `Your day: phase ${Math.min(cur + 1, plan.length)} of ${plan.length}`, 'data-act': 'plan-view', onclick: () => { G.ui.sheet = 'journal'; render(G); } } });
 }
@@ -107,7 +114,7 @@ const WAITING = { 'turn-end': ['End of turn', ''], rest: ['Rest', 'choose a chit
 
 export function renderTray(G) {
     const p = G.st.pending, st = G.st;
-    const where = st.ch.onRoad ? 'On the road' : nameOfClearing(st.ch.at);
+    const where = st.ch.onRoad ? 'On the road' : st.ch.flying ? `Over the ${tileName(st.ch.flying.tile)}` : nameOfClearing(st.ch.at);
     const planning = p?.type === 'plan' && G.ui.sheet === 'plan' && G.ui.draft;
     const banner = G.shared && !p ? sharedBanner(G) : null;
     const m = { last: null, body: [], situ: null, lead: null, primary: null, cls: [] };
@@ -116,7 +123,7 @@ export function renderTray(G) {
     m.situ = situ(nb(where), hid);
     // what he has become (a creature, mist, a flier) is part of where he is
     const form = st.ch.morph ? `a ${st.ch.morph.creature?.name ?? 'creature'}` : st.ch.mist ? 'mist' : st.ch.flying ? 'flying' : null;
-    if (form && !fallen) m.situ.querySelector('.tag').textContent = `${form} · ${hid}`;
+    if (form && !fallen) m.situ.querySelector('.tag').textContent = st.ch.flying ? 'in the air' : `${form} · ${hid}`;
     m.last = lastLine(G);
 
     // free spell actions at the start of a phase: wake a permanent spell with a colour chit, or use a Phase spell he is holding
@@ -140,7 +147,7 @@ export function renderTray(G) {
             m.lead = btn('Plan it anyway', 'sm', { 'data-act': 'plan', onclick: openPlan });
             m.primary = primary('Live the day as it comes', { 'data-act': 'plan-free', onclick: () => act(G, { type: 'plan', slots: [] }) });
         } else {
-            m.lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `${phasesFor(st, G.data, []).total} phases`), ', planned in secret');
+            m.lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `${phasesFor(st, G.data, []).total}\u00A0phases`), ', planned\u00A0in\u00A0secret');
             m.primary = primary('Plan your day', { 'data-act': 'plan', onclick: openPlan });
         }
     } else if (p.type === 'phase') {
@@ -163,7 +170,10 @@ export function renderTray(G) {
         if (G.ui.pickAct === 'move') m.body.push(h('p', { class: 'ds-hint-line', 'data-hint': 'pick-move' }, 'Where to? Tap a ringed clearing on the map.'));
         const extra = (p.extrasLeft ?? []).map(x => ACT_LABEL[x] ?? x);
         m.lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `Phase ${p.i + 1}`), `: ${p.regularLeft ?? 0} left${extra.length ? `, and an extra ${extra.join(', ')}` : ''}`);
-        m.primary = primary(twoLine('Follow the suggestion', 'or choose above'), { 'data-act': 'next', onclick: () => act(G, { type: 'next' }) });
+        // the suggestion is the plan he would have made (st.planFull): the button names it ("Move / to Bad Valley 2 · suggested"), and the same clearing is ringed differently on the map (QA-119)
+        const sug = st.planFull?.[st.turn?.i] ?? null;
+        if (sug && sug.act !== 'nothing') { const { small } = shortPrompt(G, sug); m.primary = primary(twoLine(ACT_LABEL[sug.act] ?? sug.act, small ? `${small} \u00B7 suggested` : 'suggested'), { 'data-act': 'next', onclick: () => act(G, { type: 'next' }) }); }
+        else m.primary = primary(twoLine('Do nothing', 'let the phase pass'), { 'data-act': 'next', onclick: () => act(G, { type: 'next' }) });
     } else if (p.type === 'over') {
         m.body.push(h('p', { class: 'ds-hint-line' }, 'The game is over.'));          // (a solo game or a race shows the end screen over all of this: endscreen.js)
         m.situ = null; m.last = null;
@@ -235,12 +245,35 @@ export function renderTray(G) {
     else if (pr && lead?.classList?.contains('ds-btn')) actions.querySelector('.lead')?.classList.add('fit');          // (a secondary on the left takes what its words need; the primary the rest, bottom right)
     // one primary per layer: when the tray has its own, a card's "yes" (a vote, a welcome) is a plain button
     if (pr) t.querySelectorAll('.tray-body .ds-btn.primary').forEach(b => b.classList.remove('primary'));
+    const from = G.tray.offsetHeight;
     G.tray.className = `ds-tray gdock${m.cls.length ? ' ' + m.cls.join(' ') : ''}${m.shared ? ' shared' : ''}${p ? '' : ' idle'}`;
     G.tray.dataset.state = planning ? 'plan' : p?.type ?? 'idle';
     G.tray.replaceChildren(...t.childNodes);
+    glideHeight(G, from);
     // the primary of a tray that has just changed (a phase played, a result shown, a question answered) ignores a tap for ~350 ms: the second half of a double tap must not skip what there is to read (QA-4)
     guardIfChanged(G.ui.guards ??= {}, 'tray', planning ? `plan|${st.day}` : `${p?.type ?? ''}|${p?.i ?? ''}|${st.day}|${G.shared || G.race ? '' : st.log?.length ?? 0}|${m.cls.join(' ')}`, G.tray);
     wireGrab(G, G.tray.querySelector('.ds-grab'));
+}
+
+// DR-1: when the tray changes height (the plan opens, a result card comes, a sub-picker appears) the height glides over the sheet duration instead of snapping, and the map, which fills what the
+// tray leaves, glides with it (mapview.js keeps the middle of the strip where it was while its box changes size, so nothing jumps); once it has settled the hero is brought into view if the
+// taller tray covers him. Calm and reduced motion: the duration token is 1ms, so it is as good as instant.
+function glideHeight(G, from) {
+    const el = G.tray;
+    clearTimeout(G.ui.glideTimer);
+    el.style.transition = 'none'; el.style.height = '';
+    const to = el.offsetHeight;
+    if (!G.ui.trayReady || !from || !to || Math.abs(to - from) < 8 || !el.isConnected) { G.ui.trayReady = true; el.style.transition = ''; return; }
+    el.style.height = `${from}px`; void el.offsetHeight;          // (no clipping: the new content is `to` tall, so it never overflows a box that is taller; a box that is shorter lets it run off the bottom of the screen)
+    el.style.transition = 'height var(--d-sheet) var(--ease-io)'; el.style.height = `${to}px`;
+    const done = () => {
+        el.removeEventListener('transitionend', onEnd); clearTimeout(G.ui.glideTimer);
+        el.style.transition = ''; el.style.height = '';
+        const hero = G.st?.ch?.flying ? G.st.ch.flying.tile : G.st?.ch?.onRoad ? G.st.ch.onRoad.from : G.st?.ch?.at;
+        if (to > from && hero && G.map && G.root.isConnected) G.map.reveal?.([hero], { margin: 56 });
+    };
+    const onEnd = e => { if (e.target === el && e.propertyName === 'height') done(); };
+    el.addEventListener('transitionend', onEnd); G.ui.glideTimer = setTimeout(done, 420);
 }
 
 // The handle on the tray: a tap or a pull up opens the Journal (the tray itself never opens or closes).

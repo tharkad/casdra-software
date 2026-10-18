@@ -58,10 +58,18 @@
 .cb-lane.pick::after { content: ""; position: absolute; inset: -4px 0; }
 .cb-pill { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: 8px; font: 700 13px/1 var(--font-ui); letter-spacing: 0; background: var(--gold); color: var(--ink-on-gold); text-transform: none; }
 .cb-pill.g { background: var(--st-locked); color: #0d1220; }
-.cb-allies { flex: none; display: flex; justify-content: center; gap: 6px; margin-top: 2px; }
-.cb-ally { position: relative; width: 32px; height: 32px; border-radius: 8px; background: var(--counter-face); box-shadow: inset 0 0 0 2px var(--counter-edge); display: grid; place-items: center; }
-.cb-ally img { max-width: 84%; max-height: 84%; }
-.cb-ally.ctl { box-shadow: inset 0 0 0 2px var(--mood-ally), 0 0 0 1px var(--mood-ally); }
+.cb-allies { flex: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; margin-top: 2px; }          /* QA-116: the hirelings beside you are counters, with their name and days; a tap turns one over */
+.cb-ally { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cb-ally .cb-flip { flex: none; }
+.cb-ally .ds-cs-wrap { display: block; }
+.cb-ally .ds-cs-wrap svg { width: var(--ally, 56px); height: var(--ally, 56px); display: block; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .6)); }
+.cb-ally .turn { position: absolute; right: -6px; top: -6px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--gold-lo); display: grid; place-items: center; color: var(--gold); pointer-events: none; }
+.cb-ally .turn .ds-i { width: 11px; height: 11px; stroke-width: 2; }
+.cb-ally .cap { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; max-width: 96px; text-align: left; }
+.cb-ally .cap b { font: 700 13px/1.15 var(--font-ui); color: var(--ink); overflow-wrap: anywhere; }
+.cb-ally .cap small { font: 500 12px/1.1 var(--font-ui); color: var(--ink-3); }
+.cb-ally.ctl .cap small { color: var(--mood-ally); }
+.cb-ally .ds-daypips { width: 100%; gap: 2px; margin: 1px 0 0; } .cb-ally .ds-daypips i { height: 4px; border-radius: 2px; }
 .cb-hero { flex: none; display: flex; align-items: center; justify-content: center; gap: 14px; }
 .cb-hero .face { position: relative; width: 72px; height: 72px; border-radius: 50%; background: var(--counter-face); box-shadow: 0 0 0 3px var(--gold-lo), 0 4px 14px rgba(0, 0, 0, .6); display: grid; place-items: center; overflow: hidden; }
 .cb-hero .face img { width: 82%; height: 82%; object-fit: contain; }
@@ -180,3 +188,19 @@
   .cb-stage { padding-top: 2px; padding-bottom: 4px; } .cb-hero { gap: 10px; } .cb-sum { min-height: 44px; padding-top: 2px; padding-bottom: 2px; } .cb-fields { gap: 4px; } .cb-chits .ds-chit { height: 52px; } .cb-hero .ribbon { display: none; }
   .cb-narr.verdict { font-size: 20px; } .cb-pips .ds-chit.mini { width: 12px; } .cb-sheet[data-kind=melee] { min-height: calc(281px + var(--safe-b)); } }
 @media (max-width: 374px) { .cb-top .where b { font-size: 15px; } }
+
+
+/* ---- G2 (fix wave 2) ---- */
+/* DR-21: the Belongings and Map peeks sit under the weapon and the armor, bottom left and bottom right of the stage (44px), not in the top 100px */
+.cb-hero .gcol { align-self: flex-start; }
+.cb-hero .gcol:not(:has(.gear)) { align-self: flex-end; }
+.cb-hero .cb-peek { margin-top: 4px; color: var(--ink-2); background: var(--surface-3); border: 1px solid var(--line-2); border-radius: 12px; }
+.cb-hero .cb-peek::after { content: ""; position: absolute; inset: min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }
+.cb-hero .cb-peek { position: relative; }
+/* DR-20: in a Meeting step the narrator stands in the void between the foes and you */
+.cb[data-mode=meet] .cb-stagein { justify-content: flex-start; }          /* foes and the line about them form one group, centred between the top and you (no 250px void) */
+.cb[data-mode=meet] .cb-foes { margin-top: auto; }
+.cb-void { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; margin-bottom: auto; min-height: 0; }
+.cb-void { width: 100%; } .cb-void .cb-narr { flex: 0 1 auto; min-width: 0; min-height: 0; padding-top: 14px; padding-bottom: 0; }          /* (shrinks and wraps: a long line must never run off the screen) */
+/* DR-15: one quiet action everywhere: the ds quiet button, no underline; an option (not a way out) wears a chevron */
+.cb-sheet .q .ds-btn.quiet .ds-i { width: 16px; height: 16px; margin-right: -4px; }

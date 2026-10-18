@@ -10,6 +10,7 @@ import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
 import { h } from '../../dom.js';
 import { icon } from '../../icons.js';
+import { displayName } from '../../names.js';
 import { companyTab, hireCount } from './company.js';
 import { dimBtn, footRow, goldEl, guards, itemArt, oneLine, plural, say, seg, signed, weightWord } from './common.js';
 import { spellCount, spellsTab } from './spells.js';
@@ -25,7 +26,7 @@ export function setKitTab(G, t) { G.ui.kitTab = t; G.ui.slotPick = null; try { l
 
 // ---- the eight slots, as the printed sheet has them: one of each ----
 export const SLOTS = [['weapon', 'Weapon', 'What will you wield?'], ['suit', 'Suit', 'What will you wear?'], ['helmet', 'Helmet', 'What goes on your head?'], ['shield', 'Shield', 'What will you hold?'],
-    ['breastplate', 'Breastplate', 'What goes on your chest?'], ['mount', 'Mount', 'What will you ride?'], ['boots', 'Boots', 'What goes on your feet?'], ['gloves', 'Gloves', 'What goes on your hands?']];
+    ['breastplate', 'Chest', 'What goes on your chest?'], ['mount', 'Mount', 'What will you ride?'], ['boots', 'Boots', 'What goes on your feet?'], ['gloves', 'Gloves', 'What goes on your hands?']];
 const SLOT_KEYS = SLOTS.map(s => s[0]);
 
 // The slot an item belongs in (the engine's slotsOf, plus the mount for a horse), or null for a treasure that has no slot and an armor card of its own.
@@ -152,7 +153,7 @@ function cardRow(G) {
     const ch = G.st.ch, pic = G.data.art?.characters?.[ch.id];
     if (!G.data.art?.cards?.[ch.id]) return null;
     return h('div', { class: 'ds-list kit-card' }, h('button', { type: 'button', class: 'ds-row', 'data-act': 'card', onclick: () => { G.ui.sheet = 'card'; render(G); } },
-        h('span', { class: 'art' }, pic ? h('img', { src: pic, alt: '' }) : null), h('span', { class: 'main' }, h('b', {}, 'Your character card'), h('span', {}, `${ch.name}, as printed.`)), h('span', { class: 'end' }, icon('right'))));
+        h('span', { class: 'art' }, pic ? h('img', { src: pic, alt: '' }) : null), h('span', { class: 'main' }, h('b', {}, 'Your character card'), h('span', {}, `${displayName(ch.name)}, as printed.`)), h('span', { class: 'end' }, icon('right'))));
 }
 const sect2 = (t, r) => h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, t), r ? h('small', {}, r) : null);
 
@@ -162,7 +163,7 @@ export function kitContent(G, o = {}) {
     const tab = o.tab ?? kitTab(G), pick = o.onTab ?? (t => setKitTab(G, t)), ch = G.st.ch;
     const ctl = { openItem: o.openItem ?? (it => { G.ui.itemUid = it.uid; G.ui.itemFrom = null; G.ui.sheet = 'item'; render(G); }) };
     const room = tab === 'co' ? companyTab(G) : tab === 'sp' ? spellsTab(G, o) : kitRoom(G, ctl);
-    return { title: ch.name, eyebrow: `Day ${G.st.day} · ${tab === 'co' ? 'Company' : tab === 'sp' ? 'Spells' : 'Kit'}`, detent: 'tall',
+    return { title: displayName(ch.name), eyebrow: `Day ${G.st.day} · ${tab === 'co' ? 'Company' : tab === 'sp' ? 'Spells' : 'Kit'}`, detent: 'tall',
         body: h('div', { class: 'kit' },
             seg([{ key: 'kit', label: 'Kit' }, { key: 'co', label: 'Company', n: hireCount(G) }, { key: 'sp', label: 'Spells', n: spellCount(G) }], tab, pick, 'data-kit-tab'),
             room) };

@@ -6,12 +6,15 @@ import { monsterCounter, itemFace } from '../counter.js';
 import { denSide, weaponOf, activeArmor } from '../../engine/combat.js';
 import { nameOf, defOf } from '../../engine/items.js';
 import { DIRS, MNV, otherSide, picOf, chitText, WORD } from './model.js';
+import { displayName, tieNumber } from '../names.js';
 
 // foe counter size by how many stand on the stage: the full size (92, or 64 on a short phone) up to three, then smaller so six still fit in two rows
 // a picture straight from the art manifest (its paths already start with art/)
 const pic = (src, alt = '') => h('img', { src, alt, draggable: 'false' });
-export const foeSize = n => {
-    const base = typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 64 : 92;
+export const foeSize = (n, roomy = false) => {
+    const short = typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches, base = short ? 64 : 92;
+    // a Meeting has few creatures and no lanes (DR-20): the counters take the room, up to 128 (three still stand in one row)
+    if (roomy && !short && n >= 1 && n <= 3) return Math.min(128, Math.floor((Math.min(typeof innerWidth === 'number' ? innerWidth : 393, 520) - 32 - (n - 1) * 10) / n));
     if (n <= 3) return base;
     // four stand in one row at the width of the screen; more take two rows, smaller
     const w = Math.min(typeof innerWidth === 'number' ? innerWidth : 393, 520) - 32;
@@ -39,7 +42,7 @@ export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, 
 // A long name ("Company Short Swords #1") would run off the counter: shrink it to fit the printed strip, and if it would be too small to read, set it on two lines. Needs the counters to be in the page (text is
 // measured), so the scene calls it once it is mounted. The measure is in the counter's own units (a 100 x 100 box).
 export function fitNames(root) {
-    for (const svg of root.querySelectorAll('.cb-foe svg.counter, .cb-foe .ds-cs-wrap svg')) {
+    for (const svg of root.querySelectorAll('.cb-foe svg.counter, .cb-foe .ds-cs-wrap svg, .cb-ally .ds-cs-wrap svg')) {
         const t = svg.querySelector('text');
         if (!t || t.dataset.fit) continue;
         t.dataset.fit = '1';
@@ -54,6 +57,21 @@ export function fitNames(root) {
         const t2 = t.cloneNode(false); t2.textContent = words.slice(cut).join('\u00A0'); t2.setAttribute('y', '21'); t2.setAttribute('font-size', '7.5'); t2.dataset.fit = '1';
         t.after(t2);
     }
+}
+
+// The hirelings (and the creatures a spell won over) beside you, as real counters (QA-116): the picture, the name, the days left as pips, and a tap turns the counter over like a foe's.
+// `allies` = M.alliesOf(); `flipped` = { [uid]: true } for the ones turned over; `size` is the counter's size.
+export function alliesEl({ st, data, allies, flipped = {}, onFlip, size = 56 }) {
+    return h('div', { class: 'cb-allies', style: `--ally:${size}px`, role: 'group', 'aria-label': `On your side: ${allies.map(a => a.name).join(', ')}` }, ...allies.map(a => {
+        const den = { uid: `ally:${a.uid}`, kind: a.kind, id: a.id, side: a.side }, other = otherSide(data, den), turned = !!flipped[a.uid] && !!other, view = turned ? { ...den, side: other } : den;
+        const svg = monsterCounter({ s: denSide(st, data, view), side: turned ? other : a.side, picture: picOf(st, data, den), flies: a.kind === 'mon' && !!data.monsters[a.id]?.flies, size: 92 });
+        const low = a.days != null && a.days <= 3;
+        return h('div', { class: `cb-ally${a.controlled ? ' ctl' : ''}`, 'data-ally': a.uid },
+            h('button', { type: 'button', class: 'cb-flip', 'data-ally-flip': a.uid, 'aria-pressed': turned ? 'true' : 'false', 'aria-label': `${a.name}, on your side: tap to turn the counter over`, onclick: () => onFlip?.(a, !!other), style: 'padding:0;display:block' },
+                h('span', { class: 'ds-cs-wrap' }, svg), other ? h('span', { class: 'turn', 'aria-hidden': 'true' }, icon('retry')) : null),
+            h('span', { class: 'cap' }, h('b', {}, tieNumber(a.name)), h('small', {}, a.days != null ? `with you \u00B7 ${a.days} day${a.days === 1 ? '' : 's'}` : a.controlled ? 'with you \u00B7 until Sunset' : 'with you'),
+                a.days != null ? h('span', { class: `ds-daypips${low ? ' low' : ''}`, 'aria-hidden': 'true' }, Array.from({ length: 14 }, (_, i) => h('i', { class: i < a.days ? null : 'off' }))) : null));
+    }));
 }
 
 // the lanes: the three attack circles (Thrust, Swing, Smash) on top, the three maneuver squares (Charge, Dodge, Duck) under them. Same index = same red box (rules 4.1).
@@ -76,22 +94,25 @@ export function pipsEl(st, prev = null) {
 }
 
 // you: the weapon on the left, the armor on the right, your face and a pip per chit between. A morphed hero is the creature's counter. Tap a piece of gear to read it (and turn it over).
-export function heroEl({ st, data, onGear, hurtArmor = false, ribbon = null, prevChits = null, wasHidden = false }) {
+export function heroEl({ st, data, onGear, onPeekGear = null, onPeekMap = null, hurtArmor = false, ribbon = null, prevChits = null, wasHidden = false }) {
     const ch = st.ch, w = weaponOf(st, data), armor = activeArmor(st, data).map(a => a.item ?? a).filter(x => x && x.uid);
     const wName = w ? nameOf(data, w.item) : null, aName = armor[0] ? nameOf(data, armor[0]) : null;
     const cr = ch.morph?.creature, lt = cr?.light ?? {};
     const face = cr
         ? h('span', { class: 'face morph' }, monsterCounter({ s: { name: cr.name, vuln: cr.vuln, armored: !!cr.armored, attack: lt.attack ?? 'weapon', harm: lt.harm, stars: lt.stars ?? 0, atk: lt.atk, move: lt.move, length: lt.length ?? 0, fame: cr.fame ?? 0, notor: cr.notor ?? 0 }, side: 'light', picture: data.art?.monstersColor?.[cr.name] ?? data.art?.monsters?.[cr.name] ?? null, flies: !!cr.flies, size: 72 }))
-        : h('span', { class: `face${ch.hidden ? ' hid' : ''}` }, data.art?.characters?.[ch.id] ? pic(data.art.characters[ch.id].replace(/\.gif$/, '.png'), ch.name) : null);
-    const gear = (kind, name, src, more, hurt) => h('div', { class: 'gcol' },
+        : h('span', { class: `face${ch.hidden ? ' hid' : ''}` }, data.art?.characters?.[ch.id] ? pic(data.art.characters[ch.id].replace(/\.gif$/, '.png'), displayName(ch.name)) : null);
+    const gear = (kind, name, src, more, hurt, peekBtn = null) => h('div', { class: 'gcol' },
         h('button', { type: 'button', class: `gear${src ? '' : ' none'}${hurt ? ' hurt' : ''}`, 'data-act': 'peek-gear-card', 'aria-label': name ? `${name}: read it` : `No ${kind}`, onclick: () => onGear?.(kind), disabled: !name || null },
             src ? pic(src) : null, more > 1 ? h('span', { class: 'more' }, `+${more - 1}`) : null),
-        h('span', { class: 'cap' }, name ?? (ch.morph ? '' : `no ${kind}`)));
+        h('span', { class: 'cap' }, name ?? (ch.morph ? '' : `no ${kind}`)), peekBtn);
     const hurtGear = armor.some(a => a.damaged);
+    // DR-21: the Belongings and the map are one thumb away, bottom left and bottom right of the stage under the weapon and the armor, not in the top 100px. (data-act peek-gear / peek-map: the tests' hooks)
+    const peek = (act, label, ic, on) => (on ? h('button', { type: 'button', class: 'ds-btn icon quiet cb-peek', 'data-act': act, 'aria-label': label, onclick: on }, icon(ic, 'lg')) : null);
+    const gcol = (kids, peekBtn) => h('div', { class: 'gcol' }, ...kids, peekBtn);
     return h('div', { class: 'cb-hero' },
-        ch.morph ? h('div', { class: 'gcol' }) : gear('weapon', wName, wName ? data.art?.weapons?.[wName] : null, w ? 1 : 0, false),
-        h('div', { class: 'mid' }, face, h('span', { class: 'name' }, ch.name), ribbon ? h('span', { class: 'ribbon' }, ribbon) : null, pipsEl(st, prevChits)),
-        ch.morph ? h('div', { class: 'gcol' }) : gear('armor', aName, aName ? data.art?.armor?.[aName] : null, armor.length, hurtGear));
+        ch.morph ? gcol([], peek('peek-gear', 'Belongings', 'bag', onPeekGear)) : gear('weapon', wName, wName ? data.art?.weapons?.[wName] : null, w ? 1 : 0, false, peek('peek-gear', 'Belongings', 'bag', onPeekGear)),
+        h('div', { class: 'mid' }, face, h('span', { class: 'name' }, displayName(ch.name)), ribbon ? h('span', { class: 'ribbon' }, ribbon) : null, pipsEl(st, prevChits)),
+        ch.morph ? gcol([], peek('peek-map', 'Map', 'pin', onPeekMap)) : gear('armor', aName, aName ? data.art?.armor?.[aName] : null, armor.length, hurtGear, peek('peek-map', 'Map', 'pin', onPeekMap)));
 }
 
 // The things he carries into the fight, as counters he can turn over (alerted or not, whole or damaged): the old Belongings cards, as one small card over the stage.

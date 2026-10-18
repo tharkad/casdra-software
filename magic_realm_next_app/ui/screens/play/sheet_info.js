@@ -30,7 +30,7 @@ export function calendarSheet(G) {
         ...Array.from({ length: weeks }, (_, w) => h('p', { class: 'calrow' }, h('b', {}, `Day ${(w + 1) * 7}`), ...dayColors((w + 1) * 7, G.st.lastDay ?? 28).map(c => colorChip(c)))),
         h('h3', {}, 'What each colour is'),
         ...COLORS.map(c => h('p', { class: 'calrow' }, colorChip(c), h('span', {}, COLOR_MEANING[c]))),
-        h('h3', {}, `In your clearing (${nameOfClearing(G.st.ch.at)})`),
+        h('h3', {}, `In your clearing (${nameOfClearing(G.st.ch.at).replace(/ (\d+)$/, '\u00A0$1')})`),
         here.length ? h('div', {}, ...here.map(x => h('p', { class: 'calrow' }, colorChip(x.color), h('span', {}, x.why)))) : h('p', { class: 'hint' }, 'No colour of magic is present here today.'),
         h('p', { class: 'hint' }, 'Colours of magic come from the seventh day and from a Chapel (White).')),
         { close: () => { G.ui.sheet = null; render(G); } });
@@ -45,7 +45,7 @@ export function raceSheet(G) {
             h('i', { class: `pdot${x.present ? ' on' : ''}`, 'aria-label': x.present ? 'here now' : 'away' }),
             h('span', { class: 'rp-main' }, h('b', {}, x.name + (x.seat === G.race.seat ? ' (you)' : '')), h('small', {}, `${x.character ?? ''} \u00b7 ${stat(x)}`)),
             h('span', { class: 'rp-nums' }, `${x.gold} gold \u00b7 ${x.fame} fame \u00b7 ${x.notoriety} notor.`))),
-        G.race.invite ? h('div', {}, h('button', { class: 'btn', 'data-act': 'copy-invite', onclick: () => copyInvite(G) }, 'Copy invite link'), G.ui.invite ? h('input', { class: 'invitebox', readonly: true, value: G.ui.invite, onfocus: e => e.target.select() }) : null) : null),
+        G.race.invite ? h('div', {}, h('button', { type: 'button', class: 'ds-btn block', 'data-act': 'copy-invite', onclick: () => copyInvite(G) }, 'Copy invite link'), G.ui.invite ? h('input', { class: 'invitebox', readonly: true, value: G.ui.invite, onfocus: e => e.target.select() }) : null) : null),
         { close: () => { G.ui.sheet = null; render(G); } });
 }
 
@@ -83,12 +83,12 @@ export function bugSheet(G) {
     const kb = n => (n < 1024 ? `${n} bytes` : `${Math.round(n / 1024)} KB`);
     if (b.status === 'sent') return modal(G, 'Report sent', h('div', { class: 'bugform' },
         h('p', {}, `Thank you. Your report is number ${b.id}. It has your description, this game's record and log, and its current state.`),
-        h('button', { class: 'btn primary', 'data-act': 'bug-done', onclick: close.close }, 'Done')), close);
+        h('button', { type: 'button', class: 'ds-btn primary block', 'data-act': 'bug-done', onclick: close.close }, 'Done')), close);
     const sending = b.status === 'sending';
     const area = h('textarea', { class: 'bugtext', rows: 5, placeholder: 'What happened, and what did you expect? (Which screen, which action.)', 'data-bug-text': '', disabled: sending || null,
         oninput: e => { b.text = e.target.value; ok.disabled = !b.text.trim() || sending; } });
     area.value = b.text;
-    const ok = h('button', { class: 'btn primary', 'data-act': 'bug-send', disabled: !b.text.trim() || sending || null, onclick: async () => {
+    const ok = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'bug-send', disabled: !b.text.trim() || sending || null, onclick: async () => {
         b.status = 'sending'; b.error = null; render(G);
         try {
             b.packed = await collectReport({ st: G.st, rec: G.rec, version: VERSION, ui: G.ui });
@@ -101,12 +101,12 @@ export function bugSheet(G) {
         h('p', { class: 'hint' }, 'Describe what went wrong. Saying OK sends your description with this game\'s record (every action and the whole log), its current state, your other recorded games, and your browser and screen size to the server.'),
         area,
         b.status === 'failed' ? h('p', { class: 'chk-bad' }, `Could not send: ${b.error}`) : null,
-        b.status === 'failed' && b.packed ? h('button', { class: 'btn', 'data-act': 'bug-save', onclick: () => {
+        b.status === 'failed' && b.packed ? h('button', { type: 'button', class: 'ds-btn block', 'data-act': 'bug-save', onclick: () => {
             const url = URL.createObjectURL(new Blob([b.packed.text], { type: 'application/json' }));
             const a = Object.assign(document.createElement('a'), { href: url, download: `magic-realm-report-${Date.now()}.json` });
             document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
         } }, `Save it as a file instead (${kb(b.packed.bytes)})`) : null,
-        h('div', { class: 'row2' }, h('button', { class: 'btn', 'data-act': 'bug-cancel', disabled: sending || null, onclick: close.close }, 'Cancel'), ok)), close);
+        h('div', { class: 'row2' }, h('button', { type: 'button', class: 'ds-btn', 'data-act': 'bug-cancel', disabled: sending || null, onclick: close.close }, 'Cancel'), ok)), close);
 }
 
 export function scoreSheet(G) {
@@ -133,8 +133,8 @@ export function scoreSheet(G) {
             partsEl(g),
             h('details', { class: 'sr-math' }, h('summary', {}, sumUp(g.cat) || 'The arithmetic'),
                 r ? h('p', { class: 'hint' }, r.diff < 0
-                    ? `Short by ${Math.abs(r.diff / 3)}, counted three times (${r.diff}), divided by ${FACTORS[g.cat]} and rounded down: ${r.basic}. Bonus ${r.basic} \u00D7 ${vp[g.cat] ?? 0} VP = ${r.bonus}.`
-                    : `Over by ${r.diff}, divided by ${FACTORS[g.cat]} and rounded down: ${r.basic}. Bonus ${r.basic} \u00D7 ${vp[g.cat] ?? 0} VP = ${r.bonus}.`) : null));
+                    ? `Short by ${Math.abs(r.diff / 3)}, counted three times (${r.diff}), divided by ${FACTORS[g.cat]} and rounded\u00A0down:\u00A0${r.basic}. Bonus ${r.basic}\u00A0\u00D7\u00A0${vp[g.cat] ?? 0}\u00A0VP\u00A0=\u00A0${r.bonus}.`
+                    : `Over by ${r.diff}, divided by ${FACTORS[g.cat]} and rounded\u00A0down:\u00A0${r.basic}. Bonus ${r.basic}\u00A0\u00D7\u00A0${vp[g.cat] ?? 0}\u00A0VP\u00A0=\u00A0${r.bonus}.`) : null));
     };
     // where a goal's figure comes from: the recorded part, then one line per belonging that adds to it
     const parts = cat => {

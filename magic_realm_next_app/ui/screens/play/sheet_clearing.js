@@ -12,7 +12,7 @@ import { actIcon, icon } from '../../icons.js';
 import { playerOf as playerNameOf } from '../../meet.js';
 import { rosterRows } from '../../shared_ui.js';
 import { newDraft as newMeetDraft } from '../meetui.js';
-import { colorChip, modal, mrChit } from './kit.js';
+import { modal, mrChit } from './kit.js';
 import { render } from './shell.js';
 
 const nbsp = s => String(s).replace(/ (\d+)$/, ' $1');
@@ -164,7 +164,7 @@ export function clearingSheet(G) {
     const srcs = colorSources(G.st, G.data, id);
     if (G.shared) { hereRows.push(...rosterRows(G.crew, id, row)); }
     else if (here) hereRows.push(row('me', 'You', `${G.st.ch.name}, ${G.st.ch.hidden ? 'hidden: nothing can block you' : 'in plain sight'}`, tile_(G.data.art?.characters?.[G.st.ch.id], G.st.ch.name)));
-    for (const x of srcs) hereRows.push(row('magic', `${x.color} magic`, x.why, colorChip(x.color)));
+    for (const x of srcs) hereRows.push(row('magic', `${x.color} magic`, x.why, `art/colormagic/${{ Grey: 'gray' }[x.color] ?? x.color.toLowerCase()}chit.gif`));          // (the chit's own art in the tile: DR-3)
     if (G.shared) hereRows.push(...meetRowsFor(G, id));
     put('here', G.shared ? 'Who is here' : 'Here now', hereRows);
     if (G.shared) put('companions', 'Companions', companionRows(G, id));
@@ -217,6 +217,8 @@ export function clearingSheet(G) {
         terrain ? h('p', { class: 'ds-meta' }, terrain) : null,
         ...(roads.length ? roads.map(r => row(r.usable ? 'road' : 'road off', `to ${nbsp(nameOfClearing(r.to))}`, r.usable ? KIND[r.kind] : `${KIND[r.kind]} (not found yet)`)) : [row('road off', 'none', '')]));
 
+    // nothing known about the place yet (a clearing far away that no one has seen): one line saying so, not an empty sheet (DR-26)
+    if (!sections.length) sections.push({ key: 'none', node: [h('p', { class: 'ds-voice none-known' }, h('span', { 'data-v': 'story' }, 'Nothing is known of this clearing yet.'), h('span', { 'data-v': 'detail' }, 'Nothing is known of this clearing yet: no site, creature or native has been seen here.'))] });
     // a find opens the sheet on what was found: what you could get leads
     const ordered = [...sections].sort((a, b) => (fresh ? (b.key === 'get') - (a.key === 'get') : 0));
     const kindWord = cdef.type === 'mountain' ? 'mountain clearing' : cdef.type === 'cave' ? 'cave clearing' : 'woods clearing';

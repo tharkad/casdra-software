@@ -1,6 +1,8 @@
 // screens/kit/hire.js (P2): the Hire sheet as a parley. First a card per group that will hire out (the printed counters, their mood, the wages, one chip that changes the dice: stand a
 // round), then one button, "Ask the Lancers"; then the answer: the roll, the price as the headline, who you would get and for how long, and "Not at that price" as easy as the yes.
 // Payloads are the old sheet's: { type: 'hire', act: 'pick', group, rehire, drinks } / 'accept' / 'decline' / 'pay' / 'fight' / 'back'.
+import { WEIGHT_WORDS } from '../../../engine/core.js';
+import { hireStats } from '../../../engine/combat.js';
 import { drinksCost } from '../../../engine/meeting.js';
 import { hasCurse } from '../../../engine/effects.js';
 import { nameOfClearing } from '../../../engine/world.js';
@@ -8,6 +10,7 @@ import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
 import { h } from '../../dom.js';
 import { art, icon } from '../../icons.js';
+import { tieNumber } from '../../names.js';
 import { boonContent } from './boon.js';
 import { ask, dimBtn, footRow, moodTag, nativeArt, say, skipBtn, twoLine } from './common.js';
 import { insultContent, offerDice } from './trade.js';
@@ -20,10 +23,23 @@ function counters(G, ids, monsters) {
     }));
 }
 
+// What you get for the wages (QA-115): the blow each counter strikes with (harm and attack time, as printed on it) and how heavy it is.
+function strengthLine(G, ids, monsters) {
+    const blows = [], weights = [];
+    for (const id of ids) {
+        let s = null; try { s = hireStats(G.data, id, monsters ? 'mon' : 'nat', G.st); } catch { /* a name only */ }
+        if (s?.harm) blows.push(`${s.harm}${s.atk ?? ''}${'*'.repeat(s.stars ?? 0)}`);
+        const w = monsters ? null : G.data.natives[id]?.weight;
+        if (w && WEIGHT_WORDS[w]) weights.push(WEIGHT_WORDS[w]);
+    }
+    const uniq = a => [...new Set(a)];
+    return [blows.length ? `Strikes ${uniq(blows).join(', ')}.` : '', weights.length ? `${uniq(weights).join(', ')} weight.` : ''].filter(Boolean).join(' ');
+}
+
 const titleOf = (G, o) => {
     const nat = !o.monsters, lead = nat ? o.members.filter(id => G.data.natives[id]?.leader).length : 0, rest = o.members.length - lead;
     if (o.monsters) return o.members.length > 1 ? `${o.group} ×${o.members.length}` : o.group;
-    if (o.names.length === 1) return o.names[0];
+    if (o.names.length === 1) return tieNumber(o.names[0]);
     return h('span', {}, `${o.group} ×${rest || o.members.length}`, rest && lead ? h('span', { class: 'ds-dim kit-lead' }, ' and their leader') : null);
 };
 
@@ -33,16 +49,16 @@ function offerContent(G, p) {
     const left = G.st.ch.gold - p.price;
     const body = h('div', { class: 'kit kit-offer kit-hire-offer' },
         offerDice(G, p) ?? h('p', { class: 'ds-meta' }, p.why),
-        h('div', { class: 'kit-pricebox' }, h('div', { class: 'ds-price', 'data-price': String(p.price) }, `${p.price} GOLD`, h('small', {}, `${p.wage} wages × ${p.mult}`))),
-        ask(`${p.names.length === 1 ? p.names[0] : `The ${p.group}`} will join you.`, p.rehire ? 'It adds 14 days to the term they have. Or turn the price down and keep your gold.' : 'Hire them, or turn the price down and keep your gold.'),
+        h('div', { class: 'kit-pricebox' }, h('div', { class: 'ds-price', 'data-price': String(p.price) }, `${p.price} GOLD`, h('small', {}, `Wages ${p.wage} × ${p.mult}`))),
+        ask(`${p.names.length === 1 ? tieNumber(p.names[0]) : `The ${p.group}`} will join you.`, p.rehire ? 'It adds 14 days to the term they have. Or turn the price down and keep your gold.' : 'Hire them, or turn the price down and keep your gold.'),
         h('div', { class: 'ds-group' }, h('div', { class: 'hd' }, h('b', {}, titleOf(G, { ...p, members: p.members })), h('span', { class: 'ds-tag good' }, p.rehire ? '+14 days' : '14 days')), counters(G, p.members, p.monsters),
-            h('p', { class: 'ds-meta' }, `They follow you and fight beside you until midnight of day ${until}.`)));
-    const label = p.rehire ? `Extend them · ${p.price}g` : `Hire them · ${p.price}g`;
+            h('p', { class: 'ds-meta' }, `${strengthLine(G, p.members, p.monsters)} They follow you and fight beside you until midnight of day ${until}.`.trim())));
+    const label = p.rehire ? `Extend · ${p.price} Gold` : `Hire them · ${p.price} Gold`;
     // (the reason the primary is dim is the foot's line, in red, above the buttons: never below the fold of a scroll)
-    const foot = footRow({ note: p.affordable ? `Gold ${G.st.ch.gold} to ${left}` : `You are ${-left} gold short.`, bad: !p.affordable,
+    const foot = footRow({ note: p.affordable ? `Gold ${G.st.ch.gold} to ${left}` : `You are ${-left} Gold short.`, bad: !p.affordable,
         secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'hire-decline', onclick: () => act(G, { type: 'hire', act: 'decline' }) }, 'Not at that price'),
         primary: p.affordable ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'hire-ok', onclick: () => act(G, { type: 'hire', act: 'accept' }) }, label)
-            : dimBtn(G, label, `You are ${-left} gold short.`, { 'data-act': 'hire-ok' }, 'primary') });
+            : dimBtn(G, label, `You are ${-left} Gold short.`, { 'data-act': 'hire-ok' }, 'primary') });
     return { title: 'A price', eyebrow: `The ${p.group} answer`, body, foot, decision: true, detent: 'tall' };
 }
 
@@ -56,17 +72,17 @@ function chooser(G, p) {
     const cards = p.options.map(o => {
         const key = keyOf(o), on = key === sel, dc = drinksCost(G.st, G.data, o.group), rel = o.monsters ? 0 : G.st.ch.rel?.[o.group] ?? 0, round = rounds === key && !o.monsters;
         const days = o.rehire ? Math.max(0, Math.min(...o.members.map(id => (G.st.nats.find(n => n.id === id)?.hiredUntil ?? G.st.day) - G.st.day + 1))) : null;
-        const why = G.st.ch.gold < dc ? `A round costs ${dc} gold and you have ${G.st.ch.gold}.` : null;
+        const why = G.st.ch.gold < dc ? `A round costs ${dc} Gold and you have ${G.st.ch.gold}.` : null;
         return h('div', { class: `ds-group kit-hcard${on ? ' sel' : ''}`, 'data-hire-card': o.group },
             h('button', { type: 'button', class: 'kit-pick', 'data-hire-group': o.group, 'data-rehire': o.rehire ? '1' : '0', role: 'radio', 'aria-checked': on ? 'true' : 'false', onclick: () => { G.ui.hireSel = on && p.options.length > 1 ? null : key; render(G); } },
                 h('div', { class: 'hd' }, h('b', {}, titleOf(G, o)), o.monsters ? h('span', { class: 'ds-tag' }, 'pacified') : moodTag(round ? Math.min(2, rel + 1) : rel)),
                 counters(G, o.members, o.monsters),
-                h('span', { class: 'ds-meta' }, `${o.rehire ? `Extend hire (${days} day${days === 1 ? '' : 's'} left). ` : ''}Wages: ${o.wage} Gold${o.members.length > 1 ? ` for all ${o.members.length}` : ''}.${G.data.groups[o.group]?.hireMode === 'individual' ? ' One at a time.' : ''}`),
+                h('span', { class: 'ds-meta' }, `${o.rehire ? `Extend hire (${days} day${days === 1 ? '' : 's'} left). ` : ''}Wages: ${o.wage} Gold${o.members.length > 1 ? ` for all ${o.members.length}` : ''}.${G.data.groups[o.group]?.hireMode === 'individual' ? ' One at a time.' : ''} ${strengthLine(G, o.members, o.monsters)}`.trim()),
                 !o.monsters && rel < 0 ? h('span', { class: 'ds-why' }, 'They may turn you away.') : null),
             o.monsters ? null : h('div', { class: 'kit-chiprow' },
                 ashes ? h('span', { class: 'ds-meta' }, 'Your gold is worthless under the Ashes curse.')
                     : h('button', { type: 'button', class: `ds-chip${round ? ' on' : ''}${why && !round ? ' is-dim' : ''}`, 'data-multi': '', 'data-act': 'drinks-toggle', 'aria-pressed': round ? 'true' : 'false', 'aria-disabled': why && !round ? 'true' : null,
-                        onclick: () => { if (why && !round) { say(G, why); return; } G.ui.hireSel = key; G.ui.drinksFor = round ? null : key; render(G); } }, round ? icon('check') : null, `Stand a round · ${dc}g`)));
+                        onclick: () => { if (why && !round) { say(G, why); return; } G.ui.hireSel = key; G.ui.drinksFor = round ? null : key; render(G); } }, round ? icon('check') : null, `Stand a round · ${dc} Gold`)));
     });
     const body = h('div', { class: 'kit kit-hire' },
         ask('Natives here will hire out for 14 days.', 'Ask first: the roll sets the price, and you may refuse it.'),

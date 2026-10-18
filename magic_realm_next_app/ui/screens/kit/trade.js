@@ -51,8 +51,8 @@ export function payBlock(G, p, { why = true } = {}) {
                     h('span', { class: 'art' }, it ? itemArt(G, it) : null, on ? tick() : null),
                     h('span', { class: 'main' }, h('b', {}, m.name), h('span', {}, m.active ? 'In use. It counts at its basic price.' : 'Counts at its basic price.')), h('span', { class: 'end' }, goldEl(G, m.price)));
             }))) : null,
-        h('p', { class: 'kit-sum', 'data-sum': '' }, chosen.size ? `You pay ${goldDue} gold and ${plural(chosen.size, 'thing')}.` : `You pay ${p.price} gold.`, over ? ` They give no change (${over} over).` : ''),
-        !ok && why ? h('div', { class: 'ds-why bad' }, `You are ${short} gold short: hand over more.`) : null);
+        h('p', { class: 'kit-sum', 'data-sum': '' }, chosen.size ? `You pay ${goldDue} Gold and ${plural(chosen.size, 'thing')}.` : `You pay ${p.price} Gold.`, over ? ` They give no change (${over} over).` : ''),
+        !ok && why ? h('div', { class: 'ds-why bad' }, `You are ${short} Gold short: hand over more.`) : null);
     return { node, chosen: [...chosen], goldDue, ok, short, over, things: chosen.size };
 }
 
@@ -63,16 +63,16 @@ function offerContent(G, p) {
     const body = h('div', { class: 'kit kit-offer' },
         offerDice(G, p) ?? h('p', { class: 'ds-meta' }, p.rollNote),
         h('div', { class: 'kit-pricebox' }, h('div', { class: 'ds-price', 'data-price': String(p.price) }, `${p.price} GOLD`, h('small', {}, `${p.base} × ${p.mult}`)),
-            h('div', { class: 'kit-what' }, raw ? h('span', { class: 'ds-counter' }, itemArt(G, raw)) : null, h('div', {}, h('b', {}, repay ? `The ${p.group}’s goodwill` : p.name), h('span', { class: 'ds-meta' }, repay ? 'One roll: pay now, or it is lost for good.' : `List price ${p.base}g, times the roll.`)))),
+            h('div', { class: 'kit-what' }, raw ? h('span', { class: 'ds-counter' }, itemArt(G, raw)) : null, h('div', {}, h('b', {}, repay ? `The ${p.group}’s goodwill` : p.name), h('span', { class: 'ds-meta' }, repay ? 'One roll: pay now, or it is lost for good.' : `List price ${p.base} Gold, times the roll.`)))),
         ask(repay ? `The ${p.group} will sell back their goodwill.` : `The ${p.group} name a price for the ${p.name}.`, 'Pay it in gold or with things you hand over, or turn it down.'),
         pay.node);
     const label = repay ? 'Win it back' : 'Buy it';
-    const small = pay.things ? `${pay.goldDue}g and ${plural(pay.things, 'thing')}` : `${p.price}g`;
+    const small = pay.things ? `${pay.goldDue} Gold and ${plural(pay.things, 'thing')}` : `${p.price} Gold`;
     // (why the primary is dim is in the foot, above the buttons, in red: the sheet's body is a scroll and the answer must never be below it)
-    const foot = footRow({ note: pay.ok ? `Gold ${G.st.ch.gold} to ${G.st.ch.gold - pay.goldDue}` : `You are ${pay.short} gold short: hand over more.`, bad: !pay.ok,
+    const foot = footRow({ note: pay.ok ? `Gold ${G.st.ch.gold} to ${G.st.ch.gold - pay.goldDue}` : `You are ${pay.short} Gold short: hand over more.`, bad: !pay.ok,
         secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'trade-decline', onclick: () => { G.ui.payWith = null; G.ui.tradeTab = null; act(G, { type: 'trade', act: 'decline' }); } }, 'Not at that price'),
         primary: pay.ok ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'buy-ok', onclick: () => { const items = pay.chosen; G.ui.payWith = null; G.ui.tradeTab = null; act(G, { type: 'trade', act: 'accept', items }); } }, twoLine(label, small))
-            : dimBtn(G, twoLine(label, small), `You are ${pay.short} gold short: hand over more.`, { 'data-act': 'buy-ok' }, 'primary') });
+            : dimBtn(G, twoLine(label, small), `You are ${pay.short} Gold short: hand over more.`, { 'data-act': 'buy-ok' }, 'primary') });
     return { title: repay ? `Win back ${p.name}` : `Buy ${p.name}`, body, foot, decision: true, detent: 'tall' };
 }
 
@@ -123,12 +123,12 @@ function tradeMain(G, p) {
 
     // drinks: they warm to you a step for this deal (only a deal that rolls: buying, or buying back a favour)
     const cost = drinksCost(G.st, G.data, p.group);
-    const drinksWhy = ashes ? 'Your gold is worthless under the Ashes curse.' : dealt && p.mode === 'sell' ? 'Drinks come before the deal, and you have already sold.' : G.st.ch.gold < cost ? `A round costs ${cost} gold and you have ${G.st.ch.gold}.` : null;
+    const drinksWhy = ashes ? 'Your gold is worthless under the Ashes curse.' : dealt && p.mode === 'sell' ? 'Drinks come before the deal, and you have already sold.' : G.st.ch.gold < cost ? `A round costs ${cost} Gold and you have ${G.st.ch.gold}.` : null;
     const moodNow = moodOf(p.drinks ? Math.min(2, rel + 1) : rel), moodWord = MOOD_WORD[moodNow];
     const drinksRow = p.drinks
-        ? h('div', { class: 'ds-row sel kit-round', 'data-drinks-bought': '' }, h('span', { class: 'art' }, actIcon('trade', 28), tick()), h('span', { class: 'main' }, h('b', {}, 'Round bought'), h('span', {}, `The ${p.group} are ${moodWord} for this deal.`)), h('span', { class: 'end' }, `${p.drinksCost ?? cost}g`))
+        ? h('div', { class: 'ds-row sel kit-round', 'data-drinks-bought': '' }, h('span', { class: 'art' }, actIcon('trade', 28), tick()), h('span', { class: 'main' }, h('b', {}, 'Round bought'), h('span', {}, `The ${p.group} are ${moodWord} for this deal.`)), h('span', { class: 'end' }, goldEl(G, p.drinksCost ?? cost)))
         : h('button', { type: 'button', class: `ds-row kit-round${drinksWhy ? ' dim' : ''}`, 'data-act': 'drinks', 'aria-disabled': drinksWhy ? 'true' : null, onclick: () => (drinksWhy ? say(G, drinksWhy) : act(G, { type: 'trade', act: 'drinks' })) },
-            h('span', { class: 'art' }, actIcon('trade', 28)), h('span', { class: 'main' }, h('b', {}, `Stand the ${p.group} a round`), h('span', {}, `${moodWord} now. A gold a head warms them a step for this deal.`)), h('span', { class: 'end' }, `${cost}g`));
+            h('span', { class: 'art' }, actIcon('trade', 28)), h('span', { class: 'main' }, h('b', {}, `Stand the ${p.group} a round`), h('span', {}, `${moodWord} now. A round warms them a step for this deal.`)), h('span', { class: 'end' }, goldEl(G, cost)));
 
     // the rows of the room
     let rows;
@@ -172,7 +172,7 @@ function tradeMain(G, p) {
     } else if (chosenSell.length) {
         const weaponOut = chosenSell.some(m => G.st.ch.items.find(i => i.uid === m.uid)?.active);
         note = h('span', {}, h('b', {}, `Selling ${chosenSell.length === 1 ? chosenSell[0].name : plural(chosenSell.length, 'thing')}`), h('br'), `Gold ${G.st.ch.gold} to ${G.st.ch.gold + sellSum}`, weaponOut ? ' · it is in use' : '');
-        primary = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'trade-go', onclick: go }, `Sell ${plural(chosenSell.length, 'thing')} \u00B7 ${sellSum}g`);
+        primary = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'trade-go', onclick: go }, `Sell ${plural(chosenSell.length, 'thing')} \u00B7 ${sellSum} Gold`);
     } else if (dealt) {
         note = p.mode === 'sell' ? `You have sold ${plural(p.sold.length, 'thing')} so far. Sell more, or press Done.` : 'You have begun dealing, so this phase can only be finished.';
         primary = done('primary'); secondary = null;

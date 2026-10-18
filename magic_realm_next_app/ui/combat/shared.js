@@ -7,6 +7,7 @@ import { pcEl } from '../shared_ui.js';
 import { denSide } from '../../engine/combat.js';
 import { foeFacts, gearWords, dealWith, treacheryCost, pname, targetName } from '../pvp.js';
 import { onMine, picOf, nb } from './model.js';
+import { displayName } from '../names.js';
 
 export { onMine };
 const personOf = (f, id) => f?.members.find(m => m.id === id)?.person ?? null;
@@ -18,7 +19,7 @@ export function foeCard({ facts, person, on, role = 'radio', onclick, data = {},
     return h('button', { type: 'button', class: `ds-row pv-foe${on ? ' on sel' : ''}${facts.deal || extra ? ' warn' : ''}`, role, 'aria-checked': on ? 'true' : 'false', 'data-foe-char': facts.id, ...data, onclick },
         person ? pcEl({ ...person, dead: false }, { size: 38 }) : h('span', { class: 'ds-pc', style: 'width:38px;height:38px' }, '?'),
         h('span', { class: 'main pv-ftext' },
-            h('b', {}, facts.player, h('i', {}, ` · ${facts.character}`)),
+            h('b', {}, facts.player, h('i', {}, ` · ${displayName(facts.character)}`)),
             h('span', { class: 'pv-nums' }, nb(`Fame ${facts.fame} · Notoriety ${facts.notoriety} · ${state}`)),
             h('span', { class: 'pv-gear' }, gearWords(facts)),
             facts.deal ? h('span', { class: 'pv-deal' }, facts.deal) : null,

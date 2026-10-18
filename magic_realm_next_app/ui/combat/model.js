@@ -1,9 +1,10 @@
 // combat/model.js: what the combat scene needs to know, worked out from the engine's state and options, with no DOM (so node tests can run it). The engine decides everything;
 // this file only chooses defaults for the player's plan, finds the words for what happened (from the lines the engine already wrote) and says why a control is dim.
 import { lvl, WEIGHT_WORDS } from '../../engine/core.js';
-import { denSide, weaponSide } from '../../engine/combat.js';
+import { denSide, weaponSide, hireStats } from '../../engine/combat.js';
 import { NO_EFFORT_LIMIT } from '../../engine/modifiers.js';
 import { nameOf } from '../../engine/items.js';
+import { withArticle, displayName, fixNames } from '../names.js';
 
 export const DIRS = ['Thrust', 'Swing', 'Smash'], MNV = ['Charge', 'Dodge', 'Duck'];
 export const BOX = ['Charge/Thrust', 'Dodge/Swing', 'Duck/Smash'];          // the red boxes of the melee sheet name both (rules 4.1, 8.4.6b)
@@ -13,6 +14,7 @@ export const nb = s => String(s).replace(/ (?=#?\d)/g, '\u00A0');
 export const baseName = s => String(s).replace(/[ \u00A0]#\d+$/, '');
 const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
 export const numWord = n => NUM[n] ?? String(n);
+export { displayName, fixNames };
 export const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const plural = n => (/wolf$/i.test(n) ? n.replace(/wolf$/i, 'Wolves') : /s$/i.test(n) ? n : /(?:ch|sh|x)$/i.test(n) ? `${n}es` : `${n}s`);
 export const listOf = a => (a.length <= 1 ? (a[0] ?? '') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);
@@ -28,7 +30,7 @@ export const isImp = (data, d) => d.kind === 'mon' && data.monsters[d.id]?.famil
 export function foesPhrase(names) {
     const by = new Map();
     for (const n of names.map(baseName)) by.set(n, (by.get(n) ?? 0) + 1);
-    const bits = [...by].map(([n, k]) => (k === 1 ? `a ${n}` : `${numWord(k)} ${plural(n)}`));
+    const bits = [...by].map(([n, k]) => (k === 1 ? withArticle(n) : `${numWord(k)} ${plural(n)}`));
     return listOf(bits);
 }
 // "Heavy Troll #1" with a no-break space before the tag, for any sentence or label that may wrap
@@ -236,7 +238,20 @@ export function standingWhy(st, groups) {
 }
 
 // ---- who is on his side (hirelings and monsters his spells have won over) ----
-export const alliesOf = (st, data) => (st.combat.hires ?? []).filter(x => !x.dead).map(x => ({ uid: x.uid, kind: x.kind, id: x.id, name: x.kind === 'mon' ? data.monsters[x.id]?.name : data.natives[x.id]?.name, controlled: x.kind === 'mon' }));
+export function alliesOf(st, data) {
+    return (st.combat.hires ?? []).filter(x => !x.dead).map(x => {
+        const mon = x.kind === 'mon', def = mon ? data.monsters[x.id] : data.natives[x.id], held = (mon ? st.mons : st.nats).find(o => o.id === x.id);
+        const until = held?.hiredUntil != null ? Math.max(0, held.hiredUntil - st.day + 1) : null;          // 14 on the day he was hired, then one fewer each day
+        // the side the hirer deploys (hireStats: the one that can fight, the harder-hitting if both): the counter shows that one first
+        let side = 'light';
+        try {
+            const hs = hireStats(data, x.id, x.kind, st);
+            const pick = [['light', def.light], ['dark', def.dark]].find(([, sd]) => sd && sd.harm === hs.harm && sd.attackTime === hs.atk);
+            if (pick) side = pick[0];
+        } catch { /* the light side */ }
+        return { uid: x.uid, kind: x.kind, id: x.id, name: def?.name ?? '?', controlled: mon, days: mon && held?.controlledUntil ? null : until, side };
+    });
+}
 
 // ---- the chits for the wound and fatigue grids ----
 export function fatigueDefault(st, p) {

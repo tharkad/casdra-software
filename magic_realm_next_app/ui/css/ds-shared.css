@@ -240,3 +240,26 @@
 .tb-rank small { font: 600 12px/1 var(--font-display); letter-spacing: .04em; color: var(--gold-lo); margin-left: 1px; }
 .tb-card.tb-noterow { flex-direction: row; align-items: center; gap: 10px; padding: 4px 6px 4px 12px; } .tb-notetext { flex: 1; font-size: 15px; line-height: 1.3; }
 .mt-outcome b { color: var(--ink); font-weight: 700; }
+
+/* ---- G3 (fix wave 2) ---- */
+/* the details that open a reason or a past round: a chevron on the right that turns when open (QA-128, QA-130) */
+.sf-lastround summary { justify-content: space-between; gap: 8px; }
+.pv-why { margin-top: 2px; } .pv-why summary { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; color: var(--gold); } .pv-why summary::-webkit-details-marker { display: none; } .pv-why[open] summary { color: var(--ink-2); }
+.sf-lastround summary .ds-i, .pv-why summary .ds-i { flex: none; color: var(--ink-3); transition: transform var(--d-fast, 150ms) var(--ease-io, ease); }
+.sf-lastround[open] summary .ds-i, .pv-why[open] summary .ds-i { transform: rotate(180deg); }
+.pv-nocharge { margin: 4px 0 0; font: 400 16px/1.35 var(--font-ui); color: var(--ink); }
+/* my own fall inside the reveal sheet (the sheet is titled "You have fallen"): the box says only the cause and what comes next */
+.sf-death.bare { padding: 12px; } .sf-death.bare .dwho { margin-top: 0; }
+/* the restart sheet offers every character nobody holds: they wrap, four to a row, instead of scrolling sideways (QA-133) */
+.restsheet .ds-portraits { flex-wrap: wrap; overflow: visible; justify-content: flex-start; gap: 10px 6px; padding: 6px 0 8px; }
+.restsheet .ds-portrait { flex: 0 0 calc((100% - 18px) / 4); max-width: none; }
+.restsheet .ds-portrait i { max-width: 64px; }
+.restsheet .restart-who { margin-top: 8px; }
+/* Calm motion (DR-2): the waiting pulse has a literal duration, so neither the Calm token nor the phone's setting reached it. It stands still, and the card's gold dot says "waiting" without moving. */
+[data-calm="on"] .ds-wait .pulse { animation: none; }
+@media (prefers-reduced-motion: reduce) { .ds-wait .pulse { animation: none; } }
+/* three at the table: the three tiles sit in one row, so the dawn, the tiles and the order fit a 640 px phone without a scroll (QA-124) */
+.ds-draw.n3 { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ds-draw.n3 .tile { height: 92px; } .ds-draw.n3 .tile .no { left: 8px; top: 4px; font-size: 22px; } .ds-draw.n3 .tile b { font-size: 16px; }
+.ds-draw.n3 .tile .chit-who small { font-size: 12px; }
+.mt-offer > .mt-outcome:first-child { margin: 0 0 10px; font-size: 15px; }           /* the offer's sentence leads, above the two sides (QA-129) */

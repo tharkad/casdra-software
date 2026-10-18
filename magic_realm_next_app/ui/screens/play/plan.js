@@ -1,7 +1,7 @@
 // play/plan.js: the plan tray (planTray: tabs, one line, the nine actions, Start the day; tray.js puts it in the tray) and the draft logic behind it (pick, setMove, advance, pruneOver, startDay).
 import { planKinds } from '../../../engine/day.js';
 import { flySources, flyTiles } from '../../../engine/magic/fly.js';
-import { isCave, isMountain, nameOfClearing, tileName } from '../../../engine/world.js';
+import { isCave, isMountain, nameOfClearing, numOf, tileName } from '../../../engine/world.js';
 import { h } from '../../dom.js';
 import { playerOf as playerNameOf } from '../../meet.js';
 import { actRefusal, planState } from '../../planlogic.js';
@@ -30,9 +30,20 @@ function climbLocked(G, i) {
     return !!(s?.act === 'move' && s.to && prev?.act === 'move' && prev.to === s.to && isMountain(G.st, G.data, s.to));
 }
 
-// short word for a tab: "Move·BV2", "Hide", "Search"
-const tabWord = s => (!s ? '–' : s.act === 'move' && s.to ? `Move·${s.to}` : (ACT_LABEL[s.act] ?? s.act));
+// short word for a tab: "Move · 2" (the number the player reads on the map, never the engine's code: DR-11), "Hide", "Search"
+const tabWord = s => (!s ? '\u2013' : s.act === 'move' && s.to ? `Move\u00A0\u00B7\u00A0${numOf(s.to)}` : (ACT_LABEL[s.act] ?? s.act));
 const nb = s => String(s).replace(/ (\d+)$/, ' $1');
+
+// The plan in one sentence (DR-13): capitalised, an extra phase named as one, and a run of Nothing said once ("Move, Hide, Search and two phases of Nothing"). Pure: tools/ui_planlogic.py reads it.
+export function planSentence(items) {
+    const cap = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
+    const bits = [];
+    let nothing = 0;
+    for (const it of items) { if (it.what === 'Nothing' && !it.extra) { nothing++; continue; } bits.push(it.extra ? `an extra ${it.what}` : it.what); }
+    const words = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+    if (nothing) bits.push(nothing === 1 ? 'Nothing' : `${words[nothing] ?? nothing} phases of Nothing`);
+    return cap(bits.length > 1 ? `${bits.slice(0, -1).join(', ')} and ${bits.at(-1)}` : bits[0] ?? 'Nothing');
+}
 
 // The nine (or eight, ten, eleven) actions as chips. A dim chip stays tappable and says why.
 function actChips(G, i, at, over, others, baseOver) {
@@ -120,8 +131,8 @@ export function planTray(G) {
     const unsetN = Array.from({ length: total }, (_, i) => d.slots[i]).filter(s => !s).length;
     if (step == null) {
         // the plan is whole: one summary line, nothing else to do but start
-        const names = d.slots.slice(0, total).map((s, i) => `${kinds[i] === 'extra' ? 'your extra ' : ''}${s ? (ACT_LABEL[s.act] ?? s.act) : 'Nothing'}`);
-        const sum = d.slots[0]?.act === 'follow' ? describeSlot(G, d.slots[0]) : names.length > 1 ? `${names.slice(0, -1).join(', ')}, and ${names.at(-1)}` : names[0];
+        const names = d.slots.slice(0, total).map((s, i) => ({ extra: kinds[i] === 'extra', what: s ? (ACT_LABEL[s.act] ?? s.act) : 'Nothing' }));
+        const sum = d.slots[0]?.act === 'follow' ? describeSlot(G, d.slots[0]) : planSentence(names);
         kids.push(h('div', { class: 'ds-plan-ask' }, h('span', { class: 'ds-dim' }, `${sum}. Ready when you are.`)));
         lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `${total} of ${total}`), ' set');
     } else {

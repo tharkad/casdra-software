@@ -8,7 +8,7 @@ import { lengthLine, timed } from '../../gametext.js';
 import { HELP } from '../info.js';
 import { meetSheet, offerSheet } from '../meetui.js';
 import { endOptionSheet, leaveSheet, quitSheet } from '../tableui.js';
-import { abandon, act } from './actions.js';
+import { abandon, act, isForced } from './actions.js';
 import { combatHost, fightBeat, sharedFightHost } from './combat.js';
 import { mc, modal, tc } from './kit.js';
 import { choiceSheet, effortSheet, enchantSheet, learnSheet, pickSheet, restSheet, runesSheet, searchSheet, tableName, turnEndSheet } from './phases.js';
@@ -53,7 +53,7 @@ export function sheets(G, lookOnly = false) {
     if (p?.type === 'turn-end') out.push(turnEndSheet(G));
     else if (p?.type === 'turn-end') out.push(turnEndSheet(G));
     else if (p?.type === 'rest') out.push(restSheet(G, p));
-    else if (p?.type === 'search-table') out.push(searchSheet(G, p));
+    else if (p?.type === 'search-table') { if (!isForced(p)) out.push(searchSheet(G, p)); }
     else if (p?.type === 'effort-cost') out.push(effortSheet(G, p));
     else if (p?.type === 'runes-target') out.push(runesSheet(G, p));
     else if (p?.type === 'learn-spell') out.push(learnSheet(G, p));
@@ -65,13 +65,14 @@ export function sheets(G, lookOnly = false) {
     else if (G.shared && p?.type === 'meet-offer') { out.push(offerSheet(mc(G), p)); if (G.ui.sheet === 'players') out.push(playersSheet(G)); }
     else if (G.shared && G.ui.sheet === 'meet') out.push(meetSheet(mc(G)));
     else if (!G.ui.welcomeDone && !welcomed() && G.st.day === 1 && p?.type === 'plan') {
-        // two lines, in the voice of the rest of the game (QA-9): where you stand, then the shape of a day. The phase count is the one the tray shows (phasesFor); no number or place breaks across a line.
-        const gear = G.st.ch.items.length ? ` with ${G.st.ch.items.map(i => nameOf(G.data, i)).join(', ')}` : ', with no weapon or armor yet';
+        // two lines, in the voice of the rest of the game (QA-9): where you stand, then the shape of a day. The phase count is the one the tray shows (phasesFor); no number, place or item name breaks across a line (DR-18).
+        const things = G.st.ch.items.map(i => nameOf(G.data, i).replace(/ /g, '\u00A0'));
+        const gear = things.length ? ` with ${things.length > 1 ? `${things.slice(0, -1).join(', ')} and ${things.at(-1)}` : things[0]}` : ', with no weapon or armor yet';
         const n = phasesFor(G.st, G.data, []).total;
-        out.push(modal(G, `Welcome, ${G.st.ch.name}`, h('div', { class: 'welcome' },
+        out.push(modal(G, 'Welcome', h('div', { class: 'welcome' },
             h('p', { class: 'ds-voice' }, `You wake at the ${G.st.ch.startDwelling}${gear}. ${lengthLine(G.st)}`.replace(/ (\d+)/g, '\u00A0$1')),
-            h('p', { class: 'ds-voice' }, `Each morning you plan ${n}\u00A0phases in secret. Then the day plays out, and at night you fight whoever shares your clearing.`),
-            h('button', { class: 'btn primary', 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }, 'Begin')), { kind: 'result' }));
+            h('p', { class: 'ds-voice' }, `Each morning you plan ${n}\u00A0phases in secret. Then the day plays out, and at night you fight whoever shares your clearing.`)),
+        { kind: 'result', bare: true, eyebrow: G.st.ch.name, footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }, 'Begin')) }));
     }
     else if (p?.type === 'plan' && G.st.day > 1 && G.ui.reportedDay !== G.st.day && G.ui.sheet !== 'plan') out.push(reportSheet(G));
     else if (G.ui.sheet === 'char') out.push(charSheet(G));
@@ -80,9 +81,10 @@ export function sheets(G, lookOnly = false) {
     else if (G.ui.sheet === 'menu') out.push(menuSheet(G));
     else if (G.ui.sheet === 'confirm-abandon' && !G.race) out.push(modal(G, 'Abandon this game?', h('div', { class: 'confirmbox' },
         h('p', {}, `${G.st.ch?.name ?? 'Your hero'} is on day ${G.st.day}${timed(G.st) ? ` of ${G.st.lastDay ?? 28}` : ''}, with ${G.st.ch?.gold ?? 0} gold, ${G.st.ch?.fame ?? 0} Fame and ${G.st.ch?.notoriety ?? 0} Notoriety.`),
-        h('p', { class: 'hint bad' }, 'Abandoning ends this adventure for good. It stays in History as abandoned, but it cannot be picked up again.'),
-        h('button', { class: 'btn primary big', 'data-act': 'keep-playing', onclick: () => { G.ui.sheet = null; render(G); } }, 'Keep playing'),
-        h('button', { class: 'btn danger', 'data-act': 'confirm-abandon', onclick: () => abandon(G) }, 'Abandon this game')), { close: () => { G.ui.sheet = null; render(G); } }));
+        h('p', { class: 'hint bad' }, 'Abandoning ends this adventure for good. It stays in History as abandoned, but it cannot be picked up again.')),
+        { close: () => { G.ui.sheet = null; render(G); }, bare: true, footer: h('div', { class: 'ds-opt-foot' },
+            h('button', { type: 'button', class: 'ds-btn danger', 'data-act': 'confirm-abandon', onclick: () => abandon(G) }, 'Abandon this game'),
+            h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'keep-playing', onclick: () => { G.ui.sheet = null; render(G); } }, 'Keep playing')) }));
     else if (G.ui.sheet === 'race' && G.race) out.push(raceSheet(G));
     else if (G.ui.sheet === 'players' && G.shared) out.push(playersSheet(G));
     else if (G.ui.sheet === 'quit-confirm' && G.shared) out.push(quitSheet(tc(G)));

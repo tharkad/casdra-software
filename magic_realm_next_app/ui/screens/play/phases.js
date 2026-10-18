@@ -101,6 +101,15 @@ export function turnEndSheet(G) {
 const nbsp_ = n => String(n).replace(/ (\d+)$/, ' $1');
 const sentence = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
+// The foot of a decision sheet: a lead sentence and ONE primary at the bottom right, and, for the peek (the map looked at while the question waits), the way back.
+export function choiceFoot(lead, primary) {
+    return h('div', { class: 'ds-foot-pair' },
+        h('div', { class: 'ds-opt-foot' }, typeof lead === 'string' ? h('span', { class: 'lead ds-lead-text' }, lead) : lead, primary),
+        h('div', { class: 'ds-opt-foot peek-foot' }, h('span', { class: 'lead ds-lead-text' }, 'The map is yours.'), btn('Back to the question', 'primary', { 'data-act': 'back-to-choice' })));
+}
+// The row he has picked is in view when the sheet opens (a long list scrolls inside the sheet; the foot never does).
+function showPicked(frag) { requestAnimationFrame(() => { const row = frag.sheet?.querySelector('.ds-opt.sel'), el = row?.closest('.ds-optgroup') ?? row; if (el && el.isConnected) el.scrollIntoView({ block: 'nearest' }); }); }
+
 function pickSheetOf(G, { title, eyebrow, situation, why, detailWhy, opts, key, idle, verb, act: go, kind, close }) {
     const sel = opts.find(o => o.k === G.ui[key] && !o.dim)?.k ?? null, chosen = opts.find(o => o.k === sel);
     const askEl = h('div', { class: 'ds-ask' }, h('b', {}, situation), why ? h('span', { 'data-v': 'story' }, why) : null, h('span', { 'data-v': 'detail' }, detailWhy ?? why));
@@ -114,10 +123,10 @@ function pickSheetOf(G, { title, eyebrow, situation, why, detailWhy, opts, key, 
     const go_ = () => { G.ui[key] = null; go(chosen); };
     const primary = chosen ? btn(twoLine(verb, chosen.label ?? chosen.title), 'primary', { 'data-act': 'pick-go', onclick: go_ })
         : btn(idle.button, 'primary is-dim', { 'aria-disabled': 'true', onclick: () => showToast(G, idle.toast) });
-    return modal(G, title, h('div', { class: 'pickbody' }, askEl, h('div', { class: 'ds-list ds-opts' }, ...rows)), { kind: kind === 'info' ? undefined : kind ?? 'decision', close: kind === 'info' ? close : undefined, bare: true, eyebrow, cls: 'pick-sheet',
-        footer: h('div', { class: 'ds-foot-pair' },
-            h('div', { class: 'ds-opt-foot' }, h('span', { class: 'lead ds-lead-text' }, idle.lead), primary),
-            h('div', { class: 'ds-opt-foot peek-foot' }, h('span', { class: 'lead ds-lead-text' }, 'The map is yours.'), btn('Back to the question', 'primary', { 'data-act': 'back-to-choice' }))) });
+    const frag = modal(G, title, h('div', { class: 'pickbody' }, askEl, h('div', { class: 'ds-list ds-opts' }, ...rows)), { kind: kind === 'info' ? undefined : kind ?? 'decision', close: kind === 'info' ? close : undefined, bare: true, eyebrow, cls: 'pick-sheet',
+        footer: choiceFoot(idle.lead, primary) });
+    showPicked(frag);
+    return frag;
 }
 
 // Search: which table? What the clearing holds is on the sheet: what could come of each roll.
@@ -126,8 +135,8 @@ export function searchSheet(G, p) {
     const sites = st.ch.onRoad ? [] : st.chits.filter(x => x.kind === 'site' && x.tile === tile && x.num === n && !x.pile && st.ch.discovered.sites.includes(x.id));
     const ground = st.abandoned?.[at] ?? [], cards = st.ch.siteCards?.[at] ?? [];
     const defs = [];
-    if (opts.includes('peer')) defs.push({ k: 'peer', table: 'peer', title: 'Peer', line: 'Hidden enemies and secret paths.', art: actIcon('peer', 28) });
-    if (opts.includes('locate')) defs.push({ k: 'locate', table: 'locate', title: 'Locate', line: 'Passages, clues, and any site hidden here.', art: actIcon('search', 28) });
+    if (opts.includes('peer')) defs.push({ k: 'peer', table: 'peer', title: 'Peer', line: 'Hidden enemies and secret\u00A0paths.', art: actIcon('peer', 28) });
+    if (opts.includes('locate')) defs.push({ k: 'locate', table: 'locate', title: 'Locate', line: 'Passages, clues, and any site hidden\u00A0here.', art: actIcon('search', 28) });
     if (opts.includes('loot')) {
         if (sites.length) defs.push({ k: 'loot', table: 'loot', title: sites.length === 1 ? `Loot the ${sites[0].name}` : 'Loot a site here', line: sites.length === 1 ? 'Reach into the pile. The cards you could reach are lit.' : 'Reach into a pile. The cards you could reach are lit.', art: actIcon('cache', 28), extra: sites.map(c => siteBlock(G, c, { compact: true })) });
         else defs.push({ k: 'loot', table: 'loot', title: 'Loot', line: 'Nothing to open here yet.', why: 'Nothing here to loot. A site has to be found first: Locate is how.', art: actIcon('cache', 28), dim: true });
@@ -189,7 +198,7 @@ export function pickSheet(G, p) {
     const act2 = G.ui.pickAct, send = slot => { G.ui.pickAct = null; act(G, { type: 'pick', slot }); };
     const eyebrow = `Phase ${p.i + 1} \u00B7 ${ACT_LABEL[act2] ?? act2}`, close = () => { G.ui.pickAct = null; render(G); };
     if (act2 === 'search') {
-        const LINE = { peer: 'Hidden enemies and secret paths.', locate: 'Passages, clues, and any site hidden here.', loot: 'Reach into a pile you have found.', ground: 'Take what lies here.', sitecard: 'A place you found by looting.', runes: 'Learn a spell from a site or an item.' };
+        const LINE = { peer: 'Hidden enemies and secret\u00A0paths.', locate: 'Passages, clues, and any site hidden here.', loot: 'Reach into a pile you have found.', ground: 'Take what lies here.', sitecard: 'A place you found by looting.', runes: 'Learn a spell from a site or an item.' };
         return pickSheetOf(G, { title: 'Which table?', eyebrow, situation: `Search ${nbsp_(nameOfClearing(G.st.ch.at))}: one roll on one table.`, why: 'Each table finds different things.', key: 'tablePick', kind: 'info', close,
             opts: (p.tables ?? []).map(t => ({ k: t, table: t, title: tableName(G, t), line: LINE[t] ?? '', art: actIcon(t === 'peer' ? 'peer' : t === 'loot' || t === 'ground' || t === 'sitecard' ? 'cache' : 'search', 28), attrs: { 'data-pick-table': t } })),
             idle: { button: 'Choose a table', lead: 'One roll on one table.', toast: 'Pick one of the tables first.' }, verb: 'Search', act: o => send({ act: 'search', table: o.table }) });
@@ -241,34 +250,51 @@ export function effortSheet(G, p) {
             : ask(toll, 'Tap the chit that pays. It stays tired until you rest it.'),
         chitGrid(G, tiles.map(t => t.el)),
         waiting ? h('div', { class: 'row2' },
-            plainOpt ? h('button', { class: 'btn primary', 'data-act': 'effort-plain', onclick: () => { G.ui.effortChit = null; act(G, { type: 'effort-cost', n: plainOpt.n }); } }, 'Just tire it') : null,
-            h('button', { class: 'btn', onclick: () => { G.ui.effortChit = null; render(G); } }, 'Choose a different chit')) : null), { eyebrow: 'Effort', bare: true, cls: 'chit-sheet' });
+            plainOpt ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'effort-plain', onclick: () => { G.ui.effortChit = null; act(G, { type: 'effort-cost', n: plainOpt.n }); } }, 'Just tire it') : null,
+            h('button', { type: 'button', class: 'ds-btn', onclick: () => { G.ui.effortChit = null; render(G); } }, 'Choose a different chit')) : null), { eyebrow: 'Effort', bare: true, cls: 'chit-sheet' });
 }
 
+// Rest: tap the chit you want back (it is only picked), then the primary does it. A chit worth two asterisks costs a second step: the ready one-asterisk chit you tire in exchange, picked the same way.
+// The chits that can be rested come first and are lit; the ones that are ready already are folded away under a line that says so.
 export function restSheet(G, p) {
     const mine = new Map();
     for (const o of p.options) (mine.get(o.chit) ?? mine.set(o.chit, []).get(o.chit)).push(o);
+    const chits = G.st.ch.chits;
     const waiting = G.ui.restChit && mine.has(G.ui.restChit) ? G.ui.restChit : null;
     const changers = new Set(waiting ? mine.get(waiting).map(o => o.change).filter(Boolean) : []);
+    const key = waiting ? 'restPay' : 'restSel', can = id => (waiting ? changers.has(id) : mine.has(id));
+    const picked = chits.find(c => c.id === G.ui[key] && can(c.id)) ?? null;
     const tile = c => {
-        const canRest = !waiting && mine.has(c.id), canChange = !!waiting && changers.has(c.id), isWaiting = waiting === c.id;
-        return { can: canRest || canChange || isWaiting, el: chitTile(G, c, { can: canRest || canChange, sel: isWaiting, attr: 'data-rest-chit',
+        const ok = can(c.id);
+        return { ok, el: chitTile(G, c, { can: ok, sel: picked?.id === c.id || waiting === c.id, attr: 'data-rest-chit',
             onTap: () => {
-                if (!(canRest || canChange)) { showToast(G, c.state === 'active' ? 'That chit is ready already: only tired or wounded chits can be rested.' : 'That chit cannot be rested now.'); return; }
-                if (canChange) { const o = mine.get(waiting).find(x => x.change === c.id); G.ui.restChit = null; act(G, { type: 'rest', chit: o.chit, change: o.change }); return; }
-                const opts = mine.get(c.id), direct = opts.find(x => x.change == null);
-                if (direct) { G.ui.restChit = null; act(G, { type: 'rest', chit: c.id }); } else { G.ui.restChit = c.id; render(G); }
+                if (!ok) { showToast(G, c.state === 'active' ? 'That chit is ready already: only tired or wounded chits can be rested.' : 'That chit cannot be rested now.'); return; }
+                G.ui[key] = c.id; render(G);
             } }) };
     };
-    const tiles = G.st.ch.chits.map(tile).sort((a, b) => (b.can - a.can));
-    const target = waiting ? G.st.ch.chits.find(c => c.id === waiting) : null;
+    const target = waiting ? chits.find(c => c.id === waiting) : null;
+    const tiles = chits.filter(c => c !== target).map(tile), lit = tiles.filter(t => t.ok), ready = tiles.filter(t => !t.ok);
+    if (target) lit.unshift({ ok: true, el: chitTile(G, target, { can: true, sel: true, attr: 'data-rest-chit', onTap: () => showToast(G, 'This is the chit being rested. Pick the one you will tire for it.') }) });
     const pr = phasePrompt('rest');
     const askEl = waiting
-        ? ask(`Making change for ${chitLabel(target)}.`, 'A chit worth two asterisks costs two of rest. Tap the ready one-asterisk chit you will tire in exchange.')
+        ? ask(`Making change for ${chitLabel(target)}.`, 'A chit worth two asterisks costs two of rest. Pick the ready one-asterisk chit you will tire in exchange.')
         : h('div', { class: 'ds-ask' }, h('b', {}, `${pr.line} Tap the chit you want back.`), h('span', { 'data-v': 'story' }, 'A tired chit comes back ready, or a wounded one heals. The lit ones can be rested now.'),
             h('span', { 'data-v': 'detail' }, 'One Rest returns one asterisk of effort: a tired chit becomes ready again, or a wounded chit is healed (one with asterisks comes back tired).'));
-    return modal(G, 'Rest', h('div', { class: 'restsheet' }, askEl, chitGrid(G, tiles.map(t => t.el)),
-        waiting ? h('button', { class: 'btn', onclick: () => { G.ui.restChit = null; render(G); } }, 'Choose a different chit') : null), { eyebrow: 'Phase · Rest', bare: true, cls: 'chit-sheet' });
+    const commit = () => {
+        if (waiting) { const o = mine.get(waiting).find(x => x.change === picked.id); G.ui.restChit = null; G.ui.restPay = null; G.ui.restSel = null; act(G, { type: 'rest', chit: o.chit, change: o.change }); return; }
+        const direct = mine.get(picked.id).find(x => x.change == null);
+        if (direct) { G.ui.restSel = null; act(G, { type: 'rest', chit: picked.id }); } else { G.ui.restChit = picked.id; G.ui.restPay = null; G.ui.restSel = null; render(G); }
+    };
+    const verb = waiting ? 'Tire' : 'Rest', needsChange = picked && !waiting && !mine.get(picked.id).some(x => x.change == null);
+    const primary = picked ? btn(twoLine(needsChange ? 'Next' : verb, needsChange ? 'make change' : chitLabel(picked)), 'primary', { 'data-act': 'rest-go', onclick: commit })
+        : btn(twoLine(verb, 'choose a chit'), 'primary is-dim', { 'aria-disabled': 'true', onclick: () => showToast(G, 'Tap the chit you want back first.') });
+    const lead = waiting ? h('button', { type: 'button', class: 'ds-btn quiet sm', 'data-act': 'rest-other', onclick: () => { G.ui.restChit = null; G.ui.restPay = null; render(G); } }, 'Another chit')
+        : h('span', { class: 'lead ds-lead-text' }, lit.length ? 'One chit, one rest.' : 'Nothing to rest.');
+    const foot = choiceFoot(lead, primary);
+    const place = nbsp_(nameOfClearing(G.st.ch.at ?? ''));
+    return modal(G, 'Rest', h('div', { class: 'restsheet' }, askEl, chitGrid(G, lit.map(t => t.el)),
+        ready.length ? h('details', { class: 'ds-more rest-ready' }, h('summary', {}, (waiting ? `${ready.length} other ${ready.length === 1 ? 'chit' : 'chits'}` : `${ready.length} ${ready.length === 1 ? 'chit is' : 'chits are'} ready already`)), chitGrid(G, ready.map(t => t.el))) : null),
+    { eyebrow: place, bare: true, cls: 'chit-sheet', footer: foot });
 }
 
 // Reading Runes found a card he can learn.

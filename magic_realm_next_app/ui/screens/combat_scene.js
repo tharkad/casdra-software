@@ -13,11 +13,12 @@ import { clone } from '../../engine/core.js';
 import { denSide, meleeOptions, shiftOptions, encounterOptions } from '../../engine/combat.js';
 import { nameOfClearing } from '../../engine/world.js';
 import * as M from '../combat/model.js';
-import { foeEl, foeSize, lanesEl, heroEl, gearPopover, fitNames } from '../combat/stage.js';
+import { foeEl, foeSize, lanesEl, heroEl, alliesEl, gearPopover, fitNames } from '../combat/stage.js';
 import { sheetEl, meetingSheet, encounterSheet, meleeSheet, shiftSheet, resultSheet, gridSheet, recapSheet, beatSheet, recordSheet, pitSheet, stepsFor } from '../combat/sheets.js';
 import * as P from '../combat/payload.js';
 import * as SH from '../combat/shared.js';
 import { guardIfChanged } from '../tapguard.js';
+import { article, fixNames } from '../names.js';
 
 const RESULT_TYPES = ['combat-fatigue', 'combat-wounds', 'combat-encounter'];
 const hashOf = s => { let x = 0; for (let i = 0; i < s.length; i++) x = (Math.imul(31, x) + s.charCodeAt(i)) | 0; return x; };
@@ -108,7 +109,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     }
     const o = mode === 'melee' ? meleeOptions(st, data) : null;
     const m = mode === 'melee' ? cb.plan : null, step = o && stepsFor(o, X).some(s => s.id === cb.step) ? cb.step : (o ? stepsFor(o, X)[0].id : 'strike');
-    const size = foeSize(foes.length);
+    const size = foeSize(foes.length, mode === 'meet');
     const targetable = mode === 'melee' && step === 'strike' ? new Set(o.targets.filter(d => d.kind !== 'part').map(d => d.uid)) : new Set();
     // A crowded stage cannot hold a word on every counter (QA-6): from four targets on, only the chosen foe wears TARGET and the others a ghost dot (still a 44px tap); where the counters are small, the other
     // tags are said in a short word (WOUNDED, HIT, HELD) or two letters (the box). Where the counters are big there is room for the whole word.
@@ -140,10 +141,11 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     if (mode === 'shift') M.foesOf(st).forEach(d => { if (d.box != null) (boxes[d.box] ??= []).push(M.picOf(st, data, d)); });
     const lanes = mode === 'meet' ? null : lanesEl({ attack, guard, boxes, sec: mode === 'shift' ? 'shift-board' : null });
     const allies = M.alliesOf(st, data);
-    const allyEl = allies.length ? h('div', { class: 'cb-allies', 'aria-label': `On your side: ${allies.map(a => a.name).join(', ')}` }, ...allies.map(a => h('span', { class: `cb-ally${a.controlled ? ' ctl' : ''}`, title: a.name }, (() => { const src = a.kind === 'mon' ? (data.art?.monstersColor?.[a.name] ?? data.art?.monsters?.[a.name]) : data.art?.natives?.[a.id]; return src ? h('img', { src, alt: a.name, draggable: 'false' }) : a.name[0]; })()))) : null;
+    const allyEl = allies.length ? alliesEl({ st, data, allies, flipped: cb.flipped, size: typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 48 : 56, onFlip: (a, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[a.uid] = !cb.flipped[a.uid]; render(); } }) : null;
     const prevChits = cb.pipState; cb.pipState = Object.fromEntries(st.ch.chits.map(x => [x.id, x.state]));
-    const hero = heroEl({ st, data, prevChits, ribbon: st.ch.morph ? `You are ${/^[aeiou]/i.test(st.ch.morph.creature.name) ? 'an' : 'a'} ${st.ch.morph.creature.name}` : null, onGear: () => { cb.gearCard = !cb.gearCard; render(); } });
-    const stage = h('div', { class: 'cb-stage' }, h('div', { class: 'cb-stagein' }, h('div', { class: `cb-foes${mode === 'melee' || mode === 'result' || mode === 'grid' || anyTag ? '' : ' noslot'}` }, ...foeEls), lanes, allyEl, hero));
+    const hero = heroEl({ st, data, prevChits, onPeekGear: () => peek?.gear(), onPeekMap: () => peek?.map(), ribbon: st.ch.morph ? `You are ${article(st.ch.morph.creature.name)} ${st.ch.morph.creature.name}` : null, onGear: () => { cb.gearCard = !cb.gearCard; render(); } });
+    // (DR-20: the Meeting's steps have no lanes, so the stage had a void between the foes and you: the narrator stands in it, between the two, and not under you)
+    const makeStage = narrIn => h('div', { class: 'cb-stage' }, h('div', { class: 'cb-stagein' }, h('div', { class: `cb-foes${mode === 'melee' || mode === 'result' || mode === 'grid' || anyTag ? '' : ' noslot'}` }, ...foeEls), lanes, allyEl, narrIn ? h('div', { class: 'cb-void' }, narrIn) : null, hero));
 
     // ---- the narrator ----
     const [story, detail, tone] = narration(X, { mode, o, step, foes, facts, recap, events });
@@ -151,7 +153,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     const stamped = cb.stamped === narrKey;
     if ((tone === 'verdict') && !stamped) cb.stamped = narrKey;
     const narr = h('p', { class: `cb-narr${tone === 'verdict' ? ` verdict${stamped ? '' : ' land'}` : ''}${tone === 'bad' ? ' bad' : ''}`, role: 'status', 'aria-live': 'polite' },
-        ...(detail && detail !== story ? [h('span', { 'data-v': 'story' }, M.nbTag(story)), h('span', { 'data-v': 'detail' }, M.nbTag(detail))] : [h('span', {}, M.nbTag(story))]));          // (one line for both voices when Detail has nothing more to say)
+        ...(detail && detail !== story ? [h('span', { 'data-v': 'story' }, M.nbTag(fixNames(story))), h('span', { 'data-v': 'detail' }, M.nbTag(fixNames(detail)))] : [h('span', {}, M.nbTag(fixNames(story)))]));          // (one line for both voices when Detail has nothing more to say)
 
     // ---- the sheet ----
     let sheet;
@@ -174,13 +176,11 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     const stat = (cls, ic, n) => h('span', { class: `ds-stat ${cls}` }, icon(ic), String(n));
     const root = h('section', { class: `cb ds-screen${shared ? ' sf' : ''}`, 'data-mode': mode, 'data-ask-type': p.type, 'data-step': mode === 'melee' ? step : null, 'data-sf': shared ? 'step' : null },
         h('div', { class: 'cb-top' },
-            h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', {}, p.spellOnly ? 'Evening · quiet' : `Evening · round ${c.round}`)),
-            h('button', { type: 'button', class: 'ds-btn icon quiet', 'data-act': 'peek-gear', 'aria-label': 'Belongings', onclick: () => peek?.gear() }, icon('bag', 'lg')),
-            h('button', { type: 'button', class: 'ds-btn icon quiet', 'data-act': 'peek-map', 'aria-label': 'Map', onclick: () => peek?.map() }, icon('pin', 'lg'))),
+            h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', {}, p.spellOnly ? 'Evening · quiet' : `Evening · round ${c.round}`))),
         shared ? shared.strip : null,
         shared ? null : h('div', { class: 'cb-bar' }, h('button', { type: 'button', class: 'ds-stats', 'aria-label': 'Fame, Notoriety, Gold: open your Belongings', onclick: () => peek?.gear() },
             stat('fame', 'star', ern?.fame ?? st.ch.fame), stat('notor', 'flame', ern?.notoriety ?? st.ch.notoriety), stat('gold', 'coin', st.ch.gold)), voiceSwitch()),
-        stage, narr, sheet);
+        makeStage(mode === 'meet' ? narr : null), mode === 'meet' ? null : narr, sheet);
     X.root = root;
     fitStage(root);
     if (cb.gearCard) root.append(gearPopover({ st, data, flippedGear: cb.flippedGear, onFlip: uid => { cb.flippedGear[uid] = !cb.flippedGear[uid]; render(); }, onClose: () => { cb.gearCard = false; render(); } }));

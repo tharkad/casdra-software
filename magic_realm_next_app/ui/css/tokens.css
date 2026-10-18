@@ -17,7 +17,7 @@
     /* ink: parchment on night */
     --ink: #efe6d0;         /* primary text */
     --ink-2: #c3b99f;       /* secondary text (8:1 on surface-2) */
-    --ink-3: #8f8872;       /* tertiary, 12px labels only in caps (5:1 on surface-2) */
+    --ink-3: #a29b84;       /* tertiary, 12px labels only in caps (4.9:1 on surface-4, 5.7 on surface-3, 6.8 on the ground: DR-9) */
     --ink-on-gold: #1b1405;
     /* gold: the one accent */
     --gold: #d9b45a;
@@ -95,3 +95,7 @@
 @media (max-height: 700px) { :root { --tap-main: 48px; --strip-h: 44px; } }
 @media (prefers-reduced-motion: reduce), (update: slow) { :root { --d-fast: 1ms; --d-base: 1ms; --d-sheet: 1ms; --d-scene: 1ms; } }
 [data-calm="on"] { --d-fast: 1ms; --d-base: 1ms; --d-sheet: 1ms; --d-scene: 1ms; }
+/* DR-2: Calm means nothing moves: the durations above only reach what is built from the tokens, so every animation (the screen entrance, the pulses, the shimmer, the rings) is switched off here, once.
+   The camera of the map (mapview.js calmMotion) and the flip of the draw (shared.js) read the setting themselves. */
+[data-calm="on"] *, [data-calm="on"] *::before, [data-calm="on"] *::after { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }

@@ -2,7 +2,8 @@
 // Pure functions of a redacted view (server/redact.mjs) and the answer around it (docs/design/online-shared.md); no DOM, so tests/shared_ui.test.mjs runs them in node.
 // Nothing here reads a secret: it uses only what the policy makes public (position, hidden flag, Fame, Notoriety, "has planned", who is asked) and the viewer's own record.
 import { nameOfClearing, tileName } from '../engine/world.js';
-import { fightOf, nowLine } from './fight.js';
+import { fightOf, nowLine, third } from './fight.js';
+import { displayName, fixNames } from './names.js';
 
 /** One look per seat, in join order: a colour AND a shape AND a letter, so colour is never the only cue. The palette is the colour-blind-safe one (Okabe-Ito) minus the blues and reds
  * the map already uses for natives and monsters. */
@@ -112,7 +113,7 @@ export function party(view, answer = {}, myId = view?.actor) {
     });
 }
 
-export const STATUS_WORDS = { returning: 'returning', planning: 'planning', planned: 'planned', playing: 'playing now', fighting: 'in the evening', waiting: 'waiting', done: 'turn done', dead: 'fallen', left: 'left the map', finished: 'finished', sealed: 'played', fled: 'fled', meeting: 'deciding', following: 'following' };
+export const STATUS_WORDS = { returning: 'returning', planning: 'planning', planned: 'planned', playing: 'playing', fighting: 'in the evening', waiting: 'waiting', done: 'turn done', dead: 'fallen', left: 'left the map', finished: 'finished', sealed: 'played', fled: 'fled', meeting: 'deciding', following: 'following' };
 // In a shared fight the chip says what he is doing in it (deciding, played, waiting, fled, fallen).
 const FIGHT_WORDS = { deciding: 'deciding', sealed: 'played', waiting: 'waiting', fled: 'fled', fallen: 'fallen', out: 'stayed out' };
 /** The chip's second line: what he is doing, or "away" when the game is waiting for him and he is not here. */
@@ -174,9 +175,11 @@ export function situation(view, answer = {}, myId = view?.actor) {
         if (act) {
             const k = draw ? draw.order.indexOf(act.id) + 1 : null, n = draw?.order.length ?? null;
             const mine = draw ? draw.order.indexOf(myId) + 1 : null, until = mine && k && mine > k ? mine - k : null;
-            if (act.autopilot) return { ...base, kind: 'spectate', active: act, title: `${act.player} is away: the autopilot plays for them.`, text: `${act.character}${act.at ? ` at ${nameOfClearing(act.at)}` : act.onRoad ? ' on the road' : ''}${k ? ` · turn ${k} of ${n}` : ''}`,
+            // (DR-8: whole sentences, each with its full stop: "White Knight at Awful Valley 5. Turn 1 of 3."; the number is bound to its word so it never stands alone on a line)
+            const whereLine = `${act.character}${act.at ? ` at ${nameOfClearing(act.at)}` : act.onRoad ? ' on the road' : ''}.${k ? ` Turn\u00A0${k}\u00A0of\u00A0${n}.` : ''}`;
+            if (act.autopilot) return { ...base, kind: 'spectate', active: act, title: `${act.player} is away: the autopilot plays for them.`, text: whereLine,
                 why: `The table marked ${act.player} away. The autopilot plays cautiously and ${act.player} takes over the moment they open the game.` };
-            return { ...base, kind: 'spectate', active: act, title: `${act.player} is taking their turn.`, text: act.away ? `The game is waiting for ${act.player}, who is away.` : `${act.character}${act.at ? ` at ${nameOfClearing(act.at)}` : act.onRoad ? ' on the road' : ''}${k ? ` · turn ${k} of ${n}` : ''}`,
+            return { ...base, kind: 'spectate', active: act, title: `${act.player} has the turn.`, text: act.away ? `The game is waiting for ${act.player}, who is away.` : whereLine,
                 why: act.away ? `The game is paused until ${act.player} comes back; nothing is skipped or played for them.` : until ? `Your chit comes ${until === 1 ? 'next' : `${until} turns later`}. Until then the map follows ${act.player}.` : me.status === 'done' ? 'Your turn is over; the evening comes after the last turn.' : '' };
         }
         return { ...base, kind: 'turn-over', title: 'Waiting.', text: waitingText(wait) ? `Waiting for ${waitingText(wait)}.` : 'The day goes on.', why: answer.paused ? 'The game is paused until they come back; nothing is skipped.' : '' };
@@ -207,7 +210,10 @@ export function observe(prev, next, myId) {
         if (id === myId) continue;
         const a = prev.chars[id], b = next.chars[id];
         if (!a || !b) continue;
-        const who = `${pl(id)}’s ${b.name}`, nm = pl(id);          // (`t` names the character for the Detail voice; `s` is the Story voice: the player, in the world's words)
+        const who = `${pl(id)}’s ${displayName(b.name)}`, nm = pl(id);          // (`t` names the character for the Detail voice; `s` is the Story voice: the player, in the world's words)
+        // a seat that leaves the map is marked dead in the public view, but he did not fall (QA-105): say what happened
+        if (!a.gone && b.gone) { out.push({ id, kind: 'left', t: `${who} leaves the map.`, s: `${nm} leaves the map.` }); continue; }
+        if (b.gone) continue;
         if (!a.dead && b.dead) { out.push({ id, kind: 'death', t: `${who} has fallen.`, s: `${nm} has fallen.` }); continue; }
         if (b.dead) continue;
         if (b.at && a.at !== b.at && !b.onRoad) out.push({ id, kind: 'move', t: `${who} comes to ${nameOfClearing(b.at)}.`, s: `${nm} comes into ${nameOfClearing(b.at)}.` });
@@ -224,8 +230,58 @@ export function observe(prev, next, myId) {
 
 /** The table's own lines to show a spectator: public lines of today that are not the viewer's (the monsters that stir, the natives, a block, a chit turning up), newest last. */
 export function publicLines(view, myId, limit = 4) {
-    const skip = /^Day \d+ begins|^The chits are drawn|^Dawn of day|chit is drawn\.$|begins at the/;
+    const skip = /^Day \d+ begins|^The chits are drawn|^Dawn of day|chit is drawn\.$|begins at the|^The sun sets/;
     return (view.log ?? []).filter(l => l.day === view.day && l.who !== myId && l.k !== 'roll' && l.k !== 'phase' && !skip.test(l.t)).slice(-limit);
+}
+
+// ---- a table line, told from this seat (QA-103, QA-126) ----
+// The engine writes every line of a character from that character's side ("Your Mace swings wide", "You are wounded") or with the character's name ("Captain lures the Wolf onto his
+// sheet", "The Ogre is set on White Knight"). At a table each seat reads such a line about someone else in the third person with the PLAYER's name, and about itself in the second.
+const escRe = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const BASE_VERB = { is: 'are', has: 'have', does: 'do', goes: 'go', was: 'were' };
+const baseVerb = v => BASE_VERB[v] ?? (/[^aeiou]ies$/.test(v) ? `${v.slice(0, -3)}y` : /(?:ss|x|z|ch|sh)es$/.test(v) ? v.slice(0, -2) : /[^s]s$/.test(v) ? v.slice(0, -1) : v);
+const upFirst = s => s.replace(/(^|[.!?] )you\b/g, '$1You');
+/** "Captain lures the Wolf onto his sheet." told to Captain's own player: "You lure the Wolf onto your sheet." `name` is whatever the line calls him (a character's or a player's name). */
+export function second(text, name) {
+    const n = escRe(name), ap = '[\'\u2019]';
+    let s = String(text), lead = false;
+    s = s.replace(new RegExp(`(^|[.!?;:] )${n}${ap}s `, 'g'), '$1Your ');
+    s = s.replace(new RegExp(`(^|[.!?;:] )${n} (\\w+)`, 'g'), (m, pre, verb) => { lead = true; return `${pre}You ${baseVerb(verb)}`; });
+    s = s.replace(new RegExp(`\\b${n}${ap}s\\b`, 'g'), 'your').replace(new RegExp(`\\b${n}\\b`, 'g'), 'you');
+    if (lead) s = s.replace(/\bhimself\b|\bherself\b|\bthemself\b/g, 'yourself').replace(/\b(?:his|her|their)\b/g, 'your');
+    return upFirst(s);
+}
+/** One line of the table's log as THIS seat reads it. `text` is the line in the voice chosen (logText); `l` the log entry (`who`, `p`); `view` the seat's view; `myId` the viewer's character.
+ * A line about another character told as "You ..." becomes "Ann ..." (their player's name); the characters named in a line become their players (the table talks about people); the viewer's own
+ * character or player name becomes "you". */
+export function tableText(text, l, view, myId) {
+    let t = fixNames(String(text ?? ''));
+    const chars = view?.chars ?? {}, ids = Object.keys(chars);
+    const player = id => view.players?.find(q => q.id === chars[id]?.owner)?.name ?? chars[id]?.name ?? id;
+    const who = l?.who ?? null, mineName = chars[myId]?.name ? displayName(chars[myId].name) : null, minePlayer = myId ? player(myId) : null;
+    if (l?.p != null) {                                                      // a line already told with the players' names: the viewer is "you" in it
+        return minePlayer && ids.length > 1 ? second(t, minePlayer) : t;
+    }
+    if (who && who !== myId && /^(You|Your)\b|\byou(r|rself)?\b/.test(t)) t = third(t, player(who));
+    // a run of the table's characters joined by "and" ("Captain and White Knight and Black Knight stand together"): the viewer first, then the others, as people
+    const names = ids.map(id => displayName(chars[id].name));
+    const alt = names.map(escRe).join('|');
+    if (alt) t = t.replace(new RegExp(`\\b(?:${alt})(?: and (?:${alt}))+`, 'g'), run => {
+        const got = run.split(' and ').map(nm => ids.find(id => displayName(chars[id].name) === nm)).filter(Boolean);
+        const others = got.filter(id => id !== myId).map(player), me = got.includes(myId);
+        return joinNames(me ? ['you', ...others] : others);
+    });
+    t = t.replace(/(^|[.!?] )you\b/g, '$1You');
+    // the others by their players' names, then me
+    let lead = false;
+    for (const id of ids) {
+        if (id === myId) continue;
+        const nm = displayName(chars[id].name);
+        t = t.replace(new RegExp(`(^|[^\\w])(?<!\\bthe )(?<!\\bThe )${escRe(nm)}(?=[^\\w]|$)`, 'g'), (m, pre, at) => { if (!pre && at === 0) lead = true; return `${pre}${player(id)}`; });
+    }
+    if (lead) t = t.replace(/\bhimself\b|\bherself\b/g, 'themself').replace(/\b(?:his|her)\b/g, 'their');      // (no guess at a player's gender)
+    if (mineName && new RegExp(`\\b${escRe(mineName)}\\b`).test(t)) t = second(t, mineName);
+    return t;
 }
 
 /** "Turn order today: 1 Mike, 2 Ann" from the draw, using player names. */
@@ -248,5 +304,5 @@ export function markers(people) {
 
 /** A line saying how a counter stands, for the tag that opens when it is tapped. */
 export function tagText(m) {
-    return `${m.name} · ${m.character}${m.dead ? ' · fallen' : m.hidden ? ' · hidden' : ''}${m.mine ? ' · you' : ''}`;
+    return `${m.name} · ${displayName(m.character)}${m.dead ? ' · fallen' : m.hidden ? ' · hidden' : ''}${m.mine ? ' · you' : ''}`;
 }

@@ -11,6 +11,8 @@ import { shapeEl, fan, tagText } from './party.js';
 //           party?:[marker] (a SHARED game: one counter per character, see party.js markers()), tagged?:id, onMarker?(id) }
 // The overlay vocabulary (rings, route, pin) and the camera (focus with an inset) are the interface to the play screens: docs/design/redesign/MAP-API.md.
 
+// Calm (Settings) and the system's reduced motion both stop the camera gliding (DR-2).
+const calmMotion = () => (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) || (typeof document !== 'undefined' && document.documentElement.dataset.calm === 'on');
 const S = 100;
 const NUM_W = 17;            // room at the start of a clearing's pill for the circle with its number
 const CHIT_R = 6.5;          // radius of a counter on the map; names sit beside it, never over it
@@ -171,7 +173,7 @@ export function mountMap(host) {
         focus(clearingId, a, b) {
             const o = a != null && typeof a === 'object' ? a : { k: a, animate: b };
             if (clearingId == null) { api.release(o); return; }
-            const p = posOf.get(clearingId); if (!p) return;
+            const p = posOf.get(clearingId) ?? tileC.get(clearingId); if (!p) return;                // (a tile id centres the camera on the tile: a hero in the air)
             measure();
             const sheet = o.insetBottom != null;
             const toInset = sheet ? Math.max(0, Math.min(size[1] - 60, o.insetBottom)) : 0;
@@ -485,7 +487,7 @@ export function mountMap(host) {
     const stopFlight = () => { if (flight) { cancelAnimationFrame(flight); flight = null; } };
     function go(to, animate = true, toInset = inset) {
         stopFlight();
-        const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const reduce = calmMotion();          // (reduced motion, or the Calm setting: the camera jumps, it does not glide)
         const fromInset = inset; inset = toInset;
         if (!animate || reduce || !view) { view = to; apply(); return; }
         const [w0, h0] = size, from = { ...view };
@@ -541,7 +543,7 @@ export function mountMap(host) {
     let ovKey = '', routeSvg = null, routeG = null, routePath = null, routeDonePath = null, heroEl = null, pinEl = null, ringEls = [], stopEls = [], lastSized = null;
     function buildOverlay(force = false) {
         // the same overlay again (every render of the screen sets the map) keeps its elements, so a pulsing ring does not start over
-        const key = JSON.stringify([overlay, model?.hero ?? null, !!model?.heroHidden, !!model?.party?.length]);
+        const key = JSON.stringify([overlay, model?.hero ?? null, model?.heroAir ?? null, !!model?.heroHidden, !!model?.party?.length]);
         if (!force && key === ovKey) return;
         ovKey = key;
         ov.replaceChildren();
@@ -567,6 +569,11 @@ export function mountMap(host) {
         }
         for (const r of rings) { const el = h('i', { class: `ds-ring ${r.kind ?? 'legal'}`, 'data-ring': r.id, 'aria-hidden': 'true' }); ringEls.push({ id: r.id, el }); ov.append(el); }
         if (model.hero && !model.party?.length) { heroEl = h('i', { class: `ds-hero${model.heroHidden ? ' hidden' : ''}`, 'data-hero': model.hero, 'aria-hidden': 'true' }); ov.append(heroEl); }
+        // in the air (a Fly phase has taken him up): the marker stands over the middle of the tile he is over, with wings; he is not at any clearing until he lands (QA-107)
+        else if (model.heroAir && !model.party?.length) {
+            heroEl = h('i', { class: 'ds-hero air', 'data-hero': model.heroAir, 'data-air': model.heroAir, 'aria-hidden': 'true' }, sv('svg', { viewBox: '0 0 24 24', class: 'wing' }, sv('path', { d: 'M12 13c-1.6-3.6-4.4-5.2-8.5-5 .6 3.6 3.4 5.4 8.5 5zM12 13c1.6-3.6 4.4-5.2 8.5-5-.6 3.6-3.4 5.4-8.5 5z' })));
+            ov.append(heroEl);
+        }
         if (pin) { pinEl = h('div', { class: `ds-pin${pin.tone === 'bad' ? ' bad' : ''}`, role: 'status', html: pin.html }); ov.append(pinEl); }
     }
     // the route stands in the world group under the names (`.top`); a redraw of the map (a new level of detail) makes a new world, so it is put back
@@ -580,7 +587,7 @@ export function mountMap(host) {
         // a ring is 44px where the map is zoomed in and shrinks with the clearings when it is zoomed far out, never below 26
         const ringD = Math.round(clamp(26, 44, 38 * k)), heroD = Math.round(clamp(14, 22, 30 * k));
         for (const { id, el } of ringEls) { const p = posOf.get(id); el.hidden = !p; if (p) { sizeEl(el, ringD); at(el, sx(p), sy(p)); } }
-        if (heroEl) { const p = posOf.get(model.hero); heroEl.hidden = !p; if (p) { sizeEl(heroEl, heroD); at(heroEl, sx(p), sy(p)); } }
+        if (heroEl) { const p = posOf.get(model.hero) ?? tileC.get(model.heroAir); heroEl.hidden = !p; if (p) { sizeEl(heroEl, heroEl.classList.contains('air') ? heroD + 10 : heroD); at(heroEl, sx(p), sy(p)); } }
         if (routeSvg) {
             // stops on a clearing that already holds the hero or an earlier stop fan out to the lower right (the names stand above and beside a clearing): "you will be back here"
             const used = new Map(); if (overlay.route[0]) used.set(overlay.route[0], 1);

@@ -135,13 +135,15 @@ export function offerSheet(c, q) {
     // the item card a tap opened, under both sides
     const open = ui.meet.info, all = [...(youGet.items ?? []).map(i => [`get:${i.uid}`, i]), ...(youGive.items ?? []).map(i => [`give:${i.uid}`, i])];
     const info = open ? all.find(([k]) => k === open)?.[1] : null;
+    // the sentence comes first: what accepting does is never the part the sheet's height cuts off (QA-129)
     const body = h('div', { class: 'trade mt-offer', 'data-meet-offer': q.id, 'data-offer-from': q.from },
+        h('p', { class: 'ds-meta mt-outcome', 'data-meet-outcome': '' }, h('b', {}, rd.title), ` ${rd.outcome}${q.window === 'dayend' ? ' The fighting is over, and you may trade before Midnight.' : ''}${q.resume && /^phase/.test(q.resume.type) ? ' Your phase waits until you answer.' : ''}`),
         h('div', { class: 'mt-swap' }, offerSide(c, youGet, { key: 'get', title: `${rd.player} gives`, who: 'Nothing.' }), icon('swap', 'lg'), offerSide(c, youGive, { key: 'give', title: 'You give', who: 'Nothing: it is a gift.' })),
         info ? c.itemInfo({ kind: info.kind, id: info.id, active: false, damaged: !!info.damaged }) : null,
-        h('p', { class: 'ds-meta mt-outcome', 'data-meet-outcome': '' }, h('b', {}, rd.title), ` ${rd.outcome} ${rd.why}${q.resume && /^phase/.test(q.resume.type) ? ' Your phase waits until you answer.' : ''}`),
         rd.lacks ? (() => { const e = hint(`${rd.lacks} You can only decline.`, 'bad'); e.setAttribute('data-meet-lacks', ''); return e; })() : null);
-    const footer = bar(rd.bar, btn('Decline', '', { 'data-act': 'offer-decline', onclick: () => decide(false) }), primary(rd.gift ? 'Accept the gift' : 'Accept the trade', { 'data-act': 'offer-accept', disabled: !!rd.lacks || null, onclick: () => decide(true) }));
-    return c.modal(`${rd.player}: ${rd.gift ? 'a gift' : rd.ask ? 'a request' : 'a trade'}`, body, { footer, bare: true, eyebrow: `${rd.player} offers you ${rd.gift ? 'a gift' : rd.ask ? 'a request' : 'a trade'}` });
+    // The foot says the one thing the two counters above do not: it is final (QA-129). The eyebrow is the name alone; the title says what is offered.
+    const footer = bar('Done at once, whole or not at all. It cannot be taken back.', btn('Decline', '', { 'data-act': 'offer-decline', onclick: () => decide(false) }), primary(rd.gift ? 'Accept the gift' : 'Accept the trade', { 'data-act': 'offer-accept', disabled: !!rd.lacks || null, onclick: () => decide(true) }));
+    return c.modal(rd.gift ? 'A gift' : rd.ask ? 'A request' : 'A trade', body, { footer, bare: true, eyebrow: rd.player, detent: 'hug' });          // (hug: the sentence that says what accepting does is never cut by the foot, QA-129)
 }
 
 // ------------------------------------------------------------------------------------------------------------------------------- decisions in the tray (the map stays in view)
