@@ -160,4 +160,4 @@ button.chit2:disabled { cursor: default; }
 .sc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; }
 .sc-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-size: 13.5px; }
 
-.sc-card .mrchit { width: 64px; height: 56px; } .sc-card .mrchit b { font-size: 10.5px; letter-spacing: 0; }
+.sc-card .mrchit { width: 64px; height: 56px; } .sc-card .mrchit b { font-size: 12px; letter-spacing: 0; }

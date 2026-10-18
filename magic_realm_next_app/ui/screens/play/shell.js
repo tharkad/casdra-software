@@ -19,7 +19,7 @@ import { maybeShowDraw, maybeShowFightOver, sharedCamera, showPlayer } from './s
 import { sheets } from './sheets.js';
 import { doneLoading } from './states.js';
 import { renderTray } from './tray.js';
-import { myId, vpNow } from './state.js';
+import { myId, saveUi, vpNow } from './state.js';
 
 // ---- model for the map ----
 export function mapModel(G) {
@@ -78,7 +78,7 @@ export function mapModel(G) {
     }
     return {
         tiles: G.data.tiles, art: G.data.art, placements: G.st.placements, side: 'normal', showHidden: false, discovered: new Set(G.st.ch.discovered.paths),
-        chitsByTile, tokens, hero: G.st.ch.onRoad ? null : G.st.ch.at, heroHidden: G.st.ch.hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
+        chitsByTile, tokens, hero: G.st.ch.onRoad || G.st.ch.dead ? null : G.st.ch.at, heroHidden: G.st.ch.hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
         onTap: id => {
             if (G.ui.sheet === 'plan' && G.st.pending?.type === 'plan' && G.ui.draft) {
                 // planning: a tap on a clearing next to where this phase starts sets the move; any other tap just looks at that clearing
@@ -154,6 +154,17 @@ function overlayFor(G) {
     return { rings, route, pin: G.ui.pin ?? null };
 }
 
+// The clearings he is being asked to choose between (the rings of a Move or a Fly) must all be in the part of the map he can see, with the hero: a ring under the status strip or off the edge
+// cannot be tapped (QA-1). Once per question: a map he then pans himself is left alone.
+function revealChoices(G, hero) {
+    const ids = G.map.getOverlay().rings.filter(r => r.kind !== 'illegal').map(r => r.id);
+    if (!ids.length) { G.ui.revealKey = null; return; }
+    const key = [G.st.day, G.ui.planStep, G.st.pending?.type, G.ui.pickAct, ...ids].join('|');
+    if (G.ui.revealKey === key) return;
+    G.ui.revealKey = key;
+    G.map.reveal([hero, ...ids]);
+}
+
 // A sheet covers the bottom of the map: the camera glides so the clearing that matters sits in the strip above it (the clearing he is looking at, else where he stands), and glides back when it goes.
 function syncCamera(G, force = false) {
     const sh = [...G.layer.querySelectorAll('.ds-sheet')].at(-1);
@@ -172,18 +183,21 @@ function renderStrip(G) {
     let ern = null; try { ern = earned(G.st, G.data); } catch { /* scoring not available */ }
     const total = (kind, val) => (ern && (kind === 'fame' || kind === 'notoriety') ? ern[kind] : val);
     const tot = vpNow(G), dead = G.st.period === 'over' && G.st.ch.dead;
+    // The score is counted from the shortfall of each goal, so on the first day it is a large negative number that nothing has earned yet. It stays true (the goals sheet and the end screen show it); the chip
+    // says "0 of N" in a neutral colour until the first night has passed (QA-19).
+    const goalVp = Object.values(G.st.ch.vp ?? {}).reduce((a, b) => a + (Number(b) || 0), 0), early = G.st.day === 1 && G.st.period !== 'over' && !G.shared && !G.race && goalVp > 0;
     const el = strip({ day: G.st.day, total: lastDayOf(G.st), phase: G.st.period === 'over' ? 'finished' : G.st.period, gold: G.st.ch.gold, fame: total('fame', G.st.ch.fame), notor: total('notoriety', G.st.ch.notoriety),
-        vp: tot > 0 ? `+${tot}` : String(tot).replace('-', '\u2212'), vpc: dead ? 'bad' : tot > 0 ? 'pos' : 'neg',
+        vp: early ? `0/${goalVp}` : tot > 0 ? `+${tot}` : String(tot).replace('-', '\u2212'), vpc: dead ? 'bad' : early ? 'idle' : tot > 0 ? 'pos' : 'neg',
         attrs: {
             menu: { 'data-act': 'menu', onclick: () => { G.ui.sheet = G.ui.sheet === 'menu' ? null : 'menu'; render(G); } },
             day: { 'data-act': 'calendar', role: 'button', tabindex: '0', 'aria-label': 'Calendar and the colours of magic', onclick: () => { G.ui.sheet = G.ui.sheet === 'calendar' ? null : 'calendar'; render(G); } },
             stats: { 'aria-label': 'Fame, Notoriety and Gold: open your kit', onclick: () => { G.ui.sheet = G.ui.sheet === 'char' ? null : 'char'; render(G); } },
-            vp: { 'data-act': 'vp', role: 'button', tabindex: '0', 'aria-label': `Victory points: ${tot}. Tap for your goals`, onclick: () => { G.ui.sheet = G.ui.sheet === 'score' ? null : 'score'; render(G); } },
+            vp: { 'data-act': 'vp', role: 'button', tabindex: '0', 'aria-label': early ? `Victory points: none scored yet; your goals are worth ${goalVp}. Tap for your goals` : `Victory points: ${tot}. Tap for your goals`, onclick: () => { G.ui.sheet = G.ui.sheet === 'score' ? null : 'score'; render(G); } },
         } });
     if (!timed(G.st)) el.querySelector('.ds-day b small')?.remove();
     // legacy hooks the tests read
     el.querySelector('.ds-day').classList.add('daybox', ...(magicToday.length ? ['magic'] : []));
-    el.querySelector('.ds-stats').classList.add('stats'); el.querySelector('.ds-vp').classList.add('vpchip', ...(tot < 0 ? ['neg'] : []));
+    el.querySelector('.ds-stats').classList.add('stats'); el.querySelector('.ds-vp').classList.add('vpchip', ...(tot < 0 && !early ? ['neg'] : []));
     // a curse takes the use of a number away: it stays on screen, struck through (the Kit and the curse sheet say why)
     for (const [kind, cls] of [['gold', 'gold'], ['fame', 'fame']]) {
         const w = voidBy(G.st, kind), s = el.querySelector(`.ds-stat.${cls}`); s.dataset.stat = kind;
@@ -227,11 +241,42 @@ export function render(G) {
     const hero = G.st.ch.onRoad ? G.st.ch.onRoad.from : G.st.ch.at;
     const moved = hero !== G.lastHero;
     if (moved) { const first = G.lastHero === null; G.lastHero = hero; G.map.focus(hero, undefined, !first); }
+    revealChoices(G, hero);
     // A Move phase that is about to be played: show where he is and where he is going, so the press is a decision with the road in view.
     { const pp = G.st.pending, slot = pp?.type === 'phase' ? G.st.plan?.[pp.i] : null;
       if (slot?.act === 'move' && slot.to) { const key = `${G.st.day}.${pp.i}.${slot.to}`; if (G.ui.framedMove !== key) { G.ui.framedMove = key; G.map.frame([hero, slot.to]); } } }
     syncCamera(G, moved);
     syncMapButton(G);
+    saveUi(G);
+    syncHistory(G);
+}
+
+// ---- the browser's Back button (QA-20) ----
+// A sheet (or the plan) that opens pushes one history entry; Back then puts that sheet away instead of leaving the game. Closing a sheet any other way (its cross, a tap on the scrim, the primary) takes the entry
+// back off, so the stack never grows. On the base screen there is no entry of ours: Back leaves as it always did, and the game is on the device (the title offers Continue).
+const sheetOpen = G => G.ui.sheet === 'plan' || !!G.layer.querySelector('.ds-sheet');
+// One thing at a time: a pop of ours (history.back, asked for when a sheet went away) is async, and a push made before it lands would be popped by it. So while one is on its way nothing is pushed;
+// when it lands (onBack) the screen is synced again. (A pop that never lands, e.g. no history, is given up after a second.)
+function syncHistory(G) {
+    if (G.ui.histBusy) return;
+    const open = sheetOpen(G);
+    if (open && !G.ui.histOpen) { try { history.pushState({ mrSheet: 1 }, ''); G.ui.histOpen = true; } catch { /* no history here */ } }
+    else if (!open && G.ui.histOpen) {
+        G.ui.histOpen = false; G.ui.histBusy = true;
+        try { history.back(); } catch { G.ui.histBusy = false; return; }
+        setTimeout(() => { if (G.ui.histBusy) { G.ui.histBusy = false; if (G.root.isConnected) syncHistory(G); } }, 1000);
+    }
+}
+function onBack(G) {
+    if (!G.root.isConnected) { removeEventListener('popstate', G.ui.popHandler); return; }
+    if (G.ui.histBusy) { G.ui.histBusy = false; syncHistory(G); return; }          // (the pop that syncHistory asked for has landed)
+    if (!G.ui.histOpen) return;
+    G.ui.histOpen = false;
+    const top = [...G.layer.querySelectorAll('.ds-sheet')].at(-1);
+    if (!top && G.ui.sheet === 'plan') { G.ui.sheet = null; G.ui.pickMove = null; }                  // the plan is put aside, the draft kept
+    else if (top?.querySelector('.x[data-close]')) top.querySelector('.x[data-close]').click();      // an information sheet: its own way out
+    else if (top?.classList.contains('decision')) G.ui.peekGo?.();                                   // a question: the map for a moment
+    render(G);                                                                                       // (a sheet that stays puts its entry back)
 }
 
 // The map button's picture: the whole realm when the map is zoomed in, the crosshair when it is zoomed out.
@@ -257,6 +302,8 @@ export function prowlers(G) {
 export function wireShell(G) {
     const b = G.mapTools; let long = false, timer = null;
     doneLoading(G); G.mapBox.append(b);
+    try { if (history.state?.mrSheet) history.replaceState(null, ''); } catch { /* ignore */ }               // (a reload with a sheet open keeps that entry's mark: the base screen has none)
+    G.ui.popHandler = () => onBack(G); addEventListener('popstate', G.ui.popHandler);
     const hero = () => (G.st.ch.onRoad ? G.st.ch.onRoad.from : G.st.ch.at);
     const fitAll = () => G.map.fit(), me = () => G.map.focus(hero(), { k: Math.max(G.map.camera().k ?? 1, 1.5), animate: true });
     b.addEventListener('pointerdown', () => { long = false; clearTimeout(timer); timer = setTimeout(() => { long = true; (b.dataset.mode === 'fit' ? me : fitAll)(); setTimeout(() => syncMapButton(G), 500); }, 520); });

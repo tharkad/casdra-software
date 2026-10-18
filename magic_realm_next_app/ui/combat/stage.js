@@ -28,20 +28,41 @@ export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, 
     const side = showRev ? other : (d.side ?? 'light');
     const flies = d.kind === 'mon' && !!data.monsters[d.id]?.flies;
     const svg = monsterCounter({ s, side, picture: picOf(st, data, d), flies, size: 92 });
-    const tagEl = tag ? h(tag.onclick ? 'button' : 'span', { class: `tag ${tag.kind ?? ''}`, ...(tag.onclick ? { type: 'button', 'data-tag': d.uid, 'aria-label': tag.label ?? tag.text, onclick: e => { e.stopPropagation(); tag.onclick(); } } : {}) }, tag.text) : null;
+    // The tag (TARGET, a box, WOUNDED YOU) stands in its own slot ABOVE the counter, never over its name (QA-8). `tag.dot`: a crowded stage (QA-6) shows the offer as a ghost dot with a 44px hit area instead of a word.
+    const tagEl = tag ? h(tag.onclick ? 'button' : 'span', { class: `tag ${tag.kind ?? ''}${tag.dot ? ' dot' : ''}`, ...(tag.onclick ? { type: 'button', 'data-tag': d.uid, 'aria-label': tag.label ?? tag.text, onclick: e => { e.stopPropagation(); tag.onclick(); } } : {}) }, tag.dot ? null : tag.text) : null;
     return h('div', { class: `cb-foe${dead ? ' dead' : ''}${justFlipped ? ' flip' : ''}${d.pacified ? ' pacified' : ''}${d.pickedUp ? ' held' : ''}${selected ? ' sel' : ''}`, style: `--foe:${size}px`, 'data-foe': d.uid },
+        h('div', { class: 'tagslot' }, tagEl),
         h('button', { type: 'button', class: 'cb-flip', 'data-flip': d.uid, 'aria-pressed': showRev ? 'true' : 'false', 'aria-label': `${s.name}${dead ? ', slain' : ''}: tap to turn the counter over`, onclick: () => onFlip?.(d, !!other), style: 'padding:0;display:block' },
-            h('span', { class: 'ds-cs-wrap' }, svg), other && !dead ? h('span', { class: 'turn', 'aria-hidden': 'true' }, icon('retry')) : null),
-        tagEl);
+            h('span', { class: 'ds-cs-wrap' }, svg), other && !dead ? h('span', { class: 'turn', 'aria-hidden': 'true' }, icon('retry')) : null));
+}
+
+// A long name ("Company Short Swords #1") would run off the counter: shrink it to fit the printed strip, and if it would be too small to read, set it on two lines. Needs the counters to be in the page (text is
+// measured), so the scene calls it once it is mounted. The measure is in the counter's own units (a 100 x 100 box).
+export function fitNames(root) {
+    for (const svg of root.querySelectorAll('.cb-foe svg.counter, .cb-foe .ds-cs-wrap svg')) {
+        const t = svg.querySelector('text');
+        if (!t || t.dataset.fit) continue;
+        t.dataset.fit = '1';
+        let len = 0; try { len = t.getComputedTextLength(); } catch { continue; }
+        const fs = parseFloat(t.getAttribute('font-size')), room = 90;
+        if (!len || len <= room) continue;
+        const small = fs * room / len;
+        if (small >= 6.4) { t.setAttribute('font-size', String(Math.floor(small * 10) / 10)); continue; }
+        const words = t.textContent.split(/[ \u00A0]/), cut = Math.ceil(words.length / 2) + (words.length > 3 ? -1 : 0);
+        t.textContent = words.slice(0, cut).join(' ');
+        t.setAttribute('font-size', '7.5');
+        const t2 = t.cloneNode(false); t2.textContent = words.slice(cut).join('\u00A0'); t2.setAttribute('y', '21'); t2.setAttribute('font-size', '7.5'); t2.dataset.fit = '1';
+        t.after(t2);
+    }
 }
 
 // the lanes: the three attack circles (Thrust, Swing, Smash) on top, the three maneuver squares (Charge, Dodge, Duck) under them. Same index = same red box (rules 4.1).
 // attack = { dir, text } puts his Fight chit in that circle; guard = { dir, text } his Move chit in that square; boxes = { [lane]: [pictureSrc...] } the creatures standing in each red box.
 export function lanesEl({ attack = null, guard = null, boxes = {}, sec = null } = {}) {
-    const top = [0, 1, 2].map(i => h('div', { class: `cb-lane${attack && attack.dir === i ? ' mine' : ''}`, 'data-lane': `a${i}` },
-        attack && attack.dir === i && attack.text ? h('span', { class: 'cb-pill' }, attack.text) : DIRS[i],
+    const top = [0, 1, 2].map(i => h('div', { class: `cb-lane${attack && attack.dir === i ? ' mine' : ''}${(boxes[i] ?? []).length ? ' crowd' : ''}`, 'data-lane': `a${i}` },
+        attack && attack.dir === i && attack.text ? h('span', { class: 'cb-pill' }, attack.text) : h('span', { class: 'lbl' }, DIRS[i]),
         ...(boxes[i] ?? []).slice(0, 3).map(src => h('span', { class: 'ds-counter sm', 'aria-hidden': 'true' }, src ? pic(src) : null)), (boxes[i] ?? []).length > 3 ? h('span', { class: 'cb-more' }, `+${boxes[i].length - 3}`) : null));
-    const bot = [0, 1, 2].map(i => h('div', { class: `cb-lane${guard && guard.dir === i ? ' guard' : ''}`, 'data-lane': `g${i}` }, guard && guard.dir === i && guard.text ? h('span', { class: 'cb-pill g' }, guard.text) : MNV[i]));
+    const bot = [0, 1, 2].map(i => h('div', { class: `cb-lane${guard && guard.dir === i ? ' guard' : ''}`, 'data-lane': `g${i}` }, guard && guard.dir === i && guard.text ? h('span', { class: 'cb-pill g' }, guard.text) : h('span', { class: 'lbl' }, MNV[i])));
     return h('div', { class: 'cb-lanewrap', 'aria-hidden': 'true', 'data-sec': sec }, h('div', { class: 'cb-lanes top' }, ...top), h('div', { class: 'cb-lanes bot' }, ...bot));
 }
 

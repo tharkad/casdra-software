@@ -64,7 +64,7 @@ details summary { cursor: pointer; color: var(--dim); margin: 10px 0 4px; }
 .die i { border-radius: 50%; }
 .die i.on { background: #1b1d28; }
 .die.counts { outline: 2px solid var(--gold); outline-offset: 1px; }
-.die .dmod { position: absolute; right: -4px; bottom: -7px; font: 700 11px/1 var(--font-ui); color: var(--ember); background: var(--panel); border-radius: 8px; padding: 1px 3px; }
+.die .dmod { position: absolute; right: -4px; bottom: -7px; font: 700 12px/1 var(--font-ui); color: var(--ember); background: var(--panel); border-radius: 8px; padding: 1px 3px; }
 .dice { display: inline-flex; gap: 8px; align-items: center; padding-bottom: 4px; }
 .rollrow { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .rr-what { font-family: var(--font-display); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
@@ -129,9 +129,9 @@ html[data-calm="on"] .mv-ov .ds-ring.legal { animation: none; }
 .mv-ov .ds-hero.hidden::after, .mv-key .ds-hero.hidden::after { background: transparent; }
 .mv-ov .ds-hero.hidden, .mv-key .ds-hero.hidden { border-style: dashed; }
 /* the planned road: dotted gold along the roads, numbered stops; what is already walked dims */
-.mv-ov .ds-route { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.mv-ov .ds-route path { fill: none; stroke: var(--gold-hi, #f1d27f); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 7; }
-.mv-ov .ds-route path.mv-route-done { opacity: .35; }
+.realm-svg .ds-route { position: static; }          /* (the route is drawn in the map, under the names: mapview.js mountRoute) */
+.realm-svg .ds-route path { fill: none; stroke: var(--gold-hi, #f1d27f); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 7; }
+.realm-svg .ds-route path.mv-route-done { opacity: .35; }
 .mv-ov .ds-stop, .mv-key .ds-stop { width: 22px; height: 22px; margin: -11px 0 0 -11px; box-sizing: border-box; border-radius: 50%; background: var(--gold, #d9b45a); color: var(--ink-on-gold, #1b1405); font: 700 13px/18px var(--font-ui, system-ui); text-align: center; border: 2px solid #0b0d13; }
 .mv-ov .ds-stop.done { opacity: .45; }
 /* the pin: why a dim clearing is dim (the sentence comes from game.js) */
@@ -159,3 +159,6 @@ html[data-calm="on"] .mv-ov .ds-ring.legal { animation: none; }
 .mv-key-box { position: relative; display: block; width: 44px; height: 44px; }
 .mv-key .ds-stop { font: 700 13px/18px var(--font-ui, system-ui); }
 @media (max-width: 374px) { .mv-key-sw { width: 128px; } }
+
+/* QA-14: the tile name set upright over the printed one (mapview.js upright) */
+.realm-svg .tname-up text { font: 800 7.8px Arial, Helvetica, sans-serif; letter-spacing: .3px; pointer-events: none; }

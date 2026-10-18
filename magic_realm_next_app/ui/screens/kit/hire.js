@@ -9,7 +9,7 @@ import { render } from '../play/shell.js';
 import { h } from '../../dom.js';
 import { art, icon } from '../../icons.js';
 import { boonContent } from './boon.js';
-import { ask, dimBtn, footRow, moodTag, nativeArt, say, twoLine } from './common.js';
+import { ask, dimBtn, footRow, moodTag, nativeArt, say, skipBtn, twoLine } from './common.js';
 import { insultContent, offerDice } from './trade.js';
 
 // The counters of a group, as the printed art on the cream tile (monsters in colour, natives as their counters).
@@ -36,10 +36,11 @@ function offerContent(G, p) {
         h('div', { class: 'kit-pricebox' }, h('div', { class: 'ds-price', 'data-price': String(p.price) }, `${p.price} GOLD`, h('small', {}, `${p.wage} wages × ${p.mult}`))),
         ask(`${p.names.length === 1 ? p.names[0] : `The ${p.group}`} will join you.`, p.rehire ? 'It adds 14 days to the term they have. Or turn the price down and keep your gold.' : 'Hire them, or turn the price down and keep your gold.'),
         h('div', { class: 'ds-group' }, h('div', { class: 'hd' }, h('b', {}, titleOf(G, { ...p, members: p.members })), h('span', { class: 'ds-tag good' }, p.rehire ? '+14 days' : '14 days')), counters(G, p.members, p.monsters),
-            h('p', { class: 'ds-meta' }, `They follow you and fight beside you until midnight of day ${until}.`)),
-        h('p', { class: 'ds-text kit-left' }, p.affordable ? ['You would have ', h('b', { class: 'ds-c-gold' }, `${left} Gold`), ' left.'] : `You are ${-left} gold short.`));
+            h('p', { class: 'ds-meta' }, `They follow you and fight beside you until midnight of day ${until}.`)));
     const label = p.rehire ? `Extend them · ${p.price}g` : `Hire them · ${p.price}g`;
-    const foot = footRow({ secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'hire-decline', onclick: () => act(G, { type: 'hire', act: 'decline' }) }, 'Not at that price'),
+    // (the reason the primary is dim is the foot's line, in red, above the buttons: never below the fold of a scroll)
+    const foot = footRow({ note: p.affordable ? `Gold ${G.st.ch.gold} to ${left}` : `You are ${-left} gold short.`, bad: !p.affordable,
+        secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'hire-decline', onclick: () => act(G, { type: 'hire', act: 'decline' }) }, 'Not at that price'),
         primary: p.affordable ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'hire-ok', onclick: () => act(G, { type: 'hire', act: 'accept' }) }, label)
             : dimBtn(G, label, `You are ${-left} gold short.`, { 'data-act': 'hire-ok' }, 'primary') });
     return { title: 'A price', eyebrow: `The ${p.group} answer`, body, foot, decision: true, detent: 'tall' };
@@ -71,10 +72,12 @@ function chooser(G, p) {
         ask('Natives here will hire out for 14 days.', 'Ask first: the roll sets the price, and you may refuse it.'),
         h('div', { class: 'kit-groups', role: 'radiogroup' }, cards));
     const go = () => { const o = pickedOpt, drinks = rounds === keyOf(o) && !o.monsters; G.ui.hireSel = null; G.ui.drinksFor = null; G.ui.drinks = false; act(G, { type: 'hire', act: 'pick', group: o.group, rehire: !!o.rehire, drinks }); };
-    const foot = footRow({ note: `You have ${G.st.ch.gold} Gold`, secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'hire-back', onclick: () => { G.ui.hireSel = null; G.ui.drinksFor = null; act(G, { type: 'hire', act: 'back' }); } }, 'Back'),
+    // a planned Hire can be passed: nobody worth hiring, or nothing to hire with. The engine's own answer is `cancel` ("You decide not to hire anyone").
+    const skip = skipBtn(() => { G.ui.hireSel = null; G.ui.drinksFor = null; act(G, { type: 'hire', act: 'cancel' }); });
+    const foot = footRow({ note: `You have ${G.st.ch.gold} Gold`, aside: skip, secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'hire-back', onclick: () => { G.ui.hireSel = null; G.ui.drinksFor = null; act(G, { type: 'hire', act: 'back' }); } }, 'Back'),
         primary: pickedOpt ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'hire-go', onclick: go }, twoLine(`Ask the ${pickedOpt.group}`, 'roll for the price'))
             : dimBtn(G, twoLine('Ask', 'choose who first'), 'Choose a group to ask first.', { 'data-act': 'hire-go' }, 'primary') });
-    return { title: 'Hire', eyebrow: `Hire at ${nameOfClearing(G.st.ch.at)}`, body, foot, decision: true, detent: 'tall' };
+    return { title: 'Hire', eyebrow: nameOfClearing(G.st.ch.at), body, foot, decision: true, detent: 'tall' };
 }
 
 // hireContent(G, p) -> { title, eyebrow, body, foot, decision }

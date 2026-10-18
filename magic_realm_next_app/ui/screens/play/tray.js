@@ -13,6 +13,7 @@ import { isMeetLine, meetButton, playerOf as playerNameOf } from '../../meet.js'
 import { turnOrderLine } from '../../party.js';
 import { askBox as ask, playersStrip } from '../../shared_ui.js';
 import { phasePrompt, storyRoll } from '../../storyvoice.js';
+import { guardIfChanged } from '../../tapguard.js';
 import { isStory, logText } from '../../voice.js';
 import { blockCard, followCard, newDraft as newMeetDraft, resultCards, waitingCard, windowCard } from '../meetui.js';
 import { noteCard, tableCards } from '../tableui.js';
@@ -44,14 +45,15 @@ function lastParts(G) {
     }
     const l = log[i];
     if (!l) return { b: 'Your story', t: 'begins here.', dice: [] };
-    const rollFor = line => { const m = (st.rolls ?? []).findLast(r => line.t.includes(`${r.what}: rolled ${r.dice.join('+')}`)); return m ?? null; };
+    // (the log prints a modified roll as "rolled 5-1+1": the dice are [5, 1], so a roll is also found by its name and first die: QA-10, the dice of a refusal)
+    const rollFor = line => (st.rolls ?? []).findLast(r => line.t.includes(`${r.what}: rolled ${r.dice.join('+')}`)) ?? (st.rolls ?? []).findLast(r => line.t.includes(`${r.what}: rolled ${r.dice[0]}`)) ?? null;
     if (l.k === 'roll') {
         const r = rollFor(l), tale = r && isStory() ? storyRoll(r) : null;
         return { b: tale?.title ?? r?.what ?? 'The dice', t: tale?.line ?? logText(l), dice: r?.dice ?? [] };
     }
     if (l.k === 'phase') {
         const n = Number(/^Phase (\d+)/.exec(l.t)?.[1]), slot = st.plan?.[n - 1], rl = n ? phaseResultLine(G, n) : null;
-        let j = i - 1; while (j >= 0 && (log[j].k === 'info' || (log[j].k === 'roll' && false))) j--;
+        let j = i - 1; while (j >= 0 && (log[j].k === 'info' || log[j].k === 'trade')) j--;          // (a refusal's own line sits between the phase and its dice: QA-10)
         const r = j >= 0 && log[j].k === 'roll' ? rollFor(log[j]) : null;
         return { b: slot ? (slot.act === 'search' && slot.table ? tableName(G, slot.table).split(':')[0] : ACT_LABEL[slot.act] ?? 'Phase') : 'Phase', t: rl?.text ?? logText(l), dice: r?.dice ?? [], phase: n || null };
     }
@@ -109,11 +111,12 @@ export function renderTray(G) {
     const planning = p?.type === 'plan' && G.ui.sheet === 'plan' && G.ui.draft;
     const banner = G.shared && !p ? sharedBanner(G) : null;
     const m = { last: null, body: [], situ: null, lead: null, primary: null, cls: [] };
-    const hid = st.ch.hidden ? 'hidden' : 'in plain sight';
+    const fallen = !!st.ch.dead;                                           // (a fallen hero is not "in plain sight": QA-18)
+    const hid = fallen ? 'fallen' : st.ch.hidden ? 'hidden' : 'in plain sight';
     m.situ = situ(nb(where), hid);
     // what he has become (a creature, mist, a flier) is part of where he is
     const form = st.ch.morph ? `a ${st.ch.morph.creature?.name ?? 'creature'}` : st.ch.mist ? 'mist' : st.ch.flying ? 'flying' : null;
-    if (form) m.situ.querySelector('.tag').textContent = `${form} · ${hid}`;
+    if (form && !fallen) m.situ.querySelector('.tag').textContent = `${form} · ${hid}`;
     m.last = lastLine(G);
 
     // free spell actions at the start of a phase: wake a permanent spell with a colour chit, or use a Phase spell he is holding
@@ -235,6 +238,8 @@ export function renderTray(G) {
     G.tray.className = `ds-tray gdock${m.cls.length ? ' ' + m.cls.join(' ') : ''}${m.shared ? ' shared' : ''}${p ? '' : ' idle'}`;
     G.tray.dataset.state = planning ? 'plan' : p?.type ?? 'idle';
     G.tray.replaceChildren(...t.childNodes);
+    // the primary of a tray that has just changed (a phase played, a result shown, a question answered) ignores a tap for ~350 ms: the second half of a double tap must not skip what there is to read (QA-4)
+    guardIfChanged(G.ui.guards ??= {}, 'tray', planning ? `plan|${st.day}` : `${p?.type ?? ''}|${p?.i ?? ''}|${st.day}|${G.shared || G.race ? '' : st.log?.length ?? 0}|${m.cls.join(' ')}`, G.tray);
     wireGrab(G, G.tray.querySelector('.ds-grab'));
 }
 

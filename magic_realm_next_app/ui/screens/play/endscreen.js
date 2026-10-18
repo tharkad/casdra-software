@@ -12,6 +12,7 @@ import { lastDayOf, overTitle } from '../../gametext.js';
 import { btn, frames, sect, twoLine, voiceSwitch } from '../../ds.js';
 import { icon } from '../../icons.js';
 import { lineFor } from '../../storyvoice.js';
+import { guardIfChanged } from '../../tapguard.js';
 import { act } from './actions.js';
 import { modal } from './kit.js';
 import { render } from './shell.js';
@@ -141,11 +142,14 @@ export function overScreen(G) {
         : G.race ? btn('Back to the title', 'primary', { 'data-act': 'over-title', onclick: goTitle })
             : btn(dead ? 'Begin again' : 'New game', 'primary', { 'data-act': 'over-new', onclick: () => { clearSaved(); G.ctx.go('newgame'); } });
     const quiet = G.race ? null : btn('History', 'quiet', { 'data-act': 'over-history', onclick: () => { clearSaved(); G.ctx.go('history'); } });
-    return h('main', { class: `ds-end ds-screen ${dead ? 'dead' : won ? 'won' : 'lost'}`, 'data-screen': 'over', role: 'dialog', 'aria-label': dead ? 'You have fallen' : won ? 'Victory' : 'The game is over' },
+    const screen = h('main', { class: `ds-end ds-screen ${dead ? 'dead' : won ? 'won' : 'lost'}`, 'data-screen': 'over', role: 'dialog', 'aria-label': dead ? 'You have fallen' : won ? 'Victory' : 'The game is over' },
         h('div', { class: 'ds-scroll ds-fade-b end-scroll' }, hero, ...middle, story,
             canRestart || G.race ? null : h('div', { class: 'end-title' }, btn('Back to the title', 'quiet sm', { 'data-act': 'over-title', onclick: goTitle })),
             canRestart ? h('div', { class: 'end-title' }, btn('Back to the title', 'quiet sm', { 'data-act': 'over-title', onclick: goTitle })) : null),
         h('div', { class: 'ds-foot' }, quiet, primary));
+    // every button of the end screen, the leaving ones too, waits a moment: the taps that were on their way to the fight's last primary (Roll) must not land on "Begin again" or "Back to the title" (QA-4)
+    guardIfChanged(G.ui.guards ??= {}, 'over', `${dead}|${o.day ?? st.day}`, screen, 700, 'button');
+    return screen;
 }
 
 // A dead character may return tomorrow, with new goals (the victory points he has left to spend): a sheet over the end screen.

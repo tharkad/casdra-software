@@ -8,9 +8,9 @@ import { nameOf } from '../../engine/items.js';
 export const DIRS = ['Thrust', 'Swing', 'Smash'], MNV = ['Charge', 'Dodge', 'Duck'];
 export const BOX = ['Charge/Thrust', 'Dodge/Swing', 'Duck/Smash'];          // the red boxes of the melee sheet name both (rules 4.1, 8.4.6b)
 export const WORD = WEIGHT_WORDS;
-// a number stays with the word before it: "attack time 6", "Round 1"
-export const nb = s => String(s).replace(/ (?=\d)/g, '\u00A0');
-export const baseName = s => String(s).replace(/ #\d+$/, '');
+// a number stays with the word before it: "attack time 6", "Round 1", "Heavy Troll #1" (QA-21: the "#1" never stands alone on a line)
+export const nb = s => String(s).replace(/ (?=#?\d)/g, '\u00A0');
+export const baseName = s => String(s).replace(/[ \u00A0]#\d+$/, '');
 const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
 export const numWord = n => NUM[n] ?? String(n);
 export const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
@@ -31,6 +31,8 @@ export function foesPhrase(names) {
     const bits = [...by].map(([n, k]) => (k === 1 ? `a ${n}` : `${numWord(k)} ${plural(n)}`));
     return listOf(bits);
 }
+// "Heavy Troll #1" with a no-break space before the tag, for any sentence or label that may wrap
+export const nbTag = s => String(s).replace(/ (?=#\d)/g, '\u00A0');
 export const nameOfDen = (st, data, d) => denSide(st, data, d).name;
 // the picture on the counter: the coloured monster art, else the plain one; natives have their own
 export function picOf(st, data, d) {
@@ -221,6 +223,16 @@ export function stampsOf(l) {
     else if (/ is (?:dented and )?damaged|takes the blow and is damaged/.test(t + ' ' + s) && /^Your /.test(t)) out.push(['armor', 'Armor damaged']);
     if (/: miss\b|empty air|misses you|carries you clear/.test(t + ' ' + s)) out.push(['miss', 'Miss']);
     return out;
+}
+
+// ---- the Meeting's "let them be": why they are not looking for a fight, from how the group stands with him (st.ch.rel, the engine's own -2 Enemy .. +2 Ally) ----
+// Only a native group has a standing; a monster that stands by has none. Returns "The Order are your allies." / "The Order are friendly to you." or null.
+const STANDING = { 2: 'are your allies', 1: 'are friendly to you' };
+export function standingWhy(st, groups) {
+    const by = new Map();
+    for (const g of groups) { const r = st.ch.rel?.[g]; if (STANDING[r]) (by.get(r) ?? by.set(r, []).get(r)).push(g); }
+    if (!by.size) return null;
+    return [...by].sort((a, b) => b[0] - a[0]).map(([r, gs]) => `${cap(listOf(gs.map(g => `the ${g}`)))} ${STANDING[r]}.`).join(' ');
 }
 
 // ---- who is on his side (hirelings and monsters his spells have won over) ----

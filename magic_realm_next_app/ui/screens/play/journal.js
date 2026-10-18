@@ -83,6 +83,9 @@ function lastRoll(G) {
             h('span', { class: 'main' }, h('b', {}, tale?.title ?? r.what), h('span', {}, isStory() ? story : detail)))];
 }
 
+// a number (a clearing, a #n) is never left alone at the start of a line: "in clearing 4." keeps its word with it (QA-21)
+const glueNumbers = t => String(t).replace(/(\S) (#?\d+)(?=[\s.,;:!?)]|$)/g, '$1\u00A0$2');
+
 // the story so far: newest first, a section per day, the phase number at the left (R and a number for a round of a fight)
 function logSections(G) {
     const st = G.st, out = [], lines = (st.log ?? []).filter(l => !(l.k === 'roll' || l.k === 'info' || (l.k === 'day' && !l.s) || (G.shared && isMeetLine(l))));
@@ -95,7 +98,7 @@ function logSections(G) {
         const text = l.k === 'phase' && !isStory() ? l.t.replace(/^Phase \d+:\s*/, '') : logText(l);
         if (isStory() && text === lastText && l.day === day) continue;                  // (a loot line and its phase line are told with the same words: once)
         lastText = text;
-        ul.append(h('li', { class: `j-${l.k}` }, h('span', { class: 'ph' }, ph), h('span', {}, text)));
+        ul.append(h('li', { class: `j-${l.k}` }, h('span', { class: 'ph' }, ph), h('span', {}, glueNumbers(text))));
     }
     return out;
 }

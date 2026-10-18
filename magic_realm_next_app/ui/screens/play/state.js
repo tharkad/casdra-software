@@ -22,6 +22,25 @@ export function loadSaved() { try { const s = localStorage.getItem(SAVE_KEY); re
 
 export function clearSaved() { try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ } }
 
+// The unfinished plan of the morning (QA-20): the draft survives a reload, with which phase was open and whether the plan was on screen. One small record next to the save, for THIS game and THIS day only
+// (localStorage is channel-prefixed by channel.js, so the redesign keeps its own). It is gone the moment the day is started.
+const UI_KEY = 'mr-ui-v1';
+export function saveUi(G) {
+    try {
+        const st = G.st, d = G.ui.draft;
+        if (G.shared || G.race || !st?.session?.id || st.pending?.type !== 'plan' || !d) { localStorage.removeItem(UI_KEY); return; }
+        localStorage.setItem(UI_KEY, JSON.stringify({ session: st.session.id, day: st.day, draft: d, planStep: G.ui.planStep ?? 0, open: G.ui.sheet === 'plan' }));
+    } catch { /* storage may be unavailable */ }
+}
+export function restoreUi(G) {
+    try {
+        const raw = localStorage.getItem(UI_KEY), u = raw ? JSON.parse(raw) : null, st = G.st;
+        if (!u || G.shared || G.race || u.session !== st?.session?.id || u.day !== st.day || st.pending?.type !== 'plan' || !Array.isArray(u.draft?.slots)) return false;
+        G.ui.draft = u.draft; G.ui.planStep = u.planStep ?? 0; if (u.open) G.ui.sheet = 'plan';
+        return true;
+    } catch { return false; }
+}
+
 export function myId(G) { return G.answer?.you?.character ?? G.st?.actor ?? null; }
 
 // the meeting lines I have already looked at: everything up to here is old news (a result card tells what came after)

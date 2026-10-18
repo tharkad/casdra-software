@@ -89,6 +89,16 @@ export function levelFor(k) {
 }
 export const shrinkFor = (lv, k) => (lv.lod ? Math.min(1, lv.lo / k) : Math.min(1, TEXT_CAP / (9 * k)));
 
+// ---- the tile's printed name, turned upright (the picture is 497 x 431 and shows the name along its bottom edge, in the box NAME_BOX; the patch is that box without the letters) ----
+const AU = 2 * S / 497, AV = 1.732051 * S / 431, NAME_BOX = [160, 399, 192, 29];
+const BLUE_NAMES = new Set(['DW', 'LW', 'MW', 'NW', 'OW', 'PW']);                  // (the enchanted woods print their names in blue; every other name is yellow)
+function upright(picture, deg, id, side) {
+    const [bx, by, bw, bh] = NAME_BOX, cx = (254 - 248.5) * AU, cy = (414.5 - 215.5) * AV;
+    return sv('g', { class: 'tname-up', transform: `rotate(${deg})`, 'pointer-events': 'none' },
+        sv('image', { href: picture.replace(/\.gif$/, '-name.png'), x: -S + bx * AU, y: -S * 0.866025 + by * AV, width: bw * AU, height: bh * AV, 'pointer-events': 'none' }),
+        sv('text', { x: cx.toFixed(1), y: cy.toFixed(1), 'text-anchor': 'middle', 'dominant-baseline': 'central', transform: `rotate(180 ${cx.toFixed(1)} ${cy.toFixed(1)})`, fill: side === 'enchanted' && BLUE_NAMES.has(id) ? '#0032be' : '#fffc00' }, tileName(id).toUpperCase()));
+}
+
 export function mountMap(host) {
     const svg = sv('svg', { class: 'realm-svg', width: '100%', height: '100%' });
     host.append(svg);
@@ -127,6 +137,18 @@ export function mountMap(host) {
             const minX = Math.min(...xs) - pad, maxX = Math.max(...xs) + pad, minY = Math.min(...ys) - pad, maxY = Math.max(...ys) + pad;
             const k = Math.max(minK, Math.min(maxK, w / (maxX - minX), hh / (maxY - minY)));
             go({ k, x: w / 2 - (minX + maxX) / 2 * k, y: hh / 2 - (minY + maxY) / 2 * k }, animate);
+        },
+        /** Bring these clearings into the part of the map the player sees, `margin` px clear of every edge (a ring is 44px wide; the pills beside it need room): when they all are, nothing
+         *  happens (returns false, the player's own view is respected); otherwise the camera glides to centre them, zooming OUT only as far as it takes (never in). */
+        reveal(ids, { margin = 40, minK = 0.3, animate = true } = {}) {
+            const pts = ids.map(id => posOf.get(id)).filter(Boolean); if (!pts.length || !view) return false;
+            measure();
+            const [w, hh] = strip(), at = q => [q[0] * view.k + view.x, q[1] * view.k + view.y];
+            if (pts.every(q => { const [x, y] = at(q); return x >= margin && y >= margin && x <= w - margin && y <= hh - margin; })) return false;
+            const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]), minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+            const fitK = Math.min((w - 2 * margin) / Math.max(1, maxX - minX), (hh - 2 * margin) / Math.max(1, maxY - minY)), k = Math.max(minK, Math.min(view.k, fitK));
+            go({ k, x: w / 2 - (minX + maxX) / 2 * k, y: hh / 2 - (minY + maxY) / 2 * k }, animate);
+            return true;
         },
         // follow someone else: glide to a clearing at the zoom the player already has (never zooms, never jumps)
         pan(clearingId, animate = true) {
@@ -216,6 +238,8 @@ export function mountMap(host) {
             tg.append(sv('polygon', { class: 'hex', points: corners(S - (picture ? 0.5 : 1.5)).map(c => c.join(',')).join(' '), fill: GROUP[tile.group] }));
             // The original tile picture, turned with the tile. The roads, caves and numbers are all in it; we draw only what changes.
             if (picture) tg.append(sv('image', { href: picture, x: -S, y: -S * 0.866025, width: 2 * S, height: 1.732051 * S, transform: `rotate(${p.rot * 60})`, 'pointer-events': 'none' }));
+            // The name printed on the picture reads upside down once the tile is turned 120 to 240 degrees: cover it with the same strip of the picture without the letters and set the name again, upright (QA-14; tools/build_tile_names.py)
+            if (picture && p.rot % 6 >= 2 && p.rot % 6 <= 4) tg.append(upright(picture, p.rot * 60, p.id, side));
             const paths = sv('g', { class: 'paths' });
             // A hidden path or secret passage that bends in the picture: a curve through the measured middle of the printed passage (a quadratic bend), else the straight line.
             const bendOf = (path, A, B) => {
@@ -429,6 +453,7 @@ export function mountMap(host) {
         top.append(markerLayer, og, tagLayer);
         g.append(top);
         svg.replaceChildren(g);
+        mountRoute();
         stats = { drawMs: performance.now() - tDraw, layoutMs: tLayout, cached: !!cachedHit, level: level.id, draws: stats.draws + 1 };
     }
 
@@ -513,7 +538,7 @@ export function mountMap(host) {
 
     // ---- the overlay: rings, the hero's marker, the planned road and the pin sit in screen pixels above the map (one div, pointer-events none), so they keep their size at every zoom ----
     const clamp = (lo, hi, v) => Math.max(lo, Math.min(hi, v));
-    let ovKey = '', routeSvg = null, routePath = null, routeDonePath = null, heroEl = null, pinEl = null, ringEls = [], stopEls = [], lastSized = null;
+    let ovKey = '', routeSvg = null, routeG = null, routePath = null, routeDonePath = null, heroEl = null, pinEl = null, ringEls = [], stopEls = [], lastSized = null;
     function buildOverlay(force = false) {
         // the same overlay again (every render of the screen sets the map) keeps its elements, so a pulsing ring does not start over
         const key = JSON.stringify([overlay, model?.hero ?? null, !!model?.heroHidden, !!model?.party?.length]);
@@ -521,18 +546,31 @@ export function mountMap(host) {
         ovKey = key;
         ov.replaceChildren();
         ringEls = []; stopEls = []; heroEl = null; pinEl = null; routeSvg = null; lastSized = null;
+        routeG?.remove(); routeG = null; routePath = routeDonePath = null;
         if (!model) return;
         const { rings, route, pin } = overlay;
         if (route.length > 1) {
-            routePath = sv('path', { class: 'mv-route-todo' }); routeDonePath = sv('path', { class: 'mv-route-done' });
-            routeSvg = sv('svg', { class: 'ds-route mv-route', width: '100%', height: '100%', 'aria-hidden': 'true' }, routeDonePath, routePath);
-            ov.append(routeSvg);
+            // The planned road is drawn IN the map, between the tiles and the names (world coordinates, a stroke that keeps its screen width): a name is never crossed by it (QA-17). Its stops stay above, in the overlay.
+            routePath = sv('path', { class: 'mv-route-todo', 'vector-effect': 'non-scaling-stroke' }); routeDonePath = sv('path', { class: 'mv-route-done', 'vector-effect': 'non-scaling-stroke' });
+            routeG = sv('g', { class: 'ds-route mv-route', 'aria-hidden': 'true', 'pointer-events': 'none' }, routeDonePath, routePath);
+            routeSvg = routeG;
+            const pts = route.map(id => posOf.get(id) ?? null), done = [], todo = [], n = overlay.routeDone;
+            const hop = (ia, ib) => { const ta = route[ia].slice(0, 2), tb = route[ib].slice(0, 2), ca = tileC.get(ta), cb = tileC.get(tb); return ta !== tb && ca && cb ? [(ca[0] + cb[0]) / 2, (ca[1] + cb[1]) / 2] : null; };       // (a hop between two tiles bends through the middle of their shared edge, as the roads do)
+            for (let i = 1; i < pts.length; i++) {
+                if (!pts[i - 1] || !pts[i]) continue;
+                const mid = hop(i - 1, i), seg = `M${pts[i - 1][0].toFixed(1)} ${pts[i - 1][1].toFixed(1)}${mid ? ` L${mid[0].toFixed(1)} ${mid[1].toFixed(1)}` : ''} L${pts[i][0].toFixed(1)} ${pts[i][1].toFixed(1)}`;
+                (i <= n ? done : todo).push(seg);
+            }
+            routePath.setAttribute('d', todo.join(' ')); routeDonePath.setAttribute('d', done.join(' '));
+            mountRoute();
             route.slice(1).forEach((id, i) => { const el = h('b', { class: `ds-stop${i < overlay.routeDone ? ' done' : ''}`, 'data-stop': i + 1, 'aria-hidden': 'true' }, String(i + 1)); stopEls.push({ id, el, i: i + 1 }); ov.append(el); });
         }
         for (const r of rings) { const el = h('i', { class: `ds-ring ${r.kind ?? 'legal'}`, 'data-ring': r.id, 'aria-hidden': 'true' }); ringEls.push({ id: r.id, el }); ov.append(el); }
         if (model.hero && !model.party?.length) { heroEl = h('i', { class: `ds-hero${model.heroHidden ? ' hidden' : ''}`, 'data-hero': model.hero, 'aria-hidden': 'true' }); ov.append(heroEl); }
         if (pin) { pinEl = h('div', { class: `ds-pin${pin.tone === 'bad' ? ' bad' : ''}`, role: 'status', html: pin.html }); ov.append(pinEl); }
     }
+    // the route stands in the world group under the names (`.top`); a redraw of the map (a new level of detail) makes a new world, so it is put back
+    function mountRoute() { const w = svg.querySelector('.world'); if (routeG && w && routeG.parentNode !== w) w.insertBefore(routeG, w.querySelector('.top')); }
     // a thing of d px, centred on its point: a size change costs layout, so it is only written when it changes
     const sizeEl = (el, d) => { if (el._d === d) return; el._d = d; el.style.width = el.style.height = `${d}px`; el.style.margin = `${-d / 2}px 0 0 ${-d / 2}px`; };
     const at = (el, x, y) => { el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`; };
@@ -544,16 +582,6 @@ export function mountMap(host) {
         for (const { id, el } of ringEls) { const p = posOf.get(id); el.hidden = !p; if (p) { sizeEl(el, ringD); at(el, sx(p), sy(p)); } }
         if (heroEl) { const p = posOf.get(model.hero); heroEl.hidden = !p; if (p) { sizeEl(heroEl, heroD); at(heroEl, sx(p), sy(p)); } }
         if (routeSvg) {
-            const pts = overlay.route.map(id => posOf.get(id)).map(p => p ? [sx(p), sy(p)] : null);
-            // a hop between two tiles bends through the middle of their shared edge, as the roads do
-            const hop = (ia, ib) => { const ta = overlay.route[ia].slice(0, 2), tb = overlay.route[ib].slice(0, 2), ca = tileC.get(ta), cb = tileC.get(tb); return ta !== tb && ca && cb ? [(ca[0] + cb[0]) / 2 * k + view.x, (ca[1] + cb[1]) / 2 * k + view.y] : null; };
-            const done = [], todo = [], n = overlay.routeDone;
-            for (let i = 1; i < pts.length; i++) {
-                if (!pts[i - 1] || !pts[i]) continue;
-                const mid = hop(i - 1, i), seg = `M${pts[i - 1][0].toFixed(1)} ${pts[i - 1][1].toFixed(1)}${mid ? ` L${mid[0].toFixed(1)} ${mid[1].toFixed(1)}` : ''} L${pts[i][0].toFixed(1)} ${pts[i][1].toFixed(1)}`;
-                (i <= n ? done : todo).push(seg);
-            }
-            routePath.setAttribute('d', todo.join(' ')); routeDonePath.setAttribute('d', done.join(' '));
             // stops on a clearing that already holds the hero or an earlier stop fan out to the lower right (the names stand above and beside a clearing): "you will be back here"
             const used = new Map(); if (overlay.route[0]) used.set(overlay.route[0], 1);
             const sd = Math.round(clamp(18, 22, 20 * k + 6));

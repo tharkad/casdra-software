@@ -12,25 +12,32 @@ import { act } from '../play/actions.js';
 import { itemParts } from '../play/sheet_char.js';
 import { render } from '../play/shell.js';
 import { boonContent } from './boon.js';
-import { MOOD_WORD, actIcon, ask, dimBtn, footRow, goldEl, itemArt, moodOf, moodTag, nativeArt, plural, say, seg, tick, twoLine } from './common.js';
+import { MOOD_WORD, actIcon, ask, dimBtn, footRow, goldEl, itemArt, moodOf, moodTag, nativeArt, plural, say, seg, skipBtn, tick, twoLine } from './common.js';
 
-export const offerDice = (G, p) => { const rs = rollsByIds(G.st, p.rollIds); return rs.length ? h('div', { class: 'offerdice kit-dice' }, ...rs.map(r => rollRow(r))) : null; };
+// (a Trouble or an Opportunity throws again: in Story both rolls carry the group's name, so the later one is labelled "Thrown again" rather than repeating it)
+export const offerDice = (G, p) => {
+    const rs = rollsByIds(G.st, p.rollIds); if (!rs.length) return null;
+    const rows = rs.map(r => rollRow(r)), seen = new Set();
+    rows.forEach(row => { const w = row.querySelector('.rr-what'), t = w?.firstChild; if (!t) return; if (seen.has(t.nodeValue)) t.nodeValue = 'Thrown again'; else seen.add(t.nodeValue); });
+    return h('div', { class: 'offerdice kit-dice' }, ...rows);
+};
 
 // ---- an insult or a challenge (trade and hire alike): pay to smooth it over, or they bar your way ----
 export function insultContent(G, p, kind) {
     const can = canPayOffer(G.st, p), noun = p.insult === 'Insult' ? 'Notoriety' : 'Fame';
-    const body = h('div', { class: 'kit' }, offerDice(G, p) ?? (p.rollNote ?? p.why ? h('p', { class: 'ds-meta' }, p.rollNote ?? p.why) : null),
-        can ? ask(`The ${p.group} are offended.`, `Pay 5 ${noun} to calm things, or they bar your way.`)
-            : ask(`The ${p.group} challenge you.`, 'Under the Disgust curse you cannot pay Fame, so they bar your way and you fight.'));
+    // (the choice and what each side costs are one line in the foot, above the buttons: it is never below the fold)
+    const note = can ? `Pay 5 ${noun} to calm things. Refusing means they bar your way, and you fight.` : 'Under the Disgust curse you cannot pay Fame, so they bar your way and you fight.';
+    const body = h('div', { class: 'kit kit-insult' }, offerDice(G, p) ?? (p.rollNote ?? p.why ? h('p', { class: 'ds-meta' }, p.rollNote ?? p.why) : null),
+        ask(can ? `The ${p.group} are offended.` : `The ${p.group} challenge you.`));
     const fight = h('button', { type: 'button', class: can ? 'ds-btn' : 'ds-btn primary', onclick: () => act(G, { type: kind, act: 'fight' }) }, can ? 'Refuse' : 'Fight');
-    const foot = footRow({ note: can ? 'Refusing means they bar your way, and you fight.' : null, secondary: can ? fight : null,
+    const foot = footRow({ note, secondary: can ? fight : null,
         primary: can ? h('button', { type: 'button', class: 'ds-btn primary', onclick: () => act(G, { type: kind, act: 'pay' }) }, `Pay 5 ${noun}`) : fight });
     return { title: `${p.group}: ${p.insult}!`, body, foot, decision: true };
 }
 
 // ---- paying with your things (rule 7.6.5c: belongings count at their basic Gold price, no change is given) ----
 // payBlock(G, p) -> { node, chosen: [uid], goldDue, ok, short, over, things }
-export function payBlock(G, p) {
+export function payBlock(G, p, { why = true } = {}) {
     const mine = sellable(G.st, G.data), chosen = new Set((G.ui.payWith ?? []).filter(u => mine.some(m => m.uid === u)));
     const worth = mine.filter(m => chosen.has(m.uid)).reduce((n, m) => n + m.price, 0);
     const goldDue = Math.max(0, p.price - worth), ok = G.st.ch.gold >= goldDue, short = goldDue - G.st.ch.gold, over = Math.max(0, worth - p.price);
@@ -45,14 +52,14 @@ export function payBlock(G, p) {
                     h('span', { class: 'main' }, h('b', {}, m.name), h('span', {}, m.active ? 'In use. It counts at its basic price.' : 'Counts at its basic price.')), h('span', { class: 'end' }, goldEl(G, m.price)));
             }))) : null,
         h('p', { class: 'kit-sum', 'data-sum': '' }, chosen.size ? `You pay ${goldDue} gold and ${plural(chosen.size, 'thing')}.` : `You pay ${p.price} gold.`, over ? ` They give no change (${over} over).` : ''),
-        !ok ? h('div', { class: 'ds-why bad' }, `You are ${short} gold short: hand over more.`) : null);
+        !ok && why ? h('div', { class: 'ds-why bad' }, `You are ${short} gold short: hand over more.`) : null);
     return { node, chosen: [...chosen], goldDue, ok, short, over, things: chosen.size };
 }
 
 // ---- the price offer: the roll, the price as the headline, what it buys, and how you pay ----
 function offerContent(G, p) {
     const repay = p.repay != null, raw = !repay ? G.st.stock[p.group]?.[p.idx] : null;
-    const pay = payBlock(G, p);
+    const pay = payBlock(G, p, { why: false });
     const body = h('div', { class: 'kit kit-offer' },
         offerDice(G, p) ?? h('p', { class: 'ds-meta' }, p.rollNote),
         h('div', { class: 'kit-pricebox' }, h('div', { class: 'ds-price', 'data-price': String(p.price) }, `${p.price} GOLD`, h('small', {}, `${p.base} × ${p.mult}`)),
@@ -61,11 +68,12 @@ function offerContent(G, p) {
         pay.node);
     const label = repay ? 'Win it back' : 'Buy it';
     const small = pay.things ? `${pay.goldDue}g and ${plural(pay.things, 'thing')}` : `${p.price}g`;
-    const foot = footRow({ note: pay.ok ? (G.st.ch.gold - pay.goldDue >= 0 ? `Gold ${G.st.ch.gold} to ${G.st.ch.gold - pay.goldDue}` : null) : null,
+    // (why the primary is dim is in the foot, above the buttons, in red: the sheet's body is a scroll and the answer must never be below it)
+    const foot = footRow({ note: pay.ok ? `Gold ${G.st.ch.gold} to ${G.st.ch.gold - pay.goldDue}` : `You are ${pay.short} gold short: hand over more.`, bad: !pay.ok,
         secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'trade-decline', onclick: () => { G.ui.payWith = null; G.ui.tradeTab = null; act(G, { type: 'trade', act: 'decline' }); } }, 'Not at that price'),
         primary: pay.ok ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'buy-ok', onclick: () => { const items = pay.chosen; G.ui.payWith = null; G.ui.tradeTab = null; act(G, { type: 'trade', act: 'accept', items }); } }, twoLine(label, small))
             : dimBtn(G, twoLine(label, small), `You are ${pay.short} gold short: hand over more.`, { 'data-act': 'buy-ok' }, 'primary') });
-    return { title: repay ? `Win back ${p.name}` : `Buy ${p.name}`, body, foot, decision: true };
+    return { title: repay ? `Win back ${p.name}` : `Buy ${p.name}`, body, foot, decision: true, detent: 'tall' };
 }
 
 // ---- one tickable row, and the little "about it" that opens what it is below the row ----
@@ -81,7 +89,7 @@ function tradeRow(G, sel, { key, it, name, line, price, unit = '', tag = '', cou
         open ? info() : null);
 }
 
-const infoOf = (G, it) => () => { const { card, faces, facts } = itemParts(G, it); return h('div', { class: 'kit-infobody itemsheet' }, card ?? h('div', { class: 'kit-faces' }, ...faces), ...facts.map(t => h('p', { class: 'ds-meta' }, t))); };
+const infoOf = (G, it) => () => { const { card, faces, facts } = itemParts(G, it, { size: 128 }); return h('div', { class: 'kit-infobody itemsheet' }, card ?? h('div', { class: 'kit-faces' }, ...faces), ...facts.map(t => h('p', { class: 'ds-meta' }, t))); };
 
 // ---- the Trade sheet ----
 function tradeMain(G, p) {
@@ -149,6 +157,8 @@ function tradeMain(G, p) {
     };
     const done = cls => h('button', { type: 'button', class: `ds-btn ${cls}`, 'data-act': 'trade-done', onclick: () => { G.ui.tradePick = null; G.ui.tradeTab = null; G.ui.owedPick = null; act(G, { type: 'trade', act: 'done' }); } }, 'Done');
     const cancel = fresh ? h('button', { type: 'button', class: 'ds-btn', 'data-act': 'trade-cancel', onclick: () => { G.ui.tradePick = null; G.ui.tradeTab = null; G.ui.owedPick = null; act(G, { type: 'trade', act: 'back' }); } }, 'Cancel') : done('');
+    // a planned Trade can be passed: nothing to trade, or nothing worth it. The engine's own answer for "no deal" is `done` ("You decide not to trade with the Order").
+    const skip = fresh ? skipBtn(() => { G.ui.tradePick = null; G.ui.tradeTab = null; G.ui.owedPick = null; act(G, { type: 'trade', act: 'done' }); }) : null;
     let note = null, primary = null, secondary = cancel;
     if (tab === 'owed') {
         const b = owed.find(x => x.n === oneOwed);
@@ -175,7 +185,7 @@ function tradeMain(G, p) {
         leaders, rel <= -2 ? h('div', { class: 'ds-why bad' }, 'They are your enemies: expect an insult or a fight, not a price.') : null,
         seg(tabs, tab, k => { G.ui.tradeTab = k; sel.info = null; sel.sell = []; sel.buy = null; render(G); }, 'data-trade-tab'),          // (what was ticked in one room is not carried into the next)
         h('div', { class: 'ds-list kit-rows', 'data-tab': tab }, rows));
-    return { title: 'Trade', eyebrow: `Trade at ${nameOfClearing(G.st.ch.at)}`, body, foot: footRow({ note, secondary, primary }), decision: true, detent: 'tall' };
+    return { title: 'Trade', eyebrow: nameOfClearing(G.st.ch.at), body, foot: footRow({ note, aside: skip, secondary, primary }), decision: true, detent: 'tall' };
 }
 
 // tradeContent(G, p) -> { title, eyebrow, body, foot, decision }

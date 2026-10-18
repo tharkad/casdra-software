@@ -12,7 +12,7 @@ import { VERSION } from '../../version.js';
 import { act, applyAnswer, refresh } from './actions.js';
 import { mapModel, render, wireShell } from './shell.js';
 import { plainReason, showError, showLoading } from './states.js';
-import { loadSaved, myId, noteError, persist, saveGame } from './state.js';
+import { loadSaved, myId, noteError, persist, restoreUi, saveGame } from './state.js';
 
 export function boot(G) {
     showLoading(G);
@@ -75,6 +75,7 @@ export function boot(G) {
             if (G.st.pauseVictory === undefined) G.st.pauseVictory = true;
             if (G.st.pauseShift === undefined) G.st.pauseShift = true;
             G.ctx.state = G.st;
+            restoreUi(G);                                    // (a plan that was being made when the page went away comes back as it was)
             // a game saved before records existed gets one now; its earlier moves are unknown, so it cannot be replayed
             G.st.session ??= { id: String(Date.now()), started: new Date().toISOString(), version: VERSION, params: null };
             G.rec = (await getRecord(G.st.session.id).catch(() => null)) ?? newRecord({ id: G.st.session.id, version: G.st.session.version, params: G.st.session.params, startedAt: G.st.session.started, replayable: !!G.st.session.params });

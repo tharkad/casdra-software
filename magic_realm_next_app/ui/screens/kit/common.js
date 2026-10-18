@@ -89,9 +89,14 @@ export function seg(list, on, pick, attr = 'data-tab') {
 }
 
 // The foot of a decision sheet: one line of what will happen (with the balance after), then the secondary on the left and the ONE primary on the right.
-export function footRow({ note = null, secondary = null, primary = null } = {}) {
-    return h('div', { class: 'kit-foot' }, note ? h('div', { class: 'ds-lead-text kit-note', 'data-note': '' }, note) : null, h('div', { class: 'kit-foot-row' }, secondary, primary));
+// `bad` makes the line the sheet's reason in red (why the primary is dim: "You are 12 gold short"); `aside` is a quiet button on the right of the line ("Skip this phase").
+export function footRow({ note = null, bad = false, aside = null, secondary = null, primary = null } = {}) {
+    const line = note ? h('div', { class: `ds-lead-text kit-note${bad ? ' bad' : ''}`, 'data-note': '' }, note) : null;
+    return h('div', { class: 'kit-foot' }, aside ? h('div', { class: 'kit-noterow' }, line, aside) : line, h('div', { class: 'kit-foot-row' }, secondary, primary));
 }
+
+// The quiet "pass this phase" button of a Trade or Hire sheet (the engine's own answer for it is sent: trade `done`, hire `cancel`).
+export const skipBtn = onclick => h('button', { type: 'button', class: 'ds-btn sm quiet kit-skip', 'data-act': 'skip-phase', onclick }, 'Skip this phase');
 
 // The check badge on the corner of a ticked row's picture.
 export const tick = () => h('i', { class: 'kit-tick', 'aria-hidden': 'true' }, icon('check'));

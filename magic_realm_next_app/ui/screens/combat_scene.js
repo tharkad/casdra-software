@@ -13,10 +13,11 @@ import { clone } from '../../engine/core.js';
 import { denSide, meleeOptions, shiftOptions, encounterOptions } from '../../engine/combat.js';
 import { nameOfClearing } from '../../engine/world.js';
 import * as M from '../combat/model.js';
-import { foeEl, foeSize, lanesEl, heroEl, gearPopover } from '../combat/stage.js';
+import { foeEl, foeSize, lanesEl, heroEl, gearPopover, fitNames } from '../combat/stage.js';
 import { sheetEl, meetingSheet, encounterSheet, meleeSheet, shiftSheet, resultSheet, gridSheet, recapSheet, beatSheet, recordSheet, pitSheet, stepsFor } from '../combat/sheets.js';
 import * as P from '../combat/payload.js';
 import * as SH from '../combat/shared.js';
+import { guardIfChanged } from '../tapguard.js';
 
 const RESULT_TYPES = ['combat-fatigue', 'combat-wounds', 'combat-encounter'];
 const hashOf = s => { let x = 0; for (let i = 0; i < s.length; i++) x = (Math.imul(31, x) + s.charCodeAt(i)) | 0; return x; };
@@ -95,10 +96,11 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
         const nats = st.nats.filter(n => !n.dead && !n.hired && n.loc?.c === c.at && grp.includes(data.natives[n.id].group) && !have.has(n.id)).map(n => ({ uid: `nat:${n.id}`, kind: 'nat', id: n.id, side: 'light' }));
         foes = [...nats, ...M.foesOf(st)].map(d => ({ d }));
     } else if (mode === 'result' || mode === 'grid') {
-        const hit = new Set(M.hitters(events));
+        // who hit you is said once, in the verdict (QA-8): the wound or fatigue grid that follows is the next question, so the counters stand bare there and every round starts bare
+        const hit = new Set(mode === 'result' ? M.hitters(events) : []);
         const wounded = facts.landed.length === 1 && facts.wounds > 0;
         foes = bodies.filter(d => (!d.dead || (d.kind !== 'part' && killedNow.has(denSide(st, data, d).name))) && d.kind !== 'part' || (!d.dead && d.kind === 'part'))
-            .map(d => { const nm = denSide(st, data, d).name, dead = d.dead; return { d, dead, tag: !dead && hit.has(nm) ? { text: wounded ? 'WOUNDED YOU' : 'HIT YOU', kind: 'bad' } : null }; });
+            .map(d => { const nm = denSide(st, data, d).name, dead = d.dead; return { d, dead, tag: !dead && hit.has(nm) ? { text: wounded ? 'WOUNDED YOU' : 'HIT YOU', short: wounded ? 'WOUNDED' : 'HIT', kind: 'bad' } : null }; });
     } else if (mode === 'over') {
         foes = bodies.filter(d => d.dead && d.kind !== 'part').map(d => ({ d, dead: true }));
     } else {
@@ -108,12 +110,18 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     const m = mode === 'melee' ? cb.plan : null, step = o && stepsFor(o, X).some(s => s.id === cb.step) ? cb.step : (o ? stepsFor(o, X)[0].id : 'strike');
     const size = foeSize(foes.length);
     const targetable = mode === 'melee' && step === 'strike' ? new Set(o.targets.filter(d => d.kind !== 'part').map(d => d.uid)) : new Set();
+    // A crowded stage cannot hold a word on every counter (QA-6): from four targets on, only the chosen foe wears TARGET and the others a ghost dot (still a 44px tap); where the counters are small, the other
+    // tags are said in a short word (WOUNDED, HIT, HELD) or two letters (the box). Where the counters are big there is room for the whole word.
+    const short = size < 76, crowd = targetable.size >= 4;
+    let anyTag = false;
     const foeEls = foes.map(({ d, dead, tag }) => {
         let t = tag ?? null;
-        if (!t && !dead && d.pickedUp && (mode === 'encounter' || mode === 'melee')) t = { text: d.engagedBy ? 'ON YOUR MAN' : 'HOLDS YOU', kind: 'bad' };
-        else if (!t && !dead && d.pacified && (mode === 'encounter' || mode === 'melee')) t = { text: 'AT PEACE', kind: 'ghost' };
-        if (targetable.has(d.uid)) { const sel = m.target === d.uid; t = { text: 'TARGET', kind: sel ? '' : 'ghost', label: sel ? 'Target: tap to strike no one' : 'Target this creature', onclick: () => { m.target = sel ? null : d.uid; render(); } }; }
-        else if (mode === 'melee' && step === 'foes' && o.boxable.some(x => x.uid === d.uid)) { const i = o.boxable.findIndex(x => x.uid === d.uid), b = m.boxes[d.uid] ?? (i % 3); t = { text: M.MNV[b].toUpperCase(), kind: '', label: `In the ${M.BOX[b]} box: tap to move`, onclick: () => { m.boxes[d.uid] = (b + 1) % 3; render(); } }; }
+        if (!t && !dead && d.pickedUp && (mode === 'encounter' || mode === 'melee')) t = { text: d.engagedBy ? 'ON YOUR MAN' : 'HOLDS YOU', short: 'HELD', kind: 'bad' };
+        else if (!t && !dead && d.pacified && (mode === 'encounter' || mode === 'melee')) t = { text: 'AT PEACE', short: 'PEACE', kind: 'ghost' };
+        if (targetable.has(d.uid)) { const sel = m.target === d.uid; t = { text: 'TARGET', kind: sel ? '' : 'ghost', dot: crowd && !sel, label: sel ? 'Target: tap to strike no one' : 'Target this creature', onclick: () => { m.target = sel ? null : d.uid; render(); } }; }
+        else if (mode === 'melee' && step === 'foes' && o.boxable.some(x => x.uid === d.uid)) { const i = o.boxable.findIndex(x => x.uid === d.uid), b = m.boxes[d.uid] ?? (i % 3); t = { text: M.MNV[b].toUpperCase(), short: M.MNV[b].slice(0, 2).toUpperCase(), kind: '', label: `In the ${M.BOX[b]} box: tap to move`, onclick: () => { m.boxes[d.uid] = (b + 1) % 3; render(); } }; }
+        if (t && short && !t.dot && t.short) t = { ...t, text: t.short };
+        if (t) anyTag = true;
         const justFlipped = cb.flipNow === d.uid;
         return foeEl({ st, data, d, flipped: !!cb.flipped[d.uid], tag: t, dead: !!dead, size, justFlipped, selected: targetable.has(d.uid) && m.target === d.uid,
             onFlip: (den, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[den.uid] = !cb.flipped[den.uid]; cb.flipNow = den.uid; render(); } });
@@ -135,7 +143,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     const allyEl = allies.length ? h('div', { class: 'cb-allies', 'aria-label': `On your side: ${allies.map(a => a.name).join(', ')}` }, ...allies.map(a => h('span', { class: `cb-ally${a.controlled ? ' ctl' : ''}`, title: a.name }, (() => { const src = a.kind === 'mon' ? (data.art?.monstersColor?.[a.name] ?? data.art?.monsters?.[a.name]) : data.art?.natives?.[a.id]; return src ? h('img', { src, alt: a.name, draggable: 'false' }) : a.name[0]; })()))) : null;
     const prevChits = cb.pipState; cb.pipState = Object.fromEntries(st.ch.chits.map(x => [x.id, x.state]));
     const hero = heroEl({ st, data, prevChits, ribbon: st.ch.morph ? `You are ${/^[aeiou]/i.test(st.ch.morph.creature.name) ? 'an' : 'a'} ${st.ch.morph.creature.name}` : null, onGear: () => { cb.gearCard = !cb.gearCard; render(); } });
-    const stage = h('div', { class: 'cb-stage' }, h('div', { class: 'cb-stagein' }, h('div', { class: 'cb-foes' }, ...foeEls), lanes, allyEl, hero));
+    const stage = h('div', { class: 'cb-stage' }, h('div', { class: 'cb-stagein' }, h('div', { class: `cb-foes${mode === 'melee' || mode === 'result' || mode === 'grid' || anyTag ? '' : ' noslot'}` }, ...foeEls), lanes, allyEl, hero));
 
     // ---- the narrator ----
     const [story, detail, tone] = narration(X, { mode, o, step, foes, facts, recap, events });
@@ -143,7 +151,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     const stamped = cb.stamped === narrKey;
     if ((tone === 'verdict') && !stamped) cb.stamped = narrKey;
     const narr = h('p', { class: `cb-narr${tone === 'verdict' ? ` verdict${stamped ? '' : ' land'}` : ''}${tone === 'bad' ? ' bad' : ''}`, role: 'status', 'aria-live': 'polite' },
-        ...(detail && detail !== story ? [h('span', { 'data-v': 'story' }, story), h('span', { 'data-v': 'detail' }, detail)] : [h('span', {}, story)]));          // (one line for both voices when Detail has nothing more to say)
+        ...(detail && detail !== story ? [h('span', { 'data-v': 'story' }, M.nbTag(story)), h('span', { 'data-v': 'detail' }, M.nbTag(detail))] : [h('span', {}, M.nbTag(story))]));          // (one line for both voices when Detail has nothing more to say)
 
     // ---- the sheet ----
     let sheet;
@@ -155,6 +163,10 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     else if (mode === 'melee') sheet = meleeSheet(X);
     else if (mode === 'shift') sheet = shiftSheet(X);
     else sheet = encounterSheet(X);
+
+    // The tap guard (QA-4): a result that follows a Roll, a wound that follows a result, the next Go on: each stands where the last primary stood, so for a moment after the question changes the primary ignores
+    // a tap (the second half of a double tap must not skip what you should read). Not on "Next" (a step of the stepper), and a redraw of the same question does not start the window again.
+    guardIfChanged(ui, 'cbGuard', `${key}|${mode}|${p.type}|${p.group ?? p.groups ?? ''}|${c.round}|${resultKey}|${step}|${cb.pick?.kind ?? ''}`, sheet, 350, '.ds-btn.primary:not([data-act=step-next])');
 
     // ---- the frame ----
     const place = nameOfClearing(c.at).replace(/ (\d+)$/, '\u00A0$1');
@@ -255,9 +267,9 @@ export function combatBeat({ st, data, ui, render }) {
     const foeEls = dead.map(d => foeEl({ st: snap, data, d, size, dead: !!st.combat === false && how === 'won' }));
     const hero = heroEl({ st: snap, data, ribbon: null });
     if (how === 'died') hero.querySelector('.face')?.setAttribute('style', 'filter:grayscale(1) brightness(.6)');
-    const stage = h('div', { class: 'cb-stage' }, h('div', { class: 'cb-foes' }, ...foeEls), lanesEl({}), hero);
+    const stage = h('div', { class: 'cb-stage' }, h('div', { class: 'cb-foes noslot' }, ...foeEls), lanesEl({}), hero);
     const deathLine = [...st.log].reverse().find(l => l.k === 'combat' && /you are slain|vital spot|Every action chit is wounded/i.test(l.t)) ?? [...st.log].reverse().find(l => l.k === 'combat' && /You have died/i.test(l.t));
-    const story = how === 'died' ? (deathLine ? logText({ ...deathLine, s: deathLine.s ?? null }) : 'You have fallen.') : `${recap.kills.length ? `${M.cap(M.foesPhrase(recap.kills))} fell.` : ''} The clearing is yours.`;
+    const story = how === 'died' ? M.nbTag(deathLine ? logText({ ...deathLine, s: deathLine.s ?? null }) : 'You have fallen.') : `${recap.kills.length ? `${M.cap(M.foesPhrase(recap.kills))} fell.` : ''} The clearing is yours.`;
     const detail = how === 'died' ? (deathLine?.t ?? 'You have died.') : 'Combat is over: nothing hostile is left.';
     const place = nameOfClearing(c.at).replace(/ (\d+)$/, '\u00A0$1');
     const root = h('section', { class: 'cb ds-screen', 'data-mode': 'beat', 'data-beat': how },
@@ -265,6 +277,9 @@ export function combatBeat({ st, data, ui, render }) {
         h('div', { class: 'cb-bar' }, h('span'), voiceSwitch()), stage,
         h('p', { class: `cb-narr verdict${how === 'died' ? ' bad' : ''}`, role: 'status', 'aria-live': 'polite' }, h('span', { 'data-v': 'story' }, story), h('span', { 'data-v': 'detail' }, detail)),
         beatSheet(X, recap, how));
+    // the beat is where a death is read: its "Go on" waits twice as long as an ordinary result, and whatever follows the beat starts its own window (the shell guards its primaries); QA-4
+    guardIfChanged(ui, 'cbGuard', `beat|${how}`, root.querySelector('.cb-sheet'), how === 'died' ? 700 : 350);
+    requestAnimationFrame(() => fitNames(root));
     return root;
 }
 
@@ -274,9 +289,10 @@ function fitStage(root) {
     const fit = () => {
         const stage = root.querySelector('.cb-stage'), inner = stage?.querySelector('.cb-stagein');
         if (!stage || !inner || !root.isConnected) return;
-        inner.style.zoom = '';
+        fitNames(root);
+        inner.style.zoom = ''; inner.style.removeProperty('--z');
         const cs = getComputedStyle(stage), room = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom), need = inner.scrollHeight;
-        if (need > room + 1 && room > 80) inner.style.zoom = String(Math.max(0.55, room / need));
+        if (need > room + 1 && room > 80) { const z = Math.max(0.55, room / need); inner.style.zoom = String(z); inner.style.setProperty('--z', String(z)); }
     };
     requestAnimationFrame(fit);
     if (typeof ResizeObserver === 'function') { const ro = new ResizeObserver(() => fit()); ro.observe(root); const gone = new MutationObserver(() => { if (!root.isConnected) { ro.disconnect(); gone.disconnect(); } }); gone.observe(document.body, { childList: true, subtree: true }); }

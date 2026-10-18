@@ -106,3 +106,22 @@
 .ds-sheet.kit-sheet[data-detent="tall"] { --sheet-h: 84%; }
 /* override: core hides every scrim after a decision sheet; a look (Kit, menu, Journal) opened over a waiting question has its own scrim, which must show */
 .ds-sheet.decision ~ .ds-scrim:not(.none) { display: block; }
+
+/* ---- F1: fixes from the QA-1 playtest (docs/design/redesign/QA-1.md) ---- */
+/* QA-19: on the first day the chip says "0/5" in the quiet colour: nothing has been earned yet, the number is not a penalty */
+.ds-vp.idle b { color: var(--ink-3); font-size: 16px; }
+/* QA-9: the welcome sheet is two lines of the game's voice, never an orphan */
+.welcome .ds-voice { margin: 0 0 12px; text-wrap: balance; }
+/* QA-15 (override of core.css, F1): every handle has a 44px hit area (the 14px bar is what is drawn; the area runs 18px above it and 14px below), and never shrinks in a full sheet */
+.ds-grab { position: relative; flex: none; }
+.ds-grab::after { content: ""; position: absolute; inset: -18px 0 -14px; }
+.ds-tray > .ds-grab::after { inset: -34px 22% 0; }          /* (the tray's handle: the line under it is another button, so the area runs up over the map's lower edge, in the middle, clear of the map button) */
+/* the Story | Detail switch: its buttons are 30 to 32px tall to look right in a head; the hit area is 44+ */
+.ds-voice-sw button::after { inset: -8px 0; }
+/* the plan's Back / Clear: 36px to look right in the line, 44px to touch */
+.ds-plan-ask .ds-btn::after { inset: -8px -4px; }
+/* the summaries that open what lies behind a score or a day: a 44px row with the same triangle the Kit uses */
+:is(.sr-math, .sr-parts, .sr-idle, .repstep, .end-idle, .ds-more, .ds-roads) > summary { min-height: 44px; display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
+:is(.sr-math, .sr-parts, .sr-idle, .repstep, .end-idle, .ds-more, .ds-roads) > summary::-webkit-details-marker { display: none; }
+:is(.sr-math, .sr-parts, .sr-idle, .repstep, .end-idle, .ds-more, .ds-roads) > summary::before { content: ""; flex: none; width: 0; height: 0; border-left: 6px solid currentColor; border-top: 5px solid transparent; border-bottom: 5px solid transparent; transition: transform var(--d-fast); }
+:is(.sr-math, .sr-parts, .sr-idle, .repstep, .end-idle, .ds-more, .ds-roads)[open] > summary::before { transform: rotate(90deg); }

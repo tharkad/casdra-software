@@ -3,6 +3,7 @@
 import { h } from '../../dom.js';
 import { btn, setDetent, sheet } from '../../ds.js';
 import { icon as dsIcon } from '../../icons.js';
+import { guardIfChanged } from '../../tapguard.js';
 import { act } from './actions.js';
 import { itemParts } from './sheet_char.js';
 import { render } from './shell.js';
@@ -110,6 +111,8 @@ export function modal(G, title, body, { close, footer, kind, detent, eyebrow, he
         cls: `sheet2 ${k}${cls ? ' ' + cls : ''}${footer ? ' has-footer' : ''}${peeked ? ' peeked' : ''}`, attrs });
     if (peeked) frag.scrim?.classList.add('none');
     const el = frag.sheet; el.dataset.full = full; el.dataset.kind = k;
+    // a sheet that has just come up (or changed to another question) ignores taps on its primary for a moment: the second half of a double tap on the button that opened it must not answer it (QA-4)
+    guardIfChanged(G.ui.guards ??= {}, `sheet:${title}`, `${k}|${title}`, el);
     el.querySelector('.ds-sheet-body').classList.add('sheet-scroll');
     el.querySelector('.ds-sheet-head').classList.add('sheet2-head');
     el.querySelector('.ds-grab').classList.add('sheet-grab');

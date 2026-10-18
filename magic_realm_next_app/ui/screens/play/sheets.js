@@ -1,4 +1,5 @@
 // play/sheets.js: which sheet or card is on screen: sheets() decides, from the pending question and G.ui.sheet, what the layer shows; the Journal is journal.js.
+import { phasesFor } from '../../../engine/day.js';
 import { nameOf } from '../../../engine/items.js';
 import { nameOfClearing, tileName } from '../../../engine/world.js';
 import { ask } from '../../ask.js';
@@ -63,13 +64,15 @@ export function sheets(G, lookOnly = false) {
     else if (p?.type === 'hire' || p?.type === 'hire-offer') out.push(hireSheet(G, p));
     else if (G.shared && p?.type === 'meet-offer') { out.push(offerSheet(mc(G), p)); if (G.ui.sheet === 'players') out.push(playersSheet(G)); }
     else if (G.shared && G.ui.sheet === 'meet') out.push(meetSheet(mc(G)));
-    else if (!G.ui.welcomeDone && !welcomed() && G.st.day === 1 && p?.type === 'plan') out.push(modal(G, `Welcome, ${G.st.ch.name}`, h('div', {},
-        h('p', {}, `You are at the ${G.st.ch.startDwelling}${G.st.ch.items.length ? ' with ' + G.st.ch.items.map(i => nameOf(G.data, i)).join(', ') : ' with no weapon or armor yet: trade for some'}. ${lengthLine(G.st)}`),
-        h('p', {}, h('b', {}, 'Each morning'), ' you plan up to four phases in secret: move, hide, search, trade, hire, rest or alert.'),
-        h('p', {}, h('b', {}, 'Then the day plays out'), ', a phase at a time, and anything you meet is called out by the chits you turn up.'),
-        h('p', {}, h('b', {}, 'Each evening'), ' you fight whoever shares your clearing, playing your chits in secret.'),
-        h('p', { class: 'hint' }, 'Tap your gold, Fame and Notoriety for your chits and gear. The menu has the map key and a short guide.'),
-        h('button', { class: 'btn primary', 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }, 'Begin')), { kind: 'result' }));
+    else if (!G.ui.welcomeDone && !welcomed() && G.st.day === 1 && p?.type === 'plan') {
+        // two lines, in the voice of the rest of the game (QA-9): where you stand, then the shape of a day. The phase count is the one the tray shows (phasesFor); no number or place breaks across a line.
+        const gear = G.st.ch.items.length ? ` with ${G.st.ch.items.map(i => nameOf(G.data, i)).join(', ')}` : ', with no weapon or armor yet';
+        const n = phasesFor(G.st, G.data, []).total;
+        out.push(modal(G, `Welcome, ${G.st.ch.name}`, h('div', { class: 'welcome' },
+            h('p', { class: 'ds-voice' }, `You wake at the ${G.st.ch.startDwelling}${gear}. ${lengthLine(G.st)}`.replace(/ (\d+)/g, '\u00A0$1')),
+            h('p', { class: 'ds-voice' }, `Each morning you plan ${n}\u00A0phases in secret. Then the day plays out, and at night you fight whoever shares your clearing.`),
+            h('button', { class: 'btn primary', 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }, 'Begin')), { kind: 'result' }));
+    }
     else if (p?.type === 'plan' && G.st.day > 1 && G.ui.reportedDay !== G.st.day && G.ui.sheet !== 'plan') out.push(reportSheet(G));
     else if (G.ui.sheet === 'char') out.push(charSheet(G));
     else if (G.ui.sheet === 'slot') out.push(slotSheet(G));

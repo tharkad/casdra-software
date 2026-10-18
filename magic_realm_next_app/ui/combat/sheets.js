@@ -48,10 +48,11 @@ export function meetingSheet(X) {
             hint(`Pay ${p.amount} ${cost} and they let you be, or stand and fight.`),
             can ? foot(fight(false), payBtn(true)) : foot(payBtn(false), fight(true)));
     }
-    // combat-choice
+    // combat-choice: they are not looking for a fight, so letting them be is the primary (right, gold) and picking the fight is the quiet one (QA-2: a stray tap must not turn on your own allies)
+    const why = M.standingWhy(st, p.groups);
     return sheetEl(X, 'meeting', qRow('Meeting', h('span', {}, 'one question')),
-        hint(`You may attack ${p.groups.length > 1 ? 'one of them, which brings its whole group in' : 'them'}, or let them be.`),
-        foot(btn('Let them be', '', { 'data-act': 'let-be', onclick: () => send(P.choice(false)) }), primary('Pick a fight', { 'data-act': 'attack-natives', onclick: () => send(P.choice(true)) })));
+        hint(`${why ? `${why} ` : ''}You may attack ${p.groups.length > 1 ? 'one of them, which brings its whole group in' : 'them'}, or let them be.`),
+        foot(btn('Pick a fight', 'quiet', { 'data-act': 'attack-natives', onclick: () => send(P.choice(true)) }), primary('Let them be', { 'data-act': 'let-be', onclick: () => send(P.choice(false)) })));
 }
 
 // ================= the Encounter: three verbs and Go on =================
@@ -179,7 +180,7 @@ function castPick(X, o, round, back, itemsBtn) {
         const x0 = chosen && chosen.spell === spell ? chosen : opts[0], on = !!chosen && chosen.spell === spell, sp = data.spells?.[spell];
         const cost = x0.item ? `From your ${x0.from}, at time 0: no Magic chit is used` : `Uses Magic ${st.ch.chits.find(ch => ch.id === x0.chit)?.numeral ?? ''}${x0.time}${'*'.repeat(x0.effort)}: that chit will be tired${sp?.color ? ` · ${sp.color} magic` : ''}`;
         return [h('button', { type: 'button', class: `cb-spell${on ? ' on' : ''}`, 'data-act': 'cast', 'data-spell': spell, 'aria-pressed': on ? 'true' : 'false', onclick: () => { cb.cast = key(on ? chosen : x0); cb.quiet = null; render(); } },
-            h('span', { class: 'dot', 'aria-hidden': 'true' }), h('span', { class: 'main' }, h('b', {}, x0.name), h('span', { class: 'what' }, what(x0)), h('small', {}, cost))),
+            h('span', { class: `dot ${(sp?.color ?? '').toLowerCase()}`, 'aria-hidden': 'true' }), h('span', { class: 'main' }, h('b', {}, x0.name), h('span', { class: 'what' }, what(x0)), h('small', {}, cost))),
         on && opts.length > 1 ? h('div', { class: 'cb-chits' }, ...opts.map(x => { const ch = st.ch.chits.find(q => q.id === x.chit); return ch ? chitTile(X, ch, { on: key(x) === sel, onclick: () => { cb.cast = key(x); render(); } }) : null; })) : null];
     }).flat().filter(Boolean);
     const aimStore = (cb.quiet ??= {});
@@ -262,7 +263,7 @@ export function meleeSheet(X) {
     } else if (cur === 'foes') {
         const rows = o.boxable.map((d, i) => { const b = m.boxes[d.uid] ?? (i % 3);
             return h('button', { type: 'button', class: 'cb-sum', 'data-place': d.uid, onclick: () => { m.boxes[d.uid] = (b + 1) % 3; render(); } }, h('span', { class: 'k' }, baseNameOf(st, data, o, d.uid)), h('span', { class: 'v' }, o.boxable.length > 3 ? MNV[b] : `${BOX[b]} box`), o.boxable.length > 3 ? null : h('span', { class: 'ds-tag gold' }, 'tap to move')); });
-        body = [h('div', { class: `cb-fields${rows.length > 3 ? ' two' : ''}` }, ...rows), hint('The dice may still shuffle them.')];
+        body = [h('div', { class: `cb-fields${rows.length > 3 ? ' two' : ''}${rows.length > 6 ? ' scroll' : ''}` }, ...rows), hint('The dice may still shuffle them.')];
         lead = btn('Auto-place', 'quiet', { 'data-act': 'auto-place', onclick: () => { o.boxable.forEach((d, i) => { m.boxes[d.uid] = i % 3; }); render(); } });
     } else {
         // roll: a review
@@ -283,7 +284,7 @@ export function meleeSheet(X) {
 }
 const sumRow = (k, v, onclick, attr = null) => h('button', { type: 'button', class: 'cb-sum', ...(attr ? { [attr]: '' } : { 'data-sum': k.toLowerCase() }), onclick }, h('span', { class: 'k' }, k), h('span', { class: 'v' }, v), icon('right'));
 // the creature's name as the counter prints it ("Wolf #2")
-function baseNameOf(st, data, o, uid) { const d = st.combat.dens.find(x => x.uid === uid); return d ? denSide(st, data, d).name : '?'; }
+function baseNameOf(st, data, o, uid) { const d = st.combat.dens.find(x => x.uid === uid); return d ? M.nbTag(denSide(st, data, d).name) : '?'; }
 
 // ================= Battle Bracelets / Elusive Cloak: the plays are shown, the dice have moved the creatures =================
 export function shiftSheet(X) {

@@ -42,7 +42,7 @@ function actChips(G, i, at, over, others, baseOver) {
     return h('div', { class: `ds-acts n${n}` }, ...acts.map(a => {
         const curse = (G.st.ch.curses ?? []).find(c => CURSE_ACT[c] === a), refused = actRefusal(G.st, a);
         const spent = !curse && !refused && a !== 'nothing' && a !== 'follow' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver;
-        const why = curse ? `${curse}: ${CURSE_PLAIN[curse] ?? 'it spoils this action.'}` : refused ?? (spent ? 'The other phases have used up what that needs: there is no phase left for it.' : null);
+        const why = curse ? `${curse}: ${CURSE_PLAIN[curse] ?? 'it spoils this action.'}` : refused ?? (spent ? 'All your phases are taken.' : null);
         const dim = !!why;
         return h('button', { type: 'button', class: `ds-act chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${curse ? ' cursed' : ''}`, 'data-slot': i, 'data-pick': a, 'aria-disabled': dim ? 'true' : null, title: why ?? undefined,
             onclick: () => { if (dim) { showToast(G, why, true); return; } pick(G, i, a, at[i]); } }, actIcon(actArt(a), 28), ACT_LABEL[a]);
@@ -90,7 +90,7 @@ function subPicker(G, i, at) {
     const readyMagic = G.st.ch.chits.filter(x => x.type === 'magic' && x.state === 'active');
     if (s?.act === 'alert' && readyMagic.length) {
         const chip = (label, on, fn, key) => h('button', { type: 'button', class: `ds-chip${on ? ' on' : ''}`, 'data-alert': key, onclick: fn }, label);
-        return [h('p', { class: 'ds-hint-line' }, 'Ready your weapon, or wake a Magic chit. An alerted chit acts first, and tires at Midnight if unused.'),
+        return [h('p', { class: 'ds-hint-line' }, 'Ready your weapon (the default), or wake a Magic chit. An alerted chit acts first, and tires at Midnight if unused.'),
             h('div', { class: 'ds-chips' }, chip('Weapon', !s.magic, () => { delete s.magic; advance(G, i + 1); render(G); }, 'weapon'),
                 ...readyMagic.map(c => chip(`Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}`, s.magic === c.id, () => { s.magic = c.id; advance(G, i + 1); render(G); }, c.id)))];
     }
@@ -141,7 +141,10 @@ export function planTray(G) {
         kids.push(...planHints(G, step, at));
         lead = G.ui.pickMove === step ? h('span', { class: 'ds-lead-text' }, h('b', {}, 'Move'), ` · ${step + 1} of ${total}`) : h('span', { class: 'ds-lead-text' }, h('b', {}, `${unsetN} phase${unsetN === 1 ? '' : 's'}`), ' to plan');
     }
-    prim = startButton(G, step != null && (roadLocked(G, step) || climbLocked(G, step)) && !whole ? open ?? null : false);
+    // a step that is waiting on nothing but "Next" (a fixed road, a climb's second half) or on the Alert's weapon-or-chit question (Weapon is the default: the question is a choice, not a gate)
+    // offers "Next phase" too, so choosing Alert never leaves the player at a dim Start with no way on (QA-7)
+    const alertAsk = step != null && d.slots[step]?.act === 'alert' && G.ui.pickMove !== step && G.st.ch.chits.some(x => x.type === 'magic' && x.state === 'active');
+    prim = startButton(G, step != null && (roadLocked(G, step) || climbLocked(G, step) || alertAsk) && !whole ? open ?? null : false);
     return { body: h('div', { class: 'ds-plan' }, ...kids), lead, primary: prim };
 }
 
