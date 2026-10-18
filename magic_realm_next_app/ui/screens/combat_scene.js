@@ -5,7 +5,7 @@
 // combatScene({ st, data, act, ui, render, peek }) returns the scene element; `peek` = { gear, map } open the Belongings and the map and bring the fight back.
 import { h } from '../dom.js';
 import { icon } from '../icons.js';
-import { voiceSwitch, toast } from '../ds.js';
+import { voiceSwitch, toast, primary } from '../ds.js';
 import { logText } from '../voice.js';
 import { roundSynopsis, narrateRoll } from '../../engine/story.js';
 import { earned } from '../../engine/score.js';
@@ -14,15 +14,16 @@ import { denSide, meleeOptions, shiftOptions, encounterOptions } from '../../eng
 import { nameOfClearing } from '../../engine/world.js';
 import * as M from '../combat/model.js';
 import { foeEl, foeSize, lanesEl, heroEl, gearPopover } from '../combat/stage.js';
-import { meetingSheet, encounterSheet, meleeSheet, shiftSheet, resultSheet, gridSheet, recapSheet, beatSheet, recordSheet, pitSheet, stepsFor } from '../combat/sheets.js';
+import { sheetEl, meetingSheet, encounterSheet, meleeSheet, shiftSheet, resultSheet, gridSheet, recapSheet, beatSheet, recordSheet, pitSheet, stepsFor } from '../combat/sheets.js';
 import * as P from '../combat/payload.js';
+import * as SH from '../combat/shared.js';
 
 const RESULT_TYPES = ['combat-fatigue', 'combat-wounds', 'combat-encounter'];
 const hashOf = s => { let x = 0; for (let i = 0; i < s.length; i++) x = (Math.imul(31, x) + s.charCodeAt(i)) | 0; return x; };
 const MEET = /^Evening meeting with the /;
 
 // the fight this scene belongs to: a fresh fight starts a fresh scene state
-const fightKey = (st, c) => `${st.day}:${c.at}:${c.rollFrom ?? 0}`;
+const fightKey = (st, c) => `${st.day}:${c.at}:${c.rollFrom ?? 0}${st.battle ? ':shared' : ''}`;
 
 // What the evening's Meeting said, group by group, once the questions are answered: [story lines], [exact lines]
 function meetLines(st, data, c) {
@@ -50,12 +51,12 @@ function meetNarr(st, data, c, group) {
     return [tale ?? `${M.cap(last.result ?? '')}.`, last.result ? `${M.cap(last.result)}${/[.!?]$/.test(last.result) ? '' : '.'}` : null];
 }
 
-export function combatScene({ st, data, act, ui, render, peek }) {
+export function combatScene({ st, data, act, ui, render, peek, shared = null }) {
     const p = st.pending, c = st.combat;
     const key = fightKey(st, c);
     if (ui.cb?.fightKey !== key) ui.cb = { fightKey: key, seen: null, step: 'strike', plan: null, flipped: {}, pick: null, pipState: null, gearCard: false, flippedGear: {} };
     const cb = ui.cb;
-    const X = { st, data, ui, cb, render, p, c, root: null };
+    const X = { st, data, ui, cb, render, p, c, root: null, shared };          // (`shared`: a fight of several characters, screens/sharedfight.js: the strip, no result screen of its own, the Whom step)
     X.say = text => { if (!X.root) return; const t = toast(text, { host: X.root }); const sh = X.root.querySelector('.cb-sheet'); t.style.bottom = `${(sh ? sh.offsetHeight : 160) + 10}px`; };
     // every answer to the engine goes through here: the scene's own state of the question is dropped, the engine moves on
     // (ui.trace, when a script sets it to an array, collects every answer the scene sends: tools/ui_cb_fuzz.py replays them on the bare engine)
@@ -64,7 +65,7 @@ export function combatScene({ st, data, act, ui, render, peek }) {
     X.sendMelee = (o, m) => {
         ui.lastPlan = { round: c.round, fight: key, plan: JSON.parse(JSON.stringify(m)) };
         cb.plan = null; cb.step = 'strike'; cb.pick = null;
-        ui.cbBeat = { snap: clone(st), day: st.day, logLen: st.log.length, round: c.round };
+        if (!shared) ui.cbBeat = { snap: clone(st), day: st.day, logLen: st.log.length, round: c.round };
         emit(P.melee(o, m));
     };
 
@@ -72,15 +73,20 @@ export function combatScene({ st, data, act, ui, render, peek }) {
     const events = c.events ?? [];
     const resultKey = `${c.roundRollFrom ?? 0}|${hashOf(events.join('\n'))}`;
     X.resultKey = resultKey;
-    const showResult = RESULT_TYPES.includes(p.type) && events.length > 0 && cb.seen !== resultKey && !(p.type === 'combat-encounter' && (c.round === 1 || p.spellOnly));
+    const showResult = !shared && RESULT_TYPES.includes(p.type) && events.length > 0 && cb.seen !== resultKey && !(p.type === 'combat-encounter' && (c.round === 1 || p.spellOnly));
     const facts = M.roundFacts(events);
-    if (p.type === 'combat-melee' && (!cb.plan || cb.planRound !== c.round)) { cb.plan = M.defaultPlan(st, data, meleeOptions(st, data)); cb.planRound = c.round; cb.step = 'strike'; }
+    if (p.type === 'combat-melee' && (!cb.plan || cb.planRound !== c.round)) {
+        const o0 = meleeOptions(st, data);
+        cb.plan = M.defaultPlan(st, data, o0); cb.planRound = c.round;
+        if (shared) SH.sharedPlan(st, o0, cb.plan);
+        cb.step = shared && SH.needsWhom(st, o0) ? 'whom' : 'strike';
+    }
     if (p.type !== 'combat-melee') { cb.plan = null; }
     const mode = p.type === 'combat-over' ? 'over' : showResult ? 'result' : p.type === 'combat-wounds' || p.type === 'combat-fatigue' ? 'grid' : ['combat-pay', 'combat-drinks', 'combat-choice'].includes(p.type) ? 'meet' : p.type === 'combat-melee' ? 'melee' : p.type === 'combat-shift' ? 'shift' : 'encounter';
-    const recap = mode === 'over' ? M.recapOf(st, data) : null;
+    const recap = mode === 'over' && !shared ? M.recapOf(st, data) : null;
 
     // ---- the stage ----
-    const bodies = c.dens.filter(d => d.kind !== 'horse');
+    const bodies = c.dens.filter(d => d.kind !== 'horse' && M.onMine(st, d));
     const killedNow = new Set(c.killed ?? []);
     let foes;                                       // [{ d, dead, tag, flipKey }]
     if (mode === 'meet') {
@@ -99,7 +105,7 @@ export function combatScene({ st, data, act, ui, render, peek }) {
         foes = M.foesOf(st).map(d => ({ d }));
     }
     const o = mode === 'melee' ? meleeOptions(st, data) : null;
-    const m = mode === 'melee' ? cb.plan : null, step = o && stepsFor(o).some(s => s.id === cb.step) ? cb.step : 'strike';
+    const m = mode === 'melee' ? cb.plan : null, step = o && stepsFor(o, X).some(s => s.id === cb.step) ? cb.step : (o ? stepsFor(o, X)[0].id : 'strike');
     const size = foeSize(foes.length);
     const targetable = mode === 'melee' && step === 'strike' ? new Set(o.targets.filter(d => d.kind !== 'part').map(d => d.uid)) : new Set();
     const foeEls = foes.map(({ d, dead, tag }) => {
@@ -141,7 +147,8 @@ export function combatScene({ st, data, act, ui, render, peek }) {
 
     // ---- the sheet ----
     let sheet;
-    if (mode === 'over') sheet = recapSheet(X, recap);
+    if (mode === 'over' && shared) sheet = sheetEl(X, 'recap', h('div', { class: 'ds-actions' }, primary('On through the night', { 'data-act': 'fight-over', onclick: () => X.send(P.over()) })));
+    else if (mode === 'over') sheet = recapSheet(X, recap);
     else if (mode === 'result') sheet = resultSheet(X, facts);
     else if (mode === 'grid') sheet = gridSheet(X);
     else if (mode === 'meet') sheet = meetingSheet(X);
@@ -153,12 +160,13 @@ export function combatScene({ st, data, act, ui, render, peek }) {
     const place = nameOfClearing(c.at).replace(/ (\d+)$/, '\u00A0$1');
     let ern = null; try { ern = earned(st, data); } catch { /* scoring not available */ }
     const stat = (cls, ic, n) => h('span', { class: `ds-stat ${cls}` }, icon(ic), String(n));
-    const root = h('section', { class: 'cb ds-screen', 'data-mode': mode, 'data-ask-type': p.type, 'data-step': mode === 'melee' ? step : null },
+    const root = h('section', { class: `cb ds-screen${shared ? ' sf' : ''}`, 'data-mode': mode, 'data-ask-type': p.type, 'data-step': mode === 'melee' ? step : null, 'data-sf': shared ? 'step' : null },
         h('div', { class: 'cb-top' },
             h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', {}, p.spellOnly ? 'Evening · quiet' : `Evening · round ${c.round}`)),
             h('button', { type: 'button', class: 'ds-btn icon quiet', 'data-act': 'peek-gear', 'aria-label': 'Belongings', onclick: () => peek?.gear() }, icon('bag', 'lg')),
             h('button', { type: 'button', class: 'ds-btn icon quiet', 'data-act': 'peek-map', 'aria-label': 'Map', onclick: () => peek?.map() }, icon('pin', 'lg'))),
-        h('div', { class: 'cb-bar' }, h('button', { type: 'button', class: 'ds-stats', 'aria-label': 'Fame, Notoriety, Gold: open your Belongings', onclick: () => peek?.gear() },
+        shared ? shared.strip : null,
+        shared ? null : h('div', { class: 'cb-bar' }, h('button', { type: 'button', class: 'ds-stats', 'aria-label': 'Fame, Notoriety, Gold: open your Belongings', onclick: () => peek?.gear() },
             stat('fame', 'star', ern?.fame ?? st.ch.fame), stat('notor', 'flame', ern?.notoriety ?? st.ch.notoriety), stat('gold', 'coin', st.ch.gold)), voiceSwitch()),
         stage, narr, sheet);
     X.root = root;
@@ -188,6 +196,7 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
         const syn = roundSynopsis(events) || 'The round passed.';
         return [syn, syn, 'verdict'];
     }
+    if (mode === 'over' && X.shared) return ['The fighting is over.', 'Combat is over: nothing hostile is left.', 'verdict'];
     if (mode === 'over') {
         const k = recap.kills, first = (roundSynopsis(events).match(/^[^.]*\./) ?? [''])[0];
         const lie = cb_unseen(X) && /^You cut down|brought down/.test(first) ? first : k.length === 1 ? `The ${k[0]} lies still.` : k.length > 1 ? `${M.cap(M.foesPhrase(k))} lie still.` : 'The fighting is over.';
@@ -205,13 +214,14 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
         const one = o.boxable.filter(d => d.kind !== 'part').length < 2;
         const lim = o.effortLimit ?? 2, limText = `You may play at most ${M.limitWord(lim)} asterisks of effort.`;
         const line = {
+            whom: ['Whom do you strike?', 'Your play is sealed until everyone has chosen. Name a creature on your sheet or on another\u2019s, a character, or a hireling: or no one.'],
             strike: [one ? 'How do you strike?' : 'Whom do you strike, and how?', 'Pick whom you strike, in which direction and with which Fight chit.'],
             aim: [`Whom does ${o.aims?.[0]?.name ?? 'the spell'} take?`, null],
             guard: ['How do you guard yourself?', 'The maneuver defends you; a blow aimed at your direction connects, one that comes sooner than your chit gets under it.'],
             shield: ['Which way does your shield guard?', null],
             parts: ['What do its other attacks do?', null],
             foes: [`Where will ${one ? 'it' : 'they'} come at you?`, 'Place the creatures in the three red boxes; the dice shuffle them afterwards.'],
-            roll: ['Your plays are set. The dice decide the rest.', 'Plays are chosen together; then the dice shuffle the creatures and the blows land.'],
+            roll: X.shared ? ['Your play is set. Nobody sees it until everyone has played.', 'Plays are sealed; once everyone has chosen, every play is shown at once and the dice decide the rest.'] : ['Your plays are set. The dice decide the rest.', 'Plays are chosen together; then the dice shuffle the creatures and the blows land.'],
         }[step];
         return [line[0], `Round ${c.round}, Melee: ${line[1] ?? line[0]} ${limText}`];
     }
@@ -219,8 +229,9 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
     if (p.spellOnly) return ['A quiet evening. Nothing here is looking for a fight.', 'Spells are cast in the evening (rule 8.1.3a): a quiet clearing still gets its rounds, so the game stops here to let you cast one.'];
     const o2 = encounterOptions(st, data);
     const phrase = names.length ? phraseOf() : '';
-    const gate = o2.why?.gate ? `A chit played here has to be faster than the ${M.baseName(o2.why.gate.name)}'s ${o2.why.gate.speed}.` : 'Nothing is set on you, so no creature holds your chits back.';
+    const gate = o2.why?.gate ? `A chit played here has to be faster than ${M.gateWords(st, o2.why.gate)}.` : 'Nothing is set on you, so no creature holds your chits back.';
     if (o2.canStay) return [`You are hidden. ${phrase ? `${M.cap(phrase)} ${nWord ? 'are' : 'is'} here, and cannot touch you.` : 'Nothing can touch you.'}`, `Creatures cannot be set on a hidden character. You may stay hidden and let the evening pass, or strike from hiding: you strike first, but you are revealed.`];
+    if (X.shared && o2.why?.gate && M.chargerOf(st, o2.why.gate)) return [`${M.chargerOf(st, o2.why.gate)} has charged you. Only a chit faster than ${o2.why.gate.speed} can answer.`, `Round ${c.round}, Encounter: ${gate}`];
     const meets = meetLines(st, data, c);
     if (c.round === 1 && meets.story.length) return [meets.story.join(' '), `${meets.detail.join(' ')} Round 1, Encounter: ${gate}`];
     if (c.round === 1) return [`Dusk gathers over ${place}. ${phrase ? `${M.cap(phrase)} ${nWord ? 'have' : 'has'} found you.` : ''}`.trim(), `Round 1, Encounter: before the melee you may ready your weapon, run, cast a spell, switch a belonging, or go on. ${gate}`];

@@ -19,7 +19,9 @@ export const listOf = a => (a.length <= 1 ? (a[0] ?? '') : `${a.slice(0, -1).joi
 
 // ---- the creatures on the stage ----
 // Everything that stands against him and is not dead (a horse is part of its rider; a head or a club is a counter of its own, as on the melee sheet).
-export const foesOf = st => st.combat.dens.filter(d => !d.dead && d.kind !== 'horse');
+// a shared fight (st.battle): only the creatures on MY sheet (and the parts of those) stand on my stage; the others' are named from the Strike step. Alone, every creature is mine.
+export const onMine = (st, d) => !st.battle || !!(d.assigned || (d.partOf && st.combat.dens.find(o => o.uid === d.partOf)?.assigned));
+export const foesOf = st => st.combat.dens.filter(d => !d.dead && d.kind !== 'horse' && onMine(st, d));
 export const bodiesOf = st => foesOf(st).filter(d => d.kind !== 'part');
 export const isImp = (data, d) => d.kind === 'mon' && data.monsters[d.id]?.family === 'Imp';
 // "two Wolves", "a Troll and two Goblins": how a group of foes is named in a sentence
@@ -123,8 +125,22 @@ export const effortLine = (st, o, m) => {
 };
 
 // ---- the Encounter step: why a verb is dim, in the engine's words ----
+// what holds a chit back: a creature ("the Wolf's 3") or, in a shared fight, another character's charge ("Ann's charge (3)")
+export function gateWords(st, gate) {
+    const by = /^(.+), charging you$/.exec(gate.name);
+    if (!by) return `the ${baseName(gate.name)}'s ${gate.speed}`;
+    const chg = Object.values(st.chars ?? {}).find(x => x.name === by[1]);
+    return `${st.players?.find(p => p.id === chg?.owner)?.name ?? by[1]}\u2019s charge (${gate.speed})`;
+}
+// the player who charged me, when the thing holding my chits back is a charge (shared fight); else null
+export function chargerOf(st, gate) {
+    const by = /^(.+), charging you$/.exec(gate.name);
+    if (!by) return null;
+    const chg = Object.values(st.chars ?? {}).find(x => x.name === by[1]);
+    return st.players?.find(p => p.id === chg?.owner)?.name ?? by[1];
+}
 export function encounterVerbs(st, data, o, c) {
-    const slow = o.why?.gate ? `Nothing of yours is faster than the ${baseName(o.why.gate.name)}'s ${o.why.gate.speed}.` : null;
+    const slow = o.why?.gate ? `Nothing of yours is faster than ${gateWords(st, o.why.gate)}.` : null;
     const gated = t => !!t && /faster than/.test(t);
     const alert = o.canAlert && o.weapon ? { ok: true } : { ok: false, sub: !o.weapon ? 'no weapon' : gated(o.why?.alert) ? 'too slow' : 'no chit', why: gated(o.why?.alert) ? slow : (o.why?.alert ?? 'You have nothing to ready.') };
     const run = o.canRun ? { ok: true } : { ok: false, sub: o.pickedUp ? 'held' : gated(o.why?.run) ? 'too slow' : !o.runTo.length ? 'no road' : 'no chit', why: o.pickedUp ? 'You are seized and cannot run.' : gated(o.why?.run) ? slow : (o.why?.run ?? 'You cannot run now.') };

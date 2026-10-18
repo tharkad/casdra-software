@@ -28,13 +28,7 @@ export function journalNew(G) {
 // The same, minus what the Journal has already shown him (the dot on the last-action line goes out once it was open).
 export const journalFresh = G => { const n = journalNew(G); return n.length && G.ui.jSeen !== n.map(x => x.key).join() ? n : []; };
 
-// New things bring the Journal up at half, once (it is where a note lives); not over a question and not in a fight.
-export function popJournal(G) {
-    const p = G.st.pending, news = journalNew(G), sig = news.map(x => x.key).join();
-    if (!news.length || sig === G.ui.popSig) return;
-    if (G.ui.sheet || G.ui.mapPeek || !(['phase', 'phase-pick', 'plan', 'over'].includes(p?.type))) return;
-    G.ui.popSig = sig; G.ui.sheet = 'journal'; G.ui.journalDetent = 'half';
-}
+// (New things no longer pop the Journal up: the result card, result_card.js, tells what a phase brought; what is new waits here and shows as a dot on the last-action line.)
 
 const KEY = 'mr-journal-detent';
 const savedDetent = () => { try { return localStorage.getItem(KEY) === 'tall' ? 'tall' : 'half'; } catch { return 'half'; } };
@@ -62,9 +56,9 @@ function wildsLine(G) {
         st.day % 7 === 0 ? h('span', {}, isStory() ? 'The week turns: the creatures of the wilds are called home to where they began, the slain among them.' : `Week’s end: row ${st.prowl} was called back to where it began, the slain among them.`) : null);
 }
 
-function newBoxes(G) {
-    const from = 'journal';
-    return journalNew(G).map(n => {
+// The found boxes (an item got, a curse, a site or a card found): the Journal lists what is new; the result card (result_card.js) shows what the phase just played brought.
+export function foundBoxes(G, news, from = 'journal') {
+    return news.map(n => {
         const go = (fn) => () => { fn(); render(G); };
         if (n.kind === 'item') {
             const nm = nameOf(G.data, n.item), el = found({ art: 'cache', eyebrow: 'You got', title: nm, line: `${summaryOf(G.data, n.item)} · ${WEIGHT_WORDS[weightOf(G.data, n.item)] ?? ''}`.replace(/ · $/, ''), attrs: { 'data-act': 'gain', 'data-item': n.item.uid }, onclick: go(() => { G.ui.itemUid = n.item.uid; G.ui.itemFrom = from; G.ui.sheet = 'item'; }) });
@@ -74,7 +68,7 @@ function newBoxes(G) {
         if (n.kind === 'curse') return found({ art: null, eyebrow: 'A curse has fallen on you', title: n.f.name, line: CURSE_PLAIN[n.f.name] ?? n.f.effect, attrs: { 'data-act': 'curse-new' }, onclick: go(() => { G.ui.sheet = 'curses'; }), cls: 'curse' });
         const card = n.kind === 'card';
         return found({ art: card ? 'cache' : 'peer', eyebrow: card ? 'You found' : 'You discovered', title: n.f.name ?? 'a site', line: card ? 'Tap to read the card.' : `at ${nameOfClearing(n.f.clearing)}: tap for what is there`, attrs: { 'data-act': 'find' },
-            onclick: go(() => { if (card) { G.ui.cardId = n.f.id; G.ui.sheet = 'cardinfo'; } else { G.ui.sel = n.f.clearing; G.ui.sheet = 'clearing'; } }) });
+            onclick: go(() => { if (card) { G.ui.cardId = n.f.id; G.ui.sheet = 'cardinfo'; } else { G.ui.sel = n.f.clearing; G.ui.foundSite = n.f.id; G.ui.sheet = 'clearing'; } }) });
     });
 }
 
@@ -110,7 +104,7 @@ export function journalSheet(G) {
     const close = () => { G.ui.sheet = null; G.ui.jSeen = journalNew(G).map(x => x.key).join(); render(G); };
     G.ui.jSeen = journalNew(G).map(x => x.key).join();                                   // he has seen what is new now
     const detent = G.ui.journalDetent ?? savedDetent();
-    const nt = notices(G), news = newBoxes(G), roll = lastRoll(G), log = logSections(G);
+    const nt = notices(G), news = foundBoxes(G, journalNew(G)), roll = lastRoll(G), log = logSections(G);
     const body = h('div', { class: 'journal' },
         nt.length ? h('div', { class: 'ds-notes' }, ...nt) : null,
         G.ui.jWilds && G.st.prowl ? wildsLine(G) : null,

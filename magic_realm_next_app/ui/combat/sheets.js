@@ -10,6 +10,8 @@ import { nameOfClearing, tileName } from '../../engine/world.js';
 import { nameOf } from '../../engine/items.js';
 import * as P from './payload.js';
 import * as M from './model.js';
+import { needsConfirm, needsWhom, whomBody } from './shared.js';          // (P6: the shared fight's extra step and its confirms)
+import { targetName as pvpTargetName } from '../pvp.js';
 import { DIRS, MNV, BOX, chitText, chitKindWord, chitName, nb, listOf, baseName } from './model.js';
 
 const hint = (text, cls = '') => h('p', { class: `cb-hint${cls ? ` ${cls}` : ''}` }, text);
@@ -198,8 +200,9 @@ function castPick(X, o, round, back, itemsBtn) {
 }
 
 // ================= the Melee stepper =================
-export function stepsFor(o) {
-    const s = [{ id: 'strike', l: 'Strike' }];
+export function stepsFor(o, X = null) {
+    const s = X?.shared && needsWhom(X.st, o) ? [{ id: 'whom', l: 'Whom' }] : [];          // (a shared fight: others' creatures, characters and hirelings can be named too)
+    s.push({ id: 'strike', l: 'Strike' });
     if ((o.aims ?? []).length) s.push({ id: 'aim', l: 'Aim' });
     s.push({ id: 'guard', l: 'Guard' });
     if (o.shield) s.push({ id: 'shield', l: 'Shield' });
@@ -212,8 +215,9 @@ const dirButtons = (names, sub, cur, onPick, attr = null, dim = false) => h('div
 
 export function meleeSheet(X) {
     const { st, data, cb, send, render, c } = X;
-    const o = meleeOptions(st, data), m = cb.plan, steps = stepsFor(o);
-    const cur = steps.some(s => s.id === cb.step) ? cb.step : 'strike', idx = steps.findIndex(s => s.id === cur);
+    const o = meleeOptions(st, data), m = cb.plan, steps = stepsFor(o, X), sh = !!X.shared;
+    const cur = steps.some(s => s.id === cb.step) ? cb.step : steps[0].id, idx = steps.findIndex(s => s.id === cur);
+    const confirmPending = sh && !!needsConfirm(st, data, o.targets.find(t => t.uid === m.target)) && m.sure !== m.target;
     const go = id => { cb.step = id; render(); };
     const stepper = h('div', { class: 'cb-steps', role: 'tablist' }, ...steps.map((s, i) => h('button', { type: 'button', role: 'tab', 'aria-selected': i === idx ? 'true' : 'false', 'data-step': s.id, class: `cb-step${i < idx ? ' done' : ''}${i === idx ? ' on' : ''}`, onclick: () => go(s.id) }, `${i + 1} ${s.l}`)));
     const next = steps[idx + 1], prev = steps[idx - 1];
@@ -221,10 +225,15 @@ export function meleeSheet(X) {
     const backBtn = prev ? btn('Back', 'quiet', { 'data-act': 'step-back', onclick: () => go(prev.id) }) : null;
     const eff = M.effortLine(st, o, m);
     const w = o.weapon, wname = w ? nameOf(data, w.item) : 'bare hands';
-    const tgtName = m.target ? baseNameOf(st, data, o, m.target) : null;
+    const tgtName = m.target ? (pvpTargetName(st, data, m.target) ?? baseNameOf(st, data, o, m.target)) : null;
     let body, lead = backBtn, prim = nextBtn;
 
-    if (cur === 'strike') {
+    if (cur === 'whom') {
+        const w = whomBody(X, o, m);
+        body = [h('div', { class: 'cb-fields sf-whom', role: 'radiogroup', 'aria-label': 'Whom you strike' }, ...w.els)];
+        lead = leadText(tgtName ? `You strike ${tgtName}.` : 'You strike no one.');
+        prim = primary(`Next: ${next.l}`, { 'data-act': 'step-next', disabled: w.blocked, onclick: () => go(next.id) });
+    } else if (cur === 'strike') {
         const spl = o.attackSpell ? data.spells?.[o.attackSpell.spell] : null;
         const chits = spl ? h('p', { class: 'cb-hint' }, `${spl.name}: ${o.attackSpell.hits > 1 ? `${M.numWord(o.attackSpell.hits)} hits` : 'one hit'}, harm ${o.attackSpell.harm}${'*'.repeat(o.attackSpell.stars)}, length ${o.attackSpell.length}. It takes the place of your weapon.`)
             : o.fightChits.length ? h('div', { class: 'cb-chits', 'data-scope': '' }, ...o.fightChits.map(ch => chitTile(X, ch, { on: m.fightChit === ch.id, why: M.chitWhy(st, data, o, m, ch, 'fight') && m.fightChit !== ch.id ? M.chitWhy(st, data, o, m, ch, 'fight') : null,
@@ -267,7 +276,7 @@ export function meleeSheet(X) {
         if (m.fightChit && !m.target && w && !o.attackSpell) { m.weaponSide ??= w.item.alerted ? 'alerted' : 'unalerted'; rows.push(sumRow('Weapon', `ends ${m.weaponSide === 'alerted' ? 'alerted' : 'not alerted'}`, () => { m.weaponSide = m.weaponSide === 'alerted' ? 'unalerted' : 'alerted'; render(); }, 'data-weapon-side')); }
         body = [h('div', { class: `cb-fields${rows.length >= 4 ? ' two' : ''}` }, ...rows)];
         lead = leadText(eff.over ? h('span', { class: 'bad', style: 'color:var(--danger)' }, `${eff.text}: ${eff.words}.`) : [`${eff.text}: `, eff.words, '.']);
-        prim = primary('Roll the dice', { 'data-act': 'commit', disabled: eff.over, onclick: () => X.sendMelee(o, m) });
+        prim = primary(sh ? 'Seal your play' : 'Roll the dice', { 'data-act': 'commit', disabled: eff.over || confirmPending, onclick: () => X.sendMelee(o, m) });
         if (eff.over) lead = leadText(h('span', { style: 'color:var(--danger)' }, `Put a chit back: ${M.limitWord(o.effortLimit ?? 2)} asterisks at most.`));
     }
     return sheetEl(X, 'melee', stepper, ...body, foot(lead, prim));

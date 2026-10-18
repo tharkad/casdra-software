@@ -168,7 +168,7 @@ export function situation(view, answer = {}, myId = view?.actor) {
     if (view.period === 'birdsong') {
         const names = waitingText(wait);
         if (answer.paused && wait.length) return { ...base, kind: 'planned', title: 'Planned.', text: `Waiting for ${names}.`, why: `The game is paused: nothing is skipped or played for ${joinNames(wait.map(w => w.name))}. It goes on where it stopped when they come back.` };
-        return { ...base, kind: 'planned', title: 'Planned.', text: names ? `Waiting for ${names}.` : 'Everyone is in.', why: 'Plans are secret and cannot be changed. When the last plan is in, the Monster Roll is made and the chits are drawn for the turn order.' };
+        return { ...base, kind: 'planned', title: 'Planned.', text: names ? `Waiting for ${names}.` : 'Everyone is in.', why: 'Plans are secret. When the last one is in, the Monster Roll is made and the chits are drawn.' };
     }
     if (view.period === 'daylight') {
         if (act) {
@@ -207,17 +207,17 @@ export function observe(prev, next, myId) {
         if (id === myId) continue;
         const a = prev.chars[id], b = next.chars[id];
         if (!a || !b) continue;
-        const who = `${pl(id)}’s ${b.name}`;
-        if (!a.dead && b.dead) { out.push({ id, kind: 'death', t: `${who} has fallen.` }); continue; }
+        const who = `${pl(id)}’s ${b.name}`, nm = pl(id);          // (`t` names the character for the Detail voice; `s` is the Story voice: the player, in the world's words)
+        if (!a.dead && b.dead) { out.push({ id, kind: 'death', t: `${who} has fallen.`, s: `${nm} has fallen.` }); continue; }
         if (b.dead) continue;
-        if (b.at && a.at !== b.at && !b.onRoad) out.push({ id, kind: 'move', t: `${who} comes to ${nameOfClearing(b.at)}.` });
-        else if (b.onRoad && !a.onRoad) out.push({ id, kind: 'move', t: `${who} is out on the road.` });
-        if (a.hidden === false && b.hidden === true) out.push({ id, kind: 'hide', t: `${who} slips out of sight.` });
-        if (a.hidden === true && b.hidden === false && a.at === b.at && next.period === 'daylight') out.push({ id, kind: 'hide', t: `${who} steps into the open.` });
-        if (b.flying && !a.flying) out.push({ id, kind: 'fly', t: `${who} takes to the air over the ${tileName(b.flying.tile)}.` });
+        if (b.at && a.at !== b.at && !b.onRoad) out.push({ id, kind: 'move', t: `${who} comes to ${nameOfClearing(b.at)}.`, s: `${nm} comes into ${nameOfClearing(b.at)}.` });
+        else if (b.onRoad && !a.onRoad) out.push({ id, kind: 'move', t: `${who} is out on the road.`, s: `${nm} is out on the road.` });
+        if (a.hidden === false && b.hidden === true) out.push({ id, kind: 'hide', t: `${who} slips out of sight.`, s: `${nm} slips out of sight and goes still.` });
+        if (a.hidden === true && b.hidden === false && a.at === b.at && next.period === 'daylight') out.push({ id, kind: 'hide', t: `${who} steps into the open.`, s: `${nm} steps into the open.` });
+        if (b.flying && !a.flying) out.push({ id, kind: 'fly', t: `${who} takes to the air over the ${tileName(b.flying.tile)}.`, s: `${nm} takes to the air over the ${tileName(b.flying.tile)}.` });
         const df = (b.fame ?? 0) - (a.fame ?? 0), dn = (b.notoriety ?? 0) - (a.notoriety ?? 0);
-        if (df > 0) out.push({ id, kind: 'fame', t: `${who} gains ${df} Fame.` });
-        if (dn > 0) out.push({ id, kind: 'fame', t: `${who} gains ${dn} Notoriety.` });
+        if (df > 0) out.push({ id, kind: 'fame', t: `${who} gains ${df} Fame.`, s: `${nm}’s name is spoken with more respect.` });
+        if (dn > 0) out.push({ id, kind: 'fame', t: `${who} gains ${dn} Notoriety.`, s: `${nm}’s deeds are talked of, and not kindly.` });
     }
     return out;
 }

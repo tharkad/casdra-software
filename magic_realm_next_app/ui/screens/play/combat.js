@@ -1,4 +1,4 @@
-// play/combat.js: the combat host: puts the fight screens (combatui.js for a solo fight, sharedfight.js for a shared one) on the sheet layer, with the map one tap away
+// play/combat.js: the combat host: puts the fight screens (the combat scene for a solo fight, sharedfight.js for a shared one, on the same chrome) on the sheet layer, with the map one tap away
 // ("Back to the fight") and the belongings sheets that may cover the fight and be put away again.
 import { h } from '../../dom.js';
 import { combatScene, combatBeat } from '../combat_scene.js';
@@ -15,7 +15,7 @@ import { playersSheet } from './shared.js';
 export function sharedFightHost(G, out) {
     if (G.ui.combatMap) {
         if (G.ui.sheet === 'clearing' && G.ui.sel) out.push(clearingSheet(G));
-        out.push(h('div', { class: 'combat-back' }, h('button', { class: 'btn primary big', 'data-act': 'back-to-fight', onclick: () => { G.ui.combatMap = false; render(G); } }, 'Back to the fight')));
+        out.push(h('div', { class: 'cb-back combat-back' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'back-to-fight', onclick: () => { G.ui.combatMap = false; render(G); } }, 'Back to the fight')));
         return true;
     }
     const sheet = sharedFightSheet({ st: G.st, data: G.data, act: act.bind(null, G), ui: G.ui, render: () => render(G), crew: G.crew, answer: G.answer, peek: { gear: () => { G.ui.sheet = 'char'; render(G); }, map: () => { G.ui.combatMap = true; G.ui.sheet = null; render(G); } } });

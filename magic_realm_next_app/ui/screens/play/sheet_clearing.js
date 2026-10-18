@@ -1,24 +1,87 @@
-// play/sheet_clearing.js: the clearing sheet and everything it says about a place: sites and their loot stacks, the Setup Card lines, search cards, who is here (shared), hired companions.
+// play/sheet_clearing.js: the clearing sheet and everything it says about a place (mockup 02 d1): who is here, who lives here, WHAT YOU COULD GET (the sites found here with what is left, the pile
+// drawn as the real stack of face-down cards, Small and Large, numbered by depth), signs, what lies on the ground, the roads. The same site blocks stand inside the choice screens
+// (the Search table, the Loot pick): the owner asked for exactly that, "the site contents should be in the choice screens so you can see what you could get".
+// Only what the Setup Card tells everyone is drawn: Large above Small, never which card is Great (that is unknown until it is looted: the printed rule).
 import { lvl } from '../../../engine/core.js';
 import { nameOf } from '../../../engine/items.js';
 import { colorSources } from '../../../engine/spells.js';
-import { nameOfClearing, numOf, roadsFrom, tileOf } from '../../../engine/world.js';
+import { nameOfClearing, numOf, roadsFrom, tileName, tileOf } from '../../../engine/world.js';
 import { h } from '../../dom.js';
+import { sect } from '../../ds.js';
+import { actIcon, icon } from '../../icons.js';
 import { playerOf as playerNameOf } from '../../meet.js';
 import { rosterRows } from '../../shared_ui.js';
 import { newDraft as newMeetDraft } from '../meetui.js';
-import { act } from './actions.js';
 import { colorChip, modal, mrChit } from './kit.js';
-import { tableName } from './phases.js';
 import { render } from './shell.js';
 
-// One treasure site the way the printed Setup Card words it; the same sentence heads the site in the clearing sheet.
+const nbsp = s => String(s).replace(/ (\d+)$/, ' $1');
+const REACH = 6;                                                                   // a Loot roll is 1 to 6: the first six cards of a pile can be reached
+
+// ---- small builders ----
+// A row of the sheet: the counter picture (a string is a picture path, a Node is placed as it is), a title, one line.
+export const row = (k, text, sub, img, end = null) => h('div', { class: `ds-row ${k}` },
+    img ? h('span', { class: 'art' }, typeof img === 'string' ? h('img', { src: img, alt: '' }) : img) : null,
+    h('span', { class: 'main' }, h('b', {}, text), sub ? (typeof sub === 'string' ? h('span', {}, sub) : sub) : null), end);
+const storyDetail = (story, detail) => [h('span', { 'data-v': 'story' }, story), h('span', { 'data-v': 'detail' }, detail ?? story)];
+
+// ---- a site: what is left, the pile, what looting it needs ----
+function siteCardText(G, e) {
+    const g = G.data.monsters[e.guardian]?.name ?? e.guardian;
+    const special = e.special ? ` Needs: ${e.special.replace('fatigue_asterisk', 'an asterisk of effort').replace('fatigue_t,key', 'a Tremendous-strength chit or the Lost Keys')}.` : '';
+    return `${e.name}: ${e.small} Small, ${e.large} Large${e.spells?.length ? `, spells ${e.spells.join(', ')}` : ''}. Guardian: ${g} (Monster Roll ${e.row}). Chit printed with clearing ${e.chitNumber}.${special}`;
+}
+
+// What looting a site demands, in words (null when it demands nothing).
+function siteNeeds(G, name) {
+    const asterisk = G.st.ch.chits.some(x => x.state === 'active' && x.effort > 0);
+    const tChit = G.st.ch.chits.some(x => x.state === 'active' && lvl(x.strength) >= 4) || G.st.ch.items.some(i => i.id === 'lost-keys' && i.active);
+    if (name === 'Cairns') return `Every Loot roll costs an asterisk of effort, found or not. ${asterisk ? 'You have one ready.' : 'You have none ready now, so you could not loot it.'}`;
+    if (name === 'Pool') return `Each thing taken costs an asterisk of effort. ${asterisk ? 'You have one ready.' : 'You have none ready now.'}`;
+    if (name === 'Vault') return G.st.sitesOpen?.Vault ? 'The Vault is open, for everyone.' : `Sealed until opened with a Tremendous-strength chit or the Lost Keys. ${tChit ? 'You can open it.' : 'You cannot open it now.'}`;
+    return null;
+}
+
+// The pile drawn top to bottom, the way a Loot roll counts it: 1 takes the top card, 2 the second, and so on to 6. Large cards are taller; the reachable ones are lit, the deep ones dashed.
+export function pileEl(G, name, pile) {
+    const cards = pile.filter(it => it.kind !== 'spell').map(it => ((G.data.treasures[it.id]?.kind ?? 'small') === 'small' ? 'small' : 'large'));
+    const spells = (G.st.spellBox?.sites?.[name] ?? []).map(sp => G.data.spells?.[sp.id]?.type).filter(Boolean);
+    if (!cards.length && !spells.length) return null;
+    return h('div', { class: 'ds-pilebox', 'data-site': name },
+        cards.length ? h('div', { class: 'ds-pile', 'data-site': name, role: 'img', 'aria-label': `${cards.length} cards, top first` },
+            ...cards.map((size, i) => h('span', { class: `ds-card ${size} ${i < REACH ? 'reach' : 'deep'}`, 'data-pos': String(i + 1) }, h('span', { class: 't' }, size), String(i + 1)))) : null,
+        cards.length ? h('div', { class: 'ds-pile-key' }, h('span', {}, 'The pile, top first'),
+            h('span', { 'data-v': 'story' }, cards.length > REACH ? 'The lit cards are within reach; the rest lie too deep.' : 'Every card is within reach.'),
+            h('span', { 'data-v': 'detail' }, `A Loot roll of 1 to ${REACH} takes that card.${cards.length > REACH ? ` Cards below the ${REACH}th cannot be reached until those above are taken.` : ''}`)) : null,
+        spells.length ? h('p', { class: 'ds-meta ds-spellsapart' }, `Spell cards lie apart (${spells.length}): read them with Reading Runes, they are not in the pile.`) : null);
+}
+
+// A site: its counter, whether it is found, what is left (and the pile), what looting it needs. `fresh`: it has just been found (the tag, and it leads the sheet).
+export function siteBlock(G, c, { fresh = false, withPile = true, compact = false } = {}) {
+    const found = G.st.ch.discovered.sites.includes(c.id);
+    const e = G.data.setupcard?.sites?.find(x => x.name === c.name);
+    const pile = found ? (G.st.sites?.[c.name] ?? []) : [];
+    const spells = G.st.spellBox?.sites?.[c.name]?.length ?? 0;
+    const treasures = pile.filter(it => it.kind !== 'spell');
+    const small = treasures.filter(it => (G.data.treasures[it.id]?.kind ?? 'small') === 'small').length, large = treasures.length - small;
+    const left = !found ? 'Not found yet. Locate it to see what it holds.'
+        : !pile.length ? 'Found, and empty.'
+            : `${[small ? `${small} Small` : '', large ? `${large} Large` : ''].filter(Boolean).join(', ') || 'No treasure'}${spells ? ` and ${spells} spell${spells === 1 ? '' : 's'}` : ''} left. Great ones show when looted.`;
+    const needs = found && pile.length ? siteNeeds(G, c.name) : null;
+    return h('div', { class: `ds-site sitecard${found ? ' found' : ''}${fresh ? ' fresh' : ''}`, 'data-site': c.name },
+        compact ? h('span', { class: 'ds-dim setupline' }, left) : h('div', { class: 'head' },
+            h('span', { class: 'ds-counter sm' }, actIcon(found ? 'cache' : 'search', 32)),
+            h('span', { class: 'main' }, h('b', {}, c.name, fresh ? h('span', { class: 'ds-tag gold' }, 'Just found') : null), h('span', { class: 'ds-dim setupline' }, left))),
+        found && withPile ? pileEl(G, c.name, pile) : null,
+        needs ? h('p', { class: 'ds-meta setupline dim' }, needs) : null,
+        e ? h('details', { class: 'ds-more', 'data-v': 'detail' }, h('summary', {}, `About the ${c.name}`), h('p', { class: 'ds-meta setupline card' }, siteCardText(G, e))) : null);
+}
+
 // A site card he found by looting: what each Loot roll on it gives (the card's own table), and what it demands.
-function siteCardRow(G, cid, bare = false) {
+export function siteCardRow(G, cid, bare = false) {
     const box = G.st.twt?.[cid], name = G.data.treasures?.[cid]?.name ?? box?.name ?? cid;
     const T = G.data.tables?.twtSiteTables?.[box?.box ?? name] ?? {};
-    const gave = n => (G.st.gone ?? {})[n] ? ' (already taken)' : '';
-    const what = (res, ct) => {
+    const what = res => {
         const named = k => box?.contents?.find(c => c.kind === k)?.name;
         switch (res) {
             case 'weapon': return `a weapon: ${named('weapon') ?? 'a weapon'}`;
@@ -26,7 +89,7 @@ function siteCardRow(G, cid, bare = false) {
             case 'armor': return `armor: ${named('armor') ?? 'a suit of armor'}`;
             case 'treasure': return box?.large?.length ? `a Large treasure (${box.large.length} left)` : 'a Large treasure (none left)';
             case 'gold': return 'one piece of gold';
-            case 'curse': return 'a curse (roll on the Curses table)';
+            case 'curse': return 'a curse';
             case 'heal': return 'all your fatigue and wounds are healed';
             case 'power_pit': return 'the Power of the Pit';
             case 'teleport_cave': return 'a pull toward the caves';
@@ -35,130 +98,46 @@ function siteCardRow(G, cid, bare = false) {
             default: return 'nothing happens';
         }
     };
-    const tm = (box?.box ?? name) === 'Crypt of the Knight' ? 'Needs a Tremendous-strength chit or the Lost Keys on every roll.' : 'Needs: nothing special.';
-    return h('div', { class: 'crow site', 'data-sitecard': cid }, h('div', { class: 'crow-t' }, bare ? null : h('b', {}, `${name} (found by looting)`), h('small', {}, `A place you can search here with a Loot phase, one roll on its own table. ${tm}`),
-        h('div', { class: 'twtrows' }, ...Object.entries(T).map(([roll, res]) => h('div', { class: 'twtrow' }, h('b', {}, roll), h('span', {}, what(res)))))));
+    const tm = (box?.box ?? name) === 'Crypt of the Knight' ? 'Needs a Tremendous-strength chit or the Lost Keys on every roll.' : null;
+    return h('div', { class: 'ds-site sitecard found', 'data-sitecard': cid },
+        bare ? null : h('div', { class: 'head' }, h('span', { class: 'ds-counter sm' }, actIcon('cache', 32)), h('span', { class: 'main' }, h('b', {}, name), h('span', { class: 'ds-dim' }, 'Found by looting: a place you can search here with a Loot phase.'))),
+        h('div', { class: 'ds-twt' }, ...Object.entries(T).map(([roll, res]) => h('div', { class: 'twtrow' }, h('b', {}, roll), h('span', {}, what(res))))),
+        tm ? h('p', { class: 'ds-meta setupline dim' }, tm) : null);
 }
 
-function siteCardText(G, e) {
-    const g = G.data.monsters[e.guardian]?.name ?? e.guardian;
-    const special = e.special ? ` Needs: ${e.special.replace('fatigue_asterisk', 'an asterisk of effort').replace('fatigue_t,key', 'a Tremendous-strength chit or the Lost Keys')}.` : '';
-    return `${e.name}: ${e.small} Small, ${e.large} Large${e.spells?.length ? `, spells ${e.spells.join(', ')}` : ''}. Guardian: ${g} (Monster Roll ${e.row}). Chit printed with clearing ${e.chitNumber}.${special}`;
-}
-
-// A site: whether you have discovered it and, once you have, what is left in it (how many things, and how many of those are Great Treasures),
-// what looting it demands, and what guards it.
-function siteNeeds(G, name) {
-    const asterisk = G.st.ch.chits.some(x => x.state === 'active' && x.effort > 0);
-    const tChit = G.st.ch.chits.some(x => x.state === 'active' && lvl(x.strength) >= 4) || G.st.ch.items.some(i => i.id === 'lost-keys' && i.active);
-    if (name === 'Cairns') return `Needs: one asterisk of effort for every Loot roll, found or not (a chit with an asterisk is tired). ${asterisk ? 'You have one ready.' : 'You have none ready now, so you could not loot it.'}`;
-    if (name === 'Pool') return `Needs: one asterisk of effort each time something is actually taken. ${asterisk ? 'You have one ready.' : 'You have none ready now.'}`;
-    if (name === 'Vault') return G.st.sitesOpen?.Vault ? 'The Vault is open: it stays open for everyone.' : `Needs: the Vault is sealed until it is opened with a Tremendous-strength chit, or the Lost Keys. ${tChit ? 'You can open it.' : 'You cannot open it now.'}`;
-    return 'Needs: nothing to loot it.';
-}
-
-// What the printed Treasure Set Up Card tells every player, before anything is discovered.
-const SPELL_WORD = t => `Type ${t}`;
-
+// What the printed Treasure Set Up Card tells every player about a dwelling.
 function setupDwelling(G, kind) {
     const e = G.data.setupcard?.dwellings?.find(x => x.name === kind || x.rsName === kind);
     if (!e) return '';
-    const goods = Object.entries(e.treasures?.counters ?? {}).map(([n, k]) => `${n}${k > 1 ? ` \u00D7${k}` : ''}`).join(', ');
+    const goods = Object.entries(e.treasures?.counters ?? {}).map(([n, k]) => `${n}${k > 1 ? ` ×${k}` : ''}`).join(', ');
     return `Setup card: the ${e.group} live here (${e.nativeCounters} native counters). They keep ${e.treasures?.small ?? 0} Small treasures${goods ? ` and: ${goods}` : ''}.`;
 }
 
-// The pile at a site drawn top to bottom, the way a Loot roll counts it: a roll of 1 takes the top card, 2 the second, and so on to 6.
-// Only what the Setup Card tells everyone is drawn: Large above Small, never which card is Great. Spell cards lie apart, by type.
-const REACH = 6;
-
-function lootStack(G, name, pile) {
-    const sizes = pile.filter(it => it.kind !== 'spell').map(it => ((G.data.treasures[it.id]?.kind ?? 'small') === 'small' ? 'small' : 'large'));
-    const groups = [];
-    sizes.forEach((s, i) => { const g = groups[groups.length - 1]; if (g && g.size === s) g.to = i + 1; else groups.push({ size: s, from: i + 1, to: i + 1 }); });
-    const rows = [];
-    groups.forEach(g => {
-        const cards = [];
-        for (let p = g.from; p <= g.to; p++) cards.push(h('div', { class: `ls-card ${g.size}${p > REACH ? ' deep' : ''}`, 'data-pos': String(p) },
-            h('span', { class: 'ls-n' }, String(p)), h('span', { class: 'ls-t' }, g.size === 'large' ? 'Large' : 'Small'), h('span', { class: 'ls-r' }, p <= REACH ? `Loot roll ${p}` : 'too deep')));
-        const n = g.to - g.from + 1;
-        rows.push(h('div', { class: `ls-group ${g.size}` },
-            h('div', { class: 'ls-label' }, h('b', {}, `${n} ${g.size === 'large' ? 'Large' : 'Small'}`), h('small', {}, n > 1 ? `${g.from}\u2013${g.to}` : `${g.from}`)),
-            h('div', { class: 'ls-cards' }, ...cards)));
-        if (g.from <= REACH && g.to > REACH) rows[rows.length - 1].classList.add('crosses');
-    });
-    const spells = (G.st.spellBox?.sites?.[name] ?? []).map(sp => G.data.spells?.[sp.id]?.type).filter(Boolean);
-    return h('div', { class: 'lootstack', 'data-site': name },
-        h('div', { class: 'ls-head' }, 'THE PILE, TOP FIRST', h('small', {}, `a Loot roll of 1\u2013${REACH} takes that card`)),
-        ...rows,
-        sizes.length > REACH ? h('p', { class: 'ls-note' }, `Cards below the ${REACH}th cannot be reached until those above are taken.`) : null,
-        spells.length ? h('div', { class: 'ls-spells' }, h('b', {}, 'Spell cards kept apart'), h('small', {}, `${spells.map(t => `Type ${t}`).join(', ')}: read them with Reading Runes, they are not in the pile.`)) : null);
-}
-
-function siteLine(G, c) {
-    const found = G.st.ch.discovered.sites.includes(c.id);
-    const e = G.data.setupcard?.sites?.find(x => x.name === c.name);
-    const needs = siteNeeds(G, c.name);
-    const status = [];
-    if (!found) status.push(h('p', { class: 'setupline' }, h('b', {}, 'Not discovered yet. '), 'Search with Locate to discover it. What it holds is unknown until you do.'));
-    else {
-        const pile = G.st.sites?.[c.name] ?? [];
-        const spells = G.st.spellBox?.sites?.[c.name]?.length ?? 0;                  // spell cards stay in their box: only readable with runes
-        const treasures = pile.filter(it => it.kind !== 'spell');
-        const small = treasures.filter(it => (G.data.treasures[it.id]?.kind ?? 'small') === 'small').length, large = treasures.length - small;
-        const left = pile.length ? [`${small} Small`, `${large} Large`, ...(spells ? [`${spells} spell${spells === 1 ? '' : 's'}`] : [])].join(', ') : 'nothing';
-        status.push(h('p', { class: 'setupline' }, h('b', {}, pile.length ? 'Discovered: you may loot it. ' : 'Discovered, and empty. '), pile.length ? `Left: ${left}.` : ''));
-        if (pile.length) status.push(lootStack(G, c.name, pile), h('p', { class: 'setupline dim' }, 'Which are Great is not known until they are looted.'));
-    }
-    status.push(h('p', { class: 'setupline dim' }, needs));
-    return h('div', { class: 'sitecard' }, e ? h('p', { class: 'setupline card' }, siteCardText(G, e)) : null, ...status);
-}
-
-// What a Search here could reach, for the choice sheets: each discovered site's loot stack, what lies on the ground, and any site card he holds.
-// One card per thing that can be searched here: what it is, what could come of it, and the button that does it at the bottom of the card.
-export function searchCards(G, p) {
-    const at = G.st.ch.at, tile = tileOf(at), n = numOf(at), opts = p.options ?? [], cards = [];
-    const go = t => act(G, { type: 'search-table', table: t });
-    const card = (cls, title, body, table, label, { disabled = false, why = null } = {}) => h('section', { class: `searchcard ${cls}`, 'data-card': table },
-        h('h3', {}, title), ...body, why ? h('p', { class: 'hint' }, why) : null,
-        h('button', { class: 'btn primary', 'data-table': table, disabled, onclick: () => go(table) }, label));
-    const sites = G.st.ch.onRoad ? [] : G.st.chits.filter(x => x.kind === 'site' && x.tile === tile && x.num === n && !x.pile && G.st.ch.discovered.sites.includes(x.id));
-    if (opts.includes('peer')) cards.push(card('peer', 'Peer around the clearing', [h('p', {}, 'The Peer table turns up clues, hidden enemies and hidden paths.')], 'peer', 'Peer'));
-    if (opts.includes('locate')) cards.push(card('locate', 'Locate what is hidden', [h('p', {}, 'Search the clearing for passages, clues and sites you have not discovered yet.')], 'locate', 'Locate'));
-    if (opts.includes('loot')) {
-        if (sites.length) for (const c of sites) cards.push(card('loot', `Loot the ${c.name}`, [siteLine(G, c)], 'loot', 'Loot'));
-        else cards.push(card('loot', 'Loot a site', [h('p', {}, 'Take treasure from a site you have discovered in this clearing.')], 'loot', 'Loot', { disabled: true, why: 'No site here is discovered yet. Locate is how a site is found.' }));
-    }
-    if (opts.includes('ground')) { const g = G.st.abandoned?.[at] ?? []; cards.push(card('ground', 'Take what lies here', [h('p', {}, g.length ? `${g.map(i => nameOf(G.data, i)).join(', ')}.` : 'Nothing lies here.')], 'ground', 'Take it', { disabled: !g.length })); }
-    if (opts.includes('sitecard')) for (const cid of G.st.ch.siteCards?.[at] ?? []) cards.push(card('sitecard', `Loot the ${G.data.treasures?.[cid]?.name ?? 'site card'}`, [siteCardRow(G, cid, true)], 'sitecard', 'Loot'));
-    if (opts.includes('runes')) cards.push(card('runes', 'Read the runes', [h('p', {}, 'Learn a spell from a site here, or from an artifact or book you carry.')], 'runes', 'Read'));
-    for (const t of opts.filter(x => !['peer', 'locate', 'loot', 'ground', 'sitecard', 'runes'].includes(x))) cards.push(card(t, tableName(G, t), [], t, tableName(G, t)));
-    return cards;
-}
-
+// The sites of the clearing he stands in that Loot could reach, the ground and any site card: for the choice screens (Loot, Search choice).
 export function hereBlocks(G) {
     const at = G.st.ch.at; if (!at || G.st.ch.onRoad) return [];
     const tile = tileOf(at), n = numOf(at), out = [];
-    for (const c of G.st.chits.filter(x => x.kind === 'site' && x.tile === tile && x.num === n && !x.pile && G.st.ch.discovered.sites.includes(x.id)))
-        out.push(h('details', { class: 'here-block', open: true }, h('summary', {}, `${c.name}: what Loot could reach`), siteLine(G, c)));
+    for (const c of G.st.chits.filter(x => x.kind === 'site' && x.tile === tile && x.num === n && !x.pile && G.st.ch.discovered.sites.includes(x.id))) out.push(siteBlock(G, c));
     const ground = G.st.abandoned?.[at] ?? [];
-    if (ground.length) out.push(h('div', { class: 'here-block' }, h('h3', {}, 'On the ground'), h('p', { class: 'hint' }, ground.map(i => nameOf(G.data, i)).join(', ') + '.')));
-    for (const cid of G.st.ch.siteCards?.[at] ?? []) out.push(h('div', { class: 'here-block' }, siteCardRow(G, cid)));
-    return out.length ? [h('div', { class: 'here', 'data-here': 'search' }, ...out)] : [h('p', { class: 'hint' }, 'No site here is discovered yet, so Loot would find nothing: Locate is how a site is found.')];
+    if (ground.length) out.push(row('loot', 'On the ground', ground.map(i => nameOf(G.data, i)).join(', ') + '.', actIcon('cache', 32)));
+    for (const cid of G.st.ch.siteCards?.[at] ?? []) out.push(siteCardRow(G, cid));
+    return out.length ? [h('div', { class: 'here', 'data-here': 'search' }, ...out)] : [h('p', { class: 'ds-meta' }, 'No site here is found yet, so Loot would find nothing. Locate is how a site is found.')];
 }
 
+// ---- who is here, who lives here ----
 // Meeting the others in the clearing I stand in: who I may give or trade with now, who I may not (and why), and who follows whom today.
-function meetRowsFor(G, id, row) {
+function meetRowsFor(G, id) {
     if (!G.ms || G.st.ch.at !== id || G.st.ch.onRoad) return [];
     const out = [];
-    for (const p of G.ms.partners) out.push(h('button', { class: 'btn row meetwith', 'data-act': 'meet-with', 'data-meet-with': p.id, onclick: () => { G.ui.meet = newMeetDraft(); G.ui.meet.to = p.id; G.ui.sheet = 'meet'; render(G); } },
-        h('span', { class: 'rl' }, h('b', {}, `Meet ${p.player}`), h('small', {}, G.ms.window === 'dayend' ? 'Give or trade before Midnight' : 'Give or trade: nothing changes hands until they accept')), h('em', {}, '\u203A')));
+    for (const p of G.ms.partners) out.push(h('button', { type: 'button', class: 'ds-row meetwith', 'data-act': 'meet-with', 'data-meet-with': p.id, onclick: () => { G.ui.meet = newMeetDraft(); G.ui.meet.to = p.id; G.ui.sheet = 'meet'; render(G); } },
+        h('span', { class: 'main' }, h('b', {}, `Meet ${p.player}`), h('span', {}, G.ms.window === 'dayend' ? 'Give or trade before Midnight' : 'Give or trade: nothing changes hands until they accept')), icon('right')));
     for (const o of G.ms.others) out.push(row('meet off', `${o.player}: not now`, o.why));
     for (const [f, g] of Object.entries(G.st.follows ?? {})) if (G.st.chars[f]?.at === id || G.st.chars[g]?.at === id) out.push(row('meet', `${playerNameOf(G.st, f)} follows ${playerNameOf(G.st, g)} today`, 'A follower goes wherever the guide goes and is called out with him.'));
     return out;
 }
 
 // Hired natives and creatures in a clearing belong to the character who hired them (7.7): they follow him and fight for him alone.
-function companionRows(G, id, row) {
+function companionRows(G, id) {
     const out = [], by = new Map();
     for (const o of [...G.st.nats, ...G.st.mons]) if (o.hired && !o.dead && o.hiredBy && o.loc?.c === id) (by.get(o.hiredBy) ?? by.set(o.hiredBy, []).get(o.hiredBy)).push(o);
     for (const [owner, list] of by) {
@@ -168,58 +147,80 @@ function companionRows(G, id, row) {
     return out;
 }
 
+const REL = { '-2': 'enemy', '-1': 'unfriendly', '0': 'neutral', '1': 'friendly', '2': 'ally' };
+const MOOD = { enemy: 'Enemies of yours.', unfriendly: 'Not friendly to you.', neutral: 'Neutral to you.', friendly: 'Friendly to you.', ally: 'Allies of yours.' };
+const tile_ = (src, label = null) => h('span', { class: 'ds-counter sm' }, src ? h('img', { src, alt: label ?? '' }) : actIcon('ban', 32));
+
 export function clearingSheet(G) {
     const id = G.ui.sel, tile = tileOf(id), n = numOf(id);
     const cdef = G.data.tile(tile).sides.normal.clearings.find(c => c.n === n);
     const here = G.st.ch.at === id && !G.st.ch.onRoad;
+    const fresh = G.ui.foundSite ?? null;
     const sections = [];
-    const row = (k, text, sub, img) => h('div', { class: `crow ${k}` }, img ? (typeof img === 'string' ? h('img', { class: 'ico', src: img, alt: '' }) : img) : null, h('div', { class: 'crow-t' }, h('b', {}, text), sub ? (typeof sub === 'string' ? h('small', {}, sub) : sub) : null));
-    // you
+    const put = (key, title, rows, right = '') => { if (rows?.length || rows?.nodeType) sections.push({ key, node: [sect(title, right), ...(Array.isArray(rows) ? rows : [rows])] }); };
+
+    // here now: you (or the table), the magic of the place, who is meeting whom
+    const hereRows = [];
     const srcs = colorSources(G.st, G.data, id);
-    if (srcs.length) sections.push(['Magic here', srcs.map(x => row('magic', x.color, x.why, colorChip(x.color)))]);
-    if (G.shared) {
-        const who = rosterRows(G.crew, id, row); if (who.length) sections.push(['Who is here', who]);
-        const meetRows = meetRowsFor(G, id, row);
-        if (meetRows.length) sections.push(['Meeting', meetRows]);
-    }
-    else if (here) sections.push(['You', [row('me', G.st.ch.name, G.st.ch.hidden ? 'hidden: monsters cannot block you' : 'in plain sight')]]);
-    // dwelling and the people who live there
+    if (G.shared) { hereRows.push(...rosterRows(G.crew, id, row)); }
+    else if (here) hereRows.push(row('me', 'You', `${G.st.ch.name}, ${G.st.ch.hidden ? 'hidden: nothing can block you' : 'in plain sight'}`, tile_(G.data.art?.characters?.[G.st.ch.id], G.st.ch.name)));
+    for (const x of srcs) hereRows.push(row('magic', `${x.color} magic`, x.why, colorChip(x.color)));
+    if (G.shared) hereRows.push(...meetRowsFor(G, id));
+    put('here', G.shared ? 'Who is here' : 'Here now', hereRows);
+    if (G.shared) put('companions', 'Companions', companionRows(G, id));
+
+    // living here: dwellings and natives (counters, mood), then the monsters
     const dw = G.st.dwellings.filter(d => d.at === id);
     const natHere = G.st.nats.filter(x => !x.dead && !x.hired && x.loc?.c === id);
     const byGroup = {};
     for (const x of natHere) (byGroup[G.data.natives[x.id].group] ??= []).push(G.data.natives[x.id]);
-    const REL = { '-2': 'enemy', '-1': 'unfriendly', '0': 'neutral', '1': 'friendly', '2': 'ally' };
-    const people = Object.entries(byGroup).map(([g, list]) => row('nat', `${g}: ${list.length} native${list.length === 1 ? '' : 's'}`,
-        `${REL[String(G.st.ch.rel?.[g] ?? 0)]} to you; ${list.map(x => x.name.replace(/^\w+ /, '')).join(', ')}`, G.data.art?.natives?.[(list.find(x => x.leader) ?? list[0]).id]));
-    if (dw.length || people.length) sections.push(['Dwellings and natives', [...dw.map(d => row('dwelling', d.kind, `${setupDwelling(G, d.kind) || 'a dwelling: natives live and trade here'}`, G.data.art?.dwellings?.[d.kind])), ...people]]);
-    if (G.shared) { const comp = companionRows(G, id, row); if (comp.length) sections.push(['Companions', comp]); }
-    // monsters
+    const living = [];
+    for (const d of dw) {
+        const grp = G.data.setupcard?.dwellings?.find(x => x.name === d.kind)?.group;
+        living.push(h('div', { class: 'ds-row dwelling' }, tile_(G.data.art?.dwellings?.[d.kind], d.kind), h('span', { class: 'main' }, h('b', {}, d.kind), ...storyDetail(grp ? `The ${grp} live here.` : 'A dwelling: natives live and trade here.', setupDwelling(G, d.kind) || 'A dwelling: natives live and trade here.'))));
+    }
+    for (const [g, list] of Object.entries(byGroup)) {
+        const rel = REL[String(G.st.ch.rel?.[g] ?? 0)], lead = list.find(x => x.leader) ?? list[0];
+        living.push(h('div', { class: 'ds-row nat' }, tile_(G.data.art?.natives?.[lead.id], g),
+            h('span', { class: 'main' }, h('b', {}, `${g}${list.length > 1 ? ` ×${list.length}` : ''}`), ...storyDetail(MOOD[rel], `${rel[0].toUpperCase()}${rel.slice(1)} to you; ${list.map(x => x.name.replace(/^\w+ /, '')).join(', ')}`)),
+            h('span', { class: `ds-tag mood ${rel}` }, rel[0].toUpperCase() + rel.slice(1))));
+    }
     const mons = {};
     for (const m of G.st.mons.filter(m => !m.dead && m.loc?.c === id)) (mons[G.data.monsters[m.id].name] ??= []).push(m);
-    const monRows = Object.entries(mons).map(([name, l]) => {
+    for (const [name, l] of Object.entries(mons)) {
         const md = G.data.monsters[l[0].id], ls = md.light;
         const blow = ls.attack === 'spell' ? `casts a Type ${ls.spell ?? ''} spell at ${ls.attackTime}` : ls.harm ? `harm ${ls.harm}${'*'.repeat(ls.stars || 0)} at ${ls.attackTime}` : `no attack on this side (${md.dark?.harm ? `harm ${md.dark.harm}${'*'.repeat(md.dark.stars || 0)} at ${md.dark.attackTime} on the other` : 'it only blocks'})`;
-        const stats = `vuln ${md.vulnerability}${md.armored ? ' (armored)' : ''} \u00B7 ${blow} \u00B7 moves ${ls.moveTime}${md.flies ? ' \u00B7 flies' : ''}`;
-        return row('mon', `${name}${l.length > 1 ? ` x${l.length}` : ''}`, `${stats}. It will block you if you are seen.`, G.data.art?.monstersColor?.[name] ?? G.data.art?.monsters?.[name]);
-    });
-    if (monRows.length) sections.push(['Monsters', monRows]);
-    // chits
-    const chitRows = [];
-    for (const c of G.st.chits) {
-        if (c.pile || c.tile !== tile) continue;
-        if (c.clearing === n && c.up) chitRows.push(row(c.kind, c.kind === 'sound' ? `${c.name} (sound ${c.num})` : `${c.name} (site ${c.num})`, c.kind === 'site' ? siteLine(G, c) : 'monsters stir here', mrChit(c)));
-        else if (!c.up && c.kind === 'site' && c.num === n && G.st.ch.discovered.sites.includes(c.id)) chitRows.push(row('site', `${c.name} (site ${c.num})`, siteLine(G, c), mrChit(c)));
+        living.push(h('div', { class: 'ds-row mon' }, tile_(G.data.art?.monstersColor?.[name] ?? G.data.art?.monsters?.[name], name),
+            h('span', { class: 'main' }, h('b', {}, `${name}${l.length > 1 ? ` ×${l.length}` : ''}`), ...storyDetail(G.st.ch.hidden ? 'It has not seen you.' : 'It will block you if you are seen.', `vuln ${md.vulnerability}${md.armored ? ' (armored)' : ''} · ${blow} · moves ${ls.moveTime}${md.flies ? ' · flies' : ''}. It will block you if you are seen.`))));
     }
-    for (const cid of G.st.ch.siteCards?.[id] ?? []) chitRows.push(siteCardRow(G, cid));
-    if (chitRows.length) sections.push(['Chits and sites', chitRows]);
-    const ground = (G.st.abandoned[id] ?? []);
-    if (ground.length) sections.push(['On the ground', ground.map(i => row('loot', nameOf(G.data, i), 'anyone here may pick it up with a Loot phase'))]);
+    put('living', 'Living here', living);
+
+    // what you could get: the sites found here (the one just found first), the site cards, what lies on the ground
+    const get = [];
+    const siteChits = G.st.chits.filter(c => !c.pile && c.tile === tile && c.kind === 'site' && ((c.clearing === n && c.up) || (c.num === n && G.st.ch.discovered.sites.includes(c.id))));
+    siteChits.sort((a, b) => (b.id === fresh) - (a.id === fresh));
+    for (const c of siteChits) get.push(siteBlock(G, c, { fresh: c.id === fresh }));
+    for (const cid of G.st.ch.siteCards?.[id] ?? []) get.push(siteCardRow(G, cid));
+    const ground = G.st.abandoned[id] ?? [];
+    if (ground.length) get.push(h('div', { class: 'ds-site found ground' }, h('div', { class: 'head' }, h('span', { class: 'ds-counter sm' }, actIcon('cache', 32)), h('span', { class: 'main' }, h('b', {}, 'On the ground'), h('span', { class: 'ds-dim' }, `${ground.map(i => nameOf(G.data, i)).join(', ')}. Anyone here may pick it up with a Loot phase.`)))));
+    put('get', 'What you could get', get, get.length ? 'found here' : '');
+
+    // signs: sounds and warnings that have turned up in this clearing
+    const signs = G.st.chits.filter(c => !c.pile && c.tile === tile && c.clearing === n && c.up && c.kind !== 'site').map(c => row(c.kind, c.kind === 'sound' ? `${c.name} (sound ${c.num})` : c.name, 'Monsters stir here.', mrChit(c)));
+    put('signs', 'Signs', signs);
+
+    // roads: collapsed (a long list; one tap)
     const roads = roadsFrom(G.st, G.data, id);
     const KIND = { open: 'road', tunnel: 'tunnel', hidden: 'hidden path', secret: 'secret passage' };
-    sections.push(['Roads', roads.length ? roads.map(r => row(r.usable ? 'road' : 'road off', `to ${nameOfClearing(r.to)}`, r.usable ? KIND[r.kind] : `${KIND[r.kind]} (not discovered)`)) : [row('road off', 'none', '')]]);
-    const mtn = cdef.type === 'mountain' ? 'mountain clearing: entering takes two Move phases' : cdef.type === 'cave' ? 'cave clearing: no sunlight phases on the day you are in one' : 'woods clearing';
-    return modal(G, nameOfClearing(id), h('div', { class: 'clearing' },
-        h('p', { class: 'hint' }, mtn),
-        ...sections.flatMap(([title, rows]) => [h('h3', {}, title), ...rows])),
-        { close: () => { if (G.ui.peek) { G.ui.peek = false; G.ui.sel = null; } else { G.ui.sheet = null; G.ui.sel = null; } render(G); }, detent: 'half', eyebrow: 'Clearing' });
+    const terrain = cdef.type === 'mountain' ? 'Mountain clearing: entering takes two Move phases.' : cdef.type === 'cave' ? 'Cave clearing: no sunlight phases on the day you are in one.' : null;
+    const roadsEl = h('details', { class: 'ds-roads' }, h('summary', {}, `${roads.filter(r => r.usable).length} road${roads.filter(r => r.usable).length === 1 ? '' : 's'} out of here`),
+        terrain ? h('p', { class: 'ds-meta' }, terrain) : null,
+        ...(roads.length ? roads.map(r => row(r.usable ? 'road' : 'road off', `to ${nbsp(nameOfClearing(r.to))}`, r.usable ? KIND[r.kind] : `${KIND[r.kind]} (not found yet)`)) : [row('road off', 'none', '')]));
+
+    // a find opens the sheet on what was found: what you could get leads
+    const ordered = [...sections].sort((a, b) => (fresh ? (b.key === 'get') - (a.key === 'get') : 0));
+    const kindWord = cdef.type === 'mountain' ? 'mountain clearing' : cdef.type === 'cave' ? 'cave clearing' : 'woods clearing';
+    const close = () => { G.ui.foundSite = null; if (G.ui.peek) { G.ui.peek = false; G.ui.sel = null; } else { G.ui.sheet = null; G.ui.sel = null; } render(G); };
+    return modal(G, nbsp(nameOfClearing(id)), h('div', { class: 'clearing ds-clearing', 'data-clearing': id }, ...ordered.flatMap(s => s.node), roadsEl),
+        { close, detent: 'half', eyebrow: `${tileName(tile)} · ${kindWord}`, bare: true, cls: 'clearing-sheet' });
 }

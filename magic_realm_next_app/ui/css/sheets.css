@@ -56,12 +56,6 @@ button.chit2:disabled { cursor: default; }
 .scorerow2 .hint { margin: 4px 0 0; font-size: 13px; }
 
 .stat { white-space: nowrap; }
-
-/* the morning review: result first, then the day in triangles */
-.reportsheet .repchips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-.repchip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line, #3a3f55); font-weight: 600; }
-.repchip.up { color: #e6c36a; border-color: #e6c36a; }
-.repchip.down { color: #e08a7a; border-color: #e08a7a; }
 .repstep { border-top: 1px solid var(--line, #2b3045); padding: 6px 0; }
 .repstep summary { cursor: pointer; margin: 0; padding: 6px 0; color: inherit; }
 .repstep p { margin: 4px 0 4px 14px; font-size: 14px; opacity: .88; }
@@ -91,17 +85,6 @@ button.chit2:disabled { cursor: default; }
 .sitecard .setupline { margin: 4px 0; font-size: 15px; line-height: 1.35; color: var(--text); }
 .sitecard .setupline.card { padding: 6px 8px; border-left: 3px solid #6c5aa8; background: rgba(108, 90, 168, .12); border-radius: 4px; }
 .sitecard .setupline.dim { color: var(--dim); font-size: 14px; }
-
-/* the end of the turn: hidden or seen first, then the day's results */
-.endstatus { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; border: 2px solid var(--line); margin-bottom: 8px; }
-.endstatus b { font-size: 21px; }
-.endstatus small { color: var(--dim); font-size: 14px; }
-.endstatus.hidden { border-color: #5fae8a; background: rgba(95, 174, 138, .12); }
-.endstatus.seen { border-color: #d98a6a; background: rgba(217, 138, 106, .10); }
-.daydid summary { cursor: pointer; font-weight: 600; margin: 6px 0; }
-.daydid-row { margin: 4px 0 4px 6px; font-size: 15px; }
-.daydid-row b { color: var(--dim); font-weight: 600; margin-right: 4px; }
-.daydid-row.hide { color: var(--text); border-left: 3px solid #5fae8a; padding-left: 8px; }
 
 /* map chits drawn the way the game prints them */
 .mrchit { flex: none; box-sizing: border-box; width: 62px; height: 62px; border-radius: 8px; border: 2px solid #1b1710; box-shadow: 0 2px 0 rgba(0,0,0,.55), inset 0 0 0 2px rgba(255,255,255,.35);
@@ -142,8 +125,6 @@ button.chit2:disabled { cursor: default; }
 .dot.white { background: #f4f1e6; } .dot.black { background: #222; border-color: #aaa; } .dot.grey { background: #9aa0a6; } .dot.purple { background: #a77bd1; } .dot.gold { background: #e2c068; }
 .calrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
 .crow.magic { display: flex; align-items: center; gap: 12px; }
-
-.daydid-row.lost { color: var(--dim); text-decoration: line-through; text-decoration-color: rgba(217,138,106,.6); }
 
 /* the Setup Card, pictured */
 .setupcard.graphic h3 { margin: 16px 0 6px; }

@@ -1,3 +1,242 @@
-/* css/ds-shared.css: owned by P6 (shared-realm table). Empty on purpose: the foundation (P0a) only reserves the file and the link in app/index.html (after core.css, so it wins the cascade).
-   Put the P6 package's NEW css here, lifted from mockups/ds.css "@package P6": lines 512-528, plus .ds-pc / .ds-pcm-tag (lines 579-587) and .ds-pchip .pc (line 582). NOTE: legacy shared rules stay in css/shared.css (the refactor slice).
-   Do not edit another package's ds-*.css; if a core component needs a change, add a package-local override here with a comment. */
+/* css/ds-shared.css (P6, the shared-realm table): the players strip, the waiting card and the public feed, the draw of the chits, the sealed chip, the shared fight's screens, meetings and the table's
+   agreements. Lifted from mockups/ds.css "@package P6" (512-528) and the .ds-pc / .ds-pcm-tag rules (579-587), then the app-side additions. The legacy rules these replace were deleted from css/shared.css in
+   the same commits. Package-local overrides of a core component carry a comment saying "override:". */
+
+/* ---- a player's counter: colour (--pc, the seat's own), shape and letter. The same three cues as on the map ---- */
+.ds-pc { flex: none; width: 26px; height: 26px; display: grid; place-items: center; font: 700 14px/1 var(--font-ui); color: #14161e; background: var(--pc); border-radius: 50%; }
+.ds-pc.sq { border-radius: 6px; } .ds-pc.di { border-radius: 0; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); } .ds-pc.tri { border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); padding-top: 6px; }
+.ds-pc.dead { opacity: .6; filter: grayscale(.6); }
+.ds-pc.wild { background: var(--surface-4); color: var(--ink-3); width: 22px; height: 22px; font-size: 16px; }
+.ds-pcm-tag { position: absolute; transform: translate(-50%, -150%); padding: 3px 8px; border-radius: 8px; background: rgba(21, 25, 37, .96); border: 1px solid var(--line-2); font: 600 13px/1.2 var(--font-ui); white-space: nowrap; }
+
+/* ---- the players strip (in the tray at the table, under the top bar of a fight): 3 or 4 chips, never a scroll at 360 ---- */
+.ds-players { display: flex; gap: 8px; padding: 6px var(--gutter); overflow: hidden; background: var(--surface-1); border-bottom: 1px solid var(--line-1); }
+.ds-tray > .ds-players, .ds-tray .tray-players { margin: 0 0 4px; }
+.ds-pchip { flex: 1 1 0; min-width: 0; height: 48px; padding: 0 6px 0 7px; display: flex; align-items: center; gap: 6px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface-3); text-align: left; position: relative; color: var(--ink); }
+.ds-pchip .t { min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
+.ds-pchip .nm { display: flex; align-items: baseline; gap: 5px; min-width: 0; padding-right: 10px; }
+.ds-pchip .nm b { font: 700 15px/1.15 var(--font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-pchip .nm .turn { flex: none; font: 700 12px/1 var(--font-display); font-style: normal; color: var(--gold); }
+.ds-pchip .st { font: 500 12.5px/1.15 var(--font-ui); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-pchip.me { border: 2px solid var(--gold); padding-left: 6px; padding-right: 5px; }
+.ds-pchip.now { border-color: var(--gold-hi); box-shadow: 0 0 0 3px rgba(241, 210, 127, .16); } .ds-pchip.now .st { color: var(--gold-hi); }
+.ds-pchip.me.now { border-width: 2px; }
+.ds-pchip.autopilot .st, .ds-pchip.away .st { color: var(--warn); }
+.ds-pchip.dead, .ds-pchip.fled, .ds-pchip.left, .ds-pchip.out { opacity: .72; }
+.ds-pchip.meet { border-style: dashed; border-color: var(--gold); }
+.ds-pchip .on { position: absolute; right: 7px; top: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--success); } .ds-pchip .on.away { background: var(--ink-3); }
+.ds-pchip .pc-meet { flex: none; font: 700 14px/1 var(--font-ui); color: var(--gold-hi); font-style: normal; }
+.ds-pchip::after { content: ""; position: absolute; inset: -2px 0; }          /* 48px chip, always a 44px target */
+/* four at the width of a 360 phone: the counter sits over the name, so the status word still reads whole; the turn number is on the draw sheet and the table sheet (no room beside the name) */
+.ds-players.n4 { gap: 6px; }
+.ds-players.n4 .ds-pchip { height: 52px; padding: 4px 5px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; }
+.ds-players.n4 .ds-pchip > .ds-pc { position: absolute; left: 5px; top: 5px; width: 18px !important; height: 18px !important; font-size: 10px !important; padding-top: 0 !important; }
+.ds-players.n4 .ds-pchip .t { width: 100%; }
+.ds-players.n4 .ds-pchip .nm { padding: 0 0 0 22px; min-height: 20px; align-items: center; } .ds-players.n4 .ds-pchip .nm b { font-size: 13.5px; } .ds-players.n4 .ds-pchip .nm .turn { display: none; }
+.ds-players.n4 .ds-pchip .st { font-size: 12px; padding-top: 3px; }
+.ds-players.n4 .ds-pchip .on { right: 4px; top: 4px; width: 7px; height: 7px; }
+
+/* ---- the waiting card: whose turn it is, why you wait, what is in plain sight. No button: you cannot proceed ---- */
+.waitcard { display: flex; flex-direction: column; gap: 6px; }
+.ds-wait { display: flex; gap: 12px; padding: 8px 12px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); align-items: center; }
+.ds-wait .pulse { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); animation: ds-pulse2 1.6s var(--ease-io) infinite; }
+@keyframes ds-pulse2 { 50% { box-shadow: 0 0 0 8px rgba(217, 180, 90, 0); transform: scale(1.1); } 0% { box-shadow: 0 0 0 0 rgba(217, 180, 90, .45); } }
+.ds-wait .wc-title { display: block; font: 700 17px/1.25 var(--font-ui); }
+.ds-wait .wc-sub { margin-top: 1px; color: var(--ink-2); font-size: 14px; line-height: 1.3; }
+.waitcard.over .ds-wait .pulse, .waitcard.left .ds-wait .pulse { animation: none; background: var(--ink-3); }
+.ds-feed { margin: 0; padding: 0; list-style: none; }
+.ds-feed li { display: flex; gap: 10px; align-items: center; padding: 5px 0; border-top: 1px solid var(--line-1); font: 400 16px/1.35 var(--font-voice); }
+.ds-feed li .ds-pc { width: 22px; height: 22px; font-size: 12px; }
+.ds-feed li.new span:last-child { color: var(--ink); }
+.ds-feed li:not(.new) span:last-child { color: var(--ink-2); }
+.wc-order { margin: 0; }
+
+/* ---- the draw of the chits ---- */
+.drawcard .draw-lead { margin: 4px 0 12px; }
+.ds-draw { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.ds-draw .tile { width: 100%; justify-self: stretch; height: 96px; border-radius: var(--r-md); border: 1.5px solid var(--line-2); background: var(--surface-3); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; position: relative; padding: 0; }
+.ds-draw .tile .no { position: absolute; left: 10px; top: 6px; font: 700 26px/1 var(--font-display); color: var(--gold); }
+.ds-draw .tile .chit-who { display: flex; flex-direction: column; align-items: center; line-height: 1.15; } .ds-draw .tile b { font: 700 17px/1.2 var(--font-ui); }
+.ds-draw .tile.me { border-color: var(--gold); background: var(--gold-wash); }
+.ds-draw .tile.back { background: repeating-linear-gradient(45deg, #1b2133, #1b2133 8px, #212a40 8px, #212a40 16px); color: var(--ink-3); }
+.ds-draw .tile.back b { font: 500 14px/1.2 var(--font-ui); color: var(--ink-3); }
+.ds-draw .tile.flip { animation: sh-flip var(--d-scene) var(--ease-io); }
+@keyframes sh-flip { from { transform: rotateY(90deg); opacity: .2; } to { transform: rotateY(0); opacity: 1; } }
+.drawcard .draw-done { margin-top: 12px; } .drawcard .draw-order { margin: 0 0 4px; }
+
+/* ---- sealed: a play nobody else can see ---- */
+.ds-sealed { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 5px 12px; border-radius: var(--r-pill); border: 1px solid var(--line-gold); background: var(--gold-wash); color: var(--gold-hi); font: 600 15px/1.2 var(--font-ui); text-align: left; }
+.ds-sealed .ds-i { flex: none; width: 16px; height: 16px; }
+
+/* ---- cards in the tray (votes, away, welcome, a meeting's question) and sheets of the table ---- */
+.ds-tray .tray-body .ds-ask { margin: 0 0 6px; padding: 6px 10px; } .ds-tray .tray-body .ds-ask b { font-size: 16px; line-height: 1.22; } .ds-tray .tray-body .ds-ask span { font-size: 14px; line-height: 1.28; }
+.tb-card { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); }
+.tb-card .ds-ask, .mt-card .ds-ask { margin: 0; }
+.tb-two { display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.tb-two .ds-btn { flex: 1 1 0; min-width: 0; padding: 0 12px; text-align: center; }
+.tb-two .ds-btn.primary { flex: 1.4 1 0; }
+.tb-two .ds-btn.quiet { flex: 0 0 auto; }
+.tb-tally { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.tb-vote b { font: 700 13px/1 var(--font-ui); color: var(--ink); } .tb-vote small { font: 600 13px/1 var(--font-ui); }
+.tb-vote.wait { border-style: dashed; color: var(--ink-3); }
+.mt-card { display: flex; flex-direction: column; gap: 6px; }
+.meet-wait { gap: 6px; }
+.ds-result.meet-result { position: relative; margin: 0; padding: 6px 12px 8px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); }
+.ds-result.meet-result.good { border-color: var(--line-gold); } .ds-result.meet-result.bad { border-color: rgba(226, 104, 92, .5); }
+.ds-result.meet-result .top { min-height: 36px; }
+.ds-result.meet-result .x { position: relative; width: 36px; height: 36px; margin: -4px -6px -4px 0; color: var(--ink-3); display: grid; place-items: center; } .ds-result.meet-result .x::after { content: ""; position: absolute; inset: -4px; }
+.ds-result.meet-result .headline { margin: 0; font-size: 19px; line-height: 1.3; }
+.tb-note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.tb-why { flex-basis: 100%; }
+.tb-actions-foot { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; } .tb-actions-row { display: flex; flex-direction: column; gap: 8px; }
+.tb-actions-row .ds-btn { width: 100%; }
+.playerslist .ds-row .rp-nums { gap: 2px; font-size: 14px; }
+.playerslist .ds-row { position: relative; align-items: flex-start; } .playerslist .ds-row .on { position: absolute; right: 8px; top: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--success); } .playerslist .ds-row .on.away { background: var(--ink-3); }
+.playerslist .ds-row .main span { font-size: 14px; }
+.playerslist .ds-row .end { margin-top: 12px; align-items: flex-end; } .playerslist .ds-row .end span { font: 600 13px/1.2 var(--font-ui); }
+.tb-confirm .ds-text { margin: 6px 0; }
+.tb-qual .ds-row { min-height: 52px; }
+.sf-restart .ds-sect, .sf-end .ds-sect { margin-top: 12px; }
+.sf-restart .ds-choice b em { font-style: normal; color: var(--gold); }
+.sf-goal .ds-stepper button { width: 44px; height: 44px; font-size: 22px; } .sf-goal .ds-stepper button[disabled] { opacity: .35; }
+.sf-goal .ds-stepper .v { width: 36px; flex: none; font-size: 22px; }
+.sf-death { text-align: center; padding: 10px 12px; margin-bottom: 8px; border-radius: var(--r-md); border: 1.5px solid rgba(226, 104, 92, .6); background: var(--danger-wash); }
+.sf-death small { display: block; font: 600 12px/1.2 var(--font-display); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--danger); }
+.sf-death b { display: block; margin: 2px 0; font: 700 24px/1.1 var(--font-display); letter-spacing: .04em; color: var(--danger); }
+.sf-death .dwho { display: block; font: 400 17px/1.3 var(--font-voice); font-style: italic; color: var(--ink); }
+
+/* the end of the game */
+.sf-hero { text-align: center; padding: 6px 0 4px; }
+.sf-hero h1 { margin: 4px 0 6px; font: 700 30px/1.1 var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: var(--gold-hi); text-wrap: balance; }
+.sf-hero .ds-voice { margin: 0 0 4px; } .sf-hero .ov-why { margin: 0; }
+.tb-place .tb-rank { flex: none; width: 34px; font: 700 22px/1 var(--font-display); color: var(--gold); }
+.tb-place.victor { border-color: var(--line-gold); }
+.tb-place .end { color: var(--ink-2); } .tb-place .ov-pts.up, .ov-pts.up { color: var(--success); } .tb-place .ov-pts.down, .ov-pts.down { color: var(--ink-2); }
+.ov-details.ds-group { margin: 8px 0 0; } .ov-details summary { min-height: 44px; display: flex; align-items: center; gap: 8px; cursor: pointer; font: 600 16px/1.2 var(--font-ui); list-style: none; } .ov-details summary::-webkit-details-marker { display: none; }
+.ov-details summary b { font-weight: 700; } .ov-details .ov-char { margin: 6px 0; } .ov-details .ov-char b { font: 700 16px/1.2 var(--font-ui); } .ov-details p { margin: 3px 0; }
+.tb-seed { word-break: break-all; font-variant-numeric: tabular-nums; }
+
+/* ---- meeting sheets: the composer (rows to tick, gold stepper), the offer made to me ---- */
+.mt .ds-seg.mt-pick { margin-bottom: 10px; }
+.mt-row { padding: 4px 8px 4px 4px; flex-direction: column; align-items: stretch; gap: 0; min-height: 56px; }
+.mt-row .ti-row { display: flex; align-items: center; gap: 4px; width: 100%; }
+.mt-row .ti-check { flex: none; position: relative; width: 44px; height: 44px; display: grid; place-items: center; background: none; color: var(--gold-hi); }
+.mt-row .ti-check::before { content: ""; position: absolute; left: 9px; top: 9px; width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--line-2); background: var(--surface-1); }
+.mt-row.sel .ti-check::before { border-color: var(--gold); background: var(--gold-wash-2); }
+.mt-row .ti-check .ds-i { position: relative; width: 18px; height: 18px; stroke-width: 2.4; }
+.mt-row .ti-body { flex: 1; min-width: 0; min-height: 48px; display: flex; align-items: center; gap: 10px; background: none; text-align: left; padding: 0; color: inherit; }
+.mt-row .ti-body .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; } .mt-row .ti-body .main b { font: 700 17px/1.2 var(--font-ui); } .mt-row .ti-body .main span { font: 400 14px/1.25 var(--font-voice); color: var(--ink-2); }
+.mt-row .ti-i { color: var(--ink-3); } .mt-row .ti-i .ds-i { width: 18px; height: 18px; }
+.mt-row .ti-info { width: 100%; padding: 6px 4px 4px; }
+.mt-row.sel { padding: 3px 7px 3px 3px; }
+.mt-gold { flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 12px; }
+.mt-gold .mt-gl { display: flex; flex-direction: row; align-items: baseline; justify-content: space-between; gap: 8px; } .mt-gold .mt-gl b { font: 700 17px/1.2 var(--font-ui); } .mt-gold .mt-gl span { font: 400 14px/1.2 var(--font-voice); color: var(--ink-2); }
+.mt-gold .ds-stepper { gap: 6px; } .mt-gold .ds-stepper button { flex: 1; width: auto; height: 44px; font-size: 18px; } .mt-gold .ds-stepper button[disabled] { opacity: .35; }
+.mt-gold .ds-stepper .v { flex: 1.2; font-size: 24px; }
+.mt-gold.sel { padding: 7px 11px; }
+.mt-offer .mt-swap { display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px; align-items: stretch; } .mt-offer .mt-swap > .ds-i { align-self: center; }
+.mt-offer .mt-swap > .ds-i { color: var(--ink-3); }
+.mt-side { padding: 8px; text-align: center; min-width: 0; } .mt-side .ds-eyebrow { display: block; }
+.mt-side .cs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 8px 0 2px; }
+.mt-side .ds-row.tradeitem.ro { flex: 1 1 56px; padding: 0; border: 0; background: none; min-height: 0; width: auto; justify-content: center; }
+.mt-side .ti-body.full { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; color: inherit; padding: 0; min-height: 44px; }
+.mt-side .ti-body b { font: 700 14px/1.2 var(--font-ui); overflow-wrap: anywhere; } .mt-side .ti-body small { font: 400 13px/1.2 var(--font-ui); color: var(--ink-3); }
+.mt-side .mt-nothing { padding: 14px 0; }
+.mt-outcome { margin: 10px 0 0; color: var(--ink-2); font-size: 14px; line-height: 1.35; }
+.mt-policy { display: flex; flex-direction: column; gap: 8px; } .mt-policy .mt-ph { font: 700 16px/1.2 var(--font-ui); margin-top: 4px; }
+.mt-dayend { margin-top: 4px; } .mt-dayend .main span { font-size: 14px; }
+.mt-explain { margin: 8px 0; padding-left: 18px; } .mt-explain li { margin: 4px 0; font: 400 15px/1.3 var(--font-voice); color: var(--ink-2); }
+.mt-followpick { margin: 8px 0; }
+.mt-wait .ds-ask { margin: 0; }
+
+/* ---- the shared fight (screens/sharedfight.js): the scene's chrome with the participants strip under the top bar ---- */
+.cb.sf .sf-stripblock { flex: none; }
+.cb.sf .ds-players { background: transparent; border-bottom: 0; padding-top: 0; padding-bottom: 6px; }
+.cb.sf .ds-pchip { background: rgba(28, 34, 50, .86); }
+.cb.sf .sf-warn { margin: 0; padding: 0 var(--gutter) 6px; color: var(--warn); }
+.cb.sf .cb-stage { min-height: 130px; }
+.cb-sheet.sf-sheet { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }          /* (the legacy .cb-sheet rule sets align-items: baseline) */
+.cb-sheet.sf-sheet > .ds-actions { padding: 0; min-height: 0; }
+.cb-sheet.sf-sheet .ds-ask { margin: 0; }
+.cb-sheet.sf-pick { max-height: calc(100% - 300px); min-height: 0; }          /* what is left under the top bar, the strip, a 130px stage and the narrator */
+.cb-sheet.sf-pick .sf-scroll, .cb-sheet.sf-watch .sf-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 8px; padding-bottom: 6px;
+    -webkit-mask-image: linear-gradient(#000 calc(100% - 14px), transparent); mask-image: linear-gradient(#000 calc(100% - 14px), transparent); }
+.cb-sheet.sf-pick > .ds-actions { flex: none; }
+.sf-waitline { font: 500 17px/1.3 var(--font-ui); color: var(--ink); }
+.sf-line, .sf-why { margin: 0; } .sf-why { color: var(--ink-3); font-size: 14px; }
+.cb-sheet .sf-sealed { margin: 0 0 4px; justify-content: flex-start; }
+.cb-sheet .sf-note .ds-lead-text { font-size: 14px; }
+.cb-narr.bad { color: var(--danger); }
+
+/* the lure */
+.sf-lure .ds-row, .sf-lure { align-items: flex-start; }
+.sf-lure .art { margin-top: 2px; width: 52px; height: 52px; }
+.sf-lure .main { gap: 2px; } .sf-lure .main > span { font: 400 14px/1.3 var(--font-ui); color: var(--ink-2); }
+.sf-lure .main .mean { color: var(--gold); font-size: 13.5px; }
+.sf-lure .sf-tick, .pv-foe .sf-tick, .pv-creature .sf-tick, .pv-none .sf-tick { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--line-2); color: var(--ink-3); align-self: center; }
+.sf-lure.sel .sf-tick, .pv-foe.sel .sf-tick, .pv-creature.sel .sf-tick, .pv-none.sel .sf-tick { border-color: var(--gold); background: var(--gold-wash-2); color: var(--gold-hi); }
+.sf-tick .ds-i { width: 16px; height: 16px; stroke-width: 2.4; }
+.sf-cannot { margin: 0; }
+
+/* characters and creatures as rows (the Whom step, the charge) */
+.pv-foes { margin: 0; }
+.pv-foe { align-items: center; } .pv-foe .main b i { font-style: normal; font-weight: 500; color: var(--ink-2); }
+.pv-foe .main span { font: 400 14px/1.3 var(--font-ui); color: var(--ink-2); }
+.pv-foe .pv-deal, .pv-foe.warn .pv-deal { color: var(--warn); }
+.pv-foe.warn { border-color: rgba(224, 168, 90, .55); }
+.pv-sub { margin: 6px 0 -2px; display: block; }
+.pv-creature .art { width: 44px; height: 44px; } .pv-creature .main span, .pv-none .main span { font: 400 14px/1.3 var(--font-ui); color: var(--ink-2); }
+.sf-whom { display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; overscroll-behavior: contain; margin: 0 -2px; padding: 2px;
+    -webkit-mask-image: linear-gradient(#000 calc(100% - 12px), transparent); mask-image: linear-gradient(#000 calc(100% - 12px), transparent); }
+.sf-whom .ds-row { min-height: 48px; padding: 4px 10px; gap: 10px; flex: none; }
+.sf-whom .pv-foe { min-height: 56px; }
+.sf-whom .pv-creature .art { width: 38px; height: 38px; } .sf-whom .ds-row .main b { font-size: 16px; }
+.sf-whom .ds-row .main span { font-size: 13.5px; }
+.sf-whom .sf-tick { width: 24px; height: 24px; }
+.pv-own summary { min-height: 44px; display: flex; align-items: center; color: var(--ink-2); font: 600 15px/1.2 var(--font-ui); cursor: pointer; }
+.pv-confirm { padding: 10px 12px; border-radius: var(--r-md); border: 1.5px solid rgba(224, 168, 90, .6); background: rgba(224, 168, 90, .08); }
+.pv-confirm b { display: block; font: 700 16px/1.25 var(--font-ui); color: var(--warn); } .pv-confirm p { margin: 4px 0 6px; font: 400 15px/1.3 var(--font-voice); color: var(--ink-2); }
+.pv-sure { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0; color: var(--ink); font: 600 15px/1.2 var(--font-ui); text-align: left; }
+.pv-box { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; border: 2px solid var(--warn); color: var(--warn); } .pv-box .ds-i { width: 16px; height: 16px; stroke-width: 2.6; }
+.pv-means { margin: 0; padding-left: 18px; } .pv-means li { margin: 2px 0; }
+.pv-hire { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; } .pv-hire .ds-seg { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+.pv-chits .cb-chits { margin-top: 4px; }
+.pv-news b { color: var(--gold); }
+.cb-hint.pv-judge { margin: 0; }
+
+/* the reveal: a sheet over the stage, result first */
+.sf-reveal-sheet .ds-sheet-head { padding-right: 8px; }
+.sf-reveal-sheet .sf-headline { margin: 4px 0 12px; }
+.sf-reveal-sheet .sf-headline.deadly { color: #f0b0a6; }
+.sf-results { gap: 8px; margin: 0 0 12px; }
+.sf-rrow { align-items: flex-start; } .sf-rrow.me { border-color: var(--gold-lo); }
+.sf-rrow > .ds-pc { margin-top: 2px; }
+.sf-rrow .main b small { font: 500 13px/1 var(--font-ui); color: var(--ink-3); letter-spacing: .04em; }
+.sf-rrow .main .sf-playline { font: 400 15px/1.3 var(--font-voice); color: var(--ink-2); }
+.sf-rrow .sf-rchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.sf-chip.dim { color: var(--ink-3); border-style: dashed; }
+.sf-how { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.sf-how p { margin: 0; font: 400 16.5px/1.38 var(--font-voice); color: var(--ink); } .sf-how p.sf-order { color: var(--ink-2); font-size: 15px; }
+.sf-told b { font: 700 16px/1.3 var(--font-ui); }
+.sf-detail { padding: 8px 10px; border-radius: var(--r-sm); border: 1px solid var(--line-1); background: var(--surface-1); } .sf-detail b { font: 700 15px/1.3 var(--font-ui); }
+.sf-detail p { font: 400 14px/1.4 var(--font-ui); color: var(--ink-2); font-variant-numeric: tabular-nums; } .sf-detail p.dice { color: var(--ink-3); }
+.pv-blows { margin: 0; padding-left: 20px; } .pv-blows li { margin: 3px 0; font: 400 16px/1.35 var(--font-voice); } .pv-blow.slain { color: #f0b0a6; } .pv-blow.hurt { color: #f0c8a0; }
+.sf-death .pv-dhead { display: flex; align-items: center; gap: 10px; text-align: left; justify-content: center; } .sf-death .pv-dtitle { display: flex; flex-direction: column; }
+.sf-death .pv-dtitle b { font-size: 22px; }
+.sf-death p { margin: 6px 0 0; } .sf-death .pv-dtake { font: 600 16px/1.3 var(--font-ui); color: var(--ink); } .sf-death .pv-dnext { font: 400 15px/1.3 var(--font-voice); color: var(--ink-2); }
+.sf-death .gain-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px; }
+/* the card that ends a fight */
+.sf-over .sf-verdict p { margin: 4px 0 12px; } .sf-over .sf-verdict b { font-family: var(--font-display); font-style: normal; letter-spacing: .04em; color: var(--gold-hi); display: block; font-size: 22px; margin-bottom: 4px; }
+.sf-lastround { margin-top: 12px; } .sf-lastround summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; list-style: none; } .sf-lastround summary::-webkit-details-marker { display: none; }
+.sf-lastround .sf-reveal { margin-top: 4px; }
+
+.gain-chip .ds-i { width: 14px; height: 14px; }
+.gain-chip.fame { color: var(--c-fame); border-color: rgba(127, 176, 232, .55); } .gain-chip.notor { color: var(--c-notor); border-color: rgba(229, 140, 82, .55); } .gain-chip.gold { color: var(--c-gold); border-color: var(--line-gold); }
+
+/* override: at a table the tray has no last-action line and no situation line, so its body may be as tall as the budget allows (335 with the strip and the grab) */
+.ds-tray.shared:not(.planning):not(:has(.ds-last)) .tray-body { max-height: calc(var(--tray-max) - 14px - 52px - 8px - var(--safe-b)); }
+.ds-tray.shared:not(.planning):not(:has(.ds-last)):has(.ds-actions) .tray-body { max-height: calc(var(--tray-max) - 14px - 52px - 8px - 70px - var(--safe-b)); }
+
+.tb-rank small { font: 600 12px/1 var(--font-display); letter-spacing: .04em; color: var(--gold-lo); margin-left: 1px; }
+.tb-card.tb-noterow { flex-direction: row; align-items: center; gap: 10px; padding: 4px 6px 4px 12px; } .tb-notetext { flex: 1; font-size: 15px; line-height: 1.3; }
+.mt-outcome b { color: var(--ink); font-weight: 700; }

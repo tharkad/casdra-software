@@ -1,30 +1,30 @@
 // play/tray.js: the tray, the decision layer under the map (mockup 01): the last action (one line, tap = the Journal), one situation line, and the action row (pips or a count on the left,
 // ONE primary on the right). It replaces the dock, the dice bar and the drawer. While a plan is being made the plan tray stands in its body (plan.js). Shared table: the players strip and the
 // waiting or decision cards of the table take the body (they scroll, the tray never grows past its budget).
+import { nameOf } from '../../../engine/items.js';
 import { energizeOptions } from '../../../engine/magic/energize.js';
 import { heldOptions } from '../../../engine/magic/phase.js';
 import { phasesFor } from '../../../engine/day.js';
-import { isMountain, nameOfClearing } from '../../../engine/world.js';
-import { ask } from '../../ask.js';
+import { isMountain, nameOfClearing, tileName } from '../../../engine/world.js';
 import { h } from '../../dom.js';
 import { btn, last, pips, primary, situ, tray, twoLine } from '../../ds.js';
 import { actIcon } from '../../icons.js';
 import { isMeetLine, meetButton, playerOf as playerNameOf } from '../../meet.js';
 import { turnOrderLine } from '../../party.js';
-import { playersStrip } from '../../shared_ui.js';
-import { storyRoll } from '../../storyvoice.js';
+import { askBox as ask, playersStrip } from '../../shared_ui.js';
+import { phasePrompt, storyRoll } from '../../storyvoice.js';
 import { isStory, logText } from '../../voice.js';
 import { blockCard, followCard, newDraft as newMeetDraft, resultCards, waitingCard, windowCard } from '../meetui.js';
-import { autopilotRecord, awayCard, pendingVote, tableCards, welcomeCard } from '../tableui.js';
+import { noteCard, tableCards } from '../tableui.js';
 import { act } from './actions.js';
-import { journalFresh, popJournal } from './journal.js';
+import { journalFresh } from './journal.js';
 import { ACT_LABEL, actArt, mc, showToast, tc } from './kit.js';
 import { phaseResultLine, searchWhere, tableName } from './phases.js';
 import { newDraft, planTray } from './plan.js';
-import { deathBox } from './results.js';
-import { sharedBanner, showPlayer } from './shared.js';
+import { resultCardFor } from './result_card.js';
+import { sharedBanner, showPlayer, tableSheetDue } from './shared.js';
 import { render } from './shell.js';
-import { backSeen, logEnd, markBackSeen, myId, newMeetLines } from './state.js';
+import { logEnd, myId, newMeetLines } from './state.js';
 
 const nb = s => String(s).replace(/ (\d+)$/, ' $1');                      // "Curst Valley 4" never breaks before its number
 
@@ -77,14 +77,26 @@ function dayPips(G, cur) {
     return pips(list, { cls: list.length > 5 ? 'many' : '', attrs: { 'aria-label': `Your day: phase ${Math.min(cur + 1, plan.length)} of ${plan.length}`, 'data-act': 'plan-view', onclick: () => { G.ui.sheet = 'journal'; render(G); } } });
 }
 
-// ---- what the primary says: a verb and, under it, the detail ("Move" / "to Bad Valley 2") ----
+// ---- what the primary says: a verb and, under it, the situation in a few words ("Move" / "to Bad Valley 2", "Hide" / "slip out of sight"). The why of each (phasePrompt) is in the
+// primary's tooltip and in the decision sheets' ask lines; the tray keeps its budget. ----
+const lowerFirst = t => t.charAt(0).toLowerCase() + t.slice(1);
+export function shortPrompt(G, slot) {
+    const st = G.st, a = slot?.act ?? 'nothing';
+    const weapon = st.ch.items.find(i => i.kind === 'weapon' && i.active && !i.destroyed);
+    const pr = phasePrompt(a, { at: nb(nameOfClearing(st.ch.at ?? '')), weapon: weapon ? nameOf(G.data, weapon) : null, magic: !!slot?.magic, enchants: st.turn?.enchants ?? 0, tile: slot?.to ? tileName(slot.to) : null, to: slot?.to ? nb(nameOfClearing(slot.to)) : null });
+    let small;
+    if (a === 'search') small = slot.table ? tableName(G, slot.table) : 'choose what to look for';
+    else if (a === 'move') small = slot.to ? `to ${nb(nameOfClearing(slot.to))}` : null;
+    else if (a === 'fly') small = slot?.to ? `over the ${tileName(slot.to)}` : 'take to the air';
+    else if (a === 'enchant') small = st.turn?.enchants ? 'shape your power' : 'gather your power';
+    else if (a === 'follow') small = slot.who ? playerNameOf(G.st, slot.who) : null;
+    else small = lowerFirst(pr.line).replace(/\.$/, '');
+    return { small, why: [pr.line, pr.why].filter(Boolean).join(' ') };
+}
 function phasePrimary(G, slot) {
     const a = slot?.act ?? 'nothing';
-    let main = a === 'nothing' ? 'Do nothing' : ACT_LABEL[a] ?? a, small = null;
-    if (a === 'move' && slot.to) small = `to ${nb(nameOfClearing(slot.to))}`;
-    else if (a === 'search' && slot.table) small = tableName(G, slot.table);
-    else if (a === 'follow' && slot.who) small = playerNameOf(G.st, slot.who);
-    return btn(small ? twoLine(main, small) : main, 'primary', { 'data-act': 'next', onclick: () => act(G, { type: 'next' }) });
+    const main = a === 'nothing' ? 'Do nothing' : ACT_LABEL[a] ?? a, { small, why } = shortPrompt(G, slot);
+    return btn(small ? twoLine(main, small) : main, 'primary', { 'data-act': 'next', title: why, 'aria-description': why, onclick: () => act(G, { type: 'next' }) });
 }
 
 // a question that is on a sheet: the tray stands dim under it and says what it is waiting for
@@ -102,7 +114,6 @@ export function renderTray(G) {
     // what he has become (a creature, mist, a flier) is part of where he is
     const form = st.ch.morph ? `a ${st.ch.morph.creature?.name ?? 'creature'}` : st.ch.mist ? 'mist' : st.ch.flying ? 'flying' : null;
     if (form) m.situ.querySelector('.tag').textContent = `${form} · ${hid}`;
-    popJournal(G);
     m.last = lastLine(G);
 
     // free spell actions at the start of a phase: wake a permanent spell with a colour chit, or use a Phase spell he is holding
@@ -118,20 +129,41 @@ export function renderTray(G) {
     } else if (!p) {
         if (!G.shared) { m.body = [h('p', { class: 'ds-lead-text' }, 'Working...')]; }
     } else if (p.type === 'plan') {
-        m.lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `${phasesFor(st, G.data, []).total} phases`), ', planned in secret');
-        m.primary = primary('Plan your day', { 'data-act': 'plan', onclick: () => { G.ui.draft ??= newDraft(G); G.ui.sheet = 'plan'; render(G); } });
+        const openPlan = () => { G.ui.draft ??= newDraft(G); G.ui.sheet = 'plan'; render(G); };
+        if (p.prophecy) {
+            // Prophecy is with him: no plan need be recorded; each phase is chosen as it comes (the printed rule). Recording a day as usual is still allowed.
+            m.body.push(ask('Prophecy is with you.', 'You need not plan: choose each phase as it comes, or record a day as usual.', { compact: true }));
+            m.situ = null;
+            m.lead = btn('Plan it anyway', 'sm', { 'data-act': 'plan', onclick: openPlan });
+            m.primary = primary('Live the day as it comes', { 'data-act': 'plan-free', onclick: () => act(G, { type: 'plan', slots: [] }) });
+        } else {
+            m.lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `${phasesFor(st, G.data, []).total} phases`), ', planned in secret');
+            m.primary = primary('Plan your day', { 'data-act': 'plan', onclick: openPlan });
+        }
     } else if (p.type === 'phase') {
         const slot = st.plan[p.i];
         m.lead = dayPips(G, p.i);
-        m.primary = phasePrimary(G, slot);
-        if (slot?.act === 'search' && !st.ch.onRoad) m.body.push(h('p', { class: 'ds-hint-line', 'data-hint': 'search-where' }, searchWhere(G, st.ch.at)));
+        const card = resultCardFor(G);
+        if (card) {
+            // the phase just played: its result stands where the last-action line and the situation were, and the button goes on ("Next / phase 4 · Trade")
+            m.body.push(card); m.last = null; m.situ = null; m.cls.push('with-result');
+            const next = ACT_LABEL[slot?.act] ?? slot?.act ?? 'nothing';
+            m.primary = btn(twoLine('Next', `phase ${p.i + 1} \u00B7 ${next}`), 'primary', { 'data-act': 'next', onclick: () => act(G, { type: 'next' }) });
+        } else m.primary = phasePrimary(G, slot);
+        if (!card && slot?.act === 'search' && !st.ch.onRoad) m.body.push(h('p', { class: 'ds-hint-line', 'data-hint': 'search-where' }, searchWhere(G, st.ch.at)));
     } else if (p.type === 'phase-pick') {
-        // Prophecy: no plan was recorded; each phase is chosen as it comes (the printed rule: he learns his day as he lives it)
-        m.body.push(h('div', { class: 'ds-acts pickacts' }, ...p.acts.map(a => h('button', { class: `ds-act${G.ui.pickAct === a.act ? ' on' : ''}`, 'data-pick-act': a.act, onclick: () => { G.ui.pickAct = G.ui.pickAct === a.act ? null : a.act; render(G); } }, actIcon(actArt(a.act), 28), ACT_LABEL[a.act] ?? a.act))));
-        m.lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `Phase ${p.i + 1}`), `, ${p.regularLeft ?? '?'} left${p.extrasLeft ? ` + ${p.extrasLeft} extra` : ''}`);
+        // Prophecy: no plan was recorded; each phase is chosen as it comes (the printed rule: he learns his day as he lives it). The chips are the plan's own (ordinary weight, one is chosen);
+        // an action with no further question is done at once, Move is chosen on the map (the roads are ringed), a Search asks its table, an Alert its weapon or chit.
+        const ASKS = new Set(['move', 'search', 'alert']);
+        const tap = a => { if (!ASKS.has(a)) { G.ui.pickAct = null; act(G, { type: 'pick', slot: { act: a } }); return; } G.ui.pickAct = G.ui.pickAct === a ? null : a; render(G); };
+        m.body.push(h('div', { class: 'ds-acts pickacts' }, ...p.acts.map(a => h('button', { class: `ds-act${G.ui.pickAct === a.act ? ' on' : ''}`, 'data-pick-act': a.act, onclick: () => tap(a.act) }, actIcon(actArt(a.act), 28), ACT_LABEL[a.act] ?? a.act))));
+        if (G.ui.pickAct === 'move') m.body.push(h('p', { class: 'ds-hint-line', 'data-hint': 'pick-move' }, 'Where to? Tap a ringed clearing on the map.'));
+        const extra = (p.extrasLeft ?? []).map(x => ACT_LABEL[x] ?? x);
+        m.lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `Phase ${p.i + 1}`), `: ${p.regularLeft ?? 0} left${extra.length ? `, and an extra ${extra.join(', ')}` : ''}`);
         m.primary = primary(twoLine('Follow the suggestion', 'or choose above'), { 'data-act': 'next', onclick: () => act(G, { type: 'next' }) });
     } else if (p.type === 'over') {
-        m.body.push(G.shared ? h('div', { class: 'note' }, 'The game is over.') : st.ch.dead || st.over?.reason === 'died' ? deathBox(G) : null);
+        m.body.push(h('p', { class: 'ds-hint-line' }, 'The game is over.'));          // (a solo game or a race shows the end screen over all of this: endscreen.js)
+        m.situ = null; m.last = null;
         m.primary = primary('See your result', { 'data-act': 'see-result', onclick: () => { G.ui.sheet = 'over'; render(G); } });
     } else if (p.type === 'restart') {
         m.body.push(ask('You have fallen.', 'Choose who returns and set new goals; then the day goes on.', { compact: true }));
@@ -143,7 +175,7 @@ export function renderTray(G) {
     } else if (G.shared && (p.type === 'meet-block' || p.type === 'meet-follow' || p.type === 'meet-window')) {
         if (p.type === 'meet-window' && G.ui.windowDay !== st.day) { G.ui.windowDay = st.day; G.ui.windowLog = logEnd(G); }          // (what counts as "traded" starts when the window opens)
         const k = (p.type === 'meet-block' ? blockCard : p.type === 'meet-follow' ? followCard : windowCard)(mc(G), p);
-        m.body.push(k.body); m.primary = k.actions; m.rawActions = true;
+        m.body.push(k.body); [m.lead, m.primary] = k.actions;
     } else {
         // a question that waits on a sheet (a table, a trade, a hire, a rest ...): the tray stands dim under it
         const [main, small] = WAITING[p.type] ?? ['Your answer', 'is waiting'];
@@ -152,7 +184,7 @@ export function renderTray(G) {
 
     // Meeting other characters: my own offer is open (the game waits and says so), or I may meet someone now
     if (G.shared && G.ms && !planning) {
-        if (G.ms.made && (!p || p.type === 'phase' || p.type === 'phase-pick' || p.type === 'meet-window')) { const w = waitingCard(mc(G)); m.body = [w.body]; m.primary = w.actions; m.rawActions = true; }
+        if (G.ms.made && (!p || p.type === 'phase' || p.type === 'phase-pick' || p.type === 'meet-window')) { const w = waitingCard(mc(G)); m.body = [w.body]; m.lead = w.actions; m.primary = null; }
         else if (!p && G.crew.find(x => x.mine)?.status === 'following') {
             // I follow someone: his turn is mine. I may stop at the start of any of his activities (the game says so if it is not the moment)
             m.primary = btn(`Stop following ${playerNameOf(st, st.follows?.[st.ch.id] ?? '')}`.trim(), '', { 'data-act': 'stop-follow', onclick: () => act(G, { type: 'meet', kind: 'stop-follow' }) });
@@ -173,13 +205,12 @@ export function renderTray(G) {
     const meetCards = G.shared ? resultCards(mc(G), mlines) : [];
     let tableEls = [];
     if (G.shared && G.answer) {
-        const tcx = tc(G), pv = pendingVote(G.answer, G.mySeat), rec = autopilotRecord(st, playerNameOf(st, st.ch.id)), back = !G.answer.you?.away && rec.back >= 0 && rec.key && !backSeen(G, rec.key) ? rec : null;
-        const note = G.ui.tableNote ? h('div', { class: 'tb-card note', 'data-table-card': 'note', role: 'status' }, ask(G.ui.tableNote.text, null, { compact: true }),
-            h('div', { class: 'row-end' }, h('button', { class: 'btn', 'data-act': 'note-ok', onclick: () => { G.ui.tableNote = null; render(G); } }, 'Got it'))) : null;
-        tableEls = [...(note ? [note] : []), ...(G.answer.you?.away ? [awayCard(tcx)] : []), ...(back ? [welcomeCard(tcx, back, () => { markBackSeen(G, back.key); render(G); })] : []), ...tableCards(tcx)];
+        // what asks me something (a vote, "you are marked away", "welcome back") is a decision sheet (tableSheet); the tray carries how a vote stands and the one-line note of a vote that failed
+        const note = G.ui.tableNote ? noteCard(G.ui.tableNote.text, () => { G.ui.tableNote = null; render(G); }) : null;
+        tableEls = [...(note ? [note] : []), ...tableCards({ ...tc(G), sheetDue: !!tableSheetDue(G) })];
     }
     const decisionFirst = !!(G.shared && ((p && /^meet-(block|follow|window)$/.test(p.type)) || G.ms?.made));
-    const orderLine = G.shared && !banner ? turnOrderLine(st) : null;
+    const orderLine = G.shared && !banner && !decisionFirst ? turnOrderLine(st) : null;
     if (G.shared) {
         const waitingIds = new Set((G.answer?.waitingFor ?? []).map(w => w.character)), meetIds = new Set(G.ms ? G.ms.partners.map(x => x.id) : []);
         const tapChip = x => { if (meetIds.has(x.id) && !G.ms.made) { G.ui.meet = newMeetDraft(); G.ui.meet.to = x.id; G.ui.sheet = 'meet'; render(G); } else showPlayer(G, x); };
@@ -188,17 +219,19 @@ export function renderTray(G) {
         m.body = [...tableEls, ...meetCards, ...(decisionFirst ? own : []), banner, ...(decisionFirst ? [] : own),
             orderLine ? h('p', { class: 'wc-order', 'data-order': '' }, orderLine) : null].filter(Boolean);
         m.shared = true;
-        if (banner || decisionFirst) { m.last = null; m.situ = null; }
+        if (banner || decisionFirst || tableEls.some(e => e.dataset?.tableCard !== 'note')) { m.last = null; m.situ = null; }
     }
     m.body = m.body.filter(Boolean);
 
     // build with the design system's tray, then move it into the persistent element
     const body = [m.strip ?? null, m.body.length ? h('div', { class: 'tray-body' }, ...m.body) : null];
     const lead = m.lead, pr = m.primary;
-    const t = tray({ last: m.last, situ: m.situ, body, lead, primary: m.rawActions ? null : pr });
-    if (m.rawActions && pr) t.querySelector('.ds-actions').append(pr);
+    const t = tray({ last: m.last, situ: m.situ, body, lead, primary: pr });
     const actions = t.querySelector('.ds-actions');
     if (!lead && !pr) actions.remove();
+    else if (pr && lead?.classList?.contains('ds-btn')) actions.querySelector('.lead')?.classList.add('fit');          // (a secondary on the left takes what its words need; the primary the rest, bottom right)
+    // one primary per layer: when the tray has its own, a card's "yes" (a vote, a welcome) is a plain button
+    if (pr) t.querySelectorAll('.tray-body .ds-btn.primary').forEach(b => b.classList.remove('primary'));
     G.tray.className = `ds-tray gdock${m.cls.length ? ' ' + m.cls.join(' ') : ''}${m.shared ? ' shared' : ''}${p ? '' : ' idle'}`;
     G.tray.dataset.state = planning ? 'plan' : p?.type ?? 'idle';
     G.tray.replaceChildren(...t.childNodes);

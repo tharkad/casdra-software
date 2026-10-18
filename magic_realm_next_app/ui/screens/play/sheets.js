@@ -2,7 +2,6 @@
 import { nameOf } from '../../../engine/items.js';
 import { nameOfClearing, tileName } from '../../../engine/world.js';
 import { ask } from '../../ask.js';
-import { latestRoll, rollRow } from '../../dice.js';
 import { h } from '../../dom.js';
 import { lengthLine, timed } from '../../gametext.js';
 import { HELP } from '../info.js';
@@ -11,12 +10,13 @@ import { endOptionSheet, leaveSheet, quitSheet } from '../tableui.js';
 import { abandon, act } from './actions.js';
 import { combatHost, fightBeat, sharedFightHost } from './combat.js';
 import { mc, modal, tc } from './kit.js';
-import { effortSheet, learnSheet, pickSheet, restSheet, tableName, turnEndSheet } from './phases.js';
-import { overSheet, reportSheet } from './results.js';
+import { choiceSheet, effortSheet, enchantSheet, learnSheet, pickSheet, restSheet, runesSheet, searchSheet, tableName, turnEndSheet } from './phases.js';
+import { overScreen, restartSheet } from './endscreen.js';
+import { reportSheet } from './results.js';
 import { journalSheet } from './journal.js';
-import { drawSheet, fightOverSheet, playersSheet, sharedOverSheet, sharedRestartSheet } from './shared.js';
+import { drawSheet, fightOverSheet, playersSheet, sharedOverSheet, sharedRestartSheet, tableSheet } from './shared.js';
 import { cardInfoSheet, charSheet, cursesSheet, itemSheet, slotSheet, spellSheet, spellsSheet } from './sheet_char.js';
-import { clearingSheet, hereBlocks, searchCards } from './sheet_clearing.js';
+import { clearingSheet } from './sheet_clearing.js';
 import { bugSheet, calendarSheet, menuSheet, raceSheet, scoreSheet, setupCardSheet } from './sheet_info.js';
 import { hireSheet, tradeSheet } from './sheet_trade.js';
 import { render } from './shell.js';
@@ -41,44 +41,24 @@ export function sheets(G, lookOnly = false) {
     if (G.shared && p?.type === 'restart') { out.push(sharedRestartSheet(G, p)); if (G.ui.sheet === 'menu') out.push(menuSheet(G)); return out; }
     if (G.shared && p?.type === 'end-option') { out.push(endOptionSheet(tc(G), p)); return out; }
     if (G.shared && G.ui.sheet === 'fightover') { out.push(fightOverSheet(G)); return out; }
+    { const ts = G.shared && !lookOnly ? tableSheet(G) : null; if (ts) { out.push(ts); return out; } }          // (what the table asks me: a vote, marked away, welcome back)
     // A shared fight: a seat that is in it (or was, and watches) gets the shared frame; the map is one tap away at every step. Anyone else only sees the banner in the dock.
     if (G.shared && G.st.battle?.members?.[G.st.ch.id] && sharedFightHost(G, out)) return out;
     if (p?.type?.startsWith('combat') || fightBeat(G)) { combatHost(G, out); return out; }
+    // The game is over (solo or a race): the death callout or the verdict, full screen, once the fight has had its one beat. A dead character may return tomorrow (a sheet over it).
+    if (!G.shared && p?.type === 'over') { out.push(overScreen(G)); if (G.ui.restartVp) out.push(restartSheet(G)); return out; }
     if (G.ui.peek && G.ui.sel && p?.type === 'plan') { out.push(clearingSheet(G)); return out; }
     const lookAt = G.ui.mapPeek && G.ui.sheet === 'clearing' && G.ui.sel;       // a clearing looked at while a decision waits (the decision sheet is peeked): it opens over the bar
     if (p?.type === 'turn-end') out.push(turnEndSheet(G));
     else if (p?.type === 'turn-end') out.push(turnEndSheet(G));
     else if (p?.type === 'rest') out.push(restSheet(G, p));
-    else if (p?.type === 'search-table') out.push(modal(G, 'Search here', h('div', { class: 'searchcards' },
-        ask(`You search at ${nameOfClearing(G.st.ch.at)}.`, 'A Search phase is one roll on one table, and each place or table finds different things. Read what each could give you, then press the button at the bottom of the one you want.'),
-        ...searchCards(G, p))));
+    else if (p?.type === 'search-table') out.push(searchSheet(G, p));
     else if (p?.type === 'effort-cost') out.push(effortSheet(G, p));
-    else if (p?.type === 'runes-target') out.push(modal(G, 'Read runes: which?', h('div', {},
-        ask('Which runes will you read?', 'A Reading Runes search needs one target: a discovered site here that holds spell cards, or an artifact or book you carry and have active.'),
-        ...p.options.map(o => h('button', { class: 'btn', 'data-target': o.key, onclick: () => act(G, { type: 'runes-target', target: o.key }) }, o.label)))));
+    else if (p?.type === 'runes-target') out.push(runesSheet(G, p));
     else if (p?.type === 'learn-spell') out.push(learnSheet(G, p));
-    else if (p?.type === 'phase-pick' && G.ui.pickAct) out.push(pickSheet(G, p));
-    else if (p?.type === 'enchant-choice') {
-        const chitOpts = p.options.filter(x => (x.kind ?? 'chit') === 'chit'), tileOpts = p.options.filter(x => x.kind === 'tile');
-        const tile = tileOpts[0]?.tile, here = tile ? G.st.placements.find(x => x.id === tile) : null;
-        const other = here ? (here.side === 'enchanted' ? 'normal' : 'enchanted') : null;
-        const cols = other ? [...new Set(G.data.tile(tile).sides[other].clearings.flatMap(c => c.magic ?? []))].map(c => c[0].toUpperCase() + c.slice(1)) : [];
-        out.push(modal(G, 'Enchant', h('div', { class: 'restsheet' },
-            ask('Which Magic chit will you enchant?', 'It turns over to its colour and stays enchanted until you play it. A colour chit supplies that colour of magic to your own spells, and is used up when played.'),
-            h('div', { class: 'chitgrid' }, ...G.st.ch.chits.map(c => {
-                const o = chitOpts.find(x => x.chit === c.id);
-                const label = c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`;
-                return h('button', { class: `chit2 ${c.type} ${c.state}${o ? ' pick' : ' off'}`, 'data-enchant-chit': c.id, disabled: !o || null, onclick: () => act(G, { type: 'enchant-choice', chit: c.id, kind: 'chit' }) },
-                    h('b', {}, label), h('span', {}, '*'.repeat(c.effort) || ' '), h('small', {}, o ? o.color : c.type === 'magic' ? 'Magic' : c.type === 'move' ? 'Move' : 'Fight'));
-            })),
-            tileOpts.length ? h('div', { class: 'tileenchant' },
-                h('h3', {}, `Or enchant the tile: ${tileName(tile)}`),
-                h('p', { class: 'hint' }, `Turn ${tileName(tile)} to its ${other} side. ${other === 'enchanted' ? `Its clearings then hold ${cols.length ? cols.join(', ') : 'colours of'} magic for everyone, and some of its roads change.` : 'It goes back to its ordinary side: its roads change back and its colours go.'} The Magic chit is not used up${tileOpts.some(o => o.supply) ? ' (but a colour chit that supplies the colour is)' : ''}.`),
-                ...tileOpts.map(o => h('button', { class: 'btn', 'data-enchant-tile': o.chit, onclick: () => act(G, { type: 'enchant-choice', chit: o.chit, kind: 'tile' }) }, `Use Magic ${o.numeral}${o.time}${'*'.repeat(o.effort)} (${o.color})${o.supply ? ', burning a colour chit' : ''}`))) : null)));
-    }
-    else if (p?.type === 'search-choice') out.push(modal(G, `${tableName(G, p.table)}: your choice`, h('div', {}, latestRoll(G.st) ? rollRow(latestRoll(G.st)) : null, ask(`You rolled ${p.roll.join('+')}: the table gives you a choice.`, 'This result lets you pick whichever entry of the table you want instead of the one the dice name. Choose the one that helps you most.'),
-        ...p.options.map(r => h('button', { class: 'btn', onclick: () => act(G, { type: 'search-choice', result: r }) }, r)),
-        ...hereBlocks(G))));
+    else if (p?.type === 'phase-pick' && G.ui.pickAct && G.ui.pickAct !== 'move') out.push(pickSheet(G, p));
+    else if (p?.type === 'enchant-choice') out.push(enchantSheet(G, p));
+    else if (p?.type === 'search-choice') out.push(choiceSheet(G, p));
     else if (p?.type === 'trade' || p?.type === 'trade-offer') out.push(tradeSheet(G, p));
     else if (p?.type === 'hire' || p?.type === 'hire-offer') out.push(hireSheet(G, p));
     else if (G.shared && p?.type === 'meet-offer') { out.push(offerSheet(mc(G), p)); if (G.ui.sheet === 'players') out.push(playersSheet(G)); }
@@ -106,7 +86,6 @@ export function sheets(G, lookOnly = false) {
     else if (G.ui.sheet === 'leave-confirm' && G.shared) out.push(leaveSheet(tc(G), vpNow(G)));
     else if (G.ui.sheet === 'calendar') out.push(calendarSheet(G));
     else if (G.ui.sheet === 'over' && G.shared) out.push(sharedOverSheet(G));
-    else if (G.ui.sheet === 'over' || G.ui.restartVp) out.push(overSheet(G));
     else if (G.ui.sheet === 'card') out.push(modal(G, G.st.ch.name, h('div', {}, G.data.art?.cards?.[G.st.ch.id] ? h('img', { class: 'cardpic', src: G.data.art.cards[G.st.ch.id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
     else if (G.ui.sheet === 'journal' || G.ui.sheet === 'dice' || G.ui.sheet === 'log') out.push(journalSheet(G));
     else if (G.ui.sheet === 'tables') out.push(modal(G, 'Tables', h('div', { class: 'tables' },

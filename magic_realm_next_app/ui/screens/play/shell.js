@@ -1,7 +1,8 @@
 // play/shell.js: the render loop and the layout it fills: render() redraws the status strip, the tray, the sheet layer and the map; mapModel() is what the map is told to draw.
 import { earned } from '../../../engine/score.js';
 import { dayColors } from '../../../engine/spells.js';
-import { isCave, nameOfClearing, roadsFrom } from '../../../engine/world.js';
+import { isCave, nameOfClearing, roadsFrom, tileClearings, tileOf } from '../../../engine/world.js';
+import { flyTiles } from '../../../engine/magic/fly.js';
 import { h } from '../../dom.js';
 import { lastDayOf, timed } from '../../gametext.js';
 import { meetState, playerOf as playerNameOf } from '../../meet.js';
@@ -12,7 +13,8 @@ import { setStoryState } from '../../storyvoice.js';
 import { icon as dsIcon } from '../../icons.js';
 import { revealKey } from '../sharedfight.js';
 import { voidBy } from './kit.js';
-import { setMove } from './plan.js';
+import { act } from './actions.js';
+import { setFly, setMove } from './plan.js';
 import { maybeShowDraw, maybeShowFightOver, sharedCamera, showPlayer } from './shared.js';
 import { sheets } from './sheets.js';
 import { doneLoading } from './states.js';
@@ -81,6 +83,8 @@ export function mapModel(G) {
             if (G.ui.sheet === 'plan' && G.st.pending?.type === 'plan' && G.ui.draft) {
                 // planning: a tap on a clearing next to where this phase starts sets the move; any other tap just looks at that clearing
                 const i = G.ui.planStep;
+                // Fly: a tap on any clearing of a ringed tile chooses that tile
+                if (i != null && (G.ui.pickFly === i || (G.ui.draft.slots[i]?.act === 'fly' && !G.ui.draft.slots[i].to))) { const t = tileOf(id); if (flyTiles(G.st, G.data).includes(t)) { setFly(G, i, t); return; } }
                 const wantsMove = i != null && (G.ui.pickMove === i || (G.st.ch.onRoad && i === 0));
                 // only a clearing that is ringed can be chosen: the same list the ring is drawn from (so no cave in a sunlight phase, and nothing that would wipe the later phases)
                 if (wantsMove && (G.ui.moveTargets.includes(id) || G.ui.moveMaybe.includes(id))) { setMove(G, i, id); return; }
@@ -89,6 +93,7 @@ export function mapModel(G) {
                 clearPin(G);
                 G.ui.sel = id; G.ui.peek = true; render(G); return;
             }
+            if (G.st.pending?.type === 'phase-pick' && G.ui.pickAct === 'move' && (G.st.pending.moves ?? []).includes(id)) { G.ui.pickAct = null; act(G, { type: 'pick', slot: { act: 'move', to: id } }); return; }          // Prophecy: the Move is chosen on the map
             clearPin(G); G.ui.sel = id; G.ui.sheet = 'clearing'; render(G);
         },
         party: G.shared ? partyMarkers(G.crew) : undefined, tagged: G.shared ? G.ui.tag : undefined,
@@ -132,6 +137,8 @@ function overlayFor(G) {
         const d = G.ui.draft, i = G.ui.planStep, stops = [];
         for (const s of d.slots) if (s?.act === 'move' && s.to && s.to !== stops.at(-1)) stops.push(s.to);          // (a climb's two Moves are one stop)
         if (stops.length) route = [hero, ...stops];
+        const fi = G.ui.pickFly ?? (d.slots[i]?.act === 'fly' && !d.slots[i].to ? i : null);
+        if (fi != null && fi === i) for (const t of flyTiles(st, G.data)) { const c = tileClearings(st, G.data, t)[0]; if (c) rings.push({ id: c, kind: d.slots[i]?.to === t ? 'chosen' : 'legal' }); }
         if (i != null && (G.ui.pickMove === i || (st.ch.onRoad && i === 0))) {
             const monsAt = new Set(st.mons.filter(m => !m.dead && !m.hired && m.loc?.c).map(m => m.loc.c));
             const cur = d.slots[i]?.act === 'move' ? d.slots[i].to : null;
@@ -139,6 +146,8 @@ function overlayFor(G) {
             for (const id of G.ui.moveMaybe) rings.push({ id, kind: 'maybe' });
             for (const id of dimWhy(G, i).keys()) rings.push({ id, kind: 'illegal' });
         }
+    } else if (p?.type === 'phase-pick' && G.ui.pickAct === 'move') {
+        for (const id of p.moves ?? []) rings.push({ id, kind: 'legal' });
     } else if (p?.type === 'phase' && st.plan?.[p.i]?.act === 'move' && st.plan[p.i].to) {
         route = [hero, st.plan[p.i].to]; rings.push({ id: st.plan[p.i].to, kind: 'legal' });
     }

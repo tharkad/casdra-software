@@ -1,9 +1,28 @@
-// The pieces of the game screen that exist only at a SHARED table: the players strip, the "who are we waiting for" banner, the draw of the chits, the roster of a clearing.
-// Builders only: game.js owns the state and passes in what each needs (people from party.js, the view, callbacks).
+// The pieces of the game screen that exist only at a SHARED table: the players strip, the "who are we waiting for" card, the draw of the chits, the roster of a clearing.
+// Builders only: game.js owns the state and passes in what each needs (people from party.js, the view, callbacks). Markup is the design system's (css/ds-shared.css, mockup 07):
+// `.ds-pchip` chips, `.ds-wait` card, `.ds-draw` tiles. The legacy class names (`pchip`, `waitcard`, `chit`, ...) stay on the new elements as test hooks.
 import { h, sv } from './dom.js';
+import { ask, btn, primary } from './ds.js';
+import { icon } from './icons.js';
 import { shapeEl, statusLine, tagText, waitingText, joinNames } from './party.js';
 import { nameOfClearing } from '../engine/world.js';
-import { logText } from './voice.js';
+import { isStory, logText } from './voice.js';
+
+/** What a character gained, as a tag in the score's colour: icon, number and the word ("+7 Notoriety", "+12 gold"): never colour alone. */
+const GAIN_WORD = { fame: 'Fame', notor: 'Notoriety', gold: 'gold' }, GAIN_ICON = { fame: 'star', notor: 'flame', gold: 'coin' };
+export const gainChip = (kind, n, plus = true) => h('span', { class: `ds-tag sf-chip gain-chip ${kind} ${kind === 'notor' ? 'notoriety' : kind}` }, icon(GAIN_ICON[kind]), `${plus ? '+' : ''}${n} ${GAIN_WORD[kind]}`);
+
+/** The design system's ask (one situation line, one why), with the legacy `data-ask` hook the phone tests read. */
+export function askBox(situation, why = '') { const e = ask(situation, why); e.dataset.ask = ''; return e; }
+
+const SHAPE_CLS = { square: 'sq', diamond: 'di', triangle: 'tri' };
+
+/** A player's counter as a small HTML badge: the same colour, shape and letter as on the map (`--pc` is the seat colour). A fallen character is a cross. */
+export function pcEl(p, { size = 26, cls = '' } = {}) {
+    const shape = SHAPE_CLS[p?.shape] ?? '';
+    return h('span', { class: `ds-pc${shape ? ` ${shape}` : ''}${p?.dead ? ' dead' : ''}${cls ? ` ${cls}` : ''}`, 'aria-hidden': 'true',
+        style: `--pc:${p?.color ?? '#8f8872'};width:${size}px;height:${size}px;font-size:${Math.round(size * 0.54)}px${shape === 'tri' ? `;padding-top:${Math.round(size * 0.22)}px` : ''}` }, p?.dead ? '×' : (p?.letter ?? '?'));
+}
 
 /** A counter as a small inline SVG: the same shape, colour and letter as on the map. `hollow` for a hidden character (R-1), a cross for a fallen one. */
 export function counterIcon(p, size = 22) {
@@ -14,54 +33,66 @@ export function counterIcon(p, size = 22) {
         body, sv('text', { 'text-anchor': 'middle', dy: '.36em', 'font-size': r * 1.3, 'font-weight': 800, 'font-family': 'var(--font-display)', fill: hid ? p.color : '#14161e' }, p.dead ? '×' : p.letter));
 }
 
-/** The players strip: one chip per player, the thumb-zone answer to "who is doing what". Each chip: counter, name, status, and the turn number once the chits are drawn.
- * The one the game is waiting on is lit; a player who is away shows a dim dot and the word "away". Tap a chip to see that player on the map. */
-export function playersStrip(people, { onTap, waitingIds = new Set(), meetIds = new Set() } = {}) {
-    return h('div', { class: `pstrip n${people.length}`, role: 'list', 'aria-label': 'Players', 'data-strip': '' },
-        ...people.map(p => h('button', { class: `pchip ${p.status}${p.mine ? ' me' : ''}${waitingIds.has(p.id) ? ' lit' : ''}${p.away ? ' away' : ''}${p.autopilot ? ' autopilot' : ''}${p.left ? ' left' : ''}${meetIds.has(p.id) ? ' meet' : ''}`, role: 'listitem', 'data-player': p.player, 'data-status': p.left ? 'left' : p.autopilot ? 'autopilot' : p.away ? 'away' : p.status, 'data-char': p.id, 'data-meetable': meetIds.has(p.id) ? '1' : null,
-            'aria-label': `${p.player}${p.mine ? ' (you)' : ''}, ${p.character}: ${statusLine(p)}${p.turnNo ? `, turn ${p.turnNo}` : ''}${meetIds.has(p.id) ? '. Tap to meet' : ''}`, onclick: () => onTap?.(p) },
-            h('span', { class: 'pc-ico' }, counterIcon(p, 26), p.turnNo ? h('i', { class: 'pc-no', 'aria-hidden': 'true' }, String(p.turnNo)) : null),
-            h('span', { class: 'pc-txt' }, h('b', {}, p.mine ? `${p.player}` : p.player), h('small', {}, p.mine && p.status === 'playing' ? 'your turn' : statusLine(p))),
-            meetIds.has(p.id) ? h('i', { class: 'pc-meet', 'aria-hidden': 'true' }, '\u21C4') : null,
-            h('i', { class: `pdot${p.present ? ' on' : ''}`, 'aria-label': p.present ? 'here now' : 'away' }))));
+/** The players strip: one chip per player (44+ tall; 3 or 4 fit at 360): colour, shape and letter, what he is doing in words, a presence dot, the turn number once the chits are drawn.
+ * The one the game is waiting on is lit; a player who is away shows a grey dot and the word "away". Tap a chip to see that player on the map (or, if he can be met, to meet him). */
+export function playersStrip(people, { onTap, waitingIds = new Set(), meetIds = new Set(), fight = false } = {}) {
+    return h('div', { class: `ds-players pstrip n${people.length}`, role: 'list', 'aria-label': fight ? 'In the fight' : 'Players', 'data-strip': '' },
+        ...people.map(p => {
+            const word = p.mine && p.status === 'playing' && !p.fight ? 'your turn' : statusLine(p), lit = waitingIds.has(p.id) || p.status === 'playing';
+            return h('button', { type: 'button', class: `ds-pchip pchip ${p.status}${p.mine ? ' me' : ''}${lit ? ' now lit' : ''}${p.away ? ' away' : ''}${p.autopilot ? ' autopilot' : ''}${p.left ? ' left' : ''}${p.dead ? ' dead' : ''}${meetIds.has(p.id) ? ' meet' : ''}`,
+                role: 'listitem', 'data-player': p.player, 'data-status': p.left ? 'left' : p.autopilot ? 'autopilot' : p.away ? 'away' : p.status, 'data-char': p.id, 'data-meetable': meetIds.has(p.id) ? '1' : null,
+                'aria-label': `${p.player}${p.mine ? ' (you)' : ''}, ${p.character}: ${statusLine(p)}${p.turnNo ? `, turn ${p.turnNo}` : ''}${meetIds.has(p.id) ? '. Tap to meet' : ''}`, onclick: () => onTap?.(p) },
+                pcEl(p),
+                h('span', { class: 't' }, h('span', { class: 'nm' }, h('b', {}, p.player), p.turnNo ? h('em', { class: 'turn', 'aria-hidden': 'true' }, String(p.turnNo)) : null), h('span', { class: 'st' }, word)),
+                h('i', { class: `on pdot${p.present ? '' : ' away'}`, 'aria-label': p.present ? 'here now' : 'away' }));
+        }));
 }
 
-/** The banner a player sees instead of the phase buttons when it is not his move. Situation first, then why, then (for a turn in progress) the public lines streaming in. */
-export function waitBanner(sit, { feed = [], orderLine = null, onSeeMap = null } = {}) {
-    const lines = feed.slice(-4);
+/** What someone did in plain sight, one line, in the voice the player chose. `l` is { s?, t, id? }; `people` maps a character to the badge. */
+const feedText = l => (isStory() ? (l.s ?? l.t) : l.t);
+export function feedList(feed, people = []) {
+    const byId = new Map(people.map(p => [p.id, p]));
+    return h('ul', { class: 'ds-feed wc-feed', 'aria-live': 'polite', 'data-feed': '' }, ...feed.map((l, i) => {
+        const p = l.id ? byId.get(l.id) : null;
+        return h('li', { class: i === feed.length - 1 ? 'new' : '' }, p ? pcEl(p, { size: 22 }) : h('span', { class: 'ds-pc wild', 'aria-hidden': 'true' }, '·'), h('span', {}, feedText(l)));
+    }));
+}
+
+/** The card a player sees instead of the phase buttons when it is not his move: what is going on and why he cannot act (one line each), then, for a turn in progress, the public lines streaming in.
+ * No button: he cannot proceed, and the card says so. */
+export function waitBanner(sit, { feed = [], orderLine = null } = {}) {
+    const lines = feed.slice(-3);
+    // "Planned." + "Waiting for Ann and Tom." read as one sentence; a longer title stands alone and the text goes under it
+    const merge = sit.text && /^(Planned|Waiting|Watching)\.$/.test(sit.title);
+    const title = merge ? `${sit.title} ${sit.text}` : sit.title, sub = [merge ? '' : sit.text, sit.why].filter(Boolean).join(' ');
     return h('div', { class: `waitcard ${sit.kind}`, role: 'status', 'data-wait': sit.kind },
-        h('div', { class: 'wc-head' },
-            sit.active ? counterIcon(sit.active, 30) : sit.me ? counterIcon(sit.me, 30) : null,
-            h('div', { class: 'wc-main' }, h('b', { class: 'wc-title' }, sit.title), sit.text ? h('p', { class: 'wc-text' }, sit.text) : null)),
-        sit.why ? h('p', { class: 'wc-why' }, sit.why) : null,
-        lines.length ? h('div', { class: 'wc-feed', 'aria-live': 'polite' }, ...lines.map((l, i) => h('p', { class: i === lines.length - 1 ? 'new' : '' }, l.s ?? l.t))) : null,
-        orderLine ? h('p', { class: 'wc-order', 'data-order': '' }, orderLine) : null);
+        h('div', { class: 'ds-wait' }, h('span', { class: 'pulse', 'aria-hidden': 'true' }),
+            h('div', { class: 'wc-main' }, h('b', { class: 'wc-title' }, title), sub ? h('div', { class: 'ds-meta wc-sub' }, sub) : null)),
+        lines.length ? feedList(lines, sit.people) : null);
 }
 
-/** The card for the draw of the chits (7.1.1). `step` chits are face up; each flips in turn. Result first: the dawn and the Monster Roll, then the order. */
+/** The draw of the chits (7.1.1): one tile per player turning over, one after the other (`step` are face up); each shows its number. Result first: the dawn in the story voice, then the order.
+ * Returns { eyebrow, title, body, foot } for a result sheet; `onSkip` turns every tile at once, `onDone` closes the sheet. */
 export function drawCard({ view, draw, people, step, finished, fresh, dawn, prowling, onSkip, onDone }) {
     const byId = new Map(people.map(p => [p.id, p]));
-    const rows = draw.order.map((id, k) => {
+    const tiles = draw.order.map((id, k) => {
         const p = byId.get(id), up = k < step, flipping = fresh && k === step - 1;
-        return h('li', { class: `chit${up ? ' up' : ''}${flipping ? ' flip' : ''}${p?.mine ? ' me' : ''}`, 'data-turn': k + 1, 'data-up': up ? '1' : '0' },
-            h('span', { class: 'chit-card' },
-                h('span', { class: 'chit-back', 'aria-hidden': 'true' }, h('b', {}, '✦')),
-                h('span', { class: 'chit-face' }, p ? counterIcon(p, 30) : null)),
-            h('span', { class: 'chit-who' }, up ? h('b', {}, p?.player ?? '?') : h('b', { class: 'dim' }, 'drawing…'), up ? h('small', {}, p ? p.character + (p.mine ? ' · you' : '') : '') : h('small', {}, ' ')),
-            h('span', { class: 'chit-no' }, up ? String(k + 1) : ''));
+        if (!up) return h('li', { class: 'tile chit back', 'data-turn': k + 1, 'data-up': '0' }, icon('hourglass', 'lg'), h('span', { class: 'chit-who' }, h('b', { class: 'dim' }, 'turning…'), h('small', {}, ' ')));
+        return h('li', { class: `tile chit up${flipping ? ' flip' : ''}${p?.mine ? ' me' : ''}`, 'data-turn': k + 1, 'data-up': '1' },
+            h('span', { class: 'no chit-no' }, String(k + 1)), p ? pcEl(p, { size: 34 }) : null,
+            h('span', { class: 'chit-who' }, h('b', {}, p?.player ?? '?'), h('small', { class: 'ds-meta' }, p ? p.character + (p.mine ? ' · you' : '') : '')));
     });
     const mine = people.find(p => p.mine), mineNo = mine ? draw.order.indexOf(mine.id) + 1 : 0;
-    return h('div', { class: 'drawcard', 'data-draw': String(view.day) },
-        h('div', { class: 'phase-result good', role: 'status' },
-            h('div', { class: 'pr-head' }, h('small', {}, `Dawn of day ${view.day}`)),
-            h('p', { class: 'pr-line' }, dawn ?? `Day ${view.day} dawns.`),
-            prowling ? h('p', { class: 'pr-sub' }, prowling) : null),
-        h('h3', { class: 'draw-h' }, 'The chits are drawn'),
-        h('ol', { class: 'chits' }, ...rows),
+    const story = isStory();
+    const lead = story ? [dawn ?? `Day ${view.day} dawns.`, prowling, 'Then the chits turn.'].filter(Boolean).join(' ') : [dawn ?? `Day ${view.day} dawns.`, prowling].filter(Boolean).join(' ');
+    const body = h('div', { class: 'drawcard', 'data-draw': String(view.day) },
+        h('p', { class: 'ds-voice lg draw-lead' }, lead),
+        h('ol', { class: 'ds-draw chits' }, ...tiles),
         finished ? h('div', { class: 'draw-done', 'data-draw-done': '' },
-            h('p', { class: 'draw-order' }, `Turn order today: ${draw.order.map((id, k) => `${k + 1} ${byId.get(id)?.player ?? '?'}`).join(', ')}.`),
-            h('p', { class: 'hint' }, mineNo === 1 ? 'Your chit came first: you play now.' : mineNo ? `You play ${['', '', 'second', 'third', 'fourth'][mineNo]}. Everyone plays a whole turn in this order, and the evenings follow it too.` : '')) : null,
-        h('div', { class: 'row-end' }, h('button', { class: 'btn primary', 'data-act': finished ? 'draw-ok' : 'draw-skip', onclick: finished ? onDone : onSkip }, finished ? 'To the day' : 'Skip')));
+            h('p', { class: 'ds-text draw-order' }, `Turn order today: ${draw.order.map((id, k) => `${k + 1} ${byId.get(id)?.player ?? '?'}`).join(', ')}.`),
+            mineNo ? h('p', { class: 'ds-meta hint' }, mineNo === 1 ? 'Your chit came first: you play now.' : `You play ${['', '', 'second', 'third', 'fourth'][mineNo]}. Everyone plays a whole turn in this order, and the evenings follow it too.`) : null) : null);
+    const foot = [finished ? null : btn('Skip', 'quiet', { 'data-act': 'draw-skip', onclick: onSkip }), primary('On to the day', { 'data-act': 'draw-ok', onclick: onDone })].filter(Boolean);
+    return { eyebrow: `Day ${view.day} · dawn`, title: 'The chits are drawn', body, foot };
 }
 
 /** The "who is here" section of a clearing sheet: every character standing there, public by R-1 (hidden ones are shown as such). */
@@ -72,19 +103,19 @@ export function rosterRows(people, clearing, row) {
 
 /** The players sheet: everyone, where, how they stand, who the game waits for. */
 export function playersBody(people, { view, answer, orderLine, copyInvite, rowExtra = null, foot = null }) {
-    return h('div', { class: 'racelist playerslist' },
-        orderLine ? h('p', { class: 'draw-order' }, orderLine + '.') : null,
-        answer?.paused ? h('p', { class: 'hint bad', role: 'status' }, 'The game is paused: the player it is waiting for is not here. Nothing is skipped; it goes on where it was when they come back.') : null,
-        ...people.map(p => h('div', { class: `raceplayer${p.mine ? ' me' : ''}`, 'data-char': p.id },
-            counterIcon(p, 30),
-            h('span', { class: 'rp-main' }, h('b', {}, `${p.player}${p.mine ? ' (you)' : ''}`),
-                h('small', {}, `${p.character} · ${p.dead ? 'fallen' : statusLine(p)}${p.turnNo ? ` · turn ${p.turnNo}` : ''}`),
-                h('small', {}, p.onRoad ? 'on the road' : p.flying ? 'in the air' : p.at ? `at ${nameOfClearing(p.at)}${p.hidden ? ' · hidden' : ''}` : ''),
-                p.hires ? h('small', { 'data-hires': String(p.hires) }, `${p.hires} hireling${p.hires === 1 ? '' : 's'}, theirs alone`) : null,
+    return h('div', { class: 'racelist playerslist ds-list' },
+        orderLine ? h('p', { class: 'ds-meta draw-order' }, orderLine + '.') : null,
+        answer?.paused ? h('p', { class: 'ds-hint-line bad', role: 'status' }, 'The game is paused: the player it is waiting for is not here. Nothing is skipped; it goes on where it was when they come back.') : null,
+        ...people.map(p => h('div', { class: `ds-row raceplayer${p.mine ? ' me sel' : ''}`, 'data-char': p.id },
+            pcEl(p, { size: 34 }),
+            h('span', { class: 'main rp-main' }, h('b', {}, `${p.player}${p.mine ? ' (you)' : ''}`),
+                h('span', {}, `${p.character} · ${p.dead ? 'fallen' : statusLine(p)}${p.turnNo ? ` · turn ${p.turnNo}` : ''}`),
+                h('span', {}, p.onRoad ? 'on the road' : p.flying ? 'in the air' : p.at ? `at ${nameOfClearing(p.at)}${p.hidden ? ' · hidden' : ''}` : ''),
+                p.hires ? h('span', { 'data-hires': String(p.hires) }, `${p.hires} hireling${p.hires === 1 ? '' : 's'}, theirs alone`) : null,
                 rowExtra?.(p) ?? null),
-            h('span', { class: 'rp-nums' }, `Fame ${p.fame}`, h('br'), `Notoriety ${p.notoriety}`),
-            h('i', { class: `pdot${p.present ? ' on' : ''}`, 'aria-label': p.present ? 'here now' : 'away' }))),
-        copyInvite ? h('div', {}, h('button', { class: 'btn', 'data-act': 'copy-invite', onclick: copyInvite }, 'Copy invite link')) : null,
+            h('span', { class: 'end rp-nums' }, h('span', { class: 'ds-c-fame' }, `Fame ${p.fame}`), h('span', { class: 'ds-c-notor' }, `Notoriety ${p.notoriety}`)),
+            h('i', { class: `on pdot${p.present ? '' : ' away'}`, 'aria-label': p.present ? 'here now' : 'away' }))),
+        copyInvite ? h('div', {}, h('button', { type: 'button', class: 'ds-btn sm', 'data-act': 'copy-invite', onclick: copyInvite }, 'Copy invite link')) : null,
         foot);
 }
 

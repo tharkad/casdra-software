@@ -6,6 +6,7 @@ import { upgradeState } from '../../../engine/party.js';
 import { putRecord } from '../../gamestore.js';
 import { inviteLink } from '../../online.js';
 import { observe, party } from '../../party.js';
+import { markPhase } from './result_card.js';
 import { render } from './shell.js';
 import { clearSaved, meetEnd, myId, noteError, persist, saveGame } from './state.js';
 
@@ -13,6 +14,7 @@ function commit(G, next) { G.st = next; G.ctx.state = G.st; if (!G.race && !G.sh
 
 export function act(G, action) {
     G.ui.combatMap = false; G.ui.mapPeek = false; if (action.type !== 'tidy') G.ui.tradePick = null;
+    if (action.type !== 'tidy') markPhase(G, action);                                // (a phase begins: the result card measures what it brought)
     if (action.type !== 'tidy') { G.ui.gainSeen = G.st.gainSeq ?? 0; G.ui.findSeen = G.st.findSeq ?? 0; if (G.shared) G.ui.meetSeen = meetEnd(G); }          // what he found last time is old news once he does something else
     if (G.race) { actRemote(G, action); return; }
     if (G.shared) { actShared(G, action); return; }
@@ -63,6 +65,7 @@ async function actShared(G, action) {
     G.inflight = true; G.ui.busy = true; render(G);
     try { await G.sconn.act(action); }
     catch (e) {
+        if (e.name && e.name !== 'Error') console.error('act failed:', e.stack ?? e);          // (a bug in the screen, not a refusal: keep the stack for the bug report)
         G.ui.meetSent = false;
         G.ui.toast = e.status === 409 ? 'The game had moved on; it has been brought up to date.' : e.message; render(G); setTimeout(() => { G.ui.toast = null; render(G); }, 2600);
     } finally { G.inflight = false; G.ui.busy = false; render(G); }

@@ -90,13 +90,13 @@ function subPicker(G, i, at) {
     const readyMagic = G.st.ch.chits.filter(x => x.type === 'magic' && x.state === 'active');
     if (s?.act === 'alert' && readyMagic.length) {
         const chip = (label, on, fn, key) => h('button', { type: 'button', class: `ds-chip${on ? ' on' : ''}`, 'data-alert': key, onclick: fn }, label);
-        return [h('p', { class: 'ds-hint-line' }, 'Ready your weapon, or alert a Magic chit: it acts at time 0, so it can cast against the fastest creature. It tires at Midnight if unused.'),
+        return [h('p', { class: 'ds-hint-line' }, 'Ready your weapon, or wake a Magic chit. An alerted chit acts first, and tires at Midnight if unused.'),
             h('div', { class: 'ds-chips' }, chip('Weapon', !s.magic, () => { delete s.magic; advance(G, i + 1); render(G); }, 'weapon'),
                 ...readyMagic.map(c => chip(`Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}`, s.magic === c.id, () => { s.magic = c.id; advance(G, i + 1); render(G); }, c.id)))];
     }
     if (s?.act === 'fly' || G.ui.pickFly === i) {
-        return [h('p', { class: 'ds-hint-line' }, 'Fly over which tile? A flight needs a Fly chit; you land at a clearing on that tile by a die roll, and cannot be blocked in the air.'),
-            h('div', { class: 'ds-chips' }, ...flyTiles(G.st, G.data).map(t => h('button', { type: 'button', class: `ds-chip${s?.to === t ? ' on' : ''}`, 'data-fly-tile': t, onclick: () => { d.slots[i] = { act: 'fly', to: t }; G.ui.pickFly = null; G.ui.planNote = null; advance(G, i + 1); render(G); } }, tileName(t))))];
+        return [h('p', { class: 'ds-hint-line' }, 'Take to the air: tap a ringed tile on the map. You come down in one of its clearings, and nothing can block you aloft.'),
+            h('div', { class: 'ds-chips' }, ...flyTiles(G.st, G.data).map(t => h('button', { type: 'button', class: `ds-chip${s?.to === t ? ' on' : ''}`, 'data-fly-tile': t, onclick: () => setFly(G, i, t) }, tileName(t))))];
     }
     if (s?.act === 'follow' && i === 0) return [h('div', { class: 'ds-sub-scroll' }, ...followPicker(mc(G), s, who => { d.slots = Array(9).fill(null); d.slots[0] = { act: 'follow', who }; G.ui.planNote = null; render(G); }))];
     return null;
@@ -175,6 +175,9 @@ function startButton(G, nextTo) {
 // Out on the road after running away, the first phase is not a choice: it is a Move to one of the road's two ends (rule 8.3.8). The plan starts with it filled in
 // and it cannot be cleared or turned into anything else; only which end can be changed.
 function roadLocked(G, i) { return !!G.st.ch.onRoad && i === 0; }
+
+// Fly: the tile is chosen on the map (a ring on each tile he may fly over) or by the chip fallback; the day goes on to the next phase.
+export function setFly(G, i, t) { G.ui.draft.slots[i] = { act: 'fly', to: t }; G.ui.pickFly = null; G.ui.planNote = null; advance(G, i + 1); render(G); }
 
 export function newDraft(G) { const slots = Array(9).fill(null); if (G.st.ch.onRoad) slots[0] = { act: 'move', to: G.st.ch.onRoad.to }; return { slots }; }
 
