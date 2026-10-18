@@ -1,0 +1,3 @@
+/* css/ds-map.css: owned by P5 (map polish). Empty on purpose: the foundation (P0a) only reserves the file and the link in app/index.html (after core.css, so it wins the cascade).
+   Put the P5 package's NEW css here, lifted from the map overlay classes already in core.css (.ds-ring, .ds-hero, .ds-route, .ds-stop, .ds-pin, .ds-token); mapview.js draws them. NOTE: the legacy map rules stay in css/map.css (the refactor slice); this file is for the NEW map-only rules. Core already carries the overlay vocabulary.
+   Do not edit another package's ds-*.css; if a core component needs a change, add a package-local override here with a comment. */

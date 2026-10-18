@@ -1,0 +1,3 @@
+/* css/ds-shared.css: owned by P6 (shared-realm table). Empty on purpose: the foundation (P0a) only reserves the file and the link in app/index.html (after core.css, so it wins the cascade).
+   Put the P6 package's NEW css here, lifted from mockups/ds.css "@package P6": lines 512-528, plus .ds-pc / .ds-pcm-tag (lines 579-587) and .ds-pchip .pc (line 582). NOTE: legacy shared rules stay in css/shared.css (the refactor slice).
+   Do not edit another package's ds-*.css; if a core component needs a change, add a package-local override here with a comment. */

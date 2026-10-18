@@ -1,4 +1,5 @@
 import { h, sv } from '../dom.js';
+import { bar, foot, sum } from '../front.js';
 import { EDGES, hexCenter, edgeDir, corners, worldEdge } from '../../engine/hex.js';
 import { makeRng } from '../../engine/rng.js';
 import { generateRealm, tileById } from '../../engine/mapbuild.js';
@@ -22,25 +23,39 @@ async function loadTiles() {
     return tilesCache;
 }
 
+// A small picture of the realm of one seed: the twenty tiles as coloured hexes (valley, woods, mountain, cave), for the New game wizard's realm card. Filled in once the tile list has loaded.
+export function realmThumb(seed) {
+    const el = h('span', { class: 'art ds-realmthumb', 'aria-hidden': 'true' });
+    loadTiles().then(tiles => {
+        const placements = generateRealm(tiles, makeRng(seed)).placements, R = 100;
+        let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+        const polys = placements.map(p => {
+            const [cx, cy] = hexCenter(p.q, p.r, R);
+            minX = Math.min(minX, cx - R); maxX = Math.max(maxX, cx + R); minY = Math.min(minY, cy - R * .87); maxY = Math.max(maxY, cy + R * .87);
+            return sv('polygon', { points: corners(R - 4).map(([x, y]) => `${(x + cx).toFixed(1)},${(y + cy).toFixed(1)}`).join(' '), fill: GROUP[tileById(tiles, p.id).group] ?? '#26382f' });
+        });
+        el.append(sv('svg', { viewBox: `${minX} ${minY} ${maxX - minX} ${maxY - minY}`, preserveAspectRatio: 'xMidYMid meet', width: '100%', height: '100%' }, ...polys));
+    }).catch(() => {});
+    return el;
+}
+
 export function realmScreen(ctx) {
-    const st = ctx.realm ?? (ctx.realm = { seed: 1, showHidden: true, enchanted: false, sel: null, view: null });
-    const root = h('main', { class: 'screen realm', 'data-screen': 'realm' });
+    const st = ctx.realm ?? (ctx.realm = { seed: 1, showHidden: false, enchanted: false, sel: null, view: null });
+    // This is the realm the game will be played in (the wizard's seed): the tile layout is public, so it is shown; hidden paths, secret passages and the enchanted side are not.
+    const root = h('main', { class: 'screen ds-screen ds-title flush realm', 'data-screen': 'realm' });
     const mapBox = h('div', { class: 'mapbox' });
     const sheet = h('div', { class: 'sheet', hidden: true });
-    const seedLabel = h('span', { class: 'seedlbl' });
+    const seedLabel = h('span', { class: 'ds-meta seedlbl' });
     let tiles, placements, svg, world, size = [1, 1];
 
-    const back = h('button', { class: 'back', 'aria-label': 'Back', onclick: () => ctx.go('newgame') }, '‹');
-    const btn = (label, act, fn, on) => h('button', { class: `chip${on ? ' on' : ''}`, 'data-act': act, onclick: fn }, label);
-    const dock = h('footer', { class: 'dock realm-dock' });
+    const leave = () => { if (ctx.newGame) ctx.newGame.seed = st.seed; ctx.go('newgame'); };
+    const dock = foot();
 
     function drawDock() {
         dock.replaceChildren(
-            h('div', { class: 'chips' },
-                btn('New realm', 'new', () => { st.seed = (st.seed % 9999) + 1; st.sel = null; st.view = null; rebuild(); }),
-                btn('Hidden', 'hidden', () => { st.showHidden = !st.showHidden; drawMap(); drawDock(); }, st.showHidden),
-                btn('Enchanted', 'flip', () => { st.enchanted = !st.enchanted; drawMap(); drawSheet(); drawDock(); }, st.enchanted)));
-        seedLabel.textContent = `Realm #${st.seed}`;
+            h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'another', onclick: () => { st.seed = (st.seed % 9999) + 1; st.sel = null; st.view = null; rebuild(); } }, 'Another realm'),
+            h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'use-realm', onclick: leave }, 'Use this realm'));
+        seedLabel.textContent = `Seed ${st.seed}`;
     }
 
     function pathStyle(kind) {
@@ -104,7 +119,7 @@ export function realmScreen(ctx) {
         const side = st.enchanted ? 'enchanted' : 'normal', tile = tileById(tiles, st.sel.id), def = tile.sides[side];
         const c = def.clearings.find(x => x.n === st.sel.n);
         const roads = [];
-        def.paths.filter(p => p.a === c.n || p.b === c.n).forEach(p => roads.push(`${KIND[p.kind]} to ${p.a === c.n ? p.b : p.a}${p.bridge ? ' (bridge)' : ''}`));
+        def.paths.filter(p => (p.a === c.n || p.b === c.n) && (st.showHidden || (p.kind !== 'hidden' && p.kind !== 'secret'))).forEach(p => roads.push(`${KIND[p.kind]} to ${p.a === c.n ? p.b : p.a}${p.bridge ? ' (bridge)' : ''}`));
         EDGES.forEach(name => { if (def.edges[name] === c.n) roads.push(`Road off the tile, ${name} edge`); });
         sheet.hidden = false;
         sheet.replaceChildren(
@@ -112,7 +127,7 @@ export function realmScreen(ctx) {
             h('div', { class: 'sheet-head' }, h('b', {}, `${NAMES[tile.id]} ${c.n}`), h('span', {}, `${c.type} clearing`)),
             ...(c.magic?.length ? [h('div', { class: 'hint' }, `Enchanted: ${c.magic.join(', ')} magic here`)] : []),
             h('ul', { class: 'roads' }, roads.map(r => h('li', {}, r))),
-            h('button', { class: 'btn', onclick: () => { st.sel = null; drawMap(); drawSheet(); } }, 'Close'));
+            h('button', { type: 'button', class: 'ds-btn sm', onclick: () => { st.sel = null; drawMap(); drawSheet(); } }, 'Close'));
     }
 
     // Pan with one finger, pinch with two, zoom with the wheel.
@@ -153,8 +168,8 @@ export function realmScreen(ctx) {
     }
 
     root.append(
-        h('header', { class: 'bar' }, back, h('h1', {}, 'The realm')),
-        h('div', { class: 'where' }, h('b', {}, 'Preview'), seedLabel),
+        bar('Your realm', { onBack: leave }),
+        h('div', { class: 'ds-pad ds-realmcap' }, seedLabel, h('span', { class: 'ds-meta' }, 'Pinch to look closer. Tap a clearing to see its roads.')),
         mapBox, sheet, dock);
     svg = sv('svg', { class: 'realm-svg', width: '100%', height: '100%' });
     mapBox.append(svg);

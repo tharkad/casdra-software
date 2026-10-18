@@ -1,0 +1,3 @@
+/* css/ds-combat.css: owned by P1 (combat scene). Empty on purpose: the foundation (P0a) only reserves the file and the link in app/index.html (after core.css, so it wins the cascade).
+   Put the P1 package's NEW css here, lifted from mockups/ds.css "@package P1": lines 398-448, the "P1 (combat: sizes)" block at 560-576, and 596-600 (.cb-* only). NOTE: the legacy combat css (css/combat.css and the .cb-* rules in play.css/sheets.css/shared.css) uses some of the same .cb-* names; the new rules win (they load later), delete the legacy ones you replace.
+   Do not edit another package's ds-*.css; if a core component needs a change, add a package-local override here with a comment. */

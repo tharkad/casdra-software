@@ -22,3 +22,6 @@ export function overTitle(st, dead) {
 }
 
 export const SPELLS_HOW = 'Spells you learn during the game count (starting spells do not). Reading the runes of a spell card with a Magic chit of its type can teach it to you.';
+
+// The Story voice for every log line and roll (storyvoice.js): `storyLine(entry)` is the sentence for a line without a real story, `lineFor(entry, voice)` the line to show.
+export { storyLine, lineFor, storyRoll, rollDetail, hasRealStory, crowd, setStoryState, phasePrompt, calloutLine, quietChitsLine, nativesLine, arrivalLine, blockedLine, closedInLine, turnEndStory } from './storyvoice.js';

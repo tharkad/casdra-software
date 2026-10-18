@@ -20,6 +20,17 @@ const overlapArea = (a, b) => {
 };
 const grow = (r, m) => ({ x: r.x - m, y: r.y - m, w: r.w + 2 * m, h: r.h + 2 * m });
 
+// A uniform grid of rectangles: what a candidate box overlaps is found among the few rectangles in the cells it touches, not among every rectangle on the map.
+const CELL = 40;
+class Grid {
+    constructor() { this.cells = new Map(); this.n = 0; }
+    keys(r) { const out = [], x0 = Math.floor(r.x / CELL), x1 = Math.floor((r.x + r.w) / CELL), y0 = Math.floor(r.y / CELL), y1 = Math.floor((r.y + r.h) / CELL); for (let i = x0; i <= x1; i++) for (let j = y0; j <= y1; j++) out.push(i * 100003 + j); return out; }
+    add(r) { const item = { r, id: this.n++, keys: this.keys(r) }; for (const k of item.keys) { const c = this.cells.get(k); if (c) c.push(item); else this.cells.set(k, [item]); } return item; }
+    remove(item) { for (const k of item.keys) { const c = this.cells.get(k); c.splice(c.indexOf(item), 1); } }
+    /** total overlap of r with everything in the grid */
+    area(r) { let a = 0, seen = null; for (const k of this.keys(r)) { const c = this.cells.get(k); if (!c) continue; for (const it of c) { if (it.stamp === r) continue; it.stamp = r; a += overlapArea(r, it.r); } } return a; }
+}
+
 // where the top-left corner of a column W x H goes for a side of an anchor with a clear radius r
 function corner(side, ax, ay, r, W, H, h0) {
     const d = r * 0.72;
@@ -43,14 +54,18 @@ function corner(side, ax, ay, r, W, H, h0) {
  * @returns Map id -> { boxes:[{x,y,w,h}], side, ring, leader:boolean, overlap:number }
  */
 export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anchors = [] } = {}) {
-    const fixed = obstacles.map(o => ({ x: o.x - o.r, y: o.y - o.r, w: 2 * o.r, h: 2 * o.r }));
-    const placed = [];
+    const grid = new Grid(), held = [];                       // the round things that never move, then the names placed so far (all grown by MARGIN where they are placed)
+    for (const o of obstacles) grid.add({ x: o.x - o.r, y: o.y - o.r, w: 2 * o.r, h: 2 * o.r });
     const out = new Map();
-    const areaOf = rects => {
-        let area = 0;
-        for (const r of rects) { const rr = grow(r, MARGIN); for (const o of fixed) area += overlapArea(rr, o); for (const o of placed) area += overlapArea(rr, o); }
-        return area;
+    const areaOf = rects => { let area = 0; for (const r of rects) area += grid.area(grow(r, MARGIN)); return area; };
+    // the other clearings, nearest first, for a group that must stay nearer to its own clearing than to any other (built once per group)
+    const others = new Map();
+    const othersOf = g => {
+        let l = others.get(g);
+        if (!l) { l = anchors.filter(a => a.id !== g.own).map(a => ({ x: a.x, y: a.y, dd: Math.hypot(a.x - g.ax, a.y - g.ay) })).sort((p, q) => p.dd - q.dd); others.set(g, l); }
+        return l;
     };
+    const near = (rc, px, py) => { const cx = Math.max(rc.x, Math.min(px, rc.x + rc.w)), cy = Math.max(rc.y, Math.min(py, rc.y + rc.h)); return Math.hypot(cx - px, cy - py); };
     // best column position for a list of boxes around an anchor (first fully clear candidate, else the least bad)
     const search = (g, boxes) => {
         const W = Math.max(...boxes.map(b => b.w)), H = boxes.reduce((s, b) => s + b.h, 0) + GAP * (boxes.length - 1);
@@ -62,18 +77,22 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
                 const rects = []; let yy = y;
                 for (const b of boxes) { rects.push({ x, y: yy, w: b.w, h: b.h }); yy += b.h + GAP; }
                 const area = areaOf(rects), dist = Math.hypot(x + W / 2 - g.ax, y + H / 2 - g.ay);
+                // a candidate that collides cannot win once its overlap and distance alone cost more than the best so far: the rest of its score only adds
+                if (best && area > 0 && area * 100 + dist >= best.score) continue;
                 // A name must read as belonging to its own clearing: measured from the nearest edge of the stack, it may not be closer to
                 // another clearing's centre than to its own.
                 let owned = true, excess = 0;
                 if (g.own != null && anchors.length) {
-                    const near = (rc, px, py) => { const cx = Math.max(rc.x, Math.min(px, rc.x + rc.w)), cy = Math.max(rc.y, Math.min(py, rc.y + rc.h)); return Math.hypot(cx - px, cy - py); };
+                    const list = othersOf(g);
                     for (const rc of rects) {                     // every pill of the stack, not just the stack's nearest edge
-                        const mine = near(rc, g.ax, g.ay);
-                        for (const a of anchors) if (a.id !== g.own) { const d = near(rc, a.x, a.y); if (d + 1 < mine) { owned = false; excess = Math.max(excess, mine - d); } }
+                        const mine = near(rc, g.ax, g.ay), reach = 2 * mine + Math.hypot(rc.w, rc.h);       // a clearing farther from this one than that cannot be nearer to the pill
+                        for (const a of list) { if (a.dd >= reach) break; const d = near(rc, a.x, a.y); if (d + 1 < mine) { owned = false; excess = Math.max(excess, mine - d); } }
                     }
                 }
+                if (best && area > 0 && area * 100 + dist + (owned ? 0 : 60 + excess * 2) >= best.score) continue;
                 // a counter's name belongs on its own tile: a group may carry `inside(x, y)`, and every corner of a pill that falls outside it costs
-                const outside = g.inside ? rects.reduce((n, r) => n + [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]].filter(([px, py]) => !g.inside(px, py)).length, 0) : 0;
+                let outside = 0;
+                if (g.inside) for (const r of rects) { if (!g.inside(r.x, r.y)) outside++; if (!g.inside(r.x + r.w, r.y)) outside++; if (!g.inside(r.x, r.y + r.h)) outside++; if (!g.inside(r.x + r.w, r.y + r.h)) outside++; }
                 // a name that sits close but nearer another clearing is only mildly disliked (it carries its clearing's number, and gets a thin line); it must not be pushed far away for it
                 const score = area * 100 + dist + (owned ? 0 : 60 + excess * 2) + outside * 700;
                 if (!best || score < best.score) best = { score, rects, side, ring, area, dist, W, H, owned, outside };
@@ -86,20 +105,21 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
     for (const g of order) {
         let best = search(g, g.boxes);
         let boxes = best.rects, side = best.side, ring = best.ring, area = best.area, far = best.dist > g.ar + Math.max(best.W, best.H) + 4;
-        if (g.boxes.length > 1 && (best.area > 0 || best.owned === false || best.dist > g.ar + 40)) {
-            // the stack does not fit, or only fits far off or on a neighbour's side: try its pills one by one, each wherever there is room nearest
-            const lone = []; let worst = 0, maxRing = 0, allOwned = true, far2 = 0;
+        // the stack does not fit as one column: it collides, hangs over its tile's edge, stands on a neighbour's side, or only fits far off. Try its pills one by one,
+        // each wherever there is room nearest, BEFORE the caller gives up and turns the clearing into a marker (a tall column of four does not fit a hexagon that has plenty of room)
+        if (g.boxes.length > 1 && (best.area > 0 || best.owned === false || (best.outside ?? 0) > 0 || best.dist > g.ar + 40)) {
+            const lone = []; let worst = 0, maxRing = 0, allOwned = true, far2 = 0, loneOut = 0;
             for (const b of g.boxes) {
                 const r = search(g, [b]);
-                for (const rc of r.rects) placed.push(grow(rc, MARGIN));
-                lone.push(r.rects[0]); worst += r.area; maxRing = Math.max(maxRing, r.ring);
+                for (const rc of r.rects) held.push(grid.add(grow(rc, MARGIN)));
+                lone.push(r.rects[0]); worst += r.area; maxRing = Math.max(maxRing, r.ring); loneOut += r.outside ?? 0;
                 allOwned = allOwned && r.owned !== false; far2 = Math.max(far2, r.dist);
             }
-            placed.length -= g.boxes.length;                       // they are re-added below with the rest of the bookkeeping
-            const better = worst < best.area || (worst === best.area && ((best.owned === false && allOwned) || far2 + 8 < best.dist));
-            if (better) { boxes = lone; side = 'split'; ring = maxRing; area = worst; far = true; best = { ...best, owned: allOwned }; }
+            for (const it of held.splice(0)) grid.remove(it);       // they are re-added below with the rest of the bookkeeping
+            const better = worst < best.area || (worst === best.area && ((best.owned === false && allOwned) || far2 + 8 < best.dist || (loneOut < (best.outside ?? 0) && allOwned)));
+            if (better) { boxes = lone; side = 'split'; ring = maxRing; area = worst; far = true; best = { ...best, owned: allOwned, outside: loneOut }; }
         }
-        for (const r of boxes) placed.push(grow(r, MARGIN));
+        for (const r of boxes) grid.add(grow(r, MARGIN));
         out.set(g.id, { boxes, side, ring, overlap: area, outside: best.outside ?? 0, leader: ring > 0 || far || best.owned === false || (best.outside ?? 0) > 0 });      // a name that could not stay on its tile is tied to its clearing
     }
     return out;

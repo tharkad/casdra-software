@@ -1,0 +1,3 @@
+/* css/ds-kit.css: owned by P2 (Kit / Company / Spells, trade, hire). Empty on purpose: the foundation (P0a) only reserves the file and the link in app/index.html (after core.css, so it wins the cascade).
+   Put the P2 package's NEW css here, lifted from mockups/ds.css "@package P2": lines 450-471. 
+   Do not edit another package's ds-*.css; if a core component needs a change, add a package-local override here with a comment. */

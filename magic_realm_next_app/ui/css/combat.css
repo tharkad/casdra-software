@@ -1,0 +1,47 @@
+/* css/combat.css: The first combat screen (screens/combatui.js).
+   The css/ files are CONTIGUOUS SLICES of the old single styles.css, loaded by index.html in this order (base, front, shell, combat, map, plan, sheets, play, shared).
+   Cascade order is part of the meaning: a rule that overrides an earlier rule of the same specificity must stay in a file that loads after it. Move rules between files
+   only with a screenshot diff (tools/ui_snapshots.py). New rules for a screen go at the END of the file that owns it. */
+/* ---- combat ---- */
+.combat { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; overflow-y: auto; padding: 10px var(--gutter) 16px; gap: 10px; }
+.cb-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.cb-head { flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.cb-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cb-head b { font-family: var(--font-display); font-size: 15px; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.cb-round { font-style: normal; font-size: 12.5px; letter-spacing: .04em; white-space: nowrap; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--gold-deep); color: var(--gold); }
+.cb-head .cb-peek { margin-left: auto; }
+.cb-head .peekbtn { padding: 0 9px; font-size: 14px; }
+.cb-foes { display: flex; flex-direction: column; gap: 6px; }
+.foe { border: 1px solid #5a2f2f; background: #241519; border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; font-size: 15px; }
+.foe b { font-size: 17px; } .foe span { color: var(--dim); } .foe em { font-style: normal; color: #ff9c8a; }
+.foe.target { border-color: var(--gold); }
+.cb-last { border-left: 3px solid var(--gold-deep); padding: 4px 10px; background: rgba(217, 180, 90, .06); }
+.cb-last p { margin: 2px 0; font-size: 15.5px; font-family: var(--font-text); }
+.cb-body { display: flex; flex-direction: column; gap: 10px; }
+.cb-body h3 { margin: 4px 0 0; font-family: var(--font-display); font-size: 15px; letter-spacing: .1em; text-transform: uppercase; }
+.cb-sec { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--panel); }
+.seg3 { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.seg3.wrap { display: flex; flex-wrap: wrap; border: 0; gap: 6px; }
+.segb { min-height: 46px; border: 0; border-right: 1px solid var(--line); background: var(--panel2); font-size: 15px; cursor: pointer; padding: 0 6px; }
+.seg3.wrap .segb { border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; }
+.segb.on { background: linear-gradient(180deg, #e2c068, #c19532); color: #1b1405; font-weight: 700; }
+.chitrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.chit3 { min-width: 60px; min-height: 58px; border-radius: 12px; border: 2px solid var(--line); background: var(--panel2); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; cursor: pointer; }
+.chit3 b { font-family: var(--font-display); font-size: 20px; }
+.chit3.move { border-color: #4d6a8f; } .chit3.fight { border-color: #8f4d4d; }
+.chit3.sel { box-shadow: 0 0 0 3px var(--gold); }
+.chit3[disabled] { opacity: .35; }
+.placerow { display: flex; flex-direction: column; gap: 4px; }
+.runrow { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--line); border-radius: 12px; padding: 8px; }
+.cb-go { display: flex; align-items: center; gap: 12px; }
+.cb-go .bad { color: #ff9c8a; }
+.cb-go .btn { flex: 1; }
+.cb-q p { font-family: var(--font-text); font-size: 18px; }
+.vprow { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; background: var(--panel); margin-bottom: 8px; }
+.vp-l { display: flex; flex-direction: column; min-width: 0; }
+.vp-l small { color: var(--dim); font-size: 13px; }
+.vprow .stepper { width: 190px; flex: none; }
+.vprow .step-btn { width: 44px; height: 44px; }
+.vprow .step-val b { font-size: 22px; }
+.vprow .step-val span { display: none; }
+.hint.bad { color: #ff9c8a; }

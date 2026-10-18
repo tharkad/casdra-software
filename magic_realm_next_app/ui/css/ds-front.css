@@ -1,0 +1,235 @@
+/* css/ds-front.css: owned by P3 (front door: title, new game wizard, history, settings, how to play, Play online, the shared lobby, the realm preview).
+   Lifted from mockups/ds.css "@package P3" (lines 473-495), plus what the real screens need on top of it. Loaded after core.css, so it wins the cascade.
+   Every rule here is for a ds-screen of the front door. Package-local overrides of core components are marked "(core override)". Legacy lobby rules in shared.css (P6's file) are
+   neutralised by specificity below ("legacy lobby"), not deleted. */
+
+/* ---- the screens: one night-survey ground, no gutter of their own (a bar and a body each take it) ---- */
+.ds-title { position: relative; background: radial-gradient(120% 60% at 50% 18%, #1d2236 0%, rgba(15, 17, 23, 0) 70%), url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='97' viewBox='0 0 56 97'><g fill='none' stroke='%23d9b45a' stroke-opacity='.07' stroke-width='1'><path d='M28 1 L55 16.5 L55 48.5 L28 64 L1 48.5 L1 16.5 Z'/><path d='M28 64 L28 96 M1 80.5 L28 96 L55 80.5'/></g></svg>"); }
+.ds-title.flush { padding: 0; }
+.ds-pad { padding: 0 var(--gutter) 12px; }
+.ds-grow { flex: 1; min-height: 12px; }
+.ds-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }       /* text for a reader and for the tools, not for the eye */
+.ds-q { margin: 6px 0 12px; }
+.ds-qwhy { margin: -4px 0 10px; }
+.ds-sheet-lede { margin: 4px 0 8px; }
+.ds-sheet-line { margin: 0 0 6px; }
+.ds-slot { min-height: 16px; margin: -2px 0 0; }                           /* a reserved line for a message, so the buttons never jump (review FD-22) */
+
+/* ---- the title ---- */
+.ds-title-head { flex: none; padding-top: 5vh; text-align: center; }
+.ds-edition { letter-spacing: .38em; color: var(--ink-2); }
+.emblem { width: min(40vw, 168px); margin: 4.5vh auto 2.5vh; filter: drop-shadow(0 0 18px rgba(217, 180, 90, .18)); }
+.emblem svg { display: block; width: 100%; height: auto; overflow: visible; }
+.emblem .hex { fill: none; stroke: url(#gold); stroke-width: 3; stroke-linejoin: round; }
+.emblem .hex.inner { stroke-width: 1.2; stroke-opacity: .55; }
+.emblem .paths path { fill: none; stroke: #d9b45a; stroke-width: 2.6; stroke-linecap: round; stroke-opacity: .85; }
+.emblem .clearings circle { fill: #0f1117; stroke: #f1d27f; stroke-width: 2.4; }
+.emblem .sun { fill: #f1d27f; } .emblem .moon { fill: #a39a84; }
+.ds-wordmark { margin: 0; text-align: center; line-height: 1; }
+.ds-wordmark .a { display: block; font: 600 20px/1 var(--font-display); letter-spacing: .62em; padding-left: .62em; color: var(--ink); }
+.ds-wordmark .b { display: block; margin-top: 6px; font: 700 clamp(46px, 15vw, 66px)/1 var(--font-display); letter-spacing: .06em; background: linear-gradient(180deg, #f6dc8e 0%, #d9b45a 55%, #a87a22 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.ds-tagline { margin: 14px 0 0; text-align: center; color: var(--ink-2); font-size: 18px; }
+.ds-gear { position: absolute; right: 8px; top: 6px; z-index: 2; }
+.ds-title-nav { flex: none; display: flex; flex-direction: column; gap: 12px; padding-bottom: 12px; }
+.ds-continue { min-height: 60px; }
+.ds-continue small { color: #4a3a12; font-size: 14px; opacity: 1; }
+.ds-trio-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.ds-trio { min-height: 52px; padding: 0 6px; font-size: 17px; }
+@media (max-height: 700px) { .ds-trio { min-height: 48px; } .ds-title-head { padding-top: 3vh; } }
+.ds-fine { flex: none; text-align: center; padding: 2px 0 10px; }
+.ds-fine b { color: var(--ink-2); font-weight: 600; }
+
+/* ---- the header, the ticks and the foot of a front-door screen ---- */
+.ds-barwrap { flex: none; padding: 0 var(--gutter); }
+.ds-bar { flex: none; display: flex; align-items: center; gap: 4px; min-height: 52px; }
+.ds-bar .back { width: 44px; height: 44px; margin-left: -10px; display: grid; place-items: center; color: var(--gold); font-size: inherit; }
+.ds-bar h1 { flex: 1; margin: 0; font: 600 18px/1.1 var(--font-display); letter-spacing: .12em; text-transform: uppercase; }
+.ds-bar .step { flex: none; font: 500 14px/1 var(--font-ui); color: var(--ink-3); }
+.ds-ticks { display: flex; gap: 6px; padding: 0 0 10px; }
+.ds-ticks i { flex: 1; height: 4px; border-radius: 2px; background: var(--line-2); }
+.ds-ticks i.done { background: var(--gold-lo); } .ds-ticks i.now { background: var(--gold); }
+/* the app column pads the bottom by the safe area already (base.css #app), so the foot does not add it again */
+.ds-foot { flex: none; display: flex; gap: 12px; align-items: center; padding: 10px var(--gutter) 12px; border-top: 1px solid var(--line-1); background: var(--surface-1); }
+.ds-foot .ds-btn.primary { flex: 0 1 62%; margin-left: auto; }
+.ds-foot .sum { flex: 1; min-width: 0; font: 400 14px/1.25 var(--font-ui); color: var(--ink-3); }
+.ds-foot .sum b { font-weight: 700; color: var(--ink); } .ds-foot .sum b.gold { color: var(--gold-hi); } .ds-foot .sum b.bad { color: var(--danger); }
+.ds-foot .ds-btn.quiet { padding: 0 14px; min-width: 0; white-space: normal; line-height: 1.15; }       /* a long quiet label wraps instead of squeezing the primary off the screen */
+
+@media (max-width: 374px) { .ds-bar h1 { font-size: 16px; letter-spacing: .08em; } }
+
+/* ---- the wizard ---- */
+.ds-choice-extra { display: flex; flex-direction: column; gap: 8px; margin: -2px 0 2px; padding: 10px 12px; border-left: 3px solid var(--gold-lo); border-radius: 0 var(--r-md) var(--r-md) 0; background: var(--gold-wash); }
+.ds-choice-extra .ds-stepper { justify-content: space-between; }
+.ds-choice-extra .ds-why { margin: 0; }
+.ds-stepper button:disabled { opacity: .35; }
+.ds-stepper-goal .v { flex: none; min-width: 28px; font-size: 22px; }
+.ds-goalrow { min-height: 64px; cursor: default; }
+.ds-goalrow .main b { font-size: 18px; }
+.ds-realmrow { min-height: 76px; margin-bottom: 6px; }
+.ds-realmthumb { width: 64px !important; height: 56px !important; background: #0b0d13 !important; display: grid; place-items: center; overflow: hidden; }
+.ds-realmthumb svg { display: block; padding: 3px; }
+.ds-fixed { margin: 14px 0 4px; }
+.ds-seatseg { margin: 0 0 6px; }
+.ds-seatseg .ds-why { margin: 8px 0 0; }
+/* switch rows that are the control themselves (role=switch): the whole row toggles; the (i) is its own 44px target (core override: .ds-switch-row was drawn for a row beside a button) */
+.ds-switch-row { cursor: pointer; }
+.ds-switch-row:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ds-switch-row .ds-toggle { display: block; }
+.ds-switch-row .main { padding-right: 4px; }
+.ds-switch-row .ds-sw-line { margin-top: 1px; }
+.ds-switch-row .main > b { display: flex; align-items: center; gap: 2px; }
+.ds-info { position: relative; flex: none; width: 24px; height: 24px; margin-left: 4px; display: inline-grid; place-items: center; color: var(--ink-3); border-radius: 50%; }
+.ds-info::after { content: ""; position: absolute; inset: -10px; }             /* a 44px target around a 24px glyph */
+.ds-info .ds-i { width: 18px; height: 18px; } .ds-info.on { color: var(--gold-hi); }
+.ds-rule { margin: 6px 0 0 !important; padding: 8px 10px; border-radius: var(--r-sm); border: 1px solid var(--line-1); background: var(--surface-1); font: 400 14px/1.35 var(--font-ui) !important; color: var(--ink-2) !important; }
+.ds-rule[hidden] { display: none !important; }
+/* the portrait strip and the card */
+.ds-joinbar { margin: 2px 0 0; padding: 6px 10px; border-radius: var(--r-sm); background: var(--gold-wash); color: var(--ink-2); }
+.ds-portraits { display: flex; gap: 6px; overflow-x: auto; padding: 6px 4px 8px; scrollbar-width: none; }      /* five fit at 360; more scroll; the side padding keeps the gold ring of the first and last whole */
+.ds-portraits::-webkit-scrollbar { display: none; }
+.ds-portrait { flex: 1 0 56px; min-width: 56px; max-width: 80px; display: flex; flex-direction: column; align-items: center; gap: 4px; font: 600 12px/1.1 var(--font-ui); color: var(--ink-3); text-align: center; position: relative; min-height: 44px; }
+.ds-portrait i { width: 100%; max-width: 60px; aspect-ratio: 1; border-radius: 50%; background: var(--counter-face); box-shadow: 0 0 0 2px var(--line-2); display: grid; place-items: center; overflow: hidden; font-style: normal; }
+.ds-portrait i img { width: 90%; height: 90%; object-fit: contain; }
+.ds-portrait.on { color: var(--gold-hi); } .ds-portrait.on i { box-shadow: 0 0 0 3px var(--gold), 0 0 14px rgba(241, 210, 127, .4); }
+.ds-portrait.taken i { filter: grayscale(1) brightness(.6); } .ds-portrait.taken { cursor: default; }
+.ds-who { display: flex; gap: 14px; align-items: flex-start; margin-top: 4px; }
+.ds-who-main { flex: 1; min-width: 0; }
+.ds-who-name { font-size: 22px; }
+.ds-who-tags { margin: 6px 0 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.ds-card-art { position: relative; flex: none; width: 132px; aspect-ratio: 380/600; border-radius: 12px; overflow: hidden; background-color: #000; background-position: 0 0; background-size: 200% 100%; background-repeat: no-repeat; box-shadow: 0 0 0 1.5px var(--gold-lo), 0 6px 18px rgba(0, 0, 0, .55); }
+.ds-card-art.back { background-position: 100% 0; }
+.ds-kv { display: grid; grid-template-columns: 76px 1fr; gap: 6px 10px; align-items: baseline; margin: 0; font: 400 15px/1.3 var(--font-ui); }
+.ds-kv dt { font: 600 12px/1.3 var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.ds-kv dd { margin: 0; color: var(--ink); }
+.ds-rel { grid-template-columns: 62px 1fr; }
+.ds-rel dd { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.ds-perks { margin-top: 14px; grid-template-columns: max-content 1fr; column-gap: 14px; }
+.ds-who.wide { flex-wrap: wrap; } .ds-who.wide + .ds-rel { margin-top: 12px; }
+.ds-spellq { margin: 14px 0 0; }
+.ds-spellrow { min-height: 64px; cursor: pointer; }
+.ds-spellrow:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ds-row .art.ds-spellart { width: 36px; height: 36px; background: none; box-shadow: none; }
+.ds-spellrow .main b { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
+.ds-spellrow .ds-info { width: 40px; height: 44px; margin: 0 -6px 0 0; border-radius: 0; }
+.ds-spellrow .ds-info::after { inset: 0; }
+.ds-spellrow .ds-check .ds-i { width: 16px; height: 16px; }
+.ds-printed { margin: 8px 0 0; }
+.ds-fieldgap { margin-bottom: 14px; }
+
+/* ---- history ---- */
+/* legacy .histrow (map.css, plan.css: the Journal's dice sheet still uses it) is drawn as a card with a coloured left edge; the history list's rows are .ds-hrow, so put them back (core override by specificity) */
+.ds-hrow.histrow { display: flex; flex-direction: row; justify-content: flex-start; gap: 12px; align-items: center; padding: 8px 12px; border: 1px solid var(--line-1); border-radius: var(--r-md); background: var(--surface-3); color: inherit; cursor: pointer; }
+.ds-hrow.histrow small { display: inline; font-size: inherit; margin: 0; }
+.ds-hrow { display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 8px 12px; border-radius: var(--r-md); border: 1px solid var(--line-1); background: var(--surface-3); width: 100%; text-align: left; }
+.ds-hrow .face { flex: none; width: 48px; height: 48px; border-radius: 50%; background: var(--counter-face); box-shadow: 0 0 0 2px var(--line-2); display: grid; place-items: center; overflow: hidden; }
+.ds-hrow .face img { width: 88%; height: 88%; object-fit: contain; }
+.ds-hrow .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ds-hrow .main b { font: 700 17px/1.2 var(--font-ui); } .ds-hrow .main b.bad { color: var(--danger); }
+.ds-hrow .main span { font: 400 14px/1.25 var(--font-ui); color: var(--ink-3); }
+.ds-hrow .score { flex: none; font: 700 20px/1 var(--font-display); color: var(--ink-2); } .ds-hrow .score.pos { color: var(--success); } .ds-hrow .score.neg { color: var(--danger); }
+.ds-hrow > .ds-i { flex: none; color: var(--ink-3); }
+.ds-histstrip { margin: 0 0 12px; } .ds-histstrip b.pos { color: var(--success); } .ds-histstrip b.neg { color: var(--danger); }
+.ds-saveall { margin-top: 14px; }
+.ds-skel-row { height: 68px; margin-bottom: 8px; } .ds-skel-line { height: 26px; margin-bottom: 12px; width: 70%; } .ds-skel-card { height: 160px; }
+.ds-verdict { display: flex; align-items: center; gap: 14px; }
+.ds-bignum { font-size: 44px; line-height: 1; } .ds-bignum.pos { color: var(--success); } .ds-bignum.neg { color: var(--danger); }
+.hist-detail .ds-frame.card { margin-top: 12px; }
+.ds-framegap { margin-top: 20px; }
+.ds-goals { display: flex; flex-direction: column; }
+.ds-goal { display: grid; grid-template-columns: 1fr auto 52px; gap: 10px; align-items: baseline; padding: 8px 0; border-top: 1px solid var(--line-1); font: 400 16px/1.25 var(--font-ui); color: var(--ink-2); }
+.ds-goal.met > span:first-child { color: var(--ink); } .ds-goal b { text-align: right; font-family: var(--font-display); }
+.ds-sect .ds-voice-sw { flex: none; }
+.ds-chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 8px; scrollbar-width: none; }
+.ds-chips::-webkit-scrollbar { display: none; }
+.ds-chips .ds-chip { flex: none; }
+.ds-day-head { margin: 4px 0 0; min-height: 44px; display: flex; align-items: center; justify-content: space-between; font: 600 13px/1 var(--font-display); letter-spacing: .14em; color: var(--ink-3); text-transform: uppercase; cursor: pointer; list-style: none; }
+.ds-day-head::-webkit-details-marker { display: none; }
+.ds-day-head small { font: 400 13px/1 var(--font-ui); letter-spacing: 0; text-transform: none; }
+.ds-log { display: flex; flex-direction: column; margin: 0; padding: 0; }
+.ds-log li { list-style: none; padding: 9px 0; border-top: 1px solid var(--line-1); font: 400 17px/1.35 var(--font-voice); }
+.logday { border-bottom: 1px solid var(--line-1); }
+.ds-export { margin-top: 18px; }
+.ds-export > summary { list-style: none; justify-content: space-between; }
+.ds-export > summary::-webkit-details-marker { display: none; }
+.ds-exportbody { display: flex; flex-direction: column; gap: 12px; padding-top: 8px; }
+.ds-exportbtns { display: flex; flex-wrap: wrap; gap: 8px; } .ds-exportbtns .ds-btn { flex: 1 1 140px; white-space: normal; }
+.ds-daytable > summary { min-height: 44px; display: flex; align-items: center; color: var(--ink-2); cursor: pointer; }
+.hist-checks { display: flex; flex-direction: column; gap: 8px; }
+.chk-ok { color: var(--success); margin: 0; } .chk-bad { color: var(--danger); margin: 0; }
+.hist-checks .err { margin: 4px 0; font-size: 14px; } .hist-checks .err.bug { color: var(--danger); }
+.ds-delgap { height: 28px; }
+.ds-histfoot { text-align: center; margin: 10px 0 0; }
+
+/* ---- settings, how to play ---- */
+.ds-setrow { min-height: 52px; }
+.ds-setrow .main b { font-size: 17px; }
+.ds-advanced { padding: 4px 4px 8px; }
+.ds-advanced .ds-why { margin-top: 6px; display: block; }
+.ds-about { margin: 18px 0 0; text-align: center; }
+.ds-textarea { height: auto; min-height: 120px; padding: 10px 14px; line-height: 1.3; resize: vertical; font-size: 17px; -webkit-user-select: text; user-select: text; }
+.ds-how { gap: 10px; }
+.ds-howrow { border-radius: var(--r-md); border: 1px solid var(--line-1); background: var(--surface-3); overflow: hidden; }
+.ds-howrow.on { border-color: var(--line-gold); }
+.ds-howrow .ds-row { border: 0; background: none; min-height: 68px; }
+.ds-howrow .glyph { flex: none; width: 44px; height: 44px; display: grid; place-items: center; color: var(--gold); border-radius: 50%; background: var(--gold-wash); }
+.ds-howrow .main b { font: 600 15px/1.2 var(--font-display); letter-spacing: .1em; text-transform: uppercase; }
+.ds-howrow .main span { font: 400 16px/1.3 var(--font-voice); font-style: italic; color: var(--ink-2); }
+.ds-howrow .ds-row > .ds-i { flex: none; color: var(--ink-3); }
+.ds-howbody { padding: 0 14px 14px 70px; }
+.ds-howbody h3 { margin: 10px 0 0; font: 600 12px/1.3 var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.ds-howbody p { margin: 3px 0 0; font: 400 16px/1.42 var(--font-voice); }
+
+/* ---- Play online ---- */
+.ds-startcards { margin-top: 4px; }
+.ds-startcards .ds-choice > .ds-i { flex: none; color: var(--ink-3); }
+.ds-joinrow { display: flex; gap: 10px; } .ds-joinrow .ds-btn { flex: none; }
+.ds-gameshost .ds-sect { margin-top: 22px; }
+.racerow { display: flex; gap: 6px; align-items: center; }
+.racerow .ds-hrow { flex: 1; min-width: 0; }
+.ds-gamerow.turn { border-color: var(--gold-lo); }
+.ds-forget { flex: none; color: var(--ink-3); }
+.ds-ask .ds-retry { margin-top: 6px; }
+.ds-group { padding: 12px; border-radius: var(--r-md); border: 1px solid var(--line-1); background: var(--surface-3); }
+.ds-group .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; } .ds-group .hd b { font: 700 18px/1.2 var(--font-ui); }
+.ds-invitecard .ds-text { margin: 0 0 10px; }
+.ds-playerrow { min-height: 56px; } .ds-playerrow .face { width: 40px; height: 40px; }
+.ds-invitename { margin-top: 16px; }
+.ds-advanced-online { margin-top: 22px; }
+.ds-advanced-online > summary, .ds-export > summary { cursor: pointer; }
+.ds-advanced-online > summary { list-style: none; justify-content: space-between; } .ds-advanced-online > summary::-webkit-details-marker { display: none; }
+.ds-advbody { padding: 6px 0 4px; }
+
+/* ---- the shared lobby ---- */
+.ds-lbrules { margin: 0 0 12px; } .ds-lbrules p { margin: 0 0 2px; }
+.ds-lbrules .pvp.on { color: var(--warn); }
+.ds-pc { flex: none; width: 26px; height: 26px; display: grid; place-items: center; font: 700 14px/1 var(--font-ui); color: #14161e; background: var(--pc); border-radius: 50%; }   /* same rules as the P6 block of mockups/ds.css */
+.ds-pc.sq { border-radius: 6px; } .ds-pc.di { border-radius: 0; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); } .ds-pc.tri { border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); padding-top: 6px; }
+.ds-pc.ds-empty { opacity: .35; }
+/* legacy lobby (shared.css .seatcard, .mychoice, .invite, .invitelink): same element names, drawn in the design system */
+.ds-hrow.seatcard, .ds-hrow.mychoice { padding: 8px 12px; gap: 12px; min-height: 68px; border: 1px solid var(--line-1); border-radius: var(--r-md); background: var(--surface-3); color: inherit; }
+.ds-hrow.seatcard.me { border-color: var(--gold); }
+.ds-hrow.seatcard.empty { border-style: dashed; background: transparent; }
+.ds-hrow.seatcard.empty .main b { color: var(--ink-3); }
+.ds-hrow.seatcard .main span.choosing { font-style: italic; } .ds-hrow.seatcard .main span.chosen { color: var(--ink-2); }
+.ds-seattag { margin-left: 6px; vertical-align: 1px; }
+.ds-hrow.seatcard .ds-tag { flex: none; }
+.seatlist { list-style: none; margin: 0; padding: 0; }
+.invite { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.ds-linktext { -webkit-user-select: text; user-select: text; margin: 0; padding: 8px 10px; border-radius: var(--r-sm); border: 1px solid var(--line-1); background: var(--surface-1); font: 12px/1.3 monospace; word-break: break-all; color: var(--ink-3); }
+.ds-meta.bad { color: var(--danger); }
+.ds-leave { margin-top: 18px; }
+.ds-notice { display: flex; align-items: center; gap: 8px; } .ds-notice > span { flex: 1; font: 400 15px/1.3 var(--font-voice); }
+.ds-notice .x { flex: none; width: 44px; height: 44px; margin-right: -8px; display: grid; place-items: center; color: var(--ink-3); }
+.ds-hrow.mychoice { margin-top: 12px; }
+
+/* ---- the realm preview (a map of the realm the wizard has chosen) ---- */
+.realm .mapbox { flex: 1; min-height: 0; background: #0b0d13; border-top: 1px solid var(--line-1); border-bottom: 1px solid var(--line-1); touch-action: none; position: relative; overflow: hidden; }
+.ds-realmcap { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding-bottom: 8px; }
+.realm .sheet { position: absolute; left: 0; right: 0; bottom: 78px; margin: 0 var(--gutter); padding: 10px 16px 14px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: rgba(21, 25, 37, .97); box-shadow: var(--shadow-2); display: flex; flex-direction: column; gap: 8px; z-index: 3; }
+.realm .sheet[hidden] { display: none; }
+.realm .sheet .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line-2); align-self: center; }
+.realm .sheet .sheet-head { display: flex; justify-content: space-between; align-items: baseline; }
+.realm .sheet .sheet-head b { font-family: var(--font-display); font-size: 18px; letter-spacing: .06em; }
+.realm .sheet .sheet-head span { color: var(--ink-2); font-size: 15px; }
+.realm .sheet .hint { color: var(--ink-2); font-size: 15px; }
+.roads { margin: 0; padding-left: 20px; font-family: var(--font-voice); font-size: 17px; line-height: 1.4; }

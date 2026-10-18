@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Magic Realm: design system gallery</title>
+    <!-- A developer page, not part of the game: every core component and state of the design system, built by ui/ds.js with the app's own css (the same sheets, in the same
+         order, as index.html). ?only=<stage id> shows one stage full-screen. Verified against docs/design/redesign/mockups by tools/ui_ds.py. -->
+    <link rel="stylesheet" href="ui/fonts/fonts.css">
+    <link rel="stylesheet" href="ui/css/base.css">
+    <link rel="stylesheet" href="ui/css/front.css">
+    <link rel="stylesheet" href="ui/css/shell.css">
+    <link rel="stylesheet" href="ui/css/combat.css">
+    <link rel="stylesheet" href="ui/css/map.css">
+    <link rel="stylesheet" href="ui/css/plan.css">
+    <link rel="stylesheet" href="ui/css/sheets.css">
+    <link rel="stylesheet" href="ui/css/play.css">
+    <link rel="stylesheet" href="ui/css/shared.css">
+    <link rel="stylesheet" href="ui/css/tokens.css">
+    <link rel="stylesheet" href="ui/css/core.css">
+    <link rel="stylesheet" href="ui/css/ds-combat.css">
+    <link rel="stylesheet" href="ui/css/ds-kit.css">
+    <link rel="stylesheet" href="ui/css/ds-front.css">
+    <link rel="stylesheet" href="ui/css/ds-results.css">
+    <link rel="stylesheet" href="ui/css/ds-map.css">
+    <link rel="stylesheet" href="ui/css/ds-shared.css">
+</head>
+<body>
+    <div id="gallery"></div>
+    <script type="module">
+        import './ui/channel.js';
+        import { initDs } from './ui/ds.js';
+        initDs();
+        import('./ds_gallery.js');
+    </script>
+</body>
+</html>
