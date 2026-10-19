@@ -23,7 +23,7 @@ import { spawnCompanion, companionsOf, companionInfo, planCompanions, runCompani
 import { prophecyOn, startPro, phaseOptions, consume, noteCave } from './magic/prophecy.js';
 import { magicSightOn, SIGHT_REPLACES, doMagicSight, takeChosen, perceive } from './magic/sight.js';
 import { MORPH_REFUSED } from './magic/morph.js';
-import { beginHire, hireAction, followHero, expireHires } from './hire.js';
+import { beginHire, hireAction, followHero, expireHires, dismissHire } from './hire.js';
 import { planFlyError, flySources, flyTiles, carries, startFlight, landHero } from './magic/fly.js';
 import { ownedGold } from './magic/mist.js';
 import { resolveWho, settleActor, ownerOf, withActor, isMulti as multi, livingIds, playerNameOf } from './party.js';
@@ -1125,6 +1125,13 @@ function step(st, data, action) {
         case 'energize': {
             if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'plan') throw new Error('you can only energize a spell at the start of a phase or while planning');
             energizeWith(st, data, action.fx, action.colorChit);
+            st.pending = keep(st, data, p);
+            return st;
+        }
+        case 'dismiss': {
+            // The owner's rule of play (not printed): a hired native or monster may be let go at the start of any phase; he stays where he is and is no longer yours.
+            if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'plan') throw new Error('you can only dismiss a hireling between phases');
+            dismissHire(st, data, action);
             st.pending = keep(st, data, p);
             return st;
         }

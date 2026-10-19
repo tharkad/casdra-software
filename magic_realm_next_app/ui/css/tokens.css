@@ -57,7 +57,7 @@
     --font-display: 'Cinzel', 'Trajan Pro', Georgia, serif;    /* titles, day, labels in caps, big numerals */
     --font-voice: 'Alegreya', Georgia, 'Times New Roman', serif; /* the Story voice, prompts, descriptions */
     --font-ui: 'Alegreya Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; /* buttons, rows, numbers, controls */
-    --fs-12: 12px; --fs-13: 13px; --fs-15: 15px; --fs-17: 17px; --fs-19: 19px; --fs-22: 22px; --fs-28: 28px; --fs-40: 40px;
+    --fs-12: calc(12px * var(--ts, 1)); --fs-13: calc(13px * var(--ts, 1)); --fs-15: calc(15px * var(--ts, 1)); --fs-17: calc(17px * var(--ts, 1)); --fs-19: calc(19px * var(--ts, 1)); --fs-22: calc(22px * var(--ts, 1)); --fs-28: calc(28px * var(--ts, 1)); --fs-40: calc(40px * var(--ts, 1));
     --lh-tight: 1.15; --lh-base: 1.3; --lh-read: 1.42;
     --track-caps: .14em;
     /* spacing (4pt base) */

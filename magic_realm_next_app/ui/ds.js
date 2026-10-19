@@ -144,5 +144,13 @@ export const calm = () => { try { return ['1', 'on', 'true'].includes(localStora
 export function applyCalm() { const on = calm(); if (on) document.documentElement.dataset.calm = 'on'; else delete document.documentElement.dataset.calm; return on; }
 export function setCalm(on) { try { if (on) localStorage.setItem(CALM_KEY, '1'); else localStorage.removeItem(CALM_KEY); } catch { /* ignore */ } return applyCalm(); }
 
+// ---- Text size ----
+// Every font size in the css (but the map's own, which is drawn to fit its pills) is `calc(Npx * var(--ts, 1))`; this sets --ts on <html>. Stored per channel in 'mr-text'.
+const TEXT_KEY = 'mr-text';
+export const TEXT_SIZES = [['1', 'Normal'], ['1.12', 'Large'], ['1.25', 'Largest']];
+export const textSize = () => { try { const v = localStorage.getItem(TEXT_KEY); return TEXT_SIZES.some(([k]) => k === v) ? v : '1'; } catch { return '1'; } };
+export function applyTextSize() { const v = textSize(); if (v === '1') document.documentElement.style.removeProperty('--ts'); else document.documentElement.style.setProperty('--ts', v); return v; }
+export function setTextSize(k) { try { if (k === '1') localStorage.removeItem(TEXT_KEY); else localStorage.setItem(TEXT_KEY, k); } catch { /* ignore */ } return applyTextSize(); }
+
 // Boot: called once by main.js before the first render.
-export function initDs() { applyCalm(); syncVoice(); onVoice(syncVoice); }
+export function initDs() { applyCalm(); applyTextSize(); syncVoice(); onVoice(syncVoice); }

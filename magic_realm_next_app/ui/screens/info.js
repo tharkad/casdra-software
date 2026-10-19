@@ -1,6 +1,6 @@
 import { h } from '../dom.js';
 import { icon } from '../icons.js';
-import { sheet, setCalm, calm } from '../ds.js';
+import { sheet, setCalm, calm, textSize, setTextSize, TEXT_SIZES } from '../ds.js';
 import { voice, setVoice } from '../voice.js';
 import { myName, setMyName, serverUrl, setServerUrl } from '../online.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
@@ -101,6 +101,8 @@ export function settingsScreen(ctx) {
                 h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Reading')),
                 field('Tell it as', seg([['story', 'Story'], ['detail', 'Detail']], voice(), v => { setVoice(v); redraw(); }, { label: 'Tell it as', attrOf: id => ({ 'data-voice-pick': id }) }),
                     { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'The Story is short and told in the world’s voice; Detail adds every number.') }),
+                field('Text size', seg(TEXT_SIZES, textSize(), v => { setTextSize(v); redraw(); }, { label: 'Text size', attrOf: id => ({ 'data-textsize-pick': id }) }),
+                    { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'Makes the words bigger everywhere. The map keeps its own size: pinch it to zoom.') }),
                 switchRow({ title: 'Calm motion', line: 'No gliding or flipping. The game follows your phone’s setting unless you turn this on.', on: calm(), attrs: { 'data-option': 'calm' }, onToggle: () => { setCalm(!calm()); redraw(); } }),
                 h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Online')),
                 field('Your name', nameIn),

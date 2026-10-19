@@ -29,7 +29,7 @@
 .ds-tray.shared .tray-body { max-height: calc(var(--tray-max) - 156px - 52px - var(--safe-b)); }
 .ds-tray.planning .tray-body, .ds-tray.planning.shared .tray-body { padding: 0; overflow: visible; -webkit-mask-image: none; mask-image: none; max-height: none; }
 .ds-tray .pstrip { margin: 0; background: none; }
-.ds-hint-line { margin: 0; font: 400 14px/1.3 var(--font-ui); color: var(--ink-2); }
+.ds-hint-line { margin: 0; font: 400 calc(14px * var(--ts, 1))/1.3 var(--font-ui); color: var(--ink-2); }
 .ds-hint-line.bad { color: var(--danger); }
 .ds-tray .ds-actions .ds-btn.primary .col small { color: inherit; }
 .ds-pips.many .ds-pip { width: 22px; height: 30px; } .ds-pips.many .ds-pip img { width: 16px; height: 16px; } .ds-pips.many { gap: 2px; }
@@ -46,18 +46,18 @@
 .ds-plan > * + * { margin-top: 4px; }
 .ds-plan .ds-acts.n8 .ds-act:last-child { grid-column: span 2; }
 .ds-plan .ds-acts.n10 { grid-template-columns: repeat(5, 1fr); } .ds-plan .ds-acts.n11 { grid-template-columns: repeat(4, 1fr); }
-.ds-plan .ds-acts.n10 .ds-act, .ds-plan .ds-acts.n11 .ds-act { flex-direction: column; justify-content: center; gap: 2px; min-height: 58px; padding: 0 2px; font-size: 14px; text-align: center; }
+.ds-plan .ds-acts.n10 .ds-act, .ds-plan .ds-acts.n11 .ds-act { flex-direction: column; justify-content: center; gap: 2px; min-height: 58px; padding: 0 2px; font-size: calc(14px * var(--ts, 1)); text-align: center; }
 .ds-plan .ds-act[aria-disabled] { cursor: pointer; }
 .ds-plan .ds-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .ds-plan .ds-tabs.many { gap: 3px; } .ds-plan .ds-tabs.many .ds-tab small img { display: block; }
 .ds-plan .ds-tab .ds-i { width: 16px; height: 16px; }
 .ds-plan .ds-tab { padding: 0 2px; min-width: 0; } .ds-plan .ds-tab small { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: clip; }
-.ds-plan .roadlock { display: flex; flex-direction: column; gap: 6px; } .ds-plan .roadlock .row2 { display: grid; grid-template-columns: 1fr; gap: 6px; } .ds-plan .roadlock .ds-btn { min-height: 44px; font-size: 16px; }
+.ds-plan .roadlock { display: flex; flex-direction: column; gap: 6px; } .ds-plan .roadlock .row2 { display: grid; grid-template-columns: 1fr; gap: 6px; } .ds-plan .roadlock .ds-btn { min-height: 44px; font-size: calc(16px * var(--ts, 1)); }
 
 /* ---- the sheet frame around the old sheet contents (the shim: what `.sheet2` used to give them; P2/P4 retire it screen by screen) ---- */
 .ds-sheet-body > .legacy { display: flex; flex-direction: column; gap: 10px; }
-.ds-sheet .legacy h3 { margin: 6px 0 0; font: 600 14px/1.2 var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
-.ds-sheet .legacy p { margin: 4px 0; font: 400 17px/1.35 var(--font-voice); }
+.ds-sheet .legacy h3 { margin: 6px 0 0; font: 600 calc(14px * var(--ts, 1))/1.2 var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+.ds-sheet .legacy p { margin: 4px 0; font: 400 calc(17px * var(--ts, 1))/1.35 var(--font-voice); }
 .ds-sheet .legacy .ds-btn.block { margin-top: 8px; }                      /* (DR-5: the last legacy .btn buttons of the play sheets are ds-btn now) */
 .ds-sheet .legacy .row2 { margin-top: 8px; }
 .ds-sheet .peekmap { margin-right: -6px; color: var(--gold); } .ds-sheet .peekmap .ds-i { width: 18px; height: 18px; }
@@ -78,8 +78,8 @@
 .journal .ds-found .ds-px, .journal .ds-found img { width: 32px; height: 32px; flex: none; object-fit: contain; }
 .journal .ds-found.curse { border-color: var(--danger); background: var(--danger-wash); } .journal .ds-found.curse .eyebrow { color: var(--danger); }
 .ds-log { display: flex; flex-direction: column; margin: 0; padding: 0; }
-.ds-log li { list-style: none; padding: 9px 0; border-top: 1px solid var(--line-1); display: flex; gap: 10px; font: 400 17px/1.35 var(--font-voice); }
-.ds-log li .ph { flex: none; width: 24px; font: 700 13px/22px var(--font-ui); color: var(--ink-3); text-align: center; }
+.ds-log li { list-style: none; padding: 9px 0; border-top: 1px solid var(--line-1); display: flex; gap: 10px; font: 400 calc(17px * var(--ts, 1))/1.35 var(--font-voice); }
+.ds-log li .ph { flex: none; width: 24px; font: 700 calc(13px * var(--ts, 1))/calc(22px * var(--ts, 1)) var(--font-ui); color: var(--ink-3); text-align: center; }
 .ds-log li.j-combat span:last-child { color: #f0c0a0; } .ds-log li.j-block span:last-child { color: #ff9c8a; } .ds-log li.j-trade span:last-child { color: var(--gold); }
 .journal .ds-sheet-head .ds-voice-sw { margin-right: 4px; }
 
@@ -111,7 +111,7 @@
 
 /* ---- F1: fixes from the QA-1 playtest (docs/design/redesign/QA-1.md) ---- */
 /* QA-19: on the first day the chip says "0/5" in the quiet colour: nothing has been earned yet, the number is not a penalty */
-.ds-vp.idle b { color: var(--ink-3); font-size: 16px; }
+.ds-vp.idle b { color: var(--ink-3); font-size: calc(16px * var(--ts, 1)); }
 /* QA-9: the welcome sheet is two lines of the game's voice, never an orphan */
 .welcome .ds-voice { margin: 0 0 12px; text-wrap: balance; }
 /* QA-15 (override of core.css, F1): every handle has a 44px hit area (the 14px bar is what is drawn; the area runs 18px above it and 14px below), and never shrinks in a full sheet */

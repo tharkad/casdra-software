@@ -157,3 +157,18 @@ export function expireHires(st, data) {
 export function hirelings(st) { return st.nats.filter(n => n.hired && !n.dead && mineOf(st, n)); }
 // Monsters that fight for him: controlled by a spell, or hired from a pacified kind.
 export function monsterHires(st) { return st.mons.filter(m => m.hired && !m.dead && mineOf(st, m)); }
+
+// Let a hireling go (action `dismiss` { kind: 'native' | 'monster', id }): the same state a lapsed term of hire leaves, with a line in the log.
+export function dismissHire(st, data, a) {
+    if (a.kind === 'monster') {
+        const m = st.mons.find(x => x.id === a.id && x.hired && !x.dead && mineOf(st, x));
+        if (!m) throw new Error('no such hireling');
+        m.hired = false; delete m.hiredBy; m.hiredUntil = null; m.tie = null;
+        say(st, `You send the ${data.monsters[m.id].name} away.`, 'trade');
+        return;
+    }
+    const n = st.nats.find(x => x.id === a.id && x.hired && !x.dead && mineOf(st, x));
+    if (!n) throw new Error('no such hireling');
+    n.hired = false; delete n.hiredBy;
+    say(st, `You release ${data.natives[n.id].name} from your service.`, 'trade');
+}

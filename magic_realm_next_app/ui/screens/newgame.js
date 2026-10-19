@@ -72,7 +72,7 @@ const VP_ROWS = [
 const GOAL_ORDER = ['fame', 'notoriety', 'gold', 'spells', 'great'];                 // the order of the mockup: the three scores first
 
 // The characters this build can play. Where each may begin is on his card (rules 3.3.5): the Black Knight has the Inn only, the White Knight the Inn or the Chapel. Gear is always the
-// stage-4 weapon and armor, taken from the natives' stock (3.3.2). (Captain, Amazon and Berserker run in the engine but are not offered: that is the owner's call.)
+// stage-4 weapon and armor, taken from the natives' stock (3.3.2).
 // `rel`: how each native group takes to him (2 ally, 1 friendly, -1 wary, -2 enemy), as on the character card; `perks`: what sets him apart, in a few words; `strongest`: his strongest Move chit.
 export const CHARACTERS = [
     { id: 'black-knight', name: 'Black Knight', weight: 'Heavy', strongest: 'Heavy', starts: ['Inn'], gear: 'Mace, Suit of Armor and Shield',
@@ -90,6 +90,40 @@ export const CHARACTERS = [
     { id: 'woods-girl', name: 'Woods Girl', weight: 'Light', strongest: 'Light', starts: ['Inn', 'House'], gear: 'Light Bow', her: true, spells: { n: 1, types: ['VII'] },
       rel: { Woodfolk: 2, Lancers: 1, Soldiers: -1, Warlock: -1, Bashkars: -2 },
       perks: [['Tracking', 'One die on Hide, Search and Meeting in the Woods'], ['Archer', 'One die on the Missile Table with a bow']] },
+    // The rest of the roster, drawn from data/characters.json (the printed cards): every character the engine plays is offered (the owner's call, 2026-10-18).
+    { id: 'captain', name: 'Captain', weight: 'Medium', strongest: 'Medium', starts: ['Inn', 'House', 'Guard house'], gear: 'Short Sword, Helmet, Breastplate and Shield',
+      rel: {Patrol: 1, Soldiers: 1, Guard: 1, Scholar: 1, Woodfolk: -1, Bashkars: -2},
+      perks: [['Aim','Subtract one from every Missile Table roll.'], ['Reputation','One extra phase per day, only when starting it at a dwelling.']] },
+    { id: 'amazon', name: 'Amazon', weight: 'Medium', strongest: 'Medium', starts: ['Inn'], gear: 'Short Sword, Helmet, Breastplate and Shield', her: true,
+      rel: {Lancers: 1, Patrol: 1, Shaman: 1, Company: -1, Bashkars: -1},
+      perks: [['Aim','Subtract one from every Missile Table roll.'], ['Stamina','One extra Move phase each day, even when riding.']] },
+    { id: 'berserker', name: 'Berserker', weight: 'Heavy', strongest: 'Tremendous', starts: ['Inn'], gear: 'Great Axe and Helmet',
+      rel: {Rogues: 1, Lancers: 1, Shaman: 1, Patrol: -1, Guard: -1},
+      perks: [['Robust','One extra Rest phase each day.'], ['Berserk','Playing the Berserk chit raises vulnerability to Tremendous for the day.']] },
+    { id: 'swordsman', name: 'Swordsman', weight: 'Light', strongest: 'Medium', starts: ['Inn'], gear: 'Thrusting Sword',
+      rel: {Rogues: 1, Company: 1, Warlock: 1, Patrol: -2},
+      perks: [['Barter','Roll one die on the Meeting Table, during Trade only.'], ['Clever','Chooses when to take his single Daylight turn.']] },
+    { id: 'dwarf', name: 'Dwarf', weight: 'Heavy', strongest: 'Tremendous', starts: ['Inn', 'Guard house'], gear: 'Great Axe and Helmet',
+      rel: {Company: 1, Guard: 1, Scholar: 1, Woodfolk: -1, Bashkars: -1},
+      perks: [['Short-legs','Cannot use sunlight phases; Rest counts double; Duck chit serves as a Move chit only for ducking.'], ['Cave-knowledge','In cave clearings roll one die on Search, Hide and Meeting tables.']] },
+    { id: 'elf', name: 'Elf', weight: 'Light', strongest: 'Medium', starts: ['Inn'], gear: 'Light Bow', spells: { n: 2, types: ['III', 'VII'] },
+      rel: {Woodfolk: 2, Bashkars: 1, Order: -1, Scholar: -1, Lancers: -2},
+      perks: [['Elusiveness','One extra Hide phase each day.'], ['Archer','Roll one die on the Missile Table.']] },
+    { id: 'druid', name: 'Druid', weight: 'Light', strongest: 'Light', starts: ['Inn'], gear: null, spells: { n: 2, types: ['II', 'VIII'] },
+      rel: {Bashkars: 2, Lancers: 1, Order: -1, Shaman: -1, Woodfolk: -2},
+      perks: [['Concealment','Roll one die instead of two when hiding.'], ['Peace-with-nature','At the end of his own turn, warning and sound chits in his tile do not summon.']] },
+    { id: 'magician', name: 'Magician', weight: 'Light', strongest: 'Medium', starts: ['Inn'], gear: null, spells: { n: 3, types: ['II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'] },
+      rel: {Company: 1, Rogues: 1, Patrol: -1, Soldiers: -1, Crone: -1},
+      perks: [['Magical-paraphernalia','One extra Alert phase each day.'], ['Knowledge','Subtract one from Reading Runes rolls.']] },
+    { id: 'witch', name: 'Witch', weight: 'Light', strongest: 'Medium', starts: ['Inn'], gear: null, spells: { n: 3, types: ['II', 'V', 'VIII'] }, her: true,
+      rel: {Company: 2, Bashkars: 1, Order: -1, Lancers: -1, Soldiers: -1, Shaman: -1},
+      perks: [['Knowledge','Subtract one from Reading Runes rolls.'], ['Familiar','Has an invisible companion that moves, follows and peers separately.']] },
+    { id: 'witch-king', name: 'Witch King', weight: 'Light', strongest: 'Medium', starts: ['Inn', 'Ghosts'], gear: null, spells: { n: 4, types: ['IV', 'V', 'VI'] },
+      rel: {Bashkars: 2, Company: 1, Lancers: -1, Scholar: -1, Order: -2},
+      perks: [['Disembodied','Must search with Magic Sight; carries only Negligible weight until he owns magic items.'], ['Aura-of-power','One extra spell (Enchant) phase each day.']] },
+    { id: 'pilgrim', name: 'Pilgrim', weight: 'Medium', strongest: 'Heavy', starts: ['Inn', 'Chapel'], gear: 'Staff', spells: { n: 1, types: ['I', 'VII'] },
+      rel: {Order: 2, Bashkars: -1, Company: -1, Crone: -1},
+      perks: [['Heavenly-protection','Demons and the Imp cannot attack him or be assigned to him; he can still attack them.'], ['Learning','Roll one die when Reading Runes.']] },
 ];
 // The sentence in the spell row for a character whose spells are chosen for him (and the printed rule behind it stays on the card).
 const SPELL_NOTE = { 'white-knight': 'The White Knight begins with one spell. Choose it.', wizard: 'The Wizard begins with two spells. Choose them.',
@@ -246,7 +280,9 @@ function realmStep(g, redraw, go, ctx, { shared, online }) {
 export function newGameScreen(ctx) {
     const g = ctx.newGame ?? (ctx.newGame = defaultGame());
     const root = h('main', { class: 'screen ds-screen ds-title flush newgame', 'data-screen': 'newgame' });
-    const redraw = () => { if (!root.isConnected && root.dataset.mounted) return; root.replaceChildren(...build()); const body = root.querySelector('.ds-scroll'); if (body && g._scroll) body.scrollTop = g._scroll; };
+    // The portrait strip scrolls sideways (sixteen characters): keep the chosen one in view
+    const centreChosen = r => { const strip = r.querySelector('.ds-portraits'), on = strip?.querySelector('.ds-portrait.on'); if (strip && on) strip.scrollLeft += on.getBoundingClientRect().left - strip.getBoundingClientRect().left - (strip.clientWidth - on.offsetWidth) / 2; };
+    const redraw = () => { if (!root.isConnected && root.dataset.mounted) return; root.replaceChildren(...build()); centreChosen(root); const body = root.querySelector('.ds-scroll'); if (body && g._scroll) body.scrollTop = g._scroll; };
     const online = ctx.onlineIntent ?? null;                     // set by the Play online screen: this wizard is choosing a seat in a race, or opening / joining a shared table
     const first = online && online.mode !== 'create' ? 2 : 0;    // someone joining takes the game's rules and only chooses a character and goals
     const kindOf = () => online?.kind === 'shared' ? 'shared' : 'race';

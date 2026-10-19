@@ -5,24 +5,24 @@
    only with a screenshot diff (tools/ui_snapshots.py). New rules for a screen go at the END of the file that owns it. */
 /* ---- buttons ---- */
 .btn { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: var(--tap); padding: 0 20px; border-radius: 12px; border: 1px solid var(--line);
-    background: var(--panel); font-family: var(--font-ui); font-weight: 500; font-size: 19px; letter-spacing: .02em; cursor: pointer; text-align: center; }
+    background: var(--panel); font-family: var(--font-ui); font-weight: 500; font-size: calc(19px * var(--ts, 1)); letter-spacing: .02em; cursor: pointer; text-align: center; }
 .btn:active { transform: translateY(1px); background: var(--panel2); }
 .btn.primary { background: linear-gradient(180deg, #e2c068, #c19532); border-color: #f1d27f; color: #1b1405; font-weight: 700; white-space: nowrap; }
 .btn.primary:active { background: linear-gradient(180deg, #c19532, #a87a22); }
-.btn.big { min-height: 50px; font-size: 19px; }
-.btn small { display: block; font-size: 13px; font-weight: 400; color: var(--dim); }
+.btn.big { min-height: 50px; font-size: calc(19px * var(--ts, 1)); }
+.btn small { display: block; font-size: calc(13px * var(--ts, 1)); font-weight: 400; color: var(--dim); }
 .btn.primary small { color: #4a3a12; }
 .btn .col { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
 .btn[disabled], .btn.soon { opacity: .5; cursor: default; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 /* ---- generic sub-screens ---- */
-.back { width: 44px; height: 44px; margin-left: -10px; border: 0; background: none; font-size: 30px; line-height: 1; color: var(--gold); cursor: pointer; }
-.note { margin: 10px 0; padding: 10px 12px; border-left: 3px solid var(--gold-deep); background: rgba(217, 180, 90, .07); font-family: var(--font-text); font-size: 16px; color: var(--dim); }
+.back { width: 44px; height: 44px; margin-left: -10px; border: 0; background: none; font-size: calc(30px * var(--ts, 1)); line-height: 1; color: var(--gold); cursor: pointer; }
+.note { margin: 10px 0; padding: 10px 12px; border-left: 3px solid var(--gold-deep); background: rgba(217, 180, 90, .07); font-family: var(--font-text); font-size: calc(16px * var(--ts, 1)); color: var(--dim); }
 
 /* ---- new game wizard ---- */
-.where { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; font-size: 14px; color: var(--dim); }
-.where b { font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: .1em; text-transform: uppercase; color: var(--text); }
+.where { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; font-size: calc(14px * var(--ts, 1)); color: var(--dim); }
+.where b { font-family: var(--font-display); font-weight: 600; font-size: calc(15px * var(--ts, 1)); letter-spacing: .1em; text-transform: uppercase; color: var(--text); }
 .choices { display: flex; flex-direction: column; gap: 10px; }
 .choice { display: flex; gap: 14px; align-items: flex-start; width: 100%; padding: 14px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel);
     text-align: left; cursor: pointer; font: inherit; }
@@ -30,24 +30,24 @@
 .choice .dot { flex: none; width: 22px; height: 22px; margin-top: 2px; border-radius: 50%; border: 2px solid var(--dim); }
 .choice.on .dot { border-color: var(--gold); background: radial-gradient(circle, var(--gold) 0 45%, transparent 50%); }
 .choice-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.choice-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 19px; font-weight: 700; }
-.choice-title em { font-style: normal; font-weight: 500; font-size: 14px; color: var(--gold); white-space: nowrap; }
-.choice-line { font-family: var(--font-text); font-size: 16px; line-height: 1.3; color: var(--dim); }
+.choice-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: calc(19px * var(--ts, 1)); font-weight: 700; }
+.choice-title em { font-style: normal; font-weight: 500; font-size: calc(14px * var(--ts, 1)); color: var(--gold); white-space: nowrap; }
+.choice-line { font-family: var(--font-text); font-size: calc(16px * var(--ts, 1)); line-height: 1.3; color: var(--dim); }
 .stepper { display: flex; align-items: center; gap: 6px; }
-.step-btn { width: 52px; height: 52px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); font-size: 28px; line-height: 1; color: var(--gold); cursor: pointer; }
+.step-btn { width: 52px; height: 52px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); font-size: calc(28px * var(--ts, 1)); line-height: 1; color: var(--gold); cursor: pointer; }
 .step-btn:active { background: var(--line); }
 .step-btn[disabled] { opacity: .35; cursor: default; }
 .step-val { flex: 1; text-align: center; display: flex; flex-direction: column; line-height: 1.1; }
-.step-val b { font-family: var(--font-display); font-size: 30px; font-weight: 700; color: var(--text); }
-.step-val span { font-size: 14px; color: var(--dim); }
-.hint { margin: 2px 0; font-family: var(--font-text); font-size: 15px; line-height: 1.3; color: var(--dim); }
+.step-val b { font-family: var(--font-display); font-size: calc(30px * var(--ts, 1)); font-weight: 700; color: var(--text); }
+.step-val span { font-size: calc(14px * var(--ts, 1)); color: var(--dim); }
+.hint { margin: 2px 0; font-family: var(--font-text); font-size: calc(15px * var(--ts, 1)); line-height: 1.3; color: var(--dim); }
 
 /* ---- realm viewer ---- */
 .realm-svg { display: block; touch-action: none; cursor: grab; }
 .realm-svg .hex { stroke: #0b0d13; stroke-width: 3; }
-.realm-svg .tname { font-family: var(--font-display); font-size: 9.5px; letter-spacing: .14em; fill: #ffffff; fill-opacity: .28; pointer-events: none; }
-.realm-svg .clr text { font-family: var(--font-ui); font-weight: 700; font-size: 12px; fill: #fff; pointer-events: none; }
+.realm-svg .tname { font-family: var(--font-display); font-size: calc(9.5px * var(--ts, 1)); letter-spacing: .14em; fill: #ffffff; fill-opacity: .28; pointer-events: none; }
+.realm-svg .clr text { font-family: var(--font-ui); font-weight: 700; font-size: calc(12px * var(--ts, 1)); fill: #fff; pointer-events: none; }
 .realm-svg .clr.sel circle:nth-child(2) { stroke: var(--gold); stroke-width: 3.5; }
-.chip { min-height: 44px; padding: 0 14px; border-radius: 22px; border: 1px solid var(--line); background: var(--panel); font-size: 16px; cursor: pointer; }
+.chip { min-height: 44px; padding: 0 14px; border-radius: 22px; border: 1px solid var(--line); background: var(--panel); font-size: calc(16px * var(--ts, 1)); cursor: pointer; }
 .chip.on { border-color: var(--gold); color: var(--gold); }
 .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line); align-self: center; }

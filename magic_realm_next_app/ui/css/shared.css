@@ -13,7 +13,7 @@
 @keyframes pcpulse { from { transform: scale(.85); opacity: 1; } to { transform: scale(1.9); opacity: 0; } }
 .realm-svg .pc.away .pc-shape { stroke-dasharray: 1.5 2.5; }
 .realm-svg .tag rect { fill: rgba(12, 14, 20, .95); stroke: var(--gold); stroke-width: 1; }
-.realm-svg .tag text { fill: var(--text); font-family: var(--font-ui); font-size: 8.5px; font-weight: 700; }
+.realm-svg .tag text { fill: var(--text); font-family: var(--font-ui); font-size: calc(8.5px * var(--ts, 1)); font-weight: 700; }
 .realm-svg .tag .tagtip { fill: var(--gold); stroke: none; }
 @media (prefers-reduced-motion: reduce) { .realm-svg .pc-pulse { animation: none; opacity: .8; } }
 
@@ -23,7 +23,7 @@
 /* the draw of the chits */
 .drawcard { display: flex; flex-direction: column; gap: 10px; }
 
-.ov-details.player > summary { cursor: pointer; font-size: 19px; }
+.ov-details.player > summary { cursor: pointer; font-size: calc(19px * var(--ts, 1)); }
 .ov-char { padding: 4px 0 8px 10px; border-left: 2px solid var(--line); margin: 4px 0; }
 .ov-pts.up { color: var(--moss); } .ov-pts.down { color: #e0775a; }
 
@@ -35,7 +35,7 @@
 .seatcard.empty { border-style: dashed; background: transparent; color: var(--dim); }
 .seatcard .pdot { flex: none; }
 .mychoice { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
-.mychoice .btn { min-height: 46px; padding: 0 18px; font-size: 17px; }
+.mychoice .btn { min-height: 46px; padding: 0 18px; font-size: calc(17px * var(--ts, 1)); }
 .lobby .dock { padding: 10px 0 calc(12px + var(--safe-b, 0px)); }
 .seg.seats { grid-template-columns: repeat(3, 1fr); margin: 10px 0; }
 .seg.seats + .choice { margin-top: 4px; }
@@ -43,7 +43,7 @@
 .invite { display: flex; flex-direction: column; gap: 8px; }
 .btn.quiet { background: none; }
 
-.invitelink { -webkit-user-select: text; user-select: text; margin: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); font: 13px/1.3 monospace; word-break: break-all; color: var(--dim); }
+.invitelink { -webkit-user-select: text; user-select: text; margin: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); font: calc(13px * var(--ts, 1))/1.3 monospace; word-break: break-all; color: var(--dim); }
 
 
 .crow.meet { border-left-color: var(--moss); } .crow.meet.off { opacity: .7; border-left-color: var(--dim); }
@@ -51,7 +51,7 @@
 /* chips for monsters, natives and companions carry a picture; a move target with monsters in it is ringed in red */
 .realm-svg .bicon line { stroke: #fff; stroke-width: 1.5; stroke-linecap: round; }
 .realm-svg .bicon.person { fill: #fff; }
-.realm-svg .bseg text { font-size: 8px; font-weight: 800; }
+.realm-svg .bseg text { font-size: calc(8px * var(--ts, 1)); font-weight: 800; }
 .realm-svg .targetring.danger { stroke: #ff6a4d; stroke-dasharray: 3 3; stroke-width: 3; }
 .realm-svg .dangermark circle { fill: #b32d1d; stroke: #fff; stroke-width: 1.2; }
 .realm-svg .dangermark line { stroke: #fff; stroke-width: 1.3; stroke-linecap: round; }

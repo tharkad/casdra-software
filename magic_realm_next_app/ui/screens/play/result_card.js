@@ -12,6 +12,7 @@ import { resultCard } from '../../ds.js';
 import { lineFor, lootActLine } from '../../storyvoice.js';
 import { isStory } from '../../voice.js';
 import { foundBoxes } from './journal.js';
+import { render } from './shell.js';
 import { ACT_LABEL } from './kit.js';
 import { tableName } from './phases.js';
 
@@ -113,6 +114,13 @@ export function resultCardFor(G) {
     const boxes = foundBoxes(G, box, 'dock');
     if (boxes.length) { const at = card.querySelector('.ds-ledger'); at ? at.before(...boxes) : card.append(...boxes); }
     card.dataset.story = isStory() ? '1' : '0';
+    // Getting an item shows its card at once, where it can be brought out or put away (the owner's rule: no hunting for it); once per item, and never over another sheet
+    const got = box[0]?.kind === 'item' ? box[0].item : null;
+    const auto = !navigator.webdriver || window.__mrAutoCard;          // (off for the older UI scripts, as tapguard.js is; tools/ui_autocard.py turns it on)
+    if (got && auto && G.ui.itemSeenUid !== got.uid) {
+        G.ui.itemSeenUid = got.uid;
+        setTimeout(() => { if (!G.ui.sheet && G.st.pending?.type !== 'over') { G.ui.itemUid = got.uid; G.ui.itemFrom = 'dock'; G.ui.sheet = 'item'; render(G); } }, 350);
+    }
     return card;
 }
 const cap = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);

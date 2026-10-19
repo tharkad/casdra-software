@@ -4,6 +4,7 @@
 import { hireStats, denSide } from '../../../engine/combat.js';
 import { hirelingsOf } from '../../../engine/party.js';
 import { policyBlock } from '../meetui.js';
+import { act } from '../play/actions.js';
 import { mc } from '../play/kit.js';
 import { render } from '../play/shell.js';
 import { h } from '../../dom.js';
@@ -82,6 +83,20 @@ function titleOf(G, g) {
     return h('span', {}, `${g.group} ×${rest}`, lead ? h('span', { class: 'ds-dim kit-lead' }, ' and their leader') : null);
 }
 
+// Let a hireling go (action 'dismiss', between phases only). Two taps: the first asks, the second does it, so a stray tap never costs a hireling.
+const CAN_DISMISS = new Set(['plan', 'phase', 'phase-pick']);
+function dismissRow(G, g, ctl) {
+    const key = `${g.kind}:${g.key}`, can = CAN_DISMISS.has(G.st.pending?.type), asking = G.ui.dismissAsk === key && can;
+    const who = g.members.length > 1 ? 'them' : g.kind === 'mon' ? 'it' : 'him';
+    const go = () => { G.ui.dismissAsk = null; for (const o of g.members) act(G, { type: 'dismiss', kind: g.kind === 'mon' ? 'monster' : 'native', id: o.id }); };
+    if (asking) return h('div', { class: 'kit-dismiss asking', 'data-dismiss-ask': '' },
+        h('span', { class: 'ds-why' }, `Send ${who} away for good?`),
+        h('button', { type: 'button', class: 'ds-btn sm quiet', 'data-act': 'dismiss-keep', onclick: () => { G.ui.dismissAsk = null; render(G); } }, 'Keep'),
+        h('button', { type: 'button', class: 'ds-btn sm', 'data-act': 'dismiss-go', onclick: go }, 'Let go'));
+    return h('button', { type: 'button', class: `ds-btn sm quiet kit-dismissbtn${can ? '' : ' is-dim'}`, 'data-act': 'dismiss', 'aria-disabled': can ? null : 'true',
+        onclick: () => { if (!can) { ctl.say('You can let someone go between phases, not in the middle of one.'); return; } G.ui.dismissAsk = key; render(G); } }, `Let ${who} go`);
+}
+
 function groupCard(G, g, ctl) {
     const days = g.controlled ? null : Math.min(...g.members.map(o => daysLeft(G, o))), low = days != null && days <= 3;
     const wages = g.members.reduce((n, o) => n + (isNat(G, o) ? G.data.natives[o.id].wage : (G.data.monsters[o.id].notoriety || 1)), 0);
@@ -93,7 +108,8 @@ function groupCard(G, g, ctl) {
         h('div', { class: 'cs' }, g.members.map(o => counter(G, o))),
         h('p', { class: 'ds-meta kit-orders' }, `${g.controlled ? 'Under your spell. ' : ''}${g.kind === 'mon' && g.members.length === 1 ? 'It fights' : 'They fight'} beside you without orders.${fl ? ` ${fl[0].toUpperCase()}${fl.slice(1)}.` : ''}${G.shared ? ` ${g.members.length === 1 && g.kind === 'mon' ? 'It is' : 'They are'} yours alone.` : ''}`),
         g.controlled ? null : [h('button', { type: 'button', class: 'ds-btn sm is-dim', 'data-act': 'extend', 'aria-disabled': 'true', onclick: () => ctl.say('Extending is done in a Hire phase, beside them.') }, `Extend 14 days · wages ${wages} Gold`),
-            h('div', { class: 'ds-why kit-extwhy' }, 'Extending is done in a Hire phase, beside them.')]);
+            h('div', { class: 'ds-why kit-extwhy' }, 'Extending is done in a Hire phase, beside them.'),
+            dismissRow(G, g, ctl)]);
 }
 
 // companyTab(G) -> the room's DOM

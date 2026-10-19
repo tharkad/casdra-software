@@ -8,7 +8,7 @@
 
 /* keep the whole top bar on screen with three-digit totals */
 
-.bugbtn { width: 36px; height: 36px; font-size: 18px; }
+.bugbtn { width: 36px; height: 36px; font-size: calc(18px * var(--ts, 1)); }
 
 @media (max-width: 400px) { .bugbtn { display: none; } }
 
@@ -26,8 +26,8 @@
 @media (orientation: landscape) and (pointer: coarse) and (max-height: 520px) {
     #turnup { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; text-align: center; background: #0a0c11; color: var(--text); padding: 24px; }
     #turnup div { display: flex; flex-direction: column; gap: 8px; }
-    #turnup b { font-family: var(--font-display); font-size: 24px; letter-spacing: .06em; color: var(--gold); }
-    #turnup span { color: var(--dim); font-size: 16px; }
+    #turnup b { font-family: var(--font-display); font-size: calc(24px * var(--ts, 1)); letter-spacing: .06em; color: var(--gold); }
+    #turnup span { color: var(--dim); font-size: calc(16px * var(--ts, 1)); }
 }
 
 /* your own weapon and armor as counters, below the foes */
@@ -36,16 +36,16 @@
 .foe.gear { background: var(--panel); border-color: var(--line); }
 
 .cb-victory { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; border: 2px solid #e2c068; background: rgba(226, 192, 104, .12); }
-.cb-victory b { font-size: 20px; color: #f1d27f; }
-.cb-victory span { color: var(--text); font-size: 15px; }
+.cb-victory b { font-size: calc(20px * var(--ts, 1)); color: #f1d27f; }
+.cb-victory span { color: var(--text); font-size: calc(15px * var(--ts, 1)); }
 
 .gain-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.gain-chip { padding: 3px 10px; border-radius: 999px; border: 1.5px solid; font-weight: 700; font-size: 15px; }
+.gain-chip { padding: 3px 10px; border-radius: 999px; border: 1.5px solid; font-weight: 700; font-size: calc(15px * var(--ts, 1)); }
 .gain-chip.fame { color: #7fb0ea; border-color: #7fb0ea; } .gain-chip.notoriety { color: #e0806a; border-color: #e0806a; } .gain-chip.gold { color: #f1d27f; border-color: #e2c068; }
 
 /* one box per combat round in the day overview */
 .roundbox { border: 1.5px solid var(--line); border-radius: 12px; margin: 10px 0 10px 6px; padding: 8px 10px 4px; background: rgba(255,255,255,.025); }
-.roundmark { display: inline-block; margin: -18px 0 4px -2px; padding: 0 8px; background: var(--bg); color: var(--gold); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 12.5px; }
+.roundmark { display: inline-block; margin: -18px 0 4px -2px; padding: 0 8px; background: var(--bg); color: var(--gold); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: calc(12.5px * var(--ts, 1)); }
 .roundbox p { margin: 4px 0; }
 /* the selected chit's ring sits inside its own edge, so a tile at the left of a row is not cut off by the sheet */
 .chit3.sel { box-shadow: inset 0 0 0 3px var(--gold); border-color: var(--gold); }
@@ -53,16 +53,16 @@
 
 /* death: a box nobody can miss */
 .deathbox { display: flex; flex-direction: column; gap: 6px; padding: 16px 16px; border-radius: 12px; border: 3px solid #d9574a; background: linear-gradient(180deg, rgba(217, 87, 74, .28), rgba(120, 30, 24, .22)); text-align: center; margin: 6px 0; }
-.deathbox b { font-family: var(--font-display); font-size: 28px; letter-spacing: .08em; text-transform: uppercase; color: #ffb4a8; }
-.deathbox .dwho { font-size: 18px; color: var(--text); }
-.deathbox small { color: var(--dim); font-size: 14px; }
+.deathbox b { font-family: var(--font-display); font-size: calc(28px * var(--ts, 1)); letter-spacing: .08em; text-transform: uppercase; color: #ffb4a8; }
+.deathbox .dwho { font-size: calc(18px * var(--ts, 1)); color: var(--text); }
+.deathbox small { color: var(--dim); font-size: calc(14px * var(--ts, 1)); }
 
 /* a discovered site: a gold edge round its pill (and a tick in its name) */
 .realm-svg .pill.disc rect { stroke: #f1d27f; stroke-width: 2.4; }
 
 /* curses: always in view while they last */
 
-.curserow .skull { font-size: 28px; color: #ff8aa0; flex: none; line-height: 1; }
+.curserow .skull { font-size: calc(28px * var(--ts, 1)); color: #ff8aa0; flex: none; line-height: 1; }
 
 .chip.cursed { border-color: #d0506a; text-decoration: line-through; }
 .curserow { display: flex; gap: 12px; align-items: flex-start; padding: 8px 10px; margin: 6px 0; border-left: 4px solid #d0506a; background: rgba(150, 40, 60, .15); border-radius: 8px; }
@@ -84,23 +84,23 @@
 .grab { display: flex; flex: none; flex-direction: column; align-items: center; gap: 3px; width: 100%; min-height: 36px; padding: 8px var(--gutter) 6px; border: 0; background: none; color: var(--dim); cursor: grab; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .grab:active { cursor: grabbing; }
 .grab .grip { flex: none; width: 38px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--text) 38%, transparent); }
-.grab .peek { display: none; align-items: center; gap: 8px; font-size: 13px; letter-spacing: .04em; padding: 3px 0 1px; }
+.grab .peek { display: none; align-items: center; gap: 8px; font-size: calc(13px * var(--ts, 1)); letter-spacing: .04em; padding: 3px 0 1px; }
 
-.grab .badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #e2c068; color: #1b1608; font-size: 11px; font-weight: 800; display: inline-grid; place-items: center; }
-.grab .chev { font-size: 15px; line-height: 1; transform: translateY(1px); color: var(--dim); }
+.grab .badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #e2c068; color: #1b1608; font-size: calc(11px * var(--ts, 1)); font-weight: 800; display: inline-grid; place-items: center; }
+.grab .chev { font-size: calc(15px * var(--ts, 1)); line-height: 1; transform: translateY(1px); color: var(--dim); }
 
 /* the pinned action buttons: tall enough for a thumb, no taller */
 
 /* the quiet evening that stops to ask about a spell */
 .quiet { padding: 4px 2px 2px; }
-.quiet-h { margin: 0 0 4px; font-family: var(--font-display); font-size: 20px; letter-spacing: .04em; }
-.quiet p { margin: 0; font-size: 17px; line-height: 1.35; color: var(--text); }
-.quiet-q { margin: 14px 2px 8px; font-size: 17px; color: var(--dim); }
+.quiet-h { margin: 0 0 4px; font-family: var(--font-display); font-size: calc(20px * var(--ts, 1)); letter-spacing: .04em; }
+.quiet p { margin: 0; font-size: calc(17px * var(--ts, 1)); line-height: 1.35; color: var(--text); }
+.quiet-q { margin: 14px 2px 8px; font-size: calc(17px * var(--ts, 1)); color: var(--dim); }
 .castcard { display: block; width: 100%; text-align: left; padding: 12px 14px; margin-bottom: 8px; }
 .castcard .col { display: flex; flex-direction: column; gap: 3px; }
-.castcard b { font-size: 19px; }
-.castcard .what { font-size: 16px; line-height: 1.3; }
-.castcard small { font-size: 13px; opacity: .8; }
+.castcard b { font-size: calc(19px * var(--ts, 1)); }
+.castcard .what { font-size: calc(16px * var(--ts, 1)); line-height: 1.3; }
+.castcard small { font-size: calc(13px * var(--ts, 1)); opacity: .8; }
 .quiet-no { width: 100%; min-height: 46px; background: none; }
 .castcard .what { font-weight: 400; }
 .quiet-h { margin-top: 6px; }
@@ -113,35 +113,35 @@
 /* a belonging in the list: its name, one compact switch and a quiet Leave, all on one line */
 .itemrow { grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; }
 .itemrow .btn.row { margin-top: 0; width: auto; }
-.itemrow .switch { align-self: center; height: 38px; min-width: 84px; padding: 0 12px; border-radius: 19px; font-size: 14px; }
+.itemrow .switch { align-self: center; height: 38px; min-width: 84px; padding: 0 12px; border-radius: 19px; font-size: calc(14px * var(--ts, 1)); }
 .itemrow { grid-template-columns: 1fr auto; }
 
 /* the menu is a list: left-aligned rows with a chevron, hairlines between, the one destructive row set apart */
 .menulist { display: flex; flex-direction: column; margin: 4px calc(-1 * var(--gutter)) 0; }
-.menulist .mrow { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 54px; padding: 8px var(--gutter); border: 0; border-top: 1px solid var(--line); background: none; color: var(--text); text-align: left; font-size: 17px; cursor: pointer; }
+.menulist .mrow { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 54px; padding: 8px var(--gutter); border: 0; border-top: 1px solid var(--line); background: none; color: var(--text); text-align: left; font-size: calc(17px * var(--ts, 1)); cursor: pointer; }
 .menulist .mrow:first-child { border-top: 0; }
 .menulist .mrow span.t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.menulist .mrow small { font-size: 13px; color: var(--dim); }
-.menulist .mrow .chev { color: var(--dim); font-size: 22px; line-height: 1; flex: none; }
+.menulist .mrow small { font-size: calc(13px * var(--ts, 1)); color: var(--dim); }
+.menulist .mrow .chev { color: var(--dim); font-size: calc(22px * var(--ts, 1)); line-height: 1; flex: none; }
 .menulist .mrow.danger { color: #f08a8a; }
-.menulist h4 { margin: 16px var(--gutter) 4px; font-family: var(--font-display); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); font-weight: 400; }
+.menulist h4 { margin: 16px var(--gutter) 4px; font-family: var(--font-display); font-size: calc(12px * var(--ts, 1)); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); font-weight: 400; }
 
 /* a total with its recorded part under it */
 
 /* the evening meeting's results: first on every combat step */
 .cb-results { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px; }
-.cb-results .res-h { font-family: var(--font-display); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); font-weight: 400; }
+.cb-results .res-h { font-family: var(--font-display); font-size: calc(13px * var(--ts, 1)); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); font-weight: 400; }
 .cb-results .res-row { display: flex; flex-direction: column; gap: 3px; border-left: 3px solid var(--line); padding-left: 10px; }
 .cb-results .res-row.fight { border-color: #d0506a; } .cb-results .res-row.asks { border-color: #e2c068; } .cb-results .res-row.calm { border-color: #5fb58a; }
 .cb-results .res-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.cb-results .res-top b { font-size: 17px; }
-.cb-results .res-pill { font-size: 13px; color: var(--dim); }
+.cb-results .res-top b { font-size: calc(17px * var(--ts, 1)); }
+.cb-results .res-pill { font-size: calc(13px * var(--ts, 1)); color: var(--dim); }
 .cb-results .res-row.fight .res-pill { color: #ff8aa0; } .cb-results .res-row.asks .res-pill { color: #e2c068; } .cb-results .res-row.calm .res-pill { color: #7fd0a4; }
-.cb-results .res-verdict { margin: 0; font-size: 16px; line-height: 1.3; }
-.cb-results .res-dice summary { font-size: 13px; color: var(--dim); cursor: pointer; }
+.cb-results .res-verdict { margin: 0; font-size: calc(16px * var(--ts, 1)); line-height: 1.3; }
+.cb-results .res-dice summary { font-size: calc(13px * var(--ts, 1)); color: var(--dim); cursor: pointer; }
 .cb-results.small { padding: 6px 10px; gap: 4px; }
 .cb-results.small .res-row { padding-left: 8px; }
-.cb-results.small .res-top b { font-size: 14px; }
+.cb-results.small .res-top b { font-size: calc(14px * var(--ts, 1)); }
 
 /* the clearing he is about to move to */
 .realm-svg .goingring { fill: none; stroke: var(--gold); stroke-width: 3; pointer-events: none; transform-box: fill-box; transform-origin: center; animation: going 1.4s ease-in-out infinite; }
@@ -155,43 +155,43 @@
 
 /* ---- readable descriptions: body text in boxes is never smaller than 14px, and what a creature's numbers mean is said in words ---- */
 .foe { padding: 10px 12px; gap: 3px; }
-.foe b, .cb-foes .foe b { font-size: 18.5px; line-height: 1.15; }
-.foe .sidetag { font-size: 13px; letter-spacing: .08em; }
-.foe .foe-kind { display: block; font-size: 16px; color: var(--text); margin-top: 1px; }
+.foe b, .cb-foes .foe b { font-size: calc(18.5px * var(--ts, 1)); line-height: 1.15; }
+.foe .sidetag { font-size: calc(13px * var(--ts, 1)); letter-spacing: .08em; }
+.foe .foe-kind { display: block; font-size: calc(16px * var(--ts, 1)); color: var(--text); margin-top: 1px; }
 .foe .foe-stats { display: flex; gap: 10px; margin-top: 6px; }
 .foe .fs { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 5px 8px; border-radius: 8px; background: rgba(255, 255, 255, .06); }
-.foe .fs small { font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
-.foe .fs i { font-size: 18px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; line-height: 1.15; }
+.foe .fs small { font-size: calc(12.5px * var(--ts, 1)); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.foe .fs i { font-size: calc(18px * var(--ts, 1)); font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; line-height: 1.15; }
 /* the Hits tile holds the longest words ("Tremendous 4"): it takes more of the row, and its text steps down on a narrow phone */
 .foe .fs:first-child { flex: 1.9; }
 .foe .fs:first-child i { font-size: clamp(15px, 4.6vw, 18px); }
 .foe .fs i.chg { color: #ffd27f; }
-.foe .was { font-size: 14.5px; color: var(--dim); }
-.cb-foes .foe span { font-size: 15.5px; }
+.foe .was { font-size: calc(14.5px * var(--ts, 1)); color: var(--dim); }
+.cb-foes .foe span { font-size: calc(15.5px * var(--ts, 1)); }
 .cb-foes { grid-template-columns: 1fr; gap: 8px; }
 
-.ask p { font-size: 15.5px; line-height: 1.4; } .ask b { font-size: 16.5px; }
-.ask.compact p { font-size: 14.5px; } .ask.compact b { font-size: 15.5px; }
-.card-stats, .card-note, .pitnote .pitrow { font-size: 15px; }
-.btn .col small, .btn.row .rl small, .itemrow .rl small, .castcard small, .menulist .mrow small { font-size: 14px; }
-.scorerow2 .hint { font-size: 14.5px; }
-.sc-key, .sc-title small, .sc-title em, .sc-guard small, .sc-t small, .sc-treasure > small, .sc-spell, .sc-need, .sc-good, .sc-chip { font-size: 14px; }
-.rr-what, .histrow small, .lane-h small, .lane-foe, .cb-results .res-h, .cb-results .res-pill { font-size: 14px; }
-.sr-math summary, .sr-idle summary, .storysheet summary, .res-dice summary, .storysheet .sx { font-size: 14.5px; }
-.chit2 small, .tag { font-size: 12.5px; }
-.grab .peek { font-size: 14px; }
+.ask p { font-size: calc(15.5px * var(--ts, 1)); line-height: 1.4; } .ask b { font-size: calc(16.5px * var(--ts, 1)); }
+.ask.compact p { font-size: calc(14.5px * var(--ts, 1)); } .ask.compact b { font-size: calc(15.5px * var(--ts, 1)); }
+.card-stats, .card-note, .pitnote .pitrow { font-size: calc(15px * var(--ts, 1)); }
+.btn .col small, .btn.row .rl small, .itemrow .rl small, .castcard small, .menulist .mrow small { font-size: calc(14px * var(--ts, 1)); }
+.scorerow2 .hint { font-size: calc(14.5px * var(--ts, 1)); }
+.sc-key, .sc-title small, .sc-title em, .sc-guard small, .sc-t small, .sc-treasure > small, .sc-spell, .sc-need, .sc-good, .sc-chip { font-size: calc(14px * var(--ts, 1)); }
+.rr-what, .histrow small, .lane-h small, .lane-foe, .cb-results .res-h, .cb-results .res-pill { font-size: calc(14px * var(--ts, 1)); }
+.sr-math summary, .sr-idle summary, .storysheet summary, .res-dice summary, .storysheet .sx { font-size: calc(14.5px * var(--ts, 1)); }
+.chit2 small, .tag { font-size: calc(12.5px * var(--ts, 1)); }
+.grab .peek { font-size: calc(14px * var(--ts, 1)); }
 
 
 /* the dice tray is a row: the roll (a button that opens the dice) and the Story / Detail switch */
 
-.voicechip { display: inline-flex; flex: none; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-size: 12.5px; letter-spacing: .02em; }
+.voicechip { display: inline-flex; flex: none; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-size: calc(12.5px * var(--ts, 1)); letter-spacing: .02em; }
 .voicechip .vc { border: 0; background: transparent; color: var(--dim); padding: 4px 9px; min-height: 30px; cursor: pointer; font: inherit; }
 .voicechip .vc.on { background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--gold); }
 .rr-what { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.rollrow.tale .rr-res { font-family: var(--font-text); font-size: 17px; line-height: 1.3; font-style: italic; }
+.rollrow.tale .rr-res { font-family: var(--font-text); font-size: calc(17px * var(--ts, 1)); line-height: 1.3; font-style: italic; }
 
 .res-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.cb-results .res-verdict.tale { font-family: var(--font-text); font-style: italic; font-size: 17.5px; }
+.cb-results .res-verdict.tale { font-family: var(--font-text); font-style: italic; font-size: calc(17.5px * var(--ts, 1)); }
 .cb-results .res-dice { display: flex; flex-direction: column; gap: 4px; }
 
 /* a phase the rules have already decided */
@@ -207,9 +207,9 @@
 .raceplayer { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .raceplayer.me { border-color: var(--gold-deep); }
 .raceplayer .rp-main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.raceplayer .rp-main small { color: var(--dim); font-size: 13px; }
-.raceplayer .rp-nums { font-size: 12.5px; color: var(--dim); text-align: right; max-width: 38%; }
-.invitebox { -webkit-user-select: text; user-select: text; width: 100%; margin-top: 8px; min-height: 44px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font: 13px monospace; }
+.raceplayer .rp-main small { color: var(--dim); font-size: calc(13px * var(--ts, 1)); }
+.raceplayer .rp-nums { font-size: calc(12.5px * var(--ts, 1)); color: var(--dim); text-align: right; max-width: 38%; }
+.invitebox { -webkit-user-select: text; user-select: text; width: 100%; margin-top: 8px; min-height: 44px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font: calc(13px * var(--ts, 1)) monospace; }
 .btn[hidden] { display: none; }
 
 /* ---- spells in effect ---- */
@@ -224,57 +224,57 @@
 
  
  
-.morphname { display: block; font-size: 10px; line-height: 1.1; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.morphname { display: block; font-size: calc(10px * var(--ts, 1)); line-height: 1.1; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .morphnote b { text-transform: none; }
 
 /* a clearing whose names do not fit: one marker with a chip for each kind of thing there (monsters, people, dwellings, sites, sounds) and a dotted end */
 .realm-svg .badge { cursor: pointer; }
 .realm-svg .bseg rect { stroke: #0c0e14; stroke-width: 1; }
-.realm-svg .bseg text { font-size: 8px; font-weight: 800; fill: #fff; font-family: var(--font-ui); }
+.realm-svg .bseg text { font-size: calc(8px * var(--ts, 1)); font-weight: 800; fill: #fff; font-family: var(--font-ui); }
 .realm-svg .bseg.mon rect { fill: #a33; } .realm-svg .bseg.nat rect { fill: #3d6fb8; } .realm-svg .bseg.ally rect { fill: #2f8f6a; }
 .realm-svg .bseg.dwelling rect { fill: #8a6d2c; } .realm-svg .bseg.site rect { fill: #6a4fa8; } .realm-svg .bseg.sound rect { fill: #7a5a2e; }
 .realm-svg .bseg.more rect { fill: #3a3d4e; }
 .realm-svg .bseg.warn rect { fill: #8a4a24; } .realm-svg .bseg.star rect { fill: #5b4d86; }
 .realm-svg .badge .bframe { fill: rgba(12, 14, 20, .55); stroke: rgba(255, 255, 255, .65); stroke-width: 1; stroke-dasharray: 2 2; }
 .realm-svg .badge .pillnum { fill: #0c0e14; stroke: rgba(255, 255, 255, .85); stroke-width: 1; }
-.realm-svg .badge .pillnumtxt { font-size: 8.5px; font-weight: 800; fill: #fff; font-family: var(--font-ui); }
+.realm-svg .badge .pillnumtxt { font-size: calc(8.5px * var(--ts, 1)); font-weight: 800; fill: #fff; font-family: var(--font-ui); }
 .realm-svg .names .badge[data-clearing], .realm-svg .names .badge[data-clearing] * { pointer-events: all; }
 .confirmbox { display: flex; flex-direction: column; gap: 12px; } .btn.danger { border-color: #b04a3e; color: #ff9c8a; }
 .btn, .chip, .segb { text-wrap: balance; }
-.sr-parts summary { cursor: pointer; color: var(--dim); font-size: 14.5px; margin: 6px 0 0; }
+.sr-parts summary { cursor: pointer; color: var(--dim); font-size: calc(14.5px * var(--ts, 1)); margin: 6px 0 0; }
 .sr-parts { margin: 2px 0 4px; }
-.sr-part { display: flex; justify-content: space-between; gap: 12px; padding: 5px 2px 5px 18px; font-size: 14.5px; border-bottom: 1px solid rgba(255,255,255,.06); }
+.sr-part { display: flex; justify-content: space-between; gap: 12px; padding: 5px 2px 5px 18px; font-size: calc(14.5px * var(--ts, 1)); border-bottom: 1px solid rgba(255,255,255,.06); }
 .sr-part b { font-variant-numeric: tabular-nums; }
 .sr-part.total { border-bottom: 0; color: var(--gold, #e3c36a); }
 
 /* Encounter-step belongings (CE-01): name, switch, leave */
 .gearrow { grid-template-columns: 1fr auto auto; }
-.gearrow .quiet-no { width: auto; min-height: 38px; padding: 0 12px; font-size: 14px; }
+.gearrow .quiet-no { width: auto; min-height: 38px; padding: 0 12px; font-size: calc(14px * var(--ts, 1)); }
 .gearsec .gearrow { margin-top: 6px; }
 .row-end { display: flex; justify-content: flex-end; }
 .row-end .btn { width: 62%; min-width: 180px; margin: 0; }
-.twtrow { display: flex; gap: 12px; align-items: baseline; padding: 6px 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; font-size: 15px; }
+.twtrow { display: flex; gap: 12px; align-items: baseline; padding: 6px 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; font-size: calc(15px * var(--ts, 1)); }
 .twtrow b { min-width: 1.2em; font-variant-numeric: tabular-nums; color: var(--gold, #e3c36a); }
 .here { display: flex; flex-direction: column; gap: 10px; margin: 6px 0; }
 /* The end-of-game sheet: a verdict, then one card per goal with its name set into the border */
 .oversheet { display: flex; flex-direction: column; gap: 14px; }
 .ov-hero { text-align: center; border-radius: 16px; padding: 14px 16px 12px; border: 1px solid var(--gold-deep); background: linear-gradient(180deg, rgba(226,192,104,.16), rgba(226,192,104,.04)); }
-.ov-hero small { font-family: var(--font-display); letter-spacing: .24em; text-transform: uppercase; font-size: 13px; color: var(--gold, #e3c36a); }
+.ov-hero small { font-family: var(--font-display); letter-spacing: .24em; text-transform: uppercase; font-size: calc(13px * var(--ts, 1)); color: var(--gold, #e3c36a); }
 .ov-hero.lose { background: rgba(255,255,255,.03); border-color: rgba(255,255,255,.18); }
 .ov-hero.lose small { color: var(--dim); }
-.ov-total { font-family: var(--font-display); font-size: 64px; line-height: 1.05; color: var(--gold, #e3c36a); font-variant-numeric: tabular-nums; }
+.ov-total { font-family: var(--font-display); font-size: calc(64px * var(--ts, 1)); line-height: 1.05; color: var(--gold, #e3c36a); font-variant-numeric: tabular-nums; }
 .ov-hero.lose .ov-total { color: var(--text); }
-.ov-hero p { margin: 4px 0 0; font-size: 17px; }
-.ov-pts { font-family: var(--font-display); font-size: 26px; font-variant-numeric: tabular-nums; }
+.ov-hero p { margin: 4px 0 0; font-size: calc(17px * var(--ts, 1)); }
+.ov-pts { font-family: var(--font-display); font-size: calc(26px * var(--ts, 1)); font-variant-numeric: tabular-nums; }
 .ov-pts.up { color: #8fd49a; } .ov-pts.down { color: #ff9c8a; }
-.ov-details summary { cursor: pointer; color: var(--dim); font-size: 14.5px; }
+.ov-details summary { cursor: pointer; color: var(--dim); font-size: calc(14.5px * var(--ts, 1)); }
 .ov-actions { gap: 10px; flex-wrap: wrap; } .ov-actions .btn { flex: 1 1 200px; margin: 0; width: auto; }
 /* Trade: a box to select each thing, the rest of the row opens what it is, and a bar at the bottom that does the deal */
 .tradeitem { border: 1px solid rgba(255,255,255,.12); border-radius: 12px; margin-top: 8px; background: rgba(255,255,255,.03); overflow: hidden; }
 .tradeitem.sel { border-color: var(--gold, #e3c36a); background: rgba(227,195,106,.09); }
 .tradeitem.off { opacity: .5; }
 .ti-row { display: flex; align-items: stretch; }
-.ti-check { flex: 0 0 52px; min-height: 56px; border: 0; border-right: 1px solid rgba(255,255,255,.1); background: none; color: var(--gold, #e3c36a); font-size: 24px; cursor: pointer; }
+.ti-check { flex: 0 0 52px; min-height: 56px; border: 0; border-right: 1px solid rgba(255,255,255,.1); background: none; color: var(--gold, #e3c36a); font-size: calc(24px * var(--ts, 1)); cursor: pointer; }
 .ti-check::before { content: ''; display: inline-block; width: 24px; height: 24px; border: 2px solid var(--dim); border-radius: 7px; vertical-align: middle; box-sizing: border-box; margin-right: -24px; }
 .tradeitem.sel .ti-check::before { border-color: var(--gold, #e3c36a); }
 .ti-body { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; padding: 8px 12px 8px 10px; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
@@ -285,7 +285,7 @@
 .ti-info { padding: 6px 12px 12px; border-top: 1px solid rgba(255,255,255,.08); }
 
 .trade-bar { flex: none; margin: 0 calc(-1 * var(--gutter, 16px)); padding: 10px var(--gutter, 16px) calc(10px + var(--safe-b)); background: var(--panel); border-top: 1px solid var(--gold-deep); }
-.trade-bar .tb-sum { margin: 0 0 8px; font-size: 16px; }
+.trade-bar .tb-sum { margin: 0 0 8px; font-size: calc(16px * var(--ts, 1)); }
 .trade-bar .tb-actions { gap: 10px; } .trade-bar .tb-actions .btn { flex: 1; margin: 0; width: auto; }
 .trade-bar .tb-actions .btn.primary { flex: 1.4; }
 .trade-bar .tb-actions .btn { min-width: 0; }
@@ -293,5 +293,5 @@
 .phase-result { border-left: 4px solid #6fcf97; background: rgba(111,207,151,.09); border-radius: 12px; padding: 10px 14px 12px; }
 .phase-result.bad { border-left-color: #e0775a; background: rgba(224,119,90,.09); }
 .phase-result .pr-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.phase-result .pr-head small { font-family: var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); font-size: 13px; }
-.phase-result .pr-line { margin: 4px 0 0; font-size: 21px; line-height: 1.3; }
+.phase-result .pr-head small { font-family: var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); font-size: calc(13px * var(--ts, 1)); }
+.phase-result .pr-line { margin: 4px 0 0; font-size: calc(21px * var(--ts, 1)); line-height: 1.3; }

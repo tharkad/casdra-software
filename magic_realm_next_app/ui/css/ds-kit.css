@@ -5,24 +5,24 @@
 /* ---- lifted from mockups/ds.css @package P2 ---- */
 .ds-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .ds-slot { position: relative; min-height: 88px; padding: 6px 4px 4px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
-.ds-slot .k { font: 600 11px/1 var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
-.ds-slot .ds-counter { width: 44px; height: 44px; } .ds-slot .n { font: 600 13px/1.1 var(--font-ui); color: var(--ink); }
+.ds-slot .k { font: 600 calc(11px * var(--ts, 1))/1 var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.ds-slot .ds-counter { width: 44px; height: 44px; } .ds-slot .n { font: 600 calc(13px * var(--ts, 1))/1.1 var(--font-ui); color: var(--ink); }
 .ds-slot.empty { border-style: dashed; border-color: var(--st-illegal); background: transparent; } .ds-slot.empty .ds-counter { background: transparent; box-shadow: none; color: var(--ink-3); } .ds-slot.empty .n { color: var(--ink-3); }
 .ds-slot.on { border: 2px solid var(--gold); } .ds-slot.dim { opacity: .5; }
 .ds-slot .lock { position: absolute; right: 4px; top: 4px; color: var(--st-locked); width: 14px; height: 14px; }
 .ds-load { padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); }
-.ds-load .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; } .ds-load .top b { font: 700 17px/1.2 var(--font-ui); }
+.ds-load .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; } .ds-load .top b { font: 700 calc(17px * var(--ts, 1))/1.2 var(--font-ui); }
 .ds-meter { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 8px; } .ds-meter i { height: 8px; border-radius: 4px; background: var(--line-1); } .ds-meter i.on { background: var(--gold); } .ds-meter i.over { background: var(--danger); }
-.ds-meter-l { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 4px; font: 600 11px/1 var(--font-display); letter-spacing: .1em; color: var(--ink-3); text-align: center; text-transform: uppercase; }
+.ds-meter-l { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 4px; font: 600 calc(11px * var(--ts, 1))/1 var(--font-display); letter-spacing: .1em; color: var(--ink-3); text-align: center; text-transform: uppercase; }
 .ds-group { padding: 12px; border-radius: var(--r-md); border: 1px solid var(--line-1); background: var(--surface-3); }
-.ds-group .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; } .ds-group .hd b { font: 700 18px/1.2 var(--font-ui); }
+.ds-group .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; } .ds-group .hd b { font: 700 calc(18px * var(--ts, 1))/1.2 var(--font-ui); }
 .ds-group .cs { display: flex; gap: 8px; margin: 10px 0 8px; }
 .ds-spell { display: flex; gap: 12px; padding: 12px; border-radius: var(--r-md); border: 1px solid var(--line-1); background: var(--surface-3); }
 .ds-spell .col { flex: none; width: 40px; height: 40px; display: grid; place-items: center; } .ds-spell .col img { width: 32px; height: 32px; }
-.ds-spell .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; } .ds-spell b { font: 700 17px/1.2 var(--font-ui); } .ds-spell .l { font: 400 15px/1.3 var(--font-voice); color: var(--ink-2); }
-.ds-spell .st { font: 600 13px/1.2 var(--font-ui); } .ds-spell .st.ok { color: var(--success); } .ds-spell .st.no { color: var(--ink-3); }
+.ds-spell .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; } .ds-spell b { font: 700 calc(17px * var(--ts, 1))/1.2 var(--font-ui); } .ds-spell .l { font: 400 calc(15px * var(--ts, 1))/1.3 var(--font-voice); color: var(--ink-2); }
+.ds-spell .st { font: 600 calc(13px * var(--ts, 1))/1.2 var(--font-ui); } .ds-spell .st.ok { color: var(--success); } .ds-spell .st.no { color: var(--ink-3); }
 .ds-price { font: 700 var(--fs-40)/1 var(--font-display); letter-spacing: .04em; color: var(--gold-hi); }
-.ds-price small { font: 400 15px/1 var(--font-ui); letter-spacing: 0; color: var(--ink-2); margin-left: 8px; }
+.ds-price small { font: 400 calc(15px * var(--ts, 1))/1 var(--font-ui); letter-spacing: 0; color: var(--ink-2); margin-left: 8px; }
 
 /* ---- package-local: the legacy sheet frame (.sheet2) styles every <p> in a sheet at 17px; the Kit's own text roles win inside .kit (a comment-marked override, not a core change) ---- */
 .kit { display: flex; flex-direction: column; min-width: 0; }
@@ -38,7 +38,7 @@
 .kit-seg { margin: 2px 0 10px; }
 .kit-room { display: flex; flex-direction: column; min-width: 0; }
 .kit-room > .ds-sect:first-child { margin-top: 12px; }
-.kit-none { margin: 4px 0; font: 400 15px/1.3 var(--font-voice); color: var(--ink-2); }
+.kit-none { margin: 4px 0; font: 400 calc(15px * var(--ts, 1))/1.3 var(--font-voice); color: var(--ink-2); }
 .kit-tag { margin-left: 6px; vertical-align: 1px; }
 .ds-tag.warn { color: var(--warn); border-color: rgba(224, 168, 90, .5); background: rgba(224, 168, 90, .1); }
 .kit .ds-why { margin-top: 6px; display: flex; gap: 6px; align-items: flex-start; }
@@ -55,8 +55,8 @@
 .kit .ds-row .main { align-items: flex-start; text-align: left; }
 .kit .ds-row .main b { color: var(--ink); }
 .kit .ds-row.dim .main b { color: var(--ink-3); }
-.kit .ds-row .main > span { font: 400 14px/1.25 var(--font-voice); color: var(--ink-2); }
-.kit .ds-row .main b .ds-tag { font: 600 12px/1 var(--font-ui); height: 22px; }
+.kit .ds-row .main > span { font: 400 calc(14px * var(--ts, 1))/1.25 var(--font-voice); color: var(--ink-2); }
+.kit .ds-row .main b .ds-tag { font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); height: 22px; }
 .kit-tick { position: absolute; left: -7px; top: -7px; width: 20px; height: 20px; border-radius: 50%; background: var(--gold); color: var(--ink-on-gold); display: grid; place-items: center; box-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
 .kit-tick .ds-i { width: 13px; height: 13px; stroke-width: 3; }
 .kit-trow { display: flex; flex-direction: column; gap: 6px; }
@@ -67,22 +67,22 @@
 .kit-infobody { padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-1); border: 1px solid var(--line-1); display: flex; flex-direction: column; gap: 8px; }
 .kit-faces { display: flex; gap: 12px; justify-content: center; margin: 6px 0; }
 .kit-rows { margin-top: 10px; }
-.kit-sum { margin: 10px 0 0; font: 600 17px/1.3 var(--font-ui); }
+.kit-sum { margin: 10px 0 0; font: 600 calc(17px * var(--ts, 1))/1.3 var(--font-ui); }
 
 /* details: the rules text behind a tap (a 44px summary, the triangle he asked for) */
 .kit-detail { margin-top: 8px; }
-.kit-detail > summary { min-height: 44px; display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; color: var(--ink-2); font: 600 15px/1 var(--font-ui); }
+.kit-detail > summary { min-height: 44px; display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; color: var(--ink-2); font: 600 calc(15px * var(--ts, 1))/1 var(--font-ui); }
 .kit-detail > summary::-webkit-details-marker { display: none; }
 .kit-detail > summary::before { content: ""; width: 0; height: 0; border-left: 6px solid currentColor; border-top: 5px solid transparent; border-bottom: 5px solid transparent; transition: transform var(--d-fast); }
 .kit-detail[open] > summary::before { transform: rotate(90deg); }
-.kit-detail p { margin: 4px 0 8px; font: 400 15px/1.35 var(--font-voice); color: var(--ink-2); }
+.kit-detail p { margin: 4px 0 8px; font: 400 calc(15px * var(--ts, 1))/1.35 var(--font-voice); color: var(--ink-2); }
 
 /* the item card */
 .kit-state { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 6px; }
 .kit-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
 .kit-facts > div { padding: 8px 12px; border-radius: var(--r-md); border: 1px solid var(--line-1); background: var(--surface-3); }
-.kit-facts dt { font: 600 12px/1.2 var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
-.kit-facts dd { margin: 2px 0 0; font: 700 17px/1.2 var(--font-ui); color: var(--ink); }
+.kit-facts dt { font: 600 calc(12px * var(--ts, 1))/1.2 var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.kit-facts dd { margin: 2px 0 0; font: 700 calc(17px * var(--ts, 1))/1.2 var(--font-ui); color: var(--ink); }
 .kit-story { margin: 6px 0 !important; }
 .kit-leave { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
 .kit-leavebtn { align-self: flex-start; margin-top: 6px; }
@@ -90,17 +90,17 @@
 /* the chits of the day and the character card row */
 .kit-chits { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px 8px; }
 .kit-chits .ds-chit { width: auto; height: 58px; }
-.kit-chits .ds-chit sup { font-size: 11px; letter-spacing: 0; margin-left: 1px; }
+.kit-chits .ds-chit sup { font-size: calc(11px * var(--ts, 1)); letter-spacing: 0; margin-left: 1px; }
 .kit-card { margin-top: 14px; }
 
 /* the foot of a decision sheet: one line of what will happen, the secondary on the left, the ONE primary on the right */
 .kit-foot { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.kit-note { font: 400 14px/1.25 var(--font-ui); color: var(--ink-2); }
+.kit-note { font: 400 calc(14px * var(--ts, 1))/1.25 var(--font-ui); color: var(--ink-2); }
 .kit-note b { color: var(--ink); font-weight: 700; }
 .kit-note.bad { color: var(--danger); font-weight: 600; }
 .kit-noterow { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .kit-noterow .kit-note { flex: 1 1 auto; min-width: 0; }
-.kit-skip { flex: none; margin: -6px 0; padding: 0 0 0 10px; font-size: 14px; }          /* DR-15: the ds quiet button, 44px, no underline (it was the app's only underlined control) */
+.kit-skip { flex: none; margin: -6px 0; padding: 0 0 0 10px; font-size: calc(14px * var(--ts, 1)); }          /* DR-15: the ds quiet button, 44px, no underline (it was the app's only underlined control) */
 .kit-foot-row { display: flex; align-items: center; gap: 10px; }
 .kit-foot-row .ds-btn { margin: 0; min-width: 0; }
 .kit-foot-row .ds-btn:not(.primary) { flex: 0 0 auto; }
@@ -118,7 +118,7 @@
 .kit-leaders { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
 .kit-leader { display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 8px 10px; text-align: left; color: var(--ink); }
 .kit-leader .kit-leadtxt { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
-.kit-leader b { font: 700 17px/1.2 var(--font-ui); }
+.kit-leader b { font: 700 calc(17px * var(--ts, 1))/1.2 var(--font-ui); }
 .kit-leader .ds-tag { height: 22px; padding: 0 7px; }
 .kit-leader.sel { border: 2px solid var(--gold); background: var(--gold-wash-2); padding: 7px 9px; }
 .kit-hcard.sel { border: 2px solid var(--gold); background: var(--gold-wash-2); padding: 0; }
@@ -126,9 +126,9 @@
 .kit-dice { margin: 0 0 6px; }
 .kit-pricebox { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 12px; }
 .kit-what { display: flex; align-items: center; gap: 12px; }
-.kit-what b { font: 700 18px/1.2 var(--font-ui); display: block; }
+.kit-what b { font: 700 calc(18px * var(--ts, 1))/1.2 var(--font-ui); display: block; }
 .kit-hero { display: flex; gap: 14px; align-items: center; margin: 4px 0 10px; }
-.kit-heroname { font-size: 22px; }
+.kit-heroname { font-size: calc(22px * var(--ts, 1)); }
 .kit-fav { margin: 0 0 8px !important; }
 .kit-orpay { margin-top: 10px; border-radius: var(--r-md); border: 1px solid var(--line-1); padding: 0 12px; background: var(--surface-3); }
 .kit-orpay > summary { color: var(--ink); }
@@ -148,13 +148,13 @@
 .kit-company .ds-group .cs { flex-wrap: wrap; }
 .kit-counter { padding: 0; border: 0; cursor: pointer; font-family: var(--font-ui); }
 .kit-counter .kit-back { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px; color: var(--counter-ink); }
-.kit-counter .kit-back b { font: 800 20px/1 var(--font-ui); } .kit-counter .kit-back small { font: 600 12px/1.1 var(--font-ui); text-align: center; }
-.kit-noart { font: 600 12px/1.1 var(--font-ui); color: var(--counter-ink); text-align: center; padding: 4px; }
+.kit-counter .kit-back b { font: 800 calc(20px * var(--ts, 1))/1 var(--font-ui); } .kit-counter .kit-back small { font: 600 calc(12px * var(--ts, 1))/1.1 var(--font-ui); text-align: center; }
+.kit-noart { font: 600 calc(12px * var(--ts, 1))/1.1 var(--font-ui); color: var(--counter-ink); text-align: center; padding: 4px; }
 .kit-orders { margin: 0 0 8px !important; }
 .kit-extwhy { margin-top: 4px; }
 .kit-moods { display: flex; flex-wrap: wrap; gap: 8px; }
 .kit-owe { cursor: default; }
-.kit-owe .main > span { font: 400 14px/1.25 var(--font-voice); color: var(--ink-2); }
+.kit-owe .main > span { font: 400 calc(14px * var(--ts, 1))/1.25 var(--font-voice); color: var(--ink-2); }
 .ds-daypips { margin: 0 0 4px; }
 
 /* spells */
@@ -183,10 +183,10 @@
 .kit-things .ds-row { background: var(--surface-2); }
 
 /* no text under 12px (the mockup's 11px labels are raised here: a package-local override of the lifted rules above) */
-.ds-slot .k, .ds-meter-l { font-size: 12px; letter-spacing: .06em; }
+.ds-slot .k, .ds-meter-l { font-size: calc(12px * var(--ts, 1)); letter-spacing: .06em; }
 .ds-meter-l { letter-spacing: .04em; gap: 2px; }
 .ds-meter { gap: 3px; }
-.kit-chits .ds-chit sup { font-size: 12px; }
+.kit-chits .ds-chit sup { font-size: calc(12px * var(--ts, 1)); }
 .kit-things[open] { padding-bottom: 12px; }
 .kit-things:not([open]) { padding-bottom: 0; }
 
@@ -202,7 +202,7 @@
 .kit .ds-row .art img, .kit .ds-counter img { width: 80%; height: 80%; max-width: 80%; max-height: 80%; object-fit: contain; }
 .kit .ds-counter.lg img { width: 84%; height: 84%; max-width: 84%; max-height: 84%; }
 /* the "-1" Honor mark on the dice of an offer (map.css makes it 11px) */
-.kit .die .dmod { font-size: 12px; }
+.kit .die .dmod { font-size: calc(12px * var(--ts, 1)); }
 
 
 /* ---- G2 (fix wave 2) ---- */
@@ -218,3 +218,7 @@
 .kit-spell .main { gap: 4px; }
 /* DR-12 (the parts in these sheets): no one-word last lines */
 .kit .ds-meta, .kit .ds-voice, .kit .ds-text, .kit-note, .kit .ds-why, .cb-hint { text-wrap: pretty; }
+/* Let a hireling go: a quiet button, then a two-button confirm in the same place */
+.kit-dismissbtn { margin-top: 8px; align-self: flex-start; }
+.kit-dismiss.asking { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.kit-dismiss.asking .ds-why { flex: 1 1 100%; margin: 0; }

@@ -11,25 +11,25 @@
 .layer { position: absolute; inset: 0; pointer-events: none; }
 .layer > * { pointer-events: auto; }
 
-.btn.row { justify-content: space-between; min-height: 48px; font-size: 17px; }
+.btn.row { justify-content: space-between; min-height: 48px; font-size: calc(17px * var(--ts, 1)); }
 .btn.row.on { border-color: var(--gold); }
-.btn.row em { font-style: normal; color: var(--gold); font-size: 15px; }
-.hint { font-size: 15.5px; color: var(--dim); }
+.btn.row em { font-style: normal; color: var(--gold); font-size: calc(15px * var(--ts, 1)); }
+.hint { font-size: calc(15.5px * var(--ts, 1)); color: var(--dim); }
 .chit2 { border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); text-align: center; padding: 6px 0; display: flex; flex-direction: column; line-height: 1.1; }
-.chit2 b { font-family: var(--font-display); font-size: 19px; }
-.chit2 small { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; }
+.chit2 b { font-family: var(--font-display); font-size: calc(19px * var(--ts, 1)); }
+.chit2 small { font-size: calc(11px * var(--ts, 1)); color: var(--dim); text-transform: uppercase; letter-spacing: .08em; }
 .chit2.move { border-color: #4d6a8f; } .chit2.fight { border-color: #8f4d4d; } .chit2.magic { border-color: #7a5fb0; }
 .chit2.fatigued { opacity: .45; } .chit2.wounded { opacity: .35; text-decoration: line-through; }
 .journal { display: flex; flex-direction: column; gap: 2px; }
-.journal p { margin: 2px 0; font-size: 16px; }
+.journal p { margin: 2px 0; font-size: calc(16px * var(--ts, 1)); }
 .journal small { color: var(--dim); }
 .j-combat { color: #f0c0a0; } .j-block { color: #ff9c8a; } .j-discover { color: #a9e0c8; } .j-trade { color: var(--gold); } .j-monster { color: #e8a0a0; }
 .scorerow { display: flex; justify-content: space-between; }
 
 .realm-svg .chit rect { fill: #26283a; stroke: #7e7690; stroke-width: 1.2; }
-.realm-svg .chit text { font-size: 13px; fill: #d9d2c0; font-weight: 700; }
+.realm-svg .chit text { font-size: calc(13px * var(--ts, 1)); fill: #d9d2c0; font-weight: 700; }
 .realm-svg .tok circle { stroke: #0c0e14; stroke-width: 1.2; }
-.realm-svg .tok text { font-size: 9px; font-weight: 700; fill: #fff; }
+.realm-svg .tok text { font-size: calc(9px * var(--ts, 1)); font-weight: 700; fill: #fff; }
 .realm-svg .tok.mon circle { fill: #b44; } .realm-svg .tok.nat circle { fill: #4a78c0; } .realm-svg .tok.dwelling circle { fill: #a08040; }
 .realm-svg .tok.site circle { fill: #7a5fb0; } .realm-svg .tok.sound circle { fill: #8f6a3a; }
 .realm-svg .hero { fill: var(--gold); stroke: #1b1405; stroke-width: 1.5; }
