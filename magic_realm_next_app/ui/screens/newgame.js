@@ -390,7 +390,7 @@ export function newGameScreen(ctx) {
         else leftEl = h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'back', onclick: back }, 'Back');
         const primary = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': last ? 'start' : 'next', disabled: busy || stop ? true : null, onclick: last ? start : next }, last ? goLabel() : 'Next');
         return [bar(title(), { onBack: back, step: at, of: n }),
-            h('div', { class: 'ds-scroll ds-fade-b ds-pad ds-wizbody', 'data-step': STEPS[g.step].id, onscroll: e => { g._scroll = e.target.scrollTop; } }, ...bodyEls),
+            h('div', { class: 'ds-scroll ds-pad ds-wizbody', 'data-step': STEPS[g.step].id, onscroll: e => { g._scroll = e.target.scrollTop; } }, ...bodyEls),
             foot(leftEl, primary)];
     }
     root.append(...build());
