@@ -1,6 +1,6 @@
 import { h } from '../dom.js';
 import { icon } from '../icons.js';
-import { sheet, setCalm, calm, textSize, setTextSize, TEXT_SIZES } from '../ds.js';
+import { sheet, setCalm, calm, textSize, setTextSize, TEXT_SIZES, topGap, setTopGap, TOP_GAPS } from '../ds.js';
 import { voice, setVoice } from '../voice.js';
 import { myName, setMyName, serverUrl, setServerUrl } from '../online.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
@@ -104,6 +104,8 @@ export function settingsScreen(ctx) {
                     { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'The Story is short and told in the world’s voice; Detail adds every number.') }),
                 field('Text size', seg(TEXT_SIZES, textSize(), v => { setTextSize(v); redraw(); }, { label: 'Text size', attrOf: id => ({ 'data-textsize-pick': id }) }),
                     { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'Makes the words bigger everywhere. The map keeps its own size: pinch it to zoom.') }),
+                field('Top margin', seg(TOP_GAPS, topGap(), v => { setTopGap(v); redraw(); }, { label: 'Top margin', attrOf: id => ({ 'data-topgap-pick': id }) }),
+                    { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'Room under the status bar. On an iPhone the very top of the page can look faded; more margin moves the text out of it.') }),
                 switchRow({ title: 'Calm motion', line: 'No gliding or flipping. The game follows your phone’s setting unless you turn this on.', on: calm(), attrs: { 'data-option': 'calm' }, onToggle: () => { setCalm(!calm()); redraw(); } }),
                 switchRow({ title: 'Note button', line: 'A round microphone button on every screen: say what you want to happen there. It goes on a list for later.', on: noteButtonOn(), attrs: { 'data-option': 'notebtn' }, onToggle: () => { setNoteButton(!noteButtonOn()); redraw(); } }),
                 row('Your notes', 'What you have said, and whether the server has it', () => openNotesList(), { 'data-act': 'notes' }),

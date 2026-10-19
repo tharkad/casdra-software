@@ -78,7 +78,8 @@
     --tap-main: 52px;       /* primary and secondary action buttons */
     /* shell budget */
     --strip-h: 48px;
-    --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px);
+    --topgap: 0px;      /* extra room under the status bar (set from Settings > Top margin: iPhone Safari fades what sits right under it) */
+    --safe-t: calc(env(safe-area-inset-top, 0px) + var(--topgap)); --safe-b: env(safe-area-inset-bottom, 0px);
     --safe-l: env(safe-area-inset-left, 0px); --safe-r: env(safe-area-inset-right, 0px);
     /* legacy aliases: the old styles.css keeps working while screens are migrated */
     --bg: var(--surface-1); --panel: var(--surface-2); --panel2: var(--surface-3); --line: var(--line-2);

@@ -153,4 +153,14 @@ export function applyTextSize() { const v = textSize(); if (v === '1') document.
 export function setTextSize(k) { try { if (k === '1') localStorage.removeItem(TEXT_KEY); else localStorage.setItem(TEXT_KEY, k); } catch { /* ignore */ } return applyTextSize(); }
 
 // Boot: called once by main.js before the first render.
-export function initDs() { applyCalm(); applyTextSize(); syncVoice(); onVoice(syncVoice); }
+// ---- Top margin ----
+// Safari on iPhone (iOS 26 and later) softens whatever sits in the first few points under the status bar, so the day, the VP and the screen titles looked faded at the top.
+// The page gets a little room under the status bar there (24px by default on an iPhone; Settings > Top margin changes it, 0 for none). Other devices keep 0.
+const GAP_KEY = 'mr-topgap';
+export const TOP_GAPS = [['0', 'None'], ['16', 'Small'], ['24', 'Medium'], ['34', 'Large']];
+const iPhone = () => /iPhone|iPod/.test(navigator.userAgent);
+export const topGap = () => { try { const v = localStorage.getItem(GAP_KEY); if (TOP_GAPS.some(([k]) => k === v)) return v; } catch { /* default */ } return iPhone() ? '24' : '0'; };
+export function applyTopGap() { const v = topGap(); document.documentElement.style.setProperty('--topgap', `${v}px`); return v; }
+export function setTopGap(k) { try { localStorage.setItem(GAP_KEY, k); } catch { /* ignore */ } return applyTopGap(); }
+
+export function initDs() { applyCalm(); applyTextSize(); applyTopGap(); syncVoice(); onVoice(syncVoice); }
