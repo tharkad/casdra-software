@@ -53,7 +53,12 @@ export async function flushNotes() {
 }
 
 // ---- the sheet ----
-const Recognition = () => window.SpeechRecognition || window.webkitSpeechRecognition || null;
+const standalone = () => navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+const IOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+// Speech recognition where the browser has it. A Home Screen web app on iPhone has the API but it never hears anything (WebKit): there the keyboard's own microphone key is used.
+const Recognition = () => (IOS() && standalone() ? null : window.SpeechRecognition || window.webkitSpeechRecognition || null);
+const ERRORS = { 'not-allowed': 'The microphone or speech recognition is switched off for this site (Settings > Safari, or Siri & Dictation).', 'service-not-allowed': 'Speech recognition is switched off on this phone (Settings > Siri & Dictation).',
+    'no-speech': 'Nothing heard. Say it again, or type it.', 'audio-capture': 'No microphone found.', network: 'Speech recognition needs a connection.', 'language-not-supported': 'That language is not supported here.' };
 let layer = null, rec = null;
 const close = () => { try { rec?.stop(); } catch { /* ignore */ } rec = null; layer?.remove(); layer = null; syncButton(); };
 const toast = (text, bad = false) => { const t = h('div', { class: `nt-toast${bad ? ' bad' : ''}`, role: 'status' }, text); document.body.append(t); setTimeout(() => t.remove(), 3200); };
@@ -65,25 +70,29 @@ export function openNote() {
     let state = null; try { state = window.__mr?.game?.st ? JSON.parse(JSON.stringify(window.__mr.game.st)) : null; } catch { /* a state that cannot be copied is left out */ }
     const R = Recognition();
     let base = '', listening = false;
-    const ta = h('textarea', { class: 'nt-text', rows: 5, 'data-note-text': '', placeholder: R ? 'Say it, or type it.' : 'Type it, or tap the microphone on your keyboard.', 'aria-label': 'What you want to happen on this screen' });
+    const ta = h('textarea', { class: 'nt-text', rows: 5, 'data-note-text': '', placeholder: R ? 'Say it, or type it.' : 'Tap the microphone on your keyboard, and say it.', 'aria-label': 'What you want to happen on this screen' });
     const dot = h('span', { class: 'nt-dot', 'aria-hidden': 'true' }), state_ = h('b', {}, R ? 'Listening' : 'Say or type it');
+    const msg = h('p', { class: 'nt-msg', 'data-note-msg': '', role: 'status' }, R ? '' : 'Tap the microphone key on your keyboard to speak. Your words appear here.');
+    let heard = false, wantListening = false, quietTimer = null;
     const micBtn = h('button', { type: 'button', class: 'ds-btn sm quiet nt-mic', 'data-act': 'note-mic', hidden: !R }, 'Stop');
     const ok = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'note-ok', disabled: true, onclick: save }, 'OK, save it');
     const sync = () => { ok.disabled = !ta.value.trim(); };
     const paint = () => { layer?.classList.toggle('on', listening); state_.textContent = listening ? 'Listening' : R ? 'Not listening' : 'Say or type it'; micBtn.textContent = listening ? 'Stop' : 'Talk again'; };
+    const say = t => { msg.textContent = t; };
     ta.addEventListener('input', sync);
     function start() {
         if (!R) return;
         try {
-            rec = new R(); rec.continuous = true; rec.interimResults = true; rec.lang = navigator.language || 'en-US';
-            base = ta.value ? ta.value.trim() + ' ' : '';
-            rec.onresult = e => { let t = ''; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript; ta.value = (base + t).trimStart(); sync(); };
-            rec.onend = () => { listening = false; paint(); };
-            rec.onerror = () => { listening = false; paint(); };
+            rec = new R(); rec.continuous = !IOS(); rec.interimResults = true; rec.lang = navigator.language || 'en-US';
+            base = ta.value ? ta.value.trim() + ' ' : ''; heard = false; wantListening = true; say('');
+            rec.onresult = e => { let t = ''; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript; heard = true; clearTimeout(quietTimer); say(''); ta.value = (base + t).trimStart(); sync(); };
+            rec.onend = () => { listening = false; paint(); if (wantListening && IOS() && heard) { base = ta.value.trim() + ' '; try { rec.start(); listening = true; paint(); } catch { /* ignore */ } } };
+            rec.onerror = e => { listening = false; wantListening = false; paint(); if (e?.error && e.error !== 'aborted') { say(ERRORS[e.error] ?? `Speech recognition stopped (${e.error}). Type it, or use the keyboard microphone.`); ta.focus(); } };
             rec.start(); listening = true; paint();
-        } catch { listening = false; paint(); }
+            clearTimeout(quietTimer); quietTimer = setTimeout(() => { if (!heard && listening) say('Nothing heard yet. Say it again, type it, or use the keyboard microphone.'); }, 6000);
+        } catch (e) { listening = false; paint(); say(`Could not start listening (${e?.name ?? 'error'}). Type it, or use the keyboard microphone.`); ta.focus(); }
     }
-    micBtn.addEventListener('click', () => { if (listening) { try { rec.stop(); } catch { /* ignore */ } } else start(); });
+    micBtn.addEventListener('click', () => { if (listening) { wantListening = false; try { rec.stop(); } catch { /* ignore */ } } else start(); });
     async function save() {
         const text = ta.value.trim(); if (!text) return;
         ok.disabled = true;
@@ -98,9 +107,12 @@ export function openNote() {
             h('div', { class: 'nt-head' }, dot, state_, micBtn),
             h('p', { class: 'nt-ask' }, 'Say what you want to happen on this screen.'),
             h('p', { class: 'nt-where' }, screenLabel(ctx) || 'This screen'),
-            ta,
+            ta, msg,
             h('div', { class: 'nt-foot' }, h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'note-cancel', onclick: close }, 'Cancel'), ok)));
     document.body.append(layer); syncButton(); start(); paint(); if (!R) ta.focus();
+    // the iPhone keyboard covers the bottom of the page without resizing it: follow the visible part
+    const vv = window.visualViewport;
+    if (vv) { const fit = () => { if (!layer) return; layer.style.top = `${vv.offsetTop}px`; layer.style.height = `${vv.height}px`; }; vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit); fit(); }
 }
 
 // ---- the list: what has been said, and whether the server has it ----
