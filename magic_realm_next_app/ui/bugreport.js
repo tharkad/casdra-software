@@ -10,9 +10,9 @@ import { finalize } from '../engine/gamerecord.js';
 
 const LIMIT = 800_000;                 // bytes of gzip the server will take is 900,000
 
-const toBase64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
+export const toBase64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
 
-async function gzip(text) {
+export async function gzip(text) {
     if (typeof CompressionStream === 'undefined') return null;
     const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'));
     return new Uint8Array(await new Response(stream).arrayBuffer());

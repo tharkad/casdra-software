@@ -4,6 +4,7 @@ import { sheet, setCalm, calm, textSize, setTextSize, TEXT_SIZES } from '../ds.j
 import { voice, setVoice } from '../voice.js';
 import { myName, setMyName, serverUrl, setServerUrl } from '../online.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
+import { noteButtonOn, setNoteButton, openNotesList } from '../notes.js';
 import { VERSION, BUILD } from '../version.js';
 import { bar, field, input, openSheet, say, seg, switchRow } from '../front.js';
 
@@ -104,6 +105,8 @@ export function settingsScreen(ctx) {
                 field('Text size', seg(TEXT_SIZES, textSize(), v => { setTextSize(v); redraw(); }, { label: 'Text size', attrOf: id => ({ 'data-textsize-pick': id }) }),
                     { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'Makes the words bigger everywhere. The map keeps its own size: pinch it to zoom.') }),
                 switchRow({ title: 'Calm motion', line: 'No gliding or flipping. The game follows your phone’s setting unless you turn this on.', on: calm(), attrs: { 'data-option': 'calm' }, onToggle: () => { setCalm(!calm()); redraw(); } }),
+                switchRow({ title: 'Note button', line: 'A round microphone button on every screen: say what you want to happen there. It goes on a list for later.', on: noteButtonOn(), attrs: { 'data-option': 'notebtn' }, onToggle: () => { setNoteButton(!noteButtonOn()); redraw(); } }),
+                row('Your notes', 'What you have said, and whether the server has it', () => openNotesList(), { 'data-act': 'notes' }),
                 h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Online')),
                 field('Your name', nameIn),
                 h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'This device')),

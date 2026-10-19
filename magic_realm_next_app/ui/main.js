@@ -9,6 +9,7 @@ import { historyScreen } from './screens/history.js';
 import { onlineScreen } from './screens/online.js';
 import { sharedLobbyScreen } from './screens/lobby.js';
 import { parseInvite } from './online.js';
+import { initNotes } from './notes.js';
 import { initDs } from './ds.js';
 
 // A very small router: the app is a stack of full-screen views. Each screen is a function (ctx) -> element.
@@ -54,3 +55,4 @@ function openInvite() {
 openInvite();
 addEventListener('hashchange', () => { if (openInvite()) render(); });
 render();
+initNotes();
