@@ -80,6 +80,18 @@ export function mapModel(G) {
         tiles: G.data.tiles, art: G.data.art, placements: G.st.placements, side: 'normal', showHidden: false, discovered: new Set(G.st.ch.discovered.paths),
         chitsByTile, tokens, hero: G.st.ch.onRoad || G.st.ch.dead || G.st.ch.flying ? null : G.st.ch.at, heroAir: !G.st.ch.dead && G.st.ch.flying ? G.st.ch.flying.tile : null, heroHidden: G.st.ch.hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
         onTap: id => {
+            // a spell aimed on the map (Talk to Wise Bird): a tap on a ringed clearing is the answer; the fight comes back with it chosen
+            if (G.ui.combatMap && G.ui.aimMap) {
+                const a = G.ui.aimMap, ref = a.refs[String(id)];
+                if (!ref) { showPin(G, id, 'The spell cannot be aimed there.', 'bad'); return; }
+                const now = a.store.aim[a.spell] ?? [];
+                if (a.max === 1) { a.store.aim[a.spell] = [ref]; G.ui.aimMap = null; G.ui.combatMap = false; clearPin(G); render(G); return; }
+                const has = now.some(r => String(r.id) === String(id));
+                if (has) { if (now.length > a.min) a.store.aim[a.spell] = now.filter(r => String(r.id) !== String(id)); else { showPin(G, id, `At least ${a.min} must stay chosen.`, 'bad'); return; } }
+                else if (now.length < a.max) a.store.aim[a.spell] = [...now, ref];
+                else { showPin(G, id, `No more than ${a.max}.`, 'bad'); return; }
+                render(G); return;
+            }
             if (G.ui.sheet === 'plan' && G.st.pending?.type === 'plan' && G.ui.draft) {
                 // planning: a tap on a clearing next to where this phase starts sets the move; any other tap just looks at that clearing
                 const i = G.ui.planStep;
@@ -136,6 +148,13 @@ export function showPin(G, id, why, tone = '') {
 function overlayFor(G) {
     const st = G.st, p = st.pending, hero = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at, rings = [];
     let route = [];
+    if (G.ui.combatMap && G.ui.aimMap) {
+        const a = G.ui.aimMap, now = new Set((a.store.aim[a.spell] ?? []).map(r => String(r.id)));
+        // (every clearing may be named: ringing them all would hide the map, so only what is chosen is ringed)
+        const few = Object.keys(a.refs).length <= 12;
+        for (const id of Object.keys(a.refs)) if (now.has(id) || few) rings.push({ id, kind: now.has(id) ? 'chosen' : 'legal' });
+        return { rings, route, pin: G.ui.pin ?? null };
+    }
     if (G.ui.sheet === 'plan' && p?.type === 'plan' && G.ui.draft) {
         const d = G.ui.draft, i = G.ui.planStep, stops = [];
         for (const s of d.slots) if (s?.act === 'move' && s.to && s.to !== stops.at(-1)) stops.push(s.to);          // (a climb's two Moves are one stop)
@@ -161,6 +180,7 @@ function overlayFor(G) {
 // The clearings he is being asked to choose between (the rings of a Move or a Fly) must all be in the part of the map he can see, with the hero: a ring under the status strip or off the edge
 // cannot be tapped (QA-1). Once per question: a map he then pans himself is left alone.
 function revealChoices(G, hero) {
+    if (G.ui.aimMap) return;                 // (aiming a spell on the map: the player looks where they like)
     const ids = G.map.getOverlay().rings.filter(r => r.kind !== 'illegal').map(r => r.id);
     if (!ids.length) { G.ui.revealKey = null; return; }
     const key = [G.st.day, G.ui.planStep, G.st.pending?.type, G.ui.pickAct, ...ids].join('|');

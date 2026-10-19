@@ -52,7 +52,10 @@ export function combatHost(G, out) {
     // The fight can be set aside to look at the map, or covered by the belongings sheets, and then picked up again.
     if (G.ui.combatMap) {
         if (G.ui.sheet === 'clearing' && G.ui.sel) out.push(clearingSheet(G));
-        out.push(h('div', { class: 'cb-back' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'back-to-fight', onclick: () => { G.ui.combatMap = false; render(G); } }, 'Back to the fight')));
+        const aim = G.ui.aimMap;
+        if (aim) out.push(h('p', { class: 'cb-aimask', 'data-aim-ask': '' }, aim.max === 1 ? 'Tap any clearing on the map.' : `Tap up to ${aim.max} clearings on the map.`));
+        out.push(h('div', { class: 'cb-back' },
+            h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'back-to-fight', onclick: () => { G.ui.combatMap = false; G.ui.aimMap = null; render(G); } }, aim && aim.max !== 1 ? 'Done' : aim ? 'Keep my choice' : 'Back to the fight')));
         return out;
     }
     const inFight = G.st.pending?.type?.startsWith('combat');

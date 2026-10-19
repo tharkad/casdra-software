@@ -204,3 +204,8 @@
 .cb-void { width: 100%; } .cb-void .cb-narr { flex: 0 1 auto; min-width: 0; min-height: 0; padding-top: 14px; padding-bottom: 0; }          /* (shrinks and wraps: a long line must never run off the screen) */
 /* DR-15: one quiet action everywhere: the ds quiet button, no underline; an option (not a way out) wears a chevron */
 .cb-sheet .q .ds-btn.quiet .ds-i { width: 16px; height: 16px; margin-right: -4px; }
+/* A clearing spell is aimed on the map (Talk to Wise Bird): the choice is named, a button opens the map, and the bar under the map says what to tap */
+.cb-aimpick { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.cb-aimnow { display: grid; gap: 2px; min-width: 0; } .cb-aimnow small { color: var(--ink-3); font-size: var(--fs-12); text-transform: uppercase; letter-spacing: .08em; } .cb-aimnow b { font-size: var(--fs-15); overflow-wrap: anywhere; }
+.cb-aimpick .ds-btn { flex: none; }
+.cb-aimask { position: fixed; z-index: 6; left: 50%; transform: translateX(-50%); top: calc(var(--safe-t, 0px) + var(--strip-h) + 10px); margin: 0; width: max-content; max-width: calc(100% - 2 * var(--gutter)); padding: 8px 16px; border-radius: 999px; background: var(--surface-1); border: 1px solid var(--line-2, var(--line-1)); color: var(--ink-1); font-style: italic; font-size: var(--fs-15); text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,.4); }

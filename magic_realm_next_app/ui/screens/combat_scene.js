@@ -58,7 +58,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     const key = fightKey(st, c);
     if (ui.cb?.fightKey !== key) ui.cb = { fightKey: key, seen: null, step: 'strike', plan: null, flipped: {}, pick: null, pipState: null, gearCard: false, flippedGear: {} };
     const cb = ui.cb;
-    const X = { st, data, ui, cb, render, p, c, root: null, shared };          // (`shared`: a fight of several characters, screens/sharedfight.js: the strip, no result screen of its own, the Whom step)
+    const X = { st, data, ui, cb, render, p, c, root: null, shared, peek };          // (`shared`: a fight of several characters, screens/sharedfight.js: the strip, no result screen of its own, the Whom step)
     X.say = text => { if (!X.root) return; const t = toast(text, { host: X.root }); const sh = X.root.querySelector('.cb-sheet'); t.style.bottom = `${(sh ? sh.offsetHeight : 160) + 10}px`; };
     // every answer to the engine goes through here: the scene's own state of the question is dropped, the engine moves on
     // (ui.trace, when a script sets it to an array, collects every answer the scene sends: tools/ui_cb_fuzz.py replays them on the bare engine)

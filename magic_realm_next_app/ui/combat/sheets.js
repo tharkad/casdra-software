@@ -146,6 +146,18 @@ export function aimEl(X, a, store) {
     store.aim ??= {}; store.aimParams ??= {};
     const sel = store.aim[a.spell] ??= a.options.slice(0, a.min).map(x => x.ref);
     const pars = Array.isArray(a.params) ? a.params : [];
+    // A spell that takes clearings (Talk to Wise Bird: which clearing to ask about) is aimed ON THE MAP, like a Move or a Fly: the screen names the choice and a button opens the map with every legal clearing ringed
+    const onMap = a.options.length > 0 && X.peek?.map && a.options.every(o => o.ref.kind === 'clearing');
+    if (onMap) {
+        const chosen = a.options.filter(o => sel.some(r => sameRef(r, o.ref)));
+        const names = chosen.length ? chosen.map(o => o.label).join(', ') : 'None picked yet';
+        return h('div', { class: 'cb-aimwrap cb-aimmap', 'data-aim': a.spell },
+            hint(a.max === 1 ? `Whom does ${a.name} take?` : `Choose ${a.min === a.max ? a.min : `${a.min} to ${a.max}`}.`),
+            h('div', { class: 'cb-aimpick' }, h('span', { class: 'cb-aimnow', 'data-aim-now': '' }, h('small', {}, a.max === 1 ? 'Your choice' : 'Your choices'), h('b', {}, names)),
+                h('button', { type: 'button', class: 'ds-btn', 'data-act': 'aim-map', onclick: () => {
+                    X.ui.aimMap = { spell: a.spell, min: a.min, max: a.max, store, refs: Object.fromEntries(a.options.map(o => [String(o.ref.id), o.ref])), labels: Object.fromEntries(a.options.map(o => [String(o.ref.id), o.label])) };
+                    X.peek.map(); } }, 'Choose on the map')));
+    }
     return h('div', { class: 'cb-aimwrap', 'data-aim': a.spell },
         a.options.length ? hint(a.max === 1 ? `Whom does ${a.name} take?` : a.max === 0 ? '' : `Choose ${a.min === a.max ? a.min : `${a.min} to ${a.max}`}${a.min === 0 ? ' (none picked takes every one that qualifies)' : ''}.`) : null,
         a.options.length ? h('div', { class: 'cb-aim' }, ...a.options.map(opt => {
