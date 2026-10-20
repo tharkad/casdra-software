@@ -184,7 +184,7 @@ function castPick(X, o, round, back, itemsBtn) {
     const armorN = st.ch.items.filter(i => i.kind === 'armor' && i.damaged && !i.destroyed).length;
     const what = x => {
         if (x.spell === 'make-whole') { const bits = [mend(x.chit) ? plural(mend(x.chit), 'tired or wounded chit') : '', armorN ? `${plural(armorN, 'damaged piece')} of armor` : ''].filter(Boolean); return bits.length ? `Puts right ${bits.join(' and ')}.` : 'There is nothing of yours to mend.'; }
-        if (x.spell === 'small-blessing') return 'You roll the Wishes Table and the wish comes true: you go elsewhere, a creature here is sent home, you look into a native box, peace comes here, your chits are mended, or your next Fight chit strikes with Tremendous harm. The roll picks it, not you.';
+        if (x.spell === 'small-blessing' && quiet) return 'You roll the Wishes Table and the roll picks the wish: elsewhere, send away, a vision, peace, health or strength.';
         return data.spells?.[x.spell]?.text ?? '';
     };
     const key = x => `${x.spell}|${x.chit ?? ''}|${x.item ?? ''}`;
