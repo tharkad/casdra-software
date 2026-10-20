@@ -155,12 +155,13 @@ export function setTextSize(k) { try { if (k === '1') localStorage.removeItem(TE
 // Boot: called once by main.js before the first render.
 // ---- Top margin ----
 // Safari on iPhone (iOS 26 and later) softens whatever sits in the first few points under the status bar, so the day, the VP and the screen titles looked faded at the top.
-// The page gets a little room under the status bar there (24px by default on an iPhone; Settings > Top margin changes it, 0 for none). Other devices keep 0.
+// The page gets a band under the status bar (36px by default everywhere): the note button (microphone) lives in it, always visible, and the text starts below the soft zone. Settings > Top margin changes it.
 const GAP_KEY = 'mr-topgap';
-export const TOP_GAPS = [['0', 'None'], ['16', 'Small'], ['24', 'Medium'], ['34', 'Large']];
-const iPhone = () => /iPhone|iPod/.test(navigator.userAgent);
-export const topGap = () => { try { const v = localStorage.getItem(GAP_KEY); if (TOP_GAPS.some(([k]) => k === v)) return v; } catch { /* default */ } return iPhone() ? '24' : '0'; };
-export function applyTopGap() { const v = topGap(); document.documentElement.style.setProperty('--topgap', `${v}px`); return v; }
+export const TOP_GAPS = [['0', 'None'], ['28', 'Small'], ['36', 'Medium'], ['44', 'Large']];
+const userGap = () => { try { const v = localStorage.getItem(GAP_KEY); return TOP_GAPS.some(([k]) => k === v) ? v : null; } catch { return null; } };
+export const topGap = () => userGap() ?? '36';
+// Only a choice made in Settings is written onto <html>; otherwise tokens.css decides (36px, 28px on a short phone, where the fight needs the room).
+export function applyTopGap() { const v = userGap(); if (v == null) document.documentElement.style.removeProperty('--topgap'); else document.documentElement.style.setProperty('--topgap', `${v}px`); return topGap(); }
 export function setTopGap(k) { try { localStorage.setItem(GAP_KEY, k); } catch { /* ignore */ } return applyTopGap(); }
 
 export function initDs() { applyCalm(); applyTextSize(); applyTopGap(); syncVoice(); onVoice(syncVoice); }

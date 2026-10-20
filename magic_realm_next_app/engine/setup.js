@@ -33,7 +33,7 @@ export function newGame(data, opts = {}) {
     placeDenizens(st, data);
     setupTreasure(st, data);
     if (opts.pauseVictory) { st.pauseVictory = true; st.pauseShift = true; }          // the game screen: stop on a result screen and on the Bracelets / Cloak offer
-    st.options = { knightsAdjustment: !!opts.options?.knightsAdjustment, watchfulNatives: !!opts.options?.watchfulNatives, quietMonsters: !!opts.options?.quietMonsters };
+    st.options = { knightsAdjustment: !!opts.options?.knightsAdjustment, watchfulNatives: !!opts.options?.watchfulNatives, quietMonsters: !!opts.options?.quietMonsters, ...(opts.options?.castAnytime ? { castAnytime: true } : {}) };       // (castAnytime is in the state only when on, so a game without it is exactly as it was)
     st.startGear = { weapon: opts.startGear?.weapon ?? true, armor: opts.startGear?.armor ?? true };
     // One realm, one or several characters (2 to 4): each has his own gear, goals, start dwelling (a sealed choice from his card; the first listed by default) and spells.
     // `opts.characters` lists them; a game with `opts.character` is the one-character game it always was. A character's `owner` is the player who plays him (default: one

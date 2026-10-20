@@ -126,7 +126,9 @@ export function blockedSpells(st, data, { slowest = 99 } = {}) {
 // tomorrow, a long-lived Permanent spell, a call that brings monsters): handler.quiet(st, data, opt). A quiet evening is held open for the player whenever either holds
 // (rules 8.1.3a, 8.3.9b.1, 8.8.3); spells with neither (Curse, Pentangle, Premonition, Violent Storm, Fog...) are still castable but never worth stopping the evening for.
 export const canCastUsefully = (st, data) => castOptions(st, data).some(o => o.useful);
-export const canCastQuietly = (st, data) => castOptions(st, data).some(o => o.useful || o.quiet);
+// Rule 8.8.3: combat is held every evening a spell could be cast. By default the engine holds a quiet evening only for a spell that would do something (`useful` or `quiet`);
+// with the game option `castAnytime` (the owner's choice, 2026-10-20: a player who can cast wants to be asked) any castable spell holds it.
+export const canCastQuietly = (st, data) => castOptions(st, data).some(o => st.options?.castAnytime || o.useful || o.quiet);
 
 // What a cast of `opt` (one of castOptions) would ask to be aimed at, before it is played: the same aim entry the Melee step shows ({ spell, name, options, min, max, params }),
 // or null when the spell needs no target. Used by the quiet-evening cast, which has no Melee step in between.

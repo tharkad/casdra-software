@@ -1,6 +1,6 @@
 /* css/ds-notes.css: the note button and its sheet (app/ui/notes.js) */
-.nt-btn { position: fixed; z-index: 30; right: 8px; top: calc(var(--safe-t, 0px) + 60px); width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: rgba(21, 25, 38, .82); color: var(--ink-2); border: 1px solid var(--line-2, var(--line-1)); box-shadow: 0 2px 10px rgba(0,0,0,.4); cursor: pointer; padding: 0; opacity: .72; }
-.nt-btn::before { content: ""; position: absolute; inset: -4px; } .nt-btn:active { opacity: 1; transform: scale(.96); }
+.nt-btn { position: fixed; z-index: 60; top: calc(var(--safe-t, 0px) - var(--topgap, 0px) + max(2px, (var(--topgap, 0px) - 32px) / 2)); right: 12px; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: rgba(21, 25, 38, .9); color: var(--ink-2); border: 1px solid var(--line-2, var(--line-1)); cursor: pointer; padding: 0; }
+.nt-btn::before { content: ""; position: absolute; inset: -8px; } .nt-btn:active { transform: scale(.96); color: var(--ink-1); }
 .nt-layer { position: fixed; left: 0; right: 0; top: 0; height: 100%; z-index: 100; display: flex; flex-direction: column; justify-content: flex-end; }
 .nt-scrim { position: absolute; inset: 0; background: rgba(5, 7, 12, .6); }
 .nt-sheet { position: relative; width: min(100%, 520px); margin-inline: auto; background: var(--surface-1, #151926); border: 1px solid var(--line-1); border-bottom: 0; border-radius: 20px 20px 0 0; padding: 16px var(--gutter, 16px) calc(16px + var(--safe-b, 0px)); display: grid; gap: 10px; box-shadow: 0 -8px 30px rgba(0,0,0,.5); max-height: 86%; }
@@ -20,5 +20,4 @@ html[data-calm="on"] .nt-layer.on .nt-dot { animation: none; }
 .nt-empty { color: var(--ink-3); font-style: italic; }
 .nt-toast { position: fixed; z-index: 120; left: 50%; transform: translateX(-50%); bottom: calc(24px + var(--safe-b, 0px)); background: var(--surface-1); border: 1px solid var(--line-2, var(--line-1)); border-radius: 999px; padding: 10px 18px; font-size: calc(15px * var(--ts, 1)); max-width: calc(100% - 32px); text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,.45); } .nt-toast.bad { border-color: var(--warn, #d9a441); }
 .nt-btn[hidden], .nt-mic[hidden] { display: none !important; }
-.nt-btn.in-map { position: absolute; z-index: 3; right: auto; top: auto; left: 12px; bottom: 12px; width: 44px; height: 44px; opacity: .85; }
 .nt-msg { margin: 0; min-height: 1.3em; font-size: calc(14px * var(--ts, 1)); color: var(--warn, #d9a441); }

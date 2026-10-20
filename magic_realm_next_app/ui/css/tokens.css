@@ -78,7 +78,7 @@
     --tap-main: 52px;       /* primary and secondary action buttons */
     /* shell budget */
     --strip-h: 48px;
-    --topgap: 0px;      /* extra room under the status bar (set from Settings > Top margin: iPhone Safari fades what sits right under it) */
+    --topgap: 36px;      /* extra room under the status bar (set from Settings > Top margin: iPhone Safari fades what sits right under it) */
     --safe-t: calc(env(safe-area-inset-top, 0px) + var(--topgap)); --safe-b: env(safe-area-inset-bottom, 0px);
     --safe-l: env(safe-area-inset-left, 0px); --safe-r: env(safe-area-inset-right, 0px);
     /* legacy aliases: the old styles.css keeps working while screens are migrated */
@@ -100,3 +100,4 @@
    The camera of the map (mapview.js calmMotion) and the flip of the draw (shared.js) read the setting themselves. */
 [data-calm="on"] *, [data-calm="on"] *::before, [data-calm="on"] *::after { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }
+@media (max-height: 700px) { :root { --topgap: 28px; } }      /* a short phone: a smaller band under the status bar (Settings > Top margin overrides it) */

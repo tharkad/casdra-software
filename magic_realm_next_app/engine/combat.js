@@ -442,7 +442,7 @@ export function chargeEncounter(st, data) {
 // What a quiet evening may still offer: the casts that have a use tonight (or all castable ones, `all`), minus the spells already cast in an earlier quiet round.
 function quietCasts(st, data, all = false) {
     const done = st.combat?.quietDone ?? [];
-    return castOptions(st, data).filter(o => !done.includes(o.spell) && (all || o.useful || o.quiet));
+    return castOptions(st, data).filter(o => !done.includes(o.spell) && (all || st.options?.castAnytime || o.useful || o.quiet));
 }
 
 // Nothing is fighting him, but there is a spell worth casting: the Encounter step is held so that he may cast it (rule 8.8.3: combat is held

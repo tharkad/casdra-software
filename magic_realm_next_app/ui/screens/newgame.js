@@ -31,7 +31,7 @@ export const LENGTHS = [
 
 // (The old "How much of the game?" switch is gone: it reached neither the engine nor the saved game, so it changed nothing. Verified: no `depth` is read by start(), by the online
 // choices, by game boot or by the engine.)
-export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, character: 'white-knight', dwelling: 'Inn', seed: Math.floor(Math.random() * 9999) + 1, vp: { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 }, options: { knightsAdjustment: false, watchfulNatives: false, quietMonsters: false } });
+export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, character: 'white-knight', dwelling: 'Inn', seed: Math.floor(Math.random() * 9999) + 1, vp: { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 }, options: { knightsAdjustment: false, watchfulNatives: false, quietMonsters: false, castAnytime: true } });
 
 export const vpTotal = g => g.length === 'month' ? 5 : g.length === 'custom' ? g.weeks + 1 : g.length === 'sudden' ? g.suddenVp : 5;
 
@@ -238,6 +238,11 @@ function goalsStep(g, redraw, online) {
 
 // Optional rules (3.1 section 10). Everything is off until switched on, as printed. A plain sentence on the row; the rule number and the full text sit behind the (i).
 const OPTION_GROUPS = [
+    // (the one switch that starts ON: it is rule 8.8.3 as printed, "combat is held every evening a spell could be cast", not an optional rule)
+    { title: 'Magic', items: [
+        { k: 'castAnytime', title: 'Cast whenever you can', rule: '8.8.3', line: 'Each evening stops for any spell you could cast.',
+          text: 'Combat is held every evening a spell could be cast. On: you are asked each evening you could cast anything, even a spell with nothing to do tonight (you can say Not tonight). Off: the evening stops only when a spell would do something.' },
+    ] },
     { title: 'Denizens', items: [
         { k: 'quietMonsters', title: 'Quiet Monsters', rule: '10.B.1', line: 'A hidden character is left alone by wandering monsters.',
           text: 'A character who is hidden when his turn ends does not turn up the chits in his tile, and monsters from the Appearance Chart do not come.' },

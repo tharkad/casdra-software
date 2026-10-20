@@ -138,16 +138,6 @@ export function initNotes() {
     btn = h('button', { type: 'button', id: 'notebtn', class: 'nt-btn', 'data-act': 'note', 'aria-label': 'Record a note about this screen', onclick: openNote },
         h('span', { html: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>' }));
     document.body.append(btn); syncButton();
-    // Where it sits: on the map's bottom-left corner (the fit button has the right), so it never covers a clearing; in a fight and on the other screens, at the top right under the status bar
-    let queued = false;
-    const place = () => {
-        queued = false;
-        const map = document.querySelector('.ds-map'), cb = document.querySelector('.cb');
-        const want = cb ? document.body : (map ?? document.body);
-        if (btn.parentNode !== want) want.append(btn);
-        btn.classList.toggle('in-map', want === map && !cb);
-    };
-    new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(place); } }).observe(document.getElementById('app') ?? document.body, { childList: true, subtree: true });
-    place();
+    // It sits in the band under the status bar (the page's top margin, see ds.js topGap), on every screen and above every sheet, so it is always there.
     setTimeout(() => { flushNotes().catch(() => {}); }, 4000);
 }
