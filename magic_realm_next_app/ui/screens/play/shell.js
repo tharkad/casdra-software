@@ -82,7 +82,9 @@ export function mapModel(G) {
         onTap: id => {
             // a spell aimed on the map (Talk to Wise Bird): a tap on a ringed clearing is the answer; the fight comes back with it chosen
             if (G.ui.combatMap && G.ui.aimMap) {
-                const a = G.ui.aimMap, ref = a.refs[String(id)];
+                const a = G.ui.aimMap;
+                if (a.param) { (a.store.aimParams[a.spell] ??= {})[a.param] = id; G.ui.aimMap = null; G.ui.combatMap = false; clearPin(G); render(G); return; }          // a clearing asked by the spell itself (Small Blessing's journey): any clearing
+                const ref = a.refs[String(id)];
                 if (!ref) { showPin(G, id, 'The spell cannot be aimed there.', 'bad'); return; }
                 const now = a.store.aim[a.spell] ?? [];
                 if (a.max === 1) { a.store.aim[a.spell] = [ref]; G.ui.aimMap = null; G.ui.combatMap = false; clearPin(G); render(G); return; }

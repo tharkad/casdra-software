@@ -211,3 +211,8 @@
 .cb-aimask { position: fixed; z-index: 6; left: 50%; transform: translateX(-50%); top: calc(var(--safe-t, 0px) + var(--strip-h) + 10px); margin: 0; width: max-content; max-width: calc(100% - 2 * var(--gutter)); padding: 8px 16px; border-radius: 999px; background: var(--surface-1); border: 1px solid var(--line-2, var(--line-1)); color: var(--ink-1); font-style: italic; font-size: var(--fs-15); text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
 /* a short phone: the fight takes back the band under the status bar (the note button floats over the header's empty right side) so the stage keeps its size */
 @media (max-height: 700px) { .cb { padding-top: calc(var(--safe-t) - var(--topgap, 0px)); } }
+.cb-hint-sub { margin: 10px 0 2px; color: var(--ink-3); font-style: italic; }
+/* the quiet-evening cast sheet can hold a long list (Small Blessing's wishes): it scrolls inside its own height and the buttons stay pinned at its foot */
+.cb-sheet[data-kind=quiet] { max-height: calc(100% - 400px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.cb-sheet[data-kind=quiet] > .ds-actions { position: sticky; bottom: calc(-10px - var(--safe-b)); z-index: 2; background: var(--surface-2); padding: 8px 0 calc(10px + var(--safe-b)); margin-top: 6px; box-shadow: 0 -8px 10px -6px rgba(0,0,0,.35); }
+@media (max-height: 700px) { .cb-sheet[data-kind=quiet] { max-height: calc(100% - 290px); } }      /* (the fight header and the stage's smallest size take the rest) */

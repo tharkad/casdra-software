@@ -165,7 +165,11 @@ export function aimEl(X, a, store) {
             return h('button', { type: 'button', class: `ds-btn${on ? ' on' : ''}`, 'data-aim-opt': `${opt.ref.kind}:${opt.ref.id}`, 'aria-pressed': on ? 'true' : 'false', onclick: () => {
                 if (a.max === 1) store.aim[a.spell] = [opt.ref]; else if (on) store.aim[a.spell] = sel.filter(r => !sameRef(r, opt.ref)); else if (sel.length < a.max) store.aim[a.spell] = [...sel, opt.ref];
                 render(); } }, opt.label); })) : null,
+        pars.length ? hint('Only if the spell asks for it. What it does not need is ignored.', 'cb-hint-sub') : null,
         ...pars.map(q => { const cur = (store.aimParams[a.spell] ??= {})[q.key];
+            if (q.kind === 'clearing' && X.peek?.map) return h('div', { class: 'aimq' }, hint(q.label),
+                h('div', { class: 'cb-aimpick' }, h('span', { class: 'cb-aimnow', 'data-aim-now': '' }, h('small', {}, 'Your choice'), h('b', {}, cur ? nameOfClearing(cur) : 'The nearest open road')),
+                    h('button', { type: 'button', class: 'ds-btn', 'data-act': 'aim-map', 'data-param': q.key, onclick: () => { X.ui.aimMap = { spell: a.spell, param: q.key, max: 1, min: 1, store, refs: {}, labels: {} }; X.peek.map(); } }, 'Choose on the map')));
             return h('div', { class: 'aimq' }, hint(q.label), h('div', { class: 'cb-aim' }, ...(q.options ?? []).map(op => h('button', { type: 'button', class: `ds-btn${JSON.stringify(cur) === JSON.stringify(op.value) ? ' on' : ''}`, 'data-param': `${q.key}:${typeof op.value === 'object' ? JSON.stringify(op.value) : op.value}`,
                 onclick: () => { store.aimParams[a.spell][q.key] = op.value; render(); } }, op.label)))); }));
 }
@@ -180,6 +184,7 @@ function castPick(X, o, round, back, itemsBtn) {
     const armorN = st.ch.items.filter(i => i.kind === 'armor' && i.damaged && !i.destroyed).length;
     const what = x => {
         if (x.spell === 'make-whole') { const bits = [mend(x.chit) ? plural(mend(x.chit), 'tired or wounded chit') : '', armorN ? `${plural(armorN, 'damaged piece')} of armor` : ''].filter(Boolean); return bits.length ? `Puts right ${bits.join(' and ')}.` : 'There is nothing of yours to mend.'; }
+        if (x.spell === 'small-blessing') return 'You roll the Wishes Table and the wish comes true: you go elsewhere, a creature here is sent home, you look into a native box, peace comes here, your chits are mended, or your next Fight chit strikes with Tremendous harm. The roll picks it, not you.';
         return data.spells?.[x.spell]?.text ?? '';
     };
     const key = x => `${x.spell}|${x.chit ?? ''}|${x.item ?? ''}`;
