@@ -90,7 +90,8 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     // ---- the stage ----
     const bodies = c.dens.filter(d => d.kind !== 'horse' && M.onMine(st, d));
     const killedNow = new Set(c.killed ?? []);
-    let foes;                                       // [{ d, dead, tag, flipKey }]
+    let foes;                                       // [{ d, dead, tag, turned }]
+    const turned = mode === 'result' ? M.turnedOver(events) : new Set();   // (a Tactics roll turned these counters over before the blows)
     if (mode === 'meet') {
         const grp = p.type === 'combat-choice' ? p.groups : [p.group];
         const have = new Set(c.dens.filter(d => d.kind === 'nat').map(d => d.id));
@@ -98,10 +99,10 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
         foes = [...nats, ...M.foesOf(st)].map(d => ({ d }));
     } else if (mode === 'result' || mode === 'grid') {
         // who hit you is said once, in the verdict (QA-8): the wound or fatigue grid that follows is the next question, so the counters stand bare there and every round starts bare
-        const hit = new Set(mode === 'result' ? M.hitters(events) : []);
-        const wounded = facts.landed.length === 1 && facts.wounds > 0;
+        const res = mode === 'result' ? M.foeResults(events) : new Map();
+        const WORDS = { wounded: { text: 'WOUNDED YOU', short: 'WOUNDED', kind: 'bad' }, hit: { text: 'HIT YOU', short: 'HIT', kind: 'bad' }, held: { text: 'NO EFFECT', short: 'NO EFFECT', kind: 'good' }, missed: { text: 'MISSED', short: 'MISSED', kind: 'good' } };
         foes = bodies.filter(d => (!d.dead || (d.kind !== 'part' && killedNow.has(denSide(st, data, d).name))) && d.kind !== 'part' || (!d.dead && d.kind === 'part'))
-            .map(d => { const nm = denSide(st, data, d).name, dead = d.dead; return { d, dead, tag: !dead && hit.has(nm) ? { text: wounded ? 'WOUNDED YOU' : 'HIT YOU', short: wounded ? 'WOUNDED' : 'HIT', kind: 'bad' } : null }; });
+            .map(d => { const nm = denSide(st, data, d).name, dead = d.dead; return { d, dead, tag: !dead && WORDS[res.get(nm)] ? { ...WORDS[res.get(nm)] } : null, turned: mode === 'result' && !dead && turned.has(nm) }; });
     } else if (mode === 'over') {
         foes = bodies.filter(d => d.dead && d.kind !== 'part').map(d => ({ d, dead: true }));
     } else {
@@ -115,7 +116,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     // tags are said in a short word (WOUNDED, HIT, HELD) or two letters (the box). Where the counters are big there is room for the whole word.
     const short = size < 76, crowd = targetable.size >= 4;
     let anyTag = false;
-    const foeEls = foes.map(({ d, dead, tag }) => {
+    const foeEls = foes.map(({ d, dead, tag, turned: sideChanged }) => {
         let t = tag ?? null;
         if (!t && !dead && d.pickedUp && (mode === 'encounter' || mode === 'melee')) t = { text: d.engagedBy ? 'ON YOUR MAN' : 'HOLDS YOU', short: 'HELD', kind: 'bad' };
         else if (!t && !dead && d.pacified && (mode === 'encounter' || mode === 'melee')) t = { text: 'AT PEACE', short: 'PEACE', kind: 'ghost' };
@@ -124,7 +125,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
         if (t && short && !t.dot && t.short) t = { ...t, text: t.short };
         if (t) anyTag = true;
         const justFlipped = cb.flipNow === d.uid;
-        return foeEl({ st, data, d, flipped: !!cb.flipped[d.uid], tag: t, dead: !!dead, size, justFlipped, selected: targetable.has(d.uid) && m.target === d.uid,
+        return foeEl({ st, data, d, flipped: !!cb.flipped[d.uid], tag: t, dead: !!dead, size, justFlipped, turnedOver: !!sideChanged, selected: targetable.has(d.uid) && m.target === d.uid,
             onFlip: (den, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[den.uid] = !cb.flipped[den.uid]; cb.flipNow = den.uid; render(); } });
     });
     cb.flipNow = null;
@@ -205,7 +206,12 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
         return [`${M.cap(`the ${M.listOf(p.groups)}`)} are here, not looking for a fight.`, null];
     }
     if (mode === 'result') {
-        const syn = roundSynopsis(events) || 'The round passed.';
+        // two things the plain synopsis does not say (QA-13/14): which foes turned over to their other side before the blows, and which number beat a miss
+        const turnedNames = [...M.turnedOver(events)], miss = M.missNote(events);
+        const turnedLine = turnedNames.length ? `${M.cap(turnedNames.length === 1 ? turnedNames[0] : M.foesPhrase(turnedNames))} turned to ${turnedNames.length === 1 ? 'its' : 'their'} other side before the blows.` : '';
+        let said = roundSynopsis(events) || 'The round passed.';
+        if (miss) said = said.replace(/You struck at empty air: the .+? was too quick to catch\.\s*/, '');          // (the miss note below says the same, with the numbers)
+        const syn = [turnedLine, miss ? `${miss} ${said}`.trim() : said].filter(Boolean).join(' ');
         return [syn, syn, 'verdict'];
     }
     if (mode === 'over' && X.shared) return ['The fighting is over.', 'Combat is over: nothing hostile is left.', 'verdict'];

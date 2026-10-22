@@ -23,7 +23,7 @@ export const foeSize = (n, roomy = false) => {
 };
 
 // One foe: its counter (tap to turn it over), and an optional tag (TARGET, a box, WOUNDED YOU). `view` says which side shows; `tag` is { text, kind, onclick? }.
-export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, onFlip, size = 92, justFlipped = false, selected = false }) {
+export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, onFlip, size = 92, justFlipped = false, selected = false, turnedOver = false }) {
     const other = otherSide(data, d);
     const showRev = !!flipped && other && other !== (d.side ?? 'light');
     const view = showRev ? { ...d, side: other } : d;
@@ -36,7 +36,8 @@ export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, 
     return h('div', { class: `cb-foe${dead ? ' dead' : ''}${justFlipped ? ' flip' : ''}${d.pacified ? ' pacified' : ''}${d.pickedUp ? ' held' : ''}${selected ? ' sel' : ''}`, style: `--foe:${size}px`, 'data-foe': d.uid },
         h('div', { class: 'tagslot' }, tagEl),
         h('button', { type: 'button', class: 'cb-flip', 'data-flip': d.uid, 'aria-pressed': showRev ? 'true' : 'false', 'aria-label': `${s.name}${dead ? ', slain' : ''}: tap to turn the counter over`, onclick: () => onFlip?.(d, !!other), style: 'padding:0;display:block' },
-            h('span', { class: 'ds-cs-wrap' }, svg), other && !dead ? h('span', { class: 'turn', 'aria-hidden': 'true' }, icon('retry')) : null));
+            h('span', { class: 'ds-cs-wrap' }, svg), other && !dead ? h('span', { class: 'turn', 'aria-hidden': 'true' }, icon('retry')) : null,
+            turnedOver && !dead ? h('span', { class: 'turned', 'data-turned': d.uid }, size < 76 ? 'TURNED' : 'TURNED OVER') : null));
 }
 
 // A long name ("Company Short Swords #1") would run off the counter: shrink it to fit the printed strip, and if it would be too small to read, set it on two lines. Needs the counters to be in the page (text is

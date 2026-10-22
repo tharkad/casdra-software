@@ -173,6 +173,40 @@ export function roundFacts(events) {
 // The foes that hit him this round, by display name ("Wolf #2"), read from the story lines (a name with a tag keeps it)
 export const hitters = events => (events ?? []).map(e => STRIKE_RE.exec(String(e).trim())).filter(Boolean).map(x => x[1].replace(/^the /i, ''));
 
+// What each foe's blow did, by display name ("Axe Goblin #5"): 'wounded' (the blow got through), 'held' (no effect: your armor held), 'hit' (it landed and hurt your gear but wounded no one), 'missed' (it came at you and
+// missed). Read from the story lines: a blow is the strike line, and the line that follows it says what it did (QA-13/14: every counter used to say HIT YOU).
+const MISS_RE = /^(?:The |the )?(.+?)(?:'s) (?:thrust|swing|smash|bite|club|claw|blow|sting|attack|strike)s? misses: /i;
+export function foeResults(events) {
+    const L = (events ?? []).map(e => String(e).trim()).filter(Boolean), out = new Map();
+    let cur = null;
+    for (const l of L) {
+        let x;
+        if ((x = STRIKE_RE.exec(l))) { cur = x[1].replace(/^the /i, ''); out.set(cur, 'hit'); continue; }
+        if ((x = MISS_RE.exec(l))) { out.set(x[1].replace(/^the /i, ''), 'missed'); cur = null; continue; }
+        if (!cur) continue;
+        if (/^No effect/.test(l)) out.set(cur, 'held');
+        else if (/^(?:The blow gets through: a wound|You are wounded)\b/.test(l)) out.set(cur, 'wounded');
+    }
+    return out;
+}
+// The foes whose counters were turned over by a Tactics roll this round (a 6: they switch sides), by display name. The engine says it as "In the Dodge box the Axe Goblin #5 shows another side."
+export function turnedOver(events) {
+    const out = new Set();
+    for (const e of events ?? []) {
+        const x = /^In the \w+ box the (.+?) shows? another side\./.exec(String(e).trim());
+        if (x) x[1].split(/ and |, /).forEach(n => out.add(n.replace(/^the /i, '')));
+    }
+    return out;
+}
+// The one miss worth explaining: "the Axe Goblin #5 is in Dodge, too quick to catch (3 against your 3)" -> the number that beat you, said as what it is
+export function missNote(events) {
+    for (const e of events ?? []) {
+        const x = /the (.+?) is in (\w+), too quick to catch \((\d+) against your (\d+)\)/.exec(String(e));
+        if (x) return `The ${x[1]} was too quick: its move speed ${x[3]} (the circle on its counter) is not slower than your attack time ${x[4]}.`;
+    }
+    return '';
+}
+
 // ---- the fight so far, read from the log ----
 // The lines of the fight in progress or just over: the trailing lines the engine tagged with a round (`r`), plus the Meeting rolls before them are on the same run.
 export function fightLines(st) {

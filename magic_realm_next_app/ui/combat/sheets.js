@@ -316,6 +316,11 @@ export function shiftSheet(X) {
     return sheetEl(X, 'shift', qRow(`Round ${c.round} · Plays shown`, h('span', {}, 'Before the blows')), ...parts, foot(null, primary('Resolve the blows', { 'data-act': 'shift-go', onclick: () => { cb.shift = null; send(P.shift(o, sh)); } })));
 }
 
+// The counter legend is shown on the first result only (a per-device convenience: when storage is unavailable it shows every time)
+const LEGEND_KEY = 'mr-counter-legend-v1';
+const legendUnseen = () => { try { return !localStorage.getItem(LEGEND_KEY); } catch { return true; } };
+const legendSeen = () => { try { localStorage.setItem(LEGEND_KEY, '1'); } catch { /* no storage */ } };
+
 // ================= the round's result (result first) =================
 export function resultSheet(X, facts) {
     const { st, cb, render, p, c } = X;
@@ -333,7 +338,10 @@ export function resultSheet(X, facts) {
     const routes = { 'combat-wounds': ['Choose the wound' + (p.count > 1 ? 's' : ''), p.count === 1 ? '1 chit gives way' : `${p.count} chits give way`], 'combat-fatigue': ['Choose what tires', `${plural(p.need, 'asterisk')} to pay`] };
     const route = routes[p.type];
     const prim = route ? primary(twoLine(route[0], route[1]), { 'data-act': 'round-ok', onclick: () => { cb.seen = X.resultKey; render(); } }) : primary(twoLine('Go on', `Round ${c.round}`), { 'data-act': 'round-ok', onclick: () => { cb.seen = X.resultKey; render(); } });
-    return sheetEl(X, 'result', h('div', { class: 'cb-verdict' }, ...chips, ...tags),
+    // the counter legend, said once (QA-14): the numbers on a creature's counter
+    const legend = legendUnseen() ? h('p', { class: 'cb-legend', 'data-legend': '1' }, 'On a counter: the number at the bottom left is its attack time; the number in the circle is how fast it moves. A blow of yours lands only if your time is lower than the circle.') : null;
+    if (legend) prim.addEventListener('click', legendSeen);
+    return sheetEl(X, 'result', h('div', { class: 'cb-verdict' }, ...chips, ...tags), legend,
         foot(btn('Record', 'quiet', { 'data-act': 'record', onclick: () => { cb.record = true; render(); } }), prim));
 }
 
