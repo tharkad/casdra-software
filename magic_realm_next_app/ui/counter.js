@@ -10,6 +10,8 @@ const FACE = {
     dark: { fill: '#9c9276', edge: '#3a3322', text: '#14120c', stat: '#ff7a00' },
     red: { fill: '#c9533f', edge: '#4b1a12', text: '#fff6ec', stat: '#ffe08a' },
 };
+// the dark side's orange stats sit on a mid-grey face and wash out: a dark border round the glyphs (painted under the fill) makes them read
+const edged = (side, f) => side === 'dark' ? { stroke: f.edge, 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round' } : {};
 const star = (cx, cy, r) => {
     const pts = [];
     for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; pts.push(`${(cx + rr * Math.cos(a)).toFixed(1)},${(cy + rr * Math.sin(a)).toFixed(1)}`); }
@@ -43,15 +45,15 @@ export function monsterCounter({ s, side = 'light', picture = null, flies = fals
     } else if (s.attack !== 'none' && s.harm) {
         const red = side === 'red';
         const txt = red ? s.harm : `${s.harm}${s.atk ?? ''}`;
-        svg.append(sv('text', { x: 6, y: 93, 'font-size': 19, 'font-weight': 800, fill: f.stat, stroke: red ? 'none' : '#00000022', 'stroke-width': 0.4 }, txt));
+        svg.append(sv('text', { x: 6, y: 93, 'font-size': 19, 'font-weight': 800, fill: f.stat, ...(side === 'dark' ? edged(side, f) : { stroke: red ? 'none' : '#00000022', 'stroke-width': 0.4 }) }, txt));
         let x = 8 + txt.length * 11.5;
         if (red && s.atk != null) {
             svg.append(sv('circle', { cx: x + 6, cy: 87, r: 9, fill: 'none', stroke: f.stat, 'stroke-width': 2 }));
             svg.append(sv('text', { x: x + 6, y: 87, 'text-anchor': 'middle', dy: '.36em', 'font-size': 12, 'font-weight': 800, fill: f.stat }, String(s.atk)));
             x += 22;
         }
-        for (let i = 0; i < (s.stars || 0); i++) { svg.append(sv('polygon', { points: star(x + 5 + i * 11, 86, 5.5), fill: f.stat })); }
-        if (s.length) svg.append(sv('text', { x: 6, y: 77, 'font-size': 9.5, 'font-weight': 700, fill: f.stat }, `(${s.length})`));
+        for (let i = 0; i < (s.stars || 0); i++) { svg.append(sv('polygon', { points: star(x + 5 + i * 11, 86, 5.5), fill: f.stat, ...edged(side, f) })); }
+        if (s.length) svg.append(sv('text', { x: 6, y: 77, 'font-size': 9.5, 'font-weight': 700, fill: f.stat, ...edged(side, f) }, `(${s.length})`));
     } else {
         svg.append(sv('text', { x: 6, y: 92, 'font-size': 10, 'font-style': 'italic', fill: f.text }, 'no attack'));
     }
