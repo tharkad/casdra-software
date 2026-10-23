@@ -222,6 +222,6 @@
 
 /* a counter you turned over to look at is not the current side (note 15): a red word and a dashed edge; the current side shows nothing */
 .cb-foe .sidelbl { position: absolute; left: 50%; transform: translateX(-50%); top: -11px; white-space: nowrap; padding: 1px 6px; border-radius: var(--r-pill); font: 700 calc(12px * var(--ts, 1))/14px var(--font-ui); letter-spacing: .08em; pointer-events: none; background: var(--surface-2); color: var(--gold); border: 1px solid var(--gold-lo); }
-.cb-foe .sidelbl.peek { background: var(--danger); color: #fff; border-color: var(--danger); }
+.cb-foe .sidelbl.peek { top: calc(100% + 2px); background: var(--danger); color: #fff; border-color: var(--danger); }
 .cb-foe[data-foe] .cb-flip[aria-pressed=true] .ds-cs-wrap { outline: 2px dashed var(--danger); outline-offset: 1px; opacity: .85; }
 .cb-flip { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
