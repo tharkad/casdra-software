@@ -244,7 +244,7 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
         return [line[0], `Round ${c.round}, Melee: ${line[1] ?? line[0]} ${limText}`];
     }
     // the Encounter
-    if (p.spellOnly) return ['A quiet evening. Nothing here is looking for a fight.', 'Spells are cast in the evening (rule 8.1.3a): a quiet clearing still gets its rounds, so the game stops here to let you cast one.'];
+    if (p.spellOnly) return ['A quiet evening. Nothing here is looking for a fight, but you have a spell you could cast tonight, so the game stops here to ask.', 'Spells are cast in the evening (rule 8.1.3a): a quiet clearing still gets its rounds, so the game stops here to let you cast one.'];
     const o2 = encounterOptions(st, data);
     const phrase = names.length ? phraseOf() : '';
     const gate = o2.why?.gate ? `A chit played here has to be faster than ${M.gateWords(st, o2.why.gate)}.` : 'Nothing is set on you, so no creature holds your chits back.';
