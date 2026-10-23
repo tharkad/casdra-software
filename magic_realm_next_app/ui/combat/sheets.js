@@ -65,6 +65,7 @@ export function encounterSheet(X) {
     const back = btn('Back', 'quiet', { 'data-act': 'pick-back', onclick: () => { cb.pick = null; cb.quiet = null; render(); } });
     const pick = cb.pick;
     if (pick?.kind === 'alert' && o.canAlert) return alertPick(X, o, round, back);
+    if (pick?.kind === 'berserk' && o.berserkChits?.length) return berserkPick(X, o, round, back);
     if (pick?.kind === 'run' && o.canRun) return runPick(X, o, round, back);
     if (pick?.kind === 'fly' && o.canFly) return flyPick(X, o, round, back);
     if (pick?.kind === 'gear' && items.length) return gearPick(X, o, round, back);
@@ -75,6 +76,7 @@ export function encounterSheet(X) {
         onclick: () => (state.ok ? on() : X.say(state.why)) }, actIcon(icoName, 32), label, state.ok ? null : h('small', {}, state.sub));
     const tiles = [
         tile('alert', M.weaponVerb(o), v.alert, () => { cb.pick = { kind: 'alert', chit: null }; render(); }, { 'data-verb': 'alert' }),
+        ...(st.ch.chits.some(c => c.type === 'berserk') ? [tile('alert', 'Go berserk', o.berserkChits?.length ? { ok: true } : { ok: false, sub: st.ch.berserk ? 'already raging' : 'too slow', why: st.ch.berserk ? 'Your rage is already on until midnight.' : 'Your Berserk chit must be active and faster than every creature that attacks you.' }, () => { cb.pick = { kind: 'berserk', chit: null }; render(); }, { 'data-verb': 'berserk' })] : []),
         tile('move', 'Run for it', v.run, () => { cb.pick = { kind: 'run', chit: null, to: null }; render(); }, { 'data-verb': 'run' }),
         tile('spell', 'Cast a spell', v.cast, () => { cb.pick = { kind: 'cast' }; render(); }, { 'data-verb': 'cast' }),
         ...(v.fly ? [tile('fly', 'Fly away', v.fly, () => { cb.pick = { kind: 'fly', chit: null, to: null }; render(); }, { 'data-verb': 'fly' })] : []),
@@ -101,6 +103,13 @@ function alertPick(X, o, round, back) {
     return sheetEl(X, 'encounter-pick', qRow(round, h('span', {}, verb)), chitPickRow(X, chits, sel, id => { cb.pick.chit = id; render(); }),
         hint('Pick the Fight chit that does it. It is your action; the melee follows.'),
         foot(back, primary(o.weapon.item.alerted ? 'Put it away' : 'Ready it', { 'data-act': 'alert-go', onclick: () => send(P.alert(sel)) })));
+}
+function berserkPick(X, o, round, back) {
+    const { cb, send, render } = X, chits = o.berserkChits;
+    const sel = cb.pick.chit && chits.some(x => x.id === cb.pick.chit) ? cb.pick.chit : chits[0].id;
+    return sheetEl(X, 'encounter-pick', qRow(round, h('span', {}, 'Go berserk')), chitPickRow(X, chits, sel, id => { cb.pick.chit = id; render(); }),
+        hint('Play the Berserk chit as your action. Your vulnerability is Tremendous until midnight, so blows that would have killed you only wound. Its asterisks tire like a Fight chit. The melee follows.'),
+        foot(back, primary('Go berserk', { 'data-act': 'berserk-go', onclick: () => send(P.berserk(sel)) })));
 }
 function runPick(X, o, round, back) {
     const { cb, send, render } = X, chits = o.runChits, roads = o.runTo;
@@ -264,9 +273,11 @@ export function meleeSheet(X) {
         if (!spl && o.fightChits.length) body.push(hint(hintLine, eff.over ? 'bad' : ''));
         lead = repeat ?? effortLead(eff);
     } else if (cur === 'guard') {
-        body = [dirButtons(MNV, i => `meets ${DIRS[i]}`, m.moveDir, i => { m.moveDir = i; render(); }),
-            o.moveChits.length ? h('div', { class: 'cb-chits', 'data-scope': '' }, ...o.moveChits.map(ch => chitTile(X, ch, { on: m.moveChit === ch.id, why: M.chitWhy(st, data, o, m, ch, 'move') && m.moveChit !== ch.id ? M.chitWhy(st, data, o, m, ch, 'move') : null,
-                onclick: () => { m.moveChit = m.moveChit === ch.id ? null : ch.id; render(); }, attrs: { 'data-sel': 'mc' } }))) : h('p', { class: 'cb-hint' }, 'You have no Move chit ready.'),
+        const dirOf = i => { m.moveDir = i; const sel = M.moveList(o).find(x => x.id === m.moveChit); if (sel?.duck && i !== M.DUCK_SQUARE) { m.moveChit = null; X.say('The Duck chit goes only in the Duck square, so it is put back.'); } render(); };
+        const moves = M.moveList(o);
+        body = [dirButtons(MNV, i => `meets ${DIRS[i]}`, m.moveDir, dirOf),
+            moves.length ? h('div', { class: 'cb-chits', 'data-scope': '' }, ...moves.map(ch => chitTile(X, ch, { on: m.moveChit === ch.id, why: M.chitWhy(st, data, o, m, ch, 'move') && m.moveChit !== ch.id ? M.chitWhy(st, data, o, m, ch, 'move') : null,
+                onclick: () => { m.moveChit = m.moveChit === ch.id ? null : ch.id; if (m.moveChit && ch.duck) m.moveDir = M.DUCK_SQUARE; render(); }, attrs: { 'data-sel': 'mc' } }))) : h('p', { class: 'cb-hint' }, 'You have no Move chit ready.'),
             hint(M.guardHint(st, data, o, m))];
     } else if (cur === 'shield') {
         body = [dirButtons(DIRS, () => 'shield here', m.shieldDir, i => { m.shieldDir = i; render(); }), hint(`Your ${nameOf(data, o.shield.item ?? o.shield)} guards one direction each round.`)];
@@ -288,7 +299,7 @@ export function meleeSheet(X) {
         const strikeText = o.attackSpell ? `${data.spells?.[o.attackSpell.spell]?.name ?? 'Spell'}, ${DIRS[m.attackDir]}` : `${m.target ? `${DIRS[m.attackDir]} at ${tgtName}` : 'No one'}${m.fightChit ? `, ${chitText(st.ch.chits.find(x => x.id === m.fightChit) ?? o.fightChits.find(x => x.id === m.fightChit))}` : m.target ? ', no chit' : ''}`;
         rows.push(sumRow('Strike', strikeText, () => go('strike')));
         if ((o.aims ?? []).length) rows.push(sumRow('Aim', o.aims.map(a => `${a.name}: ${(m.aim?.[a.spell] ?? a.options.slice(0, a.min).map(x => x.ref)).map(r => a.options.find(q => sameRef(q.ref, r))?.label ?? '').filter(Boolean).join(', ') || 'as it falls'}`).join(' · '), () => go('aim')));
-        rows.push(sumRow('Guard', m.moveChit ? `${MNV[m.moveDir]}, with ${chitText(o.moveChits.find(x => x.id === m.moveChit) ?? st.ch.chits.find(x => x.id === m.moveChit))}` : `${MNV[m.moveDir]}, no chit`, () => go('guard')));
+        rows.push(sumRow('Guard', m.moveChit ? `${MNV[m.moveDir]}, with ${chitText(M.moveList(o).find(x => x.id === m.moveChit) ?? st.ch.chits.find(x => x.id === m.moveChit))}` : `${MNV[m.moveDir]}, no chit`, () => go('guard')));
         if (o.shield) rows.push(sumRow('Shield', `guards ${DIRS[m.shieldDir]}`, () => go('shield')));
         if (o.boxable.length >= 2) rows.push(sumRow('Foes', o.boxable.length > 3 ? `${o.boxable.length} creatures placed` : o.boxable.map((d, i) => `${baseNameOf(st, data, o, d.uid)} ${MNV[m.boxes[d.uid] ?? (i % 3)]}`).join(' \u00B7 '), () => go('foes')));
         if (m.fightChit && !m.target && w && !o.attackSpell) { m.weaponSide ??= w.item.alerted ? 'alerted' : 'unalerted'; rows.push(sumRow('Weapon', `ends ${m.weaponSide === 'alerted' ? 'alerted' : 'not alerted'}`, () => { m.weaponSide = m.weaponSide === 'alerted' ? 'unalerted' : 'alerted'; render(); }, 'data-weapon-side')); }

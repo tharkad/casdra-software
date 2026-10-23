@@ -1,4 +1,4 @@
-import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll, tally, WEIGHT_WORDS } from './core.js';
+import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll, tally, WEIGHT_WORDS, chitWord } from './core.js';
 import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './tables.js';
 import { pit, rollPit, rollCurse, pitOnChar, hasCurse } from './effects.js';
 import { hirelings, monsterHires } from './hire.js';
@@ -104,7 +104,7 @@ export function denSide(st, data, den) {
 function denSideRaw(st, data, den) {
     if (den.kind === 'character') {          // another character named as a target (pvp): what is public about him, as a counter would show it
         const ch = st.chars[den.id];
-        return { name: ch.name, size: ch.weight, vuln: ch.weight, armored: false, harm: null, stars: 0, atk: null, move: null, length: 0, attack: 'none', fame: 0, notor: ch.notoriety ?? 0, gold: 0, tremendous: false, character: true };
+        return { name: ch.name, size: ch.weight, vuln: ch.berserk ? 'T' : ch.weight, armored: false, harm: null, stars: 0, atk: null, move: null, length: 0, attack: 'none', fame: 0, notor: ch.notoriety ?? 0, gold: 0, tremendous: false, character: true };
     }
     if (den.kind === 'hire') {               // someone else's hireling named as a target (pvp)
         const hs = hireStats(data, den.id, den.hireKind, st);
@@ -356,6 +356,23 @@ function horseChits(st, data) {
     return [['walk', d.walk], ['gallop', d.gallop]].map(([side, x]) => ({ id: `horse:${h.uid}:${side}`, horseUid: h.uid, side, type: 'move', strength: x.strength, time: x.moves, effort: 0, state: 'active', card: true, isHorse: true, name: `${d.name} (${side === 'walk' ? 'walking' : 'galloping'})` }));
 }
 
+// The Dwarf's Duck chit (a Move chit that may only be placed in the Duck square, Characters: Short Legs) and the Berserker's Berserk chit (a fight-alert chit, Encounter step)
+// are chits of their own kind. They are offered on their own lists (duckChits, berserkChits) and not among the Move or Fight chits, so nothing that picks a Move chit can
+// put the Duck chit in the wrong square. A creature (Transform) plays none of them.
+const DUCK_SQUARE = 2;
+// What kind of effort a chit's asterisks are: the Duck chit tires like a Move chit and the Berserk chit like a Fight chit (4.2.4)
+const effortKind = x => (x.type === 'duck' ? 'move' : x.type === 'berserk' ? 'fight' : x.type);
+function duckChits(st) {
+    if (st.ch.morph) return [];
+    return st.ch.chits.filter(x => x.state === 'active' && x.type === 'duck' && !st.combat.played?.[x.id]).map(x => ({ ...x, type: 'move', duck: true }));      // (effort counts as Move effort, 4.2.4)
+}
+function berserkChits(st, slowest) {
+    if (st.ch.morph || st.ch.berserk) return [];
+    return st.ch.chits.filter(x => x.state === 'active' && x.type === 'berserk' && x.time < slowest && !st.combat.played?.[x.id]).map(x => ({ ...x, type: 'fight', berserk: true }));      // (effort counts as Fight effort)
+}
+// His vulnerability: his weight, raised to Tremendous for the rest of the day once the Berserk chit is played
+const heroVuln = st => (st.ch.berserk ? 'T' : st.ch.weight);
+
 function activeChits(st, type, data) {
     // A hero who is a creature (Absorb Essence, Transform) plays dummy chits made from its counter and nothing of his own (RS CharacterWrapper:4950: only colour chits remain)
     if (st.ch.morph) return morphChits(st, type).filter(x => !st.combat.played?.['morph:' + x.type]);
@@ -535,7 +552,7 @@ export function encounterOptions(st, data) {
                         : 'No ready Move chit that is fast enough is also strong enough to carry everything you own.',
     };
     const casts = (c.spellOnly ? quietCasts(st, data, true) : castOptions(st, data, { slowest })).map(o => (c.spellOnly ? { ...o, aim: previewAim(st, data, o) } : o));       // (a quiet-evening cast has no Melee step: it is aimed on the cast screen)
-    return { canStay, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && fight.length > 0 && !gripped, alertChits: fight, canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
+    return { canStay, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && fight.length > 0 && !gripped, alertChits: fight, berserkChits: berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
 }
 const canRunNow = (move, st, data) => move.length > 0 && runDestinations(st, data).length > 0;
 
@@ -591,6 +608,12 @@ export function encounterAction(st, data, a) {
         playChit(st, chit);
         opt.weapon.item.alerted = !opt.weapon.item.alerted;
         say(st, `You turn your ${data.weapons[opt.weapon.item.id].name} ${opt.weapon.item.alerted ? 'alerted' : 'unalerted'}.`, 'combat');
+    } else if (a.act === 'berserk') {
+        const chit = opt.berserkChits.find(x => x.id === a.chit);
+        if (!chit) throw new Error('that chit cannot be played now: the Berserk chit must be active and faster than every creature that attacks you, and the rage lasts the day');
+        playChit(st, chit);
+        st.ch.berserk = true;
+        say(st, `You play your Berserk chit and fly into a rage: your vulnerability is Tremendous until midnight.`, 'combat');
     } else if (a.act === 'fly') {
         const chit = opt.flyChits.find(x => x.id === a.chit) ?? (a.chit == null ? opt.flyChits[0] : null);
         if (!chit || !opt.canFly) throw new Error('you have no Fly chit you can play now');
@@ -642,7 +665,7 @@ function playChit(st, chit) {
     if (chit.effort) c.asterisks[chit.type === 'move' ? 'move' : 'fight'] += chit.effort;
 }
 
-const chitName = ch => `${ch.type === 'move' ? 'Move' : ch.type === 'magic' ? 'Magic' : 'Fight'} ${ch.type === 'magic' ? (ch.numeral ?? '') : (ch.strength ?? '')}${ch.time}${'*'.repeat(ch.effort ?? 0)}`;
+const chitName = ch => `${chitWord(ch)} ${ch.type === 'magic' ? (ch.numeral ?? '') : (ch.strength ?? '')}${ch.time}${'*'.repeat(ch.effort ?? 0)}`;
 
 function nameOfItem(st, data, it) {
     return (it.kind === 'weapon' ? data.weapons[it.id] : it.kind === 'armor' ? data.armor[it.id] : it.kind === 'horse' ? data.horses[it.id] : data.treasures[it.id])?.name ?? it.id;
@@ -671,6 +694,7 @@ export function meleeOptions(st, data) {
         aims: aimOptions(st, data),                                                 // what each spell cast this round may be aimed at
         fightChits: c.casts?.length ? [] : activeChits(st, 'fight', data),         // a character who cast a spell cannot also swing a weapon or play a Fight chit that round (8.4.5a)
         moveChits: activeChits(st, 'move', data),
+        duckChits: duckChits(st),
         fightOk: ch => lvl(ch.strength) >= wlvl,
         moveOk: ch => lvl(ch.strength) >= (ch.isHorse ? Math.max(load, lvl(st.ch.weight)) : load),
         shield: st.ch.morph ? null : activeArmor(st, data).find(a => isShield(a.def)) ?? null,
@@ -744,9 +768,10 @@ export function meleeSetup(st, data, p) {
         if (!o.fightOk(fight)) throw new Error('that Fight chit is too weak for your weapon');
     }
     if (p.moveChit) {
-        move = o.moveChits.find(x => x.id === p.moveChit);
+        move = o.moveChits.find(x => x.id === p.moveChit) ?? o.duckChits.find(x => x.id === p.moveChit);
         if (!move) throw new Error('that Move chit is not available');
-        if (!o.moveOk(move)) throw new Error('that Move chit is too weak to carry your gear');
+        if (move.duck && p.moveDir !== DUCK_SQUARE) throw new Error('the Duck chit may only be placed in the Duck square');
+        if (!move.duck && !o.moveOk(move)) throw new Error('that Move chit is too weak to carry your gear');
     }
     if (fight && move && fight.id === move.id) throw new Error('a Move/Fight chit is played as one or the other, not both');
     if (hm) {
@@ -1084,7 +1109,7 @@ export function deliverBlows(st, data, parts, run = (pt, f) => f(), shared = fal
     for (const pt of parts) {
         if (pt.hits.length) continue;
         const { c, fight } = pt, target = pt.target ?? pt.charVictim ?? pt.hireVictim;
-        const chit = c => `${c.type === 'move' ? 'Move' : 'Fight'} ${c.strength}${c.time}${'*'.repeat(c.effort ?? 0)}`;
+        const chit = c => `${chitWord(c)} ${c.strength}${c.time}${'*'.repeat(c.effort ?? 0)}`;
         const bits = [];
         run(pt, () => {
             if (fight && !target) bits.push(`You played ${chit(fight)} but named no one to strike, so the effort bought nothing.`);
@@ -1744,7 +1769,7 @@ function strikeHero(st, data, b, ctx) {
             if (hasTreasure(st, 'reflecting-grease')) { greased = true; ctx.log('Your Reflecting Grease turns the blow aside: no chit is wounded.'); }
             else wounded = true;
         }
-    } else if (level >= lvl(st.ch.weight)) {
+    } else if (level >= lvl(heroVuln(st))) {
         return killMe(st, `${b.name} deals ${L} harm; you are slain.`, b.name);
     } else if (level >= lvl('L')) wounded = true;
     if (wounded) {
@@ -1869,7 +1894,7 @@ function toFatigue(st, data) {
     if (c.asterisks.move) kinds.push('move');
     if (c.asterisks.fight) kinds.push('fight');
     c.fatigueKinds = kinds;
-    const pool = st.ch.chits.filter(x => x.state === 'active' && x.effort > 0 && (kinds.includes(x.type) || x.alt?.mf));        // a Move/Fight chit can pay either kind
+    const pool = st.ch.chits.filter(x => x.state === 'active' && x.effort > 0 && (kinds.includes(effortKind(x)) || x.alt?.mf));        // a Move/Fight chit can pay either kind
     const total = pool.reduce((s, x) => s + x.effort, 0);
     if (total <= need) {
         pool.forEach(x => { x.state = 'fatigued'; });
@@ -1878,7 +1903,7 @@ function toFatigue(st, data) {
     }
     c.step = 'fatigue';
     // say which of his plays cost the effort, so the question is not a mystery
-    const lab = ch => `${ch.type === 'move' ? 'Move' : ch.type === 'magic' ? 'Magic' : 'Fight'} ${ch.type === 'magic' ? (ch.numeral ?? '') : (ch.strength ?? '')}${ch.time}${'*'.repeat(ch.effort ?? 0)}`;
+    const lab = ch => `${chitWord(ch)} ${ch.type === 'magic' ? (ch.numeral ?? '') : (ch.strength ?? '')}${ch.time}${'*'.repeat(ch.effort ?? 0)}`;
     const playedCosting = st.ch.chits.filter(x => c.played?.[x.id] && x.effort > 0);
     const why = `You played ${playedCosting.map(lab).join(' and ') || 'chits with asterisks'}: ${c.asterisks.move + c.asterisks.fight} asterisk${c.asterisks.move + c.asterisks.fight === 1 ? '' : 's'} of effort. The first is free; each one after it is paid by tiring a ${kinds.join(' or ')} chit that has asterisks (any such chit, not only the one you played).`;
     st.pending = { type: 'combat-fatigue', need, chits: pool.map(x => x.id), kinds, why };
@@ -1891,13 +1916,13 @@ export function makeChangeOptions(st, data, ids) {
     const chosen = [...new Set(ids)].map(id => st.ch.chits.find(x => x.id === id)).filter(Boolean);
     const sum = chosen.reduce((n, x) => n + (x.effort ?? 0), 0);
     if (sum - need !== 1) return [];
-    const types = new Set((chosen.some(x => x.effort >= 2) ? chosen.filter(x => x.effort >= 2) : chosen).map(x => x.type));
-    return st.ch.chits.filter(x => x.state === 'fatigued' && x.effort === 1 && !chosen.includes(x) && (types.has(x.type) || (x.alt?.mf && [...types].some(t => t === 'move' || t === 'fight'))));
+    const types = new Set((chosen.some(x => x.effort >= 2) ? chosen.filter(x => x.effort >= 2) : chosen).map(effortKind));
+    return st.ch.chits.filter(x => x.state === 'fatigued' && x.effort === 1 && !chosen.includes(x) && (types.has(effortKind(x)) || (x.alt?.mf && [...types].some(t => t === 'move' || t === 'fight'))));
 }
 
 export function chooseFatigue(st, data, ids, change = null) {
     const c = st.combat, need = c.fatigueNeed;
-    const pool = st.ch.chits.filter(x => x.state === 'active' && x.effort > 0 && (c.fatigueKinds.includes(x.type) || x.alt?.mf));
+    const pool = st.ch.chits.filter(x => x.state === 'active' && x.effort > 0 && (c.fatigueKinds.includes(effortKind(x)) || x.alt?.mf));
     const chosen = [...new Set(ids)].map(id => pool.find(x => x.id === id));
     if (chosen.some(x => !x)) throw new Error('that chit cannot be fatigued');
     const sum = chosen.reduce((s, x) => s + x.effort, 0);

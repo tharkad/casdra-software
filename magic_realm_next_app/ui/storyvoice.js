@@ -24,7 +24,7 @@ const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight
 const numWord = n => NUM[n] ?? String(n);
 const bare = t => String(t ?? '').replace(/^Phase \d+: /, '').trim();
 const noHash = s => String(s).replace(/ #\d+/g, '');
-const typeOf = label => (/^(Move|Fight|Magic)/.exec(label) ?? [])[1] ?? 'action';
+const typeOf = label => (/^(Move|Fight|Magic|Duck|Berserk)/.exec(label) ?? [])[1] ?? 'action';
 const lc = s => (s ?? '').toLowerCase();
 const plural = n => (/wolf$/i.test(n) ? n.replace(/wolf$/i, 'Wolves') : /(?:ch|sh|x|s)$/i.test(n) ? `${n}es` : `${n}s`);
 // "Heavy Troll, Heavy Troll, Ogre" -> { text: 'two Heavy Trolls and an Ogre', many: true }
@@ -126,7 +126,7 @@ rule(/^You are already hidden/, () => ['You stay out of sight.', 'You keep still
 rule(/^The Squeak curse betrays you: you cannot hide/, () => ['Every step squeaks. There is no hiding with that curse.', 'The curse squeals at your every move. You cannot hide.']);
 rule(/^Ill Health: you cannot rest/, () => ['Sickness has you by the throat. There is no resting it off.', 'You lie down, but the sickness will not let you rest.']);
 rule(/^You have nothing to rest/, () => 'You are well, and there is nothing to rest.');
-rule(/^You rest \((rest|heal) ((?:Move|Fight|Magic) \S+)( to fatigued)?(?:, fatiguing ((?:Move|Fight|Magic) \S+) for change)?\)\.?$/, (m) => {
+rule(/^You rest \((rest|heal) ((?:Move|Fight|Magic|Duck|Berserk) \S+)( to fatigued)?(?:, fatiguing ((?:Move|Fight|Magic|Duck|Berserk) \S+) for change)?\)\.?$/, (m) => {
     const t = typeOf(m[2]), pay = m[4] ? typeOf(m[4]) : null;
     const lead = m[1] === 'rest'
         ? [`You catch your breath. Your ${t} chit is ready again.`, `A little rest, and your ${t} chit answers again.`, `You sit a while, and your ${t} chit comes back to you.`]
@@ -221,7 +221,7 @@ rule(/^The Vault is sealed/, () => 'The Vault is sealed. Only great strength or 
 rule(/^You are too exhausted to wade into the Pool/, () => 'You are too spent to wade into the Pool.');
 rule(/^You open the Chest: (.+?)\.?$/, m => `The Chest swings open: ${place(m[1])}.`);
 rule(/^The (.+?)'s goods are left lying where their leader fell\.?$/, m => `${/s$/.test(m[1]) ? `The ${place(m[1])}'` : `The ${place(m[1])}'s`} goods lie where their leader fell.`);
-rule(/^You tire ((?:Move|Fight|Magic) \S+)( and bring back ((?:Move|Fight|Magic) \S+) \(change\))?\.?$/, m => (m[3]
+rule(/^You tire ((?:Move|Fight|Magic|Duck|Berserk) \S+)( and bring back ((?:Move|Fight|Magic|Duck|Berserk) \S+) \(change\))?\.?$/, m => (m[3]
     ? [`You push on: a ${typeOf(m[1])} chit tires, and a ${typeOf(m[3])} chit comes back in its place.`, `You trade a tired chit for a fresh one to pay the toll.`]
     : [`You push on: a ${typeOf(m[1])} chit tires.`, `The effort costs you a ${typeOf(m[1])} chit.`]));
 rule(/^You leave the (.+?) behind\.?$/, m => `You leave the ${place(m[1])} where it lies.`);
@@ -354,7 +354,7 @@ rule(/^Every action chit is wounded; you die\.?$/, () => 'Every chit lies wounde
 rule(/^(.+?) comes down in clearing (\d+) of the (.+?)\.?$/, m => `${m[1]} comes down in clearing ${m[2]} of the ${m[3]}.`);
 rule(/^You flee along the road toward (.+?)\.?$/, m => [`You break away and run for ${m[1]}.`, `You flee down the road toward ${m[1]}.`]);
 rule(/^You break away from the fight\.?$/, () => ['You break away from the fight.', 'You tear free and run.']);
-rule(/^You make change for the extra asterisk: ((?:Move|Fight|Magic) \S+) is ready again\.?$/, m => `You trade a tired chit for a fresh ${typeOf(m[1])} chit.`);
+rule(/^You make change for the extra asterisk: ((?:Move|Fight|Magic|Duck|Berserk) \S+) is ready again\.?$/, m => `You trade a tired chit for a fresh ${typeOf(m[1])} chit.`);
 
 // ---- fighting, in the few places the day's story needs it (the fight itself is told by the engine's own Story lines)
 // the few lines of a fight that carry numbers in their Story (the engine's `s` keeps "(3 against your 4)", "time 3, length 5"): told without them

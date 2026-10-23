@@ -4,7 +4,7 @@ import { numOf, tileOf, roadsFrom, pathKey, nameOfClearing } from './world.js';
 import { PEER, LOCATE } from './tables.js';
 import { fxTags } from './magic/fx.js';
 import { rollCurse, hasCurse, pit } from './effects.js';
-import { roll2 } from './core.js';
+import { roll2, chitWord } from './core.js';
 import { convertCard, oneDie, modRoll, modNote } from './modifiers.js';
 import { isMulti } from './party.js';
 import { spyOnLoot, snap, shareFind, followersOf } from './meet.js';
@@ -18,7 +18,7 @@ export function sitesHere(st) {
     return st.chits.filter(c => c.kind === 'site' && c.tile === tile && c.num === n && !c.pile && st.ch.discovered.sites.includes(c.id));
 }
 
-const chitName = c => (c.type === 'magic' ? `Magic ${c.numeral ?? ''}${c.time}` : `${c.type === 'move' ? 'Move' : 'Fight'} ${c.strength}${c.time}`) + '*'.repeat(c.effort ?? 0);
+const chitName = c => (c.type === 'magic' ? `Magic ${c.numeral ?? ''}${c.time}` : `${chitWord(c)} ${c.strength}${c.time}`) + '*'.repeat(c.effort ?? 0);
 
 // The ways he can pay one asterisk of effort (Cairns, Pool): tire any ready chit that has an asterisk. A chit worth two may also "make change":
 // it is tired and a tired one-asterisk chit of the same type is brought back (rule 4.2.4). Identical chits are offered once.

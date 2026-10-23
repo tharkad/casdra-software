@@ -12,6 +12,7 @@ export const over = () => A({ kind: 'over' });
 export const pass = () => A({ kind: 'encounter', act: 'pass' });
 export const stay = () => A({ kind: 'encounter', act: 'stay' });
 export const alert = chit => A({ kind: 'encounter', act: 'alert', chit });
+export const berserk = chit => A({ kind: 'encounter', act: 'berserk', chit });
 export const run = (chit, to) => A({ kind: 'encounter', act: 'run', chit, to });
 export const fly = (chit, to) => A({ kind: 'encounter', act: 'fly', chit, to });
 export const protect = fx => A({ kind: 'encounter', act: 'protect', fx });

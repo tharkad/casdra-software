@@ -3,6 +3,8 @@ import { upgradeState, isGameState, charsAt } from './party.js';
 // Small shared helpers for the rules engine. Everything here is pure; randomness always goes through the state's own generator.
 
 export const LEVELS = ['N', 'L', 'M', 'H', 'T'];                 // negligible, light, medium, heavy, tremendous
+// What a chit is called on the screen: the Dwarf's Duck chit and the Berserker's Berserk chit are neither Move nor Fight by name
+export const chitWord = c => (c.type === 'move' ? (c.duck ? 'Duck' : 'Move') : c.type === 'duck' ? 'Duck' : c.type === 'berserk' ? 'Berserk' : c.type === 'magic' ? 'Magic' : 'Fight');
 export const lvl = letter => Math.max(0, LEVELS.indexOf(letter));
 export const letterOf = level => LEVELS[Math.min(4, Math.max(0, level))];
 export const WEIGHT_WORDS = { N: 'Negligible', L: 'Light', M: 'Medium', H: 'Heavy', T: 'Tremendous' };

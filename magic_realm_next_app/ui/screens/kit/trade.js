@@ -85,7 +85,7 @@ function tradeRow(G, sel, { key, it, name, line, price, unit = '', tag = '', cou
                 h('span', { class: 'art' }, itemArt(G, it), selected ? tick() : null),
                 h('span', { class: 'main' }, h('b', {}, name, count > 1 ? h('span', { class: 'ds-tag kit-tag' }, `×${count}`) : null, tag ? h('span', { class: 'ds-tag kit-tag' }, tag) : null), h('span', {}, dim ?? line)),
                 h('span', { class: 'end' }, goldEl(G, price), unit ? h('small', {}, unit) : null)),
-            h('button', { type: 'button', class: 'kit-info', 'aria-label': `About the ${name}`, 'aria-expanded': open ? 'true' : 'false', onclick: () => { sel.info = open ? null : key; render(G); } }, icon(open ? 'up' : 'down'))),
+            h('button', { type: 'button', class: 'kit-info', 'aria-label': `About the ${name}`, 'aria-expanded': open ? 'true' : 'false', onclick: () => { sel.info = open ? null : key; render(G); if (!open) requestAnimationFrame(() => G.root.querySelector('.kit-infobody')?.scrollIntoView({ block: 'nearest', behavior: 'auto' })); } }, icon(open ? 'up' : 'down'))),
         open ? info() : null);
 }
 
@@ -101,9 +101,9 @@ function tradeMain(G, p) {
     const rel = G.st.ch.rel?.[p.group] ?? 0, dealt = !!p.mode || !!p.sold?.length;
     const ashes = hasCurse(G.st, 'Ashes');
     const owed = (G.st.ch.boons ?? []).map((b, n) => ({ ...b, n })).filter(b => b.group === p.group);
-    const tabs = [{ key: 'sell', label: 'Sell' }, { key: 'buy', label: 'Buy' }, ...(owed.length ? [{ key: 'owed', label: 'Boons', n: owed.length }] : [])];
+    const tabs = [{ key: 'buy', label: 'Buy' }, { key: 'sell', label: 'Sell' }, ...(owed.length ? [{ key: 'owed', label: 'Boons', n: owed.length }] : [])];
     let tab = G.ui.tradeTab;
-    if (!tabs.some(t => t.key === tab)) tab = p.mode === 'buy' ? 'buy' : 'sell';
+    if (!tabs.some(t => t.key === tab)) tab = p.mode === 'sell' ? 'sell' : 'buy';
 
     const chosenSell = mine.filter(m => sel.sell.includes(m.uid)), sellSum = chosenSell.reduce((n, m) => n + m.price, 0);
     const chosenBuy = sel.buy != null ? goods.find(g => g.idx === sel.buy) : null;
@@ -134,7 +134,7 @@ function tradeMain(G, p) {
     let rows;
     if (tab === 'buy') {
         const seen = new Map();
-        goods.forEach(g => { const raw = raws[g.idx] ?? {}, k = `${g.kind}:${g.name}:${raw.damaged ? 1 : 0}:${raw.card ?? ''}`; (seen.get(k) ?? seen.set(k, { ...g, raw, idxs: [] }).get(k)).idxs.push(g.idx); });
+        goods.forEach(g => { const raw = raws[g.idx] ?? {}, k = `${g.kind}:${g.id}:${raw.damaged ? 1 : 0}:${raw.card ?? ''}`; (seen.get(k) ?? seen.set(k, { ...g, raw, idxs: [] }).get(k)).idxs.push(g.idx); });
         const list = [...seen.values()];
         rows = list.length ? list.map(g => tradeRow(G, sel, { key: `buy:${g.idxs[0]}`, it: { ...g.raw, kind: g.kind, id: g.id }, name: g.name, line: 'The roll sets the price.', price: g.base, unit: 'list', tag: g.raw.damaged ? 'damaged' : '', count: g.idxs.length, selected: g.idxs.includes(sel.buy),
             dim: p.mode === 'sell' ? 'A phase is selling or buying, not both.' : null, onSelect: () => pickBuy(g.idxs.includes(sel.buy) ? sel.buy : g.idxs[0]), info: infoOf(G, { ...g.raw, kind: g.kind, id: g.id }) }))

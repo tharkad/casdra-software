@@ -53,8 +53,11 @@ export function otherSide(data, d) {
 
 // ---- chits ----
 export const chitText = ch => (ch.type === 'magic' ? `${ch.numeral ?? ''}${ch.time}` : `${ch.strength}${ch.time}`) + '*'.repeat(ch.effort || 0);
-export const chitKindWord = ch => (ch.isHorse ? String(ch.side ?? 'steed').toUpperCase() : ch.card && ch.type === 'fight' ? 'GLOVES' : ch.card && ch.type === 'move' ? 'BOOTS' : ch.type === 'magic' ? 'MAGIC' : ch.type === 'move' ? 'MOVE' : 'FIGHT');
-export const chitName = ch => `${ch.type === 'magic' ? 'Magic' : ch.type === 'move' ? 'Move' : 'Fight'} ${chitText(ch)}`;
+export const chitKindWord = ch => (ch.duck ? 'DUCK' : ch.berserk ? 'BERSERK' : ch.isHorse ? String(ch.side ?? 'steed').toUpperCase() : ch.card && ch.type === 'fight' ? 'GLOVES' : ch.card && ch.type === 'move' ? 'BOOTS' : ch.type === 'magic' ? 'MAGIC' : ch.type === 'move' ? 'MOVE' : 'FIGHT');
+export const chitName = ch => `${ch.duck ? 'Duck' : ch.berserk ? 'Berserk' : ch.type === 'magic' ? 'Magic' : ch.type === 'move' ? 'Move' : 'Fight'} ${chitText(ch)}`;
+// The Move chits of the Guard step: the ordinary ones and the Dwarf's Duck chit (a Move chit for the Duck square only: the engine lists it apart)
+export const moveList = o => [...o.moveChits, ...(o.duckChits ?? [])];
+export const DUCK_SQUARE = 2;
 export const limitWord = lim => (lim >= NO_EFFORT_LIMIT ? 'no limit' : lim === 3 ? 'three' : 'two');
 // how much value a chit has to him, to pick the one he will miss least (a default only: he can tap another)
 const worth = ch => (ch.type === 'magic' ? 40 : lvl(ch.strength) * 6 + (6 - (ch.time ?? 3)) - (ch.effort ?? 0));
@@ -64,14 +67,14 @@ export const missLeast = list => [...list].sort((a, b) => worth(a) - worth(b))[0
 export const asterisksOf = (st, ...ids) => ids.map(id => st.ch.chits.find(x => x.id === id)).reduce((s, ch) => s + (ch?.effort ?? 0), 0);
 // an effort total for a plan, counting what he already played this round (a spell cast in the Encounter step)
 export function effortOf(st, o, m) {
-    const pick = id => (id ? [...o.fightChits, ...o.moveChits].find(x => x.id === id) ?? st.ch.chits.find(x => x.id === id) : null);
+    const pick = id => (id ? [...o.fightChits, ...moveList(o)].find(x => x.id === id) ?? st.ch.chits.find(x => x.id === id) : null);
     return o.asterisksPlayed + (pick(m.fightChit)?.effort ?? 0) + (pick(m.moveChit)?.effort ?? 0);
 }
 // Why a Fight chit or a Move chit cannot be played: the engine's own checks (strength for the weapon or the load, the effort limit); null when it can.
 export function chitWhy(st, data, o, m, ch, kind) {
     const w = o.weapon, lim = o.effortLimit ?? 2;
     if (kind === 'fight' ? !o.fightOk(ch) : !o.moveOk(ch)) return kind === 'fight' ? `Too light for ${w ? `the ${nameOf(data, w.item)}` : 'your weapon'}.` : 'Too light to carry everything you own.';
-    const other = kind === 'fight' ? m.moveChit : m.fightChit, pick = id => (id ? [...o.fightChits, ...o.moveChits].find(x => x.id === id) : null);
+    const other = kind === 'fight' ? m.moveChit : m.fightChit, pick = id => (id ? [...o.fightChits, ...moveList(o)].find(x => x.id === id) : null);
     if (other && ch.id === other) return `That chit is already played as your ${kind === 'fight' ? 'Move' : 'Fight'} chit.`;
     const total = o.asterisksPlayed + (pick(other)?.effort ?? 0) + (ch.effort ?? 0);
     if (total > lim) return lim >= NO_EFFORT_LIMIT ? null : `That is more than ${limitWord(lim)} asterisks of effort: put the other chit back first.`;
@@ -103,7 +106,7 @@ export function repeatPlan(st, data, o, last) {
     m.fightChit = null; m.moveChit = null;
     const f = last.fightChit && !o.attackSpell && m.target ? o.fightChits.find(x => x.id === last.fightChit && o.fightOk(x)) : null;
     if (f && o.asterisksPlayed + (f.effort ?? 0) <= lim) m.fightChit = f.id;
-    const mv = last.moveChit ? o.moveChits.find(x => x.id === last.moveChit && o.moveOk(x) && x.id !== m.fightChit) : null;
+    const mv = last.moveChit ? moveList(o).find(x => x.id === last.moveChit && (x.duck ? m.moveDir === DUCK_SQUARE : o.moveOk(x)) && x.id !== m.fightChit) : null;
     if (mv && o.asterisksPlayed + asterisksOf(st, m.fightChit) + (mv.effort ?? 0) <= lim) m.moveChit = mv.id;
     for (const [uid, b] of Object.entries(last.boxes ?? {})) if (o.boxable.some(d => d.uid === uid)) m.boxes[uid] = b;
     if (last.weaponSide) m.weaponSide = last.weaponSide;
@@ -114,7 +117,7 @@ export const repeatable = last => !!last && (last.fightChit != null || last.move
 
 // ---- the live hint under the Guard step: what gets under the maneuver by its time (the engine's own rule: an attack whose time is lower than the maneuver's gets under it) ----
 export function guardHint(st, data, o, m) {
-    const mv = m.moveChit ? o.moveChits.find(x => x.id === m.moveChit) : null;
+    const mv = m.moveChit ? moveList(o).find(x => x.id === m.moveChit) : null;
     const attackers = o.boxable.filter(d => { const s = denSide(st, data, d); return s.attack !== 'none' && s.atk != null && (d.assigned || d.partOf); });
     if (!attackers.length) return 'Nothing here strikes back.';
     if (!mv) return 'With no maneuver every blow is aimed true.';

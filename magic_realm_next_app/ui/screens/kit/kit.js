@@ -125,7 +125,7 @@ function worthLine(G) {
 
 // Your twelve chits as they stand today (tired ones are dim, wounded ones dashed): the one place the day shows them.
 function chitsEl(G) {
-    const label = c => (c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`), word = c => (c.type === 'move' ? 'MOVE' : c.type === 'fight' ? 'FIGHT' : 'MAGIC');
+    const label = c => (c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`), word = c => (c.type === 'move' ? 'MOVE' : c.type === 'fight' ? 'FIGHT' : c.type === 'duck' ? 'DUCK' : c.type === 'berserk' ? 'BERSERK' : 'MAGIC');
     const state = c => (c.state === 'fatigued' ? 'tired' : c.state === 'wounded' ? 'wounded' : '');
     return h('div', { class: 'kit-chits', 'data-chits': '' }, G.st.ch.chits.map(c => h('span', { class: `ds-chit ${c.type} ${state(c)}`, 'data-chit': c.id, 'aria-label': `${word(c).toLowerCase()} chit ${label(c)}${c.effort ? `, effort ${c.effort}` : ''}${state(c) ? `, ${state(c)}` : ''}` },
         h('span', {}, label(c), c.effort ? h('sup', {}, '*'.repeat(c.effort)) : null), h('small', {}, word(c)))));

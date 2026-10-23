@@ -1,4 +1,4 @@
-import { clone, die, roll2, int, say, lvl, shuffle, noteRoll, tally } from './core.js';
+import { clone, die, roll2, int, say, lvl, shuffle, noteRoll, tally, chitWord } from './core.js';
 import { hides, PEER, LOCATE, meetingResult } from './tables.js';
 import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, tileClearings, graph, tileName } from './world.js';
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
@@ -75,6 +75,7 @@ export function beginChar(st, data) {
     st.ch.hiddenEnemies = false;
     st.ch.findEnemies = {};                                           // Magic Sight's partial Find Enemies (counters, treasures, spells): for today only
     st.ch.killsToday = 0;
+    if (st.ch.berserk) delete st.ch.berserk;      // the Berserk chit's rage ends at midnight (RealmSpeak removes the enhanced vulnerability then); the key exists only while it is on
     energizePass(st, data, 'dawn');                                   // Permanent spells whose colour fills the land today wake (4.6.7h)
     // What the day just ended changed, for the morning review (the report reads st.report; nothing in the rules does).
     if (st.mark) st.report = { day: st.mark.day, fame: st.ch.fame - st.mark.fame, notoriety: st.ch.notoriety - st.mark.notoriety, gold: ownedGold(st) - st.mark.gold };
@@ -882,7 +883,7 @@ export function restOptions(st) {
     }
     return res;
 }
-export const chitLabel = c => c.type === 'magic' ? `Magic ${c.numeral ?? ''}${c.time}${'*'.repeat(c.effort)}` : `${c.type === 'move' ? 'Move' : 'Fight'} ${c.strength}${c.time}${'*'.repeat(c.effort)}`;
+export const chitLabel = c => c.type === 'magic' ? `Magic ${c.numeral ?? ''}${c.time}${'*'.repeat(c.effort)}` : `${chitWord(c)} ${c.strength}${c.time}${'*'.repeat(c.effort)}`;
 
 function applyRest(st, o) {
     const c = st.ch.chits.find(x => x.id === o.chit);

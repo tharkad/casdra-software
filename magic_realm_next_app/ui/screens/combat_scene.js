@@ -144,7 +144,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     const allies = M.alliesOf(st, data);
     const allyEl = allies.length ? alliesEl({ st, data, allies, flipped: cb.flipped, size: typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 48 : 56, onFlip: (a, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[a.uid] = !cb.flipped[a.uid]; render(); } }) : null;
     const prevChits = cb.pipState; cb.pipState = Object.fromEntries(st.ch.chits.map(x => [x.id, x.state]));
-    const hero = heroEl({ st, data, prevChits, onPeekGear: () => peek?.gear(), onPeekMap: () => peek?.map(), ribbon: st.ch.morph ? `You are ${article(st.ch.morph.creature.name)} ${st.ch.morph.creature.name}` : null, onGear: () => { cb.gearCard = !cb.gearCard; render(); } });
+    const hero = heroEl({ st, data, prevChits, onPeekGear: () => peek?.gear(), onPeekMap: () => peek?.map(), ribbon: st.ch.morph ? `You are ${article(st.ch.morph.creature.name)} ${st.ch.morph.creature.name}` : st.ch.berserk ? 'Berserk until midnight' : null, onGear: () => { cb.gearCard = !cb.gearCard; render(); } });
     // (DR-20: the Meeting's steps have no lanes, so the stage had a void between the foes and you: the narrator stands in it, between the two, and not under you)
     const makeStage = narrIn => h('div', { class: 'cb-stage' }, h('div', { class: 'cb-stagein' }, h('div', { class: `cb-foes${mode === 'melee' || mode === 'result' || mode === 'grid' || anyTag ? '' : ' noslot'}` }, ...foeEls), lanes, allyEl, narrIn ? h('div', { class: 'cb-void' }, narrIn) : null, hero));
 
