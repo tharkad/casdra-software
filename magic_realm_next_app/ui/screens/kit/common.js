@@ -35,11 +35,11 @@ export const moodTag = (rel, name = '') => { const m = moodOf(rel); return h('sp
 
 // ---- items ----
 // The picture of an item on the cream tile: the game's own art when it has one (weapons, armor, steeds), else a neutral glyph from the 32px action art.
-const GLYPH = { boots: 'move', gloves: 'repair', treasure: 'cache', spell: 'spell' };
+const GLYPH = { boots: 'move', gloves: 'glove', treasure: 'cache', spell: 'spell' };
 export function itemArt(G, it) {
     const name = nameOf(G.data, it), pic = picOf(G, name) ?? (defOf(G.data, it)?.name ? picOf(G, defOf(G.data, it).name) : null);
     const glyph = /boots|slippers/i.test(name) ? GLYPH.boots : /gloves|gauntlets/i.test(name) ? GLYPH.gloves : GLYPH.treasure;
-    return pic ? h('img', { src: pic, alt: '', draggable: 'false' }) : actIcon(glyph, 28);
+    return pic ? h('img', { src: pic, alt: '', draggable: 'false' }) : glyph === 'glove' ? icon('glove', 'lg') : actIcon(glyph, 28);
 }
 export const itemTile = (G, it, cls = '') => h('span', { class: `ds-counter ${cls}` }, itemArt(G, it));
 
