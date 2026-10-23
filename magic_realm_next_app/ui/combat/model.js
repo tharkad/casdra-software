@@ -53,7 +53,7 @@ export function otherSide(data, d) {
 
 // ---- chits ----
 export const chitText = ch => (ch.type === 'magic' ? `${ch.numeral ?? ''}${ch.time}` : `${ch.strength}${ch.time}`) + '*'.repeat(ch.effort || 0);
-export const chitKindWord = ch => (ch.isHorse ? String(ch.side ?? 'steed').toUpperCase() : ch.type === 'magic' ? 'MAGIC' : ch.type === 'move' ? 'MOVE' : 'FIGHT');
+export const chitKindWord = ch => (ch.isHorse ? String(ch.side ?? 'steed').toUpperCase() : ch.card && ch.type === 'fight' ? 'GLOVES' : ch.card && ch.type === 'move' ? 'BOOTS' : ch.type === 'magic' ? 'MAGIC' : ch.type === 'move' ? 'MOVE' : 'FIGHT');
 export const chitName = ch => `${ch.type === 'magic' ? 'Magic' : ch.type === 'move' ? 'Move' : 'Fight'} ${chitText(ch)}`;
 export const limitWord = lim => (lim >= NO_EFFORT_LIMIT ? 'no limit' : lim === 3 ? 'three' : 'two');
 // how much value a chit has to him, to pick the one he will miss least (a default only: he can tap another)

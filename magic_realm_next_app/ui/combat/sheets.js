@@ -27,7 +27,7 @@ export const sheetEl = (X, kind, ...kids) => h('div', { class: 'cb-sheet', 'data
 // a chit as a tile: its value and a kind word. `on`: chosen; `why`: when set it is dim and a tap says why.
 export function chitTile(X, ch, { on = false, why = null, onclick, attrs = {} }) {
     return h('button', { type: 'button', class: `ds-chit ${ch.type}${on ? ' sel' : ''}${why ? ' dim' : ''}${ch.state === 'fatigued' ? ' tired' : ''}${ch.state === 'wounded' ? ' wounded' : ''}`, 'data-chit': ch.id, 'aria-pressed': on ? 'true' : 'false', 'aria-disabled': why ? 'true' : null,
-        'aria-label': `${chitName(ch)}${why ? `: ${why}` : ''}`, ...attrs, onclick: () => (why ? X.say(why) : onclick()) }, h('span', {}, chitText(ch)), h('small', {}, chitKindWord(ch)));
+        'aria-label': `${ch.card && !ch.isHorse ? `${X.data?.treasures?.[ch.name]?.name ?? ch.name}: ` : ''}${chitName(ch)}${why ? `: ${why}` : ''}`, ...attrs, onclick: () => (why ? X.say(why) : onclick()) }, h('span', {}, chitText(ch)), h('small', {}, chitKindWord(ch)));
 }
 
 // ================= the Meeting: pay, drinks, choice =================
