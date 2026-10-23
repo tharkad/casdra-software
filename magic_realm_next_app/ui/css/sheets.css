@@ -161,3 +161,10 @@ button.chit2:disabled { cursor: default; }
 .sc-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-size: calc(13.5px * var(--ts, 1)); }
 
 .sc-card .mrchit { width: 64px; height: 56px; } .sc-card .mrchit b { font-size: calc(12px * var(--ts, 1)); letter-spacing: 0; }
+
+/* the item card (play/piece_card.js): a big counter, its numbers in words */
+.piececard { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+.piececard .big { display: grid; place-items: center; padding: 4px 0; }
+.piececard .big svg { width: min(220px, 62vw); height: auto; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .55)); }
+.piececard .facts { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font: 400 15px/1.35 var(--font-voice); color: var(--ink-2); }
+.pieceopen { cursor: pointer; }

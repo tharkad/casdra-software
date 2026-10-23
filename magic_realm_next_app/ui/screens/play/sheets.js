@@ -17,6 +17,7 @@ import { reportSheet } from './results.js';
 import { journalSheet } from './journal.js';
 import { drawSheet, fightOverSheet, playersSheet, sharedOverSheet, sharedRestartSheet, tableSheet } from './shared.js';
 import { cardInfoSheet, charSheet, cursesSheet, itemSheet, slotSheet, spellSheet, spellsSheet } from './sheet_char.js';
+import { pieceSheet } from './piece_card.js';
 import { clearingSheet } from './sheet_clearing.js';
 import { bugSheet, calendarSheet, menuSheet, raceSheet, scoreSheet, setupCardSheet } from './sheet_info.js';
 import { hireSheet, tradeSheet } from './sheet_trade.js';
@@ -26,7 +27,7 @@ import { setWelcomed, vpNow, welcomed } from './state.js';
 // ---- sheets ----
 // A look at the belongings, the Journal, the menu, the calendar... while a question waits on a sheet: the question stays where it is (under the scrim) and the look opens over it;
 // closing the look gives the question back. (A fight, the draw and the other full-screen things have their own hosts and are not covered.)
-const LOOKS = new Set(['char', 'menu', 'calendar', 'score', 'journal', 'dice', 'log', 'curses', 'spells', 'spell', 'item', 'cardinfo', 'key', 'help', 'tables', 'setupcard', 'card']);
+const LOOKS = new Set(['char', 'menu', 'calendar', 'score', 'journal', 'dice', 'log', 'curses', 'spells', 'spell', 'item', 'cardinfo', 'key', 'help', 'tables', 'setupcard', 'card', 'piece']);
 const QUESTIONS = new Set(['turn-end', 'rest', 'search-table', 'search-choice', 'effort-cost', 'runes-target', 'learn-spell', 'enchant-choice', 'trade', 'trade-offer', 'hire', 'hire-offer']);
 
 export function sheets(G, lookOnly = false) {
@@ -48,6 +49,7 @@ export function sheets(G, lookOnly = false) {
     if (p?.type?.startsWith('combat') || fightBeat(G)) { combatHost(G, out); return out; }
     // The game is over (solo or a race): the death callout or the verdict, full screen, once the fight has had its one beat. A dead character may return tomorrow (a sheet over it).
     if (!G.shared && p?.type === 'over') { out.push(overScreen(G)); if (G.ui.restartVp) out.push(restartSheet(G)); return out; }
+    if (G.ui.sheet === 'piece' && G.ui.piece) { out.push(pieceSheet(G)); return out; }
     if (G.ui.peek && G.ui.sel && p?.type === 'plan') { out.push(clearingSheet(G)); return out; }
     const lookAt = G.ui.mapPeek && G.ui.sheet === 'clearing' && G.ui.sel;       // a clearing looked at while a decision waits (the decision sheet is peeked): it opens over the bar
     if (p?.type === 'turn-end') out.push(turnEndSheet(G));
