@@ -9,6 +9,7 @@ import { meetState, playerOf as playerNameOf } from '../../meet.js';
 import { party, markers as partyMarkers } from '../../party.js';
 import { moveOptions, planState } from '../../planlogic.js';
 import { strip } from '../../ds.js';
+import { renderParty } from './hotseat.js';
 import { setStoryState } from '../../storyvoice.js';
 import { icon as dsIcon } from '../../icons.js';
 import { revealKey } from '../sharedfight.js';
@@ -250,6 +251,7 @@ export function render(G) {
     G.ui.onSheetMove = () => setTimeout(() => { if (G.root.isConnected) syncCamera(G); }, 320);           // a decision sheet dropped to a peek (or came back): the camera follows once it has settled
     const model = mapModel(G);                           // first: it settles which clearings are ringed (G.ui.moveTargets), which the plan reads
     renderStrip(G);
+    renderParty(G);
     if (G.shared) sharedCamera(G);
     if (G.shared) { maybeShowDraw(G); maybeShowFightOver(G); }
     renderTray(G);

@@ -190,12 +190,26 @@ function spellCard(sp) {
         body: [spellLine(sp.id) ? h('p', { class: 'ds-voice lg' }, nb(spellLine(sp.id))) : null, full ? h('p', { class: 'ds-text ds-dim ds-printed' }, full) : null] }));
 }
 
+// Hot seat: one player runs 2 to 4 characters of their own in the same game (no server). The first is the one chosen above; the others take the first dwelling on their card, the same goals and
+// the engine's usual starting spells. The play screen switches between them.
+const MAX_PARTY = 4;
+function alsoBlock(g, redraw) {
+    const also = g.also ?? [], full = also.length >= MAX_PARTY - 1;
+    return [sect('Play more than one', `${1 + also.length} of ${MAX_PARTY}`),
+        h('div', { class: 'ds-also', role: 'group', 'aria-label': 'More characters, played by you' }, CHARACTERS.filter(c => c.id !== g.character).map(c => {
+            const on = also.includes(c.id);
+            return h('button', { type: 'button', class: `ds-also-chip${on ? ' on' : ''}`, 'data-also': c.id, 'aria-pressed': on ? 'true' : 'false', disabled: !on && full ? true : null,
+                onclick: () => { g.also = on ? also.filter(x => x !== c.id) : [...also, c.id]; redraw(); } }, c.name);
+        })),
+        why(also.length ? 'You play them all on one map: each has his own plan, and you switch between them on the play screen.' : 'Optional. Pick up to three more, all played by you.')];
+}
+
 function charsStep(g, redraw, joinNote = null) {
     const who = CHARACTERS.find(c => c.id === g.character) ?? CHARACTERS[0];
     const portrait = c => {
         const by = takenBy(g, c.id), on = g.character === c.id;
         return h('button', { type: 'button', class: `ds-portrait${on ? ' on' : ''}${by ? ' taken' : ''}`, role: 'radio', 'aria-checked': on ? 'true' : 'false', 'data-char': c.id, disabled: by ? true : null,
-            onclick: () => { g.character = c.id; g.flip = false; if (!c.starts.includes(g.dwelling)) g.dwelling = c.starts[0]; redraw(); } },
+            onclick: () => { g.character = c.id; g.also = (g.also ?? []).filter(x => x !== c.id); g.flip = false; if (!c.starts.includes(g.dwelling)) g.dwelling = c.starts[0]; redraw(); } },
             h('i', {}, h('img', { src: portraitSrc(c.id), alt: '' })), c.name, by ? h('span', { class: 'ds-sr' }, `taken by ${by}`) : null);
     };
     const rel = h('dl', { class: 'ds-kv ds-rel' }, h('dt', {}, 'Allies'), h('dd', {}, chipsOf(who, [2, 1])), h('dt', {}, 'Foes'), h('dd', {}, chipsOf(who, [-1, -2])));
@@ -211,6 +225,7 @@ function charsStep(g, redraw, joinNote = null) {
         wide ? rel : null,
         h('dl', { class: 'ds-kv ds-perks' }, kv),
         g._shared ? h('p', { class: 'ds-why', 'data-sealed': '' }, 'Your goals and starting spells are sealed: the others see them only when the game is over.') : null,
+        ...(g._online ? [] : alsoBlock(g, redraw)),
         ...spellsBlock(g, who, redraw)];
 }
 
@@ -333,7 +348,9 @@ export function newGameScreen(ctx) {
         fitVp();
         const lastDay = g.length === 'custom' ? g.weeks * 7 : 28;
         if (online) { startOnline(lastDay); return; }
-        const params = { fresh: true, character: g.character, vp: { ...g.vp }, options: { ...g.options }, startDwelling: g.dwelling, startSpells: spellsOf(), lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month', seed: g.seed };
+        const also = (g.also ?? []).filter(id => id !== g.character && CHARACTERS.some(c => c.id === id));
+        const party = also.length ? [{ id: g.character, vp: { ...g.vp }, startDwelling: g.dwelling, spells: spellsOf() }, ...also.map(id => ({ id, vp: { ...g.vp }, startDwelling: CHARACTERS.find(c => c.id === id).starts[0] }))] : undefined;
+        const params = { fresh: true, characters: party, character: g.character, vp: { ...g.vp }, options: { ...g.options }, startDwelling: g.dwelling, startSpells: spellsOf(), lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month', seed: g.seed };
         ctx.newGame = null;                                           // the next new game starts from the defaults, with a realm of its own
         ctx.go('game', params);
     };

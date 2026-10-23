@@ -140,3 +140,17 @@
 .ds-plan .ds-tab:not(.set) small, .ds-plan .ds-tab:not(.set).on small { color: var(--ink-2); }
 /* DR-12: the prose of every sheet (information, results, the end screens) breaks to even out its last line */
 .ds-sheet p, .ds-sheet .ds-row .main span, .ds-sheet .ds-ask span, .ds-end p, .ds-egoal .egn { text-wrap: pretty; }
+
+/* hot seat: the characters of one player, under the status strip (hotseat.js) */
+.ds-party { flex: none; display: flex; gap: 6px; padding: 4px var(--gutter); background: var(--surface-1); border-bottom: 1px solid var(--line-1); overflow-x: auto; }
+.ds-party[hidden] { display: none; }
+.ds-party .pchip { flex: 1 0 auto; min-width: 44px; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface-2, var(--surface-1)); color: var(--ink-2); font: 600 15px/1 var(--font-ui); display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
+.ds-party .pchip.on { background: var(--surface-4); color: var(--gold-hi); box-shadow: inset 0 0 0 1px var(--gold-lo); }
+.ds-party .pchip.dead { opacity: .55; text-decoration: line-through; }
+.ds-party .pwait { width: 9px; height: 9px; border-radius: 50%; background: var(--gold-hi); flex: none; }
+
+/* new game: more characters played by the same player */
+.ds-also { display: flex; flex-wrap: wrap; gap: 8px; }
+.ds-also-chip { min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface-1); color: var(--ink-2); font: 600 15px/1 var(--font-ui); }
+.ds-also-chip.on { background: var(--surface-4); color: var(--gold-hi); box-shadow: inset 0 0 0 1px var(--gold-lo); }
+.ds-also-chip:disabled { opacity: .45; }
