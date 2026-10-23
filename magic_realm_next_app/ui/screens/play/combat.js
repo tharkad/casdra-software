@@ -6,6 +6,7 @@ import { sharedFightSheet } from '../sharedfight.js';
 import { act } from './actions.js';
 import { modal } from './kit.js';
 import { render } from './shell.js';
+import { openPiece, pieceSheet } from './piece_card.js';
 import { cardInfoSheet, charSheet, itemSheet, spellSheet } from './sheet_char.js';
 import { clearingSheet } from './sheet_clearing.js';
 import { journalSheet } from './journal.js';
@@ -59,13 +60,14 @@ export function combatHost(G, out) {
         return out;
     }
     const inFight = G.st.pending?.type?.startsWith('combat');
-    const peek = { gear: () => { G.ui.sheet = 'char'; render(G); }, map: () => { G.ui.combatMap = true; G.ui.sheet = null; render(G); } };
+    const peek = { gear: () => { G.ui.sheet = 'char'; render(G); }, map: () => { G.ui.combatMap = true; G.ui.sheet = null; render(G); }, piece: d => openPiece(G, { kind: d.kind, id: d.id, side: d.side ?? 'light' }) };
     if (inFight) { if (G.st.pending.type === 'combat-over') G.ui.cbBeat = null; out.push(combatScene({ st: G.st, data: G.data, act: act.bind(null, G), ui: G.ui, render: () => render(G), peek })); }
     else out.push(combatBeat({ st: G.st, data: G.data, ui: G.ui, render: () => render(G) }));
     if (G.ui.sheet === 'char') out.push(charSheet(G));
     else if (G.ui.sheet === 'item') out.push(itemSheet(G));
     else if (G.ui.sheet === 'cardinfo') out.push(cardInfoSheet(G));
     else if (G.ui.sheet === 'spell') out.push(spellSheet(G));
+    else if (G.ui.sheet === 'piece' && G.ui.piece) out.push(pieceSheet(G));
     else if (G.ui.sheet === 'card') out.push(modal(G, G.st.ch.name, h('div', {}, G.data.art?.cards?.[G.st.ch.id] ? h('img', { class: 'cardpic', src: G.data.art.cards[G.st.ch.id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
     return out;
 }

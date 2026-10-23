@@ -125,7 +125,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
         if (t && short && !t.dot && t.short) t = { ...t, text: t.short };
         if (t) anyTag = true;
         const justFlipped = cb.flipNow === d.uid;
-        return foeEl({ st, data, d, flipped: !!cb.flipped[d.uid], tag: t, dead: !!dead, size, justFlipped, turnedOver: !!sideChanged, selected: targetable.has(d.uid) && m.target === d.uid,
+        return foeEl({ st, data, d, flipped: !!cb.flipped[d.uid], tag: t, dead: !!dead, size, justFlipped, turnedOver: !!sideChanged, onHold: peek?.piece && (d.kind === 'mon' || d.kind === 'nat') ? den => peek.piece(den) : null, selected: targetable.has(d.uid) && m.target === d.uid,
             onFlip: (den, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[den.uid] = !cb.flipped[den.uid]; cb.flipNow = den.uid; render(); } });
     });
     cb.flipNow = null;

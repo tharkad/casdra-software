@@ -15,15 +15,28 @@ export const foeSize = (n, roomy = false) => {
     const short = typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches, base = short ? 64 : 92;
     // a Meeting has few creatures and no lanes (DR-20): the counters take the room, up to 128 (three still stand in one row)
     if (roomy && !short && n >= 1 && n <= 3) return Math.min(128, Math.floor((Math.min(typeof innerWidth === 'number' ? innerWidth : 393, 520) - 32 - (n - 1) * 10) / n));
-    if (n <= 3) return base;
+    // a fight with room (a tall phone, up to three on the stage): the counters take the width the row has, up to 116
+    if (n <= 3) return short ? base : Math.max(base, Math.min(116, Math.floor((Math.min(typeof innerWidth === 'number' ? innerWidth : 393, 520) - 32 - (n - 1) * 10) / n)));
     // four stand in one row at the width of the screen; more take two rows, smaller
     const w = Math.min(typeof innerWidth === 'number' ? innerWidth : 393, 520) - 32;
     if (n === 4) return Math.min(base, Math.floor((w - 3 * 10) / 4));
     return Math.round(base * (n <= 6 ? 0.72 : 0.6));
 };
 
+// Press and hold on a counter (about half a second) calls onHold instead of the tap: the same item card as a tap on the map. The click that follows the release is swallowed.
+function holdable(btn, onHold) {
+    if (!onHold) return;
+    let timer = null, held = false;
+    const stop = () => { clearTimeout(timer); timer = null; };
+    btn.addEventListener('pointerdown', () => { held = false; stop(); timer = setTimeout(() => { held = true; onHold(); }, 480); });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave', 'pointermove']) btn.addEventListener(ev, ev === 'pointermove' ? () => {} : stop);
+    btn.addEventListener('click', e => { if (held) { held = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+    btn.addEventListener('contextmenu', e => e.preventDefault());
+}
+const SIDE_LBL = { light: 'LIGHT', dark: 'DARK', red: 'RED' };
+
 // One foe: its counter (tap to turn it over), and an optional tag (TARGET, a box, WOUNDED YOU). `view` says which side shows; `tag` is { text, kind, onclick? }.
-export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, onFlip, size = 92, justFlipped = false, selected = false, turnedOver = false }) {
+export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, onFlip, size = 92, justFlipped = false, selected = false, turnedOver = false, onHold = null }) {
     const other = otherSide(data, d);
     const showRev = !!flipped && other && other !== (d.side ?? 'light');
     const view = showRev ? { ...d, side: other } : d;
@@ -33,11 +46,14 @@ export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, 
     const svg = monsterCounter({ s, side, picture: picOf(st, data, d), flies, size: 92 });
     // The tag (TARGET, a box, WOUNDED YOU) stands in its own slot ABOVE the counter, never over its name (QA-8). `tag.dot`: a crowded stage (QA-6) shows the offer as a ghost dot with a 44px hit area instead of a word.
     const tagEl = tag ? h(tag.onclick ? 'button' : 'span', { class: `tag ${tag.kind ?? ''}${tag.dot ? ' dot' : ''}`, ...(tag.onclick ? { type: 'button', 'data-tag': d.uid, 'aria-label': tag.label ?? tag.text, onclick: e => { e.stopPropagation(); tag.onclick(); } } : {}) }, tag.dot ? null : tag.text) : null;
+    const flipBtn = h('button', { type: 'button', class: 'cb-flip', 'data-flip': d.uid, 'aria-pressed': showRev ? 'true' : 'false', 'aria-label': `${s.name}${dead ? ', slain' : ''}, ${SIDE_LBL[side] ?? side} side up: tap to turn the counter over, press and hold for its card`, onclick: () => onFlip?.(d, !!other), style: 'padding:0;display:block' },
+            h('span', { class: 'ds-cs-wrap' }, svg), other && !dead ? h('span', { class: 'turn', 'aria-hidden': 'true' }, icon('retry')) : null,
+            other && !dead ? h('span', { class: `sidelbl ${side}`, 'data-side': d.uid }, SIDE_LBL[side] ?? side) : null,
+            turnedOver && !dead ? h('span', { class: 'turned', 'data-turned': d.uid }, size < 76 ? 'TURNED' : 'TURNED OVER') : null);
+    if (!dead) holdable(flipBtn, onHold ? () => onHold(d) : null);
     return h('div', { class: `cb-foe${dead ? ' dead' : ''}${justFlipped ? ' flip' : ''}${d.pacified ? ' pacified' : ''}${d.pickedUp ? ' held' : ''}${selected ? ' sel' : ''}`, style: `--foe:${size}px`, 'data-foe': d.uid },
         h('div', { class: 'tagslot' }, tagEl),
-        h('button', { type: 'button', class: 'cb-flip', 'data-flip': d.uid, 'aria-pressed': showRev ? 'true' : 'false', 'aria-label': `${s.name}${dead ? ', slain' : ''}: tap to turn the counter over`, onclick: () => onFlip?.(d, !!other), style: 'padding:0;display:block' },
-            h('span', { class: 'ds-cs-wrap' }, svg), other && !dead ? h('span', { class: 'turn', 'aria-hidden': 'true' }, icon('retry')) : null,
-            turnedOver && !dead ? h('span', { class: 'turned', 'data-turned': d.uid }, size < 76 ? 'TURNED' : 'TURNED OVER') : null));
+        flipBtn);
 }
 
 // A long name ("Company Short Swords #1") would run off the counter: shrink it to fit the printed strip, and if it would be too small to read, set it on two lines. Needs the counters to be in the page (text is
