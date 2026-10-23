@@ -255,6 +255,7 @@ export function setMove(G, i, to) {
     }
     G.ui.pickMove = null;
     G.ui.planNote = null;
+    G.ui.keepCamUntil = Date.now() + 1000;          // (locking a Move changes the tray's height; the map stays where he looked, it is not pulled back to the hero)
     pruneOver(G, isCave(G.st, G.data, to) ? 'a move into a cave takes away the sunlight phases, so the day is shorter' : null);
     advance(G, i + 1);
     render(G);

@@ -270,7 +270,7 @@ function glideHeight(G, from) {
         el.removeEventListener('transitionend', onEnd); clearTimeout(G.ui.glideTimer);
         el.style.transition = ''; el.style.height = '';
         const hero = G.st?.ch?.flying ? G.st.ch.flying.tile : G.st?.ch?.onRoad ? G.st.ch.onRoad.from : G.st?.ch?.at;
-        if (to > from && hero && G.map && G.root.isConnected) G.map.reveal?.([hero], { margin: 56 });
+        if (to > from && hero && !(G.ui.keepCamUntil > Date.now()) && G.map && G.root.isConnected) G.map.reveal?.([hero], { margin: 56 });
     };
     const onEnd = e => { if (e.target === el && e.propertyName === 'height') done(); };
     el.addEventListener('transitionend', onEnd); G.ui.glideTimer = setTimeout(done, 420);
