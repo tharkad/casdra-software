@@ -43,8 +43,8 @@ function siteNeeds(G, name) {
 }
 
 // The pile drawn top to bottom, the way a Loot roll counts it: 1 takes the top card, 2 the second, and so on to 6. Large cards are taller; the reachable ones are lit, the deep ones dashed.
-export function pileEl(G, name, pile) {
-    const cards = pile.filter(it => it.kind !== 'spell').map(it => ((G.data.treasures[it.id]?.kind ?? 'small') === 'small' ? 'small' : 'large'));
+export function pileEl(G, name, pile, sizes = null) {
+    const cards = sizes ?? pile.filter(it => it.kind !== 'spell').map(it => ((G.data.treasures[it.id]?.kind ?? 'small') === 'small' ? 'small' : 'large'));
     const spells = (G.st.spellBox?.sites?.[name] ?? []).map(sp => G.data.spells?.[sp.id]?.type).filter(Boolean);
     if (!cards.length && !spells.length) return null;
     return h('div', { class: 'ds-pilebox', 'data-site': name },
@@ -64,7 +64,8 @@ export function siteBlock(G, c, { fresh = false, withPile = true, compact = fals
     const spells = G.st.spellBox?.sites?.[c.name]?.length ?? 0;
     const treasures = pile.filter(it => it.kind !== 'spell');
     const small = treasures.filter(it => (G.data.treasures[it.id]?.kind ?? 'small') === 'small').length, large = treasures.length - small;
-    const left = !found ? 'Not found yet. Locate it to see what it holds.'
+    const printed = !found && e ? [...Array(e.large ?? 0).fill('large'), ...Array(e.small ?? 0).fill('small')] : null;       // the Setup Card is public: how many, never which
+    const left = !found ? `Not found yet. The Setup Card says ${e ? `${e.small} Small, ${e.large} Large` : 'nothing'}; locate it to see what it holds.`
         : !pile.length ? 'Found, and empty.'
             : `${[small ? `${small} Small` : '', large ? `${large} Large` : ''].filter(Boolean).join(', ') || 'No treasure'}${spells ? ` and ${spells} spell${spells === 1 ? '' : 's'}` : ''} left. Great ones show when looted.`;
     const needs = found && pile.length ? siteNeeds(G, c.name) : null;
@@ -72,9 +73,9 @@ export function siteBlock(G, c, { fresh = false, withPile = true, compact = fals
         compact ? h('span', { class: 'ds-dim setupline' }, left) : h('div', { class: 'head' },
             h('span', { class: 'ds-counter sm' }, actIcon(found ? 'cache' : 'search', 32)),
             h('span', { class: 'main' }, h('b', {}, c.name, fresh ? h('span', { class: 'ds-tag gold' }, 'Just found') : null), h('span', { class: 'ds-dim setupline' }, left))),
-        found && withPile ? pileEl(G, c.name, pile) : null,
+        withPile && (found || printed?.length) ? pileEl(G, c.name, pile, printed) : null,
         needs ? h('p', { class: 'ds-meta setupline dim' }, needs) : null,
-        e ? h('details', { class: 'ds-more', 'data-v': 'detail' }, h('summary', {}, `About the ${c.name}`), h('p', { class: 'ds-meta setupline card' }, siteCardText(G, e))) : null);
+        e ? h('details', { class: 'ds-more' }, h('summary', {}, `About the ${c.name}`), h('p', { class: 'ds-meta setupline card' }, siteCardText(G, e))) : null);
 }
 
 // A site card he found by looting: what each Loot roll on it gives (the card's own table), and what it demands.
