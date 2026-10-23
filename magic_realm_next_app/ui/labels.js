@@ -67,7 +67,14 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
     };
     const near = (rc, px, py) => { const cx = Math.max(rc.x, Math.min(px, rc.x + rc.w)), cy = Math.max(rc.y, Math.min(py, rc.y + rc.h)); return Math.hypot(cx - px, cy - py); };
     // best column position for a list of boxes around an anchor (first fully clear candidate, else the least bad)
+    // a name that cannot stand on its tile without covering something may hang over the tile's edge instead, if that leaves it clear: seen beats tidy
     const search = (g, boxes) => {
+        const best = searchIn(g, boxes);
+        if (!(best.area > 0 && g.inside)) return best;
+        const off = searchIn({ ...g, inside: null }, boxes);
+        return off.area === 0 ? { ...off, outside: 1 } : best;
+    };
+    const searchIn = (g, boxes) => {
         const W = Math.max(...boxes.map(b => b.w)), H = boxes.reduce((s, b) => s + b.h, 0) + GAP * (boxes.length - 1);
         const sides = [...(g.prefer ?? []), ...SIDES.filter(s => !(g.prefer ?? []).includes(s))];
         let best = null;
