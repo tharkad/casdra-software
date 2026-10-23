@@ -33,7 +33,6 @@ function holdable(btn, onHold) {
     btn.addEventListener('click', e => { if (held) { held = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
     btn.addEventListener('contextmenu', e => e.preventDefault());
 }
-const SIDE_LBL = { light: 'LIGHT', dark: 'DARK', red: 'RED' };
 
 // One foe: its counter (tap to turn it over), and an optional tag (TARGET, a box, WOUNDED YOU). `view` says which side shows; `tag` is { text, kind, onclick? }.
 export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, onFlip, size = 92, justFlipped = false, selected = false, turnedOver = false, onHold = null }) {
@@ -46,9 +45,9 @@ export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, 
     const svg = monsterCounter({ s, side, picture: picOf(st, data, d), flies, size: 92 });
     // The tag (TARGET, a box, WOUNDED YOU) stands in its own slot ABOVE the counter, never over its name (QA-8). `tag.dot`: a crowded stage (QA-6) shows the offer as a ghost dot with a 44px hit area instead of a word.
     const tagEl = tag ? h(tag.onclick ? 'button' : 'span', { class: `tag ${tag.kind ?? ''}${tag.dot ? ' dot' : ''}`, ...(tag.onclick ? { type: 'button', 'data-tag': d.uid, 'aria-label': tag.label ?? tag.text, onclick: e => { e.stopPropagation(); tag.onclick(); } } : {}) }, tag.dot ? null : tag.text) : null;
-    const flipBtn = h('button', { type: 'button', class: 'cb-flip', 'data-flip': d.uid, 'aria-pressed': showRev ? 'true' : 'false', 'aria-label': `${s.name}${dead ? ', slain' : ''}, ${SIDE_LBL[side] ?? side} side up: tap to turn the counter over, press and hold for its card`, onclick: () => onFlip?.(d, !!other), style: 'padding:0;display:block' },
+    const flipBtn = h('button', { type: 'button', class: 'cb-flip', 'data-flip': d.uid, 'aria-pressed': showRev ? 'true' : 'false', 'aria-label': `${s.name}${dead ? ', slain' : ''}, ${showRev ? 'other side showing, not the current side' : 'current side up'}: tap to turn the counter over, press and hold for its card`, onclick: () => onFlip?.(d, !!other), style: 'padding:0;display:block' },
             h('span', { class: 'ds-cs-wrap' }, svg), other && !dead ? h('span', { class: 'turn', 'aria-hidden': 'true' }, icon('retry')) : null,
-            other && !dead ? h('span', { class: `sidelbl ${side}`, 'data-side': d.uid }, SIDE_LBL[side] ?? side) : null,
+            showRev && !dead ? h('span', { class: 'sidelbl peek', 'data-side': d.uid }, size < 76 ? 'NOT NOW' : 'NOT CURRENT SIDE') : null,
             turnedOver && !dead ? h('span', { class: 'turned', 'data-turned': d.uid }, size < 76 ? 'TURNED' : 'TURNED OVER') : null);
     if (!dead) holdable(flipBtn, onHold ? () => onHold(d) : null);
     return h('div', { class: `cb-foe${dead ? ' dead' : ''}${justFlipped ? ' flip' : ''}${d.pacified ? ' pacified' : ''}${d.pickedUp ? ' held' : ''}${selected ? ' sel' : ''}`, style: `--foe:${size}px`, 'data-foe': d.uid },
