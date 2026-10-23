@@ -62,7 +62,7 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
     const others = new Map();
     const othersOf = g => {
         let l = others.get(g);
-        if (!l) { l = anchors.filter(a => a.id !== g.own).map(a => ({ x: a.x, y: a.y, dd: Math.hypot(a.x - g.ax, a.y - g.ay) })).sort((p, q) => p.dd - q.dd); others.set(g, l); }
+        if (!l) { l = anchors.filter(a => a.id !== g.own).map(a => ({ x: a.x, y: a.y, dd: Math.hypot(a.x - (g.ox ?? g.ax), a.y - (g.oy ?? g.ay)) })).sort((p, q) => p.dd - q.dd); others.set(g, l); }
         return l;
     };
     const near = (rc, px, py) => { const cx = Math.max(rc.x, Math.min(px, rc.x + rc.w)), cy = Math.max(rc.y, Math.min(py, rc.y + rc.h)); return Math.hypot(cx - px, cy - py); };
@@ -92,7 +92,7 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
                 if (g.own != null && anchors.length) {
                     const list = othersOf(g);
                     for (const rc of rects) {                     // every pill of the stack, not just the stack's nearest edge
-                        const mine = near(rc, g.ax, g.ay), reach = 2 * mine + Math.hypot(rc.w, rc.h);       // a clearing farther from this one than that cannot be nearer to the pill
+                        const mine = near(rc, g.ox ?? g.ax, g.oy ?? g.ay), reach = 2 * mine + Math.hypot(rc.w, rc.h);       // a clearing farther from this one than that cannot be nearer to the pill
                         for (const a of list) { if (a.dd >= reach) break; const d = near(rc, a.x, a.y); if (d + 1 < mine) { owned = false; excess = Math.max(excess, mine - d); } }
                     }
                 }
@@ -116,8 +116,12 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
         // each wherever there is room nearest, BEFORE the caller gives up and turns the clearing into a marker (a tall column of four does not fit a hexagon that has plenty of room)
         if (g.boxes.length > 1 && (best.area > 0 || best.owned === false || (best.outside ?? 0) > 0 || best.dist > g.ar + 40)) {
             const lone = []; let worst = 0, maxRing = 0, allOwned = true, far2 = 0, loneOut = 0;
+            let prev = null;
             for (const b of g.boxes) {
-                const r = search(g, [b]);
+                // the first pill goes nearest the clearing; each next one is sought beside the one before, so the pieces of one clearing stay together
+                const gp = prev ? { ...g, ox: g.ax, oy: g.ay, ax: prev.x + prev.w / 2, ay: prev.y + prev.h / 2, ar: prev.h / 2, prefer: ['below', 'above', 'right', 'left'] } : g;
+                const r = search(gp, [b]);
+                prev = r.rects[0];
                 for (const rc of r.rects) held.push(grid.add(grow(rc, MARGIN)));
                 lone.push(r.rects[0]); worst += r.area; maxRing = Math.max(maxRing, r.ring); loneOut += r.outside ?? 0;
                 allOwned = allOwned && r.owned !== false; far2 = Math.max(far2, r.dist);
