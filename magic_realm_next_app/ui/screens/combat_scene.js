@@ -121,11 +121,12 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
         if (!t && !dead && d.pickedUp && (mode === 'encounter' || mode === 'melee')) t = { text: d.engagedBy ? 'ON YOUR MAN' : 'HOLDS YOU', short: 'HELD', kind: 'bad' };
         else if (!t && !dead && d.pacified && (mode === 'encounter' || mode === 'melee')) t = { text: 'AT PEACE', short: 'PEACE', kind: 'ghost' };
         if (targetable.has(d.uid)) { const sel = m.target === d.uid; t = { text: 'TARGET', kind: sel ? '' : 'ghost', dot: crowd && !sel, label: sel ? 'Target: tap to strike no one' : 'Target this creature', onclick: () => { m.target = sel ? null : d.uid; render(); } }; }
+        else if (mode === 'melee' && step !== 'strike' && step !== 'foes' && m.target === d.uid && !o.attackSpell) t = { text: 'TARGET', kind: '' };          // (a chosen foe keeps its word through every later step; only the strike step lets him change it)
         else if (mode === 'melee' && step === 'foes' && o.boxable.some(x => x.uid === d.uid)) { const i = o.boxable.findIndex(x => x.uid === d.uid), b = m.boxes[d.uid] ?? (i % 3); t = { text: M.MNV[b].toUpperCase(), short: M.MNV[b].slice(0, 2).toUpperCase(), kind: '', label: `In the ${M.BOX[b]} box: tap to move`, onclick: () => { m.boxes[d.uid] = (b + 1) % 3; render(); } }; }
         if (t && short && !t.dot && t.short) t = { ...t, text: t.short };
         if (t) anyTag = true;
         const justFlipped = cb.flipNow === d.uid;
-        return foeEl({ st, data, d, flipped: !!cb.flipped[d.uid], tag: t, dead: !!dead, size, justFlipped, turnedOver: !!sideChanged, onHold: peek?.piece && (d.kind === 'mon' || d.kind === 'nat') ? den => peek.piece(den) : null, selected: targetable.has(d.uid) && m.target === d.uid,
+        return foeEl({ st, data, d, flipped: !!cb.flipped[d.uid], tag: t, dead: !!dead, size, justFlipped, turnedOver: !!sideChanged, onHold: peek?.piece && (d.kind === 'mon' || d.kind === 'nat') ? den => peek.piece(den) : null, selected: mode === 'melee' && !o.attackSpell && m.target === d.uid,
             onFlip: (den, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[den.uid] = !cb.flipped[den.uid]; cb.flipNow = den.uid; render(); } });
     });
     cb.flipNow = null;
