@@ -65,6 +65,11 @@ export function whyNot(G, it) {
 export function tidyAct(G, it, extra = {}) { G.ui.keep = true; act(G, { type: 'tidy', item: it.uid, ...extra }); }
 
 // ---- the carry limit ----
+// the names of what he would put down if he moved now (the engine's dropHeavy, said before the move): too heavy for what he can carry and no pack horse bears it
+export function wouldDrop(G) {
+    const { st, data } = G, top = Math.max(carryCapacity(st, data), 0);
+    return st.ch.items.filter(it => !it.destroyed && it.kind !== 'horse' && !onPackHorse(st, data, it) && lvl(weightOf(data, it)) > top && lvl(weightOf(data, it)) > 0).map(it => nameOf(data, it));
+}
 function carryLimit(G) {
     const { st, data } = G, cap = carryCapacity(st, data), carried = carriedLevel(st, data), top = Math.max(cap, 0);
     const word = cap <= 0 ? 'almost nothing' : WEIGHT_WORDS[letterOf(cap)];
@@ -78,7 +83,7 @@ function carryLimit(G) {
         else src = 'no Move chit is ready';
     }
     // what he would put down if he moved now (dropHeavy): too heavy for what he can carry and no pack horse bears it
-    const drop = st.ch.items.filter(it => !it.destroyed && it.kind !== 'horse' && !onPackHorse(st, data, it) && lvl(weightOf(data, it)) > top && lvl(weightOf(data, it)) > 0).map(it => nameOf(data, it));
+    const drop = wouldDrop(G);
     const labels = ['None', 'Light', 'Med', 'Heavy', 'Tremend.'];
     return h('div', { class: 'ds-load', 'data-carry': String(cap) },
         h('div', { class: 'top' }, h('b', {}, `You can carry ${word}`), h('span', { class: 'ds-meta' }, src)),

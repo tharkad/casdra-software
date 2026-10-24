@@ -6,6 +6,7 @@ import { h } from '../../dom.js';
 import { playerOf as playerNameOf } from '../../meet.js';
 import { actRefusal, planState } from '../../planlogic.js';
 import { followPicker } from '../meetui.js';
+import { wouldDrop } from '../kit/kit.js';
 import { act } from './actions.js';
 import { btn, primary } from '../../ds.js';
 import { actIcon, icon } from '../../icons.js';
@@ -83,6 +84,8 @@ function planHints(G, i, at) {
         // where monsters wait: they block you at the end of the phase unless you are hidden, so the ones you could walk into are named
         const monsBy = new Map(); for (const m of G.st.mons) if (!m.dead && !m.hired && m.loc?.c && (G.ui.moveTargets ?? []).includes(m.loc.c)) monsBy.set(m.loc.c, [...(monsBy.get(m.loc.c) ?? []), G.data.monsters[m.id].name]);
         if (G.ui.pickMove === i && monsBy.size) out.push(line(`Red rings have monsters (${[...monsBy].map(([c, n]) => `${nameOfClearing(c)}: ${[...new Set(n)].join(', ')}`).join('; ')}). In plain sight at the end of the phase they block you and your turn is lost. Hiding first keeps you safe.`, 'bad', { 'data-hint': 'monsters-ahead' }));
+        const heavy = s?.act === 'move' && s.to ? wouldDrop(G) : [];
+        if (heavy.length) out.push(line(`Too heavy for you now: this Move would leave ${heavy.join(', ')} behind. Put something down or use a stronger Move chit first.`, 'bad', { 'data-hint': 'leave-behind' }));
         if (G.ui.pickMove === i && G.ui.moveMaybe?.length) out.push(line(`Dotted: ${G.ui.moveMaybe.map(nameOfClearing).join(', ')} lie along a hidden path you have not found. Your earlier Search may find it; if it has not, this Move is lost.`));
     }
     if (G.st.ch.mist) out.push(line('As mist you can only move and hide.', 'bad'));
