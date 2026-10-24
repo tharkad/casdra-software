@@ -31,7 +31,7 @@ export const LENGTHS = [
 
 // (The old "How much of the game?" switch is gone: it reached neither the engine nor the saved game, so it changed nothing. Verified: no `depth` is read by start(), by the online
 // choices, by game boot or by the engine.)
-export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, character: 'white-knight', dwelling: 'Inn', seed: Math.floor(Math.random() * 9999) + 1, vp: { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 }, options: { knightsAdjustment: false, watchfulNatives: false, quietMonsters: false, castAnytime: true } });
+export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, character: 'white-knight', dwelling: 'Inn', seed: Math.floor(Math.random() * 9999) + 1, vp: { great: 0, spells: 0, fame: 0, notoriety: 0, gold: 0 }, options: { knightsAdjustment: false, watchfulNatives: false, quietMonsters: false, castAnytime: true } });
 
 export const vpTotal = g => g.length === 'month' ? 5 : g.length === 'custom' ? g.weeks + 1 : g.length === 'sudden' ? g.suddenVp : 5;
 

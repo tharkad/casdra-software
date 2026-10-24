@@ -145,7 +145,7 @@ export function overScreen(G) {
     }
     const story = h('div', { class: 'end-run' }, sect('The run'), h('p', { class: 'ds-voice', 'data-v': 'story' }, runStory(f)),
         h('p', { class: 'ds-meta', 'data-v': 'detail' }, `Days ${f.days} · kills ${f.kills} · looted ${f.looted} · sites found ${f.sites} · wounds taken ${f.wounds}${f.deaths ? ` · deaths ${f.deaths}` : ''}.`));
-    const restart = () => { const total = Math.max(2, Math.ceil(((st.lastDay ?? 28) - st.day) / 7) + 1), fame = Math.min(5, Math.ceil(total * 0.6)); G.ui.restartVp = { great: 0, spells: 0, fame, notoriety: Math.min(5, total - fame), gold: 0 }; render(G); };
+    const restart = () => { G.ui.restartVp = { great: 0, spells: 0, fame: 0, notoriety: 0, gold: 0 }; render(G); };
     const primary = canRestart ? btn(twoLine('Return tomorrow', `as a new ${st.ch.name}`), 'primary', { 'data-act': 'restart', onclick: restart })
         : G.race ? btn('Back to the title', 'primary', { 'data-act': 'over-title', onclick: goTitle })
             : btn(dead ? 'Begin again' : 'New game', 'primary', { 'data-act': 'over-new', onclick: () => { clearSaved(); G.ctx.go('newgame'); } });
