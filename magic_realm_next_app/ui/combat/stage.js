@@ -127,7 +127,7 @@ export function heroEl({ st, data, onGear, onPeekGear = null, onPeekMap = null, 
     const gcol = (kids, peekBtn) => h('div', { class: 'gcol' }, ...kids, peekBtn);
     return h('div', { class: 'cb-hero' },
         ch.morph ? gcol([], peek('peek-gear', 'Belongings', 'bag', onPeekGear)) : gear('weapon', wName, wName ? data.art?.weapons?.[wName] : null, w ? 1 : 0, false, peek('peek-gear', 'Belongings', 'bag', onPeekGear)),
-        h('div', { class: 'mid' }, face, h('span', { class: 'name' }, displayName(ch.name)), ribbon ? h('span', { class: 'ribbon' }, ribbon) : null, pipsEl(st, prevChits)),
+        h('div', { class: `mid${onPeekGear ? ' tappable' : ''}`, 'data-act': onPeekGear ? 'peek-hero' : null, onclick: onPeekGear ?? null }, face, h('span', { class: 'name' }, displayName(ch.name)), ribbon ? h('span', { class: 'ribbon' }, ribbon) : null, pipsEl(st, prevChits)),
         ch.morph ? gcol([], peek('peek-map', 'Map', 'pin', onPeekMap)) : gear('armor', aName, aName ? data.art?.armor?.[aName] : null, armor.length, hurtGear, peek('peek-map', 'Map', 'pin', onPeekMap)));
 }
 

@@ -89,6 +89,7 @@
 .cb-hero .gear::after { content: ""; position: absolute; inset: min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }          /* 44px at rest, and 44px on screen when the stage is scaled down */
 .cb-hero .gear .more { position: absolute; right: -5px; bottom: -5px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--gold-lo); font: 700 calc(12px * var(--ts, 1))/calc(16px * var(--ts, 1)) var(--font-ui); color: var(--gold-hi); }
 .cb-hero .mid { display: flex; flex-direction: column; align-items: center; }
+.cb-hero .mid.tappable { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .cb-hero .name { font: 700 calc(13px * var(--ts, 1))/1 var(--font-display); letter-spacing: .12em; color: var(--ink); text-transform: uppercase; text-align: center; margin-top: 4px; white-space: nowrap; }
 .cb-hero .ribbon { margin-top: 4px; padding: 2px 8px; border-radius: var(--r-pill); background: var(--gold-wash-2); border: 1px solid var(--line-gold); color: var(--gold-hi); font: 700 calc(12px * var(--ts, 1))/calc(16px * var(--ts, 1)) var(--font-ui); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
 .cb-pips { display: flex; justify-content: center; gap: 3px; margin-top: 6px; }
