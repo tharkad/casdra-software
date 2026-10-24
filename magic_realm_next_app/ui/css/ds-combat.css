@@ -30,7 +30,7 @@
 .cb-foe .tag.dot::after { inset: calc((14px - 44px / var(--z, 1)) / 2); }
 .cb-foe .tag.bad { background: var(--danger); color: #1a0705; }
 .cb-foe .tag.good { background: var(--success); color: #08140a; }
-.cb-foe .turned { position: absolute; left: 50%; bottom: -3px; transform: translateX(-50%); white-space: nowrap; padding: 1px 6px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--gold); border: 1px solid var(--gold-lo); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .04em; pointer-events: none; }
+.cb-foe .turned { display: block; width: max-content; margin: 2px auto 0; white-space: nowrap; padding: 1px 6px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--gold); border: 1px solid var(--gold-lo); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .04em; pointer-events: none; }
 .cb-legend { margin: 6px 0 0; font-size: calc(12px * var(--ts, 1)); line-height: 1.35; color: var(--ink-2); }
 .cb-foe .tag.ghost { background: var(--surface-2); color: var(--ink-3); border: 1px dashed var(--st-illegal); }     /* "TARGET" offered, not chosen */
 /* Hit areas: 44px whatever the size of the thing and whatever the stage is scaled to (--z is the zoom fitStage puts on a crowded stage; 1 otherwise) */
