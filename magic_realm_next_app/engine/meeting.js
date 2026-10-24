@@ -15,7 +15,7 @@ export function meetingDice(st, data = null, activity = null) {
     // Fear, Barter in a Trade, Tracking in the Woods tiles, Cave Knowledge, and a Lucky Charm each give one die (they do not stack)
     const advantage = hasAdv(st, 'fear') ? 'fear' : hasAdv(st, 'barter') ? 'barter' : hasAdv(st, 'honor') ? 'honor' : 'none';
     const n = meetingDiceCount(advantage, activity === 'trade' || activity === 'hire' ? activity : 'battle', !!(data && oneDie(st, 'meeting', st.ch.at, data)));
-    const raw = Array.from({ length: n }, () => die(st));
+    const raw = Array.from({ length: n }, () => die(st, 'meeting'));
     const honor = hasAdv(st, 'honor') ? 1 : 0;
     const used = raw.map(d => Math.max(1, d - honor));
     return { dice: honor ? raw.map((d, i) => (used[i] === d ? `${d}` : `${d}-1`)) : raw, raw, used, value: tableResult(Math.max(...used), spellMod(st, data, 'meeting'), hoofHere(st)) };    // Bad Luck adds one (4.1.2), the Cloven Hoof one

@@ -240,7 +240,7 @@ export function bestChoice(st, data, clearing) {
 }
 // One Peer-table roll for the named clearing, with his usual dice and modifiers; Fog and Eyemist do not matter (a spell, not the Search activity).
 export function remotePeer(st, data, clearing) {
-    const r = oneDie(st, 'search', st.ch.at, data) ? (() => { const d1 = die(st); return { dice: [d1], value: d1 }; })() : roll2(st);
+    const r = oneDie(st, 'search', st.ch.at, data) ? (() => { const d1 = die(st, 'search.peer'); return { dice: [d1], value: d1 }; })() : roll2(st, 'search.peer');
     const raw = [...r.dice];
     modRoll(st, data, 'peer', r);
     let res = PEER[r.value - 1];

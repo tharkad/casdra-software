@@ -20,7 +20,7 @@ export function dealSpells(st, data, shuffle) {
     const S = data.setupcard ?? {};
     const byType = {};
     for (const sp of Object.values(data.spells ?? {})) (byType[sp.type] ??= []).push(sp.id);
-    for (const t of Object.keys(byType)) byType[t] = shuffle(st, byType[t]);
+    for (const t of Object.keys(byType)) byType[t] = shuffle(st, byType[t], `setup.runes.${t}`);
     st.spellsAside = (S.spellsOutOfPlay ?? []).map(t => byType[t]?.pop()).filter(Boolean);
     const box = types => types.map(t => ({ id: byType[t]?.pop() ?? null, awake: false })).filter(c => c.id);
     st.spellBox = { sites: {}, visitors: {}, items: {} };
@@ -61,7 +61,7 @@ export function readRunes(st, data, targetKey) {
     if (!targetKey && targets.length > 1) { st.pending = { type: 'runes-target', options: targets.map(t => ({ key: t.key, label: t.label })) }; return 'wait'; }
     const t = targets.find(x => x.key === targetKey) ?? targets[0];
     let r;
-    if (oneDie(st, 'runes', st.ch.at, data)) { const d1 = die(st); r = { dice: [d1], value: d1 }; } else r = roll2(st);
+    if (oneDie(st, 'runes', st.ch.at, data)) { const d1 = die(st, 'runes'); r = { dice: [d1], value: d1 }; } else r = roll2(st, 'runes');
     // Knowledge (Witch, Magician) lowers the die by one (never below 1); then the spells' and the Cloven Hoof's additions; at most 6. Kernel rules/runesRollResult.js.
     // (Open ruling: the order of the floor and the additions only matters for a die of 1 with an addition in force, docs/process/RULINGS-NEEDED.md.)
     { const adv = runesAdvantage(st), m = spellMod(st, data, 'runes'), hoof = hoofHere(st), before = r.value;

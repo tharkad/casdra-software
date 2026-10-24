@@ -1,7 +1,7 @@
 import { say, noteRoll, roll2, tally, clone, lvl } from './core.js';
 import { withActor } from './party.js';
 import { hirelings, monsterHires } from './hire.js';
-import { nativesIn, denizensIn, hireStats, denSide, payOrFight, drinksAction, choiceAction, encounterAction, encounterOptions, chooseWounds, chooseFatigue, meleeSetup, meleeEngaged, meleeReposition, meleeCollect, deliverBlows, meleeAfter, parts, charFoes, contested, charUid } from './combat.js';
+import { legalBoxPlan, nativesIn, denizensIn, hireStats, denSide, payOrFight, drinksAction, choiceAction, encounterAction, encounterOptions, chooseWounds, chooseFatigue, meleeSetup, meleeEngaged, meleeReposition, meleeCollect, deliverBlows, meleeAfter, parts, charFoes, contested, charUid } from './combat.js';
 import { expireDue } from './magic/fx.js';
 import { energizePass } from './magic/energize.js';
 import { worldFadesRoll } from './magic/combathide.js';
@@ -377,7 +377,7 @@ function randomAssign(st, data) {
         if (!pool.length) continue;
         const name = denSide(st, data, d).name;
         while (pool.length > 1) {
-            const rolled = pool.map(id => { const r = roll2(st); noteRoll(st, `Assignment roll for the ${name}`, r.dice, r.value, '', null, { who: id }); return { id, v: r.value }; });
+            const rolled = pool.map(id => { const r = roll2(st, 'combat.assign'); noteRoll(st, `Assignment roll for the ${name}`, r.dice, r.value, '', null, { who: id }); return { id, v: r.value }; });
             const best = Math.max(...rolled.map(r => r.v));
             pool = rolled.filter(r => r.v === best).map(r => r.id);
         }
@@ -457,6 +457,7 @@ function setupPlay(st, data, c) {
             else if (/Fight chit|both/.test(m)) p.fightChit = null;
             else if (/Move chit|carry|asterisks|red side/.test(m)) { p.moveChit = null; if (/asterisks|red side/.test(m)) p.fightChit = null; }
             else if (/part|name the creature/.test(m)) delete p.parts;
+            else if (/as many of the three boxes/.test(m)) p.boxes = legalBoxPlan(st, data, p);          // (8.4.5m: his plan was legal when he made it; a counter killed since can leave a box empty)
             else throw e;
             say(st, `${st.ch.name}'s play had to change (${m}).`, 'combat', null, { who: null });
             if (JSON.stringify(was) === JSON.stringify(p)) throw e;

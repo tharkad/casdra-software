@@ -278,7 +278,7 @@ function relOf(st, group) { return st.ch.rel?.[group] ?? 0; }
 
 // A missile roll (one die for archers, otherwise two): returns the change to harm level and notes the roll for the dice tray.
 function missileRoll(st, what, archer) {
-    const r = archer ? (() => { const d = die(st); return { dice: [d], value: d }; })() : roll2(st);
+    const r = archer ? (() => { const d = die(st, 'combat.missile.1'); return { dice: [d], value: d }; })() : roll2(st, 'combat.missile');
     const m = MISSILE[r.value - 1];
     noteRoll(st, what, r.dice, r.value, `${m >= 0 ? '+' : ''}${m} harm level${Math.abs(m) === 1 ? '' : 's'}`);
     return m;
@@ -340,10 +340,20 @@ function afterMeeting(st, data) {
 // Heavenly Protection (Pilgrim): Demons and the Imp cannot attack him or be assigned to him; he can still attack them (kernel rules/mayAttackHero.js).
 const barredFromHero = (st, data, d) => d.kind === 'mon' && !mayAttackHero(data.monsters[d.id].family, st.ch.adv ?? []);
 
+const assignable = (st, data) => st.combat.dens.filter(d => !d.dead && !d.assigned && !d.bystander && !d.pacified && !barredFromHero(st, data, d) && d.kind !== 'part' && d.kind !== 'horse');      // (a creature a spell has made peaceful is not set on him)
 function assignAll(st, data) {
-    const c = st.combat;
     if (st.ch.hidden) return;
-    for (const d of c.dens) if (!d.dead && !d.assigned && !d.bystander && !d.pacified && !barredFromHero(st, data, d) && d.kind !== 'part' && d.kind !== 'horse') d.assigned = true;      // a creature a spell has made peaceful is not set on him
+    for (const d of assignable(st, data)) d.assigned = true;
+}
+// A hidden character may lure denizens onto his sheet, but if he does so he instantly becomes unhidden (8.3.4b); once he is unhidden the denizens he did not lure are assigned
+// to him as to any character in plain sight (8.3.5), so alone every creature that can fight him comes.
+function lureHidden(st, data) {
+    const c = st.combat;
+    st.ch.hidden = false;
+    say(st, 'You lure the creatures onto your sheet and give yourself away: you are no longer hidden.', 'combat');
+    assignAll(st, data);
+    deployHires(st, data);
+    c.eventful = true;
 }
 
 // His own horse is played like a Move chit, either side up (walking or galloping), whichever he can use; it is played once a round.
@@ -552,7 +562,8 @@ export function encounterOptions(st, data) {
                         : 'No ready Move chit that is fast enough is also strong enough to carry everything you own.',
     };
     const casts = (c.spellOnly ? quietCasts(st, data, true) : castOptions(st, data, { slowest })).map(o => (c.spellOnly ? { ...o, aim: previewAim(st, data, o) } : o));       // (a quiet-evening cast has no Melee step: it is aimed on the cast screen)
-    return { canStay, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && fight.length > 0 && !gripped, alertChits: fight, berserkChits: berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
+    const canLure = !!st.ch.hidden && !sharedFight(st) && !c.spellOnly && assignable(st, data).length > 0;          // (a shared fight lures in its own step: battle.js)
+    return { canStay, canLure, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && fight.length > 0 && !gripped, alertChits: fight, berserkChits: berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
 }
 const canRunNow = (move, st, data) => move.length > 0 && runDestinations(st, data).length > 0;
 
@@ -594,6 +605,13 @@ export function encounterAction(st, data, a) {
         if (!opt.canStay) throw new Error('you are not hidden from everything here');
         say(st, 'You stay hidden. Nothing here can find you, and the evening passes without a blow.', 'combat');
         return endCombat(st, data, 'quiet');
+    }
+    if (a.act === 'lure') {
+        // 8.3.4b: a hidden character lures and is unhidden at once; he is still in the Encounter step and goes on to play it
+        if (!opt.canLure) throw new Error('there is nothing here to lure, or you are not hidden');
+        lureHidden(st, data);
+        st.pending = { type: 'combat-encounter', round: c.round };
+        return;
     }
     if (a.act === 'gear') {
         gearAction(st, data, a);             // without playing a chit he may switch one item on or off, or abandon one (8.3.7d); the Melee step follows
@@ -761,6 +779,9 @@ export function meleeSetup(st, data, p) {
     const log = (t, story) => { ev.push(story ?? t); say(st, t, 'combat', story ?? null); };
     const hm = st.ch.morph ?? null;                        // he is a creature (Absorb Essence, Transform): the counter fights, not his chits and gear
     // --- validate and apply chit plays ---
+    // the plan for the boxes is judged first, before anything is played
+    const bad = boxPlanError(st, boxCounters(st, data, p), p.boxes ?? {});
+    if (bad) throw new Error(bad);
     let fight = null, move = null;
     if (p.fightChit) {
         fight = o.fightChits.find(x => x.id === p.fightChit);
@@ -852,7 +873,7 @@ export function meleeSetup(st, data, p) {
     for (const h of c.dens.filter(d => d.kind === 'horse' && !d.dead)) {
         const owner = c.dens.find(d => d.uid === h.partOf);
         if (!owner || owner.dead || !owner.assigned) { h.box = null; continue; }
-        h.box = (owner.box + 1 + int(st, 2)) % 3;
+        h.box = (owner.box + 1 + int(st, 2, 'combat.part.box')) % 3;
     }
     const X = { p, fight, move, wish, target: target?.uid ?? null, spTargets: spTargets.map(d => d.uid) };
     if (victim) X.charTarget = victim;
@@ -863,7 +884,7 @@ export function meleeSetup(st, data, p) {
 
 // Creatures fighting hirelings sit in a random box.
 export function meleeEngaged(st) {
-    for (const d of st.combat.dens) if (d.engagedBy && !d.dead) d.box = (die(st) - 1) % 3;
+    for (const d of st.combat.dens) if (d.engagedBy && !d.dead) d.box = (die(st, 'combat.engaged.box') - 1) % 3;
 }
 
 // Reposition and change tactics (8.4.6): one die moves the creatures between the boxes, two dice per box may turn them over. `inGroup` (a shared fight: the creatures of one sheet) limits
@@ -871,7 +892,7 @@ export function meleeEngaged(st) {
 export function meleeReposition(st, data, log, inGroup = null) {
     const c = st.combat, mine = d => !inGroup || inGroup(d);
     const boxBefore = new Map(c.dens.map(d => [d.uid, d.box]));
-    const rr = die(st), perm = REPOSITION[rr];
+    const rr = die(st, 'combat.reposition'), perm = REPOSITION[rr];
     noteRoll(st, 'Repositioning roll', [rr], rr, rr === 4 ? 'no change' : 'the creatures shuffle between boxes');
     const inBox = b => c.dens.filter(d => !d.dead && d.box === b && mine(d));
     const old = [inBox(0), inBox(1), inBox(2)];
@@ -886,7 +907,7 @@ export function meleeReposition(st, data, log, inGroup = null) {
     for (let b = 0; b < 3; b++) {
         const here = c.dens.filter(d => !d.dead && d.box === b && mine(d) && canFlip(st, data, d));
         if (!here.length) continue;
-        const t = roll2(st);
+        const t = roll2(st, 'combat.tactics');
         noteRoll(st, `Tactics roll (${MANEUVERS[b]} box)`, t.dice, t.value, t.dice.includes(6) ? 'a 6: they switch sides' : 'no change');
         if (t.dice.includes(6)) {
             for (const d of here) d.side = d.side === 'light' ? 'dark' : 'light';
@@ -997,7 +1018,7 @@ export function meleeCollect(st, data, X, peers = null) {
     if (X.hireTarget) {
         const hire = st.battle.hires.find(x => x.uid === X.hireTarget);
         if (hire && !hire.dead && fight && myDir != null) {
-            const hs = hireStats(data, hire.id, hire.kind, st), a = (die(st) - 1) % 3;
+            const hs = hireStats(data, hire.id, hire.kind, st), a = (die(st, 'combat.hire.box') - 1) % 3;
             const inLane = a === myDir, fast = attackTime != null && hs.move != null && attackTime < hs.move;
             if (inLane || fast) { hits.push({ who: 'me', hireOn: hire.uid, time: attackTime, length: mySide.length }); log(`You: ${DIRS[myDir]} at ${hs.name} (${MANEUVERS[a]}): hit${inLane ? '' : ' by undercutting'}.`); }
             else log(`You: ${DIRS[myDir]} at ${hs.name} (${MANEUVERS[a]}): miss.`);
@@ -1036,7 +1057,7 @@ export function meleeCollect(st, data, X, peers = null) {
         if (hire.targetChar) {          // pvp: sent at a character (8.3.6a); it strikes in a lane a die gives it, and hits if that is his maneuver's lane, or undercuts it, or he played none
             const rival = peers?.[hire.targetChar], hs = hireStats(data, hire.id, hire.kind, st);
             if (!rival || rival.stop || st.chars[hire.targetChar].dead) { log(`${hs.name} has no one to strike: ${st.chars[hire.targetChar]?.name ?? 'its target'} is gone.`); continue; }
-            const a = (die(st) - 1) % 3, vm = rival.X.move, vname = st.chars[hire.targetChar].name;
+            const a = (die(st, 'combat.hire.box') - 1) % 3, vm = rival.X.move, vname = st.chars[hire.targetChar].name;
             const hit = hs.atk != null && hs.harm != null && (!vm || rival.X.p.moveDir == null || a === rival.X.p.moveDir || (vm.time != null && hs.atk < vm.time));
             if (hit) { hits.push({ who: 'hire', hire: hire.uid, char: hire.targetChar, dir: a, time: hs.atk, length: hs.length }); log(`${hs.name} strikes ${DIRS[a].toLowerCase()} at ${vname}: hit.`); }
             else log(`${hs.name} strikes ${DIRS[a].toLowerCase()} at ${vname}: miss.`);
@@ -1044,7 +1065,7 @@ export function meleeCollect(st, data, X, peers = null) {
         }
         const d = c.dens.find(x => x.uid === hire.target && !x.dead && x.engagedBy === hire.uid);
         if (!d) continue;
-        const hs = hireStats(data, hire.id, hire.kind, st), ds = denSide(st, data, d), a = (die(st) - 1) % 3;
+        const hs = hireStats(data, hire.id, hire.kind, st), ds = denSide(st, data, d), a = (die(st, 'combat.hire.box') - 1) % 3;
         if (hs.atk != null && hs.harm != null && (a === d.box || (ds.move != null && hs.atk < ds.move))) hits.push({ who: 'hire', hire: hire.uid, den: d.uid, time: hs.atk, length: hs.length });
         if (ds.attack !== 'none' && ds.atk != null && (a === d.box || (hs.move != null && ds.atk < hs.move))) hits.push({ who: d.uid, onHire: hire.uid, time: ds.atk, length: ds.length });
     }
@@ -1382,37 +1403,68 @@ function canFlip(st, data, d) {
     return true;
 }
 
-// He decides how the denizens go into the three boxes. Rule: fill as many boxes as possible; a part may not share a box with its owner.
-function placeInBoxes(st, data, list, wanted) {
+// He decides how the denizens go into the three boxes. Rule 8.4.5m: the attacking counters (monsters, natives, heads and clubs; a native horse is not one) go in as many boxes as possible,
+// so he cannot leave a box empty while he doubles up another; a part may not share a box with its owner. A plan that names the boxes and breaks the first of these is refused;
+// what he leaves to the engine (no box named for anyone) is filled in the legal way.
+function placeRaw(st, list, wanted) {
     const c = st.combat;
     const used = [0, 0, 0];
     const place = (d, b) => { d.box = b; used[b]++; };
-    // honour requested boxes where they respect the part rule
+    const named = d => [0, 1, 2].includes(wanted[d.uid]);
     const order = [...list];
     for (const d of order) d.box = null;
-    for (const d of order.filter(d => d.kind !== 'part')) {
-        const b = wanted[d.uid];
-        if (b === 0 || b === 1 || b === 2) place(d, b);
-    }
-    for (const d of order.filter(d => d.kind !== 'part' && d.box == null)) {
-        const lowest = used.indexOf(Math.min(...used));
-        place(d, lowest);
-    }
-    for (const d of order.filter(d => d.kind === 'part')) {
+    const bodies = order.filter(d => d.kind !== 'part'), parts = order.filter(d => d.kind === 'part');
+    // honour the boxes he named: the counters first, then the heads and clubs where they respect the part rule; what he left open is filled in last, into the emptiest box
+    // (so a counter he did not place cannot take the box his plan leaves for a part)
+    for (const d of bodies.filter(named)) place(d, wanted[d.uid]);
+    for (const d of parts.filter(named)) { const owner = c.dens.find(o => o.uid === d.partOf); if (owner.box != null && wanted[d.uid] !== owner.box) place(d, wanted[d.uid]); }
+    for (const d of bodies.filter(d => d.box == null)) place(d, used.indexOf(Math.min(...used)));
+    for (const d of parts.filter(d => d.box == null)) {
         const owner = c.dens.find(o => o.uid === d.partOf);
-        const choices = [0, 1, 2].filter(b => b !== owner.box).sort((a, b) => used[a] - used[b]);
-        let b = wanted[d.uid];
-        if (!(b === 0 || b === 1 || b === 2) || b === owner.box) b = choices[0];
-        place(d, b);
+        place(d, [0, 1, 2].filter(b => b !== owner.box).sort((a, b) => used[a] - used[b])[0]);
     }
+    return used;
+}
+const boxesNeeded = list => Math.min(list.length, 3);
+const doubledUp = 'put an attacking counter in as many of the three boxes as you can: you cannot leave a box empty while you double up counters in another (8.4.5m)';
+// Would this plan be refused? The boxes of the counters are left as they were.
+function boxPlanError(st, list, wanted) {
+    if (!list.some(d => [0, 1, 2].includes(wanted[d.uid]))) return null;
+    const saved = list.map(d => [d, d.box]);
+    const used = placeRaw(st, list, wanted);
+    for (const [d, b] of saved) d.box = b;
+    return used.filter(u => u > 0).length < boxesNeeded(list) ? doubledUp : null;
+}
+// (the plan was judged before the round's spells; a spell that then kills a counter can leave a box empty through no fault of his plan, and the engine moves a counter over)
+function placeInBoxes(st, data, list, wanted) { settleBoxes(st, list, wanted); }
+function settleBoxes(st, list, wanted) {
+    const c = st.combat;
+    const used = placeRaw(st, list, wanted), order = [...list];
     // fill as many boxes as possible: with n things, min(n, 3) boxes must be in use
-    const need = Math.min(order.length, 3);
+    const need = boxesNeeded(list);
     for (let guard = 0; guard < 8 && used.filter(u => u > 0).length < need; guard++) {
         const from = used.indexOf(Math.max(...used)), to = used.indexOf(0);
         const mover = order.find(d => d.box === from && d.kind !== 'part') ?? order.find(d => d.box === from && d.kind === 'part' && c.dens.find(o => o.uid === d.partOf).box !== to);
         if (!mover || used[from] < 2) break;
         used[from]--; mover.box = to; used[to]++;
     }
+}
+// What would sit in his red boxes if he played `p`: what is on his sheet now and the creature he names (with its head or club), as the Melee step will put them.
+function boxCounters(st, data, p) {
+    const c = st.combat, named = new Set([p.target, ...(p.targets ?? [])].filter(Boolean));
+    const owners = d => d.assigned || (named.has(d.uid) && !d.elsewhere && !barredFromHero(st, data, d));          // (a creature on another's sheet or barred from him is not set on his)
+    return c.dens.filter(d => !d.dead && d.kind !== 'horse' && (owners(d) || (d.partOf && owners(c.dens.find(x => x.uid === d.partOf) ?? {}))));
+}
+// For a computer player that draws its boxes at random: the boxes of the melee play `p` if the engine accepts them, else the nearest legal plan (the counter moved off a crowded box
+// into an empty one, as the engine used to do by itself before it refused such plans). Nothing in the fight is changed.
+export function legalBoxPlan(st, data, p) {
+    const wanted = p.boxes ?? {}, list = boxCounters(st, data, p);
+    if (!boxPlanError(st, list, wanted)) return wanted;
+    const saved = list.map(d => [d, d.box]);
+    settleBoxes(st, list, wanted);
+    const out = Object.fromEntries(list.map(d => [d.uid, d.box]));
+    for (const [d, b] of saved) d.box = b;
+    return out;
 }
 
 // ---- hits ----
@@ -1499,7 +1551,7 @@ function myHit(st, data, h, ctx) {
     if (side.missile) {
         const bow = /bow$/i.test(ctx.w ? data.weapons[ctx.w.item.id]?.name ?? '' : '');
         // a spell's Missile roll is a plain roll: the Archer's single die and the Aim advantage belong to weapons (RealmSpeak; 01-combat-spells.md Question 3)
-        const r = !ctx.spell && ((hasAdv(st, 'archer') && bow) || oneDie(st, 'missile')) ? (() => { const d1 = die(st); return { dice: [d1], value: d1 }; })() : roll2(st);
+        const r = !ctx.spell && ((hasAdv(st, 'archer') && bow) || oneDie(st, 'missile')) ? (() => { const d1 = die(st, 'combat.missile.1'); return { dice: [d1], value: d1 }; })() : roll2(st, 'combat.missile');
         const aim = !ctx.spell && hasAdv(st, 'aim') ? 1 : 0;
         const v = clamp6(r.value - aim + tableMod(st, data, 'missile'));
         level += MISSILE[v - 1]; shotDelta = MISSILE[v - 1];
@@ -1544,7 +1596,7 @@ function myHit(st, data, h, ctx) {
 function ownMissile(st, data, w, spell = false) {
     const bow = /bow$/i.test(w ? data.weapons[w.item.id]?.name ?? '' : '');
     // (a spell's Missile roll is a plain roll: the Archer's single die and the Aim advantage belong to weapons, as for a creature)
-    const r = !spell && ((hasAdv(st, 'archer') && bow) || oneDie(st, 'missile')) ? (() => { const d1 = die(st); return { dice: [d1], value: d1 }; })() : roll2(st);
+    const r = !spell && ((hasAdv(st, 'archer') && bow) || oneDie(st, 'missile')) ? (() => { const d1 = die(st, 'combat.missile.1'); return { dice: [d1], value: d1 }; })() : roll2(st, 'combat.missile');
     const aim = !spell && hasAdv(st, 'aim') ? 1 : 0;
     const v = clamp6(r.value - aim + tableMod(st, data, 'missile')), m = MISSILE[v - 1];
     noteRoll(st, 'Your missile roll', r.dice, v, `${m >= 0 ? '+' : ''}${m} harm level${Math.abs(m) === 1 ? '' : 's'}${aim ? ' (Aim -1)' : ''}`);
@@ -1735,10 +1787,10 @@ function strikeHero(st, data, b, ctx) {
     const sh = all.find(a => isShield(a.def) && ctx.shieldDir === b.dir);
     if (sh) pieces.push(sh);
     for (const a of all) if (!isShield(a.def) && coversDir(a.def, b.dir)) pieces.push(a);
-    // the first piece in the way takes the blow: shields and armor cards are the outer row, then helmets and breastplates, then suits
-    // (Ointment of Steel before the Suit); a counter before a card of the same row
-    const row = a => (isShield(a.def) || (a.def.card && a.def.id !== 'ointment-of-steel-1') ? 1 : /helmet|breastplate/.test(a.def.type ?? '') ? 2 : 3);
-    pieces.sort((x, y) => row(x) - row(y) || (x.def.id === 'ointment-of-steel-1' ? -1 : y.def.id === 'ointment-of-steel-1' ? 1 : 0) || (!!x.def.card - !!y.def.card));
+    // the first piece in the way takes the blow: the Ointment of Steel first of all (8.4.9j.3: it stops every attack before it hits armor; 8.4.5i.3: the armor beneath
+    // cannot be damaged or destroyed until the Ointment is destroyed), then shields and armor cards, then helmets and breastplates, then suits; a counter before a card of the same row
+    const row = a => (a.def.id === 'ointment-of-steel-1' ? 0 : isShield(a.def) || a.def.card ? 1 : /helmet|breastplate/.test(a.def.type ?? '') ? 2 : 3);
+    pieces.sort((x, y) => row(x) - row(y) || (!!x.def.card - !!y.def.card));
     const armor = pieces[0] ?? null;
     let note = '', missile = 0;
     if (b.missile) {

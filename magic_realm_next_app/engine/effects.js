@@ -21,7 +21,7 @@ export function rollCurse(st, data, target = HERO, roller = HERO) {
     void roller;
     const who = charOf(st, target), mine = !target || target.id === 'ch';
     if (shielded(st, target)) { say(st, `${mine ? 'You are' : `${charName(st, target)} is`} shielded from magic: the curse finds nothing to hold on to.`, 'curse'); return 'nothing (Protection from Magic)'; }
-    const r = modRoll(st, data, 'curse', roll2(st));       // (Bad Luck adds one, Illusion does not apply here)
+    const r = modRoll(st, data, 'curse', roll2(st, 'curse'));       // (Bad Luck adds one, Illusion does not apply here)
     const row = data.tables.curses.rows[String(r.value)];
     noteRoll(st, 'Curse', r.dice, r.value, row.name);
     if (shielded(st, target)) { say(st, `${mine ? 'You are' : `${charName(st, target)} is`} shielded from magic: the ${row.name} curse has no hold.`, 'curse'); return row.name; }
@@ -52,7 +52,7 @@ export function liftCursesAtChapel(st) {
 // ---- the Power of the Pit ----
 // The row that comes up (two dice, higher counts).
 export function rollPit(st, data, what = 'Power of the Pit') {
-    const r = modRoll(st, data, 'pit', roll2(st));
+    const r = modRoll(st, data, 'pit', roll2(st, 'pit'));
     const row = data.tables.powerOfThePit.rows[String(r.value)];
     noteRoll(st, what, r.dice, r.value, row.name);
     return { row, dice: r.dice };

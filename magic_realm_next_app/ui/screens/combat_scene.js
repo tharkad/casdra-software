@@ -10,7 +10,7 @@ import { logText } from '../voice.js';
 import { roundSynopsis, narrateRoll } from '../../engine/story.js';
 import { earned } from '../../engine/score.js';
 import { clone } from '../../engine/core.js';
-import { denSide, meleeOptions, shiftOptions, encounterOptions } from '../../engine/combat.js';
+import { denSide, meleeOptions, shiftOptions, encounterOptions, legalBoxPlan } from '../../engine/combat.js';
 import { nameOfClearing } from '../../engine/world.js';
 import * as M from '../combat/model.js';
 import { foeEl, foeSize, lanesEl, heroEl, alliesEl, gearPopover, fitNames } from '../combat/stage.js';
@@ -68,7 +68,11 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
         ui.lastPlan = { round: c.round, fight: key, plan: JSON.parse(JSON.stringify(m)) };
         cb.plan = null; cb.step = 'strike'; cb.pick = null;
         if (!shared) ui.cbBeat = { snap: clone(st), day: st.day, logLen: st.log.length, round: c.round };
-        emit(P.melee(o, m));
+        // 8.4.5m: he may not leave a box empty while he doubles up another. The Foes step lets him cycle each creature through the boxes, so a plan may come out that way: the engine would refuse it,
+        // so the nearest legal plan is sent and he is told.
+        const play = P.melee(o, m), fixed = legalBoxPlan(st, data, play);
+        if (fixed !== play.boxes) { play.boxes = fixed; X.say('A box was left empty while another held two creatures, so one moved over (every box needs a creature).'); }
+        emit(play);
     };
 
     // ---- which screen this is ----
@@ -214,8 +218,9 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
         const turnedLine = turnedNames.length ? `${M.cap(turnedNames.length === 1 ? turnedNames[0] : M.foesPhrase(turnedNames))} turned to ${turnedNames.length === 1 ? 'its' : 'their'} other side before the blows.` : '';
         let said = roundSynopsis(events) || 'The round passed.';
         if (miss) said = said.replace(/You struck at empty air: the .+? was too quick to catch\.\s*/, '');          // (the miss note below says the same, with the numbers)
-        const syn = [turnedLine, miss ? `${miss} ${said}`.trim() : said].filter(Boolean).join(' ');
-        return [syn, syn, 'verdict'];
+        // Story voice carries no numbers (tools/ui_round.py): the miss, with the number that beat it, is for the Detail voice only
+        const story = [turnedLine, said].filter(Boolean).join(' '), detail = [turnedLine, miss ? `${miss} ${said}`.trim() : said].filter(Boolean).join(' ');
+        return [story, detail, 'verdict'];
     }
     if (mode === 'over' && X.shared) return ['The fighting is over.', 'Combat is over: nothing hostile is left.', 'verdict'];
     if (mode === 'over') {

@@ -50,7 +50,7 @@ export function beginDay(st, data) {
     // Several seats starting again on the same morning (9.1.2b): the die decides who picks first. A seat may start again as the same character at once; one who wants ANOTHER character waits
     // for those ahead of him to answer (restartChar), so that two cannot grab the same one by being quick. The order is on the table.
     const dead = st.asks.filter(a => a.pending.type === 'restart');
-    if (dead.length > 1) { const order = shuffle(st, dead.map(a => a.who)); for (const a of dead) a.pending.pickOrder = order.slice(); say(st, `${order.map(id => playerNameOf(st, id)).join(', then ')} start again, in that order of choosing a character.`, 'day', null, { who: null }); }
+    if (dead.length > 1) { const order = shuffle(st, dead.map(a => a.who), 'order.dead'); for (const a of dead) a.pending.pickOrder = order.slice(); say(st, `${order.map(id => playerNameOf(st, id)).join(', then ')} start again, in that order of choosing a character.`, 'day', null, { who: null }); }
 }
 
 // One character's Birdsong chores: he is the actor.
@@ -104,7 +104,7 @@ function landDenizens(st, data) {
         if (!o.loc?.flying) continue;
         const tile = o.loc.tile, nums = tileClearings(st, data, tile).map(numOf);
         let n = null;
-        for (let k = 0; k < 40 && !nums.includes(n); k++) n = die(st);
+        for (let k = 0; k < 40 && !nums.includes(n); k++) n = die(st, 'setup.start.clearing');
         if (!nums.includes(n)) n = nums[0];
         o.loc = { c: tile + n };
         say(st, `${o.id in data.monsters ? data.monsters[o.id].name : data.natives[o.id].name} comes down in clearing ${n} of the ${tileName(tile)}.`, 'monster');
@@ -214,7 +214,7 @@ function planned(st, data) {
 function sunrise(st, data) {
     const table = multi(st) ? { who: null } : null;              // (a line or a roll of the whole table belongs to no one character)
     st.period = 'sunrise';
-    st.prowl = die(st);
+    st.prowl = die(st, 'day.prowl');
     noteRoll(st, 'Monster roll', [st.prowl], st.prowl, `row ${st.prowl} prowls today`, null, table);
     st.rolls.at(-1).tale = tell.wilds(st, data);                       // the story voice says what prowls, not which row
     const magic = dayColors(st.day, st.lastDay ?? 28), week = st.day % 7 === 0 ? regenerate(st, data) : null;
@@ -242,7 +242,7 @@ function beginTurn(st, data) {
 // event the table can see: `st.dayRec = { day, order, i, first }` for today and `st.draws` for every day so far (`i` points at the turn being played). The first character drawn
 // "leads" the day (8.3.2). It uses the game's own generator, after the Monster Roll, so the same seed and the same plans give the same draw.
 function drawChits(st, gone = []) {
-    const ids = livingIds(st).filter(id => !st.follows?.[id] && !gone.includes(id)), order = ids.length > 1 ? shuffle(st, ids) : ids.slice();       // (a follower has no chit: his turn is his guide's; a cancelled follow has no turn)
+    const ids = livingIds(st).filter(id => !st.follows?.[id] && !gone.includes(id)), order = ids.length > 1 ? shuffle(st, ids, 'order.turn') : ids.slice();       // (a follower has no chit: his turn is his guide's; a cancelled follow has no turn)
     st.dayRec = { day: st.day, order, i: 0, first: order[0] ?? null };
     if (st.follows) st.dayRec.follow = Object.entries(st.follows).reduce((m, [f, g]) => { (m[g] ??= []).push(f); return m; }, {});
     (st.draws ??= []).push({ day: st.day, order: order.slice() });
@@ -805,7 +805,7 @@ function doMove(st, data, slot) {
 const lostActive = st => !st.ch.onRoad && !st.ch.mist && !!st.ch.at && (fxTags(st, HERO, 'randomMove').length > 0 || fxTags(st, { kind: 'tile', id: tileOf(st.ch.at) }, 'randomMove').length > 0);
 // One die is a clearing number among the clearings joined to this one (undiscovered paths too). None: the phase is lost; several: his recorded one, else the first.
 function lostMove(st, data, from, wanted) {
-    const d = die(st), cands = roadsFrom(st, data, from).filter(r => numOf(r.to) === d);
+    const d = die(st, 'move.lost'), cands = roadsFrom(st, data, from).filter(r => numOf(r.to) === d);
     noteRoll(st, 'Lost', [d], d, cands.length ? `you wander toward ${nameOfClearing(cands[0].to)}` : 'no clearing with that number');
     if (!cands.length) return { text: `Lost: you wander in circles (rolled ${d}) and the move is lost.` };
     return { to: (cands.find(r => r.to === wanted) ?? cands[0]).to };
@@ -818,7 +818,7 @@ function arrive(st, data, to) {
 function doHide(st, data) {
     if (hasCurse(st, 'Squeak')) return 'The Squeak curse betrays you: you cannot hide.';
     if (st.ch.hidden) return 'You are already hidden.';
-    const r = oneDie(st, 'hide', st.ch.at, data) ? { dice: [die(st)], value: 0 } : roll2(st);
+    const r = oneDie(st, 'hide', st.ch.at, data) ? { dice: [die(st, 'hide')], value: 0 } : roll2(st, 'hide');
     if (r.value === 0) r.value = r.dice[0];
     modRoll(st, data, 'hide', r);
     noteRoll(st, 'Hide', r.dice, r.value, (hides(r.value) ? 'You hide' : 'You are seen') + modNote(r));
@@ -922,7 +922,7 @@ function doSearch(st, data, slot) {
     if (table === 'runes') return readRunes(st, data, slot.target ?? null);
     if (table === 'peer' && peerBlocked(st, data, st.ch.at)) return 'Fog hangs over this tile: nobody can use the Peer table here.';
     let r;
-    if (oneDie(st, table === 'loot' || table === 'ground' || table === 'sitecard' ? 'loot' : 'search', st.ch.at, data)) { const d1 = die(st); r = { dice: [d1], value: d1 }; } else r = roll2(st);
+    if (oneDie(st, table === 'loot' || table === 'ground' || table === 'sitecard' ? 'loot' : 'search', st.ch.at, data)) { const d1 = die(st, `search.${table}`); r = { dice: [d1], value: d1 }; } else r = roll2(st, `search.${table}`);
     const rawDice = [...r.dice];
     if (table === 'locate') { const m = locateMod(st, tileOf(st.ch.at), data); if (m) { r.value = Math.max(1, r.value + m); r.dice = [...r.dice, `${m}`]; } }
     modRoll(st, data, table, r);                                       // Illusion and Bad Luck add one (4.1.2)

@@ -141,8 +141,8 @@ function setupTreasure(st, data) {
     const S = data.setupcard, all = Object.values(data.treasures);
     const treasure = c => ({ kind: 'treasure', id: c.id });
     const twt = all.filter(t => t.kind === 'twt');
-    let large = shuffle(st, all.filter(t => t.kind === 'large'));
-    const small = shuffle(st, all.filter(t => t.kind === 'small'));
+    let large = shuffle(st, all.filter(t => t.kind === 'large'), 'setup.treasure.large');
+    const small = shuffle(st, all.filter(t => t.kind === 'small'), 'setup.treasure.small');
     // Treasure-within-Treasure boxes take their named large treasures first (digest 01 step 1).
     st.twt = {};
     for (const box of S.twt) {
@@ -150,7 +150,7 @@ function setupTreasure(st, data) {
         const got = large.splice(0, box.largeTreasures ?? 0);
         st.twt[card.id] = { name: box.name, large: got.map(treasure), contents: [...(box.contents ?? [])].sort((a, b) => (a.pilePosition ?? 99) - (b.pilePosition ?? 99)).map(c => ({ name: c.name, kind: c.kind })), gold: box.goldReward ?? 0, siteCard: !!box.siteCard, box: box.name };
     }
-    const largePool = shuffle(st, [...large, ...twt]);
+    const largePool = shuffle(st, [...large, ...twt], 'setup.treasure.pool');
     for (const site of S.sites) {
         const smalls = small.splice(0, site.small ?? 0).map(treasure);
         const larges = largePool.splice(0, site.large ?? 0).map(treasure);

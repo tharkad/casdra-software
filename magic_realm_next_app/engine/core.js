@@ -21,17 +21,40 @@ function nextFloat(st) {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
-// st.dieQueue lets tests script the next dice exactly; it is empty in real games.
-export const die = st => (st.dieQueue?.length ? st.dieQueue.shift() : 1 + Math.floor(nextFloat(st) * 6));
-export const int = (st, n) => Math.floor(nextFloat(st) * n);
-export const pick = (st, arr) => arr[int(st, arr.length)];
-export function shuffle(st, arr) {
+// Every draw says what it is for (`why`: 'hide', 'combat.tactics', 'search.locate' ...). Three ways the next value is found:
+//   st.script   { why: [values] } (arrays of pairs are flattened): STRICT, a draw with no value left stops with its purpose (scenario runs, docs/design/scenario-harness)
+//   st.dieQueue an array, or an object with shift(why): the older way tests script the next dice exactly (the oracle uses the object form)
+//   neither     the generator, as in a real game
+// st.drawLog, when it is an array, collects [why, value] for every draw (record and replay between engines).
+function draw(st, why, real, queued = true) {
+    let v;
+    if (st.script) {
+        const q = st.script[why ?? ''];
+        if (!q?.length) throw new Error(`strict dice: no scripted draw left for '${why ?? 'untagged'}'`);
+        v = q.shift();
+    } else if (queued && st.dieQueue?.length) v = st.dieQueue.shift(why);          // (the queue holds dice, not indices: int() does not take from it)
+    else v = real();
+    st.drawLog?.push([why ?? null, v]);
+    return v;
+}
+export const die = (st, why) => draw(st, why, () => 1 + Math.floor(nextFloat(st) * 6));
+// 0..n-1 (scripted as the value drawn, 0-based)
+export const int = (st, n, why) => draw(st, why, () => Math.floor(nextFloat(st) * n), false);
+export const pick = (st, arr, why) => arr[int(st, arr.length, why)];
+// A shuffle: strict scripts give the order as a permutation of indices under `order:<why>`; lists of 0 or 1 need no draw
+export function shuffle(st, arr, why) {
+    if (st.script && arr.length > 1) {
+        const q = st.script[`order:${why ?? ''}`];
+        if (!q?.length) throw new Error(`strict dice: no scripted order for '${why ?? 'untagged'}'`);
+        st.drawLog?.push([`order:${why}`, q.slice()]);
+        return q.map(k => arr[k]);
+    }
     const a = arr.slice();
-    for (let i = a.length - 1; i > 0; i--) { const j = int(st, i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+    for (let i = a.length - 1; i > 0; i--) { const j = int(st, i + 1, why); [a[i], a[j]] = [a[j], a[i]]; }
     return a;
 }
 // Two dice, higher one counts (the rules' usual roll). Returns { dice: [a, b], value }.
-export function roll2(st) { const a = die(st), b = die(st); return { dice: [a, b], value: Math.max(a, b) }; }
+export function roll2(st, why) { const a = die(st, why), b = die(st, why); return { dice: [a, b], value: Math.max(a, b) }; }
 
 // ---- log ----
 // `story` is the same event in prose (engine/story.js); the plain text `t` stays exact for tools and tests.
