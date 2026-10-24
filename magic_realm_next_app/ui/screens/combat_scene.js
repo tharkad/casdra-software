@@ -187,7 +187,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
         makeStage(mode === 'meet' ? narr : null), mode === 'meet' ? null : narr, sheet);
     X.root = root;
     fitStage(root);
-    if (cb.gearCard) root.append(gearPopover({ st, data, flippedGear: cb.flippedGear, onFlip: uid => { cb.flippedGear[uid] = !cb.flippedGear[uid]; render(); }, onClose: () => { cb.gearCard = false; render(); } }));
+    if (cb.gearCard) root.append(h('div', { class: 'cb-popbk', 'data-act': 'close-gear', 'aria-hidden': 'true', onclick: () => { cb.gearCard = false; render(); } }), gearPopover({ st, data, flippedGear: cb.flippedGear, onFlip: uid => { cb.flippedGear[uid] = !cb.flippedGear[uid]; render(); }, onClose: () => { cb.gearCard = false; render(); } }));
     if (cb.record) root.append(recordSheet(X, M.recordRounds(st)));
     if (cb.pit) root.append(pitSheet(X));
     return root;
