@@ -413,8 +413,7 @@ export function recapSheet(X, recap) {
     if (recap.tired) chips.push(h('span', { class: 'ds-tag' }, `${plural(recap.tired, 'chit')} tired`));
     if (activeArmor(st, data).length || recap.damaged || recap.destroyed) chips.push(h('span', { class: `ds-tag${recap.destroyed || recap.damaged ? ' bad' : ''}` }, recap.destroyed ? `${plural(recap.destroyed, 'piece')} of armor destroyed` : recap.damaged ? 'Armor damaged' : 'Armor whole'));
     return sheetEl(X, 'recap', h('div', { class: 'cb-recap' }, h('div', { class: 'big' }, 'Victory'),
-        h('div', { class: 'cb-verdict', style: 'margin-top:8px' }, ...chips),
-        h('p', { class: 'cb-hint', style: 'text-align:center;margin:8px 0 0', 'data-totals': '' }, `You now have ${st.ch.fame} Fame, ${st.ch.notoriety} Notoriety and ${st.ch.gold} Gold.`)),
+        h('div', { class: 'cb-verdict', style: 'margin-top:8px' }, ...chips)),
         foot(btn('Record', 'quiet', { 'data-act': 'record', onclick: () => { X.cb.record = true; X.render(); } }), primary('On to the night', { 'data-act': 'fight-over', onclick: () => send(P.over()) })));
 }
 export function beatSheet(X, recap, how) {
