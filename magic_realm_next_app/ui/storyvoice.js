@@ -569,8 +569,11 @@ export function lineFor(entry, voice = 'story', st = null) {
     if (!entry) return '';
     if (entry.p) return entry.p;
     if (voice !== 'story') return entry.t ?? '';
-    return storyLine(entry, st) ?? entry.s;
+    const s = storyLine(entry, st) ?? entry.s;
+    return STORY_SWAPS[s] ?? s;
 }
+// TODO (Mike, note 21): the whole Story text needs one big pass so it stops sounding generated. Until then, engine lines that talk about "blows" are swapped here (the engine's own text is shared with the stable game).
+const STORY_SWAPS = { 'The blows stop; neither side presses on.': 'The fighting dies down.' };
 
 // Detail for the rolls whose own record says nothing of the outcome (Loot, the ground, a site card: noteRoll is given no result): the roll's number and what it
 // took, read from the phase line that follows it ("6: you take the Ancient Telescope"). null when there is nothing to add. (docs/design/review/04-daylight-activities.md 04-05)

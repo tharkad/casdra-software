@@ -309,7 +309,7 @@ export function overCard({ st, data, people, myId }) {
     const head = peace && kills.length ? ['The fight is over.', 'Nobody who was left meant harm, so the evening passes in peace. You may trade before Midnight.']
         : peace ? ['A friendly evening.', 'Nobody here meant harm, so the evening passes in peace. You may trade before Midnight.']
         : kills.length ? ['The fight is over.', `${fallen} ${kills.length > 1 ? 'have' : 'has'} fallen.`]
-            : [total.kills ? 'The fight is won.' : 'The fight is over.', total.kills ? `${total.kills} creature${total.kills === 1 ? '' : 's'} fell between you.` : fadedOut ? 'The blows stopped: neither side pressed on.' : 'Nothing more is to be won here tonight.'];
+            : [total.kills ? 'The fight is won.' : 'The fight is over.', total.kills ? `${total.kills} creature${total.kills === 1 ? '' : 's'} fell between you.` : fadedOut ? 'The fighting died down: neither side pressed on.' : 'Nothing more is to be won here tonight.'];
     return h('div', { class: `sf-over${pvpEnd ? ' pv' : ''}`, 'data-fightover': sum.key },
         ...kills.map(k => deathCallout({ st, f: lastFight, k, viewerId: myId })),
         h('div', { class: 'sf-verdict', role: 'status' }, h('p', { class: 'ds-voice lg' }, h('b', {}, head[0]), ' ', head[1])),
