@@ -227,3 +227,6 @@
 .cb-foe .sidelbl.peek { top: calc(100% + 2px); background: var(--danger); color: #fff; border-color: var(--danger); }
 .cb-foe[data-foe] .cb-flip[aria-pressed=true] .ds-cs-wrap { outline: 2px dashed var(--danger); outline-offset: 1px; opacity: .85; }
 .cb-flip { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+
+/* the Record button on the Encounter card when the foot's lead slot is taken: a quiet row of its own */
+.cb-recrow { display: flex; justify-content: flex-start; margin: 4px 0 0; }

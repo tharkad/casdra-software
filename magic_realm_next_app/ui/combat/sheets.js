@@ -86,9 +86,12 @@ export function encounterSheet(X) {
     // creatures that cast rather than strike (a Demon: the Power of the Pit; an Imp: a Curse): said once, in a line, with the table one tap away
     const casters = M.bodiesOf(st).filter(d => denSide(st, data, d).attack === 'spell');
     const pitNote = casters.length ? hint(`${M.cap(M.foesPhrase(casters.map(d => denSide(st, data, d).name)))} ${casters.length > 1 ? 'cast' : 'casts'} rather than ${casters.length > 1 ? 'strike' : 'strikes'}: your maneuver can turn it aside, armor will not.`) : null;
-    const lead = hidden ? btn('Strike from hiding', '', { 'data-act': 'pass', onclick: () => send(P.pass()) }) : casters.length ? btn(casters.every(d => M.isImp(data, d)) ? 'The curses' : 'What the Pit can do', 'quiet', { 'data-act': 'pit-note', onclick: () => { cb.pit = true; render(); } }) : null;
+    // the Record is one tap away here too (round 2 on: what the first round did), in the lead slot when it is free, else a quiet row of its own
+    const recBtn = M.recordRounds(st).length ? btn('Record', 'quiet', { 'data-act': 'record', onclick: () => { cb.record = true; render(); } }) : null;
+    const lead0 = hidden ? btn('Strike from hiding', '', { 'data-act': 'pass', onclick: () => send(P.pass()) }) : casters.length ? btn(casters.every(d => M.isImp(data, d)) ? 'The curses' : 'What the Pit can do', 'quiet', { 'data-act': 'pit-note', onclick: () => { cb.pit = true; render(); } }) : null;
+    const lead = lead0 ?? recBtn;
     const prim = hidden ? primary('Stay hidden', { 'data-act': 'stay-hidden', onclick: () => send(P.stay()) }) : primary('Go on to the fight', { 'data-act': 'pass', onclick: () => send(P.pass()) });
-    return sheetEl(X, 'encounter', qRow(round, itemsBtn ?? h('span', {}, 'Before the melee?')), h('div', { class: 'cb-verbs' }, ...tiles), pitNote, foot(lead, prim));
+    return sheetEl(X, 'encounter', qRow(round, itemsBtn ?? h('span', {}, 'Before the melee?')), h('div', { class: 'cb-verbs' }, ...tiles), pitNote, lead0 && recBtn ? h('div', { class: 'cb-recrow' }, recBtn) : null, foot(lead, prim));
 }
 
 function chitPickRow(X, chits, selId, onPick) {
