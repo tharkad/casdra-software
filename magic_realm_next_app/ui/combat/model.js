@@ -93,7 +93,7 @@ export function defaultPlan(st, data, o) {
     const left = lim - (o.asterisksPlayed + (m.fightChit ? asterisksOf(st, m.fightChit) : 0));
     const moves = o.moveChits.filter(ch => o.moveOk(ch) && (ch.effort ?? 0) <= left && ch.id !== m.fightChit);
     moves.sort((a, b) => (a.effort ?? 0) - (b.effort ?? 0) || (a.time ?? 0) - (b.time ?? 0));
-    m.moveChit = moves[0]?.id ?? null;
+    m.moveChit = st.ch?.hidden ? null : moves[0]?.id ?? null;          // striking from hiding: the one he names cannot strike back this round, so there is nothing to maneuver against
     o.boxable.forEach((d, i) => { m.boxes[d.uid] = i % 3; });
     return m;
 }
@@ -120,6 +120,7 @@ export function guardHint(st, data, o, m) {
     const mv = m.moveChit ? moveList(o).find(x => x.id === m.moveChit) : null;
     const attackers = o.boxable.filter(d => { const s = denSide(st, data, d); return s.attack !== 'none' && s.atk != null && (d.assigned || d.partOf); });
     if (!attackers.length) return 'Nothing here strikes back.';
+    if (!mv && st.ch?.hidden) return 'You strike from hiding: no blow comes back this round, so no maneuver is needed.';
     if (!mv) return 'With no maneuver every blow is aimed true.';
     const under = attackers.filter(d => denSide(st, data, d).atk < mv.time);
     if (under.length > 2) return `At ${mv.time}, ${under.length} of ${attackers.length} foes get under your guard.`;
