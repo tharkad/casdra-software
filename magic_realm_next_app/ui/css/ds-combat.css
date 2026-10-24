@@ -13,6 +13,8 @@
 .cb-top .where { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.1; }
 .cb-top .where b { font: 700 calc(16px * var(--ts, 1))/1.1 var(--font-display); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
 .cb-top .where span { font: 600 calc(12px * var(--ts, 1))/1.2 var(--font-display); letter-spacing: .14em; color: var(--ink-3); text-transform: uppercase; white-space: nowrap; }
+.cb-top .cb-sight { flex: none; font: 700 calc(12px * var(--ts, 1))/1 var(--font-display); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; padding: 7px 10px; border-radius: 999px; border: 1px solid var(--st-illegal); color: var(--gold-hi); }
+.cb-top .cb-sight.hid { border-color: var(--ink-3); color: var(--ink-2); }
 .cb-top .ds-btn.icon { color: var(--ink-2); }
 .cb-bar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 var(--gutter) 4px 4px; }          /* Fame / Notoriety / Gold: never hidden in a fight */
 .cb-stage { flex: 1; min-height: 150px; position: relative; padding: 6px var(--gutter) 6px; overflow: hidden; }

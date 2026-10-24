@@ -304,3 +304,6 @@ export function woundDefault(st, p) {
     const cs = p.chits.map(id => st.ch.chits.find(x => x.id === id)).filter(Boolean);
     return [...cs].sort((a, b) => worth(a) - worth(b)).slice(0, p.count).map(x => x.id);
 }
+
+/** Whether the hero is hidden, in the combat header's words (a fight changes who can touch you, so it is always shown). */
+export const sightOf = st => st.ch.hidden ? { hidden: true, text: 'Hidden' } : { hidden: false, text: 'In plain sight' };

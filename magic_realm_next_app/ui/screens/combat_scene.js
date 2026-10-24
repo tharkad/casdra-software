@@ -175,10 +175,12 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     // ---- the frame ----
     const place = nameOfClearing(c.at).replace(/ (\d+)$/, '\u00A0$1');
     let ern = null; try { ern = earned(st, data); } catch { /* scoring not available */ }
+    const sight = M.sightOf(st);
     const stat = (cls, ic, n) => h('span', { class: `ds-stat ${cls}` }, icon(ic), String(n));
     const root = h('section', { class: `cb ds-screen${shared ? ' sf' : ''}`, 'data-mode': mode, 'data-ask-type': p.type, 'data-step': mode === 'melee' ? step : null, 'data-sf': shared ? 'step' : null },
         h('div', { class: 'cb-top' },
-            h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', {}, p.spellOnly ? 'Evening · quiet' : `Evening · round ${c.round}`))),
+            h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', {}, p.spellOnly ? 'Evening · quiet' : `Evening · round ${c.round}`)),
+            h('span', { class: `cb-sight${sight.hidden ? ' hid' : ''}`, 'data-sight': sight.hidden ? 'hidden' : 'seen' }, sight.text)),
         shared ? shared.strip : null,
         shared ? null : h('div', { class: 'cb-bar' }, h('button', { type: 'button', class: 'ds-stats', 'aria-label': 'Fame, Notoriety, Gold: open your Belongings', onclick: () => peek?.gear() },
             stat('fame', 'star', ern?.fame ?? st.ch.fame), stat('notor', 'flame', ern?.notoriety ?? st.ch.notoriety), stat('gold', 'coin', st.ch.gold)), voiceSwitch()),
