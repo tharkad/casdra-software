@@ -152,8 +152,7 @@ export function overScreen(G) {
     const quiet = G.race ? null : btn('History', 'quiet', { 'data-act': 'over-history', onclick: () => { clearSaved(); G.ctx.go('history'); } });
     const screen = h('main', { class: `ds-end ds-screen ${dead ? 'dead' : won ? 'won' : 'lost'}`, 'data-screen': 'over', role: 'dialog', 'aria-label': dead ? 'You have fallen' : won ? 'Victory' : 'The game is over' },
         h('div', { class: 'ds-scroll ds-fade-b end-scroll' }, hero, ...middle, story,
-            canRestart || G.race ? null : h('div', { class: 'end-title' }, btn('Back to the title', 'quiet sm', { 'data-act': 'over-title', onclick: goTitle })),
-            canRestart ? h('div', { class: 'end-title' }, btn('Back to the title', 'quiet sm', { 'data-act': 'over-title', onclick: goTitle })) : null),
+            h('div', { class: 'end-title' }, btn('Menu', 'quiet sm', { 'data-act': 'menu', onclick: () => { G.ui.sheet = 'menu'; render(G); } }), G.race ? null : btn('Back to the title', 'quiet sm', { 'data-act': 'over-title', onclick: goTitle }))),
         h('div', { class: 'ds-foot' }, quiet, primary));
     // every button of the end screen, the leaving ones too, waits a moment: the taps that were on their way to the fight's last primary (Roll) must not land on "Begin again" or "Back to the title" (QA-4)
     guardIfChanged(G.ui.guards ??= {}, 'over', `${dead}|${o.day ?? st.day}`, screen, 700, 'button');

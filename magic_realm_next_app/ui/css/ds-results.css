@@ -91,7 +91,7 @@
 .ds-end .end-idle { margin: 8px 0 0; } .ds-end .end-idle summary { min-height: 44px; display: flex; align-items: center; color: var(--ink-2); font: 500 calc(15px * var(--ts, 1))/1.2 var(--font-ui); cursor: pointer; }
 .ds-end .end-sale { margin: 14px 0 0; text-align: center; }
 .ds-end .end-run { margin-top: 4px; } .ds-end .end-run .ds-voice { margin: 0; font-size: calc(18px * var(--ts, 1)); line-height: 1.4; }
-.ds-end .end-title { margin-top: 12px; text-align: center; }
+.ds-end .end-title { margin-top: 12px; display: flex; gap: 12px; justify-content: center; }
 /* a sheet over the end screen (the restart question) stands above it */
 .ds-end ~ .ds-scrim { z-index: 40; } .ds-end ~ .ds-sheet { z-index: 41; }
 

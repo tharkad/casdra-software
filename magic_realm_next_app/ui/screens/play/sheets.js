@@ -48,7 +48,7 @@ export function sheets(G, lookOnly = false) {
     if (G.shared && G.st.battle?.members?.[G.st.ch.id] && sharedFightHost(G, out)) return out;
     if (p?.type?.startsWith('combat') || fightBeat(G)) { combatHost(G, out); return out; }
     // The game is over (solo or a race): the death callout or the verdict, full screen, once the fight has had its one beat. A dead character may return tomorrow (a sheet over it).
-    if (!G.shared && p?.type === 'over') { out.push(overScreen(G)); if (G.ui.restartVp) out.push(restartSheet(G)); return out; }
+    if (!G.shared && p?.type === 'over') { out.push(overScreen(G)); if (G.ui.restartVp) out.push(restartSheet(G)); if (G.ui.sheet === 'menu') out.push(menuSheet(G)); return out; }
     if (G.ui.sheet === 'piece' && G.ui.piece) { out.push(pieceSheet(G)); return out; }
     if (G.ui.peek && G.ui.sel && p?.type === 'plan') { out.push(clearingSheet(G)); return out; }
     const lookAt = G.ui.mapPeek && G.ui.sheet === 'clearing' && G.ui.sel;       // a clearing looked at while a decision waits (the decision sheet is peeked): it opens over the bar
