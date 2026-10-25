@@ -126,6 +126,8 @@
 .kit-dice { margin: 0 0 6px; }
 .kit-pricebox { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 12px; }
 .kit-what { display: flex; align-items: center; gap: 12px; }
+button.kit-what { background: none; border: 0; padding: 0; min-height: 44px; width: 100%; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+button.kit-what > div { flex: 1; }
 .kit-what b { font: 700 calc(18px * var(--ts, 1))/1.2 var(--font-ui); display: block; }
 .kit-hero { display: flex; gap: 14px; align-items: center; margin: 4px 0 10px; }
 .kit-heroname { font-size: calc(22px * var(--ts, 1)); }

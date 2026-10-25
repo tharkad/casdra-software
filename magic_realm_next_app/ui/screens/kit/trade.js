@@ -63,15 +63,17 @@ function offerContent(G, p) {
     const body = h('div', { class: 'kit kit-offer' },
         offerDice(G, p) ?? h('p', { class: 'ds-meta' }, p.rollNote),
         h('div', { class: 'kit-pricebox' }, h('div', { class: 'ds-price', 'data-price': String(p.price) }, `${p.price} GOLD`, h('small', {}, `${p.base} × ${p.mult}`)),
-            h('div', { class: 'kit-what' }, raw ? h('span', { class: 'ds-counter' }, itemArt(G, raw)) : null, h('div', {}, h('b', {}, repay ? `The ${p.group}’s goodwill` : p.name), h('span', { class: 'ds-meta' }, repay ? 'One roll: pay now, or it is lost for good.' : `List price ${p.base} Gold, times the roll.`)))),
+            h(raw ? 'button' : 'div', { class: 'kit-what', ...(raw ? { type: 'button', 'data-act': 'offer-card', 'aria-expanded': G.ui.offerCard ? 'true' : 'false', 'aria-label': `About the ${p.name}`, onclick: () => { G.ui.offerCard = !G.ui.offerCard; render(G); } } : {}) },
+                raw ? h('span', { class: 'ds-counter' }, itemArt(G, raw)) : null, h('div', {}, h('b', {}, repay ? `The ${p.group}’s goodwill` : p.name), h('span', { class: 'ds-meta' }, repay ? 'One roll: pay now, or it is lost for good.' : `List price ${p.base} Gold, times the roll.`)), raw ? icon(G.ui.offerCard ? 'up' : 'down') : null)),
+        raw && G.ui.offerCard ? infoOf(G, raw)() : null,
         ask(repay ? `The ${p.group} will sell back their goodwill.` : `The ${p.group} name a price for the ${p.name}.`, 'Pay it in gold or with things you hand over, or turn it down.'),
         pay.node);
     const label = repay ? 'Win it back' : 'Buy it';
     const small = pay.things ? `${pay.goldDue} Gold and ${plural(pay.things, 'thing')}` : `${p.price} Gold`;
     // (why the primary is dim is in the foot, above the buttons, in red: the sheet's body is a scroll and the answer must never be below it)
     const foot = footRow({ note: pay.ok ? `Gold ${G.st.ch.gold} to ${G.st.ch.gold - pay.goldDue}` : `You are ${pay.short} Gold short: hand over more.`, bad: !pay.ok,
-        secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'trade-decline', onclick: () => { G.ui.payWith = null; G.ui.tradeTab = null; act(G, { type: 'trade', act: 'decline' }); } }, 'Not at that price'),
-        primary: pay.ok ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'buy-ok', onclick: () => { const items = pay.chosen; G.ui.payWith = null; G.ui.tradeTab = null; act(G, { type: 'trade', act: 'accept', items }); } }, twoLine(label, small))
+        secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'trade-decline', onclick: () => { G.ui.payWith = null; G.ui.tradeTab = null; G.ui.offerCard = false; act(G, { type: 'trade', act: 'decline' }); } }, 'Not at that price'),
+        primary: pay.ok ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'buy-ok', onclick: () => { const items = pay.chosen; G.ui.payWith = null; G.ui.tradeTab = null; G.ui.offerCard = false; act(G, { type: 'trade', act: 'accept', items }); } }, twoLine(label, small))
             : dimBtn(G, twoLine(label, small), `You are ${pay.short} Gold short: hand over more.`, { 'data-act': 'buy-ok' }, 'primary') });
     return { title: repay ? `Win back ${p.name}` : `Buy ${p.name}`, body, foot, decision: true, detent: 'tall' };
 }
