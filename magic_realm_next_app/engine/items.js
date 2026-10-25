@@ -1,5 +1,5 @@
 import { lvl } from './core.js';
-import { cardChits, BOOTS, GLOVES, hasTreasure } from './modifiers.js';
+import { cardChits, BOOTS, GLOVES, EXTRA, hasTreasure } from './modifiers.js';
 import { isCave } from './world.js';
 
 // Everything a character can own is an item: { uid, kind: 'weapon'|'armor'|'horse'|'treasure', id, active, alerted, damaged, destroyed }.
@@ -38,13 +38,20 @@ export function priceOf(data, it) {
     return d.gold ?? d.price ?? 0;
 }
 
+// 7.3.2a (ruling R5, ch7-day.md): a horse counter with different strengths on its two sides may be used by the strength letter on either side, so for activation, for
+// carrying (what a ridden horse bears) and for a pack horse the stronger of the two sides counts. (In combat each side is still its own Move chit, combat.js.)
+export function horseLevel(data, h) {
+    const d = data.horses[h.id];
+    return d ? Math.max(lvl(d.walk.strength), lvl(d.gallop?.strength ?? d.walk.strength)) : -1;
+}
+
 // Pack horses (7.3.1i, 4.3.8b): every horse he owns that is not the one he rides is a pack horse. It carries any number of his INACTIVE items, so long as its
 // strength (its walking strength) bears the weight of each; what it carries needs no Move chit of his (7.3.1e, 8.4.5f.3), even in a cave (7.3.1i.5) or when the horse
 // itself is not ridden. An item in use stays with him: RealmSpeak (CharacterWrapper getNeededSupportWeight) and its test "pack horses don't support active weight".
 // `except` names a horse that is about to be ridden, which can no longer be a pack horse.
 export function packStrength(st, data, except = null) {
     let best = -1;
-    for (const h of st.ch.items) if (h.kind === 'horse' && !h.active && !h.destroyed && h.uid !== except && data.horses[h.id]) best = Math.max(best, lvl(data.horses[h.id].walk.strength));
+    for (const h of st.ch.items) if (h.kind === 'horse' && !h.active && !h.destroyed && h.uid !== except && data.horses[h.id]) best = Math.max(best, horseLevel(data, h));
     return best;
 }
 // Does a pack horse carry this item? (Only an inactive item that is not a horse itself, no heavier than the strongest pack horse.)
@@ -72,7 +79,7 @@ export function carryCapacity(st, data) {
     for (const x of st.ch.chits) if (x.state === 'active' && x.type === 'move') c = Math.max(c, lvl(x.strength));
     for (const x of st.ch.chits) if (x.state === 'active' && x.alt?.mf) c = Math.max(c, lvl(x.alt.strength));          // a Magic chit changed by Unleash Power carries like a Move chit
     const h = activeHorse(st);
-    if (h && data.horses[h.id]) c = Math.max(c, lvl(data.horses[h.id].walk.strength));
+    if (h && data.horses[h.id]) c = Math.max(c, horseLevel(data, h));
     for (const b of cardChits(st, 'move')) c = Math.max(c, lvl(b.strength));
     return c;
 }
@@ -141,21 +148,53 @@ export function bootsStrongEnough(st, data, it) {
     return lvl(BOOTS[it.id][0]) >= need;
 }
 
-export function toggleItem(st, data, it) {
-    if (it.active) { it.active = false; if (it.kind === 'weapon') it.alerted = false; return; }
-    // A horse (4.3.8a, 7.3.2a): never in a cave, strong enough for him and everything he owns, and only one at a time. The same checks whether he switches it on
-    // between phases (day.js tidy) or as his Encounter action in a fight (combat.js gear).
+// Why this inactive item cannot be switched on now (null: it can). A horse (4.3.8a, 7.3.2a): never in a cave, strong enough for him and everything he owns (either side of the
+// counter, ruling R5), and only one at a time. The same checks whether he switches it on between phases (day.js tidy) or as his Encounter action in a fight (combat.js gear).
+export function activationBlock(st, data, it) {
     if (it.kind === 'horse') {
         const at = st.combat?.at ?? st.ch.at;
-        if (at && isCave(st, data, at)) throw new Error('A horse cannot be ridden in a cave.');
-        if (lvl(data.horses[it.id].walk.strength) < Math.max(lvl(st.ch.weight), carriedLevel(st, data, it.uid))) throw new Error('The horse is not strong enough to carry you and your gear.');
-        st.ch.items.filter(o => o.kind === 'horse').forEach(o => { o.active = false; });
+        if (at && isCave(st, data, at)) return 'A horse cannot be ridden in a cave.';
+        if (horseLevel(data, it) < Math.max(lvl(st.ch.weight), carriedLevel(st, data, it.uid))) return 'The horse is not strong enough to carry you and your gear.';
     }
-    if (BOOTS[it.id] && !bootsStrongEnough(st, data, it)) throw new Error('Those boots are not strong enough to carry you and your gear.');
+    if (BOOTS[it.id] && !bootsStrongEnough(st, data, it)) return 'Those boots are not strong enough to carry you and your gear.';
+    return null;
+}
+
+export function toggleItem(st, data, it) {
+    if (it.active) { it.active = false; if (it.kind === 'weapon') it.alerted = false; return; }
+    const why = activationBlock(st, data, it);
+    if (why) throw new Error(why);
+    if (it.kind === 'horse') st.ch.items.filter(o => o.kind === 'horse').forEach(o => { o.active = false; });
     const slots = slotsOf(data, it);
     for (const o of st.ch.items) if (o.uid !== it.uid && o.active && slotsOf(data, o).some(s => slots.includes(s))) { o.active = false; if (o.kind === 'weapon') o.alerted = false; }
     it.active = true;
     keepAlerted(st);
+}
+
+// The belongings that decide tomorrow's Birdsong plan, for the reminder at the end of the day (ruling R6, ch7-day.md; 6.2.2c.1, 6.2.4d): an extra phase caused by a horse or a
+// treasure card can be recorded only if the item is ACTIVE during Birdsong, and rearranging is allowed only at the start of a phase of the Daylight turn and after the Evening's
+// combat (4.3.3a), never in Birdsong. So tonight is the last chance. Pure: it reads the state and changes nothing.
+//   { uid, id, name, kind, active, act, gives, canActivate, why, last: 'evening' }
+//   act: the one activity the extra phase may be used for ('move', 'search', ...; null: any activity); gives: a few words for the reminder;
+//   canActivate: he could switch it on right now; why: what stops him (a cave, strength) when he cannot. An entry that is active already needs no action (a reminder that it is on).
+export function nextDayGear(st, data) {
+    const out = [];
+    if (!st.ch || st.ch.dead) return out;
+    for (const it of st.ch.items) {
+        if (it.destroyed) continue;
+        let act = null, gives = null;
+        if (it.kind === 'horse') {
+            const k = data.horses[it.id]?.kind;
+            if (k === 'workhorse') { act = 'move'; gives = 'one extra Move phase a day'; }
+            else if (k === 'pony') { act = 'move'; gives = 'a second Move phase after each other Move phase (never the first Move of the day)'; }
+            else continue;
+        } else if (it.kind === 'treasure' && EXTRA[it.id]) { act = EXTRA[it.id]; gives = `an extra ${act} phase`; }
+        else if (it.kind === 'treasure' && it.id === 'shielded-lantern') { act = null; gives = 'an extra phase for any activity, usable only when he stands in a cave clearing'; }
+        else continue;
+        const why = it.active ? null : activationBlock(st, data, it);
+        out.push({ uid: it.uid, id: it.id, name: nameOf(data, it), kind: it.kind, active: !!it.active, act, gives, canActivate: !it.active && !why, why, last: 'evening' });
+    }
+    return out;
 }
 
 // One short line describing an item for a person (stats, not rules text).

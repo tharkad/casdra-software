@@ -116,6 +116,12 @@ rule(/^As mist you can only move and hide/, () => 'As mist you can do little but
 rule(/^You land in a cave, where there is no sunlight/, () => 'You come down in a cave, where the sun cannot follow. The day is over for you.');
 rule(/^You have left the Blazing Light behind/, () => 'The Blazing Light burns far behind you. That hour is gone.');
 rule(/^The Shielded Lantern's phase needs a cave/, () => 'The lantern needs a cave to burn in. The hour is lost.');
+// ---- the day rulings of chapter 7 (R2, R3): an extra phase whose horse or card was not on, the rest that takes the place of a phase when every chit is spent
+rule(/^What gives you this extra (\w+) phase \(a horse or a treasure\) was not active when the phase began: the phase is lost\.?$/, () => ['What would have given you this extra hour was not ready when it began. That hour is lost.', 'You did not have what grants this extra hour at hand when it came. That hour is lost.']);
+rule(/^Every chit of yours is fatigued, wounded or committed to a spell: you can only rest, and this phase is for one activity only, so it is lost\.?$/, () => ['You are too spent to do anything but rest, and this hour was meant for something else. It slips away.', 'Every chit is spent. This hour could not be used to rest, so it is lost.']);
+rule(/^Every chit of yours is fatigued, wounded or committed to a spell: you can only rest, and your recorded activity is cancelled\.?$/, () => ['You are too spent for what you planned. All you can do is rest.', 'Every chit is spent. What you planned for this hour gives way to rest.']);
+rule(/^(?:You can only rest, and you cannot: you die|Every chit is spent and you cannot rest: you die)\.?$/, () => ['You are spent and cannot even rest. You die.', 'There is nothing left in you, and no rest to be had. You die.']);
+rule(/^(.+?)'s magic kills you\.?$/, m => [`${m[1]}'s magic strikes you down.`, `${m[1]}'s spell is the end of you.`]);
 rule(/^Nothing happens\.?$/, () => ['Nothing comes of it.', 'Nothing happens, and the hour goes by.']);
 rule(/^You do nothing\.?$/, () => ['You let the time pass.', 'You let the hour go by.']);
 

@@ -1,5 +1,5 @@
 import { lvl } from './core.js';
-import { defOf, weightOf } from './items.js';
+import { defOf, weightOf, horseLevel } from './items.js';
 import { BOOTS } from './modifiers.js';
 import { ownedItems, ownedGold } from './magic/mist.js';
 import { withActor } from './party.js';
@@ -17,7 +17,7 @@ export function earned(st, data) {
     const items = ownedItems(st);              // (what a Melt into Mist holds for him counts too)
     for (const it of items) {
         if (it.destroyed) continue;
-        if (it.kind === 'horse' && data.horses[it.id]) cap = Math.max(cap, lvl(data.horses[it.id].walk.strength));
+        if (it.kind === 'horse' && data.horses[it.id]) cap = Math.max(cap, horseLevel(data, it));          // (either side of the counter: 7.3.2a)
         if (BOOTS[it.id] && it.active) cap = Math.max(cap, lvl(BOOTS[it.id][0]));
     }
     let great = 0, fame = cursed('Disgust') ? -1 : ch.fame, notor = ch.notoriety;

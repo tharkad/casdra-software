@@ -4,7 +4,7 @@ import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, 
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
 import * as combat from './combat.js';
 import * as battle from './battle.js';
-import { makeItem, defOf, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain, noteFind } from './items.js';
+import { makeItem, defOf, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain, noteFind, nextDayGear } from './items.js';
 import { lootFrom, lootSiteCard, groundPileAt, sitesHere, effortOptions, payEffort, applySearchResult, peerBlocked } from './search.js';
 import { hasCurse, liftCursesAtChapel } from './effects.js';
 import { tell } from './story.js';
@@ -111,6 +111,49 @@ function landDenizens(st, data) {
     }
 }
 
+// The pony (7.3.2b.3, 6.2.4c; ruling R1 in docs/rules-spec/rulings/ch7-day.md): for each Move phase he gets from other sources he may record a second Move phase caused by the
+// pony, and the pony Moves must STRICTLY alternate with the other Moves in the order they are recorded: a pony Move needs the Move recorded just before it (other phases may
+// come between) to be one that the pony did not cause, and the pony cannot cause the first Move of the turn. So ordinary, pony, ordinary, pony is fine; ordinary, ordinary, pony,
+// pony is not.
+// A slot may say which Moves are the pony's: `{ act: 'move', to, via: 'pony' }` (6.2.4d: he notes what caused each extra phase). Those are taken as written and checked. Without
+// a note the engine picks the pony Moves itself, only as many as the plan needs (the Moves beyond his ordinary phases) and always the second, fourth ... Move of the turn
+// that is not already an extra phase of another source, which is the one way the alternation can hold.
+// `slots` may hold blanks. Returns { on, at: [slot indexes of the pony's Moves], errors: [{ i, text }] }.
+function ponyPlan(st, data, slots, ph0) {
+    const h = activeHorse(st), on = !!h && data.horses[h.id]?.kind === 'pony' && !ph0.startsInCave;          // (a horse cannot be active in a cave: 6.2.2c.1)
+    const live = s => s && s.act !== 'nothing';
+    const noted = slots.map((s, i) => (live(s) && s.act === 'move' && s.via === 'pony' ? i : -1)).filter(i => i >= 0);
+    const errors = [];
+    if (!on) {
+        for (const i of noted) errors.push({ i, text: 'you have no pony active to cause that Move.' });
+        return { on, at: [], errors };
+    }
+    const moves = slots.map((s, i) => (live(s) && s.act === 'move' ? i : -1)).filter(i => i >= 0), tagged = new Set(noted);
+    // how many ordinary phases are taken without the pony's Moves: whatever is neither a noted pony Move nor swallowed by another source's extra phase
+    const left = [...ph0.extras], plain = new Set();
+    slots.forEach((s, i) => {
+        if (!live(s) || tagged.has(i)) return;
+        const k = left.indexOf(s.act);
+        if (k >= 0) left.splice(k, 1); else plain.add(i);
+    });
+    let need = Math.max(0, plain.size - (ph0.base + (ph0.lantern ? 1 : 0)));
+    let prev = false;
+    moves.forEach((i, j) => {
+        if (!tagged.has(i) && need > 0 && j > 0 && !prev && plain.has(i)) { tagged.add(i); need--; }
+        prev = tagged.has(i);
+    });
+    // the alternation, for the notes the player wrote (the ones the engine added cannot break it)
+    prev = false;
+    moves.forEach((i, j) => {
+        if (tagged.has(i)) {
+            if (j === 0) errors.push({ i, text: 'the pony cannot cause the first Move in the turn.' });
+            else if (prev) errors.push({ i, text: 'Move phases caused by the pony must alternate with other Move phases.' });
+        }
+        prev = tagged.has(i);
+    });
+    return { on, at: [...tagged].sort((a, b) => a - b), errors };
+}
+
 // How many phases the day will give him, given what he plans.
 export function phasesFor(st, data, slots) {
     const startsInCave = !st.ch.onRoad && isCave(st, data, st.ch.at);        // fleeing out of a cave leaves him on the road: a full day (8.3.8 d.2)
@@ -123,18 +166,21 @@ export function phasesFor(st, data, slots) {
     const base = PHASES.basic + (sunlight ? PHASES.sunlight : 0) + (blazing ? 1 : 0);
     // The Shielded Lantern: one more phase for any normal activity; he must be in a cave clearing when it starts or the activity is cancelled (the card's own text)
     const lantern = hasTreasure(st, 'shielded-lantern');
-    return { total: base + (lantern ? 1 : 0) + extras.length, base, lantern, sunlight, extras, extra: extras.length, blazing, refused: st.ch.morph ? Object.keys(MORPH_REFUSED) : [] };       // (as a creature he cannot Rest, Trade, Hire or Enchant)
+    const pony = ponyPlan(st, data, slots, { base, lantern, extras, startsInCave });          // the pony's Move phases depend on the Moves he records (an empty plan: none)
+    return { total: base + (lantern ? 1 : 0) + extras.length + pony.at.length, base, lantern, sunlight, extras, extra: extras.length, blazing, pony: pony.at.length, ponyOn: pony.on, ponyAt: pony.at, ponyErrors: pony.errors, refused: st.ch.morph ? Object.keys(MORPH_REFUSED) : [] };       // (as a creature he cannot Rest, Trade, Hire or Enchant)
 }
 
 // Which kind of phase each recorded activity uses (rule 6.2.4 a): an extra phase takes only its own activity and may be recorded anywhere; every other
 // activity uses the next ordinary phase, the first two being basic and the rest sunlight. Returns the kinds and any errors.
 export function planKinds(st, data, slots) {
-    const ph = phasesFor(st, data, slots.filter(Boolean));
+    const ph = phasesFor(st, data, slots);
     const left = [...ph.extras], kinds = [], errors = [];
     let regular = 0;
+    for (const e of ph.ponyErrors) errors.push(`Phase ${e.i + 1}: ${e.text}`);
     slots.forEach((s, i) => {
         if (!s || s.act === 'nothing') { kinds.push(null); return; }
         if (i >= ph.total) { errors.push(`Phase ${i + 1} is not available today.`); kinds.push('over'); return; }
+        if (ph.ponyAt.includes(i)) { kinds.push('extra'); return; }               // a Move the pony causes: an extra phase, for a Move only
         const k = left.indexOf(s.act);
         if (k >= 0) { left.splice(k, 1); kinds.push('extra'); }
         else {
@@ -145,7 +191,8 @@ export function planKinds(st, data, slots) {
             else if (ph.lantern && regular === ph.base + 1) kinds.push('lantern');          // the Shielded Lantern's phase: any activity, only worth recording if he will be in a cave then
             else {
                 kinds.push('over');
-                errors.push(ph.extras.length ? `Phase ${i + 1}: only ${ph.base} ordinary activities today; the extra phase can be used only for ${[...new Set(ph.extras)].join(' or ')}.` : `Phase ${i + 1} is not available today.`);
+                const only = [...new Set([...ph.extras, ...(ph.ponyOn ? ['move'] : [])])];
+                errors.push(only.length ? `Phase ${i + 1}: only ${ph.base} ordinary activities today; the extra phase can be used only for ${only.join(' or ')}.` : `Phase ${i + 1} is not available today.`);
             }
         }
         if (s.act === 'move' && !s.to) errors.push(`Phase ${i + 1}: choose where to move.`);
@@ -153,7 +200,7 @@ export function planKinds(st, data, slots) {
         if (s.act === 'follow') { const e = meet.followPlanError(st, slots, i, st.ch); if (e) errors.push(`Phase ${i + 1}: ${e}`); }
         if (st.ch.mist && s.act !== 'move' && s.act !== 'hide') errors.push(`Phase ${i + 1}: as mist you can only move and hide.`);
     });
-    return { kinds, errors, total: ph.total, base: ph.base, lantern: ph.lantern, sunlight: ph.sunlight, extras: ph.extras };
+    return { kinds, errors, total: ph.total, base: ph.base, lantern: ph.lantern, sunlight: ph.sunlight, extras: ph.extras, pony: ph.pony, ponyAt: ph.ponyAt };
 }
 
 export function validatePlan(st, data, slots) {
@@ -526,7 +573,14 @@ function sharedEvening(st, data, at, ids) {
 }
 
 // His evening is over: the next character's, or Midnight.
-const eveningDone = (st, data) => (multi(st) ? nextEvening(st, data) : midnight(st, data));
+// With `st.pauseEvening` (the game screens set it; the computer players and the tests do not) a single character's evening ends on a question of its own, 'evening-end': the one
+// time the rules let him rearrange his belongings after the fighting (4.3.3a), and so the last chance to switch on what will give him an extra phase tomorrow, which has to be
+// active in Birdsong (6.2.2c.1, ruling R6 in ch7-day.md). The question carries `gear`, the reminder list (items.js nextDayGear); 'tidy' works on it and 'continue' goes on to Midnight.
+const eveningDone = (st, data) => {
+    if (multi(st)) return nextEvening(st, data);
+    if (st.pauseEvening && !st.ch.dead && !st.ch.flying && !st.ch.mist && !st.ch.morph) { st.pending = { type: 'evening-end', gear: nextDayGear(st, data) }; return st; }
+    return midnight(st, data);
+};
 
 function hostilesHere(st, data) {
     const here = st.ch.at;
@@ -685,9 +739,52 @@ function midnight(st, data) {
 }
 
 // ---- activities ----
+// 7.3.2b, 6.2.4d: an extra phase caused by a horse or a treasure card is lost unless that belonging was ACTIVE when the phase began (before he rearranged at its start). The
+// count works without remembering which phase was caused by what: the extra phases for this activity from this one on (this one included) must not outnumber the sources of
+// that activity he still has active. A source that went out before the phase therefore costs him the earliest of the phases it could have caused, and one that went out
+// after the last of them costs nothing. (The pony: while it is active its Moves are not counted, plan validation has seen to the alternation.)
+function extraLost(st, data, slot, i) {
+    const t = st.turn;
+    if (t.pro || t.kinds?.[i] !== 'extra' || slot.act === 'nothing') return null;
+    const act = slot.act, was = t.gear?.i === i ? t.gear.active : null;           // the belongings he had on when this phase began, if he has rearranged since
+    const saved = st.ch.items.map(it => it.active);
+    if (was) st.ch.items.forEach(it => { it.active = was.includes(it.uid) && !it.destroyed; });
+    const have = extraActs(st, data).filter(a => a === act).length, h = activeHorse(st), pony = h && data.horses[h.id]?.kind === 'pony';
+    st.ch.items.forEach((it, k) => { it.active = saved[k]; });
+    const due = t.kinds.reduce((n, k, j) => n + (j >= i && k === 'extra' && st.plan[j]?.act === act ? 1 : 0), 0);
+    if (act === 'move' && pony) return null;
+    if (due <= have) return null;
+    return `What gives you this extra ${act} phase (a horse or a treasure) was not active when the phase began: the phase is lost.`;
+}
+
+// 7.8.4: with every chit fatigued, wounded or committed to a spell he can only Rest, and a recorded activity is cancelled and he rests at the next opportunity. Ruling R2
+// (ch7-day.md): the Rest takes the very phase that cannot be done. A phase that may be used for one activity only (a horse's or a card's extra Move ...) cannot hold a Rest: it is
+// simply lost, and the Rest comes at the next phase he could rest in.
+function spentChits(st) {
+    return !st.ch.morph && !st.ch.mist && st.ch.chits.length > 0 && st.ch.chits.every(c => c.state === 'fatigued' || c.state === 'wounded' || c.state === 'committed');
+}
+// He cannot rest at all (Ill Health, or every chit still committed to a spell): he is killed (7.8.4).
+function forcedRest(st, data) {
+    const ill = hasCurse(st, 'Ill Health');
+    if ((ill || !restOptions(st).length) && (ill || st.ch.chits.every(c => c.state === 'committed'))) {
+        st.ch.dead = true;
+        st.slain = { by: null, text: ill ? 'Ill Health: every chit was spent and he could not rest.' : 'Every chit was committed to a spell: there was nothing to rest.', at: st.ch.at, day: st.day };
+        say(st, 'Every chit is spent and you cannot rest: you die.', 'info');
+        return 'You can only rest, and you cannot: you die.';
+    }
+    return doRest(st, data);
+}
+
 function executeSlot(st, data, slot, i) {
     const t = st.turn;
     if (!slot) { t.climb = null; return 'You do nothing.'; }
+    { const lost = extraLost(st, data, slot, i); if (lost) { t.climb = null; return lost; } }
+    const spent = slot.act !== 'nothing' && spentChits(st);
+    if (spent && slot.act !== 'rest') {
+        if (t.kinds?.[i] === 'extra') { t.climb = null; return 'Every chit of yours is fatigued, wounded or committed to a spell: you can only rest, and this phase is for one activity only, so it is lost.'; }
+        say(st, 'Every chit of yours is fatigued, wounded or committed to a spell: you can only rest, and your recorded activity is cancelled.', 'info');
+        slot = { act: 'rest', forced: true }; st.plan[i] = { ...slot };
+    }
     // In the air, every activity but Fly lands him first (7.3.3b): a die picks the clearing; a cave has no sunlight, and a monster there stops him as he lands.
     if (st.ch.flying && slot.act !== 'fly' && slot.act !== 'nothing') { const lost = landForPhase(st, data, i); if (lost) { t.climb = null; return lost; } }
     // Mist (Melt into Mist) can do only Move, Hide and Follow (there is no Follow activity yet).
@@ -705,7 +802,7 @@ function executeSlot(st, data, slot, i) {
         case 'move': return doMove(st, data, slot);
         case 'fly': return doFly(st, data, slot);
         case 'hide': { t.climb = null; return doHide(st, data); }
-        case 'rest': { t.climb = null; return doRest(st, data); }
+        case 'rest': { t.climb = null; return spent ? forcedRest(st, data) : doRest(st, data); }
         case 'alert': { t.climb = null; return doAlert(st, data, slot); }
         case 'search': { t.climb = null; return doSearch(st, data, slot); }
         case 'enchant': { t.climb = null; return doEnchant(st, data); }
@@ -1102,6 +1199,7 @@ function step(st, data, action) {
             return st;
         }
         case 'continue': {
+            if (p.type === 'evening-end') { st.pending = null; return midnight(st, data); }          // the evening is over: Midnight
             if (p.type !== 'turn-end') throw new Error('nothing to continue');
             st.pending = null;
             afterTurnEnd(st, data);
@@ -1137,8 +1235,12 @@ function step(st, data, action) {
             return st;
         }
         case 'tidy': {
-            if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'plan') throw new Error('you can only rearrange your gear between phases (in a fight, use your Encounter action)');
+            // 4.3.3a, 7.2.2f (ruling R6, ch7-day.md): at the start of each phase of his Daylight turn and after all the Evening's combat; never in Birdsong while he records his plan
+            // (an extra phase from a horse or a card must be active at Birdsong, 6.2.2c.1, so it has to be switched on the evening before: see nextDayGear and the 'evening-end' question).
+            if (p.type === 'plan') throw new Error('you cannot rearrange your belongings while you record your plan: only at the start of a phase of your turn, or in the evening after the fighting (4.3.3a)');
+            if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'evening-end') throw new Error('you can only rearrange your gear between phases (in a fight, use your Encounter action)');
             if (st.ch.flying) throw new Error('you cannot rearrange your gear in the air');
+            if (p.type === 'phase' && st.turn && st.turn.gear?.i !== st.turn.i) st.turn.gear = { i: st.turn.i, active: st.ch.items.filter(x => x.active && !x.destroyed).map(x => x.uid) };          // what was on when this phase began (7.3.2b: an extra phase needs its horse already active then)
             // free item management outside combat: switch items on and off
             const it = st.ch.items.find(i => i.uid === action.item);
             if (!it) throw new Error('no such item');
@@ -1150,12 +1252,12 @@ function step(st, data, action) {
                 st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
                 st.abandoned[where] = [...(st.abandoned[where] ?? []), { ...it, active: false, alerted: false }];
                 say(st, `You leave the ${nameOf(data, it)} behind.`, 'info');
-                st.pending = keep(st, data, p);
+                st.pending = p.type === 'evening-end' ? { ...p, gear: nextDayGear(st, data) } : keep(st, data, p);
                 return st;
             }
             toggleItem(st, data, it);
             say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOf(data, it)}.`, 'info');
-            st.pending = keep(st, data, p);                    // (under Prophecy an item can give an extra phase the moment he activates it)
+            st.pending = p.type === 'evening-end' ? { ...p, gear: nextDayGear(st, data) } : keep(st, data, p);                    // (under Prophecy an item can give an extra phase the moment he activates it)
             return st;
         }
         case 'open': {
@@ -1303,3 +1405,6 @@ meet.hooks.followerEnds = (st, data) => {
 
 // For tests and tools that set a clearing up by hand: open the evening of a state whose `dayRec` names the order of the day's turns (every character's turn played).
 export { sunsetAll as beginEvening };
+
+// The end-of-day reminder for the screens (items.js): the belongings that decide tomorrow's plan, also on the `evening-end` question as `gear`.
+export { nextDayGear };

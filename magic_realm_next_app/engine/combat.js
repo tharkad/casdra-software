@@ -341,6 +341,8 @@ function afterMeeting(st, data) {
 const barredFromHero = (st, data, d) => d.kind === 'mon' && !mayAttackHero(data.monsters[d.id].family, st.ch.adv ?? []);
 
 const assignable = (st, data) => st.combat.dens.filter(d => !d.dead && !d.assigned && !d.bystander && !d.pacified && !barredFromHero(st, data, d) && d.kind !== 'part' && d.kind !== 'horse');      // (a creature a spell has made peaceful is not set on him)
+// A peaceful (not battling) unhired native in the clearing can be lured too (8.3.4, 8.2.3a): luring it makes its group battle him.
+const luredPeaceful = (st, data) => st.combat.dens.filter(d => d.kind === 'nat' && d.bystander && !d.dead && !d.assigned && !d.pacified);
 function assignAll(st, data) {
     if (st.ch.hidden) return;
     for (const d of assignable(st, data)) d.assigned = true;
@@ -351,6 +353,7 @@ function lureHidden(st, data) {
     const c = st.combat;
     st.ch.hidden = false;
     say(st, 'You lure the creatures onto your sheet and give yourself away: you are no longer hidden.', 'combat');
+    for (const g of new Set(luredPeaceful(st, data).map(d => data.natives[d.id].group))) startBattling(st, data, g);          // (8.2.3a: the lured native's group starts battling him)
     assignAll(st, data);
     deployHires(st, data);
     c.eventful = true;
@@ -562,7 +565,7 @@ export function encounterOptions(st, data) {
                         : 'No ready Move chit that is fast enough is also strong enough to carry everything you own.',
     };
     const casts = (c.spellOnly ? quietCasts(st, data, true) : castOptions(st, data, { slowest })).map(o => (c.spellOnly ? { ...o, aim: previewAim(st, data, o) } : o));       // (a quiet-evening cast has no Melee step: it is aimed on the cast screen)
-    const canLure = !!st.ch.hidden && !sharedFight(st) && !c.spellOnly && assignable(st, data).length > 0;          // (a shared fight lures in its own step: battle.js)
+    const canLure = !!st.ch.hidden && !sharedFight(st) && !c.spellOnly && (assignable(st, data).length > 0 || luredPeaceful(st, data).length > 0);          // (a shared fight lures in its own step: battle.js)
     return { canStay, canLure, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && fight.length > 0 && !gripped, alertChits: fight, berserkChits: berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
 }
 const canRunNow = (move, st, data) => move.length > 0 && runDestinations(st, data).length > 0;

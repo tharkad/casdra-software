@@ -11,7 +11,7 @@ import { runesDiceCount } from './rules/runesDiceCount.js';
 const treasureIds = st => st.ch.items.filter(i => i.kind === 'treasure' && i.active && !i.destroyed).map(i => i.id);
 
 // Cards that give one more phase restricted to one activity.
-const EXTRA = { 'magic-spectacles': 'search', 'cloak-of-mist': 'hide', 'regent-of-jewels': 'trade', 'royal-sceptre': 'hire', 'seven-league-boots': 'move' };
+export const EXTRA = { 'magic-spectacles': 'search', 'cloak-of-mist': 'hide', 'regent-of-jewels': 'trade', 'royal-sceptre': 'hire', 'seven-league-boots': 'move' };
 
 // The Dwarf's Short Legs: no sunlight phases at all (6.2.2b).
 export const noSunlight = st => (st.ch.adv ?? []).includes('short-legs');

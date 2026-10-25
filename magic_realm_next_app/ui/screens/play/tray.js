@@ -109,7 +109,7 @@ function phasePrimary(G, slot) {
 }
 
 // a question that is on a sheet: the tray stands dim under it and says what it is waiting for
-const WAITING = { 'turn-end': ['End of turn', ''], rest: ['Rest', 'choose a chit'], 'search-table': ['Search', 'choose a table'], 'search-choice': ['Search', 'your choice'], 'effort-cost': ['Pay', 'with effort'], 'runes-target': ['Read runes', 'choose which'],
+const WAITING = { 'turn-end': ['End of turn', ''], 'evening-end': ['Evening', 'before Midnight'], rest: ['Rest', 'choose a chit'], 'search-table': ['Search', 'choose a table'], 'search-choice': ['Search', 'your choice'], 'effort-cost': ['Pay', 'with effort'], 'runes-target': ['Read runes', 'choose which'],
     'learn-spell': ['Learn', 'a spell'], 'enchant-choice': ['Enchant', 'choose'], trade: ['Trade', 'choose'], 'trade-offer': ['Trade', 'the price'], hire: ['Hire', 'choose'], 'hire-offer': ['Hire', 'the price'] };
 
 export function renderTray(G) {

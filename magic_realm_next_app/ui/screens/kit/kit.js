@@ -37,15 +37,24 @@ export function slotKey(G, it) {
 }
 const occupantOf = (G, key) => G.st.ch.items.find(i => i.active && !i.destroyed && slotKey(G, i) === key) ?? null;
 
-// Why gear cannot be changed now (null when it can): the engine allows `tidy` only between phases.
+// Rule 7.2.2f (ruling R6, ch7-day.md): belongings are rearranged at the start of each phase of the day's turn and in the evening after the fighting, never while the plan is recorded.
+// An extra phase from a horse or a card must already be active in Birdsong (6.2.2c.1), so it is switched on the evening before (the Evening-end sheet, screens/kit/evening.js).
+export const PLAN_LOCK = 'You can rearrange these at the start of each phase.';
+export const PLAN_LOCK_DETAIL = 'Rule 7.2.2f: belongings are rearranged only at the start of a phase of your turn, or in the evening after the fighting (4.3.3a), never while you record the plan. A horse or card that gives an extra phase must be active already (6.2.2c.1).';
+
+// Why gear cannot be changed now (null when it can): the engine allows `tidy` only between phases, and in the evening after the fighting.
 export function gearLock(G) {
     const p = G.st.pending?.type;
     if (G.st.combat || p?.startsWith('combat') || (G.shared && G.st.battle?.members?.[G.st.ch.id])) return 'In a fight, changing your gear is your Encounter action, once.';
     if (G.st.ch.morph) return 'Your gear is of no use to a creature.';
     if (G.st.ch.flying) return 'You cannot rearrange your gear in the air.';
-    if (!['plan', 'phase', 'phase-pick'].includes(p)) return 'Gear can be changed between phases.';
+    if (p === 'plan') return PLAN_LOCK;
+    if (!['phase', 'phase-pick', 'evening-end'].includes(p)) return 'Gear can be changed between phases.';
     return null;
 }
+
+// The words of a lock line: the plan's one has a Story and a Detail voice; the others are plain.
+export const lockText = lock => (lock === PLAN_LOCK ? h('span', {}, h('span', { 'data-v': 'story' }, PLAN_LOCK), h('span', { 'data-v': 'detail' }, PLAN_LOCK_DETAIL)) : lock);
 
 // Why an item cannot be put to use now (the engine's own refusals from toggleItem, said before the press), or null.
 export function whyNot(G, it) {
@@ -144,7 +153,7 @@ function kitRoom(G, o) {
         carryLimit(G),
         sect2('In use', 'one of each'),
         h('div', { class: 'ds-slots' }, SLOTS.map(s => slotEl(G, s, lock, o))),
-        lock ? h('div', { class: 'ds-why kit-lock', 'data-lock': '' }, icon('lock', 'kit-lockico'), lock) : null,
+        lock ? h('div', { class: 'ds-why kit-lock', 'data-lock': '' }, icon('lock', 'kit-lockico'), lockText(lock)) : null,
         sect2('In your pack', pack.length ? plural(pack.length, 'thing') : ''),
         pack.length ? h('div', { class: 'ds-list' }, pack.map(i => packRow(G, i, o))) : h('p', { class: 'kit-none' }, 'Nothing else. Your pack is empty.'),
         items.length ? worthLine(G) : null,
@@ -242,7 +251,7 @@ export function itemContent(G, it, o = {}) {
         factsOf(G, it),
         h('p', { class: 'ds-voice kit-story' }, storyLine(G, it)),
         h('details', { class: 'kit-detail' }, h('summary', {}, 'Detail'), ...facts.map(t => h('p', {}, t))),
-        lock && !it.destroyed ? h('div', { class: 'ds-why kit-lock' }, icon('lock', 'kit-lockico'), lock) : null,
+        lock && !it.destroyed ? h('div', { class: 'ds-why kit-lock' }, icon('lock', 'kit-lockico'), lockText(lock)) : null,
         can ? (leaving ? h('div', { class: 'kit-leave' }, h('span', { class: 'ds-meta' }, `Leave the ${name} lying here?`),
             h('button', { type: 'button', class: 'ds-btn sm danger', 'data-act': 'item-leave', onclick: () => { G.ui.leaveAsk = null; G.ui.sheet = G.ui.itemFrom === 'dock' ? null : 'char'; G.ui.itemFrom = null; tidyAct(G, it, { drop: true }); } }, `Leave the ${name} here`),
             h('button', { type: 'button', class: 'ds-btn sm quiet', onclick: () => { G.ui.leaveAsk = null; render(G); } }, 'Keep it'))

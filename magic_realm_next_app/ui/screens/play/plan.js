@@ -1,5 +1,5 @@
 // play/plan.js: the plan tray (planTray: tabs, one line, the nine actions, Start the day; tray.js puts it in the tray) and the draft logic behind it (pick, setMove, advance, pruneOver, startDay).
-import { planKinds } from '../../../engine/day.js';
+import { planKinds, phasesFor } from '../../../engine/day.js';
 import { flySources, flyTiles } from '../../../engine/magic/fly.js';
 import { isCave, isMountain, nameOfClearing, numOf, tileName } from '../../../engine/world.js';
 import { h } from '../../dom.js';
@@ -21,8 +21,13 @@ import { render } from './shell.js';
 function planLocations(G) { return planState(G.st, G.data, G.ui.draft.slots).at; }
 
 function planInfo(G) {
-    const v = planKinds(G.st, G.data, G.ui.draft.slots);
-    return { total: v.total, base: v.base, lantern: v.lantern, extras: v.extras, kinds: v.kinds, errors: v.errors };
+    const slots = G.ui.draft.slots, v = planKinds(G.st, G.data, slots), ponyOn = phasesFor(G.st, G.data, slots).ponyOn;
+    // The pony (ruling R1, ch7-day.md): each Move he gets from other sources may be followed by one more Move, the pony's, and the two kinds strictly alternate. How many there are depends on the
+    // Moves he records (the engine picks which ones are the pony's: the second, fourth ... Move of the day), so the phases cannot be counted ahead. Once every phase has an action, one SPARE tab
+    // is offered for one more Move; it counts as a phase only if the engine can make it the pony's.
+    const full = Array.from({ length: v.total }, (_, i) => slots[i]).every(Boolean);
+    const spare = ponyOn && full && v.total < 9 ? v.total : null;
+    return { total: v.total, base: v.base, lantern: v.lantern, extras: v.extras, kinds: v.kinds, errors: v.errors, ponyOn, ponyAt: v.ponyAt ?? [], spare, shown: v.total + (spare != null ? 1 : 0) };
 }
 
 // the second Move of a climb (a mountain takes two Moves in a row): fixed, because the first one decided it
@@ -47,14 +52,15 @@ export function planSentence(items) {
 }
 
 // The nine (or eight, ten, eleven) actions as chips. A dim chip stays tappable and says why.
+const PONY_WHY = 'The pony adds a Move only after a Move of your own: they take turns, and the first Move of the day is never the pony\u2019s.';
 function actChips(G, i, at, over, others, baseOver) {
-    const d = G.ui.draft, s = d.slots[i];
+    const d = G.ui.draft, s = d.slots[i], isSpare = planInfo(G).spare === i;
     const acts = ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(G.st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(flySources(G.st, G.data).length || G.st.ch.flying ? ['fly'] : []), ...(G.shared && i === 0 && G.ms?.followable?.length ? ['follow'] : []), 'nothing'];
     const n = acts.length;
     return h('div', { class: `ds-acts n${n}` }, ...acts.map(a => {
         const curse = (G.st.ch.curses ?? []).find(c => CURSE_ACT[c] === a), refused = actRefusal(G.st, a);
         const spent = !curse && !refused && a !== 'nothing' && a !== 'follow' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver;
-        const why = curse ? `${curse}: ${CURSE_PLAIN[curse] ?? 'it spoils this action.'}` : refused ?? (spent ? 'All your phases are taken.' : null);
+        const why = curse ? `${curse}: ${CURSE_PLAIN[curse] ?? 'it spoils this action.'}` : refused ?? (isSpare && a !== 'move' ? 'This phase is the pony\u2019s: it is for a Move only.' : spent ? (isSpare ? PONY_WHY : 'All your phases are taken.') : null);
         const dim = !!why;
         return h('button', { type: 'button', class: `ds-act chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${curse ? ' cursed' : ''}`, 'data-slot': i, 'data-pick': a, 'aria-disabled': dim ? 'true' : null, title: why ?? undefined,
             onclick: () => { if (dim) { showToast(G, why, true); return; } pick(G, i, a, at[i]); } }, actIcon(actArt(a), 28), ACT_LABEL[a]);
@@ -68,10 +74,13 @@ function askLine(G, i, step, total) {
         return h('div', { class: 'ds-plan-ask' }, h('span', {}, 'Where to? ', h('span', { class: 'ds-dim' }, (planLocations(G)[i] || G.st.ch.onRoad) ? 'Tap a ringed clearing.' : 'You are on a road; move to one of its ends first.')),
             btn('Back', 'quiet sm', { 'data-act': 'plan-back', onclick: () => { G.ui.pickMove = null; render(G); } }));
     }
-    const text = s ? h('span', {}, `Phase ${i + 1} of ${total}: `, h('span', { class: 'ds-dim' }, nb(describeSlot(G, s)), '.')) : h('span', {}, `Phase ${i + 1} of ${total}: pick one.`);
+    const info = planInfo(G), pony = info.ponyAt.includes(i);
+    const text = info.spare === i ? h('span', { 'data-hint': 'pony-spare' }, h('span', { 'data-v': 'story' }, `Phase ${i + 1}: one more Move, the pony\u2019s.`), h('span', { 'data-v': 'detail' }, `Phase ${i + 1}: the pony\u2019s Move (7.3.2b.3: it alternates with yours).`))
+        : s && pony ? h('span', {}, `Phase ${i + 1}: `, h('span', { class: 'ds-dim' }, `pony ${nb(describeSlot(G, s))}.`))
+        : s ? h('span', {}, `Phase ${i + 1} of ${total}: `, h('span', { class: 'ds-dim' }, nb(describeSlot(G, s)), '.')) : h('span', {}, `Phase ${i + 1} of ${total}: pick one.`);
     const clearable = s && !roadLocked(G, i) && !climbLocked(G, i);
     return h('div', { class: 'ds-plan-ask' }, text,
-        clearable ? btn(`Clear ${i + 1}`, 'quiet sm clearbtn', { onclick: () => { d.slots[i] = null; if (climbLocked(G, i + 1)) d.slots[i + 1] = null; G.ui.pickMove = null; G.ui.planNote = null; G.ui.planStep = i; render(G); } }) : null);
+        clearable ? btn(`Clear ${i + 1}`, 'quiet sm clearbtn', { onclick: () => { d.slots[i] = null; if (climbLocked(G, i + 1)) d.slots[i + 1] = null; G.ui.pickMove = null; G.ui.planNote = null; G.ui.planStep = i; if (info.ponyOn) pruneOver(G, 'the pony\u2019s Move needs a Move of your own before it'); render(G); } }) : null);
 }
 
 // what must be said besides the chips: where monsters wait, hidden paths, a curse, a mist (kept short, one line each, only when it matters)
@@ -118,16 +127,17 @@ function subPicker(G, i, at) {
 
 // The whole plan tray: { body, lead, primary } for tray.js
 export function planTray(G) {
-    const d = G.ui.draft, { total, kinds } = planInfo(G), at = planLocations(G);
+    const d = G.ui.draft, info = planInfo(G), { total, kinds, shown } = info, at = planLocations(G);
     if (G.ui.planStep === undefined) G.ui.planStep = 0;
-    const step = G.ui.planStep == null ? null : (G.ui.planStep = Math.max(0, Math.min(total - 1, G.ui.planStep)));
-    const open = firstUnset(G), whole = open == null && !planInfo(G).errors.length;
-    const many = total > 5;
-    const tabs = h('div', { class: `ds-tabs${many ? ' many' : ''}`, role: 'tablist' }, ...Array.from({ length: total }, (_, i) => {
-        const s = d.slots[i], locked = roadLocked(G, i) || climbLocked(G, i);
-        return h('button', { type: 'button', class: `ds-tab ptab${i === step ? ' on' : ''}${s ? ' set' : ''}${locked ? ' locked' : ''}`, 'data-tab': i, role: 'tab', 'aria-selected': i === step ? 'true' : 'false', 'aria-label': `Phase ${i + 1}: ${s ? describeSlot(G, s) : 'not set'}`,
+    const step = G.ui.planStep == null ? null : (G.ui.planStep = Math.max(0, Math.min(shown - 1, G.ui.planStep)));
+    const open = firstUnset(G), whole = open == null && !info.errors.length;
+    const many = shown > 5;
+    const tabs = h('div', { class: `ds-tabs${many ? ' many' : ''}`, role: 'tablist' }, ...Array.from({ length: shown }, (_, i) => {
+        const s = d.slots[i], locked = roadLocked(G, i) || climbLocked(G, i), spare = info.spare === i, pony = info.ponyAt.includes(i);
+        return h('button', { type: 'button', class: `ds-tab ptab${i === step ? ' on' : ''}${s ? ' set' : ''}${locked ? ' locked' : ''}${spare ? ' spare' : ''}${pony ? ' pony' : ''}`, 'data-tab': i, role: 'tab', 'aria-selected': i === step ? 'true' : 'false',
+            'aria-label': spare && !s ? `Phase ${i + 1}: an extra Move from your pony, not set` : `Phase ${i + 1}${pony ? ' (the pony\u2019s Move)' : ''}: ${s ? describeSlot(G, s) : 'not set'}`,
             onclick: () => { G.ui.planStep = i; G.ui.pickMove = null; G.ui.pickSearch = null; G.ui.pickFly = null; render(G); } },
-            h('span', {}, locked ? icon('lock') : String(i + 1)), h('small', {}, many ? (s ? actIcon(actArt(s.act), 20) : '–') : tabWord(s)));
+            h('span', {}, locked ? icon('lock') : String(i + 1)), h('small', {}, many ? (s ? actIcon(actArt(s.act), 20) : spare ? '+' : '–') : s ? tabWord(s) : spare ? 'Pony' : tabWord(s)));
     }));
     const kids = [tabs];
     let lead, prim;
@@ -153,7 +163,7 @@ export function planTray(G) {
             else kids.push(actChips(G, step, at, over, others, over(others)));
         }
         kids.push(...planHints(G, step, at));
-        lead = G.ui.pickMove === step ? h('span', { class: 'ds-lead-text' }, h('b', {}, 'Move'), ` · ${step + 1} of ${total}`) : h('span', { class: 'ds-lead-text' }, h('b', {}, `${unsetN} phase${unsetN === 1 ? '' : 's'}`), ' to plan');
+        lead = G.ui.pickMove === step ? h('span', { class: 'ds-lead-text' }, h('b', {}, 'Move'), info.spare === step ? ` · ${step + 1}` : ` · ${step + 1} of ${total}`) : h('span', { class: 'ds-lead-text' }, h('b', {}, `${unsetN} phase${unsetN === 1 ? '' : 's'}`), ' to plan');
     }
     // a step that is waiting on nothing but "Next" (a fixed road, a climb's second half) or on the Alert's weapon-or-chit question (Weapon is the default: the question is a choice, not a gate)
     // offers "Next phase" too, so choosing Alert never leaves the player at a dim Start with no way on (QA-7)
