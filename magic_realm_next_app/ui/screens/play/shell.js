@@ -210,12 +210,10 @@ function renderStrip(G) {
     let ern = null; try { ern = earned(G.st, G.data); } catch { /* scoring not available */ }
     const total = (kind, val) => (ern && (kind === 'fame' || kind === 'notoriety') ? ern[kind] : val);
     const tot = vpNow(G), dead = G.st.period === 'over' && G.st.ch.dead;
-    // The score is counted from the shortfall of each goal, so on the first day it is a large negative number that nothing has earned yet. It stays true (the goals sheet and the end screen show it); the chip
-    // says "0 of N" in a neutral colour until the first night has passed (QA-19).
-    const goalVp = Object.values(G.st.ch.vp ?? {}).reduce((a, b) => a + (Number(b) || 0), 0), early = G.st.day === 1 && G.st.period !== 'over' && goalVp > 0;          // (a table and a race too: the sealed goals are in the viewer's own st.ch.vp: QA-123)
+    // The score is counted from the shortfall of each goal, so on day 1 it is a negative number: the honest figure, and the one Mike wants on the chip (it said "0/N" until the first night: QA-19, reversed by note 32).
     // DR-14: the strip does not run ahead of the Day Result. While the morning report is on screen it keeps the day, the phase and the numbers it showed at midnight; the new day shows when it is closed.
     const cur = { day: G.st.day, total: lastDayOf(G.st), phase: G.st.period === 'over' ? 'finished' : G.st.period, gold: G.st.ch.gold, fame: total('fame', G.st.ch.fame), notor: total('notoriety', G.st.ch.notoriety),
-        vp: early ? `0/${goalVp}` : tot > 0 ? `+${tot}` : String(tot).replace('-', '\u2212'), vpc: dead ? 'bad' : early ? 'idle' : tot > 0 ? 'pos' : 'neg', early, tot };
+        vp: tot > 0 ? `+${tot}` : String(tot).replace('-', '\u2212'), vpc: dead ? 'bad' : tot > 0 ? 'pos' : 'neg', tot };
     const reportUp = !G.shared && G.st.pending?.type === 'plan' && G.st.day > 1 && G.ui.reportedDay !== G.st.day && G.ui.sheet !== 'plan';
     const held = reportUp && G.ui.stripSnap && G.ui.stripSnap.day === G.st.day - 1 ? { ...G.ui.stripSnap, phase: 'midnight' } : null;
     if (!reportUp) G.ui.stripSnap = cur;
@@ -225,12 +223,12 @@ function renderStrip(G) {
             menu: { 'data-act': 'menu', onclick: () => { G.ui.sheet = G.ui.sheet === 'menu' ? null : 'menu'; render(G); } },
             day: { 'data-act': 'calendar', role: 'button', tabindex: '0', 'aria-label': 'Calendar and the colours of magic', onclick: () => { G.ui.sheet = G.ui.sheet === 'calendar' ? null : 'calendar'; render(G); } },
             stats: { 'aria-label': 'Fame, Notoriety and Gold: open your kit', onclick: () => { G.ui.sheet = G.ui.sheet === 'char' ? null : 'char'; render(G); } },
-            vp: { 'data-act': 'vp', role: 'button', tabindex: '0', 'aria-label': f.early ? `Victory points: none scored yet; your goals are worth ${goalVp}. Tap for your goals` : `Victory points: ${f.tot}. Tap for your goals`, onclick: () => { G.ui.sheet = G.ui.sheet === 'score' ? null : 'score'; render(G); } },
+            vp: { 'data-act': 'vp', role: 'button', tabindex: '0', 'aria-label': `Victory points: ${f.tot}. Tap for your goals`, onclick: () => { G.ui.sheet = G.ui.sheet === 'score' ? null : 'score'; render(G); } },
         } });
     if (!timed(G.st)) el.querySelector('.ds-day b small')?.remove();
     // legacy hooks the tests read
     el.querySelector('.ds-day').classList.add('daybox', ...(magicToday.length ? ['magic'] : []));
-    el.querySelector('.ds-stats').classList.add('stats'); el.querySelector('.ds-vp').classList.add('vpchip', ...(f.tot < 0 && !f.early ? ['neg'] : []));
+    el.querySelector('.ds-stats').classList.add('stats'); el.querySelector('.ds-vp').classList.add('vpchip', ...(f.tot < 0 ? ['neg'] : []));
     // a curse takes the use of a number away: it stays on screen, struck through (the Kit and the curse sheet say why)
     for (const [kind, cls] of [['gold', 'gold'], ['fame', 'fame']]) {
         const w = voidBy(G.st, kind), s = el.querySelector(`.ds-stat.${cls}`); s.dataset.stat = kind;
