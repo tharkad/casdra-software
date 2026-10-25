@@ -129,7 +129,7 @@
 .cb-verb .ds-i { width: 28px; height: 28px; }
 .cb-verb.dim { border-style: dashed; border-color: var(--st-illegal); background: transparent; color: var(--ink-3); } .cb-verb.dim img { opacity: .4; filter: grayscale(1); }
 .cb-verb.on { border: 2px solid var(--gold); background: var(--gold-wash-2); color: var(--gold-hi); }
-.cb-verdict { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 4px 0 2px; }
+.cb-verdict { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 4px 0 12px; }   /* air between the pills and the button row below */
 .cb .pitrow { margin: 6px 0; font: 400 calc(16px * var(--ts, 1))/1.35 var(--font-voice); } .cb .pitrow b { font-family: var(--font-ui); color: var(--gold-hi); }
 .cb-rounds { display: flex; flex-direction: column; gap: 14px; }
 .cb-rbox { border: 1px solid var(--line-2); border-radius: var(--r-md); padding: 12px 14px; background: var(--surface-3); position: relative; }
