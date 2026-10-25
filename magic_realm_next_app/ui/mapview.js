@@ -425,6 +425,8 @@ export function mountMap(host) {
         labelEls = []; lastShrink = 1;
         const leaders = sv('g', { class: 'leaders', 'pointer-events': 'none' });
         const names = sv('g', { class: 'names', 'pointer-events': 'none' });
+        // a name that stands away from its clearing is tied to it by a bold line and a ring drawn round the clearing itself
+        const leaderMark = gr => sv('circle', { cx: gr.ax.toFixed(1), cy: gr.ay.toFixed(1), r: (gr.ar + 1).toFixed(1), class: `leader-mark ${gr.kind ?? 'site'}` });
         const sc = level.scale;
         // each name shrinks about the point of its own box nearest the clearing (see shrinkFor): it stays beside the clearing and inside the room it was laid out in
         const track = (el, gr, boxes) => {
@@ -437,7 +439,7 @@ export function mountMap(host) {
                 const bd = badgeOf.get(gr.id), bx = r.boxes[0], w0 = bd.boxes[0].w;
                 const el = badgeEl(bd, w0 - 1, { lod: level.lod, x: bx.x + 0.5 * sc, y: bx.y + 0.5 * sc, scale: sc });          // the layout box is the frame: half a unit wider than the chips
                 names.append(el); track(el, gr, r.boxes);
-                if (r.leader) leaders.append(sv('line', { x1: gr.ax.toFixed(1), y1: gr.ay.toFixed(1), x2: (bx.x + bx.w / 2).toFixed(1), y2: (bx.y + bx.h / 2).toFixed(1), class: `leader ${gr.kind ?? 'site'}` }));
+                if (r.leader) { leaders.append(sv('line', { x1: gr.ax.toFixed(1), y1: gr.ay.toFixed(1), x2: (bx.x + bx.w / 2).toFixed(1), y2: (bx.y + bx.h / 2).toFixed(1), class: `leader ${gr.kind ?? 'site'}` })); leaders.append(leaderMark(gr)); }
                 continue;
             }
             const make = makeLabel.get(gr.id);
@@ -449,6 +451,7 @@ export function mountMap(host) {
                 const kind = gr.kind ?? 'site';
                 const dx = tx - gr.ax, dy = ty - gr.ay, len = Math.hypot(dx, dy) || 1, k = Math.min(1, (gr.ar + 1) / len);
                 leaders.append(sv('line', { x1: (gr.ax + dx * k).toFixed(1), y1: (gr.ay + dy * k).toFixed(1), x2: tx.toFixed(1), y2: ty.toFixed(1), class: `leader ${kind}` }));
+                leaders.append(leaderMark(gr));
             }
         }
         og.append(leaders, names);
