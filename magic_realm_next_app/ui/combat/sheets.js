@@ -105,7 +105,7 @@ function alertPick(X, o, round, back) {
     const verb = o.weapon.item.alerted ? 'Put your weapon away' : 'Ready your weapon';
     return sheetEl(X, 'encounter-pick', qRow(round, h('span', {}, verb)), chitPickRow(X, chits, sel, id => { cb.pick.chit = id; render(); }),
         hint('Pick the Fight chit that does it. It is your action; the melee follows.'),
-        foot(back, primary(o.weapon.item.alerted ? 'Put it away' : 'Ready it', { 'data-act': 'alert-go', onclick: () => send(P.alert(sel)) })));
+        foot(back, primary(o.weapon.item.alerted ? 'Unalert it' : 'Alert it', { 'data-act': 'alert-go', onclick: () => send(P.alert(sel)) })));
 }
 function berserkPick(X, o, round, back) {
     const { cb, send, render } = X, chits = o.berserkChits;

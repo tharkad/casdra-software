@@ -156,7 +156,7 @@ export function encounterVerbs(st, data, o, c) {
     return { alert, run, cast, fly: o.canFly ? { ok: true } : null };
 }
 // "Weapon ready" verbs read the weapon's state
-export const weaponVerb = o => (o.weapon?.item.alerted ? 'Put weapon away' : 'Ready weapon');
+export const weaponVerb = o => (o.weapon?.item.alerted ? 'Unalert weapon' : 'Alert weapon');
 
 // ---- what a round did, read from the lines the engine wrote for it (c.events; the same words roundSynopsis reads) ----
 const STRIKE_RE = /^(?:The |the )?(.+?)(?:'s) (?:thrust|swing|smash|bite|club|claw|blow|sting|attack|strike)s? (glances off|thuds against|bites into|hammers|crashes down on) /i;
