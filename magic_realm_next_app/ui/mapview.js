@@ -312,6 +312,8 @@ export function mountMap(host) {
                 else if (isMaybe) cg.append(sv('circle', { r: 20, class: 'targetring maybe' }));
                 if (dangerHere) cg.append(sv('g', { class: 'dangermark', transform: 'translate(13 -17)', 'pointer-events': 'none' }, sv('circle', { r: 6.5 }), ...[[-3, 3.5, -1.2, -3.5], [-0.2, 3.5, 1.8, -3.5], [2.6, 3.5, 4.6, -3.5]].map(([x1, y1, x2, y2]) => sv('line', { x1: x1 - 0.5, y1, x2: x2 - 0.5, y2 }))));
                 if (model.goingTo === id) cg.append(sv('circle', { r: 22, class: 'goingring' }));
+                // the bare-tiles view (the map's eye button) hides every name and number; a site that is found keeps this soft throbbing halo so it can still be told
+                if ((model.tokens?.[id] ?? []).some(t => t.k === 'site' && t.disc)) cg.append(sv('circle', { r: 15, class: 'sitehalo', 'pointer-events': 'none' }));
                 if (picture) {
                     // an upright number over the printed one, so it reads whichever way the tile is turned
                     cg.append(sv('circle', { r: 9, class: 'numbadge', fill: 'rgba(12,14,20,.82)', stroke: ring ?? 'rgba(255,255,255,.55)', 'stroke-width': ring ? 2.4 : 1 }));

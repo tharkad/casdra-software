@@ -125,6 +125,8 @@ export function newPlayState(ctx) {
     };
     // The one map button (bottom right of the map; wireShell puts it on the map once there is a map): the whole realm when the map is zoomed in, the crosshair (back to me) when it is zoomed out; a long press does the other. render() sets its icon.
     G.mapTools = h('button', { type: 'button', class: 'ds-map-btn', 'data-act': 'fit', 'aria-label': 'Show the whole realm' });
+    // The bare-tiles button (above it): hides every name and number so the tiles show; found paths and found sites throb. G.ui.bare holds it.
+    G.bareBtn = h('button', { type: 'button', class: 'ds-map-btn ds-bare-btn', 'data-act': 'bare', 'aria-label': 'Show the bare tiles', 'aria-pressed': 'false' });
     G.root.append(G.strip, mapBox, tray, G.layer);
     G.mySeat = (G.race ?? G.shared)?.seat;
     if (G.race) G.ui.sheet = ctx.params?.invited ? 'race' : null;

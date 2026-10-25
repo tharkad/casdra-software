@@ -322,6 +322,9 @@ export function syncMapButton(G) {
     b.dataset.mode = out ? 'locate' : 'fit';
     b.setAttribute('aria-label', out ? 'Centre on me' : 'Show the whole realm');
     b.replaceChildren(dsIcon(out ? 'cross' : 'fit', 'lg'));
+    const on = !!G.ui.bare, e = G.bareBtn;
+    G.mapBox.classList.toggle('bare', on);
+    if (e) { e.setAttribute('aria-pressed', String(on)); e.setAttribute('aria-label', on ? 'Show the names again' : 'Show the bare tiles'); e.classList.toggle('on', on); e.replaceChildren(dsIcon(on ? 'eyeoff' : 'eye', 'lg')); }
 }
 
 // Monsters whose home row the Monster Roll has just called: they are the ones that can come to you at the end of the turn.
@@ -335,7 +338,8 @@ export function prowlers(G) {
 // Called once after the map is mounted: the map button (tap and long press), and the first touch on the map putting a decision sheet aside ("look at the map first").
 export function wireShell(G) {
     const b = G.mapTools; let long = false, timer = null;
-    doneLoading(G); G.mapBox.append(b);
+    doneLoading(G); G.mapBox.append(b, G.bareBtn);
+    G.bareBtn.addEventListener('click', () => { G.ui.bare = !G.ui.bare; syncMapButton(G); });
     try { if (history.state?.mrSheet) history.replaceState(null, ''); } catch { /* ignore */ }               // (a reload with a sheet open keeps that entry's mark: the base screen has none)
     G.ui.popHandler = () => onBack(G); addEventListener('popstate', G.ui.popHandler);
     const hero = () => heroSpot(G);
@@ -346,5 +350,5 @@ export function wireShell(G) {
     G.mapBox.addEventListener('pointerdown', e => { if (!b.contains(e.target)) G.ui.peekGo?.(); }, { capture: true });
     for (const ev of ['pointerup', 'wheel']) G.mapBox.addEventListener(ev, () => setTimeout(() => syncMapButton(G), 520), { passive: true });
     // a tray so tall that the map is a sliver has no room for the button: it steps aside until the map has room again
-    if (typeof ResizeObserver === 'function') new ResizeObserver(() => { b.hidden = G.mapBox.clientHeight > 0 && G.mapBox.clientHeight < 76; }).observe(G.mapBox);
+    if (typeof ResizeObserver === 'function') new ResizeObserver(() => { const ch = G.mapBox.clientHeight; b.hidden = ch > 0 && ch < 76; G.bareBtn.hidden = ch > 0 && ch < 130; }).observe(G.mapBox);
 }
