@@ -10,6 +10,7 @@
 // Pure functions of numbers: nothing here touches the DOM, so it is unit-tested in node (tests/labels.test.mjs).
 
 const GAP = 2;          // between the pills of one group
+const FAR = 60;         // a name stands far from its clearing when its centre is this many units away (it may then leave the tile for a nearer spot)
 const MARGIN = 1.5;     // clear space kept around every placed box
 const SIDES = ['center', 'right', 'below-right', 'above-right', 'left', 'below-left', 'above-left', 'below', 'above'];
 
@@ -70,9 +71,10 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
     // a name that cannot stand on its tile without covering something may hang over the tile's edge instead, if that leaves it clear: seen beats tidy
     const search = (g, boxes) => {
         const best = searchIn(g, boxes);
-        if (!(best.area > 0 && g.inside)) return best;
+        if (!g.inside || (best.area === 0 && best.dist < FAR)) return best;
         const off = searchIn({ ...g, inside: null }, boxes);
-        return off.area === 0 ? { ...off, outside: 1 } : best;
+        // (a name that only fits well away from its clearing, because the tile's own ground is crowded, may hang over the edge when that brings it much nearer)
+        return off.area === 0 && (best.area > 0 || off.dist + FAR / 3 < best.dist) ? { ...off, outside: 1 } : best;
     };
     const searchIn = (g, boxes) => {
         const W = Math.max(...boxes.map(b => b.w)), H = boxes.reduce((s, b) => s + b.h, 0) + GAP * (boxes.length - 1);
