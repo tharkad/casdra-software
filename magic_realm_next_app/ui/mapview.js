@@ -296,7 +296,7 @@ export function mountMap(host) {
                 // known: the glyph is part of the name, as for a sound in a clearing: one pill, on the chit's own clear spot
                 const glyph = chitGlyph(c.kind);
                 const text = `${glyph} ${label}`, id = `chit:${c.id ?? p.id + i}`;
-                groups.push({ id, ax: wx, ay: wy, ar: 3, prio: 3, prefer: ['center', 'below', 'above', 'right', 'left'], inside: insideTile, boxes: [{ w: pillWidth(text), h: PILL_H }] });
+                groups.push({ id, noLeader: true, ax: wx, ay: wy, ar: 3, prio: 3, prefer: ['center', 'below', 'above', 'right', 'left'], inside: insideTile, boxes: [{ w: pillWidth(text), h: PILL_H }] });
                 badgeOf.set(id, { segs: [{ k: c.kind === 'sound' ? 'sound' : c.kind === 'site' ? 'site' : c.kind === 'warning' ? 'warn' : 'star', glyph }], id: null, boxes: [{ w: 16, h: 12 }] });
                 makeLabel.set(id, box => chitPillEl(c.kind, text, box));
             });
@@ -441,12 +441,12 @@ export function mountMap(host) {
                 const bd = badgeOf.get(gr.id), bx = r.boxes[0], w0 = bd.boxes[0].w;
                 const el = badgeEl(bd, w0 - 1, { lod: level.lod, x: bx.x + 0.5 * sc, y: bx.y + 0.5 * sc, scale: sc });          // the layout box is the frame: half a unit wider than the chips
                 names.append(el); track(el, gr, r.boxes);
-                if (r.leader) { leaders.append(sv('line', { x1: gr.ax.toFixed(1), y1: gr.ay.toFixed(1), x2: (bx.x + bx.w / 2).toFixed(1), y2: (bx.y + bx.h / 2).toFixed(1), class: `leader ${gr.kind ?? 'site'}` })); leaders.append(leaderMark(gr)); }
+                if (r.leader && !gr.noLeader) { leaders.append(sv('line', { x1: gr.ax.toFixed(1), y1: gr.ay.toFixed(1), x2: (bx.x + bx.w / 2).toFixed(1), y2: (bx.y + bx.h / 2).toFixed(1), class: `leader ${gr.kind ?? 'site'}` })); leaders.append(leaderMark(gr)); }
                 continue;
             }
             const make = makeLabel.get(gr.id);
             r.boxes.forEach((box, i) => { const el = make({ x: box.x, y: box.y, w: box.w, h: box.h }, i); names.append(el); track(el, gr, [box]); });
-            if (r.leader) {
+            if (r.leader && !gr.noLeader) {          // a chit lying in the forest is its own counter: no line to tie it to a clearing
                 const b = r.boxes[0];
                 const tx = Math.max(b.x, Math.min(gr.ax, b.x + b.w)), ty = Math.max(b.y, Math.min(gr.ay, b.y + b.h));
                 // a thin connector from the edge of the clearing's circle to the nearest pill, in that pill's colour
