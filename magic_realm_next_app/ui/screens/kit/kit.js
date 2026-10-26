@@ -11,7 +11,7 @@ import { render } from '../play/shell.js';
 import { h } from '../../dom.js';
 import { icon } from '../../icons.js';
 import { displayName } from '../../names.js';
-import { commitmentOf, voiced } from '../../commit.js';
+import { ROAD_STORY, commitmentOf, roadLockOf, voiced } from '../../commit.js';
 import { companyTab, hireCount } from './company.js';
 import { dimBtn, footRow, goldEl, guards, itemArt, oneLine, plural, say, seg, signed, weightWord } from './common.js';
 import { spellCount, spellsTab } from './spells.js';
@@ -51,6 +51,7 @@ export function gearLock(G, it = null) {
     if (G.st.combat || p?.startsWith('combat') || (G.shared && G.st.battle?.members?.[G.st.ch.id])) return 'In a fight, changing your gear is your Encounter action, once.';
     if (G.st.ch.morph) return 'Your gear is of no use to a creature.';
     if (G.st.ch.flying) return 'You cannot rearrange your gear in the air.';
+    if (roadLockOf(G.st)) return ROAD_STORY;          // 8.3.8d: out on a road between clearings (the engine's gearLockedWhy); ROAD_STORY is the Story words, lockText gives the Detail
     if (p === 'plan') return PLAN_LOCK;
     if (p === 'phase-gear') return it && !(G.st.pending.items ?? []).includes(it.uid) ? FRESH_LOCK : null;
     if (!['phase', 'phase-pick', 'evening-end'].includes(p)) return 'Gear can be changed between phases.';
@@ -67,7 +68,8 @@ function slotLock(G, key, occupant) {
 }
 
 // The words of a lock line: the plan's one has a Story and a Detail voice; the others are plain.
-export const lockText = lock => (lock === PLAN_LOCK ? h('span', {}, h('span', { 'data-v': 'story' }, PLAN_LOCK), h('span', { 'data-v': 'detail' }, PLAN_LOCK_DETAIL)) : lock);
+export const lockText = (lock, G = null) => (lock === PLAN_LOCK ? h('span', {}, h('span', { 'data-v': 'story' }, PLAN_LOCK), h('span', { 'data-v': 'detail' }, PLAN_LOCK_DETAIL))
+    : lock === ROAD_STORY && G && roadLockOf(G.st) ? voiced(roadLockOf(G.st)) : lock);
 
 // Why an item cannot be put to use now (the engine's own refusals from toggleItem, said before the press), or null.
 export function whyNot(G, it) {
@@ -166,7 +168,7 @@ function kitRoom(G, o) {
         carryLimit(G),
         sect2('In use', 'one of each'),
         h('div', { class: 'ds-slots' }, SLOTS.map(s => slotEl(G, s, slotLock(G, s[0], occupantOf(G, s[0])), o))),
-        lock || G.st.pending?.type === 'phase-gear' ? h('div', { class: 'ds-why kit-lock', 'data-lock': '' }, icon('lock', 'kit-lockico'), lockText(lock ?? FRESH_LOCK)) : null,
+        lock || G.st.pending?.type === 'phase-gear' ? h('div', { class: 'ds-why kit-lock', 'data-lock': '' }, icon('lock', 'kit-lockico'), lockText(lock ?? FRESH_LOCK, G)) : null,
         sect2('In your pack', pack.length ? plural(pack.length, 'thing') : ''),
         pack.length ? h('div', { class: 'ds-list' }, pack.map(i => packRow(G, i, o))) : h('p', { class: 'kit-none' }, 'Nothing else. Your pack is empty.'),
         items.length ? worthLine(G) : null,
@@ -265,7 +267,7 @@ export function itemContent(G, it, o = {}) {
         factsOf(G, it),
         h('p', { class: 'ds-voice kit-story' }, storyLine(G, it)),
         h('details', { class: 'kit-detail' }, h('summary', {}, 'Detail'), ...facts.map(t => h('p', {}, t))),
-        lock && !it.destroyed ? h('div', { class: 'ds-why kit-lock' }, icon('lock', 'kit-lockico'), lockText(lock)) : null,
+        lock && !it.destroyed ? h('div', { class: 'ds-why kit-lock' }, icon('lock', 'kit-lockico'), lockText(lock, G)) : null,
         can && !bound ? (leaving ? h('div', { class: 'kit-leave' }, h('span', { class: 'ds-meta' }, `Leave the ${name} lying here?`),
             h('button', { type: 'button', class: 'ds-btn sm danger', 'data-act': 'item-leave', onclick: () => { G.ui.leaveAsk = null; G.ui.sheet = G.ui.itemFrom === 'dock' ? null : 'char'; G.ui.itemFrom = null; tidyAct(G, it, { drop: true }); } }, `Leave the ${name} here`),
             h('button', { type: 'button', class: 'ds-btn sm quiet', onclick: () => { G.ui.leaveAsk = null; render(G); } }, 'Keep it'))

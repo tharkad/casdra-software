@@ -51,6 +51,7 @@ export const sideOf = (st, tile) => st.placements.find(p => p.id === tile)?.side
 export function flipTile(st, data, tile) {
     const p = st.placements.find(x => x.id === tile);
     if (!p) throw new Error('no such tile');
+    st.discSides = 1;          // from the first flip on, discovered paths are kept by side (party.js keepDiscoveriesBySide)
     p.side = p.side === 'enchanted' ? 'normal' : 'enchanted';
     (st.tileFlips ??= []).push({ tile, day: st.day, to: p.side });
     return p.side;

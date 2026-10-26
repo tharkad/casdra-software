@@ -1,7 +1,7 @@
 // play/shell.js: the render loop and the layout it fills: render() redraws the status strip, the tray, the sheet layer and the map; mapModel() is what the map is told to draw.
 import { earned } from '../../../engine/score.js';
 import { dayColors } from '../../../engine/spells.js';
-import { isCave, nameOfClearing, roadsFrom, tileClearings, tileOf } from '../../../engine/world.js';
+import { isCave, knownPathPairs, nameOfClearing, roadsFrom, tileClearings, tileOf } from '../../../engine/world.js';
 import { flyTiles } from '../../../engine/magic/fly.js';
 import { h } from '../../dom.js';
 import { lastDayOf, timed } from '../../gametext.js';
@@ -78,7 +78,7 @@ export function mapModel(G) {
         }
     }
     return {
-        tiles: G.data.tiles, art: G.data.art, placements: G.st.placements, side: 'normal', showHidden: false, discovered: new Set(G.st.ch.discovered.paths),
+        tiles: G.data.tiles, art: G.data.art, placements: G.st.placements, side: 'normal', showHidden: false, discovered: knownPathPairs(G.st),
         chitsByTile, tokens, hero: G.st.ch.onRoad || G.st.ch.dead || G.st.ch.flying ? null : G.st.ch.at, heroAir: !G.st.ch.dead && G.st.ch.flying ? G.st.ch.flying.tile : null, heroHidden: G.st.ch.hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
         onTap: id => {
             // a spell aimed on the map (Talk to Wise Bird): a tap on a ringed clearing is the answer; the fight comes back with it chosen

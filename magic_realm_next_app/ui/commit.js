@@ -5,10 +5,11 @@
 //   alertCardWhy(name)            { story, detail } for "your weapon is a card, so there is nothing to ready"
 //   commitmentOf(st, data, it)    { story, detail } when the belonging causes an extra phase he has recorded (it may not be left, sold or handed over), else null
 //   committedItems(st, data)      every committed belonging he carries, with its words (the lists that leave them out say so with this)
+//   roadLockOf(st)                { story, detail } while he is out on a road between clearings (8.3.8d: no switching, leaving or opening), else null
 //   voiced(copy)                  a <span> that shows the Story or the Detail words by the voice switch
 //   committedNote(st, data)       the one short line under a list that leaves committed belongings out (sell, pay with, hand over), or null
 import { h } from './dom.js';
-import { extraPhaseCommitment, isWeaponCard, nameOf } from '../engine/items.js';
+import { extraPhaseCommitment, gearLockedWhy, isWeaponCard, nameOf } from '../engine/items.js';
 
 export function weaponCardOf(st, data) {
     const w = st.ch?.items?.find(i => i.kind === 'weapon' && i.active && !i.destroyed);
@@ -41,4 +42,12 @@ export function committedNote(st, data) {
         story: `Not listed: the ${nameText}. You need ${list.length > 1 ? 'them' : 'it'} for an extra phase you recorded.`,
         detail: `Not listed: the ${nameText}. ${list.length > 1 ? 'They give' : 'It gives'} you an extra phase you have recorded, so you cannot abandon, sell or hand ${list.length > 1 ? 'them' : 'it'} over until that phase is finished (6.2.4d).`,
     }, { class: 'ds-why kit-committed', 'data-committed': names.length });
+}
+
+// Rule 8.3.8d: out on a road between clearings (after running away) he cannot rearrange or abandon belongings. The engine's gearLockedWhy says whether (and is the Detail words);
+// the Story words are the same fact told plainly. Every control that would send `tidy` or `open` is dimmed or left out with this.
+export const ROAD_STORY = 'You are out on the road. Your things stay as they are until you reach a clearing.';
+export function roadLockOf(st) {
+    const why = gearLockedWhy(st);
+    return why ? { story: ROAD_STORY, detail: why } : null;
 }

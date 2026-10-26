@@ -24,7 +24,17 @@ function graphFor(st, data) {
 }
 export const graph = graphFor;
 
-export const pathKey = (a, b) => (a < b ? `${a}~${b}` : `${b}~${a}`);
+// A hidden path or secret passage he has found is kept by the SIDE of its tile it was found on (7.10.4d: the green and the enchanted side "are listed separately on the Discoveries list,
+// and they must be discovered separately"). The key is the two clearings, sorted ("BL4~BL5") for the green side, and the same with ":enchanted" after it for the enchanted side.
+// The green keys are exactly what they always were. `discovered.paths` of a game saved before this is migrated by party.js upgradeState (the side the tile shows when it is loaded).
+export const pathKey = (a, b, side = 'normal') => `${a < b ? `${a}~${b}` : `${b}~${a}`}${side === 'enchanted' ? ':enchanted' : ''}`;
+export const pathEnds = key => key.split(':')[0].split('~');                       // the two clearings
+export const pathSide = key => (key.endsWith(':enchanted') ? 'enchanted' : 'normal');
+export const tileSide = (st, tile) => st.placements.find(p => p.id === tile)?.side ?? 'normal';
+// The key of the road between two clearings of one tile as that tile lies now: what he looks up, and writes down, when he uses or discovers it.
+export const pathKeyAt = (st, a, b) => pathKey(a, b, tileSide(st, tileOf(a)));
+// The roads he has discovered that exist on the side now up, as sorted pairs ("BL4~BL5"): what a map draws as found. A discovery of the side that is face down stays on his list but does not open the road.
+export const knownPathPairs = (st, ch = st.ch) => new Set((ch.discovered?.paths ?? []).filter(k => pathSide(k) === tileSide(st, tileOf(pathEnds(k)[0]))).map(k => k.split(':')[0]));
 export const tileOf = id => id.slice(0, 2);
 export const numOf = id => Number(id.slice(2));
 
@@ -38,7 +48,7 @@ export function roadsFrom(st, data, id) {
     return (g.adj.get(id) ?? []).map(r => ({
         to: r.to, kind: r.kind, bridge: r.bridge,
         // the Wizard's Experience: he uses hidden paths and secret passages without having discovered them
-        usable: r.kind === 'open' || r.kind === 'tunnel' || st.ch.discovered.paths.includes(pathKey(id, r.to)) || (st.ch.adv ?? []).includes('experience') || !!st.ch.mist,         // (mist, from Melt into Mist, goes by any path without having discovered it)
+        usable: r.kind === 'open' || r.kind === 'tunnel' || st.ch.discovered.paths.includes(pathKeyAt(st, id, r.to)) || (st.ch.adv ?? []).includes('experience') || !!st.ch.mist,         // (mist, from Melt into Mist, goes by any path without having discovered it)
     }));
 }
 

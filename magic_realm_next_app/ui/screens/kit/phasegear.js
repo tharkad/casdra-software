@@ -5,7 +5,7 @@
 // Detail line, one row per thing with its switch, and one primary at the foot. The engine is untouched: `tidy` (toggle, or `drop: true`) and `continue` are its own answers.
 import { h } from '../../dom.js';
 import { icon } from '../../icons.js';
-import { commitmentOf, voiced } from '../../commit.js';
+import { ROAD_STORY, commitmentOf, roadLockOf, voiced } from '../../commit.js';
 import { nameOf } from '../../../engine/items.js';
 import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
@@ -17,15 +17,17 @@ const cap = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 
 // One new belonging: what it is, whether it is on, and what he may do about it.
 function belongingRow(G, it) {
-    const name = nameOf(G.data, it), why = whyNot(G, it), bound = commitmentOf(G.st, G.data, it), leaving = G.ui.leaveAsk === it.uid;
+    const road = roadLockOf(G.st);          // 8.3.8d: out on a road between clearings he can neither switch nor leave anything
+    const name = nameOf(G.data, it), why = road ? ROAD_STORY : whyNot(G, it), bound = commitmentOf(G.st, G.data, it), leaving = G.ui.leaveAsk === it.uid;
     const state = it.active ? ['gold', 'On'] : why ? ['bad', 'Cannot be on'] : ['', 'Off'];
-    const sub = it.active ? 'It fits, so it is already on.' : why ?? 'Not in use. It stays in your pack.';
-    const toggle = it.active
+    const sub = road ? voiced(road) : it.active ? 'It fits, so it is already on.' : why ?? 'Not in use. It stays in your pack.';
+    const dimmed = (label, act) => h('button', { type: 'button', class: 'ds-btn sm is-dim', 'data-act': act, 'data-item': it.uid, 'aria-disabled': 'true', onclick: () => say(G, ROAD_STORY) }, label);
+    const toggle = road ? dimmed(it.active ? 'Switch off' : 'Switch on', it.active ? 'gear-off' : 'gear-on') : it.active
         ? h('button', { type: 'button', class: 'ds-btn sm quiet', 'data-act': 'gear-off', 'data-item': it.uid, onclick: () => tidyAct(G, it) }, 'Switch off')
         : why ? h('button', { type: 'button', class: 'ds-btn sm is-dim', 'data-act': 'gear-on', 'data-item': it.uid, 'aria-disabled': 'true', onclick: () => say(G, why) }, 'Switch on')
             : h('button', { type: 'button', class: 'ds-btn sm primary', 'data-act': 'gear-on', 'data-item': it.uid, onclick: () => tidyAct(G, it) }, 'Switch on');
-    const leave = bound ? null : h('button', { type: 'button', class: 'ds-btn sm quiet', 'data-act': 'gear-leave-ask', 'data-item': it.uid, onclick: () => { G.ui.leaveAsk = it.uid; render(G); } }, 'Leave it here');
-    const actions = leaving && !bound
+    const leave = bound ? null : road ? dimmed('Leave it here', 'gear-leave-ask') : h('button', { type: 'button', class: 'ds-btn sm quiet', 'data-act': 'gear-leave-ask', 'data-item': it.uid, onclick: () => { G.ui.leaveAsk = it.uid; render(G); } }, 'Leave it here');
+    const actions = leaving && !bound && !road
         ? h('div', { class: 'kit-gearact confirm' }, h('span', { class: 'ds-meta' }, `Leave the ${name} lying here?`),
             h('button', { type: 'button', class: 'ds-btn sm danger', 'data-act': 'gear-leave', 'data-item': it.uid, onclick: () => { G.ui.leaveAsk = null; tidyAct(G, it, { drop: true }); } }, 'Leave it'),
             h('button', { type: 'button', class: 'ds-btn sm quiet', 'data-act': 'gear-keep', onclick: () => { G.ui.leaveAsk = null; render(G); } }, 'Keep it'))

@@ -7,6 +7,8 @@ import { h } from '../../dom.js';
 import { actIcon, art, icon } from '../../icons.js';
 import { modal, nativePic, picOf, voidBy } from '../play/kit.js';
 import { render } from '../play/shell.js';
+import { ROAD_STORY, roadLockOf } from '../../commit.js';
+import { voice } from '../../voice.js';
 
 // ---- mounting ----
 // content -> the sheet element(s) the layer shows. `close` makes it an information sheet (scrim, pull down, tap outside); without it the sheet is a decision (it has the Map peek).
@@ -21,6 +23,7 @@ export const the = g => `the ${g}`;
 
 // One line the player reads, shown for a moment above the sheet (the same toast the engine's refusals use). Never raw engine text.
 export function say(G, text) {
+    if (text === ROAD_STORY && voice() === 'detail') text = roadLockOf(G.st)?.detail ?? text;          // the road's lock (8.3.8d) is told in the voice he has chosen
     G.ui.toast = text; G.ui.toastWhy = true; render(G);          // (toastWhy: this is a dim control answering, not the engine refusing something; the fuzz tool tells them apart)
     clearTimeout(G.ui.toastTimer);
     G.ui.toastTimer = setTimeout(() => { G.ui.toast = null; G.ui.toastWhy = false; render(G); }, 2600);

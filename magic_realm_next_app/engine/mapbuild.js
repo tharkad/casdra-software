@@ -46,6 +46,8 @@ export function reachableFromBorderland(tiles, placements) {
 // Whole-map legality of one more tile (rulebook 3.2.1). Returns null when legal, otherwise a short reason.
 const MUST_CONNECT_ALL = new Set(['HP', 'LE']);       // the two tiles whose six clearings must all be linked to the Borderland
 export function whyIllegal(tiles, placements, cand) {
+    if (!cand.side) cand = { ...cand, side: 'normal' };
+    if (cand.side !== 'normal') return 'must be green side up';          // 3.2.3b.1: a tile goes down green side up (an unset side means the normal one); tiles already placed keep whatever side they show
     const occupied = new Set(placements.map(p => hexKey(p.q, p.r)));
     if (occupied.has(hexKey(cand.q, cand.r))) return 'occupied';
     const at = new Map(placements.map(p => [hexKey(p.q, p.r), p]));

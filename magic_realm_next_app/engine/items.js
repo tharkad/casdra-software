@@ -190,6 +190,10 @@ export function bootsStrongEnough(st, data, it) {
     return lvl(BOOTS[it.id][0]) >= need;
 }
 
+// 8.3.8d: "While between clearings he cannot ... rearrange or abandon belongings". A hero out on a roadway (`st.ch.onRoad`, after running away) may not switch an item on or off,
+// leave one behind or open the Chest, whatever the question. Returns the reason, or null when his gear is free. The screens use it to grey out the switches and "Leave it here".
+export const gearLockedWhy = st => (st.ch?.onRoad ? 'You are out on the road between clearings: you cannot rearrange or abandon your belongings until you reach a clearing (8.3.8d).' : null);
+
 // Why this inactive item cannot be switched on now (null: it can). A horse (4.3.8a, 7.3.2a): never in a cave, strong enough for him and everything he owns (either side of the
 // counter, ruling R5), and only one at a time. The same checks whether he switches it on between phases (day.js tidy) or as his Encounter action in a fight (combat.js gear).
 export function activationBlock(st, data, it) {
@@ -233,7 +237,7 @@ export function nextDayGear(st, data) {
         } else if (it.kind === 'treasure' && EXTRA[it.id]) { act = EXTRA[it.id]; gives = `an extra ${act} phase`; }
         else if (it.kind === 'treasure' && it.id === 'shielded-lantern') { act = null; gives = 'an extra phase for any activity, usable only when he stands in a cave clearing'; }
         else continue;
-        const why = it.active ? null : activationBlock(st, data, it);
+        const why = it.active ? null : (gearLockedWhy(st) ?? activationBlock(st, data, it));
         out.push({ uid: it.uid, id: it.id, name: nameOf(data, it), kind: it.kind, active: !!it.active, act, gives, canActivate: !it.active && !why, why, last: 'evening' });
     }
     return out;

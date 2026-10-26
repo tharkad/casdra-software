@@ -1,7 +1,7 @@
 import { say, lvl } from './core.js';
 import { withActor, charsAt, isMulti, askOf, livingIds, playerNameOf } from './party.js';
 import { nameOf, summaryOf, autoEquip, noteGain, weightOf, carryCapacity, onPackHorse, extraPhaseCommitment } from './items.js';
-import { pathKey, nameOfClearing, roadsFrom, tileOf, numOf } from './world.js';
+import { pathKeyAt, pathEnds, pathSide, tileSide, nameOfClearing, roadsFrom, tileOf, numOf } from './world.js';
 
 // Characters meet (step 4 of the multi-character plan, docs/design/multiplayer-step4.md): everything two or more characters standing in one clearing can do to one another outside a fight.
 //   give and trade   an OFFER from one character to another (belongings, gold, discoveries each way), accepted or declined by the other, atomic (7.2.1, 4.5.5, ruling R-5)
@@ -80,15 +80,16 @@ function normDiscovery(d) {
 }
 const sameDisc = (a, b) => a.kind === b.kind && a.key === b.key && a.id === b.id;
 function knows(st, c, d, at) {                                                       // does he hold the discovery, and does it belong to this clearing (4.5.5a)?
-    if (d.kind === 'path') return c.discovered.paths.includes(d.key) && d.key.split('~').includes(at);
+    if (d.kind === 'path') return c.discovered.paths.includes(d.key) && pathEnds(d.key).includes(at);
     if (d.kind === 'site') { const chit = st.chits.find(x => x.id === d.id); return !!chit && c.discovered.sites.includes(d.id) && chit.tile === tileOf(at) && chit.num === numOf(at); }
     return !!c.siteCards?.[at]?.includes(d.id);
 }
 function discLabel(st, data, d, at) {
     if (d.kind === 'path') {
-        const other = d.key.split('~').find(x => x !== at) ?? d.key.split('~')[0];
+        const ends = pathEnds(d.key), other = ends.find(x => x !== at) ?? ends[0];
         const road = data && at ? roadsFrom(st, data, at).find(r => r.to === other) : null;
-        return `the ${road?.kind === 'secret' ? 'secret passage' : 'hidden path'} to ${nameOfClearing(other)}`;
+        const down = pathSide(d.key) !== tileSide(st, tileOf(other));          // found on the side of the tile that is face down now
+        return `the ${road?.kind === 'secret' ? 'secret passage' : 'hidden path'} to ${nameOfClearing(other)}${down ? ` (on the ${pathSide(d.key) === 'enchanted' ? 'enchanted' : 'green'} side)` : ''}`;
     }
     if (d.kind === 'site') return `the ${st.chits.find(x => x.id === d.id)?.name ?? 'site'} here`;
     return `the ${st.twt?.[d.id]?.name ?? 'site card'} here`;
@@ -126,7 +127,7 @@ function spyLearn(st, data, spies, userId, d, at, verb) {
 // A move along a hidden path or secret passage: the spy learns the road whether he stands at its start or at its end (RealmSpeak ActionRow 893-925).
 export function spyOnPath(st, data, userId, from, to) {
     if (!isMulti(st)) return;
-    const key = pathKey(from, to), d = { kind: 'path', key }, u = st.chars[userId];
+    const key = pathKeyAt(st, from, to), d = { kind: 'path', key }, u = st.chars[userId];
     const spies = new Set();
     for (const at of [from, to]) for (const id of charsAt(st, at)) if (id !== userId && (!u.hidden || st.chars[id].hiddenEnemies)) spies.add(id);
     for (const s of [...spies].sort((a, b) => st.order.indexOf(a) - st.order.indexOf(b))) {
@@ -502,7 +503,7 @@ export function carry(st, data, from, to, road, caveTo) {
             st.ch.at = to; st.ch.arrivedFrom = from;
             hooks.followHero(st, data);
             if (caveTo) { const h = st.ch.items.find(i => i.kind === 'horse' && i.active && !i.destroyed); if (h) { h.active = false; say(st, 'Your horse cannot go into the caves and stays outside, unridden.', 'info'); } }
-            if (road && (road.kind === 'hidden' || road.kind === 'secret')) grant(st, st.ch, { kind: 'path', key: pathKey(from, to) }, from);
+            if (road && (road.kind === 'hidden' || road.kind === 'secret')) grant(st, st.ch, { kind: 'path', key: pathKeyAt(st, from, to) }, from);
             return true;
         });
         if (!ok) dropFollower(st, data, f, 'too heavily laden to go on');

@@ -55,7 +55,7 @@ export function hydrate(st) {
 // Anything that is not a game state (no hero at all) is returned untouched.
 export function upgradeState(st) {
     if (!st || typeof st !== 'object') return st;
-    if (st.chars) return hydrate(st);
+    if (st.chars) return keepDiscoveriesBySide(hydrate(st));
     if (!st.ch) return st;
     const ch = st.ch, id = ch.id ?? 'ch';
     const today = {};
@@ -71,6 +71,21 @@ export function upgradeState(st) {
     st.asks = pending ? [{ who: id, pending }] : [];
     for (const o of [...(st.mons ?? []), ...(st.nats ?? [])]) if (o.hired) o.hiredBy = id;
     return hydrate(st);
+}
+
+// Hidden paths and secret passages a hero has found are kept per side of their tile (7.10.4d; world.js pathKey): "BL4~BL5" for the green side, "BL4~BL5:enchanted" for the enchanted one.
+// A game saved before that has bare keys only. Its tiles were all green side up until the first Enchant (magic/colour.js flipTile), which now sets `st.discSides`; a state that has an
+// enchanted tile and no `discSides` is older than that, and each bare key of a tile that is enchanted now is read as a discovery of the side that is up (the best that can be known).
+// Run on every load and clone; once `discSides` is set it does nothing. (This file imports nothing, so the key is read here: two letters of tile, a number, "~", the same, maybe ":enchanted".)
+function keepDiscoveriesBySide(st) {
+    if (st.discSides || !st.placements?.some(p => p.side === 'enchanted')) return st;
+    const up = new Set(st.placements.filter(p => p.side === 'enchanted').map(p => p.id));
+    for (const c of Object.values(st.chars)) {
+        const paths = c?.discovered?.paths;
+        if (paths) c.discovered.paths = paths.map(k => (!k.includes(':') && up.has(k.slice(0, 2)) ? `${k}:enchanted` : k));
+    }
+    st.discSides = 1;
+    return st;
 }
 
 // The state is a game with a hero in it (so a clone of it must be hydrated again).

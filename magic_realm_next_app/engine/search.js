@@ -1,6 +1,6 @@
 import { lvl, say, tally, die, noteRoll } from './core.js';
 import { makeItem, defOf, nameOf, autoEquip, noteGain, noteFind } from './items.js';
-import { numOf, tileOf, roadsFrom, pathKey, nameOfClearing } from './world.js';
+import { numOf, tileOf, roadsFrom, pathKeyAt, nameOfClearing } from './world.js';
 import { PEER, LOCATE } from './tables.js';
 import { fxTags } from './magic/fx.js';
 import { rollCurse, hasCurse, pit } from './effects.js';
@@ -217,7 +217,7 @@ export function discoverPaths(st, data, clearing, kind) {
     const found = [];
     for (const r of roadsFrom(st, data, clearing)) {
         if (r.kind !== kind) continue;
-        const key = pathKey(clearing, r.to);
+        const key = pathKeyAt(st, clearing, r.to);
         if (!st.ch.discovered.paths.includes(key)) { st.ch.discovered.paths.push(key); found.push(nameOfClearing(r.to)); }
     }
     return found.length ? `You discover the ${kind === 'hidden' ? 'hidden path' : 'secret passage'} to ${found.join(', ')}.` : '';
@@ -227,7 +227,7 @@ export function discoverPaths(st, data, clearing, kind) {
 // ---- Talk to Wise Bird: a remote Peer of any clearing on the map (7.5.4, 4.6.8a.2) ----
 // What a clearing would give him: the unrevealed chits of its tile he has not seen, its hidden paths he has not found.
 const unseenChits = (st, tile) => st.chits.filter(c => c.tile === tile && !c.up && !c.pile && !st.ch.seen.includes(c.id)).length;
-const hiddenPaths = (st, data, clearing, kind) => roadsFrom(st, data, clearing).filter(r => r.kind === kind && !st.ch.discovered.paths.includes(pathKey(clearing, r.to))).length;
+const hiddenPaths = (st, data, clearing, kind) => roadsFrom(st, data, clearing).filter(r => r.kind === kind && !st.ch.discovered.paths.includes(pathKeyAt(st, clearing, r.to))).length;
 export const peerGain = (st, data, clearing) => unseenChits(st, tileOf(clearing)) + hiddenPaths(st, data, clearing, 'hidden');
 // "Choice" cannot ask a question in the middle of a combat round, so the best result is taken: the one that shows him the most he does not know yet.
 export function bestChoice(st, data, clearing) {

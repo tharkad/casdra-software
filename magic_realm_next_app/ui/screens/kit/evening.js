@@ -10,6 +10,7 @@ import { render } from '../play/shell.js';
 import { footRow, itemArt, say, twoLine } from './common.js';
 import { ACT_LABEL } from '../play/kit.js';
 import { tidyAct } from './kit.js';
+import { ROAD_STORY, roadLockOf, voiced } from '../../commit.js';
 
 const cap = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 const names = list => (list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0] ?? '');
@@ -23,7 +24,9 @@ function gearRow(G, g) {
     const pony = it?.kind === 'horse' && G.data.horses[it.id]?.kind === 'pony';
     const gives = pony ? 'A Move after each other Move, never the first of the day' : g.act && ACT_LABEL[g.act] ? (g.gives ?? '').replace(new RegExp(`\\b${g.act}\\b`), ACT_LABEL[g.act]) : (g.gives ?? '');
     const press = () => { if (it) tidyAct(G, it); };
-    const button = g.active
+    const road = roadLockOf(G.st);          // 8.3.8d: out on a road between clearings nothing can be switched, on or off
+    const stuck = (label, act) => h('button', { type: 'button', class: 'ds-btn sm is-dim', 'data-act': act, 'data-item': g.uid, 'aria-disabled': 'true', onclick: () => say(G, ROAD_STORY) }, label);
+    const button = road ? stuck(g.active ? 'Switch off' : 'Switch on', g.active ? 'gear-off' : 'gear-on') : g.active
         ? h('button', { type: 'button', class: 'ds-btn sm quiet', 'data-act': 'gear-off', 'data-item': g.uid, onclick: press }, 'Switch off')
         : g.canActivate
             ? h('button', { type: 'button', class: 'ds-btn sm primary', 'data-act': 'gear-on', 'data-item': g.uid, onclick: press }, 'Switch on')
@@ -33,9 +36,12 @@ function gearRow(G, g) {
         h('span', { class: 'main' },
             h('b', {}, g.name, h('span', { class: `ds-tag ${state[0]} kit-tag` }, state[1])),
             h('span', { class: 'gives' }, cap(gives)),
-            h('span', { class: `sub${!g.active && !g.canActivate ? ' bad' : ''}` }, nb(sub))),
+            h('span', { class: `sub${!g.active && !g.canActivate ? ' bad' : ''}` }, road && !g.active ? voiced(road) : nb(sub))),
         button);
 }
+
+// Out on a road between clearings (8.3.8d) nothing here can be changed: say so once, above the list, in both voices.
+const roadNote = G => { const road = roadLockOf(G.st); return road ? h('div', { class: 'ds-why kit-lock', 'data-lock': 'road' }, icon('lock', 'kit-lockico'), voiced(road)) : null; };
 
 // evening(G, pending) -> { title, eyebrow, body, foot, detent } for mountSheet (a decision: the map can be looked at while it waits).
 export function eveningContent(G, p) {
@@ -46,10 +52,12 @@ export function eveningContent(G, p) {
             h('div', { class: 'ds-ask' }, h('b', {}, 'Switch on what you will need tomorrow.'),
                 h('span', { 'data-v': 'story' }, 'An extra phase counts only if its horse or treasure is already on when you plan at dawn. Tonight is your last chance.'),
                 h('span', { 'data-v': 'detail' }, 'Rule 6.2.2c.1: an extra phase from an item can be recorded only if the item is active in Birdsong. Belongings cannot be rearranged then (7.2.2f), so the evening is the last chance.')),
+            roadNote(G),
             h('div', { class: 'kit-gearlist' }, gear.map(g => gearRow(G, g))))
         : h('div', { class: 'kit kit-evening quiet', 'data-evening': 'quiet' },
             h('div', { class: 'ds-ask' }, h('b', {}, 'Nothing you carry changes tomorrow.'),
-                h('span', {}, 'You may still rearrange your belongings before Midnight.')));
+                roadLockOf(G.st) ? null : h('span', {}, 'You may still rearrange your belongings before Midnight.')),
+            roadNote(G));
     const note = missed.length ? `Still off: ${names(missed.map(g => g.name))}.` : null;
     const belongings = h('button', { type: 'button', class: 'ds-btn sm quiet', 'data-act': 'evening-kit', onclick: () => { G.ui.sheet = 'char'; render(G); } }, 'Belongings');
     const go = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'evening-go', onclick: () => act(G, { type: 'continue' }) }, twoLine('Continue', 'to Midnight'));

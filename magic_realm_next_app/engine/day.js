@@ -4,7 +4,7 @@ import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, 
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
 import * as combat from './combat.js';
 import * as battle from './battle.js';
-import { makeItem, defOf, isWeaponCard, extraPhaseCommitment, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain, noteFind, nextDayGear } from './items.js';
+import { makeItem, defOf, isWeaponCard, extraPhaseCommitment, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain, noteFind, nextDayGear, gearLockedWhy } from './items.js';
 import { lootFrom, lootSiteCard, groundPileAt, sitesHere, effortOptions, payEffort, applySearchResult, peerBlocked } from './search.js';
 import { hasCurse, liftCursesAtChapel } from './effects.js';
 import { tell } from './story.js';
@@ -1267,6 +1267,7 @@ function step(st, data, action) {
             if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'evening-end' && p.type !== 'phase-gear') throw new Error('you can only rearrange your gear between phases (in a fight, use your Encounter action)');
             if (p.type === 'phase-gear' && !p.items.includes(action.item)) throw new Error('only what you have just come by can be changed now (4.3.3b); the rest at the start of your next phase');
             if (st.ch.flying) throw new Error('you cannot rearrange your gear in the air');
+            const locked = gearLockedWhy(st); if (locked) throw new Error(locked);          // 8.3.8d: not on a roadway between clearings
             if (p.type === 'phase' && st.turn && st.turn.gear?.i !== st.turn.i) st.turn.gear = { i: st.turn.i, active: st.ch.items.filter(x => x.active && !x.destroyed).map(x => x.uid) };          // what was on when this phase began (7.3.2b: an extra phase needs its horse already active then)
             // free item management outside combat: switch items on and off
             const it = st.ch.items.find(i => i.uid === action.item);
@@ -1292,6 +1293,7 @@ function step(st, data, action) {
         case 'open': {
             if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'plan') throw new Error('you can only open it between phases');
             // The Chest opens with the Lost Keys: its two large treasures and fifty gold replace it.
+            const locked = gearLockedWhy(st); if (locked) throw new Error(locked);          // 8.3.8d
             const chest = st.ch.items.find(i => i.uid === action.item && i.id === 'chest');
             if (!chest) throw new Error('no chest to open');
             if (!st.ch.items.some(i => i.id === 'lost-keys' && i.active)) throw new Error('The Chest needs the Lost Keys.');
@@ -1439,4 +1441,4 @@ meet.hooks.followerEnds = (st, data) => {
 export { sunsetAll as beginEvening };
 
 // The end-of-day reminder for the screens (items.js): the belongings that decide tomorrow's plan, also on the `evening-end` question as `gear`.
-export { nextDayGear };
+export { nextDayGear, gearLockedWhy };
