@@ -10,6 +10,9 @@ export function makeItem(st, kind, id, extra = {}) {
 
 // What he has just come by, for the screen to make a fuss of (display only; the rules never read it).
 export function noteGain(st, it) {
+    // With `st.pauseGear` (the game screens set it) what he comes by during a Daylight phase is remembered on his turn, so the phase can end on the question where he chooses what to do
+    // with it (4.3.2, 4.3.3b; day.js gearPause). Cleared when the next phase begins. Nothing is written when the option is off.
+    if (st.pauseGear && st.turn && st.period === 'daylight') { const f = (st.turn.fresh ??= []); if (!f.includes(it.uid)) f.push(it.uid); }
     st.gainSeq = (st.gainSeq ?? 0) + 1;
     (st.gains ??= []).push({ n: st.gainSeq, uid: it.uid, day: st.day, ...(st.order?.length > 1 ? { who: st.actor } : null) });          // (several characters: whose find it was)
     if (st.gains.length > 40) st.gains.shift();

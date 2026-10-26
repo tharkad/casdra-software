@@ -67,7 +67,7 @@ export function boot(G) {
                 const prev = loadSaved();
                 if (prev?.session?.id && prev.period !== 'over') getRecord(prev.session.id).then(r => { if (r && !r.meta?.result) { finalize(r, prev); r.meta.result = 'abandoned'; putRecord(r); } }).catch(() => {});
                 fresh = { seed: G.ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: G.ctx.params?.character ?? 'white-knight', vp: G.ctx.params?.vp, mode: G.ctx.params?.mode, lastDay: G.ctx.params?.lastDay,
-                    startDwelling: G.ctx.params?.startDwelling, startGear: G.ctx.params?.startGear, options: G.ctx.params?.options, pauseVictory: true, pauseEvening: true, startSpells: G.ctx.params?.startSpells, characters: G.ctx.params?.characters };
+                    startDwelling: G.ctx.params?.startDwelling, startGear: G.ctx.params?.startGear, options: G.ctx.params?.options, pauseVictory: true, pauseEvening: true, pauseGear: true, startSpells: G.ctx.params?.startSpells, characters: G.ctx.params?.characters };
                 G.st = newGame(G.data, fresh);
                 G.st.session = { id: String(Date.now()), started: new Date().toISOString(), version: VERSION, params: JSON.parse(JSON.stringify(fresh)) };
                 saveGame(G.st);
@@ -75,6 +75,7 @@ export function boot(G) {
             if (G.st.pauseVictory === undefined) G.st.pauseVictory = true;
             if (G.st.pauseShift === undefined) G.st.pauseShift = true;
             if (G.st.pauseEvening === undefined) G.st.pauseEvening = true;          // (the evening ends on the question where he may rearrange his belongings: ruling R6, ch7-day.md)
+            if (G.st.pauseGear === undefined) G.st.pauseGear = true;          // (a phase in which he came by a belonging ends on the question where he may switch it off or leave it: ruling R1, ch2469.md)
             G.ctx.state = G.st;
             restoreUi(G);                                    // (a plan that was being made when the page went away comes back as it was)
             // a game saved before records existed gets one now; its earlier moves are unknown, so it cannot be replayed

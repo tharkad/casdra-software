@@ -33,6 +33,7 @@ export function newGame(data, opts = {}) {
     placeDenizens(st, data);
     setupTreasure(st, data);
     if (opts.pauseEvening) st.pauseEvening = true;          // the game screen: a one-character evening ends on the question where he may rearrange his belongings (day.js eveningDone)
+    if (opts.pauseGear) st.pauseGear = true;                // the game screen: a phase in which he came by a belonging ends on the question where he may activate, deactivate or abandon it (4.3.2, day.js gearPause)
     if (opts.pauseVictory) { st.pauseVictory = true; st.pauseShift = true; }          // the game screen: stop on a result screen and on the Bracelets / Cloak offer
     st.options = { knightsAdjustment: !!opts.options?.knightsAdjustment, watchfulNatives: !!opts.options?.watchfulNatives, quietMonsters: !!opts.options?.quietMonsters, ...(opts.options?.castAnytime ? { castAnytime: true } : {}) };       // (castAnytime is in the state only when on, so a game without it is exactly as it was)
     st.startGear = { weapon: opts.startGear?.weapon ?? true, armor: opts.startGear?.armor ?? true };

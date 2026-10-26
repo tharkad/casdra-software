@@ -43,15 +43,27 @@ const occupantOf = (G, key) => G.st.ch.items.find(i => i.active && !i.destroyed 
 export const PLAN_LOCK = 'You can rearrange these at the start of each phase.';
 export const PLAN_LOCK_DETAIL = 'Rule 7.2.2f: belongings are rearranged only at the start of a phase of your turn, or in the evening after the fighting (4.3.3a), never while you record the plan. A horse or card that gives an extra phase must be active already (6.2.2c.1).';
 
-// Why gear cannot be changed now (null when it can): the engine allows `tidy` only between phases, and in the evening after the fighting.
-export function gearLock(G) {
+// Why gear cannot be changed now (null when it can): the engine allows `tidy` only between phases, and in the evening after the fighting. On the 'phase-gear' question (4.3.3b) he may
+// change only what he has just come by (`pending.items`): pass the item to ask about it; without one the answer is for the Kit as a whole (open while something new waits).
+export const FRESH_LOCK = 'Only what you have just come by can be changed now. The rest waits for the start of your next phase.';
+export function gearLock(G, it = null) {
     const p = G.st.pending?.type;
     if (G.st.combat || p?.startsWith('combat') || (G.shared && G.st.battle?.members?.[G.st.ch.id])) return 'In a fight, changing your gear is your Encounter action, once.';
     if (G.st.ch.morph) return 'Your gear is of no use to a creature.';
     if (G.st.ch.flying) return 'You cannot rearrange your gear in the air.';
     if (p === 'plan') return PLAN_LOCK;
+    if (p === 'phase-gear') return it && !(G.st.pending.items ?? []).includes(it.uid) ? FRESH_LOCK : null;
     if (!['phase', 'phase-pick', 'evening-end'].includes(p)) return 'Gear can be changed between phases.';
     return null;
+}
+// Is `uid` one of the things he may change right now on the 'phase-gear' question? (true when that question is not asked)
+const freshOk = (G, uid) => G.st.pending?.type !== 'phase-gear' || (G.st.pending.items ?? []).includes(uid);
+// The lock of one slot: its occupant's, or for an empty slot (on 'phase-gear') whether something he has just come by could go there.
+function slotLock(G, key, occupant) {
+    if (occupant) return gearLock(G, occupant);
+    const base = gearLock(G);
+    if (base || G.st.pending?.type !== 'phase-gear') return base;
+    return G.st.ch.items.some(i => !i.destroyed && slotKey(G, i) === key && freshOk(G, i.uid)) ? null : FRESH_LOCK;
 }
 
 // The words of a lock line: the plan's one has a Story and a Detail voice; the others are plain.
@@ -153,8 +165,8 @@ function kitRoom(G, o) {
     return h('div', { class: 'kit-room' },
         carryLimit(G),
         sect2('In use', 'one of each'),
-        h('div', { class: 'ds-slots' }, SLOTS.map(s => slotEl(G, s, lock, o))),
-        lock ? h('div', { class: 'ds-why kit-lock', 'data-lock': '' }, icon('lock', 'kit-lockico'), lockText(lock)) : null,
+        h('div', { class: 'ds-slots' }, SLOTS.map(s => slotEl(G, s, slotLock(G, s[0], occupantOf(G, s[0])), o))),
+        lock || G.st.pending?.type === 'phase-gear' ? h('div', { class: 'ds-why kit-lock', 'data-lock': '' }, icon('lock', 'kit-lockico'), lockText(lock ?? FRESH_LOCK)) : null,
         sect2('In your pack', pack.length ? plural(pack.length, 'thing') : ''),
         pack.length ? h('div', { class: 'ds-list' }, pack.map(i => packRow(G, i, o))) : h('p', { class: 'kit-none' }, 'Nothing else. Your pack is empty.'),
         items.length ? worthLine(G) : null,
@@ -187,7 +199,7 @@ export function kitContent(G, o = {}) {
 // ---- the slot picker: a small decision sheet listing only what fits ----
 export function slotPickerContent(G, key) {
     const def = SLOTS.find(s => s[0] === key), here = occupantOf(G, key);
-    const cands = G.st.ch.items.filter(i => slotKey(G, i) === key && i !== here && !i.destroyed);
+    const cands = G.st.ch.items.filter(i => slotKey(G, i) === key && i !== here && !i.destroyed && freshOk(G, i.uid));
     const choose = it => { G.ui.slotPick = null; G.ui.sheet = 'char'; tidyAct(G, it); };
     const rowFor = it => {
         const why = whyNot(G, it), worth = priceOf(G.data, it);
@@ -200,7 +212,7 @@ export function slotPickerContent(G, key) {
         here ? h('div', { class: 'ds-list kit-now' }, h('button', { type: 'button', class: 'ds-row sel', 'data-now': here.uid, onclick: () => { G.ui.slotPick = null; G.ui.itemUid = here.uid; G.ui.itemFrom = null; G.ui.sheet = 'item'; render(G); } },
             h('span', { class: 'art' }, itemArt(G, here)), h('span', { class: 'main' }, h('b', {}, nameOf(G.data, here)), h('span', {}, 'In this slot now. Tap to look closer.')), h('span', { class: 'end' }, icon('check')))) : null,
         cands.length ? h('div', { class: 'ds-list' }, cands.map(rowFor)) : h('p', { class: 'kit-none' }, here ? 'Nothing else you carry goes here.' : `Nothing you carry goes in the ${def[1].toLowerCase()} slot yet.`),
-        here ? h('div', { class: 'ds-list kit-off' }, h('button', { type: 'button', class: 'ds-row', 'data-empty': 'empty', onclick: () => { G.ui.slotPick = null; G.ui.sheet = 'char'; tidyAct(G, here); } },
+        here && !gearLock(G, here) ? h('div', { class: 'ds-list kit-off' }, h('button', { type: 'button', class: 'ds-row', 'data-empty': 'empty', onclick: () => { G.ui.slotPick = null; G.ui.sheet = 'char'; tidyAct(G, here); } },
             h('span', { class: 'art' }, icon('minus', 'lg')), h('span', { class: 'main' }, h('b', {}, 'Leave it empty'), h('span', {}, 'Carry less.')))) : null);
     return { title: def[2], eyebrow: `${def[1]} slot`, body, decision: true, detent: 'hug' };
 }
@@ -240,7 +252,7 @@ function factsOf(G, it) {
 
 // itemContent(G, it, { back }) -> { title, body, foot }
 export function itemContent(G, it, o = {}) {
-    const { name, card, faces, facts } = itemParts(G, it, { size: 128 }), lock = gearLock(G), key = slotKey(G, it);
+    const { name, card, faces, facts } = itemParts(G, it, { size: 128 }), lock = gearLock(G, it), key = slotKey(G, it);
     const stateTag = it.destroyed ? ['bad', 'Destroyed'] : [it.active ? 'gold' : '', it.active ? 'Active' : 'Inactive'];
     const sub = [it.kind === 'weapon' ? (isWeaponCard(G.data, it) ? 'weapon card' : it.alerted ? 'alerted' : 'not alerted') : null, it.kind === 'armor' ? (it.damaged ? 'damaged' : 'whole') : null].filter(Boolean).join(', ');
     const why = lock ?? whyNot(G, it);

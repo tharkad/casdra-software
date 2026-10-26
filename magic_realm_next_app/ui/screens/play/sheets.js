@@ -22,6 +22,7 @@ import { clearingSheet } from './sheet_clearing.js';
 import { bugSheet, calendarSheet, menuSheet, raceSheet, scoreSheet, setupCardSheet } from './sheet_info.js';
 import { hireSheet, tradeSheet } from './sheet_trade.js';
 import { eveningContent } from '../kit/evening.js';
+import { phaseGearContent } from '../kit/phasegear.js';
 import { mountSheet } from '../kit/common.js';
 import { render } from './shell.js';
 import { setWelcomed, vpNow, welcomed } from './state.js';
@@ -30,7 +31,7 @@ import { setWelcomed, vpNow, welcomed } from './state.js';
 // A look at the belongings, the Journal, the menu, the calendar... while a question waits on a sheet: the question stays where it is (under the scrim) and the look opens over it;
 // closing the look gives the question back. (A fight, the draw and the other full-screen things have their own hosts and are not covered.)
 const LOOKS = new Set(['char', 'menu', 'calendar', 'score', 'journal', 'dice', 'log', 'curses', 'spells', 'spell', 'item', 'cardinfo', 'key', 'help', 'tables', 'setupcard', 'card', 'piece', 'slot']);
-const QUESTIONS = new Set(['turn-end', 'evening-end', 'rest', 'search-table', 'search-choice', 'effort-cost', 'runes-target', 'learn-spell', 'enchant-choice', 'trade', 'trade-offer', 'hire', 'hire-offer']);
+const QUESTIONS = new Set(['turn-end', 'evening-end', 'phase-gear', 'rest', 'search-table', 'search-choice', 'effort-cost', 'runes-target', 'learn-spell', 'enchant-choice', 'trade', 'trade-offer', 'hire', 'hire-offer']);
 
 export function sheets(G, lookOnly = false) {
     if (!lookOnly && LOOKS.has(G.ui.sheet) && QUESTIONS.has(G.st.pending?.type)) {
@@ -56,6 +57,7 @@ export function sheets(G, lookOnly = false) {
     const lookAt = G.ui.mapPeek && G.ui.sheet === 'clearing' && G.ui.sel;       // a clearing looked at while a decision waits (the decision sheet is peeked): it opens over the bar
     if (p?.type === 'turn-end') out.push(turnEndSheet(G));
     else if (p?.type === 'evening-end') out.push(mountSheet(G, eveningContent(G, p)));          // the last chance to switch on tomorrow's extra-phase gear (screens/kit/evening.js)
+    else if (p?.type === 'phase-gear') out.push(mountSheet(G, phaseGearContent(G, p)));          // New belongings: switch off or leave what he has just come by (screens/kit/phasegear.js)
     else if (p?.type === 'rest') out.push(restSheet(G, p));
     else if (p?.type === 'search-table') { if (!isForced(p)) out.push(searchSheet(G, p)); }
     else if (p?.type === 'effort-cost') out.push(effortSheet(G, p));

@@ -400,6 +400,7 @@ function regenerate(st, data) {
 // ---- daylight: one phase at a time ----
 function runPhase(st, data) {
     const t = st.turn, i = t.i, slot = st.plan[i];
+    if (t.fresh) delete t.fresh;                  // (what he came by before this phase began was his to arrange at its start: see gearPause)
     if (multi(st)) meet.lapsePhaseOffers(st, 'the phase has begun');
     if (multi(st) && meet.beforeActivity(st, data) === 'wait') return;      // the followers may stop now (7.11.5); the phase goes on when they have answered
     const r = executeSlot(st, data, slot, i);
@@ -430,6 +431,24 @@ function finishPhase0(st, data, text) {
     expireDue(st, data, 'phase-end');
     energizePass(st, data, 'phase');
     if (st.ch.dead) return died(st, data);
+    if (gearPause(st)) return;                     // the phase is not complete until he has said what to do with what he came by (4.3.2); `continue` goes on at finishPhaseEnd
+    return finishPhaseEnd(st, data);
+}
+// 4.3.2 and 4.3.3b: "as soon as he obtains the item, before completing the phase": with `st.pauseGear` (the game screens set it; the computer players and the tests do not) a phase in
+// which he came by a belonging (a Loot or Magic Sight find, a purchase, a Treasure-within-Treasure) ends on the question 'phase-gear', before the blocking check and the next phase.
+// It carries the new belongings (`items`, their uids); 'tidy' works on those and only those, 'continue' ends the phase. What he came by is already on if its slots were free (items.js
+// autoEquip), so the question is his chance to take it off, switch it on over something else, or leave it behind.
+function gearPause(st) {
+    const t = st.turn;
+    if (!st.pauseGear || !t?.fresh?.length || st.ch.flying || st.ch.morph) return false;
+    const items = t.fresh.filter(uid => st.ch.items.some(i => i.uid === uid && !i.destroyed));
+    delete t.fresh;
+    if (!items.length) return false;
+    st.pending = { type: 'phase-gear', items, i: t.i };
+    return true;
+}
+function finishPhaseEnd(st, data) {
+    const t = st.turn;
     stormCheck(st, data);
     // End-of-phase blocking by monsters in his clearing.
     if (t.pro) { noteCave(st, data); if (t.proBroken && phaseOptions(st, data).acts.length) t.forceBlock = true; }
@@ -448,6 +467,11 @@ function finishPhase0(st, data, text) {
         if (b === true) return afterBlock(st, data, true);
     }
     nextPhase(st, data);
+}
+// 'phase-gear' is answered: the rest of the phase (storm, blocking, the next phase) goes on.
+function resumePhase(st, data) {
+    finishPhaseEnd(st, data);
+    if (multi(st) && st.turn) meet.syncHidden(st);
 }
 function nextPhase(st, data) {
     const t = st.turn;
@@ -1201,6 +1225,7 @@ function step(st, data, action) {
         }
         case 'continue': {
             if (p.type === 'evening-end') { st.pending = null; return midnight(st, data); }          // the evening is over: Midnight
+            if (p.type === 'phase-gear') { st.pending = null; resumePhase(st, data); return st; }          // he has settled what to do with what he came by: the phase is complete (4.3.2)
             if (p.type !== 'turn-end') throw new Error('nothing to continue');
             st.pending = null;
             afterTurnEnd(st, data);
@@ -1239,7 +1264,8 @@ function step(st, data, action) {
             // 4.3.3a, 7.2.2f (ruling R6, ch7-day.md): at the start of each phase of his Daylight turn and after all the Evening's combat; never in Birdsong while he records his plan
             // (an extra phase from a horse or a card must be active at Birdsong, 6.2.2c.1, so it has to be switched on the evening before: see nextDayGear and the 'evening-end' question).
             if (p.type === 'plan') throw new Error('you cannot rearrange your belongings while you record your plan: only at the start of a phase of your turn, or in the evening after the fighting (4.3.3a)');
-            if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'evening-end') throw new Error('you can only rearrange your gear between phases (in a fight, use your Encounter action)');
+            if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'evening-end' && p.type !== 'phase-gear') throw new Error('you can only rearrange your gear between phases (in a fight, use your Encounter action)');
+            if (p.type === 'phase-gear' && !p.items.includes(action.item)) throw new Error('only what you have just come by can be changed now (4.3.3b); the rest at the start of your next phase');
             if (st.ch.flying) throw new Error('you cannot rearrange your gear in the air');
             if (p.type === 'phase' && st.turn && st.turn.gear?.i !== st.turn.i) st.turn.gear = { i: st.turn.i, active: st.ch.items.filter(x => x.active && !x.destroyed).map(x => x.uid) };          // what was on when this phase began (7.3.2b: an extra phase needs its horse already active then)
             // free item management outside combat: switch items on and off
@@ -1255,12 +1281,12 @@ function step(st, data, action) {
                 st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
                 st.abandoned[where] = [...(st.abandoned[where] ?? []), { ...it, active: false, alerted: false }];
                 say(st, `You leave the ${nameOf(data, it)} behind.`, 'info');
-                st.pending = p.type === 'evening-end' ? { ...p, gear: nextDayGear(st, data) } : keep(st, data, p);
+                st.pending = afterTidy(st, data, p);
                 return st;
             }
             toggleItem(st, data, it);
             say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOf(data, it)}.`, 'info');
-            st.pending = p.type === 'evening-end' ? { ...p, gear: nextDayGear(st, data) } : keep(st, data, p);                    // (under Prophecy an item can give an extra phase the moment he activates it)
+            st.pending = afterTidy(st, data, p);                    // (under Prophecy an item can give an extra phase the moment he activates it)
             return st;
         }
         case 'open': {
@@ -1281,6 +1307,9 @@ function step(st, data, action) {
 }
 
 // A free action leaves the question open; under Prophecy it is asked again, for the choices may have changed (a belonging he just activated).
+const afterTidy = (st, data, p) => (p.type === 'evening-end' ? { ...p, gear: nextDayGear(st, data) }
+    : p.type === 'phase-gear' ? { ...p, items: p.items.filter(uid => st.ch.items.some(i => i.uid === uid)) }          // (what he left behind is no longer his to arrange)
+        : keep(st, data, p));
 const keep = (st, data, p) => (p.type === 'phase-pick' ? (proPending(st, data) ?? p) : p);
 
 function combatAction(st, data, a) {

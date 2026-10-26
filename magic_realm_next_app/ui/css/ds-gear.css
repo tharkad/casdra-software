@@ -1,4 +1,4 @@
-/* css/ds-gear.css: the end-of-day gear reminder (screens/kit/evening.js, the engine's 'evening-end' question) and the plan tray's spare pony tab (screens/play/plan.js).
+/* css/ds-gear.css: the end-of-day gear reminder (screens/kit/evening.js, the engine's 'evening-end' question), New belongings (screens/kit/phasegear.js, 'phase-gear') and the plan tray's spare pony tab (screens/play/plan.js).
    Written against tokens.css and core.css; classes kit-gear* / kit-evening / ptab.spare. Nothing here changes another package's rules. */
 .kit-evening .ds-ask { margin-bottom: 4px; }
 .kit-gearlist { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
@@ -14,6 +14,12 @@
 .kit-gear .main .sub.bad { color: var(--danger); }
 .kit-gear .ds-btn { margin: 0; white-space: nowrap; }
 .kit-gear .ds-btn.primary { color: var(--ink-on-gold); }
+/* New belongings (screens/kit/phasegear.js): the same row, with its buttons on a line of their own under the words, so a long name and three buttons never fight for a phone's width. */
+.kit-gear.fresh { grid-template-columns: 44px minmax(0, 1fr); row-gap: 8px; align-items: start; }
+.kit-gear.fresh .kit-gearact { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.kit-gear.fresh .kit-gearact .ds-btn { flex: 1 1 0; min-width: 0; }
+.kit-gear.fresh .kit-gearact.confirm .ds-meta { flex: 1 0 100%; font: 400 calc(14px * var(--ts, 1))/1.25 var(--font-ui); color: var(--ink-2); }
+.kit-gear.fresh .kit-committed { margin-top: 4px; }
 @media (max-width: 380px) { .kit-gear { gap: 8px; padding: 8px; } .kit-gear .ds-btn { padding: 0 10px; } }
 
 /* the plan tray's spare tab: one more Move, from the pony (plan.js); dashed until it holds one. A Move the pony causes wears a small gold bar under its number. */
