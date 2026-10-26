@@ -3,6 +3,7 @@ import { WEIGHT_WORDS } from '../../../engine/core.js';
 import { defOf, nameOf, priceOf } from '../../../engine/items.js';
 import { cardEl } from '../../card.js';
 import { itemFace } from '../../counter.js';
+import { mendCardText } from '../../cardfix.js';
 import { h } from '../../dom.js';
 import { itemContent, kitContent, slotPickerContent } from '../kit/kit.js';
 import { mountSheet } from '../kit/common.js';
@@ -65,7 +66,7 @@ export function cardInfoSheet(G) {
     const td = G.data.treasures[G.ui.cardId];
     const back = { close: () => { G.ui.sheet = null; render(G); } };
     if (!td) return modal(G, 'Card', h('p', { class: 'hint' }, 'Unknown card.'), back);
-    const text = G.data.cardtext?.treasures?.[G.ui.cardId] ?? td.effectText ?? '';
+    const text = mendCardText(G.data.cardtext?.treasures?.[G.ui.cardId] ?? td.effectText ?? '');
     return modal(G, td.name, h('div', { class: 'itemsheet' },
         cardEl({ title: td.name, kind: 'treasure', tag: td.kind === 'twt' ? 'Treasure within Treasure' : 'Treasure', stats: [], text, notes: G.ui.cardId === 'chest' ? [] : ['A treasure within a treasure: it is not carried off; what it holds is described on the card.'] }),
         h('button', { type: 'button', class: 'ds-btn block', onclick: back.close }, 'Back')), back);
@@ -100,7 +101,7 @@ export function itemParts(G, it, { size } = {}) {
         facts.push('It cannot be ridden in a cave.');
     } else {
         const key = it.card ?? it.id;
-        const text = G.data.cardtext?.treasures?.[key] ?? G.data.cardtext?.treasures?.[it.id] ?? d?.effectText ?? '';
+        const text = mendCardText(G.data.cardtext?.treasures?.[key] ?? G.data.cardtext?.treasures?.[it.id] ?? d?.effectText ?? '');
         const td = G.data.treasures[key] ?? d;
         const stats = [['Weight', WEIGHT_WORDS[td?.weight] ?? '?'], ['Price', `${td?.gold ?? '?'} gold`]];
         if (td?.fame) stats.push(['Fame', `${td.fame > 0 ? '+' : ''}${td.fame}`]);
