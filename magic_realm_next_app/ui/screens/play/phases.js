@@ -136,8 +136,8 @@ export function searchSheet(G, p) {
     const sites = st.ch.onRoad ? [] : st.chits.filter(x => x.kind === 'site' && x.tile === tile && x.num === n && !x.pile && st.ch.discovered.sites.includes(x.id));
     const ground = st.abandoned?.[at] ?? [], cards = st.ch.siteCards?.[at] ?? [];
     const defs = [];
-    if (opts.includes('peer')) defs.push({ k: 'peer', table: 'peer', title: 'Peer', line: 'Hidden enemies and secret\u00A0paths.', art: actIcon('peer', 28) });
-    if (opts.includes('locate')) defs.push({ k: 'locate', table: 'locate', title: 'Locate', line: 'Passages, clues, and any site hidden\u00A0here.', art: actIcon('search', 28) });
+    if (opts.includes('peer')) defs.push({ k: 'peer', table: 'peer', title: 'Peer', line: 'Hidden enemies, hidden\u00A0paths.', art: actIcon('peer', 28) });
+    if (opts.includes('locate')) defs.push({ k: 'locate', table: 'locate', title: 'Locate', line: 'Secret passages, clues, sites hidden\u00A0here.', art: actIcon('search', 28) });
     if (opts.includes('loot')) {
         if (sites.length) defs.push({ k: 'loot', table: 'loot', title: sites.length === 1 ? `Loot the ${sites[0].name}` : 'Loot a site here', line: sites.length === 1 ? 'Reach into the pile. The cards you could reach are lit.' : 'Reach into a pile. The cards you could reach are lit.', art: actIcon('cache', 28), extra: sites.map(c => siteBlock(G, c, { compact: true })) });
         else defs.push({ k: 'loot', table: 'loot', title: 'Loot', line: 'Nothing to open here yet.', why: 'Nothing here to loot. A site has to be found first: Locate is how.', art: actIcon('cache', 28), dim: true });
@@ -199,7 +199,7 @@ export function pickSheet(G, p) {
     const act2 = G.ui.pickAct, send = slot => { G.ui.pickAct = null; act(G, { type: 'pick', slot }); };
     const eyebrow = `Phase ${p.i + 1} \u00B7 ${ACT_LABEL[act2] ?? act2}`, close = () => { G.ui.pickAct = null; render(G); };
     if (act2 === 'search') {
-        const LINE = { peer: 'Hidden enemies and secret\u00A0paths.', locate: 'Passages, clues, and any site hidden here.', loot: 'Reach into a pile you have found.', ground: 'Take what lies here.', sitecard: 'A place you found by looting.', runes: 'Learn a spell from a site or an item.' };
+        const LINE = { peer: 'Hidden enemies, hidden\u00A0paths.', locate: 'Secret passages, clues, sites hidden here.', loot: 'Reach into a pile you have found.', ground: 'Take what lies here.', sitecard: 'A place you found by looting.', runes: 'Learn a spell from a site or an item.' };
         return pickSheetOf(G, { title: 'Which table?', eyebrow, situation: `Search ${nbsp_(nameOfClearing(G.st.ch.at))}: one roll on one table.`, why: 'Each table finds different things.', key: 'tablePick', kind: 'info', close,
             opts: (p.tables ?? []).map(t => ({ k: t, table: t, title: tableName(G, t), line: LINE[t] ?? '', art: actIcon(t === 'peer' ? 'peer' : t === 'loot' || t === 'ground' || t === 'sitecard' ? 'cache' : 'search', 28), attrs: { 'data-pick-table': t } })),
             idle: { button: 'Choose a table', lead: 'One roll on one table.', toast: 'Pick one of the tables first.' }, verb: 'Search', act: o => send({ act: 'search', table: o.table }) });
