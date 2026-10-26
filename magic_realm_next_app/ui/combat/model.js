@@ -113,6 +113,8 @@ export function repeatPlan(st, data, o, last) {
     return m;
 }
 // does the repeat differ from nothing at all (is there anything to repeat)? true when last round he played at least a chit or named a target
+// can last round's chits be played again? false when a chit he played is no longer ready (wounded, fatigued, or over the asterisk limit)
+export const repeatHolds = (last, plan) => (last.fightChit == null || plan.fightChit === last.fightChit) && (last.moveChit == null || plan.moveChit === last.moveChit);
 export const repeatable = last => !!last && (last.fightChit != null || last.moveChit != null || last.target != null);
 
 // ---- the live hint under the Guard step: what gets under the maneuver by its time (the engine's own rule: an attack whose time is lower than the maneuver's gets under it) ----

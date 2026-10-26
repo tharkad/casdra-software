@@ -346,3 +346,4 @@ html[data-voice-mode="story"] [data-v="detail"], html[data-voice-mode="detail"] 
 
 /* DR-12: no last line of one word: running text breaks to even out its last line (the nbsp in the strings binds numbers, names and "in secret") */
 .ds-voice, .ds-meta, .ds-lead-text, .ds-why, .ds-ask span, .ds-hint-line, .ds-opt .main span, .ds-plan-ask { text-wrap: pretty; }
+.ds-btn.struck { text-decoration: line-through; }   /* kept on screen, but it cannot be done */

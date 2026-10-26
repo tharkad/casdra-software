@@ -271,7 +271,9 @@ export function meleeSheet(X) {
                 onclick: () => { m.fightChit = m.fightChit === ch.id ? null : ch.id; render(); }, attrs: { 'data-sel': 'fc' } })))
                 : h('p', { class: 'cb-hint' }, c.casts?.length ? 'You cast a spell this round, so you cannot also swing a weapon.' : 'You have no Fight chit ready.');
         body = [dirButtons(DIRS, i => `hits ${MNV[i]}`, m.attackDir, i => { m.attackDir = i; render(); }), chits];
-        const repeat = c.round > 1 && X.ui.lastPlan?.fight === cb.fightKey && M.repeatable(X.ui.lastPlan.plan) ? btn('Same as last round', 'quiet', { 'data-act': 'same-plan', onclick: () => { cb.plan = M.repeatPlan(st, data, o, X.ui.lastPlan.plan); go('roll'); } }) : null;
+        const repeat = c.round > 1 && X.ui.lastPlan?.fight === cb.fightKey && M.repeatable(X.ui.lastPlan.plan) ? (() => { const lp = X.ui.lastPlan.plan, rp = M.repeatPlan(st, data, o, lp), ok = M.repeatHolds(lp, rp);
+            return btn('Same as last round', ok ? 'quiet' : 'quiet is-dim struck', { 'data-act': 'same-plan', 'aria-disabled': ok ? null : 'true',
+                onclick: () => { if (!ok) { X.say('You cannot do the same as last round: a chit you played then is not ready now.'); return; } cb.plan = rp; go('roll'); } }); })() : null;
         const hintLine = eff.over ? `${eff.text}: put a chit back.` : !m.target && m.fightChit ? 'You strike at no one: the chit only sets your weapon.'
             : repeat ? eff.text : m.fightChit ? 'Tap the chosen chit again to play none.' : o.fightChits.length && !o.attackSpell ? 'Pick a Fight chit to strike, or go on without one.' : eff.text;
         if (!spl && o.fightChits.length) body.push(hint(hintLine, eff.over ? 'bad' : ''));
