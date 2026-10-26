@@ -24,7 +24,7 @@ import { prophecyOn, startPro, phaseOptions, consume, noteCave } from './magic/p
 import { magicSightOn, SIGHT_REPLACES, doMagicSight, takeChosen, perceive } from './magic/sight.js';
 import { MORPH_REFUSED } from './magic/morph.js';
 import { beginHire, hireAction, followHero, expireHires, dismissHire } from './hire.js';
-import { planFlyError, flySources, flyTiles, carries, startFlight, landHero } from './magic/fly.js';
+import { planFlyError, flySources, flyTiles, carries, startFlight, landHero, landingClearing } from './magic/fly.js';
 import { ownedGold } from './magic/mist.js';
 import { resolveWho, settleActor, ownerOf, withActor, isMulti as multi, livingIds, playerNameOf } from './party.js';
 import * as meet from './meet.js';
@@ -896,7 +896,11 @@ function doMove(st, data, slot) {
     // Lost: the Lost Table picks the clearing he reaches, by any road (7.3.1)
     let lost = false;
     if (lostActive(st)) { const m = lostMove(st, data, from, to); if (m.text) { t.climb = null; return m.text; } to = m.to; lost = true; }
-    const road = roadsFrom(st, data, from).find(r => r.to === to);
+    // 7.3.4: a hero transformed into a beast that walks the woods (Lion, Squirrel, Frog) moves to any clearing of his tile, road or no road. Only a clearing that is neither a mountain
+    // nor a cave counts here: whether the mountain's two Move phases and the cave tiles apply to him is an open question (ruling R1, ch-batch5.md).
+    const cr = st.ch.morph?.creature, walks = cr && (cr.walksWoods ?? (cr.row != null && data.tables.transform.rows.find(r => r.roll === cr.row)?.walksWoods));          // (a saved creature may predate the flag)
+    const woods = !!walks && !!from && to !== from && tileOf(to) === tileOf(from) && !isMountain(st, data, to) && !isCave(st, data, to);
+    const road = woods ? { to, usable: true, kind: 'woods' } : roadsFrom(st, data, from).find(r => r.to === to);
     if (!road) { t.climb = null; return `There is no road from here to ${nameOfClearing(to)}: the move is lost.`; }
     if (!road.usable && !lost) { t.climb = null; return `You do not know the way to ${nameOfClearing(to)}: the move is lost.`; }
     if (isCave(st, data, to) && (t.kinds ? t.kinds[st.turn.i] === 'sunlight' : (st.turn.i >= 2 && st.turn.i < (t.base ?? 4)))) { t.climb = null; return 'You cannot enter a cave in a sunlight phase.'; }
@@ -1248,7 +1252,10 @@ function step(st, data, action) {
             return st;
         }
         case 'energize': {
-            if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'plan') throw new Error('you can only energize a spell at the start of a phase or while planning');
+            // 8.3.9a: "When it is his turn to do an action in the Encounter Step, each character can use his color chits to energize Permanent spells"; it is not his action
+            // (8.3.9a.2), so the Encounter step goes on as it was (any number of chits, one after the other; no time limit from the creatures on his sheet).
+            const inEncounter = p.type === 'combat-encounter' && st.combat?.step === 'encounter' && !st.combat.shared;
+            if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'plan' && !inEncounter) throw new Error('you can only energize a spell at the start of a phase, while planning, or when it is your turn to act in the Encounter step');
             energizeWith(st, data, action.fx, action.colorChit);
             st.pending = keep(st, data, p);
             return st;
@@ -1266,7 +1273,7 @@ function step(st, data, action) {
             if (p.type === 'plan') throw new Error('you cannot rearrange your belongings while you record your plan: only at the start of a phase of your turn, or in the evening after the fighting (4.3.3a)');
             if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'evening-end' && p.type !== 'phase-gear') throw new Error('you can only rearrange your gear between phases (in a fight, use your Encounter action)');
             if (p.type === 'phase-gear' && !p.items.includes(action.item)) throw new Error('only what you have just come by can be changed now (4.3.3b); the rest at the start of your next phase');
-            if (st.ch.flying) throw new Error('you cannot rearrange your gear in the air');
+            if (st.ch.flying && !action.drop) throw new Error('you cannot rearrange your gear in the air: you can only abandon (7.2.2d)');
             const locked = gearLockedWhy(st); if (locked) throw new Error(locked);          // 8.3.8d: not on a roadway between clearings
             if (p.type === 'phase' && st.turn && st.turn.gear?.i !== st.turn.i) st.turn.gear = { i: st.turn.i, active: st.ch.items.filter(x => x.active && !x.destroyed).map(x => x.uid) };          // what was on when this phase began (7.3.2b: an extra phase needs its horse already active then)
             // free item management outside combat: switch items on and off
@@ -1278,10 +1285,11 @@ function step(st, data, action) {
                 // 4.3.2: he may abandon a belonging at the start of any phase; it lies where he stands
                 const bound = extraPhaseCommitment(st, data, it);          // 6.2.4d: not the horse or card that gives him an extra phase he has recorded, until that phase is finished
                 if (bound) throw new Error(bound);
-                const where = st.ch.at ?? st.ch.onRoad?.from;
+                // 7.2.2d: in the air an item may be abandoned, and one die (not modified) for the tile he is over at the start of his phase says which clearing of it the item lands in
+                const where = st.ch.flying ? landingClearing(st, data, st.ch.flying.tile, 'Where the item lands') : st.ch.at ?? st.ch.onRoad?.from;
                 st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
                 st.abandoned[where] = [...(st.abandoned[where] ?? []), { ...it, active: false, alerted: false }];
-                say(st, `You leave the ${nameOf(data, it)} behind.`, 'info');
+                say(st, st.ch.flying ? `You let the ${nameOf(data, it)} fall: it lands in ${nameOfClearing(where)}.` : `You leave the ${nameOf(data, it)} behind.`, 'info');
                 st.pending = afterTidy(st, data, p);
                 return st;
             }

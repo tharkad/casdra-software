@@ -24,13 +24,20 @@ export const isFlying = st => !!st.ch?.flying;
 
 // What he can fly with now: [{ id, fx, spell, name, strength, time }]. Fly chits are records of spells (state 'held', waiting for use). A mist hero has nothing to fly with
 // (a held record is not switched off by Melt into Mist like a live one, so it is refused here).
+// A transmorphized hero cannot play a Fly chit (4.6.7e.3: his action chits are frozen, 4.6.9e; 7.3.3d.3: he cannot rearrange belongings); a creature that flies (the Transform
+// Table's Dragon, Eagle and Bird, or an absorbed flying monster) flies with its own flying values (7.3.3a.2, 7.3.3e): its vulnerability weight carries it. That source has no
+// spell (`morph: true`, `fx: null`) and is used up by nothing; the Encounter step does not offer it (a creature's Move chit runs, a Fly chit flies away: 8.3.8e).
 export function flySources(st, data) {
     if (st.ch.mist || st.ch.dead) return [];
+    if (st.ch.morph) {
+        const cr = st.ch.morph.creature;
+        return cr.flies ? [{ id: 'fly:morph', fx: null, spell: null, name: `${cr.name}'s own wings`, strength: cr.vuln, time: cr.light?.move ?? 1, morph: true }] : [];
+    }
     return fxList(st, { spell: 'broomstick', target: HERO, any: true }).filter(f => f.state === 'held' || f.state === 'live')
         .map(f => ({ id: `fly:${f.id}`, fx: f.id, spell: f.spell, name: 'Broomstick Fly chit', strength: f.data?.strength ?? 'L', time: f.data?.time ?? 1 }));
 }
 // Strong enough to carry him (7.3.3a.2): the Fly chit's strength must reach his own weight.
-export const carries = (st, src) => lvl(src.strength) >= lvl(st.ch.weight);
+export const carries = (st, src) => !!src.morph || lvl(src.strength) >= lvl(st.ch.weight);          // (a creature carries itself)
 
 // The tile he is over, or the tile of the clearing he stands in.
 export const tileNow = st => (st.ch.flying ? st.ch.flying.tile : st.ch.at ? tileOf(st.ch.at) : null);
@@ -52,7 +59,7 @@ export function planFlyError(st, data, slots, i) {
         const src = flySources(st, data);
         if (!src.length) return 'you have nothing to fly with.';
         if (!src.some(x => carries(st, x))) return 'you are too heavy to fly with that.';
-        if (flights > src.length) return 'you have no Fly chit left for another flight.';
+        if (flights > src.length && !src.some(x => x.morph)) return 'you have no Fly chit left for another flight.';
     }
     let cur = st.ch.at ? tileOf(st.ch.at) : null;
     for (const x of prior) { if (x.act === 'move' && x.to) cur = tileOf(x.to); else if (x.act === 'fly' && x.to) cur = x.to; }
@@ -93,19 +100,24 @@ export function blowAway(st, tile) {
     st.ch.hidden = false;
 }
 
+// The clearing a die (not modified) names on a tile; a number the tile lacks is rolled again (7.3.3b.1, 7.2.2d). `what` says what is landing, for the dice tray.
+export function landingClearing(st, data, tile, what = 'Landing') {
+    const nums = tileClearings(st, data, tile).map(numOf);
+    let n = null;
+    for (let k = 0; k < 60 && !nums.includes(n); k++) {
+        n = die(st);
+        noteRoll(st, what, [n], n, nums.includes(n) ? `clearing ${n} of the ${tileName(tile)}` : `the ${tileName(tile)} has no clearing ${n}: roll again`);
+    }
+    if (!nums.includes(n)) n = Math.min(...nums);
+    return tile + n;
+}
+
 // Down (7.3.3b): one die, not modified, names the clearing of the tile he is over; a number the tile lacks is rolled again. Followers (hirelings) come down with him.
 // Returns { to, cave }.
 export function landHero(st, data, why = 'You land') {
     const f = st.ch.flying;
     if (!f) return null;
-    const nums = tileClearings(st, data, f.tile).map(numOf);
-    let n = null;
-    for (let k = 0; k < 60 && !nums.includes(n); k++) {
-        n = die(st);
-        noteRoll(st, 'Landing', [n], n, nums.includes(n) ? `clearing ${n} of the ${tileName(f.tile)}` : `the ${tileName(f.tile)} has no clearing ${n}: roll again`);
-    }
-    if (!nums.includes(n)) n = Math.min(...nums);
-    const to = f.tile + n;
+    const to = landingClearing(st, data, f.tile);
     st.ch.flying = null; st.ch.at = to; st.ch.arrivedFrom = null;
     followHero(st, data);
     say(st, `${why} in ${nameOfClearing(to)}.`, 'phase');

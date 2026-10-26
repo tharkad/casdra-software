@@ -10,6 +10,7 @@ import { h } from '../../dom.js';
 import { btn, last, pips, primary, situ, tray, twoLine } from '../../ds.js';
 import { actIcon } from '../../icons.js';
 import { alertCardWhy, weaponCardOf } from '../../commit.js';
+import { heldLockOf, voicedWhy } from '../../spellwhy.js';
 import { isMeetLine, meetButton, playerOf as playerNameOf } from '../../meet.js';
 import { turnOrderLine } from '../../party.js';
 import { askBox as ask, playersStrip } from '../../shared_ui.js';
@@ -131,6 +132,8 @@ export function renderTray(G) {
     const freeActs = p && (p.type === 'phase' || p.type === 'plan') ? [
         ...energizeOptions(st, G.data).map(o => h('button', { class: 'ds-chip spellact', 'data-act': 'energize', 'data-fx': o.fx, title: `Burn an enchanted chit (${o.chits.length} held) to wake it: it works until Midnight`, onclick: () => act(G, { type: 'energize', fx: o.fx, colorChit: o.chits[0] }) }, `Energize ${o.name}`)),
         ...(p.type === 'phase' ? heldOptions(st, G.data).map(o => h('button', { class: 'ds-chip spellact', 'data-act': 'protect', 'data-fx': o.fx, title: 'It lasts through this phase (it also holds off your own helpful spells)', onclick: () => act(G, { type: 'protect', fx: o.fx }) }, `Use ${o.name}`)) : []),
+        // holding it but unable to use it (on a road, in the air, a creature, mist): a dim chip that says why, not a missing one (4.6.7f.2, 7.2.3a.2)
+        ...(p.type === 'phase' ? (lock => (lock ? [h('button', { type: 'button', class: 'ds-chip spellact is-dim', 'data-act': 'protect-locked', 'aria-disabled': 'true', title: lock.detail, 'aria-label': `Use ${lock.names[0]}: ${lock.story}`, onclick: () => showToast(G, voicedWhy(lock), true) }, `Use ${lock.names[0]}`)] : []))(heldLockOf(st, G.data)) : []),
     ] : [];
 
     if (planning) {

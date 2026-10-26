@@ -9,6 +9,7 @@ import { followPicker } from '../meetui.js';
 import { nameOf } from '../../../engine/items.js';
 import { alertCardWhy, voiced, weaponCardOf } from '../../commit.js';
 import { wouldDrop } from '../kit/kit.js';
+import { flyRefusal, flyWords, voicedWhy } from '../../spellwhy.js';
 import { act } from './actions.js';
 import { btn, primary } from '../../ds.js';
 import { actIcon, icon } from '../../icons.js';
@@ -67,10 +68,10 @@ export function planSentence(items) {
 const PONY_WHY = 'The pony adds a Move only after a Move of your own: they take turns, and the first Move of the day is never the pony\u2019s.';
 function actChips(G, i, at, over, others, baseOver) {
     const d = G.ui.draft, s = d.slots[i], isSpare = planInfo(G).spare === i;
-    const acts = ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(G.st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(flySources(G.st, G.data).length || G.st.ch.flying ? ['fly'] : []), ...(G.shared && i === 0 && G.ms?.followable?.length ? ['follow'] : []), 'nothing'];
+    const acts = ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(G.st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(flySources(G.st, G.data).length || G.st.ch.flying || flyRefusal(G.st, G.data) ? ['fly'] : []), ...(G.shared && i === 0 && G.ms?.followable?.length ? ['follow'] : []), 'nothing'];
     const n = acts.length;
     return h('div', { class: `ds-acts n${n}` }, ...acts.map(a => {
-        const curse = (G.st.ch.curses ?? []).find(c => CURSE_ACT[c] === a), refused = actRefusal(G.st, a);
+        const curse = (G.st.ch.curses ?? []).find(c => CURSE_ACT[c] === a), refused = actRefusal(G.st, a) ?? (a === 'fly' && flyRefusal(G.st, G.data) ? voicedWhy(flyRefusal(G.st, G.data)) : null);          // (a transformed hero cannot play a Fly chit: the chip stays, dim, and says so)
         const spent = !curse && !refused && a !== 'nothing' && a !== 'follow' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver;
         const cardOnly = a === 'alert' && !readyMagicOf(G).length ? cardWhy(G) : null;          // (no Magic chit to wake either: the Alert would do nothing)
         const why = curse ? `${curse}: ${CURSE_PLAIN[curse] ?? 'it spoils this action.'}` : refused ?? (cardOnly ? `${cardOnly.story} There is nothing to ready.` : null) ?? (isSpare && a !== 'move' ? 'This phase is the pony\u2019s: it is for a Move only.' : spent ? (isSpare ? PONY_WHY : 'All your phases are taken.') : null);
@@ -134,7 +135,7 @@ function subPicker(G, i, at) {
                 ...readyMagic.map(c => chip(`Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}`, s.magic === c.id, () => { s.magic = c.id; advance(G, i + 1); render(G); }, c.id)))];
     }
     if (s?.act === 'fly' || G.ui.pickFly === i) {
-        return [h('p', { class: 'ds-hint-line' }, 'Take to the air: tap a ringed tile on the map. You come down in one of its clearings, and nothing can block you aloft.'),
+        return [h('p', { class: 'ds-hint-line', 'data-hint': 'fly' }, voiced(flyWords(G.st, G.data), { 'data-own-wings': flySources(G.st, G.data).some(x => x.morph) ? '1' : null })),
             h('div', { class: 'ds-chips' }, ...flyTiles(G.st, G.data).map(t => h('button', { type: 'button', class: `ds-chip${s?.to === t ? ' on' : ''}`, 'data-fly-tile': t, onclick: () => setFly(G, i, t) }, tileName(t))))];
     }
     if (s?.act === 'follow' && i === 0) return [h('div', { class: 'ds-sub-scroll' }, ...followPicker(mc(G), s, who => { d.slots = Array(9).fill(null); d.slots[0] = { act: 'follow', who }; G.ui.planNote = null; render(G); }))];
@@ -243,7 +244,7 @@ function pruneOver(G, why) {
 function pick(G, i, a, at) {
     const d = G.ui.draft;
     if (roadLocked(G, i) || climbLocked(G, i)) return;
-    if (actRefusal(G.st, a)) return;
+    if (actRefusal(G.st, a) || (a === 'fly' && flyRefusal(G.st, G.data))) return;
     if (a === 'alert' && !readyMagicOf(G).length && cardWhy(G)) return;
     G.ui.pickMove = null; G.ui.pickSearch = null;
     if (a === 'move') { G.ui.pickMove = i; G.ui.pickFly = null; render(G); return; }

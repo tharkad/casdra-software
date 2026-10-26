@@ -12,6 +12,8 @@ import { icon } from '../../icons.js';
 import { castLine, synopsis } from '../../spelltext.js';
 import { ask } from '../../ds.js';
 import { footRow } from './common.js';
+import { heldLockOf } from '../../spellwhy.js';
+import { voiced } from '../../commit.js';
 
 const CHIT_ART = { White: 'whitechit', Black: 'blackchit', Grey: 'graychit', Purple: 'purplechit', Gold: 'goldchit' };
 const printedOf = (G, id) => G.data.cardtext?.spells?.[id] ?? '';
@@ -57,6 +59,7 @@ export function spellRow(G, id, blocked, { status: showStatus = true } = {}) {
 function inForce(G) {
     const fxOn = (G.st.fx ?? []).filter(f => f.state !== 'done');
     if (!fxOn.length) return null;
+    const lock = heldLockOf(G.st, G.data);          // a held Phase spell he cannot use now says why (4.6.7f.2, 7.2.3a.2)
     return h('div', { class: 'cursesheet kit-fx' },
         h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'In force now'), h('small', {}, `${fxOn.length}`)),
         h('div', { class: 'ds-list' }, fxOn.map(f => {
@@ -64,7 +67,8 @@ function inForce(G) {
             return h('div', { class: 'ds-row kit-fxrow', 'data-fx': f.id },
                 h('span', { class: 'art' }, sp ? colorArt(sp) : icon('spark')),
                 h('span', { class: 'main' }, h('b', {}, sp?.name ?? f.spell),
-                    h('span', {}, `${fxEnds(G, f)}.${chit ? ` Your Magic ${chit.numeral}${chit.time}${'*'.repeat(chit.effort)} is tied to it and tires when it ends.` : ''}`)));
+                    h('span', {}, `${fxEnds(G, f)}.${chit ? ` Your Magic ${chit.numeral}${chit.time}${'*'.repeat(chit.effort)} is tied to it and tires when it ends.` : ''}`),
+                    f.state === 'held' && lock ? voiced(lock, { class: 'st no', 'data-held-lock': f.id }) : null));
         })));
 }
 

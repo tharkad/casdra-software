@@ -1,5 +1,6 @@
 import { ref, fxList, breakFx } from './fx.js';
 import { spellDef } from './registry.js';
+import { alterChit, unalterChit } from './chitalt.js';
 
 // Small pieces the Day and Permanent spell handlers share.
 export const tileRef = id => ref('tile', id);
@@ -22,9 +23,11 @@ export const targetsOr = (ctx, fallback) => (ctx.targets?.length ? ctx.targets :
 export const hostileOnly = () => false;
 
 // Put the effect on its targets unless the same spell is already on all of them. Returns the record, or null when the casting did nothing.
+// Only Combat, Day and Permanent spells are barred from duplicating themselves (4.6.10e); a Phase spell does not conflict with its duplicates (4.6.10f.2), so a second
+// Protection from Magic is held beside the first.
 export function startFx(ctx, targets, spec = {}) {
     const name = ctx.spell?.name ?? 'The spell';
-    if (targets.length && targets.every(t => alreadyOn(ctx.st, ctx.spell.id, t))) { ctx.log(`${name} is already in force there: casting it again does nothing.`); return null; }
+    if (String(ctx.spell?.duration).toLowerCase() !== 'phase' && targets.length && targets.every(t => alreadyOn(ctx.st, ctx.spell.id, t))) { ctx.log(`${name} is already in force there: casting it again does nothing.`); return null; }
     return ctx.fx({ targets, ...spec });
 }
 
@@ -34,7 +37,7 @@ export function startFx(ctx, targets, spec = {}) {
 // When the spell ends the chits go back. A chit that was enchanted while altered is fatigued (its colour was the altered Type's), and a spell still tied
 // to an altered chit is broken (RealmSpeak; decision 10 of the spec).
 export function chitAlterSpell({ id, map, name, flavour }) {
-    const eligible = (st, castChit) => st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active' && map[c.numeral] && !c.baseNumeral && c.id !== castChit);
+    const eligible = (st, castChit) => st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active' && map[c.numeral] && c.id !== castChit);          // an altered chit can be altered again (4.6.10c.2)
     return {
         id, dur: 'day', benevolent: true,
         // any of his chits that he chooses: naming none takes all that qualify
@@ -51,23 +54,20 @@ export function chitAlterSpell({ id, map, name, flavour }) {
             ctx.fx({ targets: mine.map(c => chitRef(c.id)), expires: dayExpiry(st), data: { changes } });
             ctx.log(`${name}: ${changes.map(c => `Type ${c.from} becomes Type ${c.to}`).join(', ')} until Sunset tomorrow. ${flavour}`);
         },
+        // The alterations stack (chitalt.js, 4.6.10c.2: "Altered chits can be altered again"): Faerie Lights III to II, then Witch's Brew II to IV; the Type in force is the newest one still alive.
         apply(ctx, fx) {
             for (const ch of fx.data.changes ?? []) {
                 const chit = ctx.st.ch.chits.find(c => c.id === ch.id);
-                if (chit && chit.numeral === ch.from) { chit.baseNumeral ??= ch.from; chit.numeral = ch.to; }
+                if (chit && chit.numeral === ch.from && !chit.alts?.some(a => a.fx === fx.id)) alterChit(chit, fx.id, ch.to);
             }
         },
         unapply(ctx, fx, info = {}) {
             const { st } = ctx, ending = info.why !== 'nullified' && info.why !== 'inert';
             for (const ch of fx.data.changes ?? []) {
                 const chit = st.ch.chits.find(c => c.id === ch.id);
-                if (!chit || chit.numeral !== ch.to) continue;
-                if (ending) {
-                    if (chit.state === 'enchanted') { chit.state = 'fatigued'; ctx.say(`Your altered Magic chit loses its colour as ${name} ends.`); }
-                    if (chit.state === 'committed' && chit.tie && chit.tie !== fx.id) breakFx(st, ctx.data, chit.tie, `${name} ended`);
-                }
-                chit.numeral = ch.from;
-                if (chit.baseNumeral === ch.from) delete chit.baseNumeral;
+                if (!chit) continue;
+                if (ending && chit.alts?.some(a => a.fx === fx.id) && chit.alts.at(-1).fx === fx.id && chit.state === 'enchanted') ctx.say(`Your altered Magic chit loses its colour as ${name} ends.`);
+                unalterChit(st, ctx.data, chit, fx.id, ending);
             }
         },
         ai: { role: 'buff' },

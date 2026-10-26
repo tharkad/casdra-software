@@ -9,6 +9,7 @@ import { hasTreasure } from '../../engine/modifiers.js';
 import { nameOfClearing, tileName } from '../../engine/world.js';
 import { isWeaponCard, nameOf } from '../../engine/items.js';
 import { commitmentOf, voiced } from '../commit.js';
+import { heldLockOf, mistWords, energizeWords, gearPairWhy, flyWords, voicedWhy } from '../spellwhy.js';
 import * as P from './payload.js';
 import * as M from './model.js';
 import { needsConfirm, needsWhom, whomBody } from './shared.js';          // (P6: the shared fight's extra step and its confirms)
@@ -62,28 +63,39 @@ export function encounterSheet(X) {
     const o = encounterOptions(st, data);
     const round = p.spellOnly ? 'Quiet evening' : `Round ${c.round} · Encounter`;
     const items = st.ch.items.filter(i => !i.destroyed);
-    const itemsBtn = items.length ? h('button', { type: 'button', class: 'ds-btn quiet sm', 'data-act': 'gear-open', onclick: () => { cb.pick = { kind: 'gear' }; render(); } }, p.spellOnly ? 'Items' : 'Switch an item', icon('right')) : null;
+    const mist = !!st.ch.mist && !p.spellOnly;          // 8.4.5p.1: a mist hero stays in the fight and may only run (Move chit) or pass: nothing else is offered, and the screen says why
+    const itemsBtn = items.length && !mist ? h('button', { type: 'button', class: 'ds-btn quiet sm', 'data-act': 'gear-open', onclick: () => { cb.pick = { kind: 'gear' }; render(); } }, p.spellOnly ? 'Items' : 'Switch an item', icon('right')) : null;
     const back = btn('Back', 'quiet', { 'data-act': 'pick-back', onclick: () => { cb.pick = null; cb.quiet = null; render(); } });
     const pick = cb.pick;
     if (pick?.kind === 'alert' && o.canAlert) return alertPick(X, o, round, back);
     if (pick?.kind === 'berserk' && o.berserkChits?.length) return berserkPick(X, o, round, back);
     if (pick?.kind === 'run' && o.canRun) return runPick(X, o, round, back);
     if (pick?.kind === 'fly' && o.canFly) return flyPick(X, o, round, back);
-    if (pick?.kind === 'gear' && items.length) return gearPick(X, o, round, back);
-    if (pick?.kind === 'cast' || p.spellOnly) return castPick(X, o, round, back, itemsBtn);
+    if (pick?.kind === 'gear' && items.length && !mist) return gearPick(X, o, round, back);
+    if (!mist && (pick?.kind === 'cast' || p.spellOnly)) return castPick(X, o, round, back, itemsBtn);
     cb.pick = null;
     const v = M.encounterVerbs(st, data, o, c);
     const tile = (icoName, label, state, on, attrs = {}) => h('button', { type: 'button', class: `cb-verb${state.ok ? '' : ' dim'}`, 'aria-disabled': state.ok ? null : 'true', ...(state.ok ? {} : { 'data-why': attrs['data-verb'], 'data-reason': state.why }), ...attrs,
-        onclick: () => (state.ok ? on() : X.say(state.why)) }, actIcon(icoName, 32), label, state.ok ? null : h('small', {}, state.sub));
-    const tiles = [
+        onclick: () => (state.ok ? on() : X.say(state.why)) }, actIcon(icoName, 32), label, state.ok ? (state.sub ? h('small', {}, state.sub) : null) : h('small', {}, state.sub));
+    const runTile = tile('move', 'Run for it', v.run, () => { cb.pick = { kind: 'run', chit: null, to: null }; render(); }, { 'data-verb': 'run' });
+    // a Phase spell he holds (Protection from Magic): lit when he may use it, dim with the reason when he is on a road, in the air, a creature or mist (4.6.7f.2, 7.2.3a.2)
+    const lock = heldLockOf(st, data), lockTile = lock ? tile('spell', `Use ${lock.names[0]}`, { ok: false, sub: lock.sub, get why() { return voicedWhy(lock); } }, () => {}, { 'data-verb': 'protect-locked' }) : null;
+    // Permanent spells that a colour chit of his could wake: it is not his action (8.3.9a.2), so the step goes on as it was. Not in a shared fight (the engine refuses it there).
+    const wake = X.shared || mist ? [] : (o.energize ?? []).map(en => { const w = energizeWords(st, data, en); return { en, w, el: tile('spell', 'Energize', { ok: true, sub: en.name }, () => X.send({ type: 'energize', fx: en.fx, colorChit: en.chits[0] }), { 'data-act': 'energize', 'data-fx': en.fx, 'aria-label': `Energize ${en.name}: ${w.story}` }) }; });
+    const tiles = mist ? [runTile] : [
         tile('alert', M.weaponVerb(o), v.alert, () => { cb.pick = { kind: 'alert', chit: null }; render(); }, { 'data-verb': 'alert' }),
         ...(st.ch.chits.some(c => c.type === 'berserk') ? [tile('alert', 'Go berserk', o.berserkChits?.length ? { ok: true } : { ok: false, sub: st.ch.berserk ? 'already raging' : 'too slow', why: st.ch.berserk ? 'Your rage is already on until midnight.' : 'Your Berserk chit must be active and faster than every creature that attacks you.' }, () => { cb.pick = { kind: 'berserk', chit: null }; render(); }, { 'data-verb': 'berserk' })] : []),
-        tile('move', 'Run for it', v.run, () => { cb.pick = { kind: 'run', chit: null, to: null }; render(); }, { 'data-verb': 'run' }),
+        runTile,
         tile('spell', 'Cast a spell', v.cast, () => { cb.pick = { kind: 'cast' }; render(); }, { 'data-verb': 'cast' }),
         ...(v.fly ? [tile('fly', 'Fly away', v.fly, () => { cb.pick = { kind: 'fly', chit: null, to: null }; render(); }, { 'data-verb': 'fly' })] : []),
         ...(o.held ?? []).map(hd => tile('spell', `Use ${hd.name}`, { ok: true }, () => send(P.protect(hd.fx)), { 'data-act': 'protect', 'data-fx': hd.fx })),
+        ...(lockTile ? [lockTile] : []),
+        ...wake.map(x => x.el),
     ];
-    const hidden = o.canStay;
+    // the reasons that are not a dim tile's own: a mist hero's (why only running is offered), and what an Energize costs (a dim tile says its own reason, in a word, and in full when tapped)
+    const why = mist ? [voiced(mistWords(), { class: 'cb-hint', 'data-hint': 'mist' })] : [];
+    const wakeNote = wake.length ? [voiced(wake.length === 1 ? wake[0].w : { story: 'Each Energize burns one colour chit to wake a spell. It does not use your action.', detail: 'Each Energize burns one colour chit to wake a Permanent spell (8.3.9a). It is not an action, so you may still act this Encounter step (8.3.9a.2).' }, { class: 'cb-hint', 'data-hint': 'energize' })] : [];
+    const hidden = o.canStay && !mist;
     // creatures that cast rather than strike (a Demon: the Power of the Pit; an Imp: a Curse): said once, in a line, with the table one tap away
     const casters = M.bodiesOf(st).filter(d => denSide(st, data, d).attack === 'spell');
     const pitNote = casters.length ? hint(`${M.cap(M.foesPhrase(casters.map(d => denSide(st, data, d).name)))} ${casters.length > 1 ? 'cast' : 'casts'} rather than ${casters.length > 1 ? 'strike' : 'strikes'}: your maneuver can turn it aside, armor will not.`) : null;
@@ -91,8 +103,8 @@ export function encounterSheet(X) {
     const recBtn = M.recordRounds(st).length ? btn('Record', 'quiet', { 'data-act': 'record', onclick: () => { cb.record = true; render(); } }) : null;
     const lead0 = hidden ? btn('Strike from hiding', '', { 'data-act': 'pass', onclick: () => send(P.pass()) }) : casters.length ? btn(casters.every(d => M.isImp(data, d)) ? 'The curses' : 'What the Pit can do', 'quiet', { 'data-act': 'pit-note', onclick: () => { cb.pit = true; render(); } }) : null;
     const lead = lead0 ?? recBtn;
-    const prim = hidden ? primary('Stay hidden', { 'data-act': 'stay-hidden', onclick: () => send(P.stay()) }) : primary('Go on to the fight', { 'data-act': 'pass', onclick: () => send(P.pass()) });
-    return sheetEl(X, 'encounter', qRow(round, itemsBtn ?? h('span', {}, 'Before the melee?')), h('div', { class: 'cb-verbs' }, ...tiles), pitNote, lead0 && recBtn ? h('div', { class: 'cb-recrow' }, recBtn) : null, foot(lead, prim));
+    const prim = hidden ? primary('Stay hidden', { 'data-act': 'stay-hidden', onclick: () => send(P.stay()) }) : mist ? primary('Let the round pass', { 'data-act': 'pass', onclick: () => send(P.pass()) }) : primary('Go on to the fight', { 'data-act': 'pass', onclick: () => send(P.pass()) });
+    return sheetEl(X, 'encounter', qRow(round, itemsBtn ?? h('span', {}, mist ? 'As mist' : 'Before the melee?')), h('div', { class: 'cb-verbs' }, ...tiles), ...why, ...wakeNote, pitNote, lead0 && recBtn ? h('div', { class: 'cb-recrow' }, recBtn) : null, foot(lead, prim));
 }
 
 function chitPickRow(X, chits, selId, onPick) {
@@ -138,18 +150,39 @@ function flyPick(X, o, round, back) {
 
 function gearPick(X, o, round, back) {
     const { st, data, cb, send, render, p } = X, quiet = !!p.spellOnly;
-    const rows = st.ch.items.filter(i => !i.destroyed).map(it => {
+    const live = st.ch.items.filter(i => !i.destroyed);
+    // 8.3.7d: in ONE Encounter action he may switch one belonging on and one off (or abandon any number). A tap on Switch on / Switch off only marks it; the primary button does what is marked.
+    // Items that are no longer on the sheet (a switch already done) fall out of the marks.
+    const pair = !!cb.gearPair && !quiet;          // opt-in: "Switch a pair" marks first and does both together; otherwise every tap acts at once
+    const sel = cb.gearSel = { on: live.find(i => i.uid === cb.gearSel?.on && !i.active)?.uid ?? null, off: live.find(i => i.uid === cb.gearSel?.off && i.active)?.uid ?? null };
+    const nameOfUid = uid => nameOf(data, live.find(i => i.uid === uid));
+    const rows = live.map(it => {
         const nm = nameOf(data, it), state = `${it.active ? 'in use' : 'not in use'}${it.kind === 'weapon' && it.active ? (isWeaponCard(data, it) ? ', a card' : it.alerted ? ', alerted' : ', not alerted') : ''}`;
         const bound = commitmentOf(st, data, it), confirm = cb.leaveAsk === it.uid && !bound;          // 6.2.4d: the horse or card of a recorded extra phase is not his to leave behind yet
-        return h('div', { class: 'cb-gearrow', 'data-gear-row': it.uid, 'data-committed': bound ? it.uid : null },
+        const slot = it.active ? 'off' : 'on', marked = pair && sel[slot] === it.uid, taken = pair && !!sel[slot] && !marked;          // a second one of the same kind: refused, and the screen says why (8.3.7d)
+        const refuse = gearPairWhy(slot);
+        return h('div', { class: 'cb-gearrow', 'data-gear-row': it.uid, 'data-committed': bound ? it.uid : null, 'data-marked': marked ? slot : null },
             h('span', { class: 'nm' }, h('b', {}, nm), h('small', {}, state), bound ? h('small', { class: 'cb-committed' }, voiced(bound)) : null),
-            st.ch.morph ? null : h('button', { type: 'button', class: 'ds-btn', 'data-act': 'gear-switch', 'data-item': it.uid, 'aria-label': `${nm}: ${it.active ? 'switch off' : 'switch on'}`, onclick: () => { cb.leaveAsk = null; send(P.gear(it.uid)); } }, it.active ? 'Switch off' : 'Switch on'),
+            st.ch.morph ? null : h('button', { type: 'button', class: `ds-btn${marked ? ' on' : ''}${taken ? ' is-dim' : ''}`, 'data-act': 'gear-switch', 'data-item': it.uid, 'data-slot': slot, 'aria-pressed': marked ? 'true' : 'false', 'aria-disabled': taken ? 'true' : null,
+                'aria-label': `${nm}: ${it.active ? 'switch off' : 'switch on'}${marked ? ', chosen' : ''}${taken ? `: ${refuse.story}` : ''}`,
+                onclick: () => {
+                    cb.leaveAsk = null;
+                    if (taken) { X.say(voicedWhy(refuse)); return; }
+                    if (!pair) { cb.gearPair = false; send(P.gear(it.uid)); return; }          // the common case: one tap, one switch (and a quiet evening has no action to spend)
+                    cb.gearSel = { ...sel, [slot]: marked ? null : it.uid }; render();
+                } }, marked ? 'Chosen' : it.active ? 'Switch off' : 'Switch on'),
             h('button', { type: 'button', class: `ds-btn${confirm ? ' danger' : ' quiet'}${bound ? ' is-dim' : ''}`, 'data-act': 'gear-leave', 'data-item': it.uid, 'aria-label': bound ? `Leave the ${nm} behind: ${bound.story}` : `Leave the ${nm} behind`, 'aria-disabled': bound ? 'true' : null,
-                onclick: () => { if (bound) { X.say(bound.story); return; } if (confirm) { cb.leaveAsk = null; send(P.gear(it.uid, true)); } else { cb.leaveAsk = it.uid; render(); } } }, confirm ? 'Really leave it?' : 'Leave behind'));
+                onclick: () => { if (bound) { X.say(bound.story); return; } if (confirm) { cb.leaveAsk = null; cb.gearSel = null; cb.gearPair = false; send(P.gear(it.uid, true)); } else { cb.leaveAsk = it.uid; render(); } } }, confirm ? 'Really leave it?' : 'Leave behind'));
     });
+    const marks = [sel.off && `${nameOfUid(sel.off)} off`, sel.on && `${nameOfUid(sel.on)} on`].filter(Boolean), uids = [sel.off, sel.on].filter(Boolean);
+    const go = pair && marks.length
+        ? primary(twoLine(uids.length > 1 ? 'Switch both' : sel.on ? 'Switch it on' : 'Switch it off', marks.join(' · ')), { 'data-act': 'gear-do', onclick: () => { cb.gearSel = null; cb.gearPair = false; send(P.gearItems(uids)); } })
+        : primary('Done', { 'data-act': 'pick-back', onclick: () => { cb.pick = null; cb.leaveAsk = null; cb.gearSel = null; render(); } });
+    const one = voiced({ story: 'This is your Encounter action: switch one thing on and one thing off, or leave things behind. The melee follows.', detail: 'This is your Encounter action: you may switch one belonging on and one off, or abandon any of them (8.3.7d). The melee follows.' });
     return sheetEl(X, 'encounter-pick', qRow(quiet ? 'Quiet evening' : round, h('span', {}, 'Belongings')), h('div', { class: 'cb-gear' }, ...rows),
-        hint(quiet ? 'Nothing is fighting you, so this costs nothing and you may do it as often as you like.' : 'This is your Encounter action: you may switch one item on or off, or leave one behind. The melee follows.'),
-        foot(null, primary('Done', { 'data-act': 'pick-back', onclick: () => { cb.pick = null; cb.leaveAsk = null; render(); } })));
+        quiet ? hint('Nothing is fighting you, so this costs nothing and you may do it as often as you like.') : pair && marks.length ? null : h('p', { class: 'cb-hint', 'data-hint': 'gear-action' }, one),
+        foot(quiet ? null : pair ? (marks.length ? btn('Clear', 'quiet', { 'data-act': 'gear-clear', onclick: () => { cb.gearSel = null; render(); } }) : btn('One at a time', 'quiet', { 'data-act': 'gear-single', onclick: () => { cb.gearPair = false; cb.gearSel = null; render(); } }))
+            : btn('Switch a pair', 'quiet', { 'data-act': 'gear-pair', 'aria-pressed': 'false', onclick: () => { cb.gearPair = true; cb.gearSel = null; cb.leaveAsk = null; render(); } }), go));
 }
 
 // ---- what a spell is aimed at (8.4.2): its legal targets and the questions it asks; `store` keeps the choices ----

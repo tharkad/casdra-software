@@ -63,7 +63,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     // every answer to the engine goes through here: the scene's own state of the question is dropped, the engine moves on
     // (ui.trace, when a script sets it to an array, collects every answer the scene sends: tools/ui_cb_fuzz.py replays them on the bare engine)
     const emit = a => { ui.trace?.push(JSON.parse(JSON.stringify(a))); act(a); };
-    X.send = a => { cb.pick = null; cb.cast = null; cb.quiet = null; cb.leaveAsk = null; cb.shift = null; emit(a); };
+    X.send = a => { cb.pick = null; cb.cast = null; cb.quiet = null; cb.leaveAsk = null; cb.shift = null; cb.gearSel = null; cb.gearPair = false; emit(a); };
     X.sendMelee = (o, m) => {
         ui.lastPlan = { round: c.round, fight: key, plan: JSON.parse(JSON.stringify(m)) };
         cb.plan = null; cb.step = 'strike'; cb.pick = null;
@@ -252,6 +252,7 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
         return [line[0], `Round ${c.round}, Melee: ${line[1] ?? line[0]} ${limText}`];
     }
     // the Encounter
+    if (st.ch.mist && !p.spellOnly) return [`You hang as mist over ${place} and take no part in the fight. You may slip away, or let the round pass.`, `Round ${c.round}, Encounter: as mist you take no part; you may only run away with a Move chit, or pass (8.4.5p.1).`];
     if (p.spellOnly) return ['A quiet evening. Nothing here is looking for a fight, but you have a spell you could cast tonight, so the game stops here to ask.', 'Spells are cast in the evening (rule 8.1.3a): a quiet clearing still gets its rounds, so the game stops here to let you cast one.'];
     const o2 = encounterOptions(st, data);
     const phrase = names.length ? phraseOf() : '';

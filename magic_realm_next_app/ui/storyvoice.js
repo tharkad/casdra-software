@@ -407,6 +407,9 @@ rule(/^You use up an enchanted chit for its (\w+) magic\.?$/, m => (m[1] === 'ma
 rule(/^You use up an enchanted (\w+) chit to energize (.+?)\.?$/, m => [`You burn an enchanted ${m[1]} chit to wake ${m[2]}.`, `${m[2]} drinks the ${m[1]} chit and wakes.`]);
 rule(/^(.+?) falls inert at Midnight\.?$/, m => [`${m[1]} sputters out at midnight.`, `At midnight ${m[1]} goes dark.`]);
 rule(/^(.+?) is energized again\.?$/, m => [`${m[1]} stirs awake again.`, `${m[1]} wakes.`]);
+rule(/^(.+?) is energized twice at once, and the two would make different creatures: they cancel each other out\.?$/, m => [`${m[1]} wakes twice and the two shapes fight each other: both fall still.`, `Two ${m[1]} spells stir at once and pull toward different creatures; they cancel, and nothing changes.`]);
+rule(/^You let the (.+?) fall: it lands in (.+?)\.?$/, m => [`The ${m[1]} slips from your grasp and drops into ${m[2]}.`, `You let the ${m[1]} go, and it falls to ${m[2]}.`]);
+rule(/^Your altered Magic chit loses its colou?r as (.+?) ends\.?$/, m => [`With ${m[1]} over, your Magic chit loses its colour.`, `${m[1]} ends, and the colour drains from your Magic chit.`]);
 rule(/^(.+?) is overridden by a stronger spell on the same target and lies dormant/, m => `A stronger spell drowns out ${m[1]}.`);
 rule(/^(.+?) is overridden by (.+?)\.?$/, m => `${m[2]} drowns out ${m[1]}.`);
 rule(/^Exorcise: (.*)$/, (m, e) => {

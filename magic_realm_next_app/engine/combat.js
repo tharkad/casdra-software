@@ -7,7 +7,7 @@ import { expireDue, expireFx, breakFx, fxTags, fxList, shielded, HERO, targetGon
 import { B } from './magic/bridge.js';
 import { lostTarget } from './magic/util.js';
 import { breakPacify } from './magic/followers.js';
-import { energizePass } from './magic/energize.js';
+import { energizePass, energizeOptions } from './magic/energize.js';
 import { worldFadesRoll } from './magic/combathide.js';
 import { morphChits, morphParts, morphView } from './magic/morph.js';
 import { activatePhase, heldOptions } from './magic/phase.js';
@@ -431,7 +431,16 @@ function flyAway(st, data) {
 function enterEncounter(st, data) {
     const c = st.combat;
     if (flyAway(st, data)) return;                       // Hurricane Winds took him: the fight is over for him
-    if (st.ch.mist) { releaseFoes(c); return endCombat(st, data, 'mist'); }       // mist takes no part in combat: a Melt into Mist that woke between rounds ends it here
+    if (st.ch.mist) {
+        // Mist takes no part in combat (nothing is set on him, he plays no attack or maneuver), but the combat in his clearing goes on and in each Encounter step the one thing he can do is run
+        // away with a Move chit, which has no time and no weight (8.4.5p.1). It ends as any combat does, after two uneventful rounds. (A shared fight still ends for him at once.)
+        releaseFoes(c);
+        if (sharedFight(st)) return endCombat(st, data, 'mist');
+        c.melee = false; c.played = {}; c.asterisks = { move: 0, fight: 0, magic: 0 }; c.casts = [];
+        c.step = 'encounter';
+        st.pending = { type: 'combat-encounter', round: c.round };
+        return;
+    }
     const live = c.dens.filter(d => !d.dead && !d.pacified && d.kind !== 'part' && d.kind !== 'horse');          // a creature made peaceful by a spell is not a foe
     if (!live.length && !(pvpOn(st) && contested(st))) {          // (pvp: another player's character is someone to fight, so the round is held)
         if (canCastQuietly(st, data)) return enterSpellOnly(st, data);
@@ -538,7 +547,7 @@ export function encounterOptions(st, data) {
     const canStay = !!st.ch.hidden && !c.dens.some(d => !d.dead && (d.assigned || d.engagedBy || d.pickedUp)) && !(c.hires ?? []).some(x => !x.dead);
     // A Fly chit is played like a Move chit (spell durations, Fly): strictly faster than every creature on his sheet, strong enough to carry him (what is heavier is left behind).
     // It takes him out of the fight to a neighbouring tile (8.3.8e) and is spent. A Tremendous monster that holds him still holds him (8.4.7 d.2).
-    const flyChits = pickedUp || st.ch.mist ? [] : flySources(st, data).filter(x => x.time < slowest && carries(st, x) && !c.played?.[x.id]);
+    const flyChits = pickedUp || st.ch.mist ? [] : flySources(st, data).filter(x => !x.morph && x.time < slowest && carries(st, x) && !c.played?.[x.id]);
     // Why a section is missing (8.3.7a, 8.3.8): the gate is the slowest creature ON HIS SHEET; a hidden hero with nothing assigned has none. The screen says it in words.
     const denGate = dens.length ? dens.reduce((a, d) => (speedOf(d) < speedOf(a) ? d : a)) : null;
     const chargeGate = charged.length ? charged.reduce((a, x) => (x.time < a.time ? x : a)) : null;
@@ -568,7 +577,8 @@ export function encounterOptions(st, data) {
     };
     const casts = (c.spellOnly ? quietCasts(st, data, true) : castOptions(st, data, { slowest })).map(o => (c.spellOnly ? { ...o, aim: previewAim(st, data, o) } : o));       // (a quiet-evening cast has no Melee step: it is aimed on the cast screen)
     const canLure = !!st.ch.hidden && !sharedFight(st) && !c.spellOnly && (assignable(st, data).length > 0 || luredPeaceful(st, data).length > 0);          // (a shared fight lures in its own step: battle.js)
-    return { canStay, canLure, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && !card && fight.length > 0 && !gripped, alertChits: fight, berserkChits: berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
+    const mist = !!st.ch.mist;          // (the Encounter step of a mist hero offers only running away, 8.4.5p.1)
+    return { canStay, canLure: canLure && !mist, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), energize: energizeOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && !card && fight.length > 0 && !gripped && !mist, alertChits: fight, berserkChits: mist ? [] : berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
 }
 const canRunNow = (move, st, data) => move.length > 0 && runDestinations(st, data).length > 0;
 
@@ -601,6 +611,7 @@ export function encounterAction(st, data, a) {
         return endCombat(st, data, 'quiet');
     }
     const opt = encounterOptions(st, data);
+    if (st.ch.mist && a.act !== 'run' && a.act !== 'pass') throw new Error('As mist you take no part in the fight: the only chit you can play is a Move chit, to run away (8.4.5p.1)');
     if (a.act === 'cast') {
         if (!isOffered(opt.casts, a)) throw new Error('you cannot cast that now: a Magic chit must be no slower than the fastest creature facing you');       // (8.3.7a.2: the same list the screen shows)
         castSpell(st, data, a.spell, a.chit, a.item);
@@ -665,22 +676,34 @@ export function encounterAction(st, data, a) {
 
 // The Encounter-step belongings action (8.3.7d, 4.3.2): switch one item on or off, or abandon one where he stands (`a.drop`). The same horse and boots checks as between
 // phases (items.js toggleItem).
+// Without playing a chit he does ONE of: activate one belonging and/or deactivate one belonging; or abandon any of his belongings (8.3.7d). `a.item` is one belonging;
+// `a.items` (a list) is several in the same action: one to switch on and one to switch off, or any number to abandon. Whatever he switches off goes first, so that the
+// belonging he switches on may take its place.
 function gearAction(st, data, a) {
     const c = st.combat;
     if (st.ch.morph && !a.drop) throw new Error('your gear is of no use to a creature');
-    const it = st.ch.items.find(i => i.uid === a.item);
-    if (!it) throw new Error('no such item');
-    if (it.destroyed && !a.drop) throw new Error('that item is destroyed');
+    const uids = [...new Set(a.items ?? [a.item])];
+    const list = uids.map(uid => st.ch.items.find(i => i.uid === uid) ?? (() => { throw new Error('no such item'); })());
+    if (!a.drop) {
+        for (const it of list) if (it.destroyed) throw new Error('that item is destroyed');
+        if (list.filter(it => it.active).length > 1 || list.filter(it => !it.active).length > 1) throw new Error('in one action he can switch on one belonging and switch off one belonging (8.3.7d)');
+    }
     if (a.drop) {
-        const bound = extraPhaseCommitment(st, data, it);          // 6.2.4d: the horse or card that gives him a recorded extra phase is not his to abandon until that phase is finished
-        if (bound) throw new Error(bound);
-        st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
-        st.abandoned[c.at] = [...(st.abandoned[c.at] ?? []), { ...it, active: false, alerted: false }];
-        say(st, `You leave the ${nameOfItem(st, data, it)} behind.`, 'combat');
+        for (const it of list) {
+            const bound = extraPhaseCommitment(st, data, it);          // 6.2.4d: the horse or card that gives him a recorded extra phase is not his to abandon until that phase is finished
+            if (bound) throw new Error(bound);
+        }
+        for (const it of list) {
+            st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
+            st.abandoned[c.at] = [...(st.abandoned[c.at] ?? []), { ...it, active: false, alerted: false }];
+            say(st, `You leave the ${nameOfItem(st, data, it)} behind.`, 'combat');
+        }
         return;
     }
-    toggleItem(st, data, it);
-    say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOfItem(st, data, it)}.`, 'combat');
+    for (const it of [...list].sort((x, y) => Number(!!y.active) - Number(!!x.active))) {
+        toggleItem(st, data, it);
+        say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOfItem(st, data, it)}.`, 'combat');
+    }
 }
 
 function playChit(st, chit) {
@@ -701,6 +724,7 @@ function nameOfItem(st, data, it) {
 function enterMelee(st, data) {
     const c = st.combat;
     c.melee = true;
+    if (st.ch.mist && !sharedFight(st)) { c.attackSpell = null; c.step = 'resolve'; return afterMelee(st, data); }          // mist plays no attack or maneuver (8.4.5p.1): the round just ends
     if (sharedFight(st)) { c.step = 'melee-wait'; mem(st).enc = 'done'; return; }          // everybody's secret plays are asked for together, once the last Encounter action is in
     c.step = 'melee';
     st.pending = { type: 'combat-melee', round: c.round };
@@ -756,6 +780,7 @@ export function meleePlay(st, data, p) {
     const S = meleeSetup(st, data, p);
     if (S.stop === 'dead') { c.attackSpell = null; c.step = 'resolve'; return afterMelee(st, data); }
     if (S.stop === 'ended') { c.attackSpell = null; return; }
+    if (S.stop === 'mist') { c.attackSpell = null; c.step = 'resolve'; return afterMelee(st, data); }          // he melted into mist this round: no attack, no maneuver, the combat goes on (8.4.5p.1)
     const { X, log } = S;
     meleeEngaged(st);
     meleeReposition(st, data, log, null);
@@ -823,6 +848,10 @@ export function meleeSetup(st, data, p) {
     // a spell may end the round at once: it killed him, or it ended the combat (Small Blessing's Peace and Elsewhere)
     if (st.ch.dead) return { stop: 'dead' };
     if (c.ended) return { stop: 'ended' };
+    if (st.ch.mist && !sharedFight(st)) {          // he melted into mist: the chits he named for his attack and maneuver are not played (the spell works first, 8.4.3)
+        for (const ch of [fight, move]) if (ch) { delete c.played[ch.id]; if (ch.morph) delete c.played['morph:' + ch.type]; if (ch.isHorse) delete c.played['horse:' + ch.horseUid]; if (ch.effort) c.asterisks[ch.type === 'move' ? 'move' : 'fight'] -= ch.effort; }
+        return { stop: 'mist' };
+    }
     // --- target and unhide ---
     const victim = charOfUid(p.target), hireId = hireOfUid(p.target);          // (pvp: another character, or a hireling, named as the target; validated by meleeOptions above)
     let target = p.target && !victim && !hireId ? c.dens.find(d => d.uid === p.target && !d.dead) : null;

@@ -29,7 +29,7 @@ export function creatureOfMonster(data, id) {
 // A row of the Transform Table as a creature (Transform): one side, no head or club, no bounty of its own.
 export function creatureOfRow(row) {
     return {
-        name: row.name, row: row.roll, vuln: row.vulnerability, size: row.vulnerability, armored: !!row.armored, flies: !!row.flies, fame: 0, notor: 0,
+        name: row.name, row: row.roll, vuln: row.vulnerability, size: row.vulnerability, armored: !!row.armored, flies: !!row.flies, walksWoods: !!row.walksWoods, fame: 0, notor: 0,
         light: { harm: row.strength ?? null, stars: 0, atk: row.attackTime ?? null, move: row.moveTime ?? null, length: 0, attack: row.strength ? 'weapon' : 'none', spell: null },
         dark: null, red: null, parts: [],
     };

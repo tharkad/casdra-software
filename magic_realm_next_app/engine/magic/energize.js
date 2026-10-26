@@ -1,7 +1,7 @@
 import { say } from '../core.js';
 import { tileClearings, tileOf } from '../world.js';
 import { colorSources, colorChits, TYPE_COLOR } from './colour.js';
-import { spellDef } from './registry.js';
+import { spellDef, handlerOf } from './registry.js';
 import { idleFx, wakeFx, sameRef, heldDown, elsewhere } from './fx.js';
 
 // Energizing Permanent spells (rules 4.6.7h; docs/design/magic/00-framework.md section 3.1). A Permanent spell lives forever but acts only while it is
@@ -17,7 +17,7 @@ import { idleFx, wakeFx, sameRef, heldDown, elsewhere } from './fx.js';
 export function fxPlaces(st, data, fx) {
     const t = fx.targets?.[0];
     if (!t) return [st.ch.at ?? null];
-    if (t.kind === 'char') return st.ch.flying ? tileClearings(st, data, st.ch.flying.tile) : [st.ch.onRoad ? null : st.ch.at];       // in the air only the tile's own colours count (4.6.2)
+    if (t.kind === 'char') return st.ch.flying ? tileClearings(st, data, st.ch.flying.tile) : st.ch.onRoad ? [st.ch.onRoad.from, st.ch.onRoad.to] : [st.ch.at];       // in the air only the tile's own colours count (4.6.2); on a roadway both ends supply him (4.6.2e.2)
     if (t.kind === 'clearing') return [t.id];
     if (t.kind === 'tile') return tileClearings(st, data, t.id);
     if (t.kind === 'mon' || t.kind === 'nat') {
@@ -28,9 +28,10 @@ export function fxPlaces(st, data, fx) {
 }
 
 // The colours that fill the spell's place. With { calendar: false } only the sources that stay at Midnight (Chapel, enchanted tile or card).
+// A hero on a roadway gets the day's colour and the enchanted tiles of both ends, no Chapel or card (4.6.2e.2).
 export function fxSupply(st, data, fx, { calendar = true } = {}) {
-    const out = new Set();
-    for (const place of fxPlaces(st, data, fx)) for (const s of colorSources(st, data, place)) if (calendar || !s.calendar) out.add(s.color);
+    const out = new Set(), road = fx.targets?.[0]?.kind === 'char' && !!st.ch.onRoad && !st.ch.flying;
+    for (const place of fxPlaces(st, data, fx)) for (const s of colorSources(st, data, place, { road })) if (calendar || !s.calendar) out.add(s.color);
     return out;
 }
 // A stronger Permanent spell that is energized on the same target keeps a weaker one asleep (4.6.10f: Melt into Mist 3 beats Transform 2 beats Absorb Essence 1); the
@@ -38,12 +39,29 @@ export function fxSupply(st, data, fx, { calendar = true } = {}) {
 export const outranked = (st, fx) => (st.fx ?? []).some(o => o !== fx && (o.who ?? null) === (fx.who ?? null) && o.dur === 'permanent' && o.state === 'live' && (o.strength ?? 0) > (fx.strength ?? 0) && o.targets.some(t => fx.targets.some(u => sameRef(t, u))));
 const fits = (def, supply) => (def?.color ? supply.has(def.color) : supply.size > 0);          // a spell of "any" colour wants some colour
 
+// The creature or monster a transmorph spell would make its target (Transform: the Table's row; Absorb Essence: the monster); two duplicates with different forms are
+// mutually exclusive (4.6.10e.2).
+const formOf = fx => fx.data?.row?.roll ?? fx.data?.mon ?? null;
+// Duplicate Permanent spells (the same spell on the same target) that would wake at the same moment with mutually exclusive effects cancel each other out: neither goes into
+// effect (4.6.10e.2). If they would make the same creature they go into effect as usual. Returns the set of such spells for this pass.
+function clashing(st, data) {
+    const ready = (st.fx ?? []).filter(fx => fx.dur === 'permanent' && fx.state === 'inert' && handlerOf(fx.spell)?.transmorph && !outranked(st, fx) && !elsewhere(st, fx)
+        && fits(spellDef(data, fx.spell), fxSupply(st, data, fx)));
+    const out = new Set();
+    for (const fx of ready) {
+        const twins = ready.filter(o => o !== fx && o.spell === fx.spell && (o.who ?? null) === (fx.who ?? null) && o.targets.length === fx.targets.length && o.targets.every((t, i) => sameRef(t, fx.targets[i])));
+        if (twins.some(o => formOf(o) !== formOf(fx))) out.add(fx);
+    }
+    for (const fx of out) if (fx.data.clashDay !== st.day) { fx.data.clashDay = st.day; say(st, `${spellDef(data, fx.spell)?.name ?? fx.spell} is energized twice at once, and the two would make different creatures: they cancel each other out.`, 'info'); }
+    return out;
+}
 // Wake every inert Permanent spell whose colour fills its place now. Returns how many woke.
 export function energizePass(st, data, why = 'pass') {
     let n = 0;
+    const cancelled = clashing(st, data);
     // the stronger transmorph spell first (of equal ones the latest cast), so that a weaker one on the same target finds it already in place (fx.js claim)
     for (const fx of (st.fx ?? []).slice().sort((a, b) => b.strength - a.strength || Number(b.id.slice(1)) - Number(a.id.slice(1)))) {
-        if (fx.dur !== 'permanent' || fx.state !== 'inert' || outranked(st, fx) || elsewhere(st, fx)) continue;
+        if (fx.dur !== 'permanent' || fx.state !== 'inert' || outranked(st, fx) || elsewhere(st, fx) || cancelled.has(fx)) continue;
         if (fits(spellDef(data, fx.spell), fxSupply(st, data, fx)) && wakeFx(st, data, fx.id, 'auto')) { n++; say(st, `${spellDef(data, fx.spell)?.name ?? fx.spell} is energized again.`, 'info'); }
     }
     return n;
@@ -69,7 +87,8 @@ export function energizeOptions(st, data) {
     for (const fx of st.fx ?? []) {
         if (fx.dur !== 'permanent' || fx.state !== 'inert' || outranked(st, fx) || heldDown(st, fx) || elsewhere(st, fx)) continue;
         const places = fxPlaces(st, data, fx);
-        if (st.ch.flying ? !places.some(p => p && tileOf(p) === st.ch.flying.tile) : !places.includes(st.ch.at ?? '-')) continue;           // (a flier is over a tile, not in a clearing)
+        if (st.ch.onRoad || st.ch.flying) continue;           // 7.2.3d: no color chit on a roadway or in the air at the start of the phase (the tile's own colours still energize by themselves: energizePass)
+        if (!places.includes(st.ch.at ?? '-')) continue;
         const def = spellDef(data, fx.spell);
         const chits = colorChits(st, def?.color ?? null).map(c => c.id);
         if (chits.length) out.push({ fx: fx.id, spell: fx.spell, name: def?.name ?? fx.spell, chits });

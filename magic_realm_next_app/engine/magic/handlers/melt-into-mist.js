@@ -13,7 +13,9 @@ import { releaseFoes } from '../mist.js';
 //   3. NO BLOCKING either way (summon.js blockers): no monster stops him at the end of a phase. Chits in his tile still turn and summon (only blocking is forbidden). Hirelings
 //      keep following him. Blocking OTHERS is moot with one hero.
 //   4. NO COMBAT: he is neither charged nor attacked and takes no part. Cast in a fight, every creature on his sheet is let go (a Tremendous monster's pick-up too, red side
-//      down) and the fight ends for him at once ('mist'); each later Evening is skipped (day.js evening). The T4 Move chit "to run away" is never needed, so it is not modelled.
+//      down); the combat in his clearing goes on (8.4.5p.1: he plays no attack or maneuver, and in each Encounter step the only thing he can do is run away with a Move chit that
+//      needs no time and no weight, or pass) until two rounds go by with nothing happening; in a shared fight it ends for him at once ('mist'). Each later Evening is skipped
+//      (day.js evening).
 //   5. SPELLS: every other spell on him is nullified (the Pentangle and Protection from Magic machinery: `nullifyFx`, restored by `restoreFx` when mist ends; this includes his
 //      own Day buffs, as the card says "not affected by spells"), curses and the Pit are shielded (tag `shield`, effects.js), and no new spell can be aimed at him (tag
 //      `noNewSpells`). "Not affected by spells aimed at other targets": the area effects that reach him through his tile or clearing are switched off for mist at their readers
@@ -34,8 +36,9 @@ export default {
         ctx.log('Melt into Mist: you turn to mist. You can only move and hide, nothing can block or harm you, and your belongings and gold ride in the spell until you are yourself again.');
         if (c && !c.ended) {
             releaseFoes(c);
-            // a quiet-evening cast has no melee step: encounterAction ends that combat itself
-            if (!c.spellOnly) B.endCombat(st, data, 'mist');
+            // a quiet-evening cast has no melee step: encounterAction ends that combat itself; in a shared fight the fight ends for him at once; in any other the combat goes on
+            // without him (he plays no attack or maneuver) and in each Encounter step he may run away with a Move chit (8.4.5p.1)
+            if (!c.spellOnly && c.shared) B.endCombat(st, data, 'mist');
         }
     },
     tags: () => ({ shield: 'spells', noNewSpells: true, mist: true }),

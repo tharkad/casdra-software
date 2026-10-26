@@ -20,6 +20,9 @@ export const cast = x => A({ kind: 'encounter', act: 'cast', spell: x.spell, chi
 export const castAimed = (x, aim) => A({ ...{ kind: 'encounter', act: 'cast', spell: x.spell, chit: x.chit, item: x.item }, spellAim: { [x.spell]: aim } });
 export const gear = (item, drop = false) => A(drop ? { kind: 'encounter', act: 'gear', item, drop: true } : { kind: 'encounter', act: 'gear', item });
 
+// one Encounter action may switch one belonging on and another off (8.3.7d): the list goes as `items`; a single belonging keeps the old `item` shape
+export const gearItems = items => (items.length === 1 ? gear(items[0]) : A({ kind: 'encounter', act: 'gear', items: [...items] }));
+
 // ---- what a spell is aimed at: the choices kept for it, else the first sensible answer ----
 export const aimOf = (a, store) => ({ targets: store.aim?.[a.spell] ?? a.options.slice(0, a.min).map(x => x.ref), params: store.aimParams?.[a.spell] ?? {} });
 
