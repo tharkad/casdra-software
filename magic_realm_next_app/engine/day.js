@@ -4,7 +4,7 @@ import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, 
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
 import * as combat from './combat.js';
 import * as battle from './battle.js';
-import { makeItem, defOf, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain, noteFind, nextDayGear } from './items.js';
+import { makeItem, defOf, isWeaponCard, extraPhaseCommitment, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain, noteFind, nextDayGear } from './items.js';
 import { lootFrom, lootSiteCard, groundPileAt, sitesHere, effortOptions, payEffort, applySearchResult, peerBlocked } from './search.js';
 import { hasCurse, liftCursesAtChapel } from './effects.js';
 import { tell } from './story.js';
@@ -928,7 +928,7 @@ function doHide(st, data) {
 function doAlert(st, data, slot = {}) {
     if (multi(st)) for (const f of meet.followersOf(st, st.actor)) withActor(st, f, () => {            // each follower who is a character does the same (7.11.6f): he readies his weapon
         const w = st.ch.items.find(i => i.kind === 'weapon' && i.active);
-        if (w && !w.alerted) { w.alerted = true; say(st, `You ready your ${nameOf(data, w)}.`, 'info'); }
+        if (w && !w.alerted && !isWeaponCard(data, w)) { w.alerted = true; say(st, `You ready your ${nameOf(data, w)}.`, 'info'); }
     });
     if (slot?.magic) {
         if (st.ch.morph) return 'A creature has no Magic chit to alert.';
@@ -941,6 +941,7 @@ function doAlert(st, data, slot = {}) {
     }
     const w = st.ch.items.find(i => i.kind === 'weapon' && i.active);
     if (!w) return 'You have no weapon to ready.';
+    if (isWeaponCard(data, w)) return `Your ${nameOf(data, w)} is a weapon card: it cannot be alerted.`;       // 2.3.4d: a weapon card stays face up whenever it is active
     if (w.alerted) return `Your ${nameOf(data, w)} is already alerted.`;
     w.alerted = true;
     return `You ready your ${nameOf(data, w)}.`;
@@ -1248,6 +1249,8 @@ function step(st, data, action) {
             if (it.destroyed && !action.drop) throw new Error('that item is destroyed');
             if (action.drop) {
                 // 4.3.2: he may abandon a belonging at the start of any phase; it lies where he stands
+                const bound = extraPhaseCommitment(st, data, it);          // 6.2.4d: not the horse or card that gives him an extra phase he has recorded, until that phase is finished
+                if (bound) throw new Error(bound);
                 const where = st.ch.at ?? st.ch.onRoad?.from;
                 st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
                 st.abandoned[where] = [...(st.abandoned[where] ?? []), { ...it, active: false, alerted: false }];

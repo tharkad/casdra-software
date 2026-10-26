@@ -14,6 +14,7 @@ import { askBox } from '../shared_ui.js';
 import { btn, primary, sect } from '../ds.js';
 import { icon, actIcon } from '../icons.js';
 import { footRow } from './kit/common.js';
+import { committedNote } from '../commit.js';
 import { isStory } from '../voice.js';
 import { nameOfClearing } from '../../engine/world.js';
 import { playerOf, joinList, offerReading, madeReading, draftReading, BLOCK_WORDS, BLOCK_COST, FOLLOW_WORDS, DAYEND_SAYS, FOLLOW_EXPLAIN, meetLines } from '../meet.js';
@@ -88,6 +89,7 @@ export function meetSheet(c) {
         sect('You give'),
         h('div', { class: 'ds-list' }, ...(mine.items.length ? mine.items.map(it => tickRow(c, { key: `give:${it.uid}`, name: `${it.name}${it.damaged ? ' (damaged)' : ''}`, sub: it.sub, selected: d.gi.includes(it.uid), onSelect: () => tog(d.gi, it.uid), picture: c.ico(it.name), info: c.itemInfo({ kind: it.kind, id: it.id, active: it.active, damaged: it.damaged }) })) : [hint('You carry nothing.')]),
             goldRow(c, { key: 'give', label: 'Gold', sub: `You have ${mine.gold}`, value: d.gg, max: mine.gold, onChange: n => { d.gg = n; } })),
+        committedNote(st, c.data),          // 6.2.4d: what a recorded extra phase needs is not on the list, and the list says so
         ...(mine.discoveries.length ? [sect('What you know here'), h('div', { class: 'ds-list' }, ...mine.discoveries.map(x => tickRow(c, { key: `disc:${discKey(x)}`, name: x.label.replace(/^the /, 'The '), sub: 'Whoever learns it can use it from now on.', selected: d.gd.includes(discKey(x)), onSelect: () => tog(d.gd, discKey(x)) })))] : []),
         sect(`You ask ${p.player} for`, 'optional'),
         hint(`You can name what ${p.player} carries in plain sight; a card turned face down cannot be named.`),

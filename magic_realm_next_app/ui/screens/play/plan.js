@@ -6,6 +6,8 @@ import { h } from '../../dom.js';
 import { playerOf as playerNameOf } from '../../meet.js';
 import { actRefusal, planState } from '../../planlogic.js';
 import { followPicker } from '../meetui.js';
+import { nameOf } from '../../../engine/items.js';
+import { alertCardWhy, voiced, weaponCardOf } from '../../commit.js';
 import { wouldDrop } from '../kit/kit.js';
 import { act } from './actions.js';
 import { btn, primary } from '../../ds.js';
@@ -20,6 +22,16 @@ import { render } from './shell.js';
 // where he will be at the start of each phase, as planned (the first half of a mountain climb does not bring him there: planlogic.js)
 function planLocations(G) { return planState(G.st, G.data, G.ui.draft.slots).at; }
 
+// A weapon card has no alerted side (2.3.4d): while the weapon in hand is one, the Alert phase can only wake a Magic chit. `cardWhy` is the plain sentence, or null when the weapon can be readied.
+const readyMagicOf = G => G.st.ch.chits.filter(x => x.type === 'magic' && x.state === 'active');
+function cardWhy(G) { const w = weaponCardOf(G.st, G.data); return w ? alertCardWhy(nameOf(G.data, w)) : null; }
+function cardAlertErrors(G, slots, kinds) {
+    const why = cardWhy(G);
+    if (!why) return [];
+    const bad = slots.findIndex((s, i) => s?.act === 'alert' && !s.magic && kinds[i] !== 'over');
+    return bad < 0 ? [] : [`Phase ${bad + 1}: ${why.story} Wake a Magic chit, or pick something else.`];
+}
+
 function planInfo(G) {
     const slots = G.ui.draft.slots, v = planKinds(G.st, G.data, slots), ponyOn = phasesFor(G.st, G.data, slots).ponyOn;
     // The pony (ruling R1, ch7-day.md): each Move he gets from other sources may be followed by one more Move, the pony's, and the two kinds strictly alternate. How many there are depends on the
@@ -27,7 +39,7 @@ function planInfo(G) {
     // is offered for one more Move; it counts as a phase only if the engine can make it the pony's.
     const full = Array.from({ length: v.total }, (_, i) => slots[i]).every(Boolean);
     const spare = ponyOn && full && v.total < 9 ? v.total : null;
-    return { total: v.total, base: v.base, lantern: v.lantern, extras: v.extras, kinds: v.kinds, errors: v.errors, ponyOn, ponyAt: v.ponyAt ?? [], spare, shown: v.total + (spare != null ? 1 : 0) };
+    return { total: v.total, base: v.base, lantern: v.lantern, extras: v.extras, kinds: v.kinds, errors: [...v.errors, ...cardAlertErrors(G, slots, v.kinds)], ponyOn, ponyAt: v.ponyAt ?? [], spare, shown: v.total + (spare != null ? 1 : 0) };
 }
 
 // the second Move of a climb (a mountain takes two Moves in a row): fixed, because the first one decided it
@@ -60,7 +72,8 @@ function actChips(G, i, at, over, others, baseOver) {
     return h('div', { class: `ds-acts n${n}` }, ...acts.map(a => {
         const curse = (G.st.ch.curses ?? []).find(c => CURSE_ACT[c] === a), refused = actRefusal(G.st, a);
         const spent = !curse && !refused && a !== 'nothing' && a !== 'follow' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver;
-        const why = curse ? `${curse}: ${CURSE_PLAIN[curse] ?? 'it spoils this action.'}` : refused ?? (isSpare && a !== 'move' ? 'This phase is the pony\u2019s: it is for a Move only.' : spent ? (isSpare ? PONY_WHY : 'All your phases are taken.') : null);
+        const cardOnly = a === 'alert' && !readyMagicOf(G).length ? cardWhy(G) : null;          // (no Magic chit to wake either: the Alert would do nothing)
+        const why = curse ? `${curse}: ${CURSE_PLAIN[curse] ?? 'it spoils this action.'}` : refused ?? (cardOnly ? `${cardOnly.story} There is nothing to ready.` : null) ?? (isSpare && a !== 'move' ? 'This phase is the pony\u2019s: it is for a Move only.' : spent ? (isSpare ? PONY_WHY : 'All your phases are taken.') : null);
         const dim = !!why;
         return h('button', { type: 'button', class: `ds-act chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${curse ? ' cursed' : ''}`, 'data-slot': i, 'data-pick': a, 'aria-disabled': dim ? 'true' : null, title: why ?? undefined,
             onclick: () => { if (dim) { showToast(G, why, true); return; } pick(G, i, a, at[i]); } }, actIcon(actArt(a), 28), ACT_LABEL[a]);
@@ -113,8 +126,11 @@ function subPicker(G, i, at) {
     const readyMagic = G.st.ch.chits.filter(x => x.type === 'magic' && x.state === 'active');
     if (s?.act === 'alert' && readyMagic.length) {
         const chip = (label, on, fn, key) => h('button', { type: 'button', class: `ds-chip${on ? ' on' : ''}`, 'data-alert': key, onclick: fn }, label);
-        return [h('p', { class: 'ds-hint-line' }, 'Ready your weapon (the default), or wake a Magic chit. An alerted chit acts first, and tires at Midnight if unused.'),
-            h('div', { class: 'ds-chips' }, chip('Weapon', !s.magic, () => { delete s.magic; advance(G, i + 1); render(G); }, 'weapon'),
+        const card = cardWhy(G);
+        const weaponChip = card ? h('button', { type: 'button', class: 'ds-chip is-dim', 'data-alert': 'weapon', 'aria-disabled': 'true', title: card.story, onclick: () => showToast(G, card.story, true) }, 'Weapon')
+            : chip('Weapon', !s.magic, () => { delete s.magic; advance(G, i + 1); render(G); }, 'weapon');
+        return [card ? h('p', { class: 'ds-hint-line', 'data-hint': 'weapon-card' }, voiced({ story: `${card.story} Wake a Magic chit instead.`, detail: card.detail })) : h('p', { class: 'ds-hint-line' }, 'Ready your weapon (the default), or wake a Magic chit. An alerted chit acts first, and tires at Midnight if unused.'),
+            h('div', { class: 'ds-chips' }, weaponChip,
                 ...readyMagic.map(c => chip(`Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}`, s.magic === c.id, () => { s.magic = c.id; advance(G, i + 1); render(G); }, c.id)))];
     }
     if (s?.act === 'fly' || G.ui.pickFly === i) {
@@ -167,7 +183,7 @@ export function planTray(G) {
     }
     // a step that is waiting on nothing but "Next" (a fixed road, a climb's second half) or on the Alert's weapon-or-chit question (Weapon is the default: the question is a choice, not a gate)
     // offers "Next phase" too, so choosing Alert never leaves the player at a dim Start with no way on (QA-7)
-    const alertAsk = step != null && d.slots[step]?.act === 'alert' && G.ui.pickMove !== step && G.st.ch.chits.some(x => x.type === 'magic' && x.state === 'active');
+    const alertAsk = step != null && d.slots[step]?.act === 'alert' && !cardWhy(G) && G.ui.pickMove !== step && G.st.ch.chits.some(x => x.type === 'magic' && x.state === 'active');
     prim = startButton(G, step != null && (roadLocked(G, step) || climbLocked(G, step) || alertAsk) && !whole ? open ?? null : false);
     return { body: h('div', { class: 'ds-plan' }, ...kids), lead, primary: prim };
 }
@@ -228,6 +244,7 @@ function pick(G, i, a, at) {
     const d = G.ui.draft;
     if (roadLocked(G, i) || climbLocked(G, i)) return;
     if (actRefusal(G.st, a)) return;
+    if (a === 'alert' && !readyMagicOf(G).length && cardWhy(G)) return;
     G.ui.pickMove = null; G.ui.pickSearch = null;
     if (a === 'move') { G.ui.pickMove = i; G.ui.pickFly = null; render(G); return; }
     if (a === 'fly') { G.ui.pickFly = i; G.ui.pickMove = null; d.slots[i] = { act: 'fly' }; render(G); return; }

@@ -1,5 +1,5 @@
 import { lvl } from './core.js';
-import { cardChits, BOOTS, GLOVES, EXTRA, hasTreasure } from './modifiers.js';
+import { cardChits, BOOTS, GLOVES, EXTRA, hasTreasure, extraActs } from './modifiers.js';
 import { isCave } from './world.js';
 
 // Everything a character can own is an item: { uid, kind: 'weapon'|'armor'|'horse'|'treasure', id, active, alerted, damaged, destroyed }.
@@ -28,6 +28,8 @@ export function defOf(data, it) {
     return it.kind === 'weapon' ? data.weapons[it.id] : it.kind === 'armor' ? data.armor[it.id] : it.kind === 'horse' ? data.horses[it.id] : data.treasures[it.id];
 }
 export const nameOf = (data, it) => defOf(data, it)?.name ?? it.id;
+// Weapon cards cannot be alerted (2.3.4d note): they stay face up whenever they are active and always have the values on the card. Only a weapon counter has an alerted side.
+export const isWeaponCard = (data, it) => it?.kind === 'weapon' && !!data.weapons[it.id]?.card;
 export const weightOf = (data, it) => defOf(data, it)?.weight ?? 'N';
 
 // Gold a native pays for an item (damaged armor is worth less).
@@ -125,10 +127,47 @@ export function isOneUse(data, it) {
 }
 
 // Gripping Dust (Treasures 11): the weapon he has in use stays alerted side up at all times, even when it hits. Called whenever the weapon or the Dust changes.
-export function keepAlerted(st) {
+export function keepAlerted(st, data) {
     if (!hasTreasure(st, 'gripping-dust')) return;
     const w = st.ch.items.find(i => i.kind === 'weapon' && i.active && !i.destroyed);
-    if (w) w.alerted = true;
+    if (w && !(data && isWeaponCard(data, w))) w.alerted = true;
+}
+
+// 6.2.4d: "If a character uses a Treasure card or horse to record an extra activity or an enhanced activity, he is committed to keeping that belonging and having it active when he
+// does that activity. He cannot voluntarily abandon or transfer the belonging until he has finished the phase it caused." (He can still deactivate it; the phase is then lost, 7.3.2b.)
+// The plan does not note which belonging caused which extra phase, so the engine counts, as extraLost (day.js) does: the extra phases still to be finished for an activity (the
+// current phase included, a finished or lost turn none) against the other sources of that activity he keeps: his advantages and spells (which no one can take from him) and the
+// other belongings he has active. If the plan needs this belonging for an extra phase, it is committed. Returns the sentence that says so, or null when he is free to part with it.
+// Shielded Lantern: its phase ('lantern' in the plan's kinds) is for any activity, so it is counted on its own. The pony's Moves (6.2.4c) are told by the `via: 'pony'` note.
+const extraSourceAct = (data, it) => {
+    if (it.kind === 'horse') { const k = data.horses[it.id]?.kind; return k === 'workhorse' || k === 'pony' ? 'move' : null; }
+    if (it.kind === 'treasure') return it.id === 'shielded-lantern' ? 'lantern' : EXTRA[it.id] ?? null;
+    return null;
+};
+export function extraPhaseCommitment(st, data, it) {
+    if (!it || it.destroyed || !st.plan || st.planFree || !st.planKinds) return null;
+    const t = st.turn;
+    if (t && (t.end || t.pro || t.blocked || t.noTurn)) return null;          // the turn is over (or lost): every phase it could have caused is finished
+    const act = extraSourceAct(data, it);
+    if (!act) return null;
+    const from = t?.i ?? 0, lantern = act === 'lantern';
+    let due = 0, pony = 0;
+    st.planKinds.forEach((k, j) => {
+        if (j < from || !st.plan[j] || st.plan[j].act === 'nothing') return;
+        if (lantern ? k === 'lantern' : k === 'extra' && st.plan[j].act === act) { due++; if (st.plan[j].via === 'pony') pony++; }
+    });
+    if (!due) return null;
+    // what covers the extra phases without this belonging: nothing he owns (advantages, spells), the other active sources of the activity, the pony's noted Moves
+    const saved = st.ch.items.map(x => x.active);
+    st.ch.items.forEach(x => { x.active = false; });
+    const fixed = extraActs(st, data).filter(a => a === (lantern ? null : act)).length;
+    st.ch.items.forEach((x, k) => { x.active = saved[k]; });
+    const others = st.ch.items.filter(x => x.uid !== it.uid && x.active && !x.destroyed && extraSourceAct(data, x) === act && !(x.kind === 'horse' && data.horses[x.id]?.kind === 'pony')).length;
+    const isPony = it.kind === 'horse' && data.horses[it.id]?.kind === 'pony';
+    const short = due - pony > fixed + others;                               // phases that only this belonging can be the cause of
+    if (isPony ? pony > 0 || (it.active && short) : short)
+        return `The ${nameOf(data, it)} gives you an extra phase you have recorded: you cannot abandon, sell or hand it over until that phase is finished (6.2.4d).`;
+    return null;
 }
 
 // Puts a newly acquired item into use if the slots it needs are free.
@@ -138,7 +177,7 @@ export function autoEquip(st, data, it) {
     if (!slots.length) return;
     if (BOOTS[it.id] && !bootsStrongEnough(st, data, it)) return;
     const taken = st.ch.items.filter(o => o.uid !== it.uid && o.active && !o.destroyed && slotsOf(data, o).some(s => slots.includes(s)));
-    if (!taken.length) { it.active = true; keepAlerted(st); }
+    if (!taken.length) { it.active = true; keepAlerted(st, data); }
 }
 
 // Switching one item on switches off anything that needs the same slot.
@@ -168,7 +207,7 @@ export function toggleItem(st, data, it) {
     const slots = slotsOf(data, it);
     for (const o of st.ch.items) if (o.uid !== it.uid && o.active && slotsOf(data, o).some(s => slots.includes(s))) { o.active = false; if (o.kind === 'weapon') o.alerted = false; }
     it.active = true;
-    keepAlerted(st);
+    keepAlerted(st, data);
 }
 
 // The belongings that decide tomorrow's Birdsong plan, for the reminder at the end of the day (ruling R6, ch7-day.md; 6.2.2c.1, 6.2.4d): an extra phase caused by a horse or a

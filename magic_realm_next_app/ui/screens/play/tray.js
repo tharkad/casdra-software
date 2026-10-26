@@ -9,6 +9,7 @@ import { isMountain, nameOfClearing, tileName } from '../../../engine/world.js';
 import { h } from '../../dom.js';
 import { btn, last, pips, primary, situ, tray, twoLine } from '../../ds.js';
 import { actIcon } from '../../icons.js';
+import { alertCardWhy, weaponCardOf } from '../../commit.js';
 import { isMeetLine, meetButton, playerOf as playerNameOf } from '../../meet.js';
 import { turnOrderLine } from '../../party.js';
 import { askBox as ask, playersStrip } from '../../shared_ui.js';
@@ -166,7 +167,8 @@ export function renderTray(G) {
         // an action with no further question is done at once, Move is chosen on the map (the roads are ringed), a Search asks its table, an Alert its weapon or chit.
         const ASKS = new Set(['move', 'search', 'alert']);
         const tap = a => { if (!ASKS.has(a)) { G.ui.pickAct = null; act(G, { type: 'pick', slot: { act: a } }); return; } G.ui.pickAct = G.ui.pickAct === a ? null : a; render(G); };
-        m.body.push(h('div', { class: 'ds-acts pickacts' }, ...p.acts.map(a => h('button', { class: `ds-act${G.ui.pickAct === a.act ? ' on' : ''}`, 'data-pick-act': a.act, onclick: () => tap(a.act) }, actIcon(actArt(a.act), 28), ACT_LABEL[a.act] ?? a.act))));
+        const cardW = weaponCardOf(st, G.data), cardNone = cardW && !st.ch.chits.some(x => x.type === 'magic' && x.state === 'active') ? `${alertCardWhy(nameOf(G.data, cardW)).story} There is nothing to ready.` : null;          // (a weapon card cannot be alerted: 2.3.4d)
+        m.body.push(h('div', { class: 'ds-acts pickacts' }, ...p.acts.map(a => { const dim = a.act === 'alert' && cardNone; return h('button', { class: `ds-act${G.ui.pickAct === a.act ? ' on' : ''}${dim ? ' dim' : ''}`, 'data-pick-act': a.act, 'aria-disabled': dim ? 'true' : null, onclick: () => (dim ? showToast(G, cardNone, true) : tap(a.act)) }, actIcon(actArt(a.act), 28), ACT_LABEL[a.act] ?? a.act); })));
         if (G.ui.pickAct === 'move') m.body.push(h('p', { class: 'ds-hint-line', 'data-hint': 'pick-move' }, 'Where to? Tap a ringed clearing on the map.'));
         const extra = (p.extrasLeft ?? []).map(x => ACT_LABEL[x] ?? x);
         m.lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `Phase ${p.i + 1}`), `: ${p.regularLeft ?? 0} left${extra.length ? `, and an extra ${extra.join(', ')}` : ''}`);

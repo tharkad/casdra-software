@@ -3,7 +3,7 @@
 // is the same `tidy` action the switches sent (toggleItem takes a rival out of the slot by itself), so every payload is byte-identical to the old one.
 import { WEIGHT_WORDS, letterOf, lvl } from '../../../engine/core.js';
 import { BOOTS } from '../../../engine/modifiers.js';
-import { bootsStrongEnough, carriedLevel, carryCapacity, defOf, isOneUse, nameOf, onPackHorse, priceOf, slotsOf, weightOf } from '../../../engine/items.js';
+import { bootsStrongEnough, carriedLevel, carryCapacity, defOf, isOneUse, isWeaponCard, nameOf, onPackHorse, priceOf, slotsOf, weightOf } from '../../../engine/items.js';
 import { isCave } from '../../../engine/world.js';
 import { itemParts } from '../play/sheet_char.js';
 import { act } from '../play/actions.js';
@@ -11,6 +11,7 @@ import { render } from '../play/shell.js';
 import { h } from '../../dom.js';
 import { icon } from '../../icons.js';
 import { displayName } from '../../names.js';
+import { commitmentOf, voiced } from '../../commit.js';
 import { companyTab, hireCount } from './company.js';
 import { dimBtn, footRow, goldEl, guards, itemArt, oneLine, plural, say, seg, signed, weightWord } from './common.js';
 import { spellCount, spellsTab } from './spells.js';
@@ -241,18 +242,19 @@ function factsOf(G, it) {
 export function itemContent(G, it, o = {}) {
     const { name, card, faces, facts } = itemParts(G, it, { size: 128 }), lock = gearLock(G), key = slotKey(G, it);
     const stateTag = it.destroyed ? ['bad', 'Destroyed'] : [it.active ? 'gold' : '', it.active ? 'Active' : 'Inactive'];
-    const sub = [it.kind === 'weapon' ? (it.alerted ? 'alerted' : 'not alerted') : null, it.kind === 'armor' ? (it.damaged ? 'damaged' : 'whole') : null].filter(Boolean).join(', ');
+    const sub = [it.kind === 'weapon' ? (isWeaponCard(G.data, it) ? 'weapon card' : it.alerted ? 'alerted' : 'not alerted') : null, it.kind === 'armor' ? (it.damaged ? 'damaged' : 'whole') : null].filter(Boolean).join(', ');
     const why = lock ?? whyNot(G, it);
     const leaving = G.ui.leaveAsk === it.uid;
-    const can = !lock && !it.destroyed;
+    const can = !lock && !it.destroyed, bound = can ? commitmentOf(G.st, G.data, it) : null;          // 6.2.4d: the horse or card of a recorded extra phase is not his to leave behind yet
     const body = h('div', { class: 'kit kit-item itemsheet' },
         card ?? h('div', { class: 'kit-faces' }, ...faces),
         h('div', { class: 'kit-state' }, h('span', { class: `ds-tag ${stateTag[0]}`, 'data-state': it.active ? 'active' : 'inactive' }, stateTag[1]), sub ? h('span', { class: 'ds-meta' }, sub) : null, key ? h('span', { class: 'ds-meta' }, `${SLOTS.find(s => s[0] === key)[1]} slot`) : null),
+        bound ? h('div', { class: 'ds-why kit-lock kit-committed', 'data-committed': it.uid }, icon('lock', 'kit-lockico'), voiced(bound)) : null,
         factsOf(G, it),
         h('p', { class: 'ds-voice kit-story' }, storyLine(G, it)),
         h('details', { class: 'kit-detail' }, h('summary', {}, 'Detail'), ...facts.map(t => h('p', {}, t))),
         lock && !it.destroyed ? h('div', { class: 'ds-why kit-lock' }, icon('lock', 'kit-lockico'), lockText(lock)) : null,
-        can ? (leaving ? h('div', { class: 'kit-leave' }, h('span', { class: 'ds-meta' }, `Leave the ${name} lying here?`),
+        can && !bound ? (leaving ? h('div', { class: 'kit-leave' }, h('span', { class: 'ds-meta' }, `Leave the ${name} lying here?`),
             h('button', { type: 'button', class: 'ds-btn sm danger', 'data-act': 'item-leave', onclick: () => { G.ui.leaveAsk = null; G.ui.sheet = G.ui.itemFrom === 'dock' ? null : 'char'; G.ui.itemFrom = null; tidyAct(G, it, { drop: true }); } }, `Leave the ${name} here`),
             h('button', { type: 'button', class: 'ds-btn sm quiet', onclick: () => { G.ui.leaveAsk = null; render(G); } }, 'Keep it'))
             : h('button', { type: 'button', class: 'ds-btn sm quiet kit-leavebtn', 'data-act': 'item-leave-ask', onclick: () => { G.ui.leaveAsk = it.uid; render(G); } }, 'Leave it here')) : null);

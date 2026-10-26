@@ -4,6 +4,7 @@ import { chitLabel } from '../../../engine/day.js';
 import { nameOfClearing, numOf, tileName, tileOf } from '../../../engine/world.js';
 import { ask } from '../../ask.js';
 import { nameOf } from '../../../engine/items.js';
+import { alertCardWhy, weaponCardOf } from '../../commit.js';
 import { h } from '../../dom.js';
 import { btn, sect, twoLine, voiceSwitch } from '../../ds.js';
 import { actIcon, icon } from '../../icons.js';
@@ -203,9 +204,9 @@ export function pickSheet(G, p) {
             opts: (p.tables ?? []).map(t => ({ k: t, table: t, title: tableName(G, t), line: LINE[t] ?? '', art: actIcon(t === 'peer' ? 'peer' : t === 'loot' || t === 'ground' || t === 'sitecard' ? 'cache' : 'search', 28), attrs: { 'data-pick-table': t } })),
             idle: { button: 'Choose a table', lead: 'One roll on one table.', toast: 'Pick one of the tables first.' }, verb: 'Search', act: o => send({ act: 'search', table: o.table }) });
     }
-    const mags = G.st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active'), pr = phasePrompt('alert', {});
+    const mags = G.st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active'), pr = phasePrompt('alert', {}), card = weaponCardOf(G.st, G.data);          // (a weapon card cannot be alerted, 2.3.4d)
     return pickSheetOf(G, { title: 'Alert', eyebrow, situation: 'Ready your weapon, or wake a Magic chit.', why: 'An alerted Magic chit acts first, and tires at Midnight if unused.', key: 'alertPick', kind: 'info', close,
-        opts: [{ k: 'weapon', title: 'Your weapon', label: 'weapon', line: 'It strikes at its own time.', art: actIcon('alert', 28) }, ...mags.map(c => ({ k: c.id, title: `Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}`, label: `Magic ${c.numeral}${c.time}`, line: 'It will answer before anything else until midnight.', art: actIcon('spell', 28), attrs: { 'data-pick-magic': c.id } }))],
+        opts: [{ k: 'weapon', title: 'Your weapon', label: 'weapon', line: 'It strikes at its own time.', art: actIcon('alert', 28), ...(card ? { dim: true, why: alertCardWhy(nameOf(G.data, card)).story } : {}) }, ...mags.map(c => ({ k: c.id, title: `Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}`, label: `Magic ${c.numeral}${c.time}`, line: 'It will answer before anything else until midnight.', art: actIcon('spell', 28), attrs: { 'data-pick-magic': c.id } }))],
         idle: { button: 'Choose one', lead: 'Weapon or Magic chit.', toast: 'Pick the weapon or a chit first.' }, verb: 'Alert', act: o => send(o.k === 'weapon' ? { act: 'alert' } : { act: 'alert', magic: o.k }) });
 }
 

@@ -150,7 +150,7 @@ export function chargerOf(st, gate) {
 export function encounterVerbs(st, data, o, c) {
     const slow = o.why?.gate ? `Nothing of yours is faster than ${gateWords(st, o.why.gate)}.` : null;
     const gated = t => !!t && /faster than/.test(t);
-    const alert = o.canAlert && o.weapon ? { ok: true } : { ok: false, sub: !o.weapon ? 'no weapon' : gated(o.why?.alert) ? 'too slow' : 'no chit', why: gated(o.why?.alert) ? slow : (o.why?.alert ?? 'You have nothing to ready.') };
+    const alert = o.canAlert && o.weapon ? { ok: true } : { ok: false, sub: !o.weapon ? 'no weapon' : /weapon card/.test(o.why?.alert ?? '') ? 'a card' : gated(o.why?.alert) ? 'too slow' : 'no chit', why: gated(o.why?.alert) ? slow : (o.why?.alert ?? 'You have nothing to ready.') };
     const run = o.canRun ? { ok: true } : { ok: false, sub: o.pickedUp ? 'held' : gated(o.why?.run) ? 'too slow' : !o.runTo.length ? 'no road' : 'no chit', why: o.pickedUp ? 'You are seized and cannot run.' : gated(o.why?.run) ? slow : (o.why?.run ?? 'You cannot run now.') };
     const cast = o.casts.length ? { ok: true } : { ok: false, sub: 'none ready', why: o.blocked?.length ? `${o.blocked[0].name}: ${o.blocked[0].why}` : 'No spell is ready tonight.' };
     return { alert, run, cast, fly: o.canFly ? { ok: true } : null };

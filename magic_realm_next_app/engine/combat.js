@@ -17,7 +17,7 @@ import { blockedSpells, castOptions, castSpell, resolveSpells, canCastQuietly, p
 import { tell } from './story.js';
 import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
 import { mayAttackHero } from './rules/mayAttackHero.js';
-import { makeItem, autoEquip, toggleItem, activeHorse, onPackHorse } from './items.js';
+import { makeItem, autoEquip, toggleItem, activeHorse, onPackHorse, isWeaponCard, extraPhaseCommitment } from './items.js';
 import { isCave, roadsFrom, tileName } from './world.js';
 
 // Evening combat for one character against the denizens in his clearing (rules digest 03).
@@ -547,12 +547,14 @@ export function encounterOptions(st, data) {
     const gateName = byCharge ? `${chargeGate.name}, charging you` : denGate ? denSide(st, data, denGate).name : null;
     const gateText = byCharge ? `${chargeGate.name}'s charge (it moves ${slowest})` : denGate ? `the ${gateName} (it moves ${slowest})` : null;
     const wname = w ? nameOfItem(st, data, w.item) : null;
-    const gripped = !!w && hasTreasure(st, 'gripping-dust');         // the Dust keeps the weapon alerted: there is nothing to turn
+    const card = !!w && isWeaponCard(data, w.item);                   // a weapon card cannot be alerted (2.3.4d): there is nothing to turn
+    const gripped = !!w && !card && hasTreasure(st, 'gripping-dust');         // the Dust keeps the weapon alerted: there is nothing to turn
     const chitsFor = kind => activeChits(st, kind, data);
     const fastEnough = x => x.time < slowest;
     const why = {
         gate: gate ? { name: gateName, speed: slowest } : null,
-        alert: !w || (fight.length && !gripped) ? null
+        alert: !w || (fight.length && !gripped && !card) ? null
+            : card ? `Your ${wname} is a weapon card: it cannot be alerted, it stays face up while it is active.`
             : gripped ? 'Your Gripping Dust keeps the weapon alerted: it cannot be turned over.'
             : st.ch.morph ? null
                 : !chitsFor('fight').length ? 'You have no ready Fight chit to ready your weapon with.'
@@ -566,7 +568,7 @@ export function encounterOptions(st, data) {
     };
     const casts = (c.spellOnly ? quietCasts(st, data, true) : castOptions(st, data, { slowest })).map(o => (c.spellOnly ? { ...o, aim: previewAim(st, data, o) } : o));       // (a quiet-evening cast has no Melee step: it is aimed on the cast screen)
     const canLure = !!st.ch.hidden && !sharedFight(st) && !c.spellOnly && (assignable(st, data).length > 0 || luredPeaceful(st, data).length > 0);          // (a shared fight lures in its own step: battle.js)
-    return { canStay, canLure, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && fight.length > 0 && !gripped, alertChits: fight, berserkChits: berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
+    return { canStay, canLure, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && !card && fight.length > 0 && !gripped, alertChits: fight, berserkChits: berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
 }
 const canRunNow = (move, st, data) => move.length > 0 && runDestinations(st, data).length > 0;
 
@@ -623,6 +625,7 @@ export function encounterAction(st, data, a) {
         activatePhase(st, data, a.fx, 'round');
     } else if (a.act === 'alert') {
         if (st.ch.morph) throw new Error('a creature has no weapon to ready');
+        if (opt.weapon && isWeaponCard(data, opt.weapon.item)) throw new Error('a weapon card cannot be alerted');
         if (!opt.canAlert) throw new Error(hasTreasure(st, 'gripping-dust') ? 'your Gripping Dust keeps the weapon alerted' : 'cannot flip the weapon with that chit');
         const chit = opt.alertChits.find(x => x.id === a.chit);
         if (!opt.weapon || !chit) throw new Error('cannot flip the weapon with that chit');
@@ -669,6 +672,8 @@ function gearAction(st, data, a) {
     if (!it) throw new Error('no such item');
     if (it.destroyed && !a.drop) throw new Error('that item is destroyed');
     if (a.drop) {
+        const bound = extraPhaseCommitment(st, data, it);          // 6.2.4d: the horse or card that gives him a recorded extra phase is not his to abandon until that phase is finished
+        if (bound) throw new Error(bound);
         st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
         st.abandoned[c.at] = [...(st.abandoned[c.at] ?? []), { ...it, active: false, alerted: false }];
         say(st, `You leave the ${nameOfItem(st, data, it)} behind.`, 'combat');
@@ -1207,9 +1212,10 @@ export function meleeAfter(st, data, part) {
         else if (delivered && target && (fight || Object.keys(p.parts ?? {}).length)) hm.pin = target.uid;
     }
     // weapon state: a weapon that hit goes unalerted; one that struck and missed turns alerted
-    const dust = !!w && hasTreasure(st, 'gripping-dust');          // Gripping Dust keeps the weapon alerted even when it hits (Treasures 11)
-    if (w && fight && !aimed && !spTargets.length) w.item.alerted = p.weaponSide === 'unalerted' && !dust ? false : true;      // 8.4.5 h.2: a Fight chit played at no one sets the weapon either side up (alerted unless he asks for the other)
-    if (w && fight && aimed && myDir != null) {
+    const wCard = !!w && isWeaponCard(data, w.item);              // a weapon card has no alerted side (2.3.4d): it stays as it is whatever happens
+    const dust = !!w && !wCard && hasTreasure(st, 'gripping-dust');          // Gripping Dust keeps the weapon alerted even when it hits (Treasures 11)
+    if (w && !wCard && fight && !aimed && !spTargets.length) w.item.alerted = p.weaponSide === 'unalerted' && !dust ? false : true;      // 8.4.5 h.2: a Fight chit played at no one sets the weapon either side up (alerted unless he asks for the other)
+    if (w && !wCard && fight && aimed && myDir != null) {
         const wasAlerted = !!w.item.alerted;
         w.item.alerted = !delivered || dust;      // only a blow that was delivered unalerts the weapon; a miss or a cancelled blow leaves it alerted
         // say so: it changes what the weapon does next round (an alerted weapon takes its attack time from the Fight chit)

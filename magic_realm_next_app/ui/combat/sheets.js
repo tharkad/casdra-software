@@ -7,7 +7,8 @@ import { btn, primary, twoLine, voiceSwitch, delta, sheet as dsSheet } from '../
 import { encounterOptions, meleeOptions, shiftOptions, denSide, activeArmor, makeChangeOptions } from '../../engine/combat.js';
 import { hasTreasure } from '../../engine/modifiers.js';
 import { nameOfClearing, tileName } from '../../engine/world.js';
-import { nameOf } from '../../engine/items.js';
+import { isWeaponCard, nameOf } from '../../engine/items.js';
+import { commitmentOf, voiced } from '../commit.js';
 import * as P from './payload.js';
 import * as M from './model.js';
 import { needsConfirm, needsWhom, whomBody } from './shared.js';          // (P6: the shared fight's extra step and its confirms)
@@ -138,13 +139,13 @@ function flyPick(X, o, round, back) {
 function gearPick(X, o, round, back) {
     const { st, data, cb, send, render, p } = X, quiet = !!p.spellOnly;
     const rows = st.ch.items.filter(i => !i.destroyed).map(it => {
-        const nm = nameOf(data, it), state = `${it.active ? 'in use' : 'not in use'}${it.kind === 'weapon' && it.active ? (it.alerted ? ', alerted' : ', not alerted') : ''}`;
-        const confirm = cb.leaveAsk === it.uid;
-        return h('div', { class: 'cb-gearrow', 'data-gear-row': it.uid },
-            h('span', { class: 'nm' }, h('b', {}, nm), h('small', {}, state)),
+        const nm = nameOf(data, it), state = `${it.active ? 'in use' : 'not in use'}${it.kind === 'weapon' && it.active ? (isWeaponCard(data, it) ? ', a card' : it.alerted ? ', alerted' : ', not alerted') : ''}`;
+        const bound = commitmentOf(st, data, it), confirm = cb.leaveAsk === it.uid && !bound;          // 6.2.4d: the horse or card of a recorded extra phase is not his to leave behind yet
+        return h('div', { class: 'cb-gearrow', 'data-gear-row': it.uid, 'data-committed': bound ? it.uid : null },
+            h('span', { class: 'nm' }, h('b', {}, nm), h('small', {}, state), bound ? h('small', { class: 'cb-committed' }, voiced(bound)) : null),
             st.ch.morph ? null : h('button', { type: 'button', class: 'ds-btn', 'data-act': 'gear-switch', 'data-item': it.uid, 'aria-label': `${nm}: ${it.active ? 'switch off' : 'switch on'}`, onclick: () => { cb.leaveAsk = null; send(P.gear(it.uid)); } }, it.active ? 'Switch off' : 'Switch on'),
-            h('button', { type: 'button', class: `ds-btn${confirm ? ' danger' : ' quiet'}`, 'data-act': 'gear-leave', 'data-item': it.uid, 'aria-label': `Leave the ${nm} behind`,
-                onclick: () => { if (confirm) { cb.leaveAsk = null; send(P.gear(it.uid, true)); } else { cb.leaveAsk = it.uid; render(); } } }, confirm ? 'Really leave it?' : 'Leave behind'));
+            h('button', { type: 'button', class: `ds-btn${confirm ? ' danger' : ' quiet'}${bound ? ' is-dim' : ''}`, 'data-act': 'gear-leave', 'data-item': it.uid, 'aria-label': bound ? `Leave the ${nm} behind: ${bound.story}` : `Leave the ${nm} behind`, 'aria-disabled': bound ? 'true' : null,
+                onclick: () => { if (bound) { X.say(bound.story); return; } if (confirm) { cb.leaveAsk = null; send(P.gear(it.uid, true)); } else { cb.leaveAsk = it.uid; render(); } } }, confirm ? 'Really leave it?' : 'Leave behind'));
     });
     return sheetEl(X, 'encounter-pick', qRow(quiet ? 'Quiet evening' : round, h('span', {}, 'Belongings')), h('div', { class: 'cb-gear' }, ...rows),
         hint(quiet ? 'Nothing is fighting you, so this costs nothing and you may do it as often as you like.' : 'This is your Encounter action: you may switch one item on or off, or leave one behind. The melee follows.'),

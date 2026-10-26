@@ -142,6 +142,8 @@ rule(/^You rest \((rest|heal) ((?:Move|Fight|Magic|Duck|Berserk) \S+)( to fatigu
     return pay ? lead.map(s => `${s} Another ${pay} chit tires in its place.`) : lead;
 });
 rule(/^You ready your (.+?)\.?$/, m => [`The ${m[1]} is in your hand and ready.`, `You settle your grip on the ${m[1]}.`, `You ready the ${m[1]}.`]);
+rule(/^Your (.+?) is a weapon card: it cannot be alerted/, m => [`Your ${m[1]} is a card: it is always ready.`, `The ${m[1]} needs no readying. A card is always ready.`]);
+rule(/^The (.+?) gives you an extra phase you have recorded: you cannot abandon, sell or hand it over until that phase is finished/, () => ['You need it for an extra phase you recorded.', 'It is bound to an extra phase you recorded.']);
 rule(/^Your (.+?) is already alerted/, m => [`The ${m[1]} is ready already.`, `Your ${m[1]} is already in hand and waiting.`]);
 rule(/^You have no weapon to ready/, () => ['You have nothing in hand to ready.', 'There is no weapon to ready.']);
 rule(/^You alert Magic (\S+): it will act at time 0 until Midnight/, () => ['You ready a Magic chit. It will answer before anything else until midnight.', 'A Magic chit hums, ready to act first until midnight.']);

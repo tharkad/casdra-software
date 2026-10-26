@@ -7,6 +7,7 @@ import { canPayOffer, groupChoices, sellable, stockOf } from '../../../engine/tr
 import { nameOfClearing } from '../../../engine/world.js';
 import { rollRow, rollsByIds } from '../../dice.js';
 import { h } from '../../dom.js';
+import { committedNote } from '../../commit.js';
 import { icon } from '../../icons.js';
 import { act } from '../play/actions.js';
 import { itemParts } from '../play/sheet_char.js';
@@ -50,7 +51,7 @@ export function payBlock(G, p, { why = true } = {}) {
                 return h('button', { type: 'button', class: `ds-row kit-multi${on ? ' sel' : ''}`, 'data-multi': '', 'data-pay': m.uid, role: 'checkbox', 'aria-checked': on ? 'true' : 'false', onclick: () => toggle(m.uid) },
                     h('span', { class: 'art' }, it ? itemArt(G, it) : null, on ? tick() : null),
                     h('span', { class: 'main' }, h('b', {}, m.name), h('span', {}, m.active ? 'In use. It counts at its basic price.' : 'Counts at its basic price.')), h('span', { class: 'end' }, goldEl(G, m.price)));
-            }))) : null,
+            }), committedNote(G.st, G.data))) : null,
         h('p', { class: 'kit-sum', 'data-sum': '' }, chosen.size ? `You pay ${goldDue} Gold and ${plural(chosen.size, 'thing')}.` : `You pay ${p.price} Gold.`, over ? ` They give no change (${over} over).` : ''),
         !ok && why ? h('div', { class: 'ds-why bad' }, `You are ${short} Gold short: hand over more.`) : null);
     return { node, chosen: [...chosen], goldDue, ok, short, over, things: chosen.size };
@@ -150,6 +151,8 @@ function tradeMain(G, p) {
     } else {
         rows = mine.length ? mine.map(m => { const it = G.st.ch.items.find(i => i.uid === m.uid); return tradeRow(G, sel, { key: `sell:${m.uid}`, it, name: m.name, line: m.active ? `In use: selling it leaves ${it.kind === 'weapon' ? 'you unarmed' : 'the slot empty'}.` : 'Sells at its basic price.', price: m.price, unit: 'sells', tag: it.damaged ? 'damaged' : '',
             selected: sel.sell.includes(m.uid), dim: p.mode === 'buy' ? 'A phase is selling or buying, not both.' : null, onSelect: () => pickSell(m.uid), info: infoOf(G, it) }); }) : [h('p', { class: 'kit-none' }, 'You have nothing to sell.')];
+        const held = committedNote(G.st, G.data);          // 6.2.4d: what a recorded extra phase needs is not on the list, and the list says so
+        if (held) rows.push(held);
     }
 
     // the foot: what will happen, and the one button

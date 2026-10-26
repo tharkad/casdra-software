@@ -1,6 +1,6 @@
 import { say, lvl } from './core.js';
 import { withActor, charsAt, isMulti, askOf, livingIds, playerNameOf } from './party.js';
-import { nameOf, summaryOf, autoEquip, noteGain, weightOf, carryCapacity, onPackHorse } from './items.js';
+import { nameOf, summaryOf, autoEquip, noteGain, weightOf, carryCapacity, onPackHorse, extraPhaseCommitment } from './items.js';
 import { pathKey, nameOfClearing, roadsFrom, tileOf, numOf } from './world.js';
 
 // Characters meet (step 4 of the multi-character plan, docs/design/multiplayer-step4.md): everything two or more characters standing in one clearing can do to one another outside a fight.
@@ -157,14 +157,17 @@ function normSide(x) {
     for (const d of x.discoveries ?? []) { const n = normDiscovery(d); if (!s.discoveries.some(o => sameDisc(o, n))) s.discoveries.push(n); }
     return s;
 }
+// Has character `id` recorded an extra phase that this belonging causes, and not yet finished it (6.2.4d)? The sentence that says so, else null. (His plan is secret: it is told only to him.)
+const committed = (st, data, id, it) => withActor(st, id, () => extraPhaseCommitment(st, data, it));
 const sideEmpty = s => !s.items.length && !s.gold && !s.discoveries.length;
 // What a side must satisfy. `strict`: he must really hold it (gold included). Otherwise (the other character's side, named by the one who offers) only what everyone may see can be named, and
 // whether he can pay is nobody's business until he answers.
-function checkSide(st, id, side, at, { strict, named = false }) {
+function checkSide(st, data, id, side, at, { strict, named = false }) {
     const c = st.chars[id], name = c.name;
     for (const u of side.items) {
         const it = c.items.find(i => i.uid === u && !i.destroyed);
         if (!it || (named && !visibleTo(it))) throw new Error(named ? `you cannot ask ${name} for that: it is not something you can see him hold` : 'you do not have that');
+        if (!named) { const why = committed(st, data, id, it); if (why) throw new Error(why); }          // 6.2.4d: a belonging that gives a recorded extra phase is not his to hand over yet
     }
     if (strict && side.gold > c.gold) throw new Error(id === st.actor ? 'you do not have that much gold' : `${name} does not have that much gold`);
     if (strict) for (const d of side.discoveries) if (!knows(st, c, d, at)) throw new Error(id === st.actor ? 'you do not know that, or it is not in this clearing (4.5.5a)' : `${name} no longer knows that`);
@@ -195,8 +198,8 @@ function offerFrom(st, data, a) {
     if ((st.offers ?? []).some(o => o.to === to)) throw new Error(`${nameOfChar(st, to)} is already considering an offer`);
     const give = normSide(a.give), want = normSide(a.want), at = st.chars[from].at;
     if (sideEmpty(give) && sideEmpty(want)) throw new Error('an offer must give something or ask for something');
-    checkSide(st, from, give, at, { strict: true });
-    checkSide(st, to, want, at, { strict: false, named: true });
+    checkSide(st, data, from, give, at, { strict: true });
+    checkSide(st, data, to, want, at, { strict: false, named: true });
     const ra = askOf(st, to);
     const rp = unwrapped(ra?.pending);
     if (ra && !(STARTS.has(rp?.type) || rp?.type === 'meet-window')) throw new Error(`${nameOfChar(st, to)} is busy answering something else`);
@@ -248,14 +251,14 @@ function answerOffer(st, data, a) {
     }
     const A = st.chars[o.from], B = st.chars[o.to], at = o.at;
     // the one who offered must still have what he gave (nothing can have changed while the window was open, but an offer is only ever carried out whole)
-    try { checkSide(st, o.from, o.give, at, { strict: true }); }
+    try { checkSide(st, data, o.from, o.give, at, { strict: true }); }
     catch (e) {
         closeOffer(st, o);
         say(st, `${A.name}'s offer lapses: ${e.message}.`, 'trade', null, { who: o.to, vis: 'owner' });
         say(st, `Your offer to ${B.name} lapses: ${e.message}.`, 'trade', null, { who: o.from, vis: 'owner' });
         return afterMeet(st, data);
     }
-    checkSide(st, o.to, o.want, at, { strict: true });                         // (throws to the one answering, the offer stays open)
+    checkSide(st, data, o.to, o.want, at, { strict: true });                         // (throws to the one answering, the offer stays open)
     const err = tradeError(st, o.from, o.to);
     if (err) throw new Error(err);
     const gave = describe(st, data, o.from, o.give, at), got = describe(st, data, o.to, o.want, at);
@@ -544,7 +547,7 @@ export function meetOptions(st, data, who) {
         out.partners.push({ id, name: c.name, hidden: !!c.hidden, askable: c.items.filter(i => !i.destroyed && visibleTo(i)).map(itemView) });
     }
     const at = me.at;
-    out.give.items = me.items.filter(i => !i.destroyed).map(itemView);
+    out.give.items = me.items.filter(i => !i.destroyed && !committed(st, data, who, i)).map(itemView);          // (a belonging that causes a recorded extra phase cannot be handed over: 6.2.4d)
     out.give.gold = me.gold;
     if (here(me)) {
         for (const key of me.discovered.paths) { const d = { kind: 'path', key }; if (knows(st, me, d, at)) out.give.discoveries.push({ ...d, label: discLabel(st, data, d, at) }); }
