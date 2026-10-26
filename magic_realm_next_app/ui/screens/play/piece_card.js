@@ -41,10 +41,10 @@ export function pieceSheet(G) {
     const def = sp && (sp.kind === 'mon' ? G.data.monsters[sp.id] : G.data.natives[sp.id]);
     if (!def) return modal(G, 'Piece', h('p', { class: 'hint' }, 'Nothing to show.'), back);
     const sides = sidesOf(def, sp.kind), side = sides.includes(sp.side) ? sp.side : 'light';
-    const s = denSide(G.st, G.data, { kind: sp.kind, id: sp.id, side });
+    const s = denSide(G.st, G.data, { kind: sp.kind, id: sp.id, side, tag: sp.tag });
     const pic = sp.kind === 'nat' ? G.data.art?.natives?.[sp.id] : (G.data.art?.monstersColor?.[def.name] ?? G.data.art?.monsters?.[def.name]);
     const counter = monsterCounter({ s, side, picture: pic ?? null, flies: !!def.flies, size: 220 });
-    return modal(G, def.name, h('div', { class: 'piececard', 'data-piece': sp.id },
+    return modal(G, sp.tag ? s.name : def.name, h('div', { class: 'piececard', 'data-piece': sp.id },
         h('div', { class: 'big' }, counter),
         sides.length > 1 ? h('button', { type: 'button', class: 'ds-btn quiet block', 'data-act': 'piece-turn', onclick: () => { G.ui.piece = { ...sp, side: sides[(sides.indexOf(side) + 1) % sides.length] }; render(G); } }, icon('retry'), `${SIDE_WORD[side]}: turn it over`) : null,
         h('ul', { class: 'facts' }, ...factsOf(s, def, sp.kind).map(t => h('li', {}, t)))), back);

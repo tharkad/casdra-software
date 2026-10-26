@@ -60,7 +60,7 @@ export function combatHost(G, out) {
         return out;
     }
     const inFight = G.st.pending?.type?.startsWith('combat');
-    const peek = { gear: () => { G.ui.sheet = 'char'; render(G); }, map: () => { G.ui.combatMap = true; G.ui.sheet = null; render(G); }, piece: d => openPiece(G, { kind: d.kind, id: d.id, side: d.side ?? 'light' }) };
+    const peek = { gear: () => { G.ui.sheet = 'char'; render(G); }, map: () => { G.ui.combatMap = true; G.ui.sheet = null; render(G); }, piece: d => openPiece(G, { kind: d.kind, id: d.id, side: d.side ?? 'light', tag: d.tag ?? null }) };
     if (inFight) { if (G.st.pending.type === 'combat-over') G.ui.cbBeat = null; out.push(combatScene({ st: G.st, data: G.data, act: act.bind(null, G), ui: G.ui, render: () => render(G), peek })); }
     else out.push(combatBeat({ st: G.st, data: G.data, ui: G.ui, render: () => render(G) }));
     if (G.ui.sheet === 'char') out.push(charSheet(G));
