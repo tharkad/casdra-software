@@ -326,7 +326,9 @@ export function mountMap(host) {
                 if (model.hero === id && !model.party?.length) { heroRing = sv('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 24, class: `youring${model.heroHidden ? ' hid' : ''}`, 'pointer-events': 'none' }); tg.append(heroRing); }
                 tg.append(cg);
                 // things standing in this clearing, each with its name; where they go is decided by layoutLabels once every tile is known
-                obstacles.push({ x: cx + x, y: cy + y, r: picture ? 10.5 : 13 });
+                // the clearing where he stands is wider: its dotted ring (24 units) is kept clear of every name, so no pill is laid over the dots
+                const youHere = model.hero === id && !model.party?.length, clearR = youHere ? 27 : picture ? 10.5 : 13;
+                obstacles.push({ x: cx + x, y: cy + y, r: clearR });
                 anchors.push({ id, x: cx + x, y: cy + y });
                 const toks = model.tokens?.[id] ?? [];
                 if (toks.length) {
@@ -338,7 +340,7 @@ export function mountMap(host) {
                     const KS = ['mon', 'nat', 'ally', 'dwelling', 'site', 'sound'], count = t => Number(/x(\d+)$/.exec(t.label)?.[1] ?? 1);
                     const segs = KS.map(k => { const ts = toks.filter(t => t.k === k); return ts.length ? { k, n: ts.reduce((n, t) => n + count(t), 0), disc: ts.some(t => t.disc) } : null; }).filter(Boolean);
                     badgeOf.set(gid, { segs, id, num: c.n });
-                    groups.push({ id: gid, own: id, kind: shown[0]?.k ?? 'site', ax: cx + x, ay: cy + y, ar: picture ? 10.5 : 13, prio, prefer: ['right', 'left'], inside: insideTile,
+                    groups.push({ id: gid, own: id, kind: shown[0]?.k ?? 'site', ax: cx + x, ay: cy + y, ar: clearR, prio, prefer: ['right', 'left'], inside: insideTile,
                         boxes: shown.map(t => ({ w: pillWidth(t.label, { img: !!t.img }) + NUM_W, h: t.img ? 17 : PILL_H })) });
                     makeLabel.set(gid, (box, i) => pillEl(shown[i], box, c.n, id));
                 }
