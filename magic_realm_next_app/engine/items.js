@@ -147,6 +147,12 @@ const extraSourceAct = (data, it) => {
     if (it.kind === 'treasure') return it.id === 'shielded-lantern' ? 'lantern' : EXTRA[it.id] ?? null;
     return null;
 };
+// 4.4.3c (ruling S6, Mike 2026-10-26: `potion` is a field of the card data): a Potion that is "consumed by activation" is used up by the character who activates it; he keeps the card until
+// Midnight to represent the effect, which cannot be transferred. Returns why the belonging cannot be sold or handed over, or null. (Reusable potions can be transferred while active, 4.4.3a.)
+export function transferLock(data, it) {
+    const d = it && it.active && !it.destroyed && it.kind === 'treasure' ? data.treasures?.[it.id] : null;
+    return d?.potion === 'consumed' ? `The ${d.name} is used up by the character who activated it: its effect cannot be transferred while it is active (4.4.3c).` : null;
+}
 export function extraPhaseCommitment(st, data, it) {
     if (!it || it.destroyed || !st.plan || st.planFree || !st.planKinds) return null;
     const t = st.turn;

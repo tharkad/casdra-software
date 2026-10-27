@@ -46,6 +46,17 @@ export const flyTiles = (st, data) => { const t = tileNow(st); return t ? [t, ..
 // Where he may fly away to from a fight (8.3.8e): next to the tile of the clearing.
 export const flyAwayTiles = st => (st.ch.at ? adjacentTiles(st, tileOf(st.ch.at)) : []);
 
+// 6.2.1a: Fly is an enhanced activity, recorded only by a character who has what it comes from: a spell that can make him fly (the Broomstick; Transform and Absorb Essence for a flying
+// creature) in his book, a Flying Carpet, or flying values now. With one of those he may record it even when he has no flying values at this moment (7.3.3a.1: the phase is lost when
+// he tries it); with none of them he may not (ruling S6 stops there: Mike 2026-10-26, "record, then cancel").
+export const FLY_SPELLS = ['broomstick', 'transform', 'absorb-essence'];
+export function canRecordFly(st, data) {
+    if (st.ch.flying || flySources(st, data).length) return true;
+    if (st.ch.morph?.creature?.flies) return true;
+    if ((st.ch.spells ?? []).some(id => FLY_SPELLS.includes(id))) return true;
+    return st.ch.items.some(i => i.kind === 'treasure' && i.id === 'flying-carpet' && !i.destroyed);
+}
+
 // A plan's Fly phase `i`, checked as the plan is recorded: why it cannot be done, or null. `slots` is the plan so far; a flight is a run of Fly phases, and only its first
 // phase needs a Fly chit (so many flights, so many chits).
 export function planFlyError(st, data, slots, i) {

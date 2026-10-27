@@ -1,4 +1,5 @@
-import { graphOf, reachableFromBorderland, tileById } from './mapbuild.js';
+import { graphOf, reachableFromBorderland, tileById, edgeClearing } from './mapbuild.js';
+import { neighbor, hexKey, opposite } from './hex.js';
 
 // Map queries over a game state. The map never changes in the base game, so each realm's graph is built once.
 const cache = new Map();
@@ -23,6 +24,22 @@ function graphFor(st, data) {
     return g;
 }
 export const graph = graphFor;
+
+// The clearings with a roadway to the edge of the map (7.3.1a.4, 9.2.2b): a clearing that a tile's side runs a road from to an edge where no tile lies, or whose neighbour has no road
+// at that edge. The set of clearing ids; it changes when a tile is turned over.
+export function mapEdgeClearings(st, data) {
+    const at = new Map(st.placements.map(p => [hexKey(p.q, p.r), p])), out = new Set();
+    for (const p of st.placements) {
+        const tile = tileById(data.tiles, p.id);
+        for (let w = 0; w < 6; w++) {
+            const mine = edgeClearing(tile, p, w);
+            if (mine == null) continue;
+            const [nq, nr] = neighbor(p.q, p.r, w), other = at.get(hexKey(nq, nr));
+            if (!other || edgeClearing(tileById(data.tiles, other.id), other, opposite(w)) == null) out.add(p.id + mine);
+        }
+    }
+    return out;
+}
 
 // A hidden path or secret passage he has found is kept by the SIDE of its tile it was found on (7.10.4d: the green and the enchanted side "are listed separately on the Discoveries list,
 // and they must be discovered separately"). The key is the two clearings, sorted ("BL4~BL5") for the green side, and the same with ":enchanted" after it for the enchanted side.

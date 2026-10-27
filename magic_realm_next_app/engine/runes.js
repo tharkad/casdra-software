@@ -22,6 +22,8 @@ export function dealSpells(st, data, shuffle) {
     for (const sp of Object.values(data.spells ?? {})) (byType[sp.type] ??= []).push(sp.id);
     for (const t of Object.keys(byType)) byType[t] = shuffle(st, byType[t], `setup.runes.${t}`);
     st.spellsAside = (S.spellsOutOfPlay ?? []).map(t => byType[t]?.pop()).filter(Boolean);
+    // Ruling S5 (Mike, 2026-10-26, the recommendation): "Spell cards go into the boxes in order of Magic type; lower numbers spells are below the higher number spells and are harder to learn"
+    // (3.1.3g.4). A box is stored BOTTOM FIRST, as the Set Up Card lists it (lowest type first); its TOP card, the one Reading Runes tries first (7.5.6b), is the LAST one: `topCard`.
     const box = types => types.map(t => ({ id: byType[t]?.pop() ?? null, awake: false })).filter(c => c.id);
     st.spellBox = { sites: {}, visitors: {}, items: {} };
     for (const s of S.sites ?? []) if (s.spells?.length) st.spellBox.sites[s.name] = box(s.spells);
@@ -29,8 +31,8 @@ export function dealSpells(st, data, shuffle) {
     for (const c of S.spellContainers ?? []) if (c.spells?.length) st.spellBox.items[c.name] = box(c.spells);
 }
 
-// The card he would read: the first not yet awakened, or any when all are.
-export const topCard = box => box.find(c => !c.awake) ?? box[0];
+// The card he would read: the topmost not yet awakened, or the top one when all are.
+export const topCard = box => box.findLast(c => !c.awake) ?? box.at(-1);          // (boxes are stored bottom first: the top card is the last, S5)
 
 // What he can read runes on right here: a discovered site chit in his clearing that holds spell cards, or an artifact or book he carries and
 // has active. Returns [{ key, label, kind, box, item? }].

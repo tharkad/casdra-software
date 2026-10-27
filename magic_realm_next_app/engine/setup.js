@@ -301,6 +301,8 @@ export function restartChar(st, data, vp = null, character = null) {
 }
 
 function chooseStart(st, data, ch) {
+    // ruling S9 (Mike, 2026-10-26): a character whose card lists the Ghosts (the Witch King) may start in the clearing where the two Ghosts stand, with the Bones valley piece (3.3.5, 3.6.2a)
+    if (ch.startDwelling === 'Ghosts' && st.ghostsAt) return st.ghostsAt;
     const d = st.dwellings.find(x => x.kind === ch.startDwelling) ?? st.dwellings.find(x => x.kind === 'Inn');
     return d.at;
 }

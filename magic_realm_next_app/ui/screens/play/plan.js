@@ -1,10 +1,10 @@
 // play/plan.js: the plan tray (planTray: tabs, one line, the nine actions, Start the day; tray.js puts it in the tray) and the draft logic behind it (pick, setMove, advance, pruneOver, startDay).
-import { planKinds, phasesFor } from '../../../engine/day.js';
-import { flySources, flyTiles } from '../../../engine/magic/fly.js';
+import { planKinds, phasesFor, validatePlan } from '../../../engine/day.js';
+import { canRecordFly, flySources, flyTiles } from '../../../engine/magic/fly.js';
 import { isCave, isMountain, nameOfClearing, numOf, tileName } from '../../../engine/world.js';
 import { h } from '../../dom.js';
 import { playerOf as playerNameOf } from '../../meet.js';
-import { actRefusal, planState } from '../../planlogic.js';
+import { EDGE, actRefusal, canLeaveAt, destName, edgeIndex, planState } from '../../planlogic.js';
 import { followPicker } from '../meetui.js';
 import { nameOf } from '../../../engine/items.js';
 import { alertCardWhy, voiced, weaponCardOf } from '../../commit.js';
@@ -50,7 +50,7 @@ function climbLocked(G, i) {
 }
 
 // short word for a tab: "Move · 2" (the number the player reads on the map, never the engine's code: DR-11), "Hide", "Search"
-const tabWord = s => (!s ? '\u2013' : s.act === 'move' && s.to ? `Move\u00A0\u00B7\u00A0${numOf(s.to)}` : (ACT_LABEL[s.act] ?? s.act));
+const tabWord = s => (!s ? '\u2013' : s.act === 'move' && s.to === EDGE ? 'Leave' : s.act === 'move' && s.to ? `Move\u00A0\u00B7\u00A0${numOf(s.to)}` : (ACT_LABEL[s.act] ?? s.act));
 const nb = s => String(s).replace(/ (\d+)$/, ' $1');
 
 // The plan in one sentence (DR-13): capitalised, an extra phase named as one, and a run of Nothing said once ("Move, Hide, Search and two phases of Nothing"). Pure: tools/ui_planlogic.py reads it.
@@ -68,7 +68,7 @@ export function planSentence(items) {
 const PONY_WHY = 'The pony adds a Move only after a Move of your own: they take turns, and the first Move of the day is never the pony\u2019s.';
 function actChips(G, i, at, over, others, baseOver) {
     const d = G.ui.draft, s = d.slots[i], isSpare = planInfo(G).spare === i;
-    const acts = ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(G.st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(flySources(G.st, G.data).length || G.st.ch.flying || flyRefusal(G.st, G.data) ? ['fly'] : []), ...(G.shared && i === 0 && G.ms?.followable?.length ? ['follow'] : []), 'nothing'];
+    const acts = ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(G.st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(canRecordFly(G.st, G.data) || flyRefusal(G.st, G.data) ? ['fly'] : []), ...(G.shared && i === 0 && G.ms?.followable?.length ? ['follow'] : []), 'nothing'];
     const n = acts.length;
     return h('div', { class: `ds-acts n${n}` }, ...acts.map(a => {
         const curse = (G.st.ch.curses ?? []).find(c => CURSE_ACT[c] === a), refused = actRefusal(G.st, a) ?? (a === 'fly' && flyRefusal(G.st, G.data) ? voicedWhy(flyRefusal(G.st, G.data)) : null);          // (a transformed hero cannot play a Fly chit: the chip stays, dim, and says so)
@@ -97,17 +97,45 @@ function askLine(G, i, step, total) {
         clearable ? btn(`Clear ${i + 1}`, 'quiet sm clearbtn', { onclick: () => { d.slots[i] = null; if (climbLocked(G, i + 1)) d.slots[i + 1] = null; G.ui.pickMove = null; G.ui.planNote = null; G.ui.planStep = i; if (info.ponyOn) pruneOver(G, 'the pony\u2019s Move needs a Move of your own before it'); render(G); } }) : null);
 }
 
+// A phase the plan records but the day will cancel when it is tried (ruling S6, 4.6.9c, 7.3.3a.1): a Fly with nothing to fly with, too heavy, too far, or none left; a mist hero's activity. The engine accepts the
+// plan and says so in `validatePlan().warnings`; the tray tells him in the voice he reads, and blocks nothing. A phase after he leaves the map is dropped, so it is not warned about.
+const WARN_RULE = { fly: '4.6.9c, 7.3.3a.1', mist: '8.4.5p.1' };
+function planWarnings(G) {
+    const slots = G.ui.draft.slots, edge = edgeIndex(slots);
+    return validatePlan(G.st, G.data, slots).warnings.filter(w => edge < 0 || w.i <= edge).map(w => {
+        const text = w.text.replace(/^Phase \d+: /, ''), rule = slots[w.i]?.act === 'fly' ? WARN_RULE.fly : WARN_RULE.mist;
+        return { ...w, copy: { story: `Phase ${w.i + 1}: ${text} The phase will be lost when it comes. You can still change it.`, detail: `Phase ${w.i + 1}: ${text} It is recorded, then cancelled when tried (${rule}); nothing here is refused.` } };
+    });
+}
+
+const warningLines = G => planWarnings(G).map(w => h('p', { class: 'ds-hint-line warn', 'data-hint': 'plan-warning', 'data-phase': w.i + 1 }, voiced(w.copy)));
+
+// Leave the map (M4): in the Move picker, when the clearing this phase starts in has a roadway to the edge of the map. Two taps: the button asks, the primary of the question does it.
+function leaveBox(G, i) {
+    const d = G.ui.draft;
+    if (!canLeaveAt(G.st, G.data, d.slots, i)) return null;
+    if (G.ui.leaveMapAsk !== i) return h('div', { class: 'ds-leave' }, btn('Leave the map', 'sm', { 'data-act': 'leave-map', onclick: () => { G.ui.leaveMapAsk = i; render(G); } }));
+    return h('div', { class: 'ds-leave', 'data-leave-confirm': '' },
+        h('p', { class: 'ds-hint-line bad' }, voiced({
+            story: 'Leave the map? You walk off along the road at the edge, and your game ends there with the score you hold. You cannot come back.',
+            detail: 'Leaving the map along a roadway to its edge ends the game for you with your score as it stands (7.3.1a.4, 9.2.2b). Anything planned after this phase is dropped.' })),
+        h('div', { class: 'row2' },
+            btn('Stay', 'quiet', { 'data-act': 'leave-stay', onclick: () => { G.ui.leaveMapAsk = null; render(G); } }),
+            btn('Leave the map', 'danger', { 'data-act': 'leave-confirm', onclick: () => setMove(G, i, EDGE) })));
+}
+
 // what must be said besides the chips: where monsters wait, hidden paths, a curse, a mist (kept short, one line each, only when it matters)
 function planHints(G, i, at) {
     const d = G.ui.draft, s = d.slots[i], out = [];
     const line = (txt, cls = '', attrs = {}) => h('p', { class: `ds-hint-line ${cls}`.trim(), ...attrs }, txt);
     if (G.ui.planNote) out.push(line(G.ui.planNote, 'bad'));
+    out.push(...warningLines(G));
     if (s?.act === 'search' && at[i]) out.push(line(searchWhere(G, at[i]), '', { 'data-hint': 'search-where' }));
     if (G.ui.pickMove === i || s?.act === 'move') {
         // where monsters wait: they block you at the end of the phase unless you are hidden, so the ones you could walk into are named
         const monsBy = new Map(); for (const m of G.st.mons) if (!m.dead && !m.hired && m.loc?.c && (G.ui.moveTargets ?? []).includes(m.loc.c)) monsBy.set(m.loc.c, [...(monsBy.get(m.loc.c) ?? []), G.data.monsters[m.id].name]);
         if (G.ui.pickMove === i && monsBy.size) out.push(line(`Red rings have monsters (${[...monsBy].map(([c, n]) => `${nameOfClearing(c)}: ${[...new Set(n)].join(', ')}`).join('; ')}). In plain sight at the end of the phase they block you and your turn is lost. Hiding first keeps you safe.`, 'bad', { 'data-hint': 'monsters-ahead' }));
-        const heavy = s?.act === 'move' && s.to ? wouldDrop(G) : [];
+        const heavy = s?.act === 'move' && s.to && s.to !== EDGE ? wouldDrop(G) : [];
         if (heavy.length) out.push(line(`Too heavy for you now: this Move would leave ${heavy.join(', ')} behind. Put something down or use a stronger Move chit first.`, 'bad', { 'data-hint': 'leave-behind' }));
         if (G.ui.pickMove === i && G.ui.moveMaybe?.length) out.push(line(`Dotted: ${G.ui.moveMaybe.map(nameOfClearing).join(', ')} lie along a hidden path you have not found. Your earlier Search may find it; if it has not, this Move is lost.`));
     }
@@ -158,19 +186,21 @@ export function planTray(G) {
     }));
     const kids = [tabs];
     let lead, prim;
-    const unsetN = Array.from({ length: total }, (_, i) => d.slots[i]).filter(s => !s).length;
+    const planEnd = edgeIndex(d.slots) >= 0 ? edgeIndex(d.slots) + 1 : total;          // (leaving the map ends the plan: the phases after it are not planned)
+    const unsetN = Array.from({ length: Math.min(total, planEnd) }, (_, i) => d.slots[i]).filter(s => !s).length;
     if (step == null) {
         // the plan is whole: one summary line, nothing else to do but start
-        const names = d.slots.slice(0, total).map((s, i) => ({ extra: kinds[i] === 'extra', what: s ? (ACT_LABEL[s.act] ?? s.act) : 'Nothing' }));
+        const edge = edgeIndex(d.slots), upTo = edge >= 0 ? edge + 1 : total;          // (a plan that leaves the map ends there)
+        const names = d.slots.slice(0, Math.min(total, upTo)).map((s, i) => ({ extra: kinds[i] === 'extra', what: s ? (s.to === EDGE ? 'Leave the map' : ACT_LABEL[s.act] ?? s.act) : 'Nothing' }));
         const sum = d.slots[0]?.act === 'follow' ? describeSlot(G, d.slots[0]) : planSentence(names);
-        kids.push(h('div', { class: 'ds-plan-ask' }, h('span', { class: 'ds-dim' }, `${sum}. Ready when you are.`)));
-        lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `${total} of ${total}`), ' set');
+        kids.push(h('div', { class: 'ds-plan-ask' }, h('span', { class: 'ds-dim' }, `${sum}. Ready when you are.`)), ...warningLines(G));
+        lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `${Math.min(total, upTo)} of ${Math.min(total, upTo)}`), ' set');
     } else {
         kids.push(askLine(G, step, step, total));
         const sub = !roadLocked(G, step) && !climbLocked(G, step) && G.ui.pickMove !== step ? subPicker(G, step, at) : null;
         if (roadLocked(G, step)) kids.push(roadLockBox(G, d));
         else if (climbLocked(G, step)) kids.push(h('div', { class: 'ds-lockbox' }, icon('lock'), h('span', {}, `Fixed: the climb to ${nameOfClearing(d.slots[step].to)} takes two Moves.`)));
-        else if (G.ui.pickMove === step) { /* the map is the chooser */ }
+        else if (G.ui.pickMove === step) { const lb = leaveBox(G, step); if (lb) kids.push(lb); }          // (the map is the chooser; the edge of the map is a choice of its own)
         else if (sub) kids.push(...sub);
         else {
             const over = slots => planKinds(G.st, G.data, slots).kinds.filter(k => k === 'over').length;
@@ -193,8 +223,9 @@ function startDay(G) {
     const d = G.ui.draft, { total, kinds } = planInfo(G);
     // A phase that no longer exists (a move into a cave takes the sunlight phases away) is dropped, not refused.
     const slots = d.slots.map((s, i) => (!s || s.act === 'nothing' || i >= total || kinds[i] === 'over' ? null : s));
+    const edge = slots.findIndex(s => s?.to === EDGE); if (edge >= 0) for (let k = edge + 1; k < slots.length; k++) slots[k] = null;
     if (slots[0]?.act === 'follow') for (let k = 1; k < slots.length; k++) slots[k] = null;
-    G.ui.draft = null; G.ui.sheet = null; G.ui.planStep = 0; G.ui.peek = false; G.ui.sel = null; G.ui.pickMove = null; G.ui.pickFly = null; G.ui.planNote = null;
+    G.ui.draft = null; G.ui.leaveMapAsk = null; G.ui.sheet = null; G.ui.planStep = 0; G.ui.peek = false; G.ui.sel = null; G.ui.pickMove = null; G.ui.pickFly = null; G.ui.planNote = null;
     act(G, { type: 'plan', slots });
 }
 
@@ -202,7 +233,8 @@ function startDay(G) {
 function firstUnset(G) {
     const d = G.ui.draft, { total } = planInfo(G);
     if (d.slots[0]?.act === 'follow') return d.slots[0].who ? null : 0;              // (Follow is the whole day: nothing else to fill, once it names a guide)
-    for (let i = 0; i < total; i++) if (!d.slots[i]) return i;
+    const end = edgeIndex(d.slots);
+    for (let i = 0; i < total && (end < 0 || i < end); i++) if (!d.slots[i]) return i;
     return null;
 }
 
@@ -264,7 +296,7 @@ function pick(G, i, a, at) {
 
 // after a phase is set, go on to the next one that still has nothing attached
 function advance(G, from) {
-    const { total } = planInfo(G);
+    const end = edgeIndex(G.ui.draft.slots), total = end >= 0 ? Math.min(planInfo(G).total, end) : planInfo(G).total;          // (leaving the map ends the plan)
     let n = from;
     while (n < total && G.ui.draft.slots[n]) n++;
     if (n < total) G.ui.planStep = n;
@@ -273,6 +305,12 @@ function advance(G, from) {
 
 export function setMove(G, i, to) {
     const d = G.ui.draft;
+    if (to === EDGE) {          // leaving the map: the phases after it are dropped
+        for (let k = i + 1; k < d.slots.length; k++) d.slots[k] = null;
+        d.slots[i] = { act: 'move', to: EDGE }; G.ui.leaveMapAsk = null; G.ui.pickMove = null; G.ui.planNote = null;
+        advance(G, i + 1); render(G); return;
+    }
+    G.ui.leaveMapAsk = null;
     if (roadLocked(G, i) && to !== G.st.ch.onRoad.from && to !== G.st.ch.onRoad.to) return;
     if (climbLocked(G, i + 1)) d.slots[i + 1] = null;                      // a changed Move takes the second half of its old climb with it
     d.slots[i] = { act: 'move', to };

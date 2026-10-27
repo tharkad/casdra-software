@@ -21,6 +21,8 @@ const qRow = (b, right = null) => h('div', { class: 'q' }, h('b', {}, b), right)
 const foot = (lead, prim) => h('div', { class: 'ds-actions' }, lead ? h('div', { class: 'lead' }, lead) : null, prim);
 const leadText = (...kids) => h('span', { class: 'ds-lead-text' }, ...kids);
 const effortLead = eff => leadText(eff.over ? h('span', { style: 'color:var(--danger)' }, eff.text) : ['Effort ', h('b', {}, eff.lim >= 99 ? `${eff.ast}, no limit` : `${eff.ast} of ${eff.lim}`)]);
+// Peace holds: nobody may attack (a Wish for Peace, or a Peace spell on him). Said once, at the top of the Encounter and Melee sheets.
+const peaceBanner = X => { const pc = M.peaceOf(X.st); return pc ? h('div', { class: 'ds-peace', 'data-peace': pc.kind, role: 'note' }, h('b', {}, 'Peace holds: nobody may attack.'), voiced(pc, { class: 'peace-text' })) : null; };
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
 // the sheet itself (the body of the scene's lower third)
@@ -104,7 +106,7 @@ export function encounterSheet(X) {
     const lead0 = hidden ? btn('Strike from hiding', '', { 'data-act': 'pass', onclick: () => send(P.pass()) }) : casters.length ? btn(casters.every(d => M.isImp(data, d)) ? 'The curses' : 'What the Pit can do', 'quiet', { 'data-act': 'pit-note', onclick: () => { cb.pit = true; render(); } }) : null;
     const lead = lead0 ?? recBtn;
     const prim = hidden ? primary('Stay hidden', { 'data-act': 'stay-hidden', onclick: () => send(P.stay()) }) : mist ? primary('Let the round pass', { 'data-act': 'pass', onclick: () => send(P.pass()) }) : primary('Go on to the fight', { 'data-act': 'pass', onclick: () => send(P.pass()) });
-    return sheetEl(X, 'encounter', qRow(round, itemsBtn ?? h('span', {}, mist ? 'As mist' : 'Before the melee?')), h('div', { class: 'cb-verbs' }, ...tiles), ...why, ...wakeNote, pitNote, lead0 && recBtn ? h('div', { class: 'cb-recrow' }, recBtn) : null, foot(lead, prim));
+    return sheetEl(X, 'encounter', qRow(round, itemsBtn ?? h('span', {}, mist ? 'As mist' : 'Before the melee?')), peaceBanner(X), h('div', { class: 'cb-verbs' }, ...tiles), ...why, ...wakeNote, pitNote, lead0 && recBtn ? h('div', { class: 'cb-recrow' }, recBtn) : null, foot(lead, prim));
 }
 
 function chitPickRow(X, chits, selId, onPick) {
@@ -292,7 +294,10 @@ export function meleeSheet(X) {
     const tgtName = m.target ? (pvpTargetName(st, data, m.target) ?? baseNameOf(st, data, o, m.target)) : null;
     let body, lead = backBtn, prim = nextBtn;
 
-    if (cur === 'whom') {
+    if (cur === 'strike' && !o.targets.length && M.peaceOf(st)) {          // Peace holds: nobody may be named, so there is nothing to strike
+        body = [peaceBanner(X), hint('There is nothing to strike. Go on to Guard, and play your maneuver as you like.')];
+        lead = backBtn;
+    } else if (cur === 'whom') {
         const w = whomBody(X, o, m);
         body = [h('div', { class: 'cb-fields sf-whom', role: 'radiogroup', 'aria-label': 'Whom you strike' }, ...w.els)];
         lead = leadText(tgtName ? `You strike ${tgtName}.` : 'You strike no one.');
@@ -304,6 +309,12 @@ export function meleeSheet(X) {
                 onclick: () => { m.fightChit = m.fightChit === ch.id ? null : ch.id; render(); }, attrs: { 'data-sel': 'fc' } })))
                 : h('p', { class: 'cb-hint' }, c.casts?.length ? 'You cast a spell this round, so you cannot also swing a weapon.' : 'You have no Fight chit ready.');
         body = [dirButtons(DIRS, i => `hits ${MNV[i]}`, m.attackDir, i => { m.attackDir = i; render(); }), chits];
+        // the spells of this round have already acted (the split Melee step): the chits below are read after them
+        if (X.p?.aimed) body.unshift(voiced({ story: 'Your spells have worked. The chits below show what they left.', detail: 'The spells of this round have taken effect before any chit is played (4.6.10a, 8.4.3); the options are read again after them.' }, { class: 'cb-hint', 'data-hint': 'aimed' }));
+        // a monster you control may be named, which breaks the spell that holds it (R5, 8.4.2h)
+        if ((o.controlled ?? []).length) body.push(h('div', { class: 'cb-controlled', 'data-sec': 'controlled' },
+            voiced({ story: 'These monsters obey you. Naming one as your target breaks the spell that holds it.', detail: 'A monster you control may be named as your target, which breaks the spell that holds it (8.4.2h).' }, { class: 'cb-hint' }),
+            h('div', { class: 'cb-aim' }, ...o.controlled.map(d => h('button', { type: 'button', class: `ds-btn${m.target === d.uid ? ' on' : ''}`, 'data-controlled': d.uid, 'aria-pressed': m.target === d.uid ? 'true' : 'false', onclick: () => { m.target = m.target === d.uid ? null : d.uid; render(); } }, baseNameOf(st, data, o, d.uid))))));
         const repeat = c.round > 1 && X.ui.lastPlan?.fight === cb.fightKey && M.repeatable(X.ui.lastPlan.plan) ? (() => { const lp = X.ui.lastPlan.plan, rp = M.repeatPlan(st, data, o, lp), ok = M.repeatHolds(lp, rp);
             return btn('Same as last round', ok ? 'quiet' : 'quiet is-dim struck', { 'data-act': 'same-plan', 'aria-disabled': ok ? null : 'true',
                 onclick: () => { if (!ok) { X.say('You cannot do the same as last round: a chit you played then is not ready now.'); return; } cb.plan = rp; go('roll'); } }); })() : null;
@@ -321,7 +332,10 @@ export function meleeSheet(X) {
     } else if (cur === 'shield') {
         body = [dirButtons(DIRS, () => 'shield here', m.shieldDir, i => { m.shieldDir = i; render(); }), hint(`Your ${nameOf(data, o.shield.item ?? o.shield)} guards one direction each round.`)];
     } else if (cur === 'aim') {
-        body = [h('div', { class: 'cb-aimscroll' }, ...o.aims.map(a => aimEl(X, a, m)))];
+        const aimGo = btn('Spells first', 'quiet', { 'data-act': 'aim-go', onclick: () => X.send(P.aim(o, m)) });
+        body = [h('div', { class: 'cb-aimscroll' }, ...o.aims.map(a => aimEl(X, a, m))),
+            voiced({ story: 'Spells act before any chit is played. Let them work now to see what they leave.', detail: 'Spells start working before the plays of their round (4.6.10a, 8.4.3). Casting now shows the new values before you choose chits.' }, { class: 'cb-hint', 'data-hint': 'aim-first' })];
+        lead = aimGo;
     } else if (cur === 'parts') {
         m.parts ??= {};
         body = [h('div', { class: 'cb-fields' }, ...o.morphParts.map(pt => h('div', { class: 'cb-sum' }, h('span', { class: 'v' }, pt.name), h('span', { class: 'cb-aim' },
@@ -498,7 +512,8 @@ export function pitSheet(X) {
     const { st, data, cb, render } = X;
     const bodies = M.bodiesOf(st).filter(d => denSide(st, data, d).attack === 'spell');
     const imps = bodies.some(d => M.isImp(data, d)), pit = bodies.some(d => !M.isImp(data, d));
-    const rows = t => Object.entries(data.tables?.[t]?.rows ?? {}).map(([k, r]) => h('p', { class: 'pitrow' }, h('b', {}, `${r.name}. `), r.effect));
+    const PIT_EFFECT = { 'Carried Away': 'The target is killed outright. Only the target: a native\u2019s horse is a belonging, disposed of as for any death.' };          // (ruling R6)
+    const rows = t => Object.entries(data.tables?.[t]?.rows ?? {}).map(([k, r]) => h('p', { class: 'pitrow' }, h('b', {}, `${r.name}. `), PIT_EFFECT[r.name] ?? r.effect));
     const body = [
         pit ? h('div', {}, h('p', {}, 'A Demon does not strike a blow. At its attack time it casts the Power of the Pit, and the dice decide what falls on whoever it is aimed at. It is aimed like any attack: your maneuver can turn it aside, but armor does not help against it. Roll two dice and the higher one counts: a low number is rare, a high one comes up often.'), ...rows('powerOfThePit'), h('p', {}, 'A hidden character is not touched by the Fiery Chasm. Staying hidden keeps a Demon from being set on you at all.')) : null,
         imps ? h('div', {}, h('p', {}, 'An Imp does not strike a blow. At its attack time it casts a curse on whoever it is aimed at. Your maneuver can turn it aside, but armor does not help. A Pentangle or Protection from Magic keeps it off you, and a Chapel clearing lifts curses at Midnight.'), ...rows('curses')) : null,

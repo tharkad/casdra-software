@@ -343,8 +343,17 @@ const barredFromHero = (st, data, d) => d.kind === 'mon' && !mayAttackHero(data.
 const assignable = (st, data) => st.combat.dens.filter(d => !d.dead && !d.assigned && !d.bystander && !d.pacified && !barredFromHero(st, data, d) && d.kind !== 'part' && d.kind !== 'horse');      // (a creature a spell has made peaceful is not set on him)
 // A peaceful (not battling) unhired native in the clearing can be lured too (8.3.4, 8.2.3a): luring it makes its group battle him.
 const luredPeaceful = (st, data) => st.combat.dens.filter(d => d.kind === 'nat' && d.bystander && !d.dead && !d.assigned && !d.pacified);
+// Ruling R7 (Mike, 2026-10-26): anything a pacification spell pacifies can be lured, a pacified Ogre, Giant or Goblin as well as a native group (8.3.4g: luring "breaks the spell used to pacify them").
+const luredPacified = (st, data) => st.combat.dens.filter(d => d.pacified && !d.dead && !d.assigned && !d.controlled && d.kind !== 'part' && d.kind !== 'horse' && !barredFromHero(st, data, d));
+function breakCalm(st, data, den) {
+    for (const { fx } of fxTags(st, { kind: den.kind, id: den.id }, 'nameBreaks')) {
+        say(st, `You lure the ${denSide(st, data, den).name}: ${data.spells[fx.spell]?.name ?? fx.spell} is broken, and it comes for you.`, 'combat');
+        breakFx(st, data, fx.id, 'it was lured');
+    }
+    if (den.pacified) breakPacify(st, data, den, t => say(st, t.replace('Your attack breaks', 'Luring it breaks'), 'combat'));
+}
 function assignAll(st, data) {
-    if (st.ch.hidden) return;
+    if (st.ch.hidden || st.combat.peaceNow) return;          // (a Wish for Peace: nobody is set on him in its rounds)
     for (const d of assignable(st, data)) d.assigned = true;
 }
 // A hidden character may lure denizens onto his sheet, but if he does so he instantly becomes unhidden (8.3.4b); once he is unhidden the denizens he did not lure are assigned
@@ -353,6 +362,7 @@ function lureHidden(st, data) {
     const c = st.combat;
     st.ch.hidden = false;
     say(st, 'You lure the creatures onto your sheet and give yourself away: you are no longer hidden.', 'combat');
+    for (const d of luredPacified(st, data)) breakCalm(st, data, d);          // (R7: the spell that made them peaceful is broken; they are set on him like any other)
     for (const g of new Set(luredPeaceful(st, data).map(d => data.natives[d.id].group))) startBattling(st, data, g);          // (8.2.3a: the lured native's group starts battling him)
     assignAll(st, data);
     deployHires(st, data);
@@ -576,7 +586,7 @@ export function encounterOptions(st, data) {
                         : 'No ready Move chit that is fast enough is also strong enough to carry everything you own.',
     };
     const casts = (c.spellOnly ? quietCasts(st, data, true) : castOptions(st, data, { slowest })).map(o => (c.spellOnly ? { ...o, aim: previewAim(st, data, o) } : o));       // (a quiet-evening cast has no Melee step: it is aimed on the cast screen)
-    const canLure = !!st.ch.hidden && !sharedFight(st) && !c.spellOnly && (assignable(st, data).length > 0 || luredPeaceful(st, data).length > 0);          // (a shared fight lures in its own step: battle.js)
+    const canLure = !!st.ch.hidden && !sharedFight(st) && !c.spellOnly && (assignable(st, data).length > 0 || luredPeaceful(st, data).length > 0 || luredPacified(st, data).length > 0);          // (a shared fight lures in its own step: battle.js)
     const mist = !!st.ch.mist;          // (the Encounter step of a mist hero offers only running away, 8.4.5p.1)
     return { canStay, canLure: canLure && !mist, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), energize: energizeOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && !card && fight.length > 0 && !gripped && !mist, alertChits: fight, berserkChits: mist ? [] : berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
 }
@@ -599,6 +609,7 @@ export function encounterAction(st, data, a) {
             // (not the same spell again: a second one on the same target would only be nullified).
             (c.quietDone ??= []).push(a.spell);
             expireDue(st, data, 'round-end');
+            if (st.fx?.length) worldFadesRoll(st, data);                        // ruling S11 (Mike, 2026-10-26: the recommendation): 8.1.3a calls these rounds of combat, so World Fades rolls Hide at the end of this one too
             c.casts = []; c.played = {};                        // (this round's spells are done: the next round starts clean)
             if (!c.ended && !st.ch.dead && !st.ch.mist && !st.ch.flying && quietCasts(st, data).length) {
                 if (sharedFight(st)) { c.spellOnly = false; c.again = true; c.casts = []; c.played = {}; mem(st).enc = 'done'; mem(st).done = true; return; }          // (the next round is the table's: battle.js)
@@ -733,13 +744,17 @@ function enterMelee(st, data) {
 export function meleeOptions(st, data) {
     const c = st.combat, w = weaponOf(st, data), load = st.ch.morph ? 0 : carriedWeight(st, data);
     let targets = c.dens.filter(d => !d.dead && d.kind !== 'part' && d.kind !== 'horse');
-    if (pvpOn(st) && contested(st)) targets = pvpTargets(st, data, targets);          // (only while another player's character is in the fight: otherwise it is the step-3 fight, whatever the switch)
+    if (fxTags(st, HERO, 'noSpecify').length || c.peaceNow) targets = [];          // Peace on him, or a Wish for Peace in force: nobody may be named as a target for an attack or spell
+    else if (pvpOn(st) && contested(st)) targets = pvpTargets(st, data, targets);          // (only while another player's character is in the fight: otherwise it is the step-3 fight, whatever the switch)
     const wlvl = w ? lvl(data.weapons[w.item.id].weight) : 0;
     const assigned = targets.filter(d => d.assigned);
     const attackers = c.dens.filter(d => !d.dead && (d.assigned || d.partOf && c.dens.find(o => o.uid === d.partOf)?.assigned) && denSide(st, data, d).attack !== 'none' || false);
     return {
         targets,
         assigned,
+        // ruling R5 (Mike, 2026-10-26: the recommendation): he may name a monster he controls (Control Bats, Guide Spider or Octopus); naming it breaks the spell (8.4.2h). They are listed apart
+        // from `targets` (a controlled monster is not one the computer players should pick); the uid is that of the former denizen.
+        controlled: c.dens.filter(d => d.dead && d.controlled && d.kind === 'mon' && (c.hires ?? []).some(h => !h.dead && h.kind === 'mon' && h.id === d.id) && st.mons.find(m => m.id === d.id)?.tie?.kind === 'control'),
         attackSpell: c.attackSpell ?? null,
         aims: aimOptions(st, data),                                                 // what each spell cast this round may be aimed at
         fightChits: c.casts?.length ? [] : activeChits(st, 'fight', data),         // a character who cast a spell cannot also swing a weapon or play a Fight chit that round (8.4.5a)
@@ -796,6 +811,43 @@ export function meleePlay(st, data, p) {
     return meleeResolve(st, data, X);
 }
 
+// What the Melee step sets up before anything is played: the dice tray and the round's tallies start clean; returns the logger the step writes with.
+function beginMelee(st) {
+    const c = st.combat;
+    c.roundRollFrom = st.rollSeq ?? 0;            // the dice tray in the fight shows this round's rolls only
+    c.killed = [];                                  // what he killed this round, for the screen to lead with
+    c.roundGain = { fame: 0, notoriety: 0, gold: 0 };   // and what the kills paid
+    c.events = [];
+    return meleeLog(st);
+}
+// Who was hidden, and which creatures were on his sheet, when the Melee step began (before his spells act: ruling S9)
+function markStart(st) {
+    const c = st.combat;
+    return { hidden: !!st.ch.hidden, assigned: c.dens.filter(d => d.assigned).map(d => d.uid) };
+}
+function meleeLog(st) {
+    const ev = st.combat.events;
+    return (t, story) => { ev.push(story ?? t); say(st, t, 'combat', story ?? null); };
+}
+
+// The Melee step in two answers (ruling S8 / R3, Mike 2026-10-26): `aim` names what each spell cast this round is aimed at and lets the spells come to life; the question stays
+// `combat-melee` (with `aimed: true`), and the options read now show what they left (a Transform's dummy chits, an Elven Grace's move times). Answering `melee` straight away, with
+// `spellAim` in it, does both at once: the spells still act first and the plays are judged against what they left.
+export function meleeAim(st, data, p) {
+    const c = st.combat;
+    if (c.step !== 'melee') throw new Error('not in the melee step');
+    if (sharedFight(st)) throw new Error('in a fight with other characters the spells are aimed with the plays');
+    if (c.aimedRound === c.round) throw new Error('your spells are already aimed this round');
+    const log = beginMelee(st);
+    c.aimStart = markStart(st);
+    applyAim(st, data, p.spellAim);
+    resolveSpells(st, data, log);
+    c.aimedRound = c.round;
+    if (st.ch.dead || st.ch.mist) { c.attackSpell = null; c.step = 'resolve'; return afterMelee(st, data); }
+    if (c.ended) { c.attackSpell = null; return; }
+    st.pending = { type: 'combat-melee', round: c.round, aimed: true };
+}
+
 // The first half of the Melee step for one character: his chits are played, his spells aimed and resolved, the target he names is set on him or struck from hiding, and the creatures on
 // his sheet are placed in the red boxes. Returns { X, log } to go on (X: what the plays came to), or { stop: 'dead' | 'ended' } when a spell already ended his part of the round.
 // A shared fight (battle.js) calls it once for each character, in the order of the draw, after all the plays are in.
@@ -803,55 +855,77 @@ export function meleeSetup(st, data, p) {
     const c = st.combat;
     const o = meleeOptions(st, data);
     for (const k of ['attackDir', 'moveDir', 'shieldDir']) if (p[k] != null && !(Number.isInteger(p[k]) && p[k] >= 0 && p[k] <= 2)) throw new Error(`${k} must be a direction from 0 to 2`);
-    if (p.target != null && !o.targets.some(d => d.uid === p.target)) throw new Error('that creature is not one you can strike');
-    const w = o.weapon;
-    c.roundRollFrom = st.rollSeq ?? 0;            // the dice tray in the fight shows this round's rolls only
-    c.killed = [];                                  // what he killed this round, for the screen to lead with
-    c.roundGain = { fame: 0, notoriety: 0, gold: 0 };   // and what the kills paid
-    const ev = c.events = [];
-    const log = (t, story) => { ev.push(story ?? t); say(st, t, 'combat', story ?? null); };
+    // Peace on him (ruling S2: a character may be its target, the caster included): he cannot specify a target for an attack or spell (8.4.2b.7, LS Peace 2)
+    const peaceBefore = fxTags(st, HERO, 'noSpecify').length > 0, wishBefore = !!c.peaceNow;
+    if (peaceBefore && (p.target != null || p.targets?.length)) throw new Error('Peace forbids you to specify a target for an attack or spell');
+    if (wishBefore && (p.target != null || p.targets?.length)) throw new Error('The Wish for Peace is in force: nobody may target or attack anyone');
+    if (p.target != null && !o.targets.some(d => d.uid === p.target) && !o.controlled.some(d => d.uid === p.target)) throw new Error('that creature is not one you can strike');
+    const aimed = c.aimedRound === c.round;          // the spells were already aimed and have come to life (meleeAim): the plays are judged against what they left
+    const log = aimed ? meleeLog(st) : beginMelee(st);
     const hm = st.ch.morph ?? null;                        // he is a creature (Absorb Essence, Transform): the counter fights, not his chits and gear
-    // --- validate and apply chit plays ---
     // the plan for the boxes is judged first, before anything is played
     const bad = boxPlanError(st, boxCounters(st, data, p), p.boxes ?? {});
     if (bad) throw new Error(bad);
+    // --- the spells act first (4.6.10a, 8.4.3; ruling S8 / R3, Mike 2026-10-26): "All of the spells start working before the characters play their attacks and maneuvers", and a spell that alters
+    //     combat values does so instantly. So the chits are judged and played AFTER the spells of this round have come to life, from options read again (a Transform's dummy chits,
+    //     an Elven Grace's move times).
+    // ruling S9 (Mike, 2026-10-26): a hidden caster who reveals himself by naming a target (8.4.2d.6) was hidden when the round began: no denizen is assigned to him in the round of the
+    // reveal, exactly as when he attacks from hiding (8.3.5); the creature a spell provoked answers from the NEXT round.
+    const start = aimed ? (c.aimStart ?? markStart(st)) : markStart(st);          // (kept in the state only between the two answers of a split Melee step)
+    if (!aimed) {
+        applyAim(st, data, p.spellAim);
+        resolveSpells(st, data, log);
+    }
+    delete c.aimStart;
+    const hiddenAtStart = start.hidden;
+    if (hiddenAtStart) { const before = new Set(start.assigned); for (const d of c.dens) if (d.assigned && !d.dead && !before.has(d.uid)) { d.noRetaliation = true; d.noWhy = 'hidden'; } }
+    // a spell may end the round at once: it killed him, or it ended the combat (Small Blessing's Elsewhere)
+    if (st.ch.dead) return { stop: 'dead' };
+    if (c.ended) return { stop: 'ended' };
+    if (st.ch.mist && !sharedFight(st)) return { stop: 'mist' };          // he melted into mist: he plays no attack or maneuver, the combat goes on (the spell works first, 8.4.3)
+    // 8.4.2h: naming a monster he controls as a target for himself breaks the spell that holds it (R5); the monsters go free and the one he named is an ordinary target
+    for (const d of o.controlled) {
+        if (p.target !== d.uid && !(p.targets ?? []).includes(d.uid)) continue;
+        const fxId = st.mons.find(m => m.id === d.id)?.tie?.fx;
+        if (fxId && st.fx?.some(f => f.id === fxId && f.state !== 'done')) { log('You name a monster you control as your target: the spell that holds it is broken (8.4.2h).'); breakFx(st, data, fxId, 'its target was named'); }
+    }
+    // a Peace that came to life this round takes his Attention chit back at once: the target he named and the attack he was playing are cancelled
+    if (!wishBefore && c.peaceNow && (p.target != null || p.targets?.length || p.fightChit)) { log('The Wish for Peace: nobody may target or attack anyone; the attack you were playing is cancelled.'); p = { ...p, target: null, targets: undefined, fightChit: null }; }
+    if (!peaceBefore && fxTags(st, HERO, 'noSpecify').length && (p.target != null || p.targets?.length || p.fightChit)) { log('Peace takes back your Attention chit: the attack you were playing is cancelled.'); p = { ...p, target: null, targets: undefined, fightChit: null }; }
+    const o2 = meleeOptions(st, data);
+    // 4.6.10a: "If it forbids him from playing an action chit he has already played, his play is cancelled." A chit he named that the spell has frozen (Transform, Absorb Essence) or
+    // changed away is not refused: that play is cancelled (an answer given blind, before the spell showed what it leaves). A chit that was never available is still refused.
+    const gone = (id, was, now) => id != null && was.some(x => x.id === id) && !now.some(x => x.id === id);
+    if (gone(p.fightChit, o.fightChits, o2.fightChits)) { log(`Your play of the Fight chit is cancelled: the spell forbids it (4.6.10a).`); p = { ...p, fightChit: null }; }
+    if (gone(p.moveChit, [...o.moveChits, ...o.duckChits], [...o2.moveChits, ...o2.duckChits])) { log(`Your play of the Move chit is cancelled: the spell forbids it (4.6.10a).`); p = { ...p, moveChit: null }; }
     let fight = null, move = null;
     if (p.fightChit) {
-        fight = o.fightChits.find(x => x.id === p.fightChit);
+        fight = o2.fightChits.find(x => x.id === p.fightChit);
         if (!fight) throw new Error('that Fight chit is not available');
-        if (!o.fightOk(fight)) throw new Error('that Fight chit is too weak for your weapon');
+        if (!o2.fightOk(fight)) throw new Error('that Fight chit is too weak for your weapon');
     }
     if (p.moveChit) {
-        move = o.moveChits.find(x => x.id === p.moveChit) ?? o.duckChits.find(x => x.id === p.moveChit);
+        move = o2.moveChits.find(x => x.id === p.moveChit) ?? o2.duckChits.find(x => x.id === p.moveChit);
         if (!move) throw new Error('that Move chit is not available');
         if (move.duck && p.moveDir !== DUCK_SQUARE) throw new Error('the Duck chit may only be placed in the Duck square');
-        if (!move.duck && !o.moveOk(move)) throw new Error('that Move chit is too weak to carry your gear');
+        if (!move.duck && !o2.moveOk(move)) throw new Error('that Move chit is too weak to carry your gear');
     }
     if (fight && move && fight.id === move.id) throw new Error('a Move/Fight chit is played as one or the other, not both');
     if (hm) {
         // the red side of a Tremendous counter is up only against the creature it holds (Absorb Essence 2); a head or club is a second attack at his target
-        if ((fight?.side === 'red' || move?.side === 'red') && p.target !== o.morph?.pin) throw new Error('your red side is turned up only against the creature you are holding');
+        if ((fight?.side === 'red' || move?.side === 'red') && p.target !== o2.morph?.pin) throw new Error('your red side is turned up only against the creature you are holding');
         for (const [pid, sd] of Object.entries(p.parts ?? {})) {
-            if (!o.morphParts.find(x => x.id === pid)?.sides.some(x => x.side === sd)) throw new Error('that part cannot attack');
+            if (!o2.morphParts.find(x => x.id === pid)?.sides.some(x => x.side === sd)) throw new Error('that part cannot attack');
             if (!p.target) throw new Error('name the creature the part attacks');
         }
     }
-    const ast = o.asterisksPlayed + (fight?.effort ?? 0) + (move?.effort ?? 0);
+    const ast = o2.asterisksPlayed + (fight?.effort ?? 0) + (move?.effort ?? 0);
     if (ast > effortLimit(st)) throw new Error(`at most ${effortLimit(st)} effort asterisks may be played in a round`);
     if (fight) playChit(st, fight);
     if (move) playChit(st, move);
     // Wish 6 (Strength): the next Fight chit or Gloves he plays strikes with a flat Tremendous harm, whatever he swings, and the wish is used up
     const wish = fight && !fight.morph && st.ch.wishStrength ? st.ch.wishStrength : null;
     if (wish) st.ch.wishStrength = null;
-    applyAim(st, data, p.spellAim);
-    resolveSpells(st, data, log);
-    // a spell may end the round at once: it killed him, or it ended the combat (Small Blessing's Peace and Elsewhere)
-    if (st.ch.dead) return { stop: 'dead' };
-    if (c.ended) return { stop: 'ended' };
-    if (st.ch.mist && !sharedFight(st)) {          // he melted into mist: the chits he named for his attack and maneuver are not played (the spell works first, 8.4.3)
-        for (const ch of [fight, move]) if (ch) { delete c.played[ch.id]; if (ch.morph) delete c.played['morph:' + ch.type]; if (ch.isHorse) delete c.played['horse:' + ch.horseUid]; if (ch.effort) c.asterisks[ch.type === 'move' ? 'move' : 'fight'] -= ch.effort; }
-        return { stop: 'mist' };
-    }
     // --- target and unhide ---
     const victim = charOfUid(p.target), hireId = hireOfUid(p.target);          // (pvp: another character, or a hireling, named as the target; validated by meleeOptions above)
     let target = p.target && !victim && !hireId ? c.dens.find(d => d.uid === p.target && !d.dead) : null;
@@ -876,6 +950,9 @@ export function meleeSetup(st, data, p) {
         if (!target && spTargets.length) target = spTargets[0];
         if (target && !spTargets.includes(target)) spTargets.unshift(target);
         if (!sp0.many) spTargets = spTargets.slice(0, 1);
+        // a Pentangle on a creature: no new spell can go into effect against it (LS Pentangle; ruling S2: the card allows a monster or native as its target)
+        const pent = spTargets.filter(d => fxTags(st, { kind: d.kind, id: d.id }, 'noNewSpells').length);
+        if (pent.length) { log(`${data.spells[sp0.spell]?.name ?? sp0.spell} is held off by a Pentangle${spTargets.length > pent.length ? ' on some of its targets' : ' and goes into effect against no one'}.`); spTargets = spTargets.filter(d => !pent.includes(d)); }
         if (pvpOn(st)) {          // pvp: the characters it is aimed at (one only for a spell that has one target, and then not if a creature is named too)
             const named = [...new Set(ids)].filter(u => charOfUid(u) && o.targets.some(d => d.uid === u)).map(charOfUid);
             spChars = sp0.many ? named : (spTargets.length ? [] : named.slice(0, 1));
@@ -883,7 +960,7 @@ export function meleeSetup(st, data, p) {
     }
     if (hm?.pin && target?.uid !== hm.pin) hm.pin = null;           // a Tremendous counter turns its red side down when he changes targets
     for (const t of new Set([target, ...spTargets].filter(Boolean))) namedTarget(st, data, t, log);           // naming a creature a spell made peaceful breaks that spell
-    const wasHidden = st.ch.hidden;
+    const wasHidden = hiddenAtStart;
     c.toRed = []; c.toRedHire = [];
     if (st.ch.hidden && (target || victim || hireTarget || spChars.length)) { st.ch.hidden = false; log('You strike from hiding and are revealed.', tell.ambush(st)); }
     for (const v of new Set([victim, ...spChars].filter(Boolean))) if (st.chars[v].hidden) { st.chars[v].hidden = false; log(`You find ${st.chars[v].name}, who was hidden: he is revealed (8.4.2b).`); }          // naming a hidden character unhides them both
@@ -1528,7 +1605,9 @@ export function slayDenizen(st, data, den, { pay = true, shared = false, spell =
     den.dead = true; den.slainBy = spell;
     if (den.kind === 'mon' || den.kind === 'nat') lostTarget(st, data, { kind: den.kind, id: den.id });          // spells aimed at it end with it
     if (den.kind === 'horse') { const nat = st.nats.find(n => n.id === den.owner); if (nat) nat.horseDead = true; c.eventful = true; return ''; }
-    for (const p of c.dens.filter(d => d.partOf === den.uid)) p.dead = true;
+    // Ruling R6 (Mike, 2026-10-26): Power of the Pit's Carried Away kills "the target": the native, not his horse. A horse is a belonging, "disposed of normally" when its owner is killed
+    // (it stays on the sheet, riderless and inert, and goes out of play with its owner's group; the spell does not kill it).
+    for (const p of c.dens.filter(d => d.partOf === den.uid)) if (!(spell === 'Power of the Pit' && p.kind === 'horse' && !p.dead)) p.dead = true; else { p.riderless = true; p.assigned = false; p.box = null; }
     let reward = '';
     if (shared) { st.ch.killsToday = (st.ch.killsToday ?? 0) + 1; reward = ' (a shared kill: the bounty was already paid)'; }
     else if (pay) reward = killReward(st, data, den, s);
@@ -2047,6 +2126,14 @@ function nextRound(st, data) {
     const c = st.combat;
     expireDue(st, data, 'round-end');
     if (st.fx?.length) worldFadesRoll(st, data);                                  // World Fades: an unhidden hero nobody is attacking tries to slip from sight
+    if (c.peaceRounds != null) {          // a Wish for Peace (ruling S7): two more rounds in which nobody is set on anybody and everybody may act; then the combat ends
+        if (c.peaceRounds <= 0) return endCombat(st, data, 'peace');
+        c.peaceRounds -= 1; c.eventful = false; c.quiet = 0;
+        for (const d of c.dens) { d.box = null; d.noRetaliation = false; }
+        c.round += 1;
+        energizePass(st, data, 'round');
+        return enterEncounter(st, data);
+    }
     const quietRound = !c.eventful && !c.dens.some(d => d.pickedUp && !d.dead);
     c.quiet = quietRound ? c.quiet + 1 : 0;
     c.eventful = false;
@@ -2115,7 +2202,7 @@ export function monsterJoins(st, data, den) {
 export function monsterLeaves(st, data, m) {
     const c = st.combat;
     if (!c || c.ended || m.loc?.c !== c.at) return;
-    for (const h of c.hires ?? []) if (h.kind === 'mon' && h.id === m.id) h.dead = true;
+    for (const h of c.hires ?? []) if (h.kind === 'mon' && h.id === m.id) { h.dead = true; for (const d of c.dens) if (d.engagedBy === h.uid) d.engagedBy = null; }          // (what it was fighting is free of it)
     let den = c.dens.find(d => d.kind === 'mon' && d.id === m.id);
     if (!den) den = addDen(st, data, { kind: 'mon', id: m.id });
     den.dead = false; den.controlled = false; den.assigned = false; den.engagedBy = null; den.pacified = false; den.bystander = false;
@@ -2147,7 +2234,9 @@ function hireStrikes(st, data, h, log) {
         targetGone(st, data, { kind: den.kind, id: den.id });
         // the hirer collects the bounty, unmultiplied, and the kill does not count toward his daily total
         st.ch.fame += ds.fame ?? 0; st.ch.notoriety += ds.notor ?? 0;
-        if (hire.kind === 'mon' || data.natives[hire.id]?.leader) st.ch.gold += ds.gold ?? 0;         // the gold bounty goes only to a hired leader's or a controlled monster's kill (8.7.3 b)
+        // the gold bounty goes only to a hired leader's or a controlled monster's kill; an underling's or a hired monster's pays no gold (8.7.3 b)
+        const controlled = hire.kind === 'mon' && st.mons.find(x => x.id === hire.id)?.tie?.kind === 'control';
+        if (controlled || (hire.kind === 'nat' && data.natives[hire.id]?.leader)) st.ch.gold += ds.gold ?? 0;
         log(`${hs.name} kills the ${ds.name} for you.`);
         c.eventful = true;
     } else log(`${hs.name} hits the ${ds.name} but does not kill it.`);

@@ -46,6 +46,7 @@ export function phaseResultLine(G, n, fallback = null) {
 
 export function describeSlot(G, s) {
     if (!s || s.act === 'nothing') return 'Do nothing';
+    if (s.act === 'move' && s.to === 'Edge') return 'Leave the map';
     if (s.act === 'move') return `Move to ${nameOfClearing(s.to).replace(/ (\d+)$/, '\u00A0$1')}`;       // the number never wraps on its own line
     if (s.act === 'search') return s.table ? `Search: ${tableName(G, s.table)}` : 'Search';
     if (s.act === 'follow') return s.who ? `Follow ${playerNameOf(G.st, s.who)}` : 'Follow';
@@ -175,7 +176,7 @@ export function choiceSheet(G, p) {
 // Reading Runes: which runes? a site here that holds spell cards, or an artifact or book carried and active.
 export function runesSheet(G, p) {
     const opts = p.options.map(o => ({ k: o.key, title: o.label, label: o.label, line: '', art: actIcon('spell', 28), attrs: { 'data-target': o.key } }));
-    return pickSheetOf(G, { title: 'Which runes?', eyebrow: 'Read runes', situation: 'Which runes will you read?', why: 'A site here that keeps spell cards, or an artifact or book you carry.', opts, key: 'runesPick',
+    return pickSheetOf(G, { title: 'Which runes?', eyebrow: 'Read runes', situation: 'Which runes will you read?', why: 'A site here that keeps spell cards, or an artifact or book you carry. The runes of its highest Type are tried first.', opts, key: 'runesPick',
         idle: { button: 'Choose the runes', lead: 'Pick one.', toast: 'Pick the runes to read first.' }, verb: 'Read', act: o => act(G, { type: 'runes-target', target: o.k }) });
 }
 
@@ -212,7 +213,7 @@ export function pickSheet(G, p) {
 
 // A chit as the game shows it everywhere else (the .ds-chit tile: colour bar for Fight / Move / Magic, its value with its asterisks, one word under it). The ones that can be used now
 // come first and are lit gold; the rest are dim (dashed) and stay tappable (they answer with why not).
-const KIND_WORD = { move: 'Move', fight: 'Fight', magic: 'Magic' };
+const KIND_WORD = { move: 'Move', fight: 'Fight', magic: 'Magic', duck: 'Duck', berserk: 'Berserk' };
 function chitTile(G, c, { can, sel, onTap, attr }) {
     const val = `${c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`}${'*'.repeat(c.effort)}`;
     const word = c.state === 'fatigued' ? 'tired' : c.state === 'wounded' ? 'wounded' : KIND_WORD[c.type] ?? c.type;
@@ -228,7 +229,9 @@ export function effortSheet(G, p) {
     const sameKind = (a, b) => a.type === b.type && (a.strength ?? a.numeral) === (b.strength ?? b.numeral) && a.time === b.time && a.effort === b.effort;
     const chits = G.st.ch.chits;
     const optIdx = p.options.map((o, n) => ({ o, n }));
-    const payer = id => { const c = chits.find(x => x.id === id); return optIdx.filter(({ o }) => sameKind(chits.find(x => x.id === o.chit), c)); };
+    const pieces = optIdx.filter(({ o }) => !o.chit);          // the Vault (7.5.5d.2): a horse or a card with Tremendous strength breaks the door and is not tired, so it is no chit
+    const vault = p.site === 'Vault';
+    const payer = id => { const c = chits.find(x => x.id === id); return optIdx.filter(({ o }) => o.chit && sameKind(chits.find(x => x.id === o.chit), c)); };
     const waiting = G.ui.effortChit && payer(G.ui.effortChit).length ? chits.find(c => c.id === G.ui.effortChit) : null;
     const backs = waiting ? payer(waiting.id).filter(({ o }) => o.back) : [];
     const tile = c => {
@@ -245,11 +248,13 @@ export function effortSheet(G, p) {
     const tiles = chits.map(tile).sort((a, b) => (b.can - a.can));
     for (const t of tiles) if (t.can && !t.el.classList.contains('on')) t.el.classList.add('pick');
     const plainOpt = waiting ? payer(waiting.id).find(({ o }) => !o.back) : null;
-    const toll = p.site === 'Cairns' ? 'The Cairns take an asterisk of effort for every Loot roll, found or not.' : 'The Pool takes an asterisk of effort each time something is taken from it.';
-    return modal(G, `${p.site}: pay with effort`, h('div', { class: 'restsheet' },
+    const toll = vault ? 'The Vault\u2019s door is shut. It takes a piece of Tremendous strength to break it.' : p.site === 'Cairns' ? 'The Cairns take an asterisk of effort for every Loot roll, found or not.' : 'The Pool takes an asterisk of effort each time something is taken from it.';
+    const pieceRows = pieces.length && !waiting ? h('div', { class: 'ds-list ds-opts', 'data-vault-pieces': '' }, ...pieces.map(({ o, n }) => h('button', { type: 'button', class: 'ds-btn row-btn', 'data-effort-piece': o.item ?? n, onclick: () => { G.ui.effortChit = null; act(G, { type: 'effort-cost', n }); } },
+        h('b', {}, o.text), h('small', {}, o.piece === 'horse' ? 'Your horse is not tired by it.' : 'The card is played, not used up.')))) : null;
+    return modal(G, vault ? 'The Vault: break the door' : `${p.site}: pay with effort`, h('div', { class: 'restsheet' },
         waiting ? ask(`Paying with ${chitLabel(waiting)}.`, 'It has two asterisks. Tap a tired one-asterisk chit to bring it back ready, or pay with it outright.')
-            : ask(toll, 'Tap the chit that pays. It stays tired until you rest it.'),
-        chitGrid(G, tiles.map(t => t.el)),
+            : ask(toll, vault ? 'Tap the chit to play (it stays tired until you rest it), or break it with a horse or a card.' : 'Tap the chit that pays. It stays tired until you rest it.'),
+        chitGrid(G, tiles.map(t => t.el)), pieceRows,
         waiting ? h('div', { class: 'row2' },
             plainOpt ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'effort-plain', onclick: () => { G.ui.effortChit = null; act(G, { type: 'effort-cost', n: plainOpt.n }); } }, 'Just tire it') : null,
             h('button', { type: 'button', class: 'ds-btn', onclick: () => { G.ui.effortChit = null; render(G); } }, 'Choose a different chit')) : null), { eyebrow: 'Effort', bare: true, cls: 'chit-sheet' });

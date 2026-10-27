@@ -1,4 +1,5 @@
 import { foes, denRef, setPeaceful } from '../util.js';
+import { stoppedByHireling } from '../followers.js';
 
 // Persuade (III / Gold / Day): one native group, or all the Giants, or all the Ogres in the caster's clearing. He pacifies them; to hire them he uses the Friendly
 // column of the Meeting Table.
@@ -24,6 +25,7 @@ export default {
     start(ctx) {
         const { st, data } = ctx, ref = ctx.targets[0], members = ref ? membersOf(st, data, ref) : [];
         if (!members.length) { ctx.log('Persuade finds no one to pacify.'); return; }
+        if (stoppedByHireling(ctx, members, 'Persuade')) return;          // 8.4.4b
         ctx.fx({ targets: members.map(denRef), expires: { day: st.day + 1, at: 'sunset' }, data: { group: ref.kind === 'group' ? ref.id : null, kind: ref.id } });
         ctx.log(`Persuade: the ${ref.kind === 'group' ? ref.id : `${ref.id}s`} are pacified until Sunset tomorrow; attack one and the peace is broken.`);
     },

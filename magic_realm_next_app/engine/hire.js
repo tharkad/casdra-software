@@ -1,8 +1,7 @@
 import { say } from './core.js';
 import { hasCurse } from './effects.js';
-import { meetingOutcome, drinksCost } from './meeting.js';
+import { meetingOutcome, drinksCost, calmMonsterGroups } from './meeting.js';
 import { targetGone } from './magic/fx.js';
-import { isCave } from './world.js';
 
 // The Hire activity (rules digest 05 section 4.5). He pays a native group to join him for 14 days.
 // Simplification noted in docs: a hired leader follows like any other hireling instead of taking his own turn.
@@ -28,12 +27,10 @@ export function hireOptions(st, data) {
         if (individual(data, g.id) && mine.length > 1) mine = [mine.sort((a, b) => a.hiredUntil - b.hiredUntil || hireRank(data, b) - hireRank(data, a))[0]];
         if (mine.length) out.push({ group: g.id, rehire: true, members: mine.map(m => m.id), names: mine.map(m => data.natives[m.id].name), wage: mine.reduce((s, m) => s + data.natives[m.id].wage, 0) });
     }
-    // Monsters a spell has pacified (Deal with Goblins) may be hired too, a kind at a time, at the Neutral column: the wage is their Notoriety bounty (7.7.2, per card).
-    const calm = st.mons.filter(m => !m.dead && !m.hired && m.pacify?.length && m.loc?.c === here), kinds = [...new Set(calm.map(m => data.monsters[m.id].name))];
-    for (const name of kinds) {
-        const members = calm.filter(m => data.monsters[m.id].name === name);
-        out.push({ group: name, monsters: true, members: members.map(m => m.id), names: members.map(() => name), wage: members.reduce((s, m) => s + (data.monsters[m.id].notoriety || 1), 0) });
-    }
+    // Monsters a spell has pacified (Deal with Goblins) may be hired too, at the Neutral column: the wage is their Notoriety bounty (7.7.2, per card). All the targets of the spell here are
+    // hired together, as one group (7.7.5b; ruling H6, Mike 2026-10-26).
+    for (const { label, members } of calmMonsterGroups(st, data, here))
+        out.push({ group: label, monsters: true, members: members.map(m => m.id), names: members.map(m => data.monsters[m.id].name), wage: members.reduce((s, m) => s + (data.monsters[m.id].notoriety || 1), 0) });
     for (const g of Object.values(data.groups)) {
         let members = st.nats.filter(n => !n.dead && !n.hired && n.loc?.c === here && data.natives[n.id].group === g.id);
         if (!members.length) continue;
@@ -62,6 +59,7 @@ export function hireAction(st, data, p, a) {
             st.turn.blocked = true; st.turn.forceBlock = true; st.ch.hidden = false;
             return `The ${p.group} block you.`;
         }
+        if (a.act === 'accept' && a.boon && p.monsters) throw new Error('Monsters cannot be hired free, as a boon (rule 7.7.5b).');
         if (a.act === 'accept' && a.boon) {
             // Free, as a boon (7.6.5e): the group drops a level until he buys it back from their leader.
             if (!p.boon) throw new Error('that is not a boon');
@@ -87,18 +85,23 @@ export function hireAction(st, data, p, a) {
     const g = opt.group;
     // Drinks (7.6.5b / 7.7.1b): paid for everyone of the group in his clearing, hired or not, even if he hires only one.
     let drinks = false;
-    if (a.drinks && !opt.monsters) {
+    if (a.drinks) {          // (ruling H1: for the pacified monsters too, one gold for each of them, one column friendlier than the Neutral column)
         if (hasCurse(st, 'Ashes')) throw new Error('Your gold is worthless under the Ashes curse.');
         const cost = drinksCost(st, data, g);
         if (st.ch.gold < cost) throw new Error('not enough gold');
         st.ch.gold -= cost; drinks = true;
         say(st, `You buy drinks for the ${g} (${cost} gold): they warm to you.`, 'trade');
     }
-    const { res, r, note, rolls } = meetingOutcome(st, opt.monsters ? 0 : relFor(st, g) + (drinks ? 1 : 0), `Meeting roll: hiring ${opt.monsters ? `the ${g} (the Neutral column)` : `from the ${g}`}`, data, false, 'hire');
+    const { res, r, note, rolls } = meetingOutcome(st, (opt.monsters ? 0 : relFor(st, g)) + (drinks ? 1 : 0), `Meeting roll: hiring ${opt.monsters ? `the ${g} (the Neutral column)` : `from the ${g}`}`, data, false, 'hire');
     const why = `${drinks ? 'Drinks; ' : ''}${note}rolled ${r.dice.join('+')}: ${res}`;
     if (res.startsWith('Price')) {
         const mult = Number(res.split('x')[1]);
         st.pending = { type: 'hire-offer', group: g, members: opt.members, names: opt.names, wage: opt.wage, mult, price: opt.wage * mult, why, rehire: !!opt.rehire, monsters: !!opt.monsters, rollIds: rolls, affordable: st.ch.gold >= opt.wage * mult };
+        return undefined;
+    }
+    if (res === 'Boon' && opt.monsters) {
+        // 7.7.5b: monsters must be hired for gold; a Boon result is treated as Price x1
+        st.pending = { type: 'hire-offer', group: g, members: opt.members, names: opt.names, wage: opt.wage, mult: 1, price: opt.wage, why, rehire: false, monsters: true, rollIds: rolls, affordable: st.ch.gold >= opt.wage };
         return undefined;
     }
     if (res === 'Boon') {
@@ -132,11 +135,11 @@ function hire(st, data, ids, group, paid) {
 
 // Hirelings follow him wherever he goes, except natives hired today: they cannot follow until the next Birdsong (7.11.3), so a Move later in
 // the day leaves them where he hired them. On a later day they are with him again (they catch up; a hireling is never lost by being left behind).
-// Rule 2.3.3b: a native horse is removed from the map while its rider is in a cave, and hired natives follow the same rule. So a hireling
-// is off the map (no clearing) while he is in a cave, and is with him again on the first clearing outside.
+// Ruling H2 (Mike, 2026-10-26): "Hired natives and their horses must follow the same rules regarding caves as characters. They cannot ride their horses while in caves. They can ride their
+// horses to enter a cave but not to leave a cave" (7.3.2e.2, 8.4.5k.4): a hireling goes into the cave with him, on foot, and takes part in the fights there. (It used to take him "off the map"
+// in a cave, which the 3.1 text does not say.)
 export function followHero(st, data) {
-    const inCave = !!st.ch.at && isCave(st, data, st.ch.at);
-    for (const n of st.nats) if (n.hired && mineOf(st, n) && !n.dead && n.hiredDay !== st.day) n.loc = inCave ? null : { c: st.ch.at };
+    for (const n of st.nats) if (n.hired && mineOf(st, n) && !n.dead && n.hiredDay !== st.day) n.loc = { c: st.ch.at };
     for (const m of st.mons) if (m.hired && mineOf(st, m) && !m.dead) m.loc = { c: st.ch.at };       // monsters under a Control spell, or hired
 }
 

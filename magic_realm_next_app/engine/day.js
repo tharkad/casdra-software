@@ -1,6 +1,6 @@
 import { clone, die, roll2, int, say, lvl, shuffle, noteRoll, tally, chitWord } from './core.js';
 import { hides, PEER, LOCATE, meetingResult } from './tables.js';
-import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, tileClearings, graph, tileName } from './world.js';
+import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, tileClearings, graph, tileName, mapEdgeClearings } from './world.js';
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
 import * as combat from './combat.js';
 import * as battle from './battle.js';
@@ -24,7 +24,7 @@ import { prophecyOn, startPro, phaseOptions, consume, noteCave } from './magic/p
 import { magicSightOn, SIGHT_REPLACES, doMagicSight, takeChosen, perceive } from './magic/sight.js';
 import { MORPH_REFUSED } from './magic/morph.js';
 import { beginHire, hireAction, followHero, expireHires, dismissHire } from './hire.js';
-import { planFlyError, flySources, flyTiles, carries, startFlight, landHero, landingClearing } from './magic/fly.js';
+import { planFlyError, canRecordFly, flySources, flyTiles, carries, startFlight, landHero, landingClearing } from './magic/fly.js';
 import { ownedGold } from './magic/mist.js';
 import { resolveWho, settleActor, ownerOf, withActor, isMulti as multi, livingIds, playerNameOf } from './party.js';
 import * as meet from './meet.js';
@@ -196,16 +196,26 @@ export function planKinds(st, data, slots) {
             }
         }
         if (s.act === 'move' && !s.to) errors.push(`Phase ${i + 1}: choose where to move.`);
-        if (s.act === 'fly') { const e = planFlyError(st, data, slots, i); if (e) errors.push(`Phase ${i + 1}: ${e}`); }
+        // (ruling S6, Mike 2026-10-26, 4.6.9c and 7.3.3a.1: an activity he cannot do is RECORDED anyway and cancelled when he tries it; only the form of the record is checked here.
+        //  The screen can still warn: `validatePlan(...).warnings`)
+        if (s.act === 'fly' && !s.to) errors.push(`Phase ${i + 1}: choose a tile to fly to.`);
+        else if (s.act === 'fly' && !canRecordFly(st, data)) errors.push(`Phase ${i + 1}: Fly is an enhanced activity: you need a spell or a card that lets you fly to record it (6.2.1a).`);
         if (s.act === 'follow') { const e = meet.followPlanError(st, slots, i, st.ch); if (e) errors.push(`Phase ${i + 1}: ${e}`); }
-        if (st.ch.mist && s.act !== 'move' && s.act !== 'hide') errors.push(`Phase ${i + 1}: as mist you can only move and hide.`);
     });
     return { kinds, errors, total: ph.total, base: ph.base, lantern: ph.lantern, sunlight: ph.sunlight, extras: ph.extras, pony: ph.pony, ponyAt: ph.ponyAt };
 }
 
-export function validatePlan(st, data, slots) {
+// `warnings`: phases that are recorded but will be cancelled when he tries them (as mist anything but a Move or Hide; a Fly phase with nothing to fly with or too far away, 4.6.9c, 7.3.3a.1):
+// the plan is accepted (ruling S6), a screen may tell him.
+export function validatePlan(st, data, slots, strict = false) {          // strict: the warnings count as errors (the computer players never record a phase they know will be lost)
     const v = planKinds(st, data, slots);
-    return { total: v.total, sunlight: v.sunlight, errors: v.errors, kinds: v.kinds };
+    const warnings = [];
+    slots.forEach((s, i) => {
+        if (!s) return;
+        if (s.act === 'fly' && s.to) { const e = planFlyError(st, data, slots, i); if (e) warnings.push({ i, text: `Phase ${i + 1}: ${e}` }); }
+        if (st.ch.mist && s.act !== 'move' && s.act !== 'hide' && s.act !== 'nothing') warnings.push({ i, text: `Phase ${i + 1}: as mist you can only move and hide.` });
+    });
+    return { total: v.total, sunlight: v.sunlight, errors: strict ? [...v.errors, ...warnings.map(w => w.text)] : v.errors, kinds: v.kinds, warnings };
 }
 
 // A plan comes from outside the engine (a phone, a server): before it is recorded every slot must be nothing or a { act } whose names are text. One that is not (a move "to" nothing a clearing could be
@@ -822,6 +832,8 @@ function executeSlot(st, data, slot, i) {
         return 'You are still on the road and cannot do that.';
     }
     if (st.ch.morph && MORPH_REFUSED[slot.act]) { t.climb = null; return MORPH_REFUSED[slot.act]; }          // as a creature he can only move, hide, search and alert
+    // 7.3.3e (with ruling S6, record and cancel): "If a character is transmorphized into a flying monster or creature, he must use the Fly activity instead of the Move activity."
+    if (st.ch.morph?.creature?.flies && slot.act === 'move') { t.climb = null; return 'As a flying creature you must use the Fly activity, not the Move activity: the phase is lost (7.3.3e).'; }
     switch (slot.act) {
         case 'move': return doMove(st, data, slot);
         case 'fly': return doFly(st, data, slot);
@@ -896,10 +908,18 @@ function doMove(st, data, slot) {
     // Lost: the Lost Table picks the clearing he reaches, by any road (7.3.1)
     let lost = false;
     if (lostActive(st)) { const m = lostMove(st, data, from, to); if (m.text) { t.climb = null; return m.text; } to = m.to; lost = true; }
-    // 7.3.4: a hero transformed into a beast that walks the woods (Lion, Squirrel, Frog) moves to any clearing of his tile, road or no road. Only a clearing that is neither a mountain
-    // nor a cave counts here: whether the mountain's two Move phases and the cave tiles apply to him is an open question (ruling R1, ch-batch5.md).
+    // 7.3.1a.4, 9.2.2b (ruling M4, Mike 2026-10-26): "Edge" as the place to move to: along a roadway to the edge of the map, leaving the game. Recorded from anywhere; done only from a clearing
+    // that has such a road. (The `leave` action stays the way the server lets a seat go.)
+    if (to === 'Edge') {
+        t.climb = null;
+        if (!from || st.ch.flying || !mapEdgeClearings(st, data).has(from)) return 'There is no roadway to the edge of the map from here: the move is lost.';
+        leaveMap(st, data, { viaMove: true });
+        return 'wait';
+    }
+    // 7.3.4: a hero transformed into a beast that walks the woods (Lion, Squirrel, Frog) moves to any clearing of his tile, road or no road. Ruling R1 (Mike, 2026-10-26: option b): a mountain
+    // clearing still takes the two Move phases of 7.3.1c (the climb below), and a cave clearing of the tile is allowed like any other (the cave rules below still apply to it).
     const cr = st.ch.morph?.creature, walks = cr && (cr.walksWoods ?? (cr.row != null && data.tables.transform.rows.find(r => r.roll === cr.row)?.walksWoods));          // (a saved creature may predate the flag)
-    const woods = !!walks && !!from && to !== from && tileOf(to) === tileOf(from) && !isMountain(st, data, to) && !isCave(st, data, to);
+    const woods = !!walks && !!from && to !== from && tileOf(to) === tileOf(from);
     const road = woods ? { to, usable: true, kind: 'woods' } : roadsFrom(st, data, from).find(r => r.to === to);
     if (!road) { t.climb = null; return `There is no road from here to ${nameOfClearing(to)}: the move is lost.`; }
     if (!road.usable && !lost) { t.climb = null; return `You do not know the way to ${nameOfClearing(to)}: the move is lost.`; }
@@ -928,11 +948,12 @@ function doMove(st, data, slot) {
 }
 
 const lostActive = st => !st.ch.onRoad && !st.ch.mist && !!st.ch.at && (fxTags(st, HERO, 'randomMove').length > 0 || fxTags(st, { kind: 'tile', id: tileOf(st.ch.at) }, 'randomMove').length > 0);
-// One die is a clearing number among the clearings joined to this one (undiscovered paths too). None: the phase is lost; several: his recorded one, else the first.
+// The Lost table is a table: two dice, the high roll counts (4.1.1; ruling S4, Mike 2026-10-26). It is a clearing number among the clearings joined to this one (undiscovered paths too).
+// None: the phase is lost; several: his recorded one, else the first.
 function lostMove(st, data, from, wanted) {
-    const d = die(st, 'move.lost'), cands = roadsFrom(st, data, from).filter(r => numOf(r.to) === d);
-    noteRoll(st, 'Lost', [d], d, cands.length ? `you wander toward ${nameOfClearing(cands[0].to)}` : 'no clearing with that number');
-    if (!cands.length) return { text: `Lost: you wander in circles (rolled ${d}) and the move is lost.` };
+    const r = roll2(st, 'move.lost'), d = r.value, cands = roadsFrom(st, data, from).filter(x => numOf(x.to) === d);
+    noteRoll(st, 'Lost', r.dice, d, cands.length ? `you wander toward ${nameOfClearing(cands[0].to)}` : 'no clearing with that number');
+    if (!cands.length) return { text: `Lost: you wander in circles (rolled ${r.dice.join('+')}, the high ${d}) and the move is lost.` };
     return { to: (cands.find(r => r.to === wanted) ?? cands[0]).to };
 }
 
@@ -1145,6 +1166,7 @@ function step(st, data, action) {
             if (!o) throw new Error('choose one of the ways to pay');
             st.pending = null;
             say(st, payEffort(st, o), 'info');
+            if (p.opens) (st.sitesOpen ??= {})[p.opens] = true;          // the piece that broke the Vault's door (search.js vaultPieces)
             const text = p.resume === 'search' ? doSearch(st, data, { ...p.slot, paid: true }) : lootFrom(st, data, p.r, p.ground, { paid: true, sight: !!p.sight });
             if (text === 'wait') return st;
             finishPhase(st, data, text);
@@ -1217,7 +1239,7 @@ function step(st, data, action) {
         case 'combat': {
             if (!st.combat) throw new Error('no combat');
             const kindFor = { 'combat-pay': 'pay', 'combat-drinks': 'drinks', 'combat-choice': 'choice', 'combat-encounter': 'encounter', 'combat-melee': 'melee', 'combat-shift': 'shift', 'combat-wounds': 'wounds', 'combat-fatigue': 'fatigue', 'combat-over': 'over', 'combat-lure': 'lure', 'combat-charge': 'charge' };
-            if (kindFor[p.type] !== action.kind) throw new Error(`that is not what the fight is waiting for (${kindFor[p.type] ?? p.type})`);
+            if (kindFor[p.type] !== action.kind && !(p.type === 'combat-melee' && action.kind === 'aim')) throw new Error(`that is not what the fight is waiting for (${kindFor[p.type] ?? p.type})`);
             st.pending = null;
             if (st.combat.shared) {                                // a fight with other characters in it (battle.js): the fight takes the answer and goes on as far as it can
                 if (battle.answer(st, data, action) === 'done') nextEvening(st, data);
@@ -1329,6 +1351,7 @@ function combatAction(st, data, a) {
         case 'choice': return combat.choiceAction(st, data, a.fight);
         case 'encounter': return combat.encounterAction(st, data, a);
         case 'melee': return combat.meleePlay(st, data, a);
+        case 'aim': return combat.meleeAim(st, data, a);          // the Melee step in two answers: the spells first (ruling S8 / R3), then the plays
         case 'shift': return combat.shiftAction(st, data, a);
         case 'wounds': return combat.chooseWounds(st, data, a.chits);
         case 'fatigue': return combat.chooseFatigue(st, data, a.chits, a.change ?? null);
@@ -1395,13 +1418,15 @@ function endGame(st, data, reason) {
 }
 
 // The actor leaves the map. Allowed from a clearing, at the start of his own phase or while he plans (the printed edge-of-the-map road is not modelled; ruling R-21).
-function leaveMap(st, data) {
+function leaveMap(st, data, { viaMove = false } = {}) {
     const c = st.ch, p = st.pending;
-    if (!multi(st)) throw new Error('you cannot leave the map: end the game instead');
-    if (c.dead) throw new Error('your character is dead');
-    if (!p || !['plan', 'phase', 'phase-pick'].includes(p.type)) throw new Error('you can leave the map when you plan, or at the start of one of your phases');
-    if (!c.at || c.onRoad || c.flying || c.mist) throw new Error('you can leave the map only from a clearing');
-    if (meet.openOffer(st, st.actor)) throw new Error('you have an offer open: withdraw it first');
+    if (!viaMove) {
+        if (!multi(st)) throw new Error('you cannot leave the map: end the game instead');
+        if (c.dead) throw new Error('your character is dead');
+        if (!p || !['plan', 'phase', 'phase-pick'].includes(p.type)) throw new Error('you can leave the map when you plan, or at the start of one of your phases');
+        if (!c.at || c.onRoad || c.flying || c.mist) throw new Error('you can leave the map only from a clearing');
+        if (meet.openOffer(st, st.actor)) throw new Error('you have an offer open: withdraw it first');
+    }
     c.goneScore = scoreGame(st, data);                                  // fixed now (9.3.1a): what he holds this moment is what counts
     c.gone = { day: st.day };
     st.companions = [];
@@ -1411,7 +1436,7 @@ function leaveMap(st, data) {
     c.dead = true; c.hidden = false;
     c.death = { day: st.day, by: null, text: null, at: c.at, left: true };
     say(st, `${c.name} leaves the map.`, 'day', null, { who: null });
-    const midTurn = p.type !== 'plan';
+    const midTurn = viaMove || p.type !== 'plan';
     st.pending = null;
     st.combat = null; st.plan = null;
     if (st.order.every(id => st.chars[id].gone)) return endGame(st, data, 'left');

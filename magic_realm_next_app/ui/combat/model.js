@@ -5,6 +5,7 @@ import { denSide, weaponSide, hireStats } from '../../engine/combat.js';
 import { NO_EFFORT_LIMIT } from '../../engine/modifiers.js';
 import { nameOf } from '../../engine/items.js';
 import { withArticle, displayName, fixNames } from '../names.js';
+import { fxTags, HERO } from '../../engine/magic/fx.js';
 
 export const DIRS = ['Thrust', 'Swing', 'Smash'], MNV = ['Charge', 'Dodge', 'Duck'];
 export const BOX = ['Charge/Thrust', 'Dodge/Swing', 'Duck/Smash'];          // the red boxes of the melee sheet name both (rules 4.1, 8.4.6b)
@@ -18,6 +19,23 @@ export { displayName, fixNames };
 export const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const plural = n => (/wolf$/i.test(n) ? n.replace(/wolf$/i, 'Wolves') : /s$/i.test(n) ? n : /(?:ch|sh|x)$/i.test(n) ? `${n}es` : `${n}s`);
 export const listOf = a => (a.length <= 1 ? (a[0] ?? '') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);
+
+// ---- Peace holds (rulings S2 and S7 of 2026-10-26) ----
+// Nobody may name a target or attack: a Wish for Peace (Small Blessing; `combat.peaceNow`, `peaceRounds` more rounds after this one, all of them normal Encounter and Melee steps with nobody on the sheet) or
+// a Peace spell on him (`noSpecify`). The engine's own `meleeOptions().targets` is empty then; this only words it. Null when nothing holds.
+export function peaceOf(st) {
+    const c = st.combat;
+    if (c?.peaceNow) {
+        const more = c.peaceRounds ?? 0;
+        return { kind: 'wish', more,
+            story: more > 0 ? `For this round and ${numWord(more)} more nobody may name a target or strike. You may still act: cast, mend your gear, or move. When the last one ends, so does the fight.` : 'This is the last peaceful round. Nobody may name a target or strike, and the fight ends with it.',
+            detail: more > 0 ? `A Wish for Peace is in force: for this round and ${numWord(more)} more nobody may target or attack anyone, and everybody may still act. Then the combat ends.` : 'The last round of the Wish for Peace: nobody may target or attack anyone. The combat ends after it.' };
+    }
+    if (fxTags(st, HERO, 'noSpecify').length) return { kind: 'peace', more: 0,
+        story: 'Peace is on you: you may not name a target for an attack or a spell until Midnight. You may still guard.',
+        detail: 'A Peace spell is on you: you may not charge or specify a target for an attack or spell until Midnight (8.4.2b.7).' };
+    return null;
+}
 
 // ---- the creatures on the stage ----
 // Everything that stands against him and is not dead (a horse is part of its rider; a head or a club is a counter of its own, as on the melee sheet).

@@ -1,8 +1,9 @@
 import { say } from './core.js';
 import { REL_NAMES } from './tables.js';
-import { defOf, nameOf, priceOf, makeItem, summaryOf, autoEquip, noteGain, extraPhaseCommitment } from './items.js';
+import { defOf, nameOf, priceOf, makeItem, summaryOf, autoEquip, noteGain, extraPhaseCommitment, transferLock } from './items.js';
 import { hasCurse } from './effects.js';
 import { meetingOutcome, drinksCost } from './meeting.js';
+import { relFor } from './hire.js';
 
 // The Trade activity (rules digest 05 section 4.4). He deals with one native leader in his clearing: sell as much as he likes,
 // or buy a single item (the price depends on a roll on the Meeting Table).
@@ -18,7 +19,7 @@ function leadersHere(st, data) {
 
 // What he may sell or pay with: not a horse or card that gives him an extra phase he has recorded and not yet finished (6.2.4d: he cannot abandon or transfer it before then).
 export function sellable(st, data) {
-    return st.ch.items.filter(i => !i.destroyed && !extraPhaseCommitment(st, data, i)).map(i => ({ uid: i.uid, name: nameOf(data, i), sub: summaryOf(data, i), price: priceOf(data, i), kind: i.kind, active: i.active }));
+    return st.ch.items.filter(i => !i.destroyed && !extraPhaseCommitment(st, data, i) && !transferLock(data, i)).map(i => ({ uid: i.uid, name: nameOf(data, i), sub: summaryOf(data, i), price: priceOf(data, i), kind: i.kind, active: i.active }));
 }
 
 export function stockOf(st, data, group) {
@@ -44,8 +45,9 @@ export function canPayOffer(st, p) {
     return !(p.insult === 'Challenge' && hasCurse(st, 'Disgust'));
 }
 
-const relOf = (st, g) => st.ch.rel?.[g] ?? 0;
-const itemsWorthOf = (st, data) => st.ch.items.filter(i => !i.destroyed && !extraPhaseCommitment(st, data, i)).reduce((n, i) => n + priceOf(data, i), 0);
+// the relationship he trades by: a group his Persuade spell pacified is Friendly at least, for buying as for hiring (7.6.5a; ruling H3, Mike 2026-10-26: both)
+const relOf = (st, g) => relFor(st, g);
+const itemsWorthOf = (st, data) => st.ch.items.filter(i => !i.destroyed && !extraPhaseCommitment(st, data, i) && !transferLock(data, i)).reduce((n, i) => n + priceOf(data, i), 0);
 
 // Returns a string when the Trade phase is over, or undefined when more input is wanted (st.pending is set).
 export function tradeAction(st, data, p, a) {
@@ -55,7 +57,7 @@ export function tradeAction(st, data, p, a) {
         if (p.mode === 'buy') throw new Error('you cannot both buy and sell in one phase');
         const uids = [...new Set(a.items ?? [a.item])];                      // one thing, or several chosen together
         for (const u of uids) if (!st.ch.items.some(i => i.uid === u && !i.destroyed)) throw new Error('no such item');
-        for (const u of uids) { const bound = extraPhaseCommitment(st, data, st.ch.items.find(i => i.uid === u)); if (bound) throw new Error(bound); }
+        for (const u of uids) { const it0 = st.ch.items.find(i => i.uid === u), bound = extraPhaseCommitment(st, data, it0) ?? transferLock(data, it0); if (bound) throw new Error(bound); }
         for (const u of uids) {
             const it = st.ch.items.find(i => i.uid === u && !i.destroyed);
             const price = priceOf(data, it);
@@ -194,7 +196,7 @@ function offerAction(st, data, p, a) {
         const uids = [...new Set(a.items ?? [])];
         const paying = uids.map(uid => st.ch.items.find(i => i.uid === uid && !i.destroyed));
         if (paying.some(i => !i)) throw new Error('no such item');
-        for (const i of paying) { const bound = extraPhaseCommitment(st, data, i); if (bound) throw new Error(bound); }
+        for (const i of paying) { const bound = extraPhaseCommitment(st, data, i) ?? transferLock(data, i); if (bound) throw new Error(bound); }
         const worth = paying.reduce((n, i) => n + priceOf(data, i), 0);
         const gold = Math.max(0, p.price - worth);
         if (st.ch.gold < gold) throw new Error('not enough gold');

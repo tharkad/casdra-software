@@ -1,5 +1,6 @@
 import { lvl, say, tally, die, noteRoll } from './core.js';
-import { makeItem, defOf, nameOf, autoEquip, noteGain, noteFind } from './items.js';
+import { makeItem, defOf, nameOf, autoEquip, noteGain, noteFind, horseLevel } from './items.js';
+import { BOOTS, GLOVES } from './modifiers.js';
 import { numOf, tileOf, roadsFrom, pathKeyAt, nameOfClearing } from './world.js';
 import { PEER, LOCATE } from './tables.js';
 import { fxTags } from './magic/fx.js';
@@ -40,7 +41,26 @@ export function effortOptions(st) {
     }
     return out;
 }
+// 7.5.5d.2 (ruling S7, Mike 2026-10-26: the recommendation, ask which piece): to break into the Vault without the Lost Keys he plays a piece of Tremendous strength: a Fight, Move, Duck or
+// Berserk chit, a horse, a Gloves card or a Boots card. A chit he plays is fatigued; a horse or a card is not. Identical chits are offered once.
+export function vaultPieces(st, data) {
+    const out = [], seen = new Set();
+    for (const c of st.ch.chits) {
+        if (c.state !== 'active' || !['move', 'fight', 'duck', 'berserk'].includes(c.type) || lvl(c.strength) < 4) continue;
+        const key = `${c.type}${c.strength}${c.time}${c.effort}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ chit: c.id, text: `Play ${chitName(c)} to break the door (it is tired)` });
+    }
+    for (const it of st.ch.items) {
+        if (it.destroyed || !it.active) continue;
+        if (it.kind === 'horse' && data.horses[it.id] && horseLevel(data, it) >= 4) out.push({ chit: null, piece: 'horse', item: it.uid, text: `Break the door with your ${nameOf(data, it)}` });
+        else if (it.kind === 'treasure' && (BOOTS[it.id]?.[0] === 'T' || GLOVES[it.id]?.[0] === 'T')) out.push({ chit: null, piece: 'card', item: it.uid, text: `Break the door with your ${nameOf(data, it)}` });
+    }
+    return out;
+}
 export function payEffort(st, o) {
+    if (!o.chit) return `You ${o.text.charAt(0).toLowerCase()}${o.text.slice(1)}.`;          // a horse or a card is played, not tired (7.5.5d.2)
     const c = st.ch.chits.find(x => x.id === o.chit);
     c.state = 'fatigued';
     if (o.back) st.ch.chits.find(x => x.id === o.back).state = 'active';
@@ -69,9 +89,13 @@ export function lootFrom(st, data, r, groundOnly = false, { paid = false, sight 
     // Conditions at the more dangerous sites.
     // (the Cairns' toll is paid before the roll is made: see doSearch)
     if (site?.name === 'Vault' && !st.sitesOpen?.Vault) {
-        const strong = st.ch.chits.some(c => c.state === 'active' && lvl(c.strength) >= 4);
         const keys = st.ch.items.some(i => i.id === 'lost-keys' && i.active);
-        if (!strong && !keys) return 'The Vault is sealed. You need Tremendous strength or the Lost Keys.';
+        if (!keys) {
+            const opts = vaultPieces(st, data);
+            if (!opts.length) return 'The Vault is sealed. You need Tremendous strength or the Lost Keys.';
+            if (opts.length === 1) say(st, payEffort(st, opts[0]), 'info');
+            else { st.pending = { type: 'effort-cost', site: 'Vault', options: opts, resume: 'loot', r, ground: groundOnly, sight, opens: 'Vault' }; return 'wait'; }
+        }
         (st.sitesOpen ??= {}).Vault = true;
     }
     const idx = r.value - 1;

@@ -3,6 +3,7 @@ import { shielded, expireFx } from '../fx.js';
 import { roll2, noteRoll, lvl } from '../../core.js';
 import { graph, roadsFrom, nameOfClearing } from '../../world.js';
 import { nameOf } from '../../items.js';
+import { releaseFoes } from '../mist.js';
 import { characters, cancelCasts, foes, denRef, foeName, spentThisRound } from '../util.js';
 
 // Small Blessing (I / White / Instant): one character rolls on the Wishes Table (two dice, higher counts) and the wish comes true.
@@ -10,7 +11,7 @@ import { characters, cancelCasts, foes, denRef, foeName, spentThisRound } from '
 //  1 Elsewhere (self): he, his horses and his belongings go to a clearing of his choice; hirelings stay and rejoin at his next move; his evening ends.
 //  2 Elsewhere (other): one other creature here (a hireling of his own too) is sent to its starting place: its spells end, a hireling is unhired, no bounty.
 //  3 Vision: he looks at the contents of one native group's box on the Setup Card; the list goes into his notes.
-//  4 Peace: the fighting in this clearing is over for the day, and every spell not yet in effect is cancelled (natives stay hostile tomorrow).
+//  4 Peace: for the round of the wish and two rounds more nobody may target or attack (S7, the table's note 4); every spell not yet in effect is cancelled (natives stay hostile tomorrow).
 //  5 Health: all tired and wounded chits are restored like Make Whole (not the casting chit, nor a colour chit spent this round); no armor is repaired;
 //    the Ill Health and Wither curses are lifted.
 //  6 Strength: the next Fight chit or Gloves he plays strikes with a flat Tremendous harm, no stars, no roll (RealmSpeak); lost at Midnight if unused.
@@ -100,8 +101,18 @@ export default {
             }
             case 4: {
                 const gone = cancelCasts(st, data, ctx.cast);
-                ctx.log(`Peace: no one in this clearing will fight any more today${gone.length ? `; ${gone.join(' and ')}, not yet in effect, ${gone.length > 1 ? 'are' : 'is'} cancelled` : ''}.`);
-                B.endCombat(st, data, 'peace');
+                // Ruling S7 (Mike, 2026-10-26): as the table's note 4 prints it, "Rounds of combat continue for two rounds to allow characters to do actions. This 'peace' cannot be broken before
+                // it expires": the round of the wish and the two after it are rounds in which nobody may target or attack and everybody may act (cast, switch belongings, run away).
+                // In a fight shared with other characters (battle.js) the wish still ends the fight at once.
+                if (st.combat.shared) {
+                    ctx.log(`Peace: no one in this clearing will fight any more today${gone.length ? `; ${gone.join(' and ')}, not yet in effect, ${gone.length > 1 ? 'are' : 'is'} cancelled` : ''}.`);
+                    B.endCombat(st, data, 'peace');
+                    break;
+                }
+                const c = st.combat;
+                c.peaceRounds = 2; c.peaceNow = true;
+                releaseFoes(c);
+                ctx.log(`Peace: no one in this clearing may target or attack anyone for two more rounds; everyone may act${gone.length ? `; ${gone.join(' and ')}, not yet in effect, ${gone.length > 1 ? 'are' : 'is'} cancelled` : ''}.`);
                 break;
             }
             case 5: {

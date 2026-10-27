@@ -1,6 +1,6 @@
 import { say, lvl } from './core.js';
 import { withActor, charsAt, isMulti, askOf, livingIds, playerNameOf } from './party.js';
-import { nameOf, summaryOf, autoEquip, noteGain, weightOf, carryCapacity, onPackHorse, extraPhaseCommitment } from './items.js';
+import { nameOf, summaryOf, autoEquip, noteGain, weightOf, carryCapacity, onPackHorse, extraPhaseCommitment, transferLock } from './items.js';
 import { pathKeyAt, pathEnds, pathSide, tileSide, nameOfClearing, roadsFrom, tileOf, numOf } from './world.js';
 
 // Characters meet (step 4 of the multi-character plan, docs/design/multiplayer-step4.md): everything two or more characters standing in one clearing can do to one another outside a fight.
@@ -159,7 +159,7 @@ function normSide(x) {
     return s;
 }
 // Has character `id` recorded an extra phase that this belonging causes, and not yet finished it (6.2.4d)? The sentence that says so, else null. (His plan is secret: it is told only to him.)
-const committed = (st, data, id, it) => withActor(st, id, () => extraPhaseCommitment(st, data, it));
+const committed = (st, data, id, it) => withActor(st, id, () => extraPhaseCommitment(st, data, it)) ?? transferLock(data, it);
 const sideEmpty = s => !s.items.length && !s.gold && !s.discoveries.length;
 // What a side must satisfy. `strict`: he must really hold it (gold included). Otherwise (the other character's side, named by the one who offers) only what everyone may see can be named, and
 // whether he can pay is nobody's business until he answers.

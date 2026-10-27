@@ -25,18 +25,29 @@ const timeOf = (st, chit) => (chit.alerted ? 0 : chitSpeed(st, chit));
 
 // A Pentangle keeps every new spell off its target (it stops only spells aimed at him). A spell with no aim list whose only target is the caster (`selfOnly`)
 // is barred while he stands in one.
-const barred = (st, ref) => !!ref && fxTags(st, ref, 'noNewSpells').length > 0;
+const barred = (st, ref) => !!ref && (fxTags(st, ref, 'noNewSpells').length > 0 || (!!st.combat?.peaceNow && (ref.kind === 'mon' || ref.kind === 'nat')));          // (a Pentangle; or a Wish for Peace in force: no spell may name a denizen)
 // true, or why the spell cannot be cast now: the handler's own conditions, then whether any legal target is left.
 function legalOf(st, data, h, spell) {
     if (!h) return true;
     if (h.legal) { const r = h.legal(st, data, { spell }); if (r !== true) return r; }
     if (h.selfOnly && barred(st, HERO)) return 'A Pentangle holds off every new spell aimed at you, your own included.';
-    if (h.aim) { const o = h.aim(st, data, { cast: null }); if (o && o.filter(x => !barred(st, x.ref)).length < (h.targets?.min ?? 1)) return 'Every legal target is shielded by a Pentangle.'; }
+    if (h.aim) { const o = h.aim(st, data, { cast: null }); if (o && o.filter(x => !barred(st, x.ref)).length < (h.targets?.min ?? 1)) return 'Every legal target is shielded (a Pentangle, or the Wish for Peace).'; }
     return true;
 }
 
 // Every way he could cast something now: [{ spell, name, chit, colorChit, effort, time, useful }]. `slowest` is the speed of the slowest creature facing him:
 // a Magic chit may be no slower than it (8.3.7a; other chits must be strictly faster).
+// 8.4.3c (ruling R8, Mike 2026-10-26: the recommendation, a base rule): while a spell he cast with a Magic chit remains in effect, its spell box is tied up and he cannot use it. A spell he
+// knows is out of reach when every box that holds it is tied: the boxes are the times it stands in his book, and a box is tied by one live, inert, nullified or held effect of it whose
+// source Magic chit is still committed to it. (A second box holding the same spell can still cast it; startFx releases the duplicate, 4.6.10e.)
+export function boxesTied(st, id) {
+    const boxes = (st.ch.spells ?? []).filter(x => x === id).length;
+    if (!boxes) return false;
+    const tied = (st.fx ?? []).filter(f => f.spell === id && f.state !== 'done' && f.source?.kind === 'chit' && (!f.who || f.who === st.ch.id)
+        && st.ch.chits.some(c => c.id === f.source.id && c.state === 'committed' && c.tie === f.id)).length;
+    return tied >= boxes;
+}
+
 export function castOptions(st, data, { slowest = 99 } = {}) {
     if (st.ch.dead || st.ch.onRoad || st.ch.flying || st.ch.mist || st.ch.morph) return [];        // (mist can do only Move and Hide, nothing is cast in the air, and a creature casts nothing: his Magic chits are not in play)
     const c = st.combat;
@@ -51,6 +62,8 @@ export function castOptions(st, data, { slowest = 99 } = {}) {
         const supply = need ? (spell.color ? colorChits(st, spell.color)[0] : colorChits(st)[0]) : null;
         if (need && !supply) continue;
         if (legalOf(st, data, h, spell) !== true) continue;
+        if (boxesTied(st, spell.id)) continue;
+        if (h?.aim && fxTags(st, HERO, 'noSpecify').length) continue;          // Peace on him: he cannot specify a target for a spell (LS Peace 2)
         for (const chit of st.ch.chits) {
             if (chit.type !== 'magic' || chit.state !== 'active' || chit.numeral !== spell.type || chit.alt?.mf) continue;          // a chit changed by Unleash Power is no Magic chit
             if (c?.played?.[chit.id]) continue;
@@ -115,6 +128,7 @@ export function blockedSpells(st, data, { slowest = 99 } = {}) {
             continue;
         }
         { const why = legalOf(st, data, h, spell); if (why !== true) { out.push({ ...base, why }); continue; } }
+        if (boxesTied(st, spell.id)) { out.push({ ...base, why: 'Its spell box is tied up by the spell you cast with it, which is still in effect (8.4.3c).' }); continue; }
         const ready = st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active' && c.numeral === spell.type && !c.alt?.mf);
         if (!ready.length) { out.push({ ...base, why: `You have no ready Magic ${spell.type} chit.` }); continue; }
         if (st.combat && ready.every(c => timeOf(st, c) > slowest)) out.push({ ...base, why: `Your Magic ${spell.type} chit is too slow: a Magic chit must be no slower than the fastest creature facing you (time ${slowest}). Alert it in an Alert phase and it acts at time 0.` });

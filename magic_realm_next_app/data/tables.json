@@ -446,7 +446,7 @@
    },
    "4": {
     "name": "Peace",
-    "effect": "Peace effect (nothing in the clearing attacks you; see spell Peace)."
+    "effect": "Peace: for the round of the wish and two rounds more nobody in the clearing may target or attack anyone, and everybody may act; this peace cannot be broken before it expires."
    },
    "5": {
     "name": "Health",
@@ -457,7 +457,7 @@
     "effect": "Gain extra strength for the next combat."
    }
   },
-  "note": "Names from RealmSpeak result strings; effects 4-6 follow RealmSpeak (Wish.java) as docs/design/magic/01-combat-spells.md section 3 reads them: 4 Peace ends the combat in the clearing for the day and cancels spells not yet in effect; 5 Health restores tired and wounded chits and lifts Ill Health and Wither; 6 Strength makes the next Fight chit or Gloves play strike with flat Tremendous harm. Closed until the owner rules otherwise."
+  "note": "Names from RealmSpeak result strings; effects 4-6 follow RealmSpeak (Wish.java) as docs/design/magic/01-combat-spells.md section 3 reads them: 4 Peace (ruling S7, Mike 2026-10-26: as the table's note 4 prints it, not RealmSpeak's end of the combat) holds the round of the wish and two rounds more in which nobody may target or attack, and cancels spells not yet in effect; 5 Health restores tired and wounded chits and lifts Ill Health and Wither; 6 Strength makes the next Fight chit or Gloves play strike with flat Tremendous harm. Closed until the owner rules otherwise."
  },
  "violentStorm": {
   "rows": {

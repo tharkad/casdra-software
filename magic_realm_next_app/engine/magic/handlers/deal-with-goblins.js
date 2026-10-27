@@ -1,4 +1,4 @@
-import { pacify, releasePacify, familyOf } from '../followers.js';
+import { pacify, releasePacify, familyOf, stoppedByHireling } from '../followers.js';
 
 // Deal with Goblins (VIII / Black / Day): every Goblin in the caster's clearing is pacified until Sunset tomorrow; to hire them he uses the Neutral column.
 // A pacified monster is not set on him, blocks nothing and is not a foe (combat.js `pacified` dens; summon.js `blockers`). Spear, Sword and Axe Goblins all count.
@@ -11,6 +11,7 @@ export default {
     useful: (st, data) => here(st, data).length > 0,
     start(ctx) {
         const { st, data } = ctx;
+        if (stoppedByHireling(ctx, here(st, data), 'Deal with Goblins')) return;          // 8.4.4b
         const fx = pacify(ctx, here(st, data), { text: calm => `Deal with Goblins: ${calm.length === 1 ? 'the Goblin is' : `all ${calm.length} Goblins are`} calmed. They will not fight or block you until Sunset tomorrow, and you may hire them at the Neutral column.` });
         if (!fx) ctx.log('Deal with Goblins: there are no Goblins here.');
     },

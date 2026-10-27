@@ -12,8 +12,17 @@ export const monRef = m => ({ kind: 'mon', id: m.id });
 export const familyOf = (data, den) => (den.kind === 'mon' ? data.monsters[den.id]?.family : null);
 
 // The monsters of the given families in the fight that he could take in hand: alive, not already pacified, not already set on by his own hirelings (RS ControlEffect:21-45).
-export function controllable(st, data, families) {
-    return (st.combat?.dens ?? []).filter(d => d.kind === 'mon' && !d.dead && !d.engagedBy && !d.pacified && families.includes(familyOf(data, d)));
+export function controllable(st, data, families, { engaged = false } = {}) {
+    return (st.combat?.dens ?? []).filter(d => d.kind === 'mon' && !d.dead && (engaged || !d.engagedBy) && !d.pacified && families.includes(familyOf(data, d)));
+}
+
+// 8.4.2h.1 / 8.4.4b: if any of his hirelings is assigned to attack one of the spell's targets at the moment it would go into effect, the whole spell is cancelled.
+// `dens` are all the spell's targets in the clearing (not only those it could still take). Logs and returns true when the spell is stopped.
+export function stoppedByHireling(ctx, dens, name) {
+    const { st } = ctx, hires = st.combat?.hires ?? [];
+    if (!dens.some(d => d.engagedBy && hires.some(h => h.uid === d.engagedBy && !h.dead))) return false;
+    ctx.log(`${name}: one of your hirelings is set on one of its targets, so the spell is cancelled.`);
+    return true;
 }
 
 // Take these monsters in hand until Sunset tomorrow. Returns the spell effect (null when none could be taken).

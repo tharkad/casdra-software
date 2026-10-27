@@ -3,6 +3,7 @@
 // plain question. Every engine action is the one the old sheet sent: { type: 'trade', act: 'sell' | 'buy' | 'accept' | 'decline' | 'pay' | 'fight' | 'drinks' | 'repay' | 'group' | 'back' | 'done' }.
 import { hasCurse } from '../../../engine/effects.js';
 import { drinksCost } from '../../../engine/meeting.js';
+import { relFor } from '../../../engine/hire.js';
 import { canPayOffer, groupChoices, sellable, stockOf } from '../../../engine/trade.js';
 import { nameOfClearing } from '../../../engine/world.js';
 import { rollRow, rollsByIds } from '../../dice.js';
@@ -101,7 +102,7 @@ function tradeMain(G, p) {
     sel.sell = sel.sell.filter(u => mine.some(m => m.uid === u));
     if (sel.buy != null && !goods.some(g => g.idx === sel.buy)) sel.buy = null;
     const fresh = !p.mode && !(p.sold?.length) && !p.drinks;
-    const rel = G.st.ch.rel?.[p.group] ?? 0, dealt = !!p.mode || !!p.sold?.length;
+    const rel = relFor(G.st, p.group), dealt = !!p.mode || !!p.sold?.length;
     const ashes = hasCurse(G.st, 'Ashes');
     const owed = (G.st.ch.boons ?? []).map((b, n) => ({ ...b, n })).filter(b => b.group === p.group);
     const tabs = [{ key: 'buy', label: 'Buy' }, { key: 'sell', label: 'Sell' }, ...(owed.length ? [{ key: 'owed', label: 'Boons', n: owed.length }] : [])];
@@ -121,7 +122,7 @@ function tradeMain(G, p) {
         const off = !c.canSwitch && !c.selected;
         return h('button', { type: 'button', class: `ds-group kit-leader${c.selected ? ' sel' : ''}${off ? ' dim' : ''}`, 'data-trade-group': c.group, role: 'radio', 'aria-checked': c.selected ? 'true' : 'false', 'aria-pressed': c.selected ? 'true' : 'false',
             onclick: () => { if (c.selected) return; if (off) say(G, 'You have started dealing with this leader, so the choice is made for this phase.'); else act(G, { type: 'trade', act: 'group', group: c.group }); } },
-            h('span', { class: 'ds-counter sm' }, lead && nativeArt(G, lead.id) ? h('img', { src: nativeArt(G, lead.id), alt: '' }) : null), h('span', { class: 'kit-leadtxt' }, h('b', {}, c.group), moodTag(G.st.ch.rel?.[c.group] ?? 0)));
+            h('span', { class: 'ds-counter sm' }, lead && nativeArt(G, lead.id) ? h('img', { src: nativeArt(G, lead.id), alt: '' }) : null), h('span', { class: 'kit-leadtxt' }, h('b', {}, c.group), moodTag(relFor(G.st, c.group))));
     })) : null;
 
     // drinks: they warm to you a step for this deal (only a deal that rolls: buying, or buying back a favour)

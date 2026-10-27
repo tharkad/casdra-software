@@ -1,4 +1,4 @@
-import { controllable, takeControl, releaseControl } from '../followers.js';
+import { controllable, takeControl, releaseControl, stoppedByHireling } from '../followers.js';
 
 // Control Bats (VII / any colour / Day): every Giant Bat in the caster's clearing is his until Sunset of the next day.
 // Audit (docs/design/magic/03-control-spells.md section 2): the Bats now fight for him from the next round (B1: they are on c.hires and lure the
@@ -10,6 +10,7 @@ export default {
     useful: (st, data) => controllable(st, data, BAT).length > 0,
     start(ctx) {
         const { st, data } = ctx;
+        if (stoppedByHireling(ctx, controllable(st, data, BAT, { engaged: true }), 'Control Bats')) return;          // 8.4.2h.1
         const fx = takeControl(ctx, controllable(st, data, BAT), { text: bats => `Control Bats: ${bats.length === 1 ? 'the Giant Bat is' : `all ${bats.length} Giant Bats are`} yours. They fight for you and follow you until Sunset tomorrow, when they are free again.` });
         if (!fx) ctx.log('Control Bats: there are no Bats here to take.');
     },

@@ -11,13 +11,14 @@ export const CATS = ['great', 'spells', 'fame', 'notoriety', 'gold'];
 export function earned(st, data) {
     const ch = st.ch;
     const cursed = n => (ch.curses ?? []).includes(n);
-    // Things beyond what his strongest Move chit (or horse or boots) could carry do not count.
+    // Things beyond what his strongest IN PLAY Move chit, active horse or active Boots card could carry do not count (9.3.1). Ruling S2 (Mike, 2026-10-26): "in play" is the defined term of 4.2.1,
+    // so a fatigued Move chit (or a wounded one) does not set the limit: only an active chit, an active horse or active Boots do. Nothing rests at the end of the game.
     let cap = 0;
-    for (const x of ch.chits) if (x.state !== 'wounded' && x.type === 'move') cap = Math.max(cap, lvl(x.strength));
+    for (const x of ch.chits) if (x.state === 'active' && x.type === 'move') cap = Math.max(cap, lvl(x.strength));
     const items = ownedItems(st);              // (what a Melt into Mist holds for him counts too)
     for (const it of items) {
         if (it.destroyed) continue;
-        if (it.kind === 'horse' && data.horses[it.id]) cap = Math.max(cap, horseLevel(data, it));          // (either side of the counter: 7.3.2a)
+        if (it.kind === 'horse' && it.active && data.horses[it.id]) cap = Math.max(cap, horseLevel(data, it));          // (either side of the counter: 7.3.2a)
         if (BOOTS[it.id] && it.active) cap = Math.max(cap, lvl(BOOTS[it.id][0]));
     }
     let great = 0, fame = cursed('Disgust') ? -1 : ch.fame, notor = ch.notoriety;

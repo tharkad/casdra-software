@@ -7,7 +7,7 @@ import { h } from '../../dom.js';
 import { lastDayOf, timed } from '../../gametext.js';
 import { meetState, playerOf as playerNameOf } from '../../meet.js';
 import { party, markers as partyMarkers } from '../../party.js';
-import { moveOptions, planState } from '../../planlogic.js';
+import { EDGE, moveOptions, planState } from '../../planlogic.js';
 import { strip } from '../../ds.js';
 import { renderParty } from './hotseat.js';
 import { setStoryState } from '../../storyvoice.js';
@@ -160,7 +160,7 @@ function overlayFor(G) {
     }
     if (G.ui.sheet === 'plan' && p?.type === 'plan' && G.ui.draft) {
         const d = G.ui.draft, i = G.ui.planStep, stops = [];
-        for (const s of d.slots) if (s?.act === 'move' && s.to && s.to !== stops.at(-1)) stops.push(s.to);          // (a climb's two Moves are one stop)
+        for (const s of d.slots) if (s?.act === 'move' && s.to && s.to !== EDGE && s.to !== stops.at(-1)) stops.push(s.to);          // (a climb's two Moves are one stop)
         if (stops.length) route = [hero, ...stops];
         const fi = G.ui.pickFly ?? (d.slots[i]?.act === 'fly' && !d.slots[i].to ? i : null);
         if (fi != null && fi === i) for (const t of flyTiles(st, G.data)) { const c = tileClearings(st, G.data, t)[0]; if (c) rings.push({ id: c, kind: d.slots[i]?.to === t ? 'chosen' : 'legal' }); }
@@ -175,7 +175,7 @@ function overlayFor(G) {
         const sug = st.planFull?.[st.turn?.i]; const sugTo = sug?.act === 'move' ? sug.to : null;          // (the suggested destination is the filled ring: the primary names it)
         for (const id of p.moves ?? []) rings.push({ id, kind: id === sugTo ? 'chosen' : 'legal' });
     } else if (p?.type === 'phase' && st.plan?.[p.i]?.act === 'move' && st.plan[p.i].to) {
-        route = [hero, st.plan[p.i].to]; rings.push({ id: st.plan[p.i].to, kind: 'legal' });
+        if (st.plan[p.i].to !== EDGE) { route = [hero, st.plan[p.i].to]; rings.push({ id: st.plan[p.i].to, kind: 'legal' }); }
     }
     return { rings, route, pin: G.ui.pin ?? null };
 }
@@ -276,7 +276,7 @@ export function render(G) {
     revealChoices(G, hero);
     // A Move phase that is about to be played: show where he is and where he is going, so the press is a decision with the road in view.
     { const pp = G.st.pending, slot = pp?.type === 'phase' ? G.st.plan?.[pp.i] : null;
-      if (slot?.act === 'move' && slot.to) { const key = `${G.st.day}.${pp.i}.${slot.to}`; if (G.ui.framedMove !== key) { G.ui.framedMove = key; G.map.frame([hero, slot.to]); } } }
+      if (slot?.act === 'move' && slot.to && slot.to !== EDGE) { const key = `${G.st.day}.${pp.i}.${slot.to}`; if (G.ui.framedMove !== key) { G.ui.framedMove = key; G.map.frame([hero, slot.to]); } } }
     syncCamera(G, moved);
     syncMapButton(G);
     saveUi(G);

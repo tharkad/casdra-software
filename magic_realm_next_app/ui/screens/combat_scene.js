@@ -81,11 +81,20 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     X.resultKey = resultKey;
     const showResult = !shared && RESULT_TYPES.includes(p.type) && events.length > 0 && cb.seen !== resultKey && !(p.type === 'combat-encounter' && (c.round === 1 || p.spellOnly));
     const facts = M.roundFacts(events);
-    if (p.type === 'combat-melee' && (!cb.plan || cb.planRound !== c.round)) {
-        const o0 = meleeOptions(st, data);
-        cb.plan = M.defaultPlan(st, data, o0); cb.planRound = c.round;
+    const aimedNow = p.type === 'combat-melee' && !!p.aimed;          // (the spells of this round have acted: ruling S8, the options are read again after them)
+    if (p.type === 'combat-melee' && (!cb.plan || cb.planRound !== c.round || (aimedNow && cb.planAimed !== c.round))) {
+        const o0 = meleeOptions(st, data), old = cb.plan && cb.planRound === c.round ? cb.plan : null;
+        cb.plan = M.defaultPlan(st, data, o0); cb.planRound = c.round; cb.planAimed = aimedNow ? c.round : null;
         if (shared) SH.sharedPlan(st, o0, cb.plan);
-        cb.step = shared && SH.needsWhom(st, o0) ? 'whom' : 'strike';
+        if (old) {          // what he had chosen before the spells acted stays, where it is still legal
+            const np = cb.plan; cb.step = 'strike';
+            if (old.target === null || o0.targets.some(d => d.uid === old.target) || o0.controlled.some(d => d.uid === old.target)) np.target = old.target;
+            np.attackDir = old.attackDir; np.moveDir = old.moveDir; np.shieldDir = old.shieldDir;
+            if (old.fightChit && o0.fightChits.some(x => x.id === old.fightChit)) np.fightChit = old.fightChit;
+            if (old.moveChit && M.moveList(o0).some(x => x.id === old.moveChit)) np.moveChit = old.moveChit;
+            for (const d of o0.boxable) if (old.boxes?.[d.uid] != null) np.boxes[d.uid] = old.boxes[d.uid];
+            np.aim = old.aim; np.aimParams = old.aimParams;
+        } else cb.step = shared && SH.needsWhom(st, o0) ? 'whom' : 'strike';
     }
     if (p.type !== 'combat-melee') { cb.plan = null; }
     const mode = p.type === 'combat-over' ? 'over' : showResult ? 'result' : p.type === 'combat-wounds' || p.type === 'combat-fatigue' ? 'grid' : ['combat-pay', 'combat-drinks', 'combat-choice'].includes(p.type) ? 'meet' : p.type === 'combat-melee' ? 'melee' : p.type === 'combat-shift' ? 'shift' : 'encounter';

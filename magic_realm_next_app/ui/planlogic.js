@@ -1,4 +1,4 @@
-import { roadsFrom, isMountain, isCave } from '../engine/world.js';
+import { roadsFrom, isMountain, isCave, mapEdgeClearings, nameOfClearing } from '../engine/world.js';
 import { planKinds } from '../engine/day.js';
 import { MORPH_REFUSED } from '../engine/magic/morph.js';
 
@@ -11,13 +11,25 @@ export function planState(st, data, slots) {
     for (let i = 0; i < 9; i++) {
         at.push(loc); climbing.push(climb);
         const s = slots[i];
-        if (s?.act === 'move' && s.to) {
+        if (s?.act === 'move' && s.to === EDGE) { loc = null; climb = null; }          // he has left the map: nothing is planned from there (M4)
+        else if (s?.act === 'move' && s.to) {
             if (isMountain(st, data, s.to) && s.to !== loc) {
                 if (climb === s.to) { loc = s.to; climb = null; } else climb = s.to;
             } else { loc = s.to; climb = null; }
         } else climb = null;
     }
     return { at, climbing };
+}
+// Leaving the map (ruling M4, 7.3.1a.4, 9.2.2b): the plan may hold `{ act: 'move', to: 'Edge' }`. It is done only from a clearing with a roadway to the edge of the map (the phase is lost otherwise), the
+// character is gone and his game ends with the score he holds.
+export const EDGE = 'Edge';
+export const isEdgeMove = s => s?.act === 'move' && s.to === EDGE;
+export const edgeIndex = slots => slots.findIndex(isEdgeMove);
+export const destName = id => (id === EDGE ? 'the edge of the map' : nameOfClearing(id));
+export function canLeaveAt(st, data, slots, i) {
+    if (st.ch.onRoad || st.ch.flying) return false;
+    const at = planState(st, data, slots).at[i];
+    return !!at && mapEdgeClearings(st, data).has(at);
 }
 export const planLocations = (st, data, slots) => planState(st, data, slots).at;
 

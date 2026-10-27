@@ -72,7 +72,20 @@ export function meetingOutcome(st, col, what = 'Meeting Table', data = null, eve
     return { res, r, note, rolls: seen };
 }
 
-// Buying drinks (7.6.5b): one gold for every member of the group in his clearing, hired or not; the group counts one level friendlier.
+// The monsters a spell has pacified (Deal with Goblins) and that he may hire, in his clearing: ALL the targets of one spell are one group, hired together (7.7.5b; ruling H6, Mike
+// 2026-10-26). [{ label, members }]: the label is the monsters' name when they are all one kind, else the family in the plural ("Goblins").
+export function calmMonsterGroups(st, data, here = st.ch.at) {
+    const calm = st.mons.filter(m => !m.dead && !m.hired && m.pacify?.length && m.loc?.c === here), by = new Map();
+    for (const m of calm) { const p = m.pacify[0], k = typeof p === 'string' ? p : p.fx ?? 'x'; if (!by.has(k)) by.set(k, []); by.get(k).push(m); }
+    return [...by.values()].map(members => {
+        const names = [...new Set(members.map(m => data.monsters[m.id].name))];
+        return { label: names.length === 1 ? names[0] : `${data.monsters[members[0].id].family}s`, members };
+    });
+}
+
+// Buying drinks (7.6.5b, 7.7.5a): one gold for every member of the group in his clearing, hired or not; the group counts one level friendlier. For the pacified monsters of a spell
+// (ruling H1, Mike 2026-10-26) it is one gold for every one of them in the clearing, and they count one level friendlier than the Neutral column.
 export function drinksCost(st, data, group) {
+    if (!data.groups?.[group]) { const g = calmMonsterGroups(st, data).find(x => x.label === group); if (g) return g.members.length; }
     return st.nats.filter(n => !n.dead && n.loc?.c === st.ch.at && data.natives[n.id].group === group).length;
 }

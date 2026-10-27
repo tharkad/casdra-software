@@ -1,5 +1,4 @@
 import { isMountain, tileName, tileOf } from '../world.js';
-import { hoofCarriedNear } from '../modifiers.js';
 
 // Colours of magic (rules 4.6.2, 6.1.2). The seventh day of each week fills the whole land with one colour (White and Black together on day 7,
 // then Grey on 14, Purple on 21 and Gold on 28), from the morning until midnight. A Chapel supplies White in its own clearing. Enchanted tiles and
@@ -12,12 +11,17 @@ export const colorChits = (st, color = null) => st.ch.chits.filter(c => c.type =
 export const COLOR_MEANING = {
     White: 'Power from on High', Grey: 'Natural laws', Gold: 'Woods sprites', Purple: 'Elemental energies', Black: 'Demonic',
 };
-// The Enchanted cards other than the Cloven Hoof (which has its own code in modifiers.js: it also adds one to table rolls) and the colour each supplies.
-const CARD_COLOR = { 'sacred-grail': 'White', 'golden-icon': 'Grey', 'flowers-of-rest': 'Gold', 'dragon-essence': 'Purple' };
+// The five Enchanted cards (4.6.2b: one card for each colour) and the colour each supplies. The Cloven Hoof also has its own code in modifiers.js (it adds one to table rolls).
+// Ruling S1 (Mike, 2026-10-26), option (a): a card is face up once it has been FOUND, wherever it lies: carried active or not, carried by another character in the clearing, or abandoned
+// on the ground there (a real face-up state may come later). Face up, it "always supplies an unlimited supply of this color to everyone in its clearing, even when it is being carried
+// by someone else" (4.6.2b) and does not wait to be switched on (4.6.2b.1 is about a card not yet turned over).
+const CARD_COLOR = { 'sacred-grail': 'White', 'golden-icon': 'Grey', 'flowers-of-rest': 'Gold', 'dragon-essence': 'Purple', 'cloven-hoof': 'Black' };
+const isCard = (i, id) => i.kind === 'treasure' && i.id === id && !i.destroyed;
 const cardCarriedNear = (st, at, id) => (st.order?.length ?? 0) > 1 && st.order.some(who => {
     const c = st.chars[who];
-    return who !== st.actor && c.at === at && !c.dead && !c.onRoad && !c.flying && c.items.some(i => i.kind === 'treasure' && i.id === id && i.active && !i.destroyed);
+    return who !== st.actor && c.at === at && !c.dead && !c.onRoad && !c.flying && c.items.some(i => isCard(i, id));
 });
+const cardHere = (st, clearing, id) => !!clearing && ((clearing === st.ch.at && st.ch.items.some(i => isCard(i, id))) || cardCarriedNear(st, clearing, id) || (st.abandoned?.[clearing] ?? []).some(i => isCard(i, id)));
 const WEEK_COLORS = [['White', 'Black'], ['Grey'], ['Purple'], ['Gold']];            // day 7, 14, 21, 28 (and again for a longer game)
 export const isMagicDay = day => day > 0 && day % 7 === 0;
 // Day 7 gives White and Black in a one-month game; in a game of several months it alternates, White in the first month, Black in the second, and so on (6.1.2, 10.E.2.3).
@@ -39,14 +43,8 @@ export function colorSources(st, data, clearing, { road = false } = {}) {
     const out = dayColors(st.day, st.lastDay ?? 28).map(color => ({ color, why: `day ${st.day} fills the land with magic`, calendar: true }));
     if (road) return out.concat(tileSources(st, data, clearing));
     if (st.dwellings.some(d => d.kind === 'Chapel' && d.at === clearing)) out.push({ color: 'White', why: 'the Chapel in this clearing' });
-    // the Cloven Hoof (Treasures 5): once face up it is a source of Black magic for everyone in its clearing (the hero's clearing when he carries it, active)
-    if (clearing && ((clearing === st.ch.at && st.ch.items.some(i => i.kind === 'treasure' && i.id === 'cloven-hoof' && i.active && !i.destroyed))
-        || hoofCarriedNear(st, clearing) || (st.order?.length > 1 && (st.abandoned?.[clearing] ?? []).some(i => i.kind === 'treasure' && i.id === 'cloven-hoof' && !i.destroyed)))) out.push({ color: 'Black', why: 'the Cloven Hoof in this clearing' });
-    // the other four Enchanted cards (4.6.2b: one card for each colour; "always supplies an unlimited supply of this color to everyone in its clearing, even when it is being
-    // carried by someone else"): a card that is switched on in a hand in the clearing is face up under every reading of 4.6.2b.1 (ruling S1), so it supplies its colour. The same
-    // reach as the Hoof's: the hero's own card, or another character's active card in the same clearing (not on a road, not in the air).
-    for (const [id, color] of Object.entries(CARD_COLOR)) if (clearing && (clearing === st.ch.at && st.ch.items.some(i => i.kind === 'treasure' && i.id === id && i.active && !i.destroyed) || cardCarriedNear(st, clearing, id)))
-        out.push({ color, why: `the ${data.treasures?.[id]?.name ?? id} in this clearing` });
+    // the five Enchanted cards, the Cloven Hoof among them (Treasures 5): see CARD_COLOR above
+    for (const [id, color] of Object.entries(CARD_COLOR)) if (cardHere(st, clearing, id)) out.push({ color, why: `the ${data.treasures?.[id]?.name ?? id} in this clearing` });
     return out.concat(tileSources(st, data, clearing));
 }
 // an enchanted tile: each of its clearings carries the colours printed on that side (4.6.2)

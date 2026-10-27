@@ -363,7 +363,7 @@
    "name": "Poison",
    "type": "VIII",
    "color": "Grey",
-   "duration": "Combat",
+   "duration": "Day",
    "implemented": true
   },
   {

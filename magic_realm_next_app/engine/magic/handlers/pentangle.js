@@ -1,5 +1,5 @@
 import { nullifyFx, restoreFx, sameRef, elsewhere } from '../fx.js';
-import { characters, nullifyIfDuplicate, spellName } from '../util.js';
+import { characters, foeTargets, nullifyIfDuplicate, spellName } from '../util.js';
 
 // Pentangle (V / Black / Combat): one character, native or monster. The Demon, Winged Demon and Imp cannot attack the target; all spells and curses that bewitch him
 // are nullified (they come back when the Pentangle ends); and no new spell can go into effect against him. It stops only spells aimed at the target himself.
@@ -8,7 +8,8 @@ import { characters, nullifyIfDuplicate, spellName } from '../util.js';
 // from the aim lists (cast.js), and one already chosen fizzles if the Pentangle came to life first. It ends at Midnight or when it is broken.
 export default {
     id: 'pentangle', dur: 'combat', benevolent: true,
-    aim: st => characters(st).map(c => ({ ref: c.ref, label: c.ref.id === 'ch' ? 'yourself' : c.name })),
+    // ruling S2 (Mike, 2026-10-26): follow the card, "one character, native or monster": any character, the caster included, or a denizen
+    aim: (st, data) => [...characters(st).map(c => ({ ref: c.ref, label: c.ref.id === 'ch' ? 'yourself' : c.name })), ...foeTargets(st, data)],
     legal: () => true,
     useful: () => false,                       // never a prompt: the computer players do not cast it
     start(ctx) {

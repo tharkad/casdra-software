@@ -33,6 +33,11 @@ export function melee(o, m) {
     const spellAim = {}; for (const a of o.aims ?? []) spellAim[a.spell] = aimOf(a, m);
     return A({ kind: 'melee', weaponSide: m.fightChit && !m.target && w ? (m.weaponSide ?? 'alerted') : undefined, parts: m.parts && Object.keys(m.parts).length ? { ...m.parts } : undefined, target: m.target, fightChit: m.fightChit, attackDir: m.attackDir, moveChit: m.moveChit, moveDir: m.moveDir, shieldDir: o.shield ? m.shieldDir : null, boxes, spellAim });
 }
+// The Melee step in two answers (S8, R3): the spells first. They act before anyone plays a chit, and the options are read again after them.
+export function aim(o, m) {
+    const spellAim = {}; for (const a of o.aims ?? []) spellAim[a.spell] = aimOf(a, m);
+    return A({ kind: 'aim', spellAim });
+}
 // Battle Bracelets / Elusive Cloak: the plays are revealed and the dice have moved the creatures; he may still move his attack circle or maneuver square.
 export function shift(o, sh) {
     const a = { kind: 'shift' };
