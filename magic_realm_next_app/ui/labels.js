@@ -112,11 +112,16 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
     };
     const order = groups.slice().sort((a, b) => (a.prio ?? 5) - (b.prio ?? 5) || b.boxes.length - a.boxes.length || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     for (const g of order) {
-        let best = search(g, g.boxes);
+        let best = search(g, g.boxes), small = false;
+        // a stack that would be staggered at full size tries the same column in the compact pill style first (g.small: the boxes at COMPACT size); it is used only if it stands clear, owned and on the tile
+        if (g.small && g.boxes.length > 1 && (best.area > 0 || best.owned === false || (best.outside ?? 0) > 0 || best.dist > g.ar + 40)) {
+            const sm = search(g, g.small);
+            if (sm.area === 0 && sm.owned !== false && !(sm.outside ?? 0) && sm.dist <= g.ar + 40) { best = sm; small = true; }
+        }
         let boxes = best.rects, side = best.side, ring = best.ring, area = best.area, far = best.dist > g.ar + Math.max(best.W, best.H) + 4;
         // the stack does not fit as one column: it collides, hangs over its tile's edge, stands on a neighbour's side, or only fits far off. Try its pills one by one,
         // each wherever there is room nearest, BEFORE the caller gives up and turns the clearing into a marker (a tall column of four does not fit a hexagon that has plenty of room)
-        if (g.boxes.length > 1 && (best.area > 0 || best.owned === false || (best.outside ?? 0) > 0 || best.dist > g.ar + 40)) {
+        if (!small && g.boxes.length > 1 && (best.area > 0 || best.owned === false || (best.outside ?? 0) > 0 || best.dist > g.ar + 40)) {
             const lone = []; let worst = 0, maxRing = 0, allOwned = true, far2 = 0, loneOut = 0;
             let prev = null;
             for (const b of g.boxes) {
@@ -133,7 +138,7 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
             if (better) { boxes = lone; side = 'split'; ring = maxRing; area = worst; far = true; best = { ...best, owned: allOwned, outside: loneOut }; }
         }
         for (const r of boxes) grid.add(grow(r, MARGIN));
-        out.set(g.id, { boxes, side, ring, overlap: area, outside: best.outside ?? 0, leader: ring > 0 || far || best.owned === false || (best.outside ?? 0) > 0 });      // a name that could not stay on its tile is tied to its clearing
+        out.set(g.id, { small, boxes, side, ring, overlap: area, outside: best.outside ?? 0, leader: ring > 0 || far || best.owned === false || (best.outside ?? 0) > 0 });      // a name that could not stay on its tile is tied to its clearing
     }
     return out;
 }
@@ -141,3 +146,4 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
 // text width estimate for the UI font at the pill size used on the map (kept here so the layout and the drawing agree)
 export const pillWidth = (label, { img = false, size = 9 } = {}) => Math.ceil(label.length * size * 0.6 + 8 + (img ? 13 : 0));
 export const PILL_H = 15;
+export const COMPACT = 0.92;          // the compact pill style for a crowded clearing: 9px text becomes 8.3 world units, which is still 12px on screen at the label size cap (13px)

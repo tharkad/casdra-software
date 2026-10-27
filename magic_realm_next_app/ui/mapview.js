@@ -2,7 +2,7 @@ import { h, sv } from './dom.js';
 import { EDGES, hexCenter, edgeDir, corners, worldEdge } from '../engine/hex.js';
 import { layoutSide, chitSlotsFor } from '../engine/layout.js';
 import { tileName } from '../engine/world.js';
-import { layoutLabels, pillWidth, PILL_H } from './labels.js';
+import { layoutLabels, pillWidth, PILL_H, COMPACT } from './labels.js';
 import { shapeEl, fan, tagText } from './party.js';
 
 // The pannable, zoomable realm map. It draws whatever model it is given; it knows nothing about the rules.
@@ -341,7 +341,8 @@ export function mountMap(host) {
                     const segs = KS.map(k => { const ts = toks.filter(t => t.k === k); return ts.length ? { k, n: ts.reduce((n, t) => n + count(t), 0), disc: ts.some(t => t.disc) } : null; }).filter(Boolean);
                     badgeOf.set(gid, { segs, id, num: c.n });
                     groups.push({ id: gid, own: id, kind: shown[0]?.k ?? 'site', ax: cx + x, ay: cy + y, ar: clearR, prio, prefer: ['right', 'left'], inside: insideTile,
-                        boxes: shown.map(t => ({ w: pillWidth(t.label, { img: !!t.img }) + NUM_W, h: t.img ? 17 : PILL_H })) });
+                        boxes: shown.map(t => ({ w: pillWidth(t.label, { img: !!t.img }) + NUM_W, h: t.img ? 17 : PILL_H })),
+                        small: shown.map(t => ({ w: (pillWidth(t.label, { img: !!t.img }) + NUM_W) * COMPACT, h: (t.img ? 17 : PILL_H) * COMPACT })) });
                     makeLabel.set(gid, (box, i) => pillEl(shown[i], box, c.n, id));
                 }
             });
@@ -447,7 +448,10 @@ export function mountMap(host) {
                 continue;
             }
             const make = makeLabel.get(gr.id);
-            r.boxes.forEach((box, i) => { const el = make({ x: box.x, y: box.y, w: box.w, h: box.h }, i); names.append(el); track(el, gr, [box]); });
+            r.boxes.forEach((box, i) => {
+                const k = r.small ? COMPACT : 1, el = make({ x: box.x, y: box.y, w: box.w / k, h: box.h / k }, i);
+                if (r.small) el.setAttribute('transform', `translate(${box.x.toFixed(1)} ${box.y.toFixed(1)}) scale(${COMPACT})`);
+                names.append(el); track(el, gr, [box]); });
             if (r.leader && !gr.noLeader) {          // a chit lying in the forest is its own counter: no line to tie it to a clearing
                 const b = r.boxes[0];
                 const tx = Math.max(b.x, Math.min(gr.ax, b.x + b.w)), ty = Math.max(b.y, Math.min(gr.ay, b.y + b.h));
