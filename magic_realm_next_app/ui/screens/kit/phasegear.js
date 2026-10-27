@@ -45,12 +45,8 @@ function belongingRow(G, it) {
 // phaseGearContent(G, pending) -> { title, eyebrow, body, foot, detent } for mountSheet (a decision: the map can be looked at while it waits).
 export function phaseGearContent(G, p) {
     const st = G.st, items = (p.items ?? []).map(uid => st.ch.items.find(i => i.uid === uid)).filter(Boolean);
-    const many = items.length > 1;
     const body = items.length
         ? h('div', { class: 'kit kit-evening kit-phasegear', 'data-phasegear': 'items' },
-            h('div', { class: 'ds-ask' }, h('b', {}, many ? 'You came by something new.' : `You came by the ${nameOf(G.data, items[0])}.`),
-                h('span', { 'data-v': 'story' }, 'Anything that fits is already on. Switch it off or leave it here, before the phase ends.'),
-                h('span', { 'data-v': 'detail' }, 'Rules 4.3.2 and 4.3.3b: as soon as you obtain a belonging, before the phase is completed, you choose whether it is active, inactive or abandoned. One that fits is put on at once. Everything else you carry can be rearranged at the start of your next phase (4.3.3a).')),
             h('div', { class: 'kit-gearlist' }, items.map(it => belongingRow(G, it))))
         : h('div', { class: 'kit kit-evening quiet', 'data-phasegear': 'done' },
             h('div', { class: 'ds-ask' }, h('b', {}, 'Nothing left to decide.'), h('span', {}, 'What you came by is settled. The phase can end.')));
