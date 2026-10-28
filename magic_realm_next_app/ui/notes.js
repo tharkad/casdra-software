@@ -1,14 +1,16 @@
 // Notes: "what I want to happen on this screen", said out loud. A round button on every screen opens a sheet that listens (the phone's speech recognition where it
 // has one; otherwise type, or use the keyboard's microphone) and shows the words as they come. OK saves the note on this device AND sends it to the server's report box,
-// with the screen's text and markup, what the game was doing, and the game state, so that it can be worked on later without asking where it was said.
+// with a PICTURE of the screen as it was when the button was tapped (shot.js: layers and overlays included), the screen's text and markup, what the game was doing,
+// and the game state, so that it can be worked on later without asking where it was said.
 // Nothing is worked on at once: the notes are a master list (the server's report table, tagged "[Note]"; tools/notes_digest.py turns it into docs/notes/MASTER.md).
 import { BUG_URL, CHANNEL } from './channel.js';
 import { VERSION, BUILD } from './version.js';
 import { h } from './dom.js';
 import { gzip, toBase64 } from './bugreport.js';
+import { captureScreen, preloadShotAssets } from './shot.js';
 
 const DB = CHANNEL === 'next' ? 'magic-realm-notes-next' : 'magic-realm-notes', STORE = 'notes', SHOW_KEY = 'mr-notebtn';
-const memory = new Map();
+const LIMIT = 700_000, memory = new Map();
 let dbp = null;
 const open = () => (dbp ??= new Promise((res, rej) => { try { const r = indexedDB.open(DB, 1); r.onupgradeneeded = () => r.result.createObjectStore(STORE, { keyPath: 'id' }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } }));
 const wrap = req => new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error); });
@@ -34,10 +36,13 @@ export function context() {
 const screenLabel = c => [c.screen, c.sheet && `sheet ${c.sheet}`, c.pending && `asking ${c.pending}`, c.day != null && `day ${c.day}`].filter(Boolean).join(' · ');
 
 async function sendNote(n) {
-    const doc = { kind: 'note', app: 'magic-realm', note: n.text, ctx: n.ctx, savedAt: n.at, dom: n.dom ?? null, state: n.state ?? null };
+    // `shot`: the picture as a data: URL (JPEG, about 100-230 KB). The casdra.com box takes a request body of 1,000,000 bytes (base64 of the gzip), so the gzip may be 700 KB:
+    // when it is more, the markup goes first, then the state, and the picture last.
+    const doc = { kind: 'note', app: 'magic-realm', note: n.text, ctx: n.ctx, savedAt: n.at, shot: n.shot ?? null, shotInfo: n.shotInfo ?? null, dom: n.dom ?? null, state: n.state ?? null };
     const text = JSON.stringify(doc); let blob = await gzip(text);
-    if (blob && blob.length > 800_000) { doc.dom = null; blob = await gzip(JSON.stringify(doc)); }
-    if (blob && blob.length > 800_000) { doc.state = null; blob = await gzip(JSON.stringify(doc)); }
+    if (blob && blob.length > LIMIT) { doc.dom = null; blob = await gzip(JSON.stringify(doc)); }
+    if (blob && blob.length > LIMIT) { doc.state = null; blob = await gzip(JSON.stringify(doc)); }
+    if (blob && blob.length > LIMIT) { doc.shot = null; blob = await gzip(JSON.stringify(doc)); }
     const summary = { version: n.ctx.build, seed: n.ctx.seed, character: n.ctx.character, day: n.ctx.day, result: 'note' };
     const description = `[Note] ${screenLabel(n.ctx)}: ${n.text}`.slice(0, 3900);
     const body = blob ? { description, summary, encoding: 'gzip-base64', payload: toBase64(blob) } : { description, summary, encoding: 'json', payload: JSON.stringify(doc) };
@@ -48,7 +53,7 @@ async function sendNote(n) {
 }
 export async function flushNotes() {
     let sent = 0;
-    for (const n of (await allNotes()).filter(x => x.status !== 'sent').reverse()) { try { n.serverId = await sendNote(n); n.status = 'sent'; n.dom = null; n.state = null; await putNote(n); sent++; } catch { break; } }
+    for (const n of (await allNotes()).filter(x => x.status !== 'sent').reverse()) { try { n.serverId = await sendNote(n); n.status = 'sent'; n.dom = null; n.state = null; n.shot = null; await putNote(n); sent++; } catch { break; } }
     return sent;
 }
 
@@ -65,6 +70,7 @@ const toast = (text, bad = false) => { const t = h('div', { class: `nt-toast${ba
 
 export function openNote() {
     if (layer) return;
+    const picture = captureScreen();           // first of all: the picture is of the screen as it is now, before this sheet is on it (it is made in the background; save() waits for it)
     const ctx = context();
     const dom = (() => { try { return document.getElementById('app')?.outerHTML ?? null; } catch { return null; } })();
     let state = null; try { state = window.__mr?.game?.st ? JSON.parse(JSON.stringify(window.__mr.game.st)) : null; } catch { /* a state that cannot be copied is left out */ }
@@ -96,9 +102,10 @@ export function openNote() {
     async function save() {
         const text = ta.value.trim(); if (!text) return;
         ok.disabled = true;
-        const n = { id: String(Date.now()), at: new Date().toISOString(), text, ctx, dom, state, status: 'queued' };
+        const pic = await picture.catch(() => null);          // (null when the picture could not be made: the note goes without it)
+        const n = { id: String(Date.now()), at: new Date().toISOString(), text, ctx, dom, state, shot: pic?.shot ?? null, thumb: pic?.thumb ?? null, shotInfo: pic ? { width: pic.width, height: pic.height, bytes: pic.bytes } : null, status: 'queued' };
         await putNote(n); close();
-        try { n.serverId = await sendNote(n); n.status = 'sent'; n.dom = null; n.state = null; await putNote(n); toast('Saved and sent. It is on the list.'); }
+        try { n.serverId = await sendNote(n); n.status = 'sent'; n.dom = null; n.state = null; n.shot = null; await putNote(n); toast('Saved and sent. It is on the list.'); }
         catch { toast('Saved on this phone. It will go when the server answers.', true); }
     }
     layer = h('div', { class: 'nt-layer', 'data-note-sheet': '' },
@@ -119,10 +126,11 @@ export function openNote() {
 export async function openNotesList() {
     if (layer) return;
     const notes = await allNotes();
-    const rows = notes.length ? notes.map(n => h('div', { class: 'nt-row', 'data-note-row': n.id },
+    const rows = notes.length ? notes.map(n => h('div', { class: n.thumb ? 'nt-row has-thumb' : 'nt-row', 'data-note-row': n.id },
+        n.thumb ? h('img', { class: 'nt-thumb', src: n.thumb, alt: 'The screen when you said it', 'data-note-thumb': '' }) : null,
         h('p', {}, n.text), h('small', {}, `${new Date(n.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · ${screenLabel(n.ctx) || 'a screen'} · ${n.status === 'sent' ? 'on the server' : 'waiting to send'}`),
         h('button', { type: 'button', class: 'ds-btn sm quiet', 'data-act': 'note-delete', onclick: async e => { await deleteNote(n.id); e.target.closest('.nt-row').remove(); } }, 'Delete'))) : [h('p', { class: 'nt-empty' }, 'No notes yet. The round button on every screen records one.')];
-    const exportAll = () => { const blob = new Blob([JSON.stringify({ app: 'magic-realm', notes: notes.map(({ dom, state, ...n }) => n) }, null, 1)], { type: 'application/json' }); const a = h('a', { href: URL.createObjectURL(blob), download: `magic-realm-notes-${new Date().toISOString().slice(0, 10)}.json` }); document.body.append(a); a.click(); a.remove(); };
+    const exportAll = () => { const blob = new Blob([JSON.stringify({ app: 'magic-realm', notes: notes.map(({ dom, state, shot, thumb, ...n }) => n) }, null, 1)], { type: 'application/json' }); const a = h('a', { href: URL.createObjectURL(blob), download: `magic-realm-notes-${new Date().toISOString().slice(0, 10)}.json` }); document.body.append(a); a.click(); a.remove(); };
     layer = h('div', { class: 'nt-layer list', 'data-notes-list': '' }, h('div', { class: 'nt-scrim', onclick: close }),
         h('div', { class: 'nt-sheet tall', role: 'dialog', 'aria-label': 'Your notes' }, h('div', { class: 'nt-head' }, h('b', {}, `Your notes (${notes.length})`), h('button', { type: 'button', class: 'nt-x', 'aria-label': 'Close', onclick: close }, '×')),
             h('div', { class: 'nt-rows' }, rows),
@@ -139,5 +147,5 @@ export function initNotes() {
         h('span', { html: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>' }));
     document.body.append(btn); syncButton();
     // It sits in the band under the status bar (the page's top margin, see ds.js topGap), on every screen and above every sheet, so it is always there.
-    setTimeout(() => { flushNotes().catch(() => {}); }, 4000);
+    setTimeout(() => { flushNotes().catch(() => {}); preloadShotAssets(); }, 4000);
 }
