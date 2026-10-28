@@ -11,6 +11,7 @@ import { h } from '../../dom.js';
 import { art } from '../../icons.js';
 import { goldEl, moodTag, nativeArt, say } from './common.js';
 import { tieNumber } from '../../names.js';
+import { standing } from '../../missions.js';
 
 // Everyone who is with this character and alive: natives and monsters he hired, and creatures a spell put under his command.
 export function hirelings(G) { return hirelingsOf(G.st, G.st.ch.id).filter(o => !o.dead); }
@@ -112,6 +113,9 @@ function groupCard(G, g, ctl) {
             dismissRow(G, g, ctl)]);
 }
 
+// the native groups that are foes of the campaign he carries (they stand as Enemies even when his own level with them is not recorded)
+const foeGroups = G => (G.st.ch.missions ?? []).filter(e => e.kind === 'campaign').flatMap(e => e.foes).filter(g => G.data.groups[g]);
+
 // companyTab(G) -> the room's DOM
 export function companyTab(G) {
     const { ch } = G.st, cards = groups(G), owed = ch.boons ?? [];
@@ -120,7 +124,7 @@ export function companyTab(G) {
         h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'In your pay'), cards.length ? h('small', {}, 'tap a counter to turn it') : null),
         cards.length ? h('div', { class: 'kit-groups' }, cards.map(g => groupCard(G, g, ctl))) : h('p', { class: 'kit-none' }, 'Nobody is in your pay. Natives here will hire out in a Hire phase.'),
         h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Where you stand')),
-        h('div', { class: 'kit-moods' }, Object.entries(ch.rel ?? {}).map(([g, r]) => moodTag(r, g))),
+        h('div', { class: 'kit-moods' }, [...new Set([...Object.keys(ch.rel ?? {}), ...foeGroups(G)])].map(g => moodTag(standing(G.st, g), g))),
         h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'You owe')),
         owed.length ? h('div', { class: 'ds-list' }, owed.map(b => h('div', { class: 'ds-row kit-owe', 'data-owe': b.group }, h('span', { class: 'main' }, h('b', {}, `The ${b.group}’s ${b.what}`), h('span', {}, 'Buy their goodwill back in a Trade phase beside them: one roll, then it is lost for good.')), h('span', { class: 'end' }, goldEl(G, b.price)))))
             : h('p', { class: 'ds-text kit-none' }, 'Nothing. No favours to repay.'),

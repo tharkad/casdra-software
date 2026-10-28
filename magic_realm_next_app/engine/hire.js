@@ -2,6 +2,7 @@ import { say } from './core.js';
 import { hasCurse } from './effects.js';
 import { meetingOutcome, drinksCost, calmMonsterGroups } from './meeting.js';
 import { targetGone } from './magic/fx.js';
+import * as missions from './missions.js';
 
 // The Hire activity (rules digest 05 section 4.5). He pays a native group to join him for 14 days.
 // Simplification noted in docs: a hired leader follows like any other hireling instead of taking his own turn.
@@ -9,7 +10,8 @@ import { targetGone } from './magic/fx.js';
 // How a native group stands with him for hiring: a group pacified by his Persuade spell is Friendly at least (the card: "to hire them, he uses the Friendly column").
 export function relFor(st, g) {
     const rel = st.ch.rel?.[g] ?? 0;
-    return (st.fx ?? []).some(f => f.state === 'live' && f.spell === 'persuade' && f.data?.group === g) ? Math.max(rel, 1) : rel;
+    const r = (st.fx ?? []).some(f => f.state === 'live' && f.spell === 'persuade' && f.data?.group === g) ? Math.max(rel, 1) : rel;
+    return st.missions ? missions.relation(st, g, r) : r;          // 7.2.4h: a foe of his campaign is always Enemy
 }
 
 // A hireling is the acting character's own (hiredBy says whose; a state that predates it, or a test that set `hired` by hand, has only one hirer).
@@ -85,6 +87,7 @@ export function hireAction(st, data, p, a) {
     const g = opt.group;
     // Drinks (7.6.5b / 7.7.1b): paid for everyone of the group in his clearing, hired or not, even if he hires only one.
     let drinks = false;
+    if (a.drinks && st.missions && missions.noDrinks(st, g)) throw new Error(`The ${g} are foes of your campaign: you cannot buy them drinks (7.2.4h)`);
     if (a.drinks) {          // (ruling H1: for the pacified monsters too, one gold for each of them, one column friendlier than the Neutral column)
         if (hasCurse(st, 'Ashes')) throw new Error('Your gold is worthless under the Ashes curse.');
         const cost = drinksCost(st, data, g);

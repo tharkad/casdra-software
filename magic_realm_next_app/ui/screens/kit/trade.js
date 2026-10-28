@@ -4,6 +4,7 @@
 import { hasCurse } from '../../../engine/effects.js';
 import { drinksCost } from '../../../engine/meeting.js';
 import { relFor } from '../../../engine/hire.js';
+import { noDrinks } from '../../../engine/missions.js';
 import { canPayOffer, groupChoices, sellable, stockOf } from '../../../engine/trade.js';
 import { nameOfClearing } from '../../../engine/world.js';
 import { rollRow, rollsByIds } from '../../dice.js';
@@ -143,7 +144,9 @@ function tradeMain(G, p) {
         rows = list.length ? list.map(g => tradeRow(G, sel, { key: `buy:${g.idxs[0]}`, it: { ...g.raw, kind: g.kind, id: g.id }, name: g.name, line: 'The roll sets the price.', price: g.base, unit: 'list', tag: g.raw.damaged ? 'damaged' : '', count: g.idxs.length, selected: g.idxs.includes(sel.buy),
             dim: p.mode === 'sell' ? 'A phase is selling or buying, not both.' : null, onSelect: () => pickBuy(g.idxs.includes(sel.buy) ? sel.buy : g.idxs[0]), info: infoOf(G, { ...g.raw, kind: g.kind, id: g.id }) }))
             : [h('p', { class: 'kit-none' }, 'Nothing for sale.')];
-        rows = [drinksRow, ...rows];
+        // 7.2.4h: a foe of the campaign he carries is an Enemy, and he cannot buy it drinks: the button is not offered, and the sheet says why
+        const foe = !!G.st.missions && noDrinks(G.st, p.group);
+        rows = [foe ? h('p', { class: 'ds-why ms-foe', 'data-foe': p.group }, `The ${p.group} are foes of your campaign: they stand as Enemies, and you cannot buy them drinks.`) : drinksRow, ...rows];
     } else if (tab === 'owed') {
         rows = owed.map(b => h('button', { type: 'button', class: `ds-row kit-multi${oneOwed === b.n ? ' sel' : ''}${p.mode === 'sell' ? ' dim' : ''}`, 'data-multi': '', 'data-owed': String(b.n), role: 'radio', 'aria-checked': oneOwed === b.n ? 'true' : 'false',
             onclick: () => { if (p.mode === 'sell') say(G, 'A phase is selling or buying, not both.'); else { G.ui.owedPick = b.n; render(G); } } },

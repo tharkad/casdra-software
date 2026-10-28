@@ -17,6 +17,7 @@ import { blockedSpells, castOptions, castSpell, resolveSpells, canCastQuietly, p
 import { tell } from './story.js';
 import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
 import { mayAttackHero } from './rules/mayAttackHero.js';
+import * as missions from './missions.js';
 import { makeItem, autoEquip, toggleItem, activeHorse, onPackHorse, isWeaponCard, extraPhaseCommitment } from './items.js';
 import { isCave, roadsFrom, tileName } from './world.js';
 
@@ -212,7 +213,7 @@ function nextMeeting(st, data) {
     const c = st.combat;
     while (c.meetQueue.length) {
         const g = c.meetQueue[0], cost = drinksCost(st, data, g);
-        if (relOf(st, g) < 1 && cost > 0 && st.ch.gold >= cost && !hasCurse(st, 'Ashes')) {
+        if (relOf(st, g) < 1 && cost > 0 && st.ch.gold >= cost && !hasCurse(st, 'Ashes') && !(st.missions && missions.noDrinks(st, g))) {
             c.step = 'drinks';
             st.pending = { type: 'combat-drinks', group: g, cost };
             return;
@@ -274,7 +275,7 @@ function addDen(st, data, d) {
     return den;
 }
 
-function relOf(st, group) { return st.ch.rel?.[group] ?? 0; }
+function relOf(st, group) { const r = st.ch.rel?.[group] ?? 0; return st.missions ? missions.relation(st, group, r) : r; }          // (7.2.4h: a foe of his campaign is Enemy)
 
 // A missile roll (one die for archers, otherwise two): returns the change to harm level and notes the roll for the dice tray.
 function missileRoll(st, what, archer) {

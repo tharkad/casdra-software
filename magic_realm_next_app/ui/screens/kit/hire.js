@@ -5,6 +5,7 @@ import { WEIGHT_WORDS } from '../../../engine/core.js';
 import { hireStats } from '../../../engine/combat.js';
 import { drinksCost } from '../../../engine/meeting.js';
 import { relFor } from '../../../engine/hire.js';
+import { noDrinks } from '../../../engine/missions.js';
 import { hasCurse } from '../../../engine/effects.js';
 import { nameOfClearing } from '../../../engine/world.js';
 import { act } from '../play/actions.js';
@@ -81,7 +82,8 @@ function chooser(G, p) {
                 h('span', { class: 'ds-meta' }, `${o.rehire ? `Extend hire (${days} day${days === 1 ? '' : 's'} left). ` : ''}Wages: ${o.wage} Gold${o.members.length > 1 ? ` for all ${o.members.length}` : ''}.${G.data.groups[o.group]?.hireMode === 'individual' ? ' One at a time.' : ''} ${strengthLine(G, o.members, o.monsters)}`.trim()),
                 !o.monsters && rel < 0 ? h('span', { class: 'ds-why' }, 'They may turn you away.') : null),
             h('div', { class: 'kit-chiprow' },
-                ashes ? h('span', { class: 'ds-meta' }, 'Your gold is worthless under the Ashes curse.')
+                !o.monsters && G.st.missions && noDrinks(G.st, o.group) ? h('span', { class: 'ds-why ms-foe', 'data-foe': o.group }, `The ${o.group} are foes of your campaign: Enemies, and no drinks for them.`)
+                    : ashes ? h('span', { class: 'ds-meta' }, 'Your gold is worthless under the Ashes curse.')
                     : h('button', { type: 'button', class: `ds-chip${round ? ' on' : ''}${why && !round ? ' is-dim' : ''}`, 'data-multi': '', 'data-act': 'drinks-toggle', 'aria-pressed': round ? 'true' : 'false', 'aria-disabled': why && !round ? 'true' : null,
                         onclick: () => { if (why && !round) { say(G, why); return; } G.ui.hireSel = key; G.ui.drinksFor = round ? null : key; render(G); } }, round ? icon('check') : null, `Stand a round · ${dc} Gold`)));
     });

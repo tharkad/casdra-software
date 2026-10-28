@@ -13,6 +13,8 @@ import { playerOf as playerNameOf } from '../../meet.js';
 import { rosterRows } from '../../shared_ui.js';
 import { newDraft as newMeetDraft } from '../meetui.js';
 import { modal, mrChit } from './kit.js';
+import { standing } from '../../missions.js';
+import { chitRows } from './chits.js';
 import { openPiece } from './piece_card.js';
 import { render } from './shell.js';
 
@@ -182,7 +184,7 @@ export function clearingSheet(G) {
         living.push(h('div', { class: 'ds-row dwelling' }, tile_(G.data.art?.dwellings?.[d.kind], d.kind), h('span', { class: 'main' }, h('b', {}, d.kind), ...storyDetail(grp ? `The ${grp} live here.` : 'A dwelling: natives live and trade here.', setupDwelling(G, d.kind) || 'A dwelling: natives live and trade here.'))));
     }
     for (const [g, list] of Object.entries(byGroup)) {
-        const rel = REL[String(G.st.ch.rel?.[g] ?? 0)], lead = list.find(x => x.leader) ?? list[0];
+        const rel = REL[String(standing(G.st, g))], lead = list.find(x => x.leader) ?? list[0];
         living.push(h('button', { type: 'button', class: 'ds-row nat pieceopen', 'data-act': 'piece-open', 'data-piece-open': lead.id, onclick: () => openPiece(G, { kind: 'nat', id: lead.id }) }, tile_(G.data.art?.natives?.[lead.id], g),
             h('span', { class: 'main' }, h('b', {}, `${g}${list.length > 1 ? ` ×${list.length}` : ''}`), ...storyDetail(MOOD[rel], `${rel[0].toUpperCase()}${rel.slice(1)} to you; ${list.map(x => x.name.replace(/^\w+ /, '')).join(', ')}`)),
             h('span', { class: `ds-tag mood ${rel}` }, rel[0].toUpperCase() + rel.slice(1))));
@@ -196,6 +198,8 @@ export function clearingSheet(G) {
             h('span', { class: 'main' }, h('b', {}, `${name}${l.length > 1 ? ` ×${l.length}` : ''}`), ...storyDetail(G.st.ch.hidden ? 'It has not seen you.' : 'It will block you if you are seen.', `vuln ${md.vulnerability}${md.armored ? ' (armored)' : ''} · ${blow} · moves ${ls.moveTime}${md.flies ? ' · flies' : ''}. It will block you if you are seen.`))));
     }
     put('living', 'Living here', living);
+
+    put('chits', 'Chits here', chitRows(G, id));          // (visitors, missions and campaigns lying in the clearing, face up)
 
     // what you could get: the sites found here (the one just found first), the site cards, what lies on the ground
     const get = [];

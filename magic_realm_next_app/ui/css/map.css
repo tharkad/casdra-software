@@ -39,6 +39,7 @@
 .realm-svg .pill rect { stroke: #0c0e14; stroke-width: 1; }
 .realm-svg .pill text { font-size: 9px; font-weight: 700; fill: #fff; font-family: var(--font-ui); }
 .realm-svg .pill.mon rect { fill: #a33; } .realm-svg .pill.nat rect { fill: #3d6fb8; } .realm-svg .pill.ally rect { fill: #2f8f6a; }
+.realm-svg .pill.visit rect { fill: #2e7f86; } .realm-svg .pill.task rect { fill: #a14b6b; }
 .realm-svg .pill.dwelling rect { fill: #8a6d2c; } .realm-svg .pill.site rect { fill: #6a4fa8; } .realm-svg .pill.sound rect { fill: #7a5a2e; }
 .realm-svg .chit text { font-size: 9px; font-weight: 700; }
 .realm-svg .me .halo { fill: rgba(217, 180, 90, .18); stroke: var(--gold); stroke-width: 3; }

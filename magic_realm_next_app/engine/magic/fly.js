@@ -4,6 +4,7 @@ import { abandon, weightOf, nameOf } from '../items.js';
 import { followHero } from '../hire.js';
 import { fxList, expireFx, HERO } from './fx.js';
 import { adjacentTiles } from './util.js';
+import { onArrive } from '../missions.js';
 
 // Flying (rules 7.3.3, 8.3.8e, 7.12.2d; docs/design/magic/02-day-spells.md section 8; RealmSpeak `CharacterWrapper.java` getFlyStrengthChits / land / mustFly and
 // `ActionRow.java` doFlyAction, read as a behaviour oracle). Written for the hero; a second character will need `st.chars` first.
@@ -132,5 +133,6 @@ export function landHero(st, data, why = 'You land') {
     st.ch.flying = null; st.ch.at = to; st.ch.arrivedFrom = null;
     followHero(st, data);
     say(st, `${why} in ${nameOfClearing(to)}.`, 'phase');
+    if (st.missions) onArrive(st, data, to);          // 7.2.4e.4: landing in the clearing of the Dwelling he carries a mission chit to completes the task
     return { to, cave: isCave(st, data, to) };
 }

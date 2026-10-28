@@ -14,6 +14,7 @@ import { setStoryState } from '../../storyvoice.js';
 import { icon as dsIcon } from '../../icons.js';
 import { revealKey } from '../sharedfight.js';
 import { voidBy } from './kit.js';
+import { mapTokens } from '../../missions.js';
 import { act } from './actions.js';
 import { setFly, setMove } from './plan.js';
 import { maybeShowDraw, maybeShowFightOver, sharedCamera, showPlayer } from './shared.js';
@@ -56,6 +57,7 @@ export function mapModel(G) {
     const natImg = {}; for (const n of G.st.nats) { const g = G.data.natives[n.id].group; if (!natImg[g] || G.data.natives[n.id].leader) natImg[g] = art?.natives?.[n.id] ?? natImg[g] ?? null; }
     for (const m of mons) add(m.at, { k: 'mon', label: m.n > 1 ? `${m.name} x${m.n}` : m.name, img: monImg[m.name] });
     for (const n of nats) add(n.at, { k: 'nat', label: n.n > 1 ? `${n.name} x${n.n}` : n.name, img: natImg[n.name] });
+    if (G.st.missions) for (const t of mapTokens(G.st, G.data)) add(t.at, { k: t.k, label: t.label });          // visitor, mission and campaign chits lying in a clearing (they lie face up: public)
     const hires = G.st.nats.filter(n => n.hired && !n.dead);
     if (G.shared) {
         // a hireling is its hirer's alone (7.7): each character's are shown where that character stands, named for him

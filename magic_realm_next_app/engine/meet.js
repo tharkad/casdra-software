@@ -2,6 +2,7 @@ import { say, lvl } from './core.js';
 import { withActor, charsAt, isMulti, askOf, livingIds, playerNameOf } from './party.js';
 import { nameOf, summaryOf, autoEquip, noteGain, weightOf, carryCapacity, onPackHorse, extraPhaseCommitment, transferLock } from './items.js';
 import { pathKeyAt, pathEnds, pathSide, tileSide, nameOfClearing, roadsFrom, tileOf, numOf } from './world.js';
+import { onArrive } from './missions.js';
 
 // Characters meet (step 4 of the multi-character plan, docs/design/multiplayer-step4.md): everything two or more characters standing in one clearing can do to one another outside a fight.
 //   give and trade   an OFFER from one character to another (belongings, gold, discoveries each way), accepted or declined by the other, atomic (7.2.1, 4.5.5, ruling R-5)
@@ -502,6 +503,7 @@ export function carry(st, data, from, to, road, caveTo) {
             if (heavy) return false;
             st.ch.at = to; st.ch.arrivedFrom = from;
             hooks.followHero(st, data);
+            if (st.missions) onArrive(st, data, to);                 // 7.2.4e.4: a follower who carries a mission chit into its Dwelling's clearing delivers it too
             if (caveTo) { const h = st.ch.items.find(i => i.kind === 'horse' && i.active && !i.destroyed); if (h) { h.active = false; say(st, 'Your horse cannot go into the caves and stays outside, unridden.', 'info'); } }
             if (road && (road.kind === 'hidden' || road.kind === 'secret')) grant(st, st.ch, { kind: 'path', key: pathKeyAt(st, from, to) }, from);
             return true;

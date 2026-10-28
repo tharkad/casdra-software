@@ -7,6 +7,7 @@ import { beginDay, beginChar } from './day.js';
 import { dealSpells } from './runes.js';
 import { castable, ATTACK_SPELLS } from './spells.js';
 import { STATE_VERSION, hydrate, seat, withActor, DEFAULT_PLAYER } from './party.js';
+import { setupVisitorChits } from './missions.js';
 
 // Building a new game (rules digest 01 section 3): map, chits, dwellings, denizens, treasure, then the character.
 
@@ -37,6 +38,7 @@ export function newGame(data, opts = {}) {
     if (opts.pauseVictory) { st.pauseVictory = true; st.pauseShift = true; }          // the game screen: stop on a result screen and on the Bracelets / Cloak offer
     st.options = { knightsAdjustment: !!opts.options?.knightsAdjustment, watchfulNatives: !!opts.options?.watchfulNatives, quietMonsters: !!opts.options?.quietMonsters, ...(opts.options?.castAnytime ? { castAnytime: true } : {}) };       // (castAnytime is in the state only when on, so a game without it is exactly as it was)
     st.startGear = { weapon: opts.startGear?.weapon ?? true, armor: opts.startGear?.armor ?? true };
+    if (opts.missions) setupVisitorChits(st, data, opts.missions);          // the visitor, mission and campaign chits (3.4, missions.js): only when asked for, so a game without them is as it was
     // One realm, one or several characters (2 to 4): each has his own gear, goals, start dwelling (a sealed choice from his card; the first listed by default) and spells.
     // `opts.characters` lists them; a game with `opts.character` is the one-character game it always was. A character's `owner` is the player who plays him (default: one
     // player, 'p1', plays them all: pass `owner` for several players).

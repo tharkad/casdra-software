@@ -28,6 +28,7 @@ import { planFlyError, canRecordFly, flySources, flyTiles, carries, startFlight,
 import { ownedGold } from './magic/mist.js';
 import { resolveWho, settleActor, ownerOf, withActor, isMulti as multi, livingIds, playerNameOf } from './party.js';
 import * as meet from './meet.js';
+import * as missions from './missions.js';
 
 // The day loop (rules digest 01 section 4): Birdsong plan, Sunrise, Daylight phases, Sunset, Evening combat, Midnight.
 // A game is a plain object; apply(state, data, action) returns the next state and never mutates its input.
@@ -386,6 +387,7 @@ function pickPhase(st, data, slot, { soft = false } = {}) {
 function regenerate(st, data) {
     // The prowling row goes back to its starting boxes, even the slain (digest 05 section 5.3).
     let back = 0, ghosts = false;
+    if (st.missions) { missions.tick(st, data); missions.flipChits(st, data); }          // 7.2.4i: the foes killed before they come back count; 6.3.4b: with Row 6 prowling the visitor, mission and campaign chits turn over
     const revived = [];                       // the slain who come back, for the telling
     for (const m of st.mons) {
         const def = data.monsters[m.id];
@@ -441,6 +443,7 @@ function finishPhase0(st, data, text) {
     expireDue(st, data, 'phase-end');
     energizePass(st, data, 'phase');
     if (st.ch.dead) return died(st, data);
+    if (st.missions) missions.tick(st, data);                      // 7.2.4i: a campaign whose foes are all dead is won (by himself or by others)
     if (gearPause(st)) return;                     // the phase is not complete until he has said what to do with what he came by (4.3.2); `continue` goes on at finishPhaseEnd
     return finishPhaseEnd(st, data);
 }
@@ -660,6 +663,7 @@ function died(st, data, carryOn = true) {
     st.companions = [];
     expireHires(st, data);
     breakAllFrom(st, data, HERO);                          // what he cast through his chits ends with him
+    if (st.missions) missions.dropAll(st, data, st.ch);    // 7.2.4b: the mission and campaign chits he carried are put down where he fell (nothing is charged)
     // what he carried lies where he fell, and the day's chits go back face down as at Midnight
     const items = st.ch.items.filter(i => !i.destroyed).map(i => ({ ...i, active: false, alerted: false }));
     if (items.length && st.ch.at) st.abandoned[st.ch.at] = [...(st.abandoned[st.ch.at] ?? []), ...items];
@@ -735,6 +739,7 @@ function midnight(st, data) {
     });
     // The Midnight housekeeping is for a game that goes on (rule 8.9.2): at the last Midnight nothing is returned and no curse is lifted before the score is worked out.
     const ending = gameEnds(st, data);
+    if (st.missions) missions.atMidnight(st, data, ending);          // 7.2.4b, 7.2.4d: a campaign won today; the tasks whose time limit is today, or all of them if the game ends now, have failed
     // a potion that was activated today is good until Midnight, then it goes back to the box it came from (8.9.2a; one not used is kept)
     const cardOf = it => data.treasures[it.card ?? (it.kind === 'treasure' ? it.id : '')];      // a card that became a counter keeps its card
     each(() => {
@@ -958,7 +963,7 @@ function lostMove(st, data, from, wanted) {
 }
 
 function arrive(st, data, to) {
-    return `You move to ${nameOfClearing(to)}.`;
+    return `You move to ${nameOfClearing(to)}.${st.missions ? missions.onArrive(st, data, to) : ''}`;          // (7.2.4e.4: a mission chit carried into its Dwelling's clearing is delivered)
 }
 
 function doHide(st, data) {
@@ -1289,6 +1294,22 @@ function step(st, data, action) {
             st.pending = keep(st, data, p);
             return st;
         }
+        case 'take-chit': {
+            // 7.2.4: at the start of a phase of his turn he may take the mission and campaign chits that lie in his clearing (missions.js); it costs no phase
+            if (!st.missions) throw new Error('there are no mission, campaign or visitor chits in this game');
+            if (p.type !== 'phase' && p.type !== 'phase-pick') throw new Error('you can take a chit only at the start of a phase of your turn (7.2.4)');
+            missions.takeChit(st, data, action.chit);
+            st.pending = keep(st, data, p);
+            return st;
+        }
+        case 'abandon-chit': {
+            // 7.2.4j: a campaign can be given up at any time when none of its foes is on the map
+            if (!st.missions) throw new Error('there are no mission, campaign or visitor chits in this game');
+            if (!['phase', 'phase-pick', 'plan', 'turn-end', 'evening-end'].includes(p.type)) throw new Error('you can give a campaign up between phases, not in the middle of something');
+            missions.abandonChit(st, data, action.chit);
+            st.pending = keep(st, data, p);
+            return st;
+        }
         case 'tidy': {
             // 4.3.3a, 7.2.2f (ruling R6, ch7-day.md): at the start of each phase of his Daylight turn and after all the Evening's combat; never in Birdsong while he records his plan
             // (an extra phase from a horse or a card must be active at Birdsong, 6.2.2c.1, so it has to be switched on the evening before: see nextDayGear and the 'evening-end' question).
@@ -1397,6 +1418,7 @@ function tableAct(st, data, a) {
 // The game ends now, scored as at the end of the month. Everything in flight (a fight, an offer, a trade window, a question) is dropped: nothing can be answered after the end.
 function endGame(st, data, reason) {
     expireDue(st, data, 'game-end');                                     // all spells are broken when the game ends (9.3.1)
+    if (st.missions) missions.failEveryone(st, data);                    // 7.2.4d: the tasks left undone fail before the score is made
     st.battle = null; st.offers = []; st.evening = null;
     for (const k of ['tradeWindow', 'blockCheck', 'followCheck']) delete st[k];
     if (st.sudden && !st.sudden.done) st.sudden.done = true;
@@ -1427,6 +1449,7 @@ function leaveMap(st, data, { viaMove = false } = {}) {
         if (!c.at || c.onRoad || c.flying || c.mist) throw new Error('you can leave the map only from a clearing');
         if (meet.openOffer(st, st.actor)) throw new Error('you have an offer open: withdraw it first');
     }
+    if (st.missions) missions.failAll(st, data, c);                     // 7.2.4d: his game ends with the tasks undone
     c.goneScore = scoreGame(st, data);                                  // fixed now (9.3.1a): what he holds this moment is what counts
     c.gone = { day: st.day };
     st.companions = [];

@@ -103,6 +103,18 @@ const rule = (re, fn) => R.push([re, fn]);
 
 // ---- moving
 rule(/^You move to (.+?)\. You had to leave behind: (.+?)\.$/, (m) => { const left = list(m[2].split(/,\s*/).map(x => `the ${x}`)); return [`You make your way to ${m[1]}, leaving ${left} behind.`, `You reach ${m[1]}. You had to leave ${left} behind.`]; });
+// ---- the visitor, mission and campaign chits (missions.js; the option "Missions and campaigns"): taking one, delivering it, winning, failing, giving up, the week's flip
+rule(/^You move to ([^.]+?)\. You deliver the (.+?) chit to the (.+?) and collect (\d+) gold\.?$/, m => [`You reach ${m[1]} and hand the ${m[2]} chit to the ${m[3]}: ${m[4]} gold is yours.`, `You make your way to ${m[1]}, deliver the ${m[2]} chit to the ${m[3]} and collect ${m[4]} gold.`]);
+rule(/^A (.+?) chit appears in clearing (\d+)\.?$/, m => [`A ${m[1]} chit turns up in clearing ${m[2]}.`, `The ${m[1]} chit lies in clearing ${m[2]} now.`]);
+rule(/^The visitor, mission and campaign chits that nobody carries turn over\.?$/, () => ['A week ends, and every chit that nobody holds turns over to its other side.', 'The week turns, and the chits left lying about show their other sides.']);
+rule(/^You take the (.+?) chit \((.+?)\): deliver it to the (.+?) by Midnight of day (\d+) for (\d+) gold\.?$/, m => `You take the ${m[1]} chit and pay ${m[2]}. Bring it to the ${m[3]} by Midnight of day ${m[4]}, and it is worth ${m[5]} gold.`);
+rule(/^You take the (.+?) chit \((.+?)\): kill every (.+?) by Midnight of day (\d+)\.?$/, m => `You take up the ${m[1]} campaign and pay ${m[2]}. All of the ${list(m[3].split(' and '))} must fall by Midnight of day ${m[4]}.`);
+rule(/^You bring the (.+?) chit to the (.+?)\. You regain (.+?) and collect (\d+) gold\.?$/, m => [`You hand the ${m[1]} chit to the ${m[2]}. You get ${m[3]} back, and ${m[4]} gold with it.`, `The ${m[1]} chit is delivered to the ${m[2]}: ${m[4]} gold, and ${m[3]} returned.`]);
+rule(/^Your campaign is won: every foe is dead\. You regain (.+?)\.?$/, m => [`Every foe is dead. The campaign is won, and you get ${m[1]} back.`, `The last foe has fallen: your campaign is won, and ${m[1]} comes home to you.`]);
+rule(/^The time limit of the (.+?) chit runs out\. The (.+?) chit is put down in your clearing and you pay its cost again \((.+?)\)\.?$/, m => [`The time for the ${m[1]} chit runs out. You put it down where you stand and pay ${m[3]} again.`, `Too late: the ${m[1]} chit is lost. You set it down here and pay ${m[3]} a second time.`]);
+rule(/^The game ends (?:for you )?with the task undone\. The (.+?) chit is put down in your clearing and you pay its cost again \((.+?)\)\.?$/, m => `The game ends with the ${m[1]} task undone. You put the chit down and pay ${m[2]} again.`);
+rule(/^You give up the (.+?) campaign: the chit is put down in your clearing and you get nothing back\.?$/, m => `You give up the ${m[1]} campaign and put the chit down. Nothing comes back to you.`);
+rule(/^The (.+?) chit is put down where you fell\.?$/, m => `The ${m[1]} chit lies where you fell.`);
 rule(/^You move to ([^.]+?)\.?$/, m => [`You make your way to ${m[1]}.`, `You pick your way to ${m[1]}.`, `You travel on to ${m[1]}.`]);
 rule(/^You (?:start|begin) the climb toward (.+?)(?: \(mountains take two Move phases\))?\.?$/, m => [`You start up toward ${m[1]}. The slope will take another phase.`, `The way to ${m[1]} is steep. You begin the climb.`]);
 rule(/^There is no road from here to (.+?): the move is lost\.?$/, m => [`No road runs from here to ${m[1]}. The step is wasted.`, `You look for a way to ${m[1]} and find none.`]);

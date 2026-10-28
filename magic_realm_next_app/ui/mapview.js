@@ -26,8 +26,8 @@ const pk = (a, b) => (a < b ? `${a}~${b}` : `${b}~${a}`);
 // A badge's chips: monsters, natives and companions carry a small picture (claw marks, a figure) so that what is in the clearing reads at a glance; a count follows when there is more than one.
 // A site's chip carries what the pill of a site carries: the gold edge and a tick when it is discovered, and a count when there are several.
 const ICON_KINDS = new Set(['mon', 'nat', 'ally']);
-const segW = (sg, lod = false) => (ICON_KINDS.has(sg.k) ? (sg.n > 1 ? (lod ? 18 : 21) : lod ? 12 : 13) : sg.k === 'site' ? (lod ? 12 : 13) + (sg.disc ? 4 : 0) + (sg.n > 1 ? 5 : 0) : lod ? 12 : 13);
-const segText = sg => (sg.glyph ? sg.glyph : sg.k === 'dwelling' ? '⌂' : sg.k === 'site' ? `◆${sg.disc ? '✓' : ''}${sg.n > 1 ? sg.n : ''}` : sg.k === 'sound' ? '♪' : String(sg.n));
+const segW = (sg, lod = false) => (ICON_KINDS.has(sg.k) ? (sg.n > 1 ? (lod ? 18 : 21) : lod ? 12 : 13) : sg.k === 'site' ? (lod ? 12 : 13) + (sg.disc ? 4 : 0) + (sg.n > 1 ? 5 : 0) : sg.k === 'visit' || sg.k === 'task' ? (lod ? 12 : 13) + (sg.n > 1 ? 5 : 0) : lod ? 12 : 13);
+const segText = sg => (sg.glyph ? sg.glyph : sg.k === 'dwelling' ? '⌂' : sg.k === 'site' ? `◆${sg.disc ? '✓' : ''}${sg.n > 1 ? sg.n : ''}` : sg.k === 'sound' ? '♪' : sg.k === 'visit' ? `✦${sg.n > 1 ? sg.n : ''}` : sg.k === 'task' ? `⚑${sg.n > 1 ? sg.n : ''}` : String(sg.n));
 /** Natural width of a badge (12 high): the clearing's number circle (unless `lod`), then a chip per kind. */
 export const badgeWidth = (segs, lod = false, hasNum = true) => (hasNum && !lod ? 14 : 0) + segs.reduce((w, sg) => w + segW(sg, lod), 0) + 3;
 function chipIcon(kind) {
@@ -334,10 +334,10 @@ export function mountMap(host) {
                 if (toks.length) {
                     const shown = toks.length > 5 ? [...toks.slice(0, 4), { k: 'more', label: `+${toks.length - 4}` }] : toks;
                     const gid = `clr:${id}`;
-                    const prio = Math.min(...shown.map(t => ({ mon: 1, nat: 1, ally: 2, dwelling: 2, site: 3, sound: 3, more: 4 }[t.k] ?? 3)));
+                    const prio = Math.min(...shown.map(t => ({ mon: 1, nat: 1, ally: 2, dwelling: 2, visit: 2, task: 2, site: 3, sound: 3, more: 4 }[t.k] ?? 3)));
                     // when the names will not fit around the clearing they give way to one small marker: a coloured chip for each kind of thing that is there,
                     // with its number, and a dotted end that says "tap the clearing to see everything"
-                    const KS = ['mon', 'nat', 'ally', 'dwelling', 'site', 'sound'], count = t => Number(/x(\d+)$/.exec(t.label)?.[1] ?? 1);
+                    const KS = ['mon', 'nat', 'ally', 'dwelling', 'visit', 'task', 'site', 'sound'], count = t => Number(/x(\d+)$/.exec(t.label)?.[1] ?? 1);
                     const segs = KS.map(k => { const ts = toks.filter(t => t.k === k); return ts.length ? { k, n: ts.reduce((n, t) => n + count(t), 0), disc: ts.some(t => t.disc) } : null; }).filter(Boolean);
                     badgeOf.set(gid, { segs, id, num: c.n });
                     groups.push({ id: gid, own: id, kind: shown[0]?.k ?? 'site', ax: cx + x, ay: cy + y, ar: clearR, prio, prefer: ['right', 'left'], inside: insideTile,
@@ -688,6 +688,8 @@ export function mapLegend({ art } = {}) {
         row(pillSw({ k: 'site', label: '\u25C6 Cairns \u2713', disc: true }, 5), 'A discovered site'),
         row(pillSw({ k: 'site', label: '\u25C6 Altar' }, 5), 'A site, not found yet'),
         row(pillSw({ k: 'sound', label: '\u266A Roar' }, 5), 'A sound nearby'),
+        row(pillSw({ k: 'visit', label: 'Crone' }, 4), 'A visitor chit'),
+        row(pillSw({ k: 'task', label: 'Raid \u00B7 8 Fame' }, 4), 'A mission or campaign chit: tap the clearing to take it'),
         row(swatch(chitPillEl('warning', '! Stink', { x: 0, y: 0, w: pillWidth('! Stink'), h: PILL_H }), pillWidth('! Stink'), PILL_H), 'A warning'),
         row(swatch(downChitEl(8, 8), 16, 16, 1.6), 'A face-down chit'),
         row(swatch(badgeEl({ segs: badgeSegs, num: 4 }, bw, {}), bw + 1, 13, 1.6), 'Several things: tap it'),

@@ -238,6 +238,7 @@
 .realm-svg .bseg text { font-size: calc(8px * var(--ts, 1)); font-weight: 800; fill: #fff; font-family: var(--font-ui); }
 .realm-svg .bseg.mon rect { fill: #a33; } .realm-svg .bseg.nat rect { fill: #3d6fb8; } .realm-svg .bseg.ally rect { fill: #2f8f6a; }
 .realm-svg .bseg.dwelling rect { fill: #8a6d2c; } .realm-svg .bseg.site rect { fill: #6a4fa8; } .realm-svg .bseg.sound rect { fill: #7a5a2e; }
+.realm-svg .bseg.visit rect { fill: #2e7f86; } .realm-svg .bseg.task rect { fill: #a14b6b; }
 .realm-svg .bseg.more rect { fill: #3a3d4e; }
 .realm-svg .bseg.warn rect { fill: #8a4a24; } .realm-svg .bseg.star rect { fill: #5b4d86; }
 .realm-svg .badge .bframe { fill: rgba(12, 14, 20, .55); stroke: rgba(255, 255, 255, .65); stroke-width: 1; stroke-dasharray: 2 2; }

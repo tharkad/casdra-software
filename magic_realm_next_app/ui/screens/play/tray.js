@@ -21,6 +21,7 @@ import { isStory, logText } from '../../voice.js';
 import { blockCard, followCard, newDraft as newMeetDraft, resultCards, waitingCard, windowCard } from '../meetui.js';
 import { noteCard, tableCards } from '../tableui.js';
 import { act } from './actions.js';
+import { noticeCards, takeChips } from './chits.js';
 import { journalFresh } from './journal.js';
 import { ACT_LABEL, actArt, mc, showToast, tc } from './kit.js';
 import { phaseResultLine, searchWhere, tableName } from './phases.js';
@@ -218,6 +219,8 @@ export function renderTray(G) {
         }
     }
     if (freeActs.length) m.body.push(h('div', { class: 'spellacts' }, ...freeActs));
+    // mission, campaign and visitor chits (a game with the option): a notice card for what the engine just told (the week's flip, a delivery, a win, a failure), and a Take button for each chit in his clearing
+    if (!planning) { m.body.unshift(...noticeCards(G)); const takes = takeChips(G); if (takes.length) m.body.push(h('div', { class: 'spellacts ms-takes', 'data-takes': String(takes.length) }, ...takes)); }
 
     // shared table: the players strip, the table's agreements, what others did in plain sight, the waiting card
     const mlines = newMeetLines(G);

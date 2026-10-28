@@ -6,6 +6,7 @@ import { NO_EFFORT_LIMIT } from '../../engine/modifiers.js';
 import { nameOf } from '../../engine/items.js';
 import { withArticle, displayName, fixNames } from '../names.js';
 import { fxTags, HERO } from '../../engine/magic/fx.js';
+import { standing } from '../missions.js';
 
 export const DIRS = ['Thrust', 'Swing', 'Smash'], MNV = ['Charge', 'Dodge', 'Duck'];
 export const BOX = ['Charge/Thrust', 'Dodge/Swing', 'Duck/Smash'];          // the red boxes of the melee sheet name both (rules 4.1, 8.4.6b)
@@ -290,7 +291,7 @@ export function stampsOf(l) {
 const STANDING = { 2: 'are your allies', 1: 'are friendly to you' };
 export function standingWhy(st, groups) {
     const by = new Map();
-    for (const g of groups) { const r = st.ch.rel?.[g]; if (STANDING[r]) (by.get(r) ?? by.set(r, []).get(r)).push(g); }
+    for (const g of groups) { const r = standing(st, g); if (STANDING[r]) (by.get(r) ?? by.set(r, []).get(r)).push(g); }
     if (!by.size) return null;
     return [...by].sort((a, b) => b[0] - a[0]).map(([r, gs]) => `${cap(listOf(gs.map(g => `the ${g}`)))} ${STANDING[r]}.`).join(' ');
 }

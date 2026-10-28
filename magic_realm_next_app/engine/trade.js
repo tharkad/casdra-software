@@ -4,6 +4,7 @@ import { defOf, nameOf, priceOf, makeItem, summaryOf, autoEquip, noteGain, extra
 import { hasCurse } from './effects.js';
 import { meetingOutcome, drinksCost } from './meeting.js';
 import { relFor } from './hire.js';
+import * as missions from './missions.js';
 
 // The Trade activity (rules digest 05 section 4.4). He deals with one native leader in his clearing: sell as much as he likes,
 // or buy a single item (the price depends on a roll on the Meeting Table).
@@ -74,6 +75,7 @@ export function tradeAction(st, data, p, a) {
         st.pending = p;
         return undefined;
     }
+    if (a.act === 'drinks' && st.missions && missions.noDrinks(st, g)) throw new Error('They are foes of your campaign: you cannot buy them drinks (7.2.4h)');
     if (a.act === 'drinks') {
         // 7.6.5b: natives only, once per phase, just before the roll; one gold per member of the group present.
         if (p.drinks) throw new Error('you have already bought drinks this phase');

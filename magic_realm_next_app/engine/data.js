@@ -19,6 +19,8 @@ export function indexData(raw) {
         characters: byId(raw.characters.characters),
         spells: byId(raw.spells?.spells),
         cardtext: raw.cardtext ?? { treasures: {}, spells: {} },
+        // the visitor/mission/campaign chit faces (missions.js): the four visitors, the two missions and the six campaigns, by id
+        chitDefs: { visitor: byId(raw.natives.visitors), mission: byId(raw.natives.missions), campaign: byId(raw.natives.campaigns) },
     };
     for (const n of Object.values(d.natives)) n.name = n.name.replace(/^(\w+) \1\b/, '$1');      // "Lancer Lancer 1" reads better as "Lancer 1"
     d.tile = id => d.tiles.find(t => t.id === id);

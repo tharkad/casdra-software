@@ -1,6 +1,7 @@
 import { say } from './core.js';
 import { tileOf, numOf, graph } from './world.js';
 import { fxTags, HERO } from './magic/fx.js';
+import { summonVisitors } from './missions.js';
 
 // What happens when a character's turn ends (rules digest 02 section 5.2 and digest 05 section 5.2):
 // prowling monsters in his tile come to him, the map chits of his tile turn up, and chits summon boxes of prowling monsters.
@@ -107,6 +108,8 @@ export function endOfTurn(st, data) {
         }
         say(st, `${c.name}${c.kind === 'warning' ? '' : ' ' + c.num} summons ${monstersInBox(st, box.id).length ? '' : ''}${boxLabel(data, box)} to ${dest === here ? 'you' : 'clearing ' + numOf(dest)}.`, 'monster');
     }
+    // 3b. Row 6: the visitor, mission and campaign chits of the small boxes appear where their leader or site is (7.13.5; only in a game with those chits)
+    if (st.missions) out.visitors = summonVisitors(st, data, here);
     // 4. natives appear where a dwelling of theirs stands, if their row prowls
     for (const g of Object.values(data.groups)) {
         if (g.garrison) continue;
