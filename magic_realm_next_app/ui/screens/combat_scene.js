@@ -19,8 +19,13 @@ import * as P from '../combat/payload.js';
 import * as SH from '../combat/shared.js';
 import { guardIfChanged } from '../tapguard.js';
 import { article, fixNames } from '../names.js';
+import { deploySheet, deployNarration } from '../combat/deploy_ui.js';
+import * as DP from '../combat/deploy.js';
+import { reviewSheet } from '../combat/sections_review.js';
+import { hireRound } from '../combat/sections_voice.js';
+import { denOnSheet } from '../../engine/hirefight.js';
 
-const RESULT_TYPES = ['combat-fatigue', 'combat-wounds', 'combat-encounter'];
+const RESULT_TYPES = ['combat-fatigue', 'combat-wounds', 'combat-encounter', 'combat-deploy'];          // (combat-deploy: a round on Melee Sections starts with the Deployment, so the last round's result comes before it)
 const hashOf = s => { let x = 0; for (let i = 0; i < s.length; i++) x = (Math.imul(31, x) + s.charCodeAt(i)) | 0; return x; };
 const MEET = /^Evening meeting with the /;
 
@@ -79,7 +84,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     const events = c.events ?? [];
     const resultKey = `${c.roundRollFrom ?? 0}|${hashOf(events.join('\n'))}`;
     X.resultKey = resultKey;
-    const showResult = !shared && RESULT_TYPES.includes(p.type) && events.length > 0 && cb.seen !== resultKey && !(p.type === 'combat-encounter' && (c.round === 1 || p.spellOnly));
+    const showResult = !shared && RESULT_TYPES.includes(p.type) && events.length > 0 && cb.seen !== resultKey && !((p.type === 'combat-encounter' || p.type === 'combat-deploy') && (c.round === 1 || p.spellOnly));
     const facts = M.roundFacts(events);
     const aimedNow = p.type === 'combat-melee' && !!p.aimed;          // (the spells of this round have acted: ruling S8, the options are read again after them)
     if (p.type === 'combat-melee' && (!cb.plan || cb.planRound !== c.round || (aimedNow && cb.planAimed !== c.round))) {
@@ -97,7 +102,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
         } else cb.step = shared && SH.needsWhom(st, o0) ? 'whom' : 'strike';
     }
     if (p.type !== 'combat-melee') { cb.plan = null; }
-    const mode = p.type === 'combat-over' ? 'over' : showResult ? 'result' : p.type === 'combat-wounds' || p.type === 'combat-fatigue' ? 'grid' : ['combat-pay', 'combat-drinks', 'combat-choice'].includes(p.type) ? 'meet' : p.type === 'combat-melee' ? 'melee' : p.type === 'combat-shift' ? 'shift' : 'encounter';
+    const mode = p.type === 'combat-over' ? 'over' : showResult ? 'result' : p.type === 'combat-wounds' || p.type === 'combat-fatigue' ? 'grid' : ['combat-pay', 'combat-drinks', 'combat-choice'].includes(p.type) ? 'meet' : p.type === 'combat-melee' ? 'melee' : p.type === 'combat-shift' ? 'shift' : p.type === 'combat-deploy' ? 'deploy' : 'encounter';
     const recap = mode === 'over' && !shared ? M.recapOf(st, data) : null;
 
     // ---- the stage ----
@@ -123,6 +128,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     }
     const o = mode === 'melee' ? meleeOptions(st, data) : null;
     const m = mode === 'melee' ? cb.plan : null, step = o && stepsFor(o, X).some(s => s.id === cb.step) ? cb.step : (o ? stepsFor(o, X)[0].id : 'strike');
+    const depTags = mode === 'deploy' ? DP.tagsOf(st, data, p, DP.planFor(st, data, p, cb)) : null;          // (the Deployment: what each creature is going to face, said on its counter)
     const size = foeSize(foes.length, mode === 'meet');
     const targetable = mode === 'melee' && step === 'strike' ? new Set(o.targets.filter(d => d.kind !== 'part').map(d => d.uid)) : new Set();
     // A crowded stage cannot hold a word on every counter (QA-6): from four targets on, only the chosen foe wears TARGET and the others a ghost dot (still a 44px tap); where the counters are small, the other
@@ -133,6 +139,8 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
         let t = tag ?? null;
         if (!t && !dead && d.pickedUp && (mode === 'encounter' || mode === 'melee')) t = { text: d.engagedBy ? 'ON YOUR MAN' : 'HOLDS YOU', short: 'HELD', kind: 'bad' };
         else if (!t && !dead && d.pacified && (mode === 'encounter' || mode === 'melee')) t = { text: 'AT PEACE', short: 'PEACE', kind: 'ghost' };
+        else if (!t && !dead && d.kind !== 'part' && (mode === 'encounter' || mode === 'melee') && denOnSheet(st, d)) t = { text: 'FACING A HIRELING', short: 'HIRELING', kind: 'ghost' };          // (on a Melee Section: a hireling and it fight each other)
+        if (!t && depTags?.[d.uid]) t = { text: depTags[d.uid].word, short: depTags[d.uid].short, kind: depTags[d.uid].word === 'ON YOU' ? 'bad' : 'ghost' };
         if (targetable.has(d.uid)) { const sel = m.target === d.uid; t = { text: 'TARGET', kind: sel ? '' : 'ghost', dot: crowd && !sel, label: sel ? 'Target: tap to strike no one' : 'Target this creature', onclick: () => { m.target = sel ? null : d.uid; render(); } }; }
         else if (mode === 'melee' && step !== 'strike' && step !== 'foes' && m.target === d.uid && !o.attackSpell) t = { text: 'TARGET', kind: '' };          // (a chosen foe keeps its word through every later step; only the strike step lets him change it)
         else if (mode === 'melee' && step === 'foes' && o.boxable.some(x => x.uid === d.uid)) { const i = o.boxable.findIndex(x => x.uid === d.uid), b = m.boxes[d.uid] ?? (i % 3); t = { text: M.MNV[b].toUpperCase(), short: M.MNV[b].slice(0, 2).toUpperCase(), kind: '', label: `In the ${M.BOX[b]} box: tap to move`, onclick: () => { m.boxes[d.uid] = (b + 1) % 3; render(); } }; }
@@ -154,9 +162,9 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     if (mode === 'shift') { const so = shiftOptions(st, data); cb.shift ??= {}; cb.shift.attackDir ??= so.attackDir; cb.shift.moveDir ??= so.moveDir; attack = so.hasAttack ? { dir: cb.shift.attackDir, text: planOf?.fightChit ? M.chitText(chitOf(planOf.fightChit) ?? { type: 'fight', strength: '', time: '' }) : null } : null; guard = so.hasMove ? { dir: cb.shift.moveDir, text: planOf?.moveChit ? M.chitText(chitOf(planOf.moveChit) ?? { type: 'move', strength: '', time: '' }) : null } : null; }
     if (mode === 'melee' && (step === 'foes' || step === 'roll')) o.boxable.forEach((d, i) => { const b = m.boxes[d.uid] ?? (i % 3); (boxes[b] ??= []).push(M.picOf(st, data, d)); });
     if (mode === 'shift') M.foesOf(st).forEach(d => { if (d.box != null) (boxes[d.box] ??= []).push(M.picOf(st, data, d)); });
-    const lanes = mode === 'meet' ? null : lanesEl({ attack, guard, boxes, sec: mode === 'shift' ? 'shift-board' : null });
+    const lanes = mode === 'meet' || mode === 'deploy' ? null : lanesEl({ attack, guard, boxes, sec: mode === 'shift' ? 'shift-board' : null });
     const allies = M.alliesOf(st, data);
-    const allyEl = allies.length ? alliesEl({ st, data, allies, flipped: cb.flipped, size: typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 48 : 56, onFlip: (a, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[a.uid] = !cb.flipped[a.uid]; render(); } }) : null;
+    const allyEl = allies.length && mode !== 'deploy' ? alliesEl({ st, data, allies, flipped: cb.flipped, size: typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 48 : 56, onFlip: (a, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[a.uid] = !cb.flipped[a.uid]; render(); } }) : null;
     const prevChits = cb.pipState; cb.pipState = Object.fromEntries(st.ch.chits.map(x => [x.id, x.state]));
     const hero = heroEl({ st, data, prevChits, onPeekGear: () => peek?.gear(), onPeekMap: () => peek?.map(), ribbon: st.ch.morph ? `You are ${article(st.ch.morph.creature.name)} ${st.ch.morph.creature.name}` : st.ch.berserk ? 'Berserk until midnight' : null, onGear: () => { cb.gearCard = !cb.gearCard; render(); } });
     // (DR-20: the Meeting's steps have no lanes, so the stage had a void between the foes and you: the narrator stands in it, between the two, and not under you)
@@ -178,6 +186,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     else if (mode === 'grid') sheet = gridSheet(X);
     else if (mode === 'meet') sheet = meetingSheet(X);
     else if (mode === 'melee') sheet = meleeSheet(X);
+    else if (mode === 'deploy') sheet = deploySheet(X);
     else if (mode === 'shift') sheet = shiftSheet(X);
     else sheet = encounterSheet(X);
 
@@ -203,6 +212,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     if (cb.gearCard) root.append(h('div', { class: 'cb-popbk', 'data-act': 'close-gear', 'aria-hidden': 'true', onclick: () => { cb.gearCard = false; render(); } }), gearPopover({ st, data, flippedGear: cb.flippedGear, onFlip: uid => { cb.flippedGear[uid] = !cb.flippedGear[uid]; render(); }, onClose: () => { cb.gearCard = false; render(); } }));
     if (cb.record) root.append(recordSheet(X, M.recordRounds(st)));
     if (cb.pit) root.append(pitSheet(X));
+    if (cb.review) { const rs = reviewSheet(X); if (rs) root.append(rs); }
     return root;
 }
 
@@ -225,10 +235,11 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
         // two things the plain synopsis does not say (QA-13/14): which foes turned over to their other side before the blows, and which number beat a miss
         const turnedNames = [...M.turnedOver(events)], miss = M.missNote(events);
         const turnedLine = turnedNames.length ? `${M.cap(turnedNames.length === 1 ? turnedNames[0] : M.foesPhrase(turnedNames))} turned to ${turnedNames.length === 1 ? 'its' : 'their'} other side before the blows.` : '';
-        let said = roundSynopsis(events) || 'The round passed.';
+        const hr = hireRound(events);          // (a round on Melee Sections: what the hirelings did, in a breath)
+        let said = roundSynopsis(events) || (hr ? '' : 'The round passed.');
         if (miss) said = said.replace(/You struck at empty air: the .+? was too quick to catch\.\s*/, '');          // (the miss note below says the same, with the numbers)
         // Story voice carries no numbers (tools/ui_round.py): the miss, with the number that beat it, is for the Detail voice only
-        const story = [turnedLine, said].filter(Boolean).join(' '), detail = [turnedLine, miss ? `${miss} ${said}`.trim() : said].filter(Boolean).join(' ');
+        const story = [turnedLine, said, hr?.story].filter(Boolean).join(' '), detail = [turnedLine, miss ? `${miss} ${said}`.trim() : said, hr?.detail].filter(Boolean).join(' ');
         return [story, detail, 'verdict'];
     }
     if (mode === 'over' && X.shared) return ['The fighting is over.', 'Combat is over: nothing hostile is left.', 'verdict'];
@@ -245,6 +256,7 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
         return [`You spent ${p.need + 1} asterisks: the first is free. Which chit do you tire?`, p.why ?? null];
     }
     if (mode === 'shift') return ['The plays are shown, and the dice have moved the creatures. Your cards allow a change.', `Round ${c.round}: before the blows land.`];
+    if (mode === 'deploy') return deployNarration(X);
     if (mode === 'melee') {
         const one = o.boxable.filter(d => d.kind !== 'part').length < 2;
         const lim = o.effortLimit ?? 2, limText = `You may play at most ${M.limitWord(lim)} asterisks of effort.`;
@@ -255,6 +267,7 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
             guard: ['How do you guard yourself?', 'The maneuver defends you; a blow aimed at your direction connects, one that comes sooner than your chit gets under it.'],
             shield: ['Which way does your shield guard?', null],
             parts: ['What do its other attacks do?', null],
+            sections: ['Tap a counter to move it to the next lane.', 'Melee Sections: box, circle and square of one direction are one line (8.4.8b). You choose whom an attacked hireling strikes, where each counter stands and the side a defender shows (8.4.2e, 8.4.2f, 8.4.5n); then the dice move the attackers (8.4.6d).'],
             foes: [`Where will ${one ? 'it' : 'they'} come at you?`, 'Place the creatures in the three red boxes; the dice shuffle them afterwards.'],
             roll: X.shared ? ['Your play is set. Nobody sees it until everyone has played.', 'Plays are sealed; once everyone has chosen, every play is shown at once and the dice decide the rest.'] : ['Your plays are set. The dice decide the rest.', 'Plays are chosen together; then the dice shuffle the creatures and the blows land.'],
         }[step];

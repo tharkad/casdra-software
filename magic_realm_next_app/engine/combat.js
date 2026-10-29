@@ -2,6 +2,8 @@ import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll, tally, WEIGHT_W
 import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './tables.js';
 import { pit, rollPit, rollCurse, pitOnChar, hasCurse } from './effects.js';
 import { hirelings, monsterHires } from './hire.js';
+import * as HF from './hirefight.js';
+import * as hs from './hirestate.js';
 import { cardChits, effortLimit, oneDie, tableMod, hasTreasure, chitSpeed } from './modifiers.js';
 import { expireDue, expireFx, breakFx, fxTags, fxList, shielded, HERO, targetGone, sameRef } from './magic/fx.js';
 import { B } from './magic/bridge.js';
@@ -173,6 +175,7 @@ export function startCombat(st, data, clearing) {
         const den = addDen(st, data, { kind: 'mon', id: m.id }); tally(st, `faced.${data.monsters[m.id].name}`);
         if (m.pacify?.length) { den.pacified = true; den.bystander = true; }               // pacified (Deal with Goblins): it stands by and is not set on him
     }
+    hs.combatStart(st, data, c);                                                           // (hireling rules: the hidden ones are noted, 8.1.4b)
     c.intro = introLines(st, data, c);
     // Natives roll the Meeting Table once per group present, to see whether the group battles him (he may buy drinks first).
     c.meetQueue = [...new Set(nativesIn(st, data, clearing).map(n => data.natives[n.id].group))];
@@ -469,7 +472,10 @@ function enterEncounter(st, data) {
     c.asterisks = { move: 0, fight: 0, magic: 0 };
     c.casts = [];
     c.step = 'encounter';
-    if (!sharedFight(st)) { assignAll(st, data); deployHires(st, data); }          // (a shared fight lures, assigns and deploys for everybody before the first Encounter step: battle.js)
+    if (!sharedFight(st)) {
+        if (HF.active(st)) return HF.begin(st, data);          // hirelings on Melee Sections (option hireSections): the hirer lures and deploys first, then the Encounter question (hirefight.js)
+        assignAll(st, data); deployHires(st, data);
+    }          // (a shared fight lures, assigns and deploys for everybody before the first Encounter step: battle.js)
     st.pending = { type: 'combat-encounter', round: c.round };
 }
 
@@ -529,6 +535,7 @@ function deployHires(st, data) {
         t.engagedBy ??= hire.uid;
         t.assigned = false;
         hire.target = t.uid;
+        hs.entered(st, data, hire);                                                       // (hireling rules: a hidden hireling sent at a creature is no longer hidden, 8.1.4b, 8.3.4c.3)
     }
 }
 
@@ -587,7 +594,7 @@ export function encounterOptions(st, data) {
                         : 'No ready Move chit that is fast enough is also strong enough to carry everything you own.',
     };
     const casts = (c.spellOnly ? quietCasts(st, data, true) : castOptions(st, data, { slowest })).map(o => (c.spellOnly ? { ...o, aim: previewAim(st, data, o) } : o));       // (a quiet-evening cast has no Melee step: it is aimed on the cast screen)
-    const canLure = !!st.ch.hidden && !sharedFight(st) && !c.spellOnly && (assignable(st, data).length > 0 || luredPeaceful(st, data).length > 0 || luredPacified(st, data).length > 0);          // (a shared fight lures in its own step: battle.js)
+    const canLure = !!st.ch.hidden && !sharedFight(st) && !c.spellOnly && !HF.inRound(st) && (assignable(st, data).length > 0 || luredPeaceful(st, data).length > 0 || luredPacified(st, data).length > 0);          // (a shared fight lures in its own step: battle.js)
     const mist = !!st.ch.mist;          // (the Encounter step of a mist hero offers only running away, 8.4.5p.1)
     return { canStay, canLure: canLure && !mist, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), energize: energizeOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && !card && fight.length > 0 && !gripped && !mist, alertChits: fight, berserkChits: mist ? [] : berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
 }
@@ -767,6 +774,7 @@ export function meleeOptions(st, data) {
         weapon: w,
         morph: morphView(st),                                                       // he is a creature: the chits above are its counter's sides; see also `morphParts`
         morphParts: morphParts(st),                                                 // its head or club: a second attack at his target, either side up (p.parts = { [id]: 'light'|'dark' })
+        ...(HF.inRound(st) ? { sections: HF.view(st, data) } : {}),                  // the Melee Sections of his hirelings (hirefight.js), only on a round that has them
         asterisksPlayed: c.asterisks.move + c.asterisks.fight + (c.asterisks.magic ?? 0),
         effortLimit: effortLimit(st),                                               // 2 asterisks a round, 3 with the Girtle of Energy (8.4.5f.2, 8.5.1c)
         // everything that will sit in the red boxes: assigned denizens and their parts
@@ -800,6 +808,7 @@ export function meleePlay(st, data, p) {
     const { X, log } = S;
     meleeEngaged(st);
     meleeReposition(st, data, log, null);
+    if (HF.inRound(st)) HF.reposition(st, data, log);          // the dice of each Melee Section (8.4.6d)
 
     // --- Battle Bracelets and Elusive Cloak (Treasures 12): after the dice, before the blows ---
     const sh = shiftChances(st, data, X);
@@ -867,6 +876,7 @@ export function meleeSetup(st, data, p) {
     // the plan for the boxes is judged first, before anything is played
     const bad = boxPlanError(st, boxCounters(st, data, p), p.boxes ?? {});
     if (bad) throw new Error(bad);
+    if (HF.inRound(st)) HF.checkPlay(st, data, p);          // the targets and places of what his hirelings fight (hirefight.js)
     // --- the spells act first (4.6.10a, 8.4.3; ruling S8 / R3, Mike 2026-10-26): "All of the spells start working before the characters play their attacks and maneuvers", and a spell that alters
     //     combat values does so instantly. So the chits are judged and played AFTER the spells of this round have come to life, from options read again (a Transform's dummy chits,
     //     an Elven Grace's move times).
@@ -967,7 +977,7 @@ export function meleeSetup(st, data, p) {
     for (const v of new Set([victim, ...spChars].filter(Boolean))) if (st.chars[v].hidden) { st.chars[v].hidden = false; log(`You find ${st.chars[v].name}, who was hidden: he is revealed (8.4.2b).`); }          // naming a hidden character unhides them both
     for (const t of new Set([target, ...spTargets].filter(Boolean))) if (t.pacified) breakPacify(st, data, t, log);          // he named a pacified monster: the pacifying spell is broken
     for (const t of new Set([target, ...spTargets].filter(Boolean))) {
-        if (t.assigned || t.elsewhere || barredFromHero(st, data, t)) continue;          // (attacking a Demon or Imp does not set it on a Pilgrim; a creature on another character's sheet stays there)
+        if (t.assigned || t.elsewhere || HF.denOnSheet(st, t) || barredFromHero(st, data, t)) continue;          // (a creature on a hireling's Melee Section stays there: being named does not re-assign it, 8.4.2c) (attacking a Demon or Imp does not set it on a Pilgrim; a creature on another character's sheet stays there)
         // attacking an unassigned denizen makes it fight back; attacking a native brings its whole group in
         if (t.kind === 'nat') {
             // the group begins to battle him at once, but nobody was assigned to answer this round: no blow comes back until the next
@@ -990,6 +1000,7 @@ export function meleeSetup(st, data, p) {
         if (!owner || owner.dead || !owner.assigned) { h.box = null; continue; }
         h.box = (owner.box + 1 + int(st, 2, 'combat.part.box')) % 3;
     }
+    if (HF.inRound(st)) HF.setup(st, data, p, log);          // the Melee Sections of his hirelings: targets, sides, places (hirefight.js)
     const X = { p, fight, move, wish, target: target?.uid ?? null, spTargets: spTargets.map(d => d.uid) };
     if (victim) X.charTarget = victim;
     if (hireTarget) X.hireTarget = hireTarget;
@@ -999,6 +1010,7 @@ export function meleeSetup(st, data, p) {
 
 // Creatures fighting hirelings sit in a random box.
 export function meleeEngaged(st) {
+    if (HF.inRound(st)) return;          // (on Melee Sections the creatures fighting hirelings are placed by their sections, hirefight.js)
     for (const d of st.combat.dens) if (d.engagedBy && !d.dead) d.box = (die(st, 'combat.engaged.box') - 1) % 3;
 }
 
@@ -1167,8 +1179,9 @@ export function meleeCollect(st, data, X, peers = null) {
         else if (under) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} gets under your maneuver (its time ${s.atk} beats your ${mnvTime}).`, tell.connectUnder(st, s.name, DIRS[dir].toLowerCase(), s.atk, mnvTime)); }
         else log(`${at} misses you (your ${MANEUVERS[mnvDir]} avoids it).`, tell.avoid(st, s.name, DIRS[dir].toLowerCase(), MANEUVERS[dir], MANEUVERS[mnvDir]));
     }
-    // hirelings against the creatures they were sent at
-    for (const hire of (c.hires ?? []).filter(x => !x.dead)) {
+    // hirelings against the creatures they were sent at (on Melee Sections: every section's blows, hirefight.js)
+    if (HF.inRound(st)) hits.push(...HF.blows(st, data, log));
+    else for (const hire of (c.hires ?? []).filter(x => !x.dead)) {
         if (hire.targetChar) {          // pvp: sent at a character (8.3.6a); it strikes in a lane a die gives it, and hits if that is his maneuver's lane, or undercuts it, or he played none
             const rival = peers?.[hire.targetChar], hs = hireStats(data, hire.id, hire.kind, st);
             if (!rival || rival.stop || st.chars[hire.targetChar].dead) { log(`${hs.name} has no one to strike: ${st.chars[hire.targetChar]?.name ?? 'its target'} is gone.`); continue; }
@@ -1189,6 +1202,7 @@ export function meleeCollect(st, data, X, peers = null) {
     // How each kind of blow is carried out once its turn comes: the creatures alive when its tie group began are `alive`, `g` is the group's number. Returns the function that does
     // the harm (a tie group is decided first and done afterwards, so that blows at the same instant do not cancel each other), or null when the blow cannot land.
     part.thunk = (h, alive, g) => {
+        if (h.who === 'sec') return HF.thunk(st, data, h, alive, log);          // a blow on a hireling's or a denizen's Melee Section
         if (h.char) {                                   // pvp: a blow at (or a hireling's blow at) another character
             const key = charUid(h.char), vname = st.chars[h.char].name;
             if (h.who === 'me') {
@@ -1228,7 +1242,7 @@ export function meleeCollect(st, data, X, peers = null) {
         return null;
     };
     // The blow in words: whose it is and when it falls (`you`: "your", or "Black Knight's" when other characters share the fight).
-    part.blowName = (h, you = 'your') => (h.who === 'roofhero' ? `the falling roof (on ${you === 'your' ? 'you' : you.replace(/'s$/, '')})` : h.who === 'roofhire' ? `the falling roof (on ${you} hireling)` : h.who === 'me' ? (h.spell ? `${you} ${h.spell}` : `${you} ${weaponName}`) : h.who === 'hire' ? `${you} hireling's blow` : `the ${denSide(st, data, c.dens.find(d => d.uid === h.who)).name}'s ${DIRS[c.dens.find(d => d.uid === h.who).box ?? 0].toLowerCase()}`);
+    part.blowName = (h, you = 'your') => (h.who === 'sec' ? HF.blowName(st, data, h) : h.who === 'roofhero' ? `the falling roof (on ${you === 'your' ? 'you' : you.replace(/'s$/, '')})` : h.who === 'roofhire' ? `the falling roof (on ${you} hireling)` : h.who === 'me' ? (h.spell ? `${you} ${h.spell}` : `${you} ${weaponName}`) : h.who === 'hire' ? `${you} hireling's blow` : `the ${denSide(st, data, c.dens.find(d => d.uid === h.who)).name}'s ${DIRS[c.dens.find(d => d.uid === h.who).box ?? 0].toLowerCase()}`);
     return part;
 }
 
@@ -1646,7 +1660,7 @@ function splitKill(st, data, den) {
 // Naming a creature that was not set on him makes it fight (a native brings its whole group in, with no blow back this round, as in meleePlay).
 function provoke(st, data, target) {
     const c = st.combat;
-    if (!target || target.dead || target.assigned || target.elsewhere) return;
+    if (!target || target.dead || target.assigned || target.elsewhere || HF.denOnSheet(st, target)) return;
     if (target.kind === 'nat') {
         startBattling(st, data, data.natives[target.id].group);
         if (!st.options?.watchfulNatives) for (const d of c.dens) if (d.kind === 'nat' && data.natives[d.id].group === data.natives[target.id].group || d.partOf === target.uid) { d.noRetaliation = true; d.noWhy = 'joins'; }
@@ -2037,7 +2051,7 @@ function resolveWounds(st, data) {
         st.pending = { type: 'combat-wounds', count: c.newWounds, chits: pool.map(x => x.id) };
         return;
     }
-    if (!st.ch.morph && nonWounded(st).length === 0) return dieOfWounds(st, data);             // (a creature is not wounded, and his own chits are not in play)
+    if (!st.ch.morph && st.ch.chits.length && nonWounded(st).length === 0) return dieOfWounds(st, data);             // (a creature is not wounded, and his own chits are not in play; a leader's seat that stands in for the hirer in an unattended fight has no chits to lose)
     return finishRound(st, data);
 }
 
@@ -2171,21 +2185,28 @@ function endCombat(st, data, why) {
 
 // ---- hirelings ----
 // A hireling is a native (kind 'nat') or a monster that fights for him (kind 'mon': one a spell controls, or Goblins he has hired).
-export function hireStats(data, id, kind = 'nat', st = null) {
-    // the hirer deploys a hireling on the side that can fight: the one with an attack, the harder-hitting one if both have
+export function hireStats(data, id, kind = 'nat', st = null, side = null) {
+    // the hirer deploys a hireling on the side that can fight: the one with an attack, the harder-hitting one if both have (with Melee Sections, hirefight.js, the side the hirer turned it to)
     const best = (sides, fallback) => sides.filter(x => x && x.harm != null && x.attackTime != null).sort((a, b) => lvl(b.harm) - lvl(a.harm) || (b.stars ?? 0) - (a.stars ?? 0) || a.attackTime - b.attackTime)[0] ?? fallback;
     if (kind === 'mon') {
-        const m = data.monsters[id], s = best([m.light, m.dark], m.light);
+        const m = data.monsters[id], s = side && m[side] ? m[side] : best([m.light, m.dark], m.light);
         const morph = st ? morphOf(st, { kind: 'mon', id }) : null;
         if (morph) return { name: `${morph.name} (${m.name}, transformed)`, vuln: morph.vulnerability, armored: !!morph.armored, harm: morph.strength, stars: 0, atk: morph.attackTime, move: morph.moveTime, length: 0, missile: false, archer: false, fame: m.fame ?? 0, notor: m.notoriety ?? 0, gold: 0, mon: true };
         return { name: m.name, vuln: m.vulnerability, armored: !!m.armored, harm: s.harm, stars: s.stars ?? 0, atk: s.attackTime, move: s.moveTime, length: s.length ?? 0, missile: false, archer: false,
             fame: m.fame ?? 0, notor: m.notoriety ?? 0, gold: 0, mon: true };
     }
-    const n = data.natives[id], s = best([n.light, n.dark], n.light);
+    const n = data.natives[id], s = side && n[side] ? n[side] : best([n.light, n.dark], n.light);
     const morph = st ? morphOf(st, { kind: 'nat', id }) : null;
     if (morph) return { name: `${morph.name} (${n.name}, transformed)`, vuln: morph.vulnerability, armored: !!morph.armored, harm: morph.strength, stars: 0, atk: morph.attackTime, move: morph.moveTime, length: 0, missile: false, archer: false, fame: n.fameBounty ?? 0, notor: n.notorietyBounty ?? 0, gold: n.goldBounty ?? 0 };
     return { name: n.name, vuln: n.vulnerability, armored: !!n.armored, harm: s.harm, stars: s.stars ?? 0, atk: s.attackTime, move: s.moveTime, length: n.weapon?.length ?? 0,
         missile: !!n.weapon?.missile, archer: n.type === 'Archer', fame: n.fameBounty ?? 0, notor: n.notorietyBounty ?? 0, gold: n.goldBounty ?? 0 };
+}
+
+// Which side of a hireling's counter fights best: the one hireStats picks when the hirer has not turned it (hirefight.js starts a hireling on it).
+export function hireBestSide(data, id, kind = 'nat') {
+    const o = kind === 'mon' ? data.monsters[id] : data.natives[id], b = hireStats(data, id, kind);
+    const same = x => !!x && x.harm === b.harm && (x.stars ?? 0) === b.stars && x.attackTime === b.atk && x.moveTime === b.move;
+    return same(o.light) || !o.dark ? 'light' : same(o.dark) ? 'dark' : 'light';
 }
 
 // A monster in the fight goes over to him (Control Bats, Guide Spider or Octopus): it leaves the sheet and is sent at his foes from the next round on.
@@ -2193,6 +2214,7 @@ export function hireStats(data, id, kind = 'nat', st = null) {
 export function monsterJoins(st, data, den) {
     const c = st.combat;
     den.dead = true; den.controlled = true; den.assigned = false; den.engagedBy = null;
+    HF.dropDen(st, den);          // (it leaves every Melee Section: its assignments are cancelled, 8.4.4c)
     for (const p of c.dens.filter(d => d.partOf === den.uid)) p.dead = true;
     if (den.pickedUp) { den.pickedUp = false; den.side = 'light'; }
     const hire = { uid: nextUid(st), kind: 'mon', id: den.id, dead: false };
@@ -2262,6 +2284,9 @@ function denStrikesHire(st, data, den, hireUid, log) {
         if (hire.kind === 'nat' && owner && !owner.dead && redCapable(st, data, owner) && !owner.pickedUp) (c.toRedHire ??= []).push({ den: owner.uid, hire: hireUid });
     }
 }
+
+// What the hirelings' Melee Sections (hirefight.js, a leaf module like the bridge) need from this file.
+Object.assign(HF.K, { hsEntered: hs.entered, denSide, hireStats, hireBestSide, morphOf, canFlip, hireStrikes, denStrikesHire, hireDies, startBattling, barredFromHero, namedTarget, breakCalm, breakPacify, missileRoll, redCapable, addDen, nextUid });
 
 // What the spell handlers may ask of the combat (magic/bridge.js is a leaf module so that handlers do not import this file).
 Object.assign(B, { namedTarget, denSide, slayDenizen, provoke, pitSweep, killMe, endCombat, missileRoll, dropNativeGoods, activeArmor, killReward, monsterLeaves });

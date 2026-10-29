@@ -38,7 +38,10 @@
 .cb-foe .tag::after { content: ""; position: absolute; inset: min(0px, calc((18px - 44px / var(--z, 1)) / 2)) min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }          /* an 18px pill with a 44px hit area */
 .cb-flip { position: relative; }
 .cb-flip::after { content: ""; position: absolute; inset: min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }          /* a counter smaller than 44 still takes a 44px tap */
-.cb-foe.dead .ds-cs-wrap { filter: grayscale(1) brightness(.55); }
+/* A slain counter is greyed on the picture itself, in ONE filter with its shadow: a filter on the wrapper AND a drop-shadow filter on the svg inside it (nested filters) paints nothing on iOS Safari,
+   which showed slain foes as blank spaces (no frame, no name, no art). */
+.cb-foe.dead .ds-cs-wrap { filter: none; }
+.cb-foe.dead .ds-cs-wrap svg { filter: grayscale(1) brightness(.55) drop-shadow(0 3px 5px rgba(0, 0, 0, .6)); }
 .cb-foe.dead::after { content: "SLAIN"; position: absolute; inset: 0; display: grid; place-items: center; font: 700 calc(15px * var(--ts, 1))/1 var(--font-display); letter-spacing: .14em; color: #fff; text-shadow: 0 1px 4px #000; transform: rotate(-12deg); pointer-events: none; }
 .cb-foe .turn { position: absolute; right: -7px; top: -7px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--gold-lo); display: grid; place-items: center; color: var(--gold); pointer-events: none; }
 .cb-foe .turn .ds-i { width: 11px; height: 11px; stroke-width: 2; }

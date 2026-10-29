@@ -15,6 +15,7 @@ import { act } from '../play/actions.js';
 import { itemParts } from '../play/sheet_char.js';
 import { render } from '../play/shell.js';
 import { boonContent } from './boon.js';
+import { isVisitorName, leaderArt, noDrinksRow, spellFoot, spellOfferContent, spellsRoom, visitorPriceTag } from './visitors.js';
 import { MOOD_WORD, actIcon, ask, dimBtn, footRow, goldEl, itemArt, moodOf, moodTag, nativeArt, plural, say, seg, skipBtn, tick, twoLine } from './common.js';
 
 // (a Trouble or an Opportunity throws again: in Story both rolls carry the group's name, so the later one is labelled "Thrown again" rather than repeating it)
@@ -31,7 +32,7 @@ export function insultContent(G, p, kind) {
     // (the choice and what each side costs are one line in the foot, above the buttons: it is never below the fold)
     const note = can ? `Pay 5 ${noun} to calm things. Refusing means they bar your way, and you fight.` : 'Under the Disgust curse you cannot pay Fame, so they bar your way and you fight.';
     const body = h('div', { class: 'kit kit-insult' }, offerDice(G, p) ?? (p.rollNote ?? p.why ? h('p', { class: 'ds-meta' }, p.rollNote ?? p.why) : null),
-        ask(can ? `The ${p.group} are offended.` : `The ${p.group} challenge you.`));
+        ask(can ? `The ${p.group} ${isVisitorName(p.group) ? 'is' : 'are'} offended.` : `The ${p.group} ${isVisitorName(p.group) ? 'challenges' : 'challenge'} you.`));
     const fight = h('button', { type: 'button', class: can ? 'ds-btn' : 'ds-btn primary', onclick: () => act(G, { type: kind, act: 'fight' }) }, can ? 'Refuse' : 'Fight');
     const foot = footRow({ note, secondary: can ? fight : null,
         primary: can ? h('button', { type: 'button', class: 'ds-btn primary', onclick: () => act(G, { type: kind, act: 'pay' }) }, `Pay 5 ${noun}`) : fight });
@@ -41,7 +42,7 @@ export function insultContent(G, p, kind) {
 // ---- paying with your things (rule 7.6.5c: belongings count at their basic Gold price, no change is given) ----
 // payBlock(G, p) -> { node, chosen: [uid], goldDue, ok, short, over, things }
 export function payBlock(G, p, { why = true } = {}) {
-    const mine = sellable(G.st, G.data), chosen = new Set((G.ui.payWith ?? []).filter(u => mine.some(m => m.uid === u)));
+    const mine = sellable(G.st, G.data, p.group), chosen = new Set((G.ui.payWith ?? []).filter(u => mine.some(m => m.uid === u)));
     const worth = mine.filter(m => chosen.has(m.uid)).reduce((n, m) => n + m.price, 0);
     const goldDue = Math.max(0, p.price - worth), ok = G.st.ch.gold >= goldDue, short = goldDue - G.st.ch.gold, over = Math.max(0, worth - p.price);
     const toggle = uid => { const set = new Set(G.ui.payWith ?? []); set.has(uid) ? set.delete(uid) : set.add(uid); G.ui.payWith = [...set]; render(G); };
@@ -61,6 +62,7 @@ export function payBlock(G, p, { why = true } = {}) {
 
 // ---- the price offer: the roll, the price as the headline, what it buys, and how you pay ----
 function offerContent(G, p) {
+    if (p.spell != null) return spellOfferContent(G, p);          // a visitor's Spell card (7.6.7): visitors.js
     const repay = p.repay != null, raw = !repay ? G.st.stock[p.group]?.[p.idx] : null;
     const pay = payBlock(G, p, { why: false });
     const body = h('div', { class: 'kit kit-offer' },
@@ -69,7 +71,7 @@ function offerContent(G, p) {
             h(raw ? 'button' : 'div', { class: 'kit-what', ...(raw ? { type: 'button', 'data-act': 'offer-card', 'aria-expanded': G.ui.offerCard ? 'true' : 'false', 'aria-label': `About the ${p.name}`, onclick: () => { G.ui.offerCard = !G.ui.offerCard; render(G); } } : {}) },
                 raw ? h('span', { class: 'ds-counter' }, itemArt(G, raw)) : null, h('div', {}, h('b', {}, repay ? `The ${p.group}’s goodwill` : p.name), h('span', { class: 'ds-meta' }, repay ? 'One roll: pay now, or it is lost for good.' : `List price ${p.base} Gold, times the roll.`)), raw ? icon(G.ui.offerCard ? 'up' : 'down') : null)),
         raw && G.ui.offerCard ? infoOf(G, raw)() : null,
-        ask(repay ? `The ${p.group} will sell back their goodwill.` : `The ${p.group} name a price for the ${p.name}.`, 'Pay it in gold or with things you hand over, or turn it down.'),
+        ask(repay ? `The ${p.group} will sell back their goodwill.` : `The ${p.group} ${isVisitorName(p.group) ? 'names' : 'name'} a price for the ${p.name}.`, 'Pay it in gold or with things you hand over, or turn it down.'),
         pay.node);
     const label = repay ? 'Win it back' : 'Buy it';
     const small = pay.things ? `${pay.goldDue} Gold and ${plural(pay.things, 'thing')}` : `${p.price} Gold`;
@@ -98,23 +100,26 @@ const infoOf = (G, it) => () => { const { card, faces, facts } = itemParts(G, it
 
 // ---- the Trade sheet ----
 function tradeMain(G, p) {
-    const goods = stockOf(G.st, G.data, p.group), mine = sellable(G.st, G.data), raws = G.st.stock[p.group] ?? [];
-    const sel = (G.ui.tradePick ??= { buy: null, sell: [], info: null });
+    const goods = stockOf(G.st, G.data, p.group), mine = sellable(G.st, G.data, p.group), raws = G.st.stock[p.group] ?? [];
+    const sel = (G.ui.tradePick ??= { buy: null, sell: [], info: null, spell: null }), visitor = isVisitorName(p.group), cards = p.spells ?? [];
     sel.sell = sel.sell.filter(u => mine.some(m => m.uid === u));
     if (sel.buy != null && !goods.some(g => g.idx === sel.buy)) sel.buy = null;
+    if (sel.spell != null && !cards.some(c => c.id === sel.spell && c.learnable)) sel.spell = null;
     const fresh = !p.mode && !(p.sold?.length) && !p.drinks;
     const rel = relFor(G.st, p.group), dealt = !!p.mode || !!p.sold?.length;
     const ashes = hasCurse(G.st, 'Ashes');
     const owed = (G.st.ch.boons ?? []).map((b, n) => ({ ...b, n })).filter(b => b.group === p.group);
-    const tabs = [{ key: 'buy', label: 'Buy' }, { key: 'sell', label: 'Sell' }, ...(owed.length ? [{ key: 'owed', label: 'Boons', n: owed.length }] : [])];
+    const tabs = [{ key: 'buy', label: 'Buy' }, { key: 'sell', label: 'Sell' }, ...(cards.length ? [{ key: 'spells', label: 'Spells', n: cards.length }] : []), ...(owed.length ? [{ key: 'owed', label: 'Boons', n: owed.length }] : [])];
     let tab = G.ui.tradeTab;
     if (!tabs.some(t => t.key === tab)) tab = p.mode === 'sell' ? 'sell' : 'buy';
 
     const chosenSell = mine.filter(m => sel.sell.includes(m.uid)), sellSum = chosenSell.reduce((n, m) => n + m.price, 0);
     const chosenBuy = sel.buy != null ? goods.find(g => g.idx === sel.buy) : null;
     const oneOwed = G.ui.owedPick != null && owed.some(b => b.n === G.ui.owedPick) ? G.ui.owedPick : owed.length === 1 ? owed[0].n : null;
-    const pickBuy = idx => { sel.buy = sel.buy === idx ? null : idx; if (sel.buy != null) sel.sell = []; render(G); };
-    const pickSell = uid => { const k = sel.sell.indexOf(uid); if (k >= 0) sel.sell.splice(k, 1); else { sel.sell.push(uid); sel.buy = null; } render(G); };
+    const chosenSpell = sel.spell != null ? cards.find(c => c.id === sel.spell) : null;
+    const pickBuy = idx => { sel.buy = sel.buy === idx ? null : idx; if (sel.buy != null) { sel.sell = []; sel.spell = null; } render(G); };
+    const pickSell = uid => { const k = sel.sell.indexOf(uid); if (k >= 0) sel.sell.splice(k, 1); else { sel.sell.push(uid); sel.buy = null; sel.spell = null; } render(G); };
+    const pickSpell = id => { sel.spell = sel.spell === id ? null : id; if (sel.spell != null) { sel.sell = []; sel.buy = null; } render(G); };
 
     // the leader chooser: one card per leader here (the mood is on the card)
     const choices = groupChoices(p);
@@ -123,14 +128,14 @@ function tradeMain(G, p) {
         const off = !c.canSwitch && !c.selected;
         return h('button', { type: 'button', class: `ds-group kit-leader${c.selected ? ' sel' : ''}${off ? ' dim' : ''}`, 'data-trade-group': c.group, role: 'radio', 'aria-checked': c.selected ? 'true' : 'false', 'aria-pressed': c.selected ? 'true' : 'false',
             onclick: () => { if (c.selected) return; if (off) say(G, 'You have started dealing with this leader, so the choice is made for this phase.'); else act(G, { type: 'trade', act: 'group', group: c.group }); } },
-            h('span', { class: 'ds-counter sm' }, lead && nativeArt(G, lead.id) ? h('img', { src: nativeArt(G, lead.id), alt: '' }) : null), h('span', { class: 'kit-leadtxt' }, h('b', {}, c.group), moodTag(relFor(G.st, c.group))));
+            h('span', { class: 'ds-counter sm' }, leaderArt(G, c.group, lead && nativeArt(G, lead.id))), h('span', { class: 'kit-leadtxt' }, h('b', {}, c.group), moodTag(relFor(G.st, c.group))));
     })) : null;
 
     // drinks: they warm to you a step for this deal (only a deal that rolls: buying, or buying back a favour)
     const cost = drinksCost(G.st, G.data, p.group);
     const drinksWhy = ashes ? 'Your gold is worthless under the Ashes curse.' : dealt && p.mode === 'sell' ? 'Drinks come before the deal, and you have already sold.' : G.st.ch.gold < cost ? `A round costs ${cost} Gold and you have ${G.st.ch.gold}.` : null;
     const moodNow = moodOf(p.drinks ? Math.min(2, rel + 1) : rel), moodWord = MOOD_WORD[moodNow];
-    const drinksRow = p.drinks
+    const drinksRow = visitor ? noDrinksRow(p.group) : p.drinks
         ? h('div', { class: 'ds-row sel kit-round', 'data-drinks-bought': '' }, h('span', { class: 'art' }, actIcon('trade', 28), tick()), h('span', { class: 'main' }, h('b', {}, 'Round bought'), h('span', {}, `The ${p.group} are ${moodWord} for this deal.`)), h('span', { class: 'end' }, goldEl(G, p.drinksCost ?? cost)))
         : h('button', { type: 'button', class: `ds-row kit-round${drinksWhy ? ' dim' : ''}`, 'data-act': 'drinks', 'aria-disabled': drinksWhy ? 'true' : null, onclick: () => (drinksWhy ? say(G, drinksWhy) : act(G, { type: 'trade', act: 'drinks' })) },
             h('span', { class: 'art' }, actIcon('trade', 28)), h('span', { class: 'main' }, h('b', {}, `Stand the ${p.group} a round`), h('span', {}, `${moodWord} now. A round warms them a step for this deal.`)), h('span', { class: 'end' }, goldEl(G, cost)));
@@ -141,19 +146,21 @@ function tradeMain(G, p) {
         const seen = new Map();
         goods.forEach(g => { const raw = raws[g.idx] ?? {}, k = `${g.kind}:${g.id}:${raw.damaged ? 1 : 0}:${raw.card ?? ''}`; (seen.get(k) ?? seen.set(k, { ...g, raw, idxs: [] }).get(k)).idxs.push(g.idx); });
         const list = [...seen.values()];
-        rows = list.length ? list.map(g => tradeRow(G, sel, { key: `buy:${g.idxs[0]}`, it: { ...g.raw, kind: g.kind, id: g.id }, name: g.name, line: 'The roll sets the price.', price: g.base, unit: 'list', tag: g.raw.damaged ? 'damaged' : '', count: g.idxs.length, selected: g.idxs.includes(sel.buy),
+        rows = list.length ? list.map(g => tradeRow(G, sel, { key: `buy:${g.idxs[0]}`, it: { ...g.raw, kind: g.kind, id: g.id }, name: g.name, line: 'The roll sets the price.', price: g.base, unit: 'list', tag: g.raw.damaged ? 'damaged' : visitorPriceTag(G, p.group, { ...g.raw, kind: g.kind, id: g.id }, g.base), count: g.idxs.length, selected: g.idxs.includes(sel.buy),
             dim: p.mode === 'sell' ? 'A phase is selling or buying, not both.' : null, onSelect: () => pickBuy(g.idxs.includes(sel.buy) ? sel.buy : g.idxs[0]), info: infoOf(G, { ...g.raw, kind: g.kind, id: g.id }) }))
             : [h('p', { class: 'kit-none' }, 'Nothing for sale.')];
         // 7.2.4h: a foe of the campaign he carries is an Enemy, and he cannot buy it drinks: the button is not offered, and the sheet says why
-        const foe = !!G.st.missions && noDrinks(G.st, p.group);
+        const foe = !visitor && !!G.st.missions && noDrinks(G.st, p.group);
         rows = [foe ? h('p', { class: 'ds-why ms-foe', 'data-foe': p.group }, `The ${p.group} are foes of your campaign: they stand as Enemies, and you cannot buy them drinks.`) : drinksRow, ...rows];
+    } else if (tab === 'spells') {
+        rows = spellsRoom(G, p, sel, pickSpell);
     } else if (tab === 'owed') {
         rows = owed.map(b => h('button', { type: 'button', class: `ds-row kit-multi${oneOwed === b.n ? ' sel' : ''}${p.mode === 'sell' ? ' dim' : ''}`, 'data-multi': '', 'data-owed': String(b.n), role: 'radio', 'aria-checked': oneOwed === b.n ? 'true' : 'false',
             onclick: () => { if (p.mode === 'sell') say(G, 'A phase is selling or buying, not both.'); else { G.ui.owedPick = b.n; render(G); } } },
             h('span', { class: 'art' }, itemArt(G, { kind: 'treasure', id: '' }), oneOwed === b.n ? tick() : null),
             h('span', { class: 'main' }, h('b', {}, `The ${b.group}’s ${b.what}`), h('span', {}, 'One roll to buy their goodwill back; if you do not, it is lost for good.')), h('span', { class: 'end' }, goldEl(G, b.price))));
     } else {
-        rows = mine.length ? mine.map(m => { const it = G.st.ch.items.find(i => i.uid === m.uid); return tradeRow(G, sel, { key: `sell:${m.uid}`, it, name: m.name, line: m.active ? `In use: selling it leaves ${it.kind === 'weapon' ? 'you unarmed' : 'the slot empty'}.` : 'Sells at its basic price.', price: m.price, unit: 'sells', tag: it.damaged ? 'damaged' : '',
+        rows = mine.length ? mine.map(m => { const it = G.st.ch.items.find(i => i.uid === m.uid); return tradeRow(G, sel, { key: `sell:${m.uid}`, it, name: m.name, line: m.active ? `In use: selling it leaves ${it.kind === 'weapon' ? 'you unarmed' : 'the slot empty'}.` : 'Sells at its basic price.', price: m.price, unit: 'sells', tag: it.damaged ? 'damaged' : visitorPriceTag(G, p.group, it, m.price),
             selected: sel.sell.includes(m.uid), dim: p.mode === 'buy' ? 'A phase is selling or buying, not both.' : null, onSelect: () => pickSell(m.uid), info: infoOf(G, it) }); }) : [h('p', { class: 'kit-none' }, 'You have nothing to sell.')];
         const held = committedNote(G.st, G.data);          // 6.2.4d: what a recorded extra phase needs is not on the list, and the list says so
         if (held) rows.push(held);
@@ -174,6 +181,8 @@ function tradeMain(G, p) {
         note = b ? h('span', {}, h('b', {}, `Win back the ${b.group}’s goodwill`), h('br'), 'One roll: it comes as a price, or it is lost.') : 'Tick the favour you want to win back.';
         primary = b && p.mode !== 'sell' ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'repay', onclick: () => act(G, { type: 'trade', act: 'repay', n: b.n }) }, twoLine('Win it back', 'roll for the price'))
             : dimBtn(G, 'Choose a favour', p.mode === 'sell' ? 'A phase is selling or buying, not both.' : 'Tick the favour you want to win back.', { 'data-act': 'repay' }, 'primary');
+    } else if (chosenSpell) {
+        ({ note, primary } = spellFoot(G, p, chosenSpell, ashes));
     } else if (chosenBuy) {
         note = ashes ? 'Your gold is worthless under the Ashes curse: nobody will sell to you.' : h('span', {}, h('b', {}, `Ask for the ${chosenBuy.name}`), h('br'), 'They name the price when you ask.');
         primary = ashes ? dimBtn(G, twoLine('Ask for it', 'roll for the price'), 'Your gold is worthless under the Ashes curse: nobody will sell to you.', { 'data-act': 'trade-go' }, 'primary')
@@ -186,13 +195,13 @@ function tradeMain(G, p) {
         note = p.mode === 'sell' ? `You have sold ${plural(p.sold.length, 'thing')} so far. Sell more, or press Done.` : 'You have begun dealing, so this phase can only be finished.';
         primary = done('primary'); secondary = null;
     } else {
-        note = 'Tick what to sell, or one thing to buy.';
+        note = cards.length ? 'Tick what to sell, one thing to buy, or a spell.' : 'Tick what to sell, or one thing to buy.';
         primary = dimBtn(G, 'Choose something', 'Tick something first: nothing is sold or bought until you press the button.', { 'data-act': 'trade-go' }, 'primary');
     }
     const body = h('div', { class: 'kit trade' },
-        ask(`Trade with the ${p.group}.`, 'Sell as much as you like, or buy one thing: the roll sets the price.'),
+        ask(`Trade with the ${p.group}.`, cards.length ? 'Sell as much as you like, or buy one thing or one spell: the roll sets the price.' : 'Sell as much as you like, or buy one thing: the roll sets the price.'),
         leaders, rel <= -2 ? h('div', { class: 'ds-why bad' }, 'They are your enemies: expect an insult or a fight, not a price.') : null,
-        seg(tabs, tab, k => { G.ui.tradeTab = k; sel.info = null; sel.sell = []; sel.buy = null; render(G); }, 'data-trade-tab'),          // (what was ticked in one room is not carried into the next)
+        seg(tabs, tab, k => { G.ui.tradeTab = k; sel.info = null; sel.sell = []; sel.buy = null; sel.spell = null; render(G); }, 'data-trade-tab'),          // (what was ticked in one room is not carried into the next)
         h('div', { class: 'ds-list kit-rows', 'data-tab': tab }, rows));
     return { title: 'Trade', eyebrow: nameOfClearing(G.st.ch.at), body, foot: footRow({ note, aside: skip, secondary, primary }), decision: true, detent: 'tall' };
 }

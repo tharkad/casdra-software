@@ -7,6 +7,8 @@ import { upgradeState } from '../../../engine/party.js';
 import { putRecord } from '../../gamestore.js';
 import { inviteLink } from '../../online.js';
 import { observe, party } from '../../party.js';
+import { leaderGame } from '../../leaders.js';
+import { settleSeat, tableCrew } from './leaders.js';
 import { markPhase } from './result_card.js';
 import { render } from './shell.js';
 import { clearSaved, meetEnd, myId, noteError, persist, saveGame } from './state.js';
@@ -24,7 +26,13 @@ function forcedAnswer(G) {
     setTimeout(() => { if (G.root.isConnected && G.st?.pending?.type === 'search-table') act(G, { type: 'search-table', table: p.options[0] }); }, 0);
 }
 
+// Hired leaders and controlled monsters are seats of one player's party, and several of them may be asked something at once (every Birdsong, each one's plan): an answer says whose it is.
+// The local game addresses it to the seat on screen (`st.actor`); without that an answer would go to whoever happens to be the only one asked.
+// (at a shared table the server answers for my own character unless told otherwise: only a seat of my party needs the address)
+const addressed = (G, a) => (a.who == null && !G.race && a.type !== 'table' && leaderGame(G.st) && (!G.shared || G.st.actor !== myId(G)) ? { ...a, who: G.st.actor } : a);
+
 export function act(G, action) {
+    action = addressed(G, action);
     G.ui.combatMap = false; G.ui.mapPeek = false; if (action.type !== 'tidy') G.ui.tradePick = null;
     if (action.type === 'trade' && action.act === 'buy') { const it = (G.st?.stock?.[G.st.pending?.group] ?? [])[action.idx]; G.ui.lastBuy = it ? { name: nameOf(G.data, it), day: G.st.day } : null; }          // (a refusal does not name the thing: the card says what was asked for)
     if (action.type !== 'tidy') markPhase(G, action);                                // (a phase begins: the result card measures what it brought)
@@ -42,6 +50,34 @@ export function act(G, action) {
         noteError(G, action, e, 'rejected');
         G.ui.toast = e.message; render(G); setTimeout(() => { G.ui.toast = null; render(G); }, 2600);
     }
+}
+
+// Several actions that are one step to the player (a gift to his own leader: the offer and the answer): all or nothing, one render. Local games only (the engine answers nobody's offer for him).
+export function actMany(G, actions, { ok } = {}) {
+    if (G.race) { G.ui.toast = 'This is not offered in a race.'; render(G); return false; }
+    G.ui.combatMap = false; G.ui.mapPeek = false; G.ui.tradePick = null;
+    if (G.shared) { actManyShared(G, actions, ok); return true; }          // (one after the other, each answer the server's: the second is the one the first made possible)
+    try {
+        let next = G.st; const done = [];
+        for (const a0 of actions) { const a = addressed(G, a0); next = apply(next, G.data, a); done.push(JSON.parse(JSON.stringify(a))); }
+        G.rec?.moves.push(...done);
+        commit(G, next);
+        persist(G, next.period === 'over');
+        ok?.();
+        return true;
+    } catch (e) {
+        noteError(G, actions[0], e, 'rejected');
+        G.ui.toast = e.message; render(G); setTimeout(() => { G.ui.toast = null; render(G); }, 2600);
+        return false;
+    }
+}
+
+async function actManyShared(G, actions, ok) {
+    if (G.inflight) return;
+    G.inflight = true; G.ui.busy = true; render(G);
+    try { for (const a of actions) await G.sconn.act(addressed(G, a)); ok?.(); }
+    catch (e) { G.ui.toast = e.status === 409 ? 'The game had moved on; it has been brought up to date.' : e.message; render(G); setTimeout(() => { G.ui.toast = null; render(G); }, 2600); }
+    finally { G.inflight = false; G.ui.busy = false; render(G); }
 }
 
 async function actRemote(G, action) {
@@ -63,7 +99,8 @@ export function applyAnswer(G, a) {
     tableNews(G, G.answer, a);
     G.answer = a; G.standings = a.standings ?? [];
     G.st = upgradeState(a.view); G.ctx.state = G.st;
-    G.crew = party(G.st, a, myId(G));
+    settleSeat(G);          // (a table: the seat of my party that is asked something is the one on screen)
+    G.crew = tableCrew(G, party(G.st, a, myId(G)));
     if (G.st.pending?.type !== 'restart') { G.ui.sharedRestartVp = null; G.ui.sharedRestartChar = null; }
     // the game just ended: the result is told first (places, a shared victory, the realm laid bare), once
     if (G.st.period === 'over' && !G.ui.overAuto) { G.ui.overAuto = true; G.ui.sheet = 'over'; G.ui.mapPeek = false; }

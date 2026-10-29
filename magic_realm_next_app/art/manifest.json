@@ -274,5 +274,91 @@
   "captain": "art/characterdetail/captain.jpg",
   "amazon": "art/characterdetail/amazon.jpg",
   "swordsman": "art/characterdetail/swordsman.jpg"
+ },
+ "book": {
+  "source": "rulebook",
+  "note": "Cropped from the printed counters in the appendix lists of the official rules book. Gap-fill only: used where the main art above has no picture. Cut by tools/art/pdf_counters.py.",
+  "monsters": {
+  "Tremendous Flying Dragon": {"light": "art/book/monsters/tremendous-flying-dragon-light.webp", "red": "art/book/monsters/tremendous-flying-dragon-red.webp"},
+  "Tremendous Dragon": {"light": "art/book/monsters/tremendous-dragon-light.webp", "red": "art/book/monsters/tremendous-dragon-red.webp"},
+  "Giant": {"light": "art/book/monsters/giant-light.webp", "red": "art/book/monsters/giant-red.webp"},
+  "Winged Demon": {"light": "art/book/monsters/winged-demon-light.webp", "red": "art/book/monsters/winged-demon-red.webp"},
+  "Demon": {"light": "art/book/monsters/demon-light.webp", "red": "art/book/monsters/demon-red.webp"},
+  "Tremendous Troll": {"light": "art/book/monsters/tremendous-troll-light.webp", "red": "art/book/monsters/tremendous-troll-red.webp"},
+  "Octopus": {"light": "art/book/monsters/octopus-light.webp", "red": "art/book/monsters/octopus-red.webp"},
+  "Tremendous Serpent": {"light": "art/book/monsters/tremendous-serpent-light.webp", "red": "art/book/monsters/tremendous-serpent-red.webp"},
+  "Tremendous Spider": {"light": "art/book/monsters/tremendous-spider-light.webp", "red": "art/book/monsters/tremendous-spider-red.webp"},
+  "Heavy Flying Dragon": {"light": "art/book/monsters/heavy-flying-dragon-light.webp", "dark": "art/book/monsters/heavy-flying-dragon-dark.webp"},
+  "Heavy Dragon": {"light": "art/book/monsters/heavy-dragon-light.webp", "dark": "art/book/monsters/heavy-dragon-dark.webp"},
+  "Heavy Troll": {"light": "art/book/monsters/heavy-troll-light.webp", "dark": "art/book/monsters/heavy-troll-dark.webp"},
+  "Heavy Serpent": {"light": "art/book/monsters/heavy-serpent-light.webp", "dark": "art/book/monsters/heavy-serpent-dark.webp"},
+  "Giant Bat": {"light": "art/book/monsters/giant-bat-light.webp", "dark": "art/book/monsters/giant-bat-dark.webp"},
+  "Heavy Spider": {"light": "art/book/monsters/heavy-spider-light.webp", "dark": "art/book/monsters/heavy-spider-dark.webp"},
+  "Imp": {"light": "art/book/monsters/imp-light.webp", "dark": "art/book/monsters/imp-dark.webp"},
+  "Viper": {"light": "art/book/monsters/viper-light.webp", "dark": "art/book/monsters/viper-dark.webp"},
+  "Ghost": {"light": "art/book/monsters/ghost-light.webp", "dark": "art/book/monsters/ghost-dark.webp"},
+  "Ogre": {"light": "art/book/monsters/ogre-light.webp", "dark": "art/book/monsters/ogre-dark.webp"},
+  "Spear Goblin": {"light": "art/book/monsters/goblin-with-spear-light.webp", "dark": "art/book/monsters/goblin-with-spear-dark.webp"},
+  "Sword Goblin": {"light": "art/book/monsters/goblin-with-great-sword-light.webp", "dark": "art/book/monsters/goblin-with-great-sword-dark.webp"},
+  "Axe Goblin": {"light": "art/book/monsters/goblin-with-axe-light.webp", "dark": "art/book/monsters/goblin-with-axe-dark.webp"},
+  "Wolf": {"light": "art/book/monsters/wolf-a-light.webp", "dark": "art/book/monsters/wolf-a-dark.webp"}
+ },
+  "parts": {
+  "Tremendous Flying Dragon head": {"light": "art/book/monsters/t-flying-dragon-head-light.webp", "dark": "art/book/monsters/t-flying-dragon-head-dark.webp"},
+  "Tremendous Dragon head": {"light": "art/book/monsters/t-dragon-head-light.webp", "dark": "art/book/monsters/t-dragon-head-dark.webp"},
+  "Giant club": {"light": "art/book/monsters/giant-club-light.webp", "dark": "art/book/monsters/giant-club-dark.webp"}
+ },
+  "weapons": {
+  "Bane Sword": {"unalerted": "art/book/weapons/bane-sword-unalerted.webp", "alerted": "art/book/weapons/bane-sword-alerted.webp"},
+  "Truesteel Sword": {"unalerted": "art/book/weapons/truesteel-sword-unalerted.webp", "alerted": "art/book/weapons/truesteel-sword-alerted.webp"},
+  "Devil Sword": {"unalerted": "art/book/weapons/devil-sword-unalerted.webp", "alerted": "art/book/weapons/devil-sword-alerted.webp"},
+  "Living Sword": {"unalerted": "art/book/weapons/living-sword-unalerted.webp", "alerted": "art/book/weapons/living-sword-alerted.webp"},
+  "Medium Bow": {"unalerted": "art/book/weapons/medium-bow-unalerted.webp", "alerted": "art/book/weapons/medium-bow-alerted.webp"},
+  "Light Bow": {"unalerted": "art/book/weapons/light-bow-unalerted.webp", "alerted": "art/book/weapons/light-bow-alerted.webp"},
+  "Crossbow": {"unalerted": "art/book/weapons/crossbow-unalerted.webp", "alerted": "art/book/weapons/crossbow-alerted.webp"},
+  "Staff": {"unalerted": "art/book/weapons/staff-unalerted.webp", "alerted": "art/book/weapons/staff-alerted.webp"},
+  "Great Sword": {"unalerted": "art/book/weapons/great-sword-unalerted.webp", "alerted": "art/book/weapons/great-sword-alerted.webp"},
+  "Broadsword": {"unalerted": "art/book/weapons/broadsword-unalerted.webp", "alerted": "art/book/weapons/broadsword-alerted.webp"},
+  "Morning Star": {"unalerted": "art/book/weapons/morning-star-unalerted.webp", "alerted": "art/book/weapons/morning-star-alerted.webp"},
+  "Great Axe": {"unalerted": "art/book/weapons/great-axe-unalerted.webp", "alerted": "art/book/weapons/great-axe-alerted.webp"},
+  "Thrusting Sword": {"unalerted": "art/book/weapons/thrusting-sword-unalerted.webp", "alerted": "art/book/weapons/thrusting-sword-alerted.webp"},
+  "Short Sword": {"unalerted": "art/book/weapons/short-sword-unalerted.webp", "alerted": "art/book/weapons/short-sword-alerted.webp"},
+  "Axe": {"unalerted": "art/book/weapons/axe-unalerted.webp", "alerted": "art/book/weapons/axe-alerted.webp"},
+  "Mace": {"unalerted": "art/book/weapons/mace-unalerted.webp", "alerted": "art/book/weapons/mace-alerted.webp"},
+  "Spear": {"unalerted": "art/book/weapons/spear-unalerted.webp", "alerted": "art/book/weapons/spear-alerted.webp"}
+ },
+  "armor": {
+  "Tremendous Suit of Armor": {"intact": "art/book/armor/tremendous-armor-intact.webp"},
+  "Suit of Armor": {"intact": "art/book/armor/suit-of-armor-intact.webp"},
+  "Helmet": {"intact": "art/book/armor/helmet-intact.webp"},
+  "Shield": {"intact": "art/book/armor/shield-intact.webp"},
+  "Breastplate": {"intact": "art/book/armor/breastplate-intact.webp"},
+  "Gold Helmet": {"intact": "art/book/armor/gold-helmet-intact.webp"},
+  "Jade Shield": {"intact": "art/book/armor/jade-shield-intact.webp"},
+  "Silver Breastplate": {"intact": "art/book/armor/silver-breastplate-intact.webp"}
+ },
+  "horses": {
+  "Pony": {"walk": "art/book/horses/pony-walk.webp"},
+  "Warhorse": {"walk": "art/book/horses/warhorse-walk.webp"},
+  "Workhorse": {"walk": "art/book/horses/workhorse-walk.webp"}
+ },
+  "natives": {
+  "Raider": {"light": "art/book/natives/raider-light.webp"},
+  "Short Swordsman": {"light": "art/book/natives/short-swordsman-light.webp"},
+  "Pikeman": {"light": "art/book/natives/pikeman-light.webp"},
+  "Great Swordsman": {"light": "art/book/natives/great-swordsman-light.webp"},
+  "Crossbowman": {"light": "art/book/natives/crossbowman-light.webp"},
+  "Lancer": {"light": "art/book/natives/lancer-light.webp"},
+  "Knight": {"light": "art/book/natives/knight-light.webp"},
+  "Great Axeman": {"light": "art/book/natives/great-axeman-light.webp"},
+  "Archer": {"light": "art/book/natives/archer-light.webp"},
+  "Assassin": {"light": "art/book/natives/assassin-light.webp"},
+  "Swordsman": {"light": "art/book/natives/swordsman-light.webp"}
+ },
+  "byId": {
+  "wolf-4": {"light": "art/book/monsters/wolf-b-light.webp", "dark": "art/book/monsters/wolf-b-dark.webp"},
+  "wolf-5": {"light": "art/book/monsters/wolf-b-light.webp", "dark": "art/book/monsters/wolf-b-dark.webp"},
+  "wolf-6": {"light": "art/book/monsters/wolf-b-light.webp", "dark": "art/book/monsters/wolf-b-dark.webp"}
+ }
  }
 }

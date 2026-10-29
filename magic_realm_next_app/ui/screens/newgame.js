@@ -10,6 +10,8 @@ import { createShared, joinShared, chooseShared } from '../shared_online.js';
 import { bar, cardSrc, foot, nb, openSheet, portraitSrc, seatBadge, sum, switchRow } from '../front.js';
 import { spellLine, COLOR_ORDER, COLOR_FILE, COLOR_DOT } from '../start_spells.js';
 import { realmThumb } from './realm.js';
+import { SECTIONS_GROUP } from '../combat/sections_opts.js';
+import { HIRELING_GROUP } from '../leaders.js';
 import { openPlacement, placementStatus } from './placement.js';
 
 // New game: a four-step wizard, one question each (mockup 05): how long, the realm and its rules, who, where and what for.
@@ -354,11 +356,15 @@ const OPTION_GROUPS = [
         { k: 'watchfulNatives', title: 'Watchful Natives', rule: '10.B.4', line: 'Natives you strike hit back in the same round.',
           text: 'Natives you strike surprise you back: the whole group fights you in the same round, not the next.' },
     ] },
+    SECTIONS_GROUP,
     { title: 'Characters', items: [
         { k: 'knightsAdjustment', title: "Knights’ Adjustment", rule: '10.A.6.8', line: 'Tames the Knights’ trading edge: their allies are only Friendly.',
           text: 'The White Knight is only Friendly with the Order, and the Black Knight Friendly with the Company, instead of Allies. It tames their trading advantage.' },
     ] },
 ];
+
+// (the optional rule for hirelings and hired leaders is one more entry, built in leaders.js; a race leaves it out)
+const optionGroups = (shared, online) => (shared || !online ? [...OPTION_GROUPS, HIRELING_GROUP] : OPTION_GROUPS);
 
 // A SHARED game: how many sit at the table, and whether characters may fight each other. Plain words first; the rule numbers are for those who look.
 function tableStep(g, redraw) {
@@ -382,7 +388,7 @@ function realmStep(g, redraw, go, ctx, { shared, online }) {
     const realmCard = !online ? [h('button', { type: 'button', class: 'ds-row ds-realmrow', 'data-act': 'preview', onclick: () => { ctx.realm = { seed: g.seed, showHidden: false, enchanted: false, sel: null, view: null }; go('realm'); } },
         realmThumb(g.seed), h('span', { class: 'main' }, h('b', {}, 'A realm of twenty tiles'), h('span', {}, `Seed ${g.seed}. Tap to see another.`)), icon('right'))] : [];
     return [q('Your realm.'), ...realmCard, ...(shared ? tableStep(g, redraw) : []),
-        ...OPTION_GROUPS.flatMap(grp => [sect(grp.title),
+        ...optionGroups(shared, online).flatMap(grp => [sect(grp.title),
             ...grp.items.map(o => switchRow({ title: o.title, line: o.line, on: !!g.options[o.k], attrs: { 'data-option': o.k }, info: `Rule ${o.rule}. ${o.text}`, onToggle: () => { g.options[o.k] = !g.options[o.k]; redraw(); } }))]),
         ...(online ? [] : missionsBlock(g, redraw)),
         h('p', { class: 'ds-why ds-fixed' }, 'The printed rules are the default. These cannot be changed once the game has begun.')];

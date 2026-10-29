@@ -16,7 +16,7 @@ import { heldLockOf } from '../../spellwhy.js';
 import { voiced } from '../../commit.js';
 
 const CHIT_ART = { White: 'whitechit', Black: 'blackchit', Grey: 'graychit', Purple: 'purplechit', Gold: 'goldchit' };
-const printedOf = (G, id) => G.data.cardtext?.spells?.[id] ?? '';
+export const printedOf = (G, id) => G.data.cardtext?.spells?.[id] ?? '';
 export const spellCount = G => (G.st.ch.spells ?? []).length;
 
 // The printed text without its heading ("Make Whole (I/White), one character, Instant: ..."): the heading is the card's tag already.
@@ -25,8 +25,8 @@ function printedBody(G, sp) {
     return { target: m?.[1] ?? sp.target ?? null, body: m?.[3] ?? full };
 }
 
-const colorArt = sp => (CHIT_ART[sp.color] ? h('img', { class: 'ds-px', width: 32, height: 32, src: `art/colormagic/${CHIT_ART[sp.color]}.gif`, alt: '', draggable: 'false' }) : icon('spark', 'lg'));
-const typeTag = sp => `Type ${sp.type} · ${sp.color ?? 'any colour'}`;
+export const colorArt = sp => (CHIT_ART[sp.color] ? h('img', { class: 'ds-px', width: 32, height: 32, src: `art/colormagic/${CHIT_ART[sp.color]}.gif`, alt: '', draggable: 'false' }) : icon('spark', 'lg'));
+export const typeTag = sp => `Type ${sp.type} · ${sp.color ?? 'any colour'}`;
 
 // The status of a spell he knows tonight, in words: what the engine says blocks it, else where its magic comes from.
 function status(G, sp, blocked) {

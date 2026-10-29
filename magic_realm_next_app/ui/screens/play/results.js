@@ -5,6 +5,7 @@ import { actIcon, icon } from '../../icons.js';
 import { logText } from '../../voice.js';
 import { daySummary } from './dayresult.js';
 import { modal, picOf, voidBy } from './kit.js';
+import { unattendedBlock } from './leaders.js';
 import { render } from './shell.js';
 import { vpNow } from './state.js';
 
@@ -63,8 +64,8 @@ export function reportSheet(G) {
         if (frame) for (const [k, fs] of [['fame', frame.querySelector('.fame')], ['gold', frame.querySelector('.gold')]]) if (v(k)) { fs.classList.add('void'); fs.title = `Worthless: the ${v(k)} curse`; }
         const body = h('div', { class: 'reportsheet ds-dayres', 'data-quiet': sum.empty ? '1' : null },
             h('p', { class: 'ds-voice lg headline', 'data-v': 'story' }, sum.story), h('p', { class: 'ds-voice lg headline', 'data-v': 'detail' }, sum.detail),
-            ...rows, frame, scoreNote(G));
-        return modal(G, 'The day', body, { kind: 'result', detent: sum.empty ? 'hug' : 'tall', eyebrow: `Day ${day} \u00B7 midnight`, head: voiceSwitch(), bare: true, cls: 'dayres-sheet',
+            ...rows, ...unattendedBlock(G, day), frame, scoreNote(G));          // (a leader's fight where no character stood: leaders.js)
+        return modal(G, 'The day', body, { kind: 'result', detent: sum.empty && !unattendedBlock(G, day).length ? 'hug' : 'tall', eyebrow: `Day ${day} \u00B7 midnight`, head: voiceSwitch(), bare: true, cls: 'dayres-sheet',
             footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn', 'data-act': 'report-next', onclick: () => { G.ui.reportPage = `${day}:overview`; render(G); } }, 'Overview'), goOn) });
     }
     // the overview: the day's lines under the phase or the evening they belong to

@@ -34,15 +34,28 @@ function holdable(btn, onHold) {
     btn.addEventListener('contextmenu', e => e.preventDefault());
 }
 
+// What the rules say about a creature on a given side, or, if the engine cannot say (a creature that has left the game's lists, a part whose owner is gone, a kind nobody knew), at least its name: a counter is never blank.
+export function safeSide(st, data, d) {
+    try { const s = denSide(st, data, d); if (s && s.name) return s; } catch { /* fall through to the bare name */ }
+    const name = d?.kind === 'mon' || d?.kind === 'hire' ? data.monsters?.[d.id]?.name : d?.kind === 'nat' ? data.natives?.[d.id]?.name : null;
+    return { name: name ?? d?.name ?? String(d?.id ?? 'Unknown creature'), size: null, vuln: null, armored: false, harm: null, stars: 0, atk: null, move: null, length: 0, attack: 'none', fame: 0, notor: 0 };
+}
+// The counter of one creature on one side: the frame, the name and the picture (the main art, else the rulebook's own counter, else none) whatever the creature is, alive or slain.
+export function counterOf(st, data, d, side, flies = false) {
+    let picture = null;
+    try { picture = picOf(st, data, d, side); } catch { picture = null; }
+    return monsterCounter({ s: safeSide(st, data, { ...d, side }), side, picture, flies, size: 92 });
+}
+
 // One foe: its counter (tap to turn it over), and an optional tag (TARGET, a box, WOUNDED YOU). `view` says which side shows; `tag` is { text, kind, onclick? }.
 export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, onFlip, size = 92, justFlipped = false, selected = false, turnedOver = false, onHold = null }) {
-    const other = otherSide(data, d);
+    let other = null; try { other = otherSide(data, d); } catch { other = null; }
     const showRev = !!flipped && other && other !== (d.side ?? 'light');
     const view = showRev ? { ...d, side: other } : d;
-    const s = denSide(st, data, view);
+    const s = safeSide(st, data, view);
     const side = showRev ? other : (d.side ?? 'light');
-    const flies = d.kind === 'mon' && !!data.monsters[d.id]?.flies;
-    const svg = monsterCounter({ s, side, picture: picOf(st, data, d), flies, size: 92 });
+    const flies = d.kind === 'mon' && !!data.monsters?.[d.id]?.flies;
+    const svg = counterOf(st, data, d, side, flies);
     // The tag (TARGET, a box, WOUNDED YOU) stands in its own slot ABOVE the counter, never over its name (QA-8). `tag.dot`: a crowded stage (QA-6) shows the offer as a ghost dot with a 44px hit area instead of a word.
     const tagEl = tag ? h(tag.onclick ? 'button' : 'span', { class: `tag ${tag.kind ?? ''}${tag.dot ? ' dot' : ''}`, ...(tag.onclick ? { type: 'button', 'data-tag': d.uid, 'aria-label': tag.label ?? tag.text, onclick: e => { e.stopPropagation(); tag.onclick(); } } : {}) }, tag.dot ? null : tag.text) : null;
     const flipBtn = h('button', { type: 'button', class: 'cb-flip', 'data-flip': d.uid, 'aria-pressed': showRev ? 'true' : 'false', 'aria-label': `${s.name}${dead ? ', slain' : ''}, ${showRev ? 'other side showing, not the current side' : 'current side up'}: tap to turn the counter over, press and hold for its card`, onclick: () => onFlip?.(d, !!other), style: 'padding:0;display:block' },
@@ -79,13 +92,15 @@ export function fitNames(root) {
 // `allies` = M.alliesOf(); `flipped` = { [uid]: true } for the ones turned over; `size` is the counter's size.
 export function alliesEl({ st, data, allies, flipped = {}, onFlip, size = 56 }) {
     return h('div', { class: 'cb-allies', style: `--ally:${size}px`, role: 'group', 'aria-label': `On your side: ${allies.map(a => a.name).join(', ')}` }, ...allies.map(a => {
-        const den = { uid: `ally:${a.uid}`, kind: a.kind, id: a.id, side: a.side }, other = otherSide(data, den), turned = !!flipped[a.uid] && !!other, view = turned ? { ...den, side: other } : den;
-        const svg = monsterCounter({ s: denSide(st, data, view), side: turned ? other : a.side, picture: picOf(st, data, den), flies: a.kind === 'mon' && !!data.monsters[a.id]?.flies, size: 92 });
+        const den = { uid: `ally:${a.uid}`, kind: a.kind, id: a.id, side: a.side };
+        let other = null; try { other = otherSide(data, den); } catch { other = null; }
+        const turned = !!flipped[a.uid] && !!other;
+        const svg = counterOf(st, data, den, turned ? other : a.side, a.kind === 'mon' && !!data.monsters?.[a.id]?.flies);
         const low = a.days != null && a.days <= 3;
         return h('div', { class: `cb-ally${a.controlled ? ' ctl' : ''}`, 'data-ally': a.uid },
             h('button', { type: 'button', class: 'cb-flip', 'data-ally-flip': a.uid, 'aria-pressed': turned ? 'true' : 'false', 'aria-label': `${a.name}, on your side: tap to turn the counter over`, onclick: () => onFlip?.(a, !!other), style: 'padding:0;display:block' },
                 h('span', { class: 'ds-cs-wrap' }, svg), other ? h('span', { class: 'turn', 'aria-hidden': 'true' }, icon('retry')) : null),
-            h('span', { class: 'cap' }, h('b', {}, tieNumber(a.name)), h('small', {}, a.days != null ? `with you \u00B7 ${a.days} day${a.days === 1 ? '' : 's'}` : a.controlled ? 'with you \u00B7 until Sunset' : 'with you'),
+            h('span', { class: 'cap' }, h('b', {}, tieNumber(a.name)), h('small', {}, `${a.hidden ? 'hidden \u00B7 ' : ''}${a.days != null ? `with you \u00B7 ${a.days} day${a.days === 1 ? '' : 's'}` : a.controlled ? 'with you \u00B7 until Sunset' : 'with you'}`),
                 a.days != null ? h('span', { class: `ds-daypips${low ? ' low' : ''}`, 'aria-hidden': 'true' }, Array.from({ length: 14 }, (_, i) => h('i', { class: i < a.days ? null : 'off' }))) : null));
     }));
 }

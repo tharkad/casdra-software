@@ -1,5 +1,8 @@
 import { monsterJoins, monsterLeaves } from '../combat.js';
 import { breakFx } from './fx.js';
+import { steedReleased } from '../steeds.js';
+import { landHero } from './fly.js';
+import { dropDen } from '../hirefight.js';
 
 // Creatures a spell puts under the caster's hand (docs/design/magic/03-control-spells.md section 1). Three relationships, all on the monster record:
 //   controlled (Control Bats, Guide Spider or Octopus)  m.hired = true, m.controlledUntil = the day it is freed, m.tie = { kind: 'control', fx }
@@ -50,6 +53,7 @@ export function releaseControl(ctx, fx) {
         if (!m || !m.hired || m.tie?.kind !== 'control') continue;
         m.hired = false; delete m.hiredBy; m.controlledUntil = null; m.tie = null;
         ctx.say(`Your control of the ${data.monsters[m.id].name} ends.`);
+        steedReleased(st, data, m, landHero);          // if he was flying on it, he and it come down together (7.3.3g.5)
         monsterLeaves(st, data, m);
     }
 }
@@ -61,7 +65,7 @@ export function pacify(ctx, dens, { text }) {
     for (const d of dens) {
         const m = st.mons.find(x => x.id === d.id && !x.dead && !x.hired);
         if (!m) continue;
-        d.pacified = true; d.bystander = true; d.assigned = false; d.engagedBy = null;
+        d.pacified = true; d.bystander = true; d.assigned = false; d.engagedBy = null; dropDen(st, d);          // (a pacified creature attacks no one: off every Melee Section, 8.4.4b)
         calm.push(m);
     }
     if (!calm.length) return null;

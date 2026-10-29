@@ -171,7 +171,7 @@ const shift = (ch, e, d) => { for (const g of e.partners ?? []) ch.rel[g] = (ch.
 
 // ---- taking a chit
 // Why a character cannot take the chit now, or null (the screens use this to show the chit as greyed out).
-export function whyNot(st, data, pair, ch = st.ch, { as = 'character' } = {}) {
+export function whyNot(st, data, pair, ch = st.ch, { as = ch.leader ? 'hired-leader' : 'character' } = {}) {          // (hireling rules: the seat of a hired leader or controlled monster is not a character, 7.2.4)
     const c = chitOf(st, pair);
     if (!c) return `there is no chit "${pair}"`;
     if (!WHO_CAN_TAKE.includes(as)) return 'hired leaders and controlled monsters cannot take these chits (7.2.4)';

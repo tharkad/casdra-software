@@ -3,6 +3,7 @@ import { meetingResult } from './tables.js';
 import { oneDie, spellMod, hoofHere } from './modifiers.js';
 import { meetingDiceCount } from './rules/meetingDiceCount.js';
 import { tableResult } from './rules/tableResult.js';
+import { isVisitorName } from './visitors.js';
 
 // Rolls on the Meeting Table: normally two dice, higher counts. Special advantages change it: Fear rolls one die, Honor subtracts one
 // from each die (never below 1). Used for trading, hiring and the battle roll at the start of an evening.
@@ -86,6 +87,7 @@ export function calmMonsterGroups(st, data, here = st.ch.at) {
 // Buying drinks (7.6.5b, 7.7.5a): one gold for every member of the group in his clearing, hired or not; the group counts one level friendlier. For the pacified monsters of a spell
 // (ruling H1, Mike 2026-10-26) it is one gold for every one of them in the clearing, and they count one level friendlier than the Neutral column.
 export function drinksCost(st, data, group) {
+    if (isVisitorName(group)) return Infinity;          // drinks are for natives only, never for a visitor (7.6.5b)
     if (!data.groups?.[group]) { const g = calmMonsterGroups(st, data).find(x => x.label === group); if (g) return g.members.length; }
     return st.nats.filter(n => !n.dead && n.loc?.c === st.ch.at && data.natives[n.id].group === group).length;
 }

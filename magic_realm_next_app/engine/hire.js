@@ -2,10 +2,14 @@ import { say } from './core.js';
 import { hasCurse } from './effects.js';
 import { meetingOutcome, drinksCost, calmMonsterGroups } from './meeting.js';
 import { targetGone } from './magic/fx.js';
+import { steedReleased } from './steeds.js';
+import { landHero } from './magic/fly.js';
+import * as hs from './hirestate.js';
 import * as missions from './missions.js';
 
 // The Hire activity (rules digest 05 section 4.5). He pays a native group to join him for 14 days.
-// Simplification noted in docs: a hired leader follows like any other hireling instead of taking his own turn.
+// Without the option `hirelingRules` (hirestate.js) a hired leader follows like any other hireling instead of taking his own turn; with it a hired leader and a controlled monster have a seat of
+// their own (leaders.js) and the underlings follow only the guide they are assigned to (hirestate.js).
 
 // How a native group stands with him for hiring: a group pacified by his Persuade spell is Friendly at least (the card: "to hire them, he uses the Friendly column").
 export function relFor(st, g) {
@@ -15,7 +19,10 @@ export function relFor(st, g) {
 }
 
 // A hireling is the acting character's own (hiredBy says whose; a state that predates it, or a test that set `hired` by hand, has only one hirer).
-const mineOf = (st, o) => (o.hiredBy ?? st.ch.id) === st.ch.id;
+// (A hired leader hires and trades for his hirer, 7.7.2b: what is "mine" is the hirer's, except the leader himself, who cannot rehire himself.)
+const hirerId = st => st.ch.leader?.hirer ?? st.ch.id;
+const mineOf = (st, o) => (o.hiredBy ?? hirerId(st)) === hirerId(st);
+const himself = (st, o) => !!st.ch.leader && o.id === st.ch.leader.id;
 const individual = (data, g) => data.groups[g].hireMode === 'individual';
 // Hiring order inside Order and Rogues: highest number first, the leader last.
 const hireRank = (data, n) => { const r = data.natives[n.id].rank; return r === 'HQ' ? -1 : Number(r); };
@@ -24,7 +31,7 @@ export function hireOptions(st, data) {
     const here = st.ch.at, out = [];
     // Natives already in his pay may be hired again: another 14 days.
     for (const g of Object.values(data.groups)) {
-        let mine = st.nats.filter(n => !n.dead && n.hired && mineOf(st, n) && n.loc?.c === here && data.natives[n.id].group === g.id);
+        let mine = st.nats.filter(n => !n.dead && n.hired && mineOf(st, n) && !himself(st, n) && n.loc?.c === here && data.natives[n.id].group === g.id);
         // Order and Rogues are hired, and so extended, one native per Hire phase (7.7.1a.1, 7.7.1d): the one whose term ends soonest, in hiring order.
         if (individual(data, g.id) && mine.length > 1) mine = [mine.sort((a, b) => a.hiredUntil - b.hiredUntil || hireRank(data, b) - hireRank(data, a))[0]];
         if (mine.length) out.push({ group: g.id, rehire: true, members: mine.map(m => m.id), names: mine.map(m => data.natives[m.id].name), wage: mine.reduce((s, m) => s + data.natives[m.id].wage, 0) });
@@ -122,7 +129,8 @@ export function hireAction(st, data, p, a) {
 function hireMonsters(st, data, ids, paid) {
     for (const id of ids) {
         const m = st.mons.find(x => x.id === id);
-        m.hired = true; m.hiredBy = st.ch.id; m.hiredUntil = st.day + 13; m.loc = { c: st.ch.at }; m.pacify = null; m.tie = { kind: 'hire' };
+        m.hired = true; m.hiredBy = hirerId(st); m.hiredUntil = st.day + 13; m.loc = { c: st.ch.at }; m.pacify = null; m.tie = { kind: 'hire' };
+        hs.hired(st, m);
         targetGone(st, data, { kind: 'mon', id });
     }
     say(st, `You hire ${ids.map(i => data.monsters[i].name).join(', ')} for 14 days, paying ${paid} gold.`, 'trade');
@@ -131,7 +139,8 @@ function hireMonsters(st, data, ids, paid) {
 function hire(st, data, ids, group, paid) {
     for (const id of ids) {
         const n = st.nats.find(x => x.id === id);
-        n.hired = true; n.hiredBy = st.ch.id; n.hiredUntil = st.day + 13; n.hiredDay = st.day; n.loc = { c: st.ch.at };
+        n.hired = true; n.hiredBy = hirerId(st); n.hiredUntil = st.day + 13; n.hiredDay = st.day; n.loc = { c: st.ch.at };
+        hs.hired(st, n);
     }
     say(st, `You hire ${ids.map(i => data.natives[i].name).join(', ')} of the ${group} for 14 days, paying ${paid} gold.`, 'trade');
 }
@@ -142,6 +151,7 @@ function hire(st, data, ids, group, paid) {
 // horses to enter a cave but not to leave a cave" (7.3.2e.2, 8.4.5k.4): a hireling goes into the cave with him, on foot, and takes part in the fights there. (It used to take him "off the map"
 // in a cave, which the 3.1 text does not say.)
 export function followHero(st, data) {
+    if (hs.rulesOn(st)) return hs.follow(st, data);          // (hireling rules: only the underlings assigned to him go with him: hirestate.js)
     for (const n of st.nats) if (n.hired && mineOf(st, n) && !n.dead && n.hiredDay !== st.day) n.loc = { c: st.ch.at };
     for (const m of st.mons) if (m.hired && mineOf(st, m) && !m.dead) m.loc = { c: st.ch.at };       // monsters under a Control spell, or hired
 }
@@ -149,13 +159,13 @@ export function followHero(st, data) {
 export function expireHires(st, data) {
     for (const n of st.nats) {
         if (n.hired && (st.day >= n.hiredUntil || (st.ch.dead && mineOf(st, n)))) {
-            n.hired = false; delete n.hiredBy;
+            n.hired = false; delete n.hiredBy; hs.released(n);
             say(st, `${data.natives[n.id].name}'s term of hire ends.`, 'trade');
         }
     }
     for (const m of st.mons) {
         if (m.hired && m.hiredUntil != null && (st.day >= m.hiredUntil || (st.ch.dead && mineOf(st, m)))) {
-            m.hired = false; delete m.hiredBy; m.hiredUntil = null; m.tie = null;
+            m.hired = false; delete m.hiredBy; m.hiredUntil = null; m.tie = null; hs.released(m);
             say(st, `The ${data.monsters[m.id].name}'s term of hire ends.`, 'trade');
         }
     }
@@ -169,12 +179,13 @@ export function dismissHire(st, data, a) {
     if (a.kind === 'monster') {
         const m = st.mons.find(x => x.id === a.id && x.hired && !x.dead && mineOf(st, x));
         if (!m) throw new Error('no such hireling');
-        m.hired = false; delete m.hiredBy; m.hiredUntil = null; m.tie = null;
+        m.hired = false; delete m.hiredBy; m.hiredUntil = null; m.tie = null; hs.released(m);
         say(st, `You send the ${data.monsters[m.id].name} away.`, 'trade');
+        steedReleased(st, data, m, landHero);          // if he was flying on it, he and it come down together (7.3.3g.5)
         return;
     }
     const n = st.nats.find(x => x.id === a.id && x.hired && !x.dead && mineOf(st, x));
     if (!n) throw new Error('no such hireling');
-    n.hired = false; delete n.hiredBy;
+    n.hired = false; delete n.hiredBy; hs.released(n);
     say(st, `You release ${data.natives[n.id].name} from your service.`, 'trade');
 }

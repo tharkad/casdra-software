@@ -10,6 +10,9 @@ import { party, markers as partyMarkers } from '../../party.js';
 import { EDGE, moveOptions, planState } from '../../planlogic.js';
 import { strip } from '../../ds.js';
 import { renderParty } from './hotseat.js';
+import { withActor } from '../../../engine/party.js';
+import { leaderGame, seatMarkers } from '../../leaders.js';
+import { maybeShowSunrise, ownSeats, showSeat, tableCrew } from './leaders.js';
 import { setStoryState } from '../../storyvoice.js';
 import { icon as dsIcon } from '../../icons.js';
 import { revealKey } from '../sharedfight.js';
@@ -68,6 +71,15 @@ export function mapModel(G) {
             const list = [...owners].sort((a, b) => G.st.order.indexOf(a[0]) - G.st.order.indexOf(b[0]));
             add(at, { k: 'ally', label: list.length === 1 ? `${list[0][0] === G.st.ch.id ? 'Your' : `${playerNameOf(G.st, list[0][0])}\u2019s`} hirelings x${list[0][1]}` : `Hirelings: ${list.map(([o, k]) => `${o === G.st.ch.id ? 'yours' : playerNameOf(G.st, o)} ${k}`).join(', ')}` });
         }
+    } else if (G.st.options?.hirelingRules) {
+        // hireling rules: each follower is where his guide left him (not all with the hero), a hired leader or controlled creature is a counter of his own on the map (a seat), and a hidden one is said so
+        const by = new Map();
+        for (const o of [...hires, ...G.st.mons.filter(m => m.hired && !m.dead && m.loc?.c)]) {
+            if (!o.loc?.c || G.st.chars[o.id]?.leader) continue;
+            const e = by.get(o.loc.c) ?? by.set(o.loc.c, { n: 0, hid: 0 }).get(o.loc.c);
+            e.n++; if (o.hidden) e.hid++;
+        }
+        for (const [at, e] of by) add(at, { k: 'ally', label: `${e.hid === e.n ? 'Hidden' : 'Your'} hirelings x${e.n}` });          // (all of them hidden: dark side up)
     } else if (hires.length && G.st.ch.at) add(G.st.ch.at, { k: 'ally', label: `Your hirelings x${hires.length}` });
     // while a Move phase is being set, the clearings he can walk to are ringed on the map: the map is where moves are chosen
     G.ui.moveTargets = []; G.ui.moveMaybe = [];
@@ -79,6 +91,7 @@ export function mapModel(G) {
             G.ui.moveTargets = o.sure; G.ui.moveMaybe = o.maybe;
         }
     }
+    const localParty = !G.shared && !G.race && leaderGame(G.st);
     return {
         tiles: G.data.tiles, art: G.data.art, placements: G.st.placements, side: 'normal', showHidden: false, discovered: knownPathPairs(G.st),
         chitsByTile, tokens, hero: G.st.ch.onRoad || G.st.ch.dead || G.st.ch.flying ? null : G.st.ch.at, heroAir: !G.st.ch.dead && G.st.ch.flying ? G.st.ch.flying.tile : null, heroHidden: G.st.ch.hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
@@ -113,8 +126,9 @@ export function mapModel(G) {
             if (G.st.pending?.type === 'phase-pick' && G.ui.pickAct === 'move' && (G.st.pending.moves ?? []).includes(id)) { G.ui.pickAct = null; act(G, { type: 'pick', slot: { act: 'move', to: id } }); return; }          // Prophecy: the Move is chosen on the map
             clearPin(G); G.ui.sel = id; G.ui.sheet = 'clearing'; render(G);
         },
-        party: G.shared ? partyMarkers(G.crew) : undefined, tagged: G.shared ? G.ui.tag : undefined,
-        onMarker: G.shared ? id => { const p = G.crew.find(x => x.id === id); if (p) showPlayer(G, p); } : undefined,
+        // a shared table: one counter a player; a party with hired leaders: one counter a seat (the hirer round, a leader square, a creature a diamond; leaders.js)
+        party: G.shared ? [...partyMarkers(G.crew), ...(leaderGame(G.st) ? seatMarkers(G.st, G.data, G.st.actor).filter(m => G.st.chars[m.id].leader) : [])] : localParty ? seatMarkers(G.st, G.data, G.st.actor) : undefined, tagged: G.shared || localParty ? G.ui.tag : undefined,
+        onMarker: G.shared ? id => { const p = G.crew.find(x => x.id === id); if (p) showPlayer(G, p); else showSeat(G, id); } : localParty ? id => showSeat(G, id) : undefined,
         onBackground: () => {
             if (G.ui.tag) { G.ui.tag = null; render(G); return; }
             if (G.ui.pin) { clearPin(G); return; }
@@ -207,14 +221,16 @@ function syncCamera(G, force = false) {
 // ---- rendering ----
 // The status strip (mockup 01): menu, Day and phase (opens the calendar), Fame / Notoriety / Gold (one button: the Kit), VP (the goals).
 function renderStrip(G) {
-    const cursed = (G.st.ch.curses ?? []).length > 0, magicToday = dayColors(G.st.day, G.st.lastDay ?? 28);
+    // A hired leader's seat is on screen: his Fame, Notoriety and the score are his hirer's at once (7.7.2b), so the strip shows the hirer's (his own gold is on his sheet)
+    const seat = G.st.ch?.leader ? G.st.chars[G.st.ch.leader.hirer] : null, ch = seat ?? G.st.ch, asHirer = fn => (seat ? withActor(G.st, seat.id, fn) : fn());
+    const cursed = (ch.curses ?? []).length > 0, magicToday = dayColors(G.st.day, G.st.lastDay ?? 28);
     // Fame and Notoriety are what counts (recorded plus what the things he owns add); the recorded part is in the Kit.
-    let ern = null; try { ern = earned(G.st, G.data); } catch { /* scoring not available */ }
+    let ern = null; try { ern = asHirer(() => earned(G.st, G.data)); } catch { /* scoring not available */ }
     const total = (kind, val) => (ern && (kind === 'fame' || kind === 'notoriety') ? ern[kind] : val);
-    const tot = vpNow(G), dead = G.st.period === 'over' && G.st.ch.dead;
+    const tot = asHirer(() => vpNow(G)), dead = G.st.period === 'over' && ch.dead;
     // The score is counted from the shortfall of each goal, so on day 1 it is a negative number: the honest figure, and the one Mike wants on the chip (it said "0/N" until the first night: QA-19, reversed by note 32).
     // DR-14: the strip does not run ahead of the Day Result. While the morning report is on screen it keeps the day, the phase and the numbers it showed at midnight; the new day shows when it is closed.
-    const cur = { day: G.st.day, total: lastDayOf(G.st), phase: G.st.period === 'over' ? 'finished' : G.st.period, gold: G.st.ch.gold, fame: total('fame', G.st.ch.fame), notor: total('notoriety', G.st.ch.notoriety),
+    const cur = { day: G.st.day, total: lastDayOf(G.st), phase: G.st.period === 'over' ? 'finished' : G.st.period, gold: ch.gold, fame: total('fame', ch.fame), notor: total('notoriety', ch.notoriety),
         vp: tot > 0 ? `+${tot}` : String(tot).replace('-', '\u2212'), vpc: dead ? 'bad' : tot > 0 ? 'pos' : 'neg', tot };
     const reportUp = !G.shared && G.st.pending?.type === 'plan' && G.st.day > 1 && G.ui.reportedDay !== G.st.day && G.ui.sheet !== 'plan';
     const held = reportUp && G.ui.stripSnap && G.ui.stripSnap.day === G.st.day - 1 ? { ...G.ui.stripSnap, phase: 'midnight' } : null;
@@ -247,13 +263,22 @@ function renderStrip(G) {
 
 export function render(G) {
     setStoryState(G.st);                                 // (the Story voice finds what a roll came to without every caller passing the state)
-    if (G.shared) { G.crew = party(G.st, G.answer, myId(G)); G.ms = meetState(G.st, G.data, myId(G), G.answer?.table); }
+    if (G.shared) {
+        G.crew = tableCrew(G, party(G.st, G.answer, myId(G)));
+        // a seat of my party on screen (hireling rules): what he may meet and follow is his own; and my own people are not partners of mine at the table's Meet button
+        const seat = leaderGame(G.st) && G.st.actor !== myId(G);
+        G.ms = meetState(G.st, G.data, seat ? G.st.actor : myId(G), seat ? null : G.answer?.table);
+        if (leaderGame(G.st)) { const own = ownSeats(G); G.ms.partners = G.ms.partners.filter(x => !own.includes(x.id)); G.ms.others = G.ms.others.filter(x => !own.includes(x.id)); }
+    }
+    else if (!G.race && leaderGame(G.st)) G.ms = meetState(G.st, G.data, G.st.actor, null);          // (the party of one player: the plan's Follow reads who may be followed)
+    else G.ms = null;
     G.ui.onSheetMove = () => setTimeout(() => { if (G.root.isConnected) syncCamera(G); }, 320);           // a decision sheet dropped to a peek (or came back): the camera follows once it has settled
     const model = mapModel(G);                           // first: it settles which clearings are ringed (G.ui.moveTargets), which the plan reads
     renderStrip(G);
     renderParty(G);
     if (G.shared) sharedCamera(G);
-    if (G.shared) { maybeShowDraw(G); maybeShowFightOver(G); }
+    if (G.shared) { if (!leaderGame(G.st)) maybeShowDraw(G); maybeShowFightOver(G); }          // (with hired leaders the draw is told by Sunrise: it has the seats' Attention chits)
+    maybeShowSunrise(G);          // (hired leaders: the Attention chits are drawn, once a day)
     renderTray(G);
     // Sheets are rebuilt on every change; keep each scrolling area where it was while the same question is still on screen
     // (tapping a chit or a target must not throw the view back to the top). A new question starts at the top.

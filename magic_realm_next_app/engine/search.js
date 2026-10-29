@@ -9,6 +9,7 @@ import { roll2, chitWord } from './core.js';
 import { convertCard, oneDie, modRoll, modNote } from './modifiers.js';
 import { isMulti } from './party.js';
 import { spyOnLoot, snap, shareFind, followersOf } from './meet.js';
+import { opensVault } from './leaders.js';
 
 // Looting: a discovered site in the clearing, or things lying on the ground (rules digest 04 section 3.4).
 
@@ -89,7 +90,7 @@ export function lootFrom(st, data, r, groundOnly = false, { paid = false, sight 
     // Conditions at the more dangerous sites.
     // (the Cairns' toll is paid before the roll is made: see doSearch)
     if (site?.name === 'Vault' && !st.sitesOpen?.Vault) {
-        const keys = st.ch.items.some(i => i.id === 'lost-keys' && i.active);
+        const keys = st.ch.items.some(i => i.id === 'lost-keys' && i.active) || opensVault(st, data);          // (a hired leader with Tremendous harm or move strength opens it, 7.7.2c)
         if (!keys) {
             const opts = vaultPieces(st, data);
             if (!opts.length) return 'The Vault is sealed. You need Tremendous strength or the Lost Keys.';
@@ -101,7 +102,7 @@ export function lootFrom(st, data, r, groundOnly = false, { paid = false, sight 
     const idx = r.value - 1;
     const it = pileList[idx];
     if (!it) return `${what} (${r.dice.join('+')}) at ${label}: nothing at that depth.`;
-    if ((site?.name === 'Pool' || (sight && site?.name === 'Cairns')) && !paid) {
+    if ((site?.name === 'Pool' || (sight && site?.name === 'Cairns')) && !paid && !st.ch.leader) {          // (a hired leader pays no asterisk, 7.7.2c)
         // an asterisk is paid each time something is actually taken, and he picks the chit
         const opts = effortOptions(st);
         if (!opts.length) return 'You are too exhausted to wade into the Pool.';
@@ -181,7 +182,7 @@ export function lootSiteCard(st, data, r) {
     let out = `${box.name} (${r.dice.join('+')}): `;
     const T = data.tables.twtSiteTables[box.box];
     const res = T?.[String(v)];
-    const strong = st.ch.chits.some(c => c.state === 'active' && lvl(c.strength) >= 4) || st.ch.items.some(i => i.id === 'lost-keys' && i.active);
+    const strong = st.ch.chits.some(c => c.state === 'active' && lvl(c.strength) >= 4) || st.ch.items.some(i => i.id === 'lost-keys' && i.active) || opensVault(st, data);
     if (box.box === 'Crypt of the Knight' && !strong) return `${out}the crypt is sealed: you need Tremendous strength or the Lost Keys.`;
     switch (res) {
         case 'weapon': out += give(box.contents.find(c => c.kind === 'weapon')?.name ?? 'Devil Sword'); break;

@@ -1,0 +1,82 @@
+/* css/ds-leaders.css: hired leaders and hirelings (option hirelingRules): the Attention chit, the seat bar, the "who goes with whom" sheet, the leader's sheet, the gift between a hirer and his
+   leader, the draw of the chits, a leader's fight nobody played, and a hired counter's side (dark when hidden, red for a hidden Tremendous monster). Loaded after ds-shell.css.
+   Screens: screens/play/leaders.js. Sizes: text >= 12px, targets >= 44px. */
+
+/* ---- the Attention chit: a red numbered chit, or the bronze initial of an unused character's chit (7.7.2) ---- */
+.attn { flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; font: 800 calc(14px * var(--ts, 1))/1 var(--font-ui); font-style: normal; letter-spacing: 0; color: #fff6ec; background: radial-gradient(circle at 35% 30%, #d9604f 0 30%, #b23a2e 70%, #8c2a21); box-shadow: inset 0 0 0 2px #5b1913, 0 1px 3px rgba(0, 0, 0, .55); }
+.attn.char, .attn.character { color: var(--ink-on-gold); background: radial-gradient(circle at 35% 30%, #f1d27f 0 30%, #d9b45a 70%, #b98a2c); box-shadow: inset 0 0 0 2px #7a5b16, 0 1px 3px rgba(0, 0, 0, .55); }
+.attn.sm { width: 22px; height: 22px; font-size: calc(12px * var(--ts, 1)); }
+.attn.lg { width: 40px; height: 40px; font-size: calc(19px * var(--ts, 1)); }
+
+/* ---- the seat bar: a seat is a chip with its chit; a seat that is up has the gold edge, one that is asked has the dot ---- */
+.ds-party.seats .pchip { gap: 7px; padding: 0 12px; }
+.ds-party .pchip .attn { margin-left: -4px; }
+.ds-party.seats .pchip.ask:not(.on) { border-color: var(--line-gold); }
+
+/* ---- who is acting, under the place in the tray ---- */
+.ds-situ .seat-line { display: inline-flex; align-items: center; gap: 6px; font: 600 calc(13px * var(--ts, 1))/1.2 var(--font-ui); color: var(--ink-2); min-width: 0; }
+
+/* ---- who goes with whom ---- */
+.as { display: flex; flex-direction: column; gap: 12px; }
+.as-intro { margin: 0; }
+.as-all { align-self: flex-start; }
+.as-card { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: var(--r-md); border: 1px solid var(--line-1); background: var(--surface-3); }
+.as-card.dim { border-style: dashed; border-color: var(--st-illegal); background: transparent; }
+.as-head { display: flex; align-items: center; gap: 12px; }
+.as-head .main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.as-head .main b { font: 700 calc(17px * var(--ts, 1))/1.2 var(--font-ui); }
+.as-head .main span { font: 400 calc(14px * var(--ts, 1))/1.25 var(--font-voice); color: var(--ink-2); }
+.as-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.as-opt { min-height: 44px; }
+.as-opt .attn { margin-right: -2px; }
+.as-same { margin: 0; color: var(--ink-3); }
+.as-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; font: 400 calc(14px * var(--ts, 1))/1.3 var(--font-ui); }
+.as-line > span { min-width: 0; }
+
+/* ---- a hired counter: the side that is up (7.7.1g, 7.7.5d, 8.8.6) ---- */
+.ds-counter.xs { width: 30px; height: 30px; border-radius: 7px; }
+.ds-counter.hc { position: relative; }
+.ds-counter.hc[data-side=dark] { background: #8c846a; box-shadow: inset 0 0 0 2px #3a3322, 0 2px 5px rgba(0, 0, 0, .55); }
+.ds-counter.hc[data-side=dark] img { filter: brightness(.62) contrast(1.15); }
+.ds-counter.hc[data-side=red] { background: #b8493a; box-shadow: inset 0 0 0 2px #4b1a12, 0 2px 5px rgba(0, 0, 0, .55); }
+.ds-counter.hc[data-side=red] img { filter: sepia(.4) saturate(1.8) hue-rotate(-18deg) brightness(.85); }
+.ds-counter.hc .hc-eye { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: rgba(12, 14, 20, .78); display: grid; place-items: center; color: var(--ink); }
+.ds-counter.hc .hc-eye svg, .ds-counter.hc .hc-eye .ds-i { width: 11px; height: 11px; }
+.ds-counter.hc .hc-tag { position: absolute; left: 2px; right: 2px; top: 2px; font: 700 calc(12px * var(--ts, 1))/1 var(--font-ui); color: #fff6ec; text-align: center; text-shadow: 0 1px 2px #000; }
+.leavechip .ds-counter { margin-left: -6px; }
+
+/* ---- a leader's sheet ---- */
+.ls { display: flex; flex-direction: column; gap: 8px; }
+.ls-intro, .ho-intro, .sr-line { margin: 0; }
+.ls-facts { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding: 8px 0 2px; }
+.ls-fact { display: flex; align-items: center; gap: 10px; }
+.ls-fact span { display: flex; flex-direction: column; gap: 2px; }
+.ls-fact b { font: 700 calc(16px * var(--ts, 1))/1.1 var(--font-ui); }
+.ls-fact small { font: 500 calc(12px * var(--ts, 1))/1.1 var(--font-ui); color: var(--ink-3); }
+.ls-gold { margin: 0; font: 400 calc(15px * var(--ts, 1))/1.35 var(--font-voice); }
+.ls-gold b { font: 700 calc(17px * var(--ts, 1))/1.2 var(--font-ui); color: var(--c-gold); }
+.ls-disc { margin: 0; }
+.ls-follow { display: flex; flex-wrap: wrap; gap: 10px; }
+.ls-fl { display: inline-flex; align-items: center; gap: 8px; font: 600 calc(15px * var(--ts, 1))/1.2 var(--font-ui); }
+.ls-item .ds-btn { flex: none; }
+
+/* ---- give or take ---- */
+.ho { display: flex; flex-direction: column; gap: 10px; }
+.ho-dir { margin: 2px 0; }
+.ho-row .ho-check { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 2px solid var(--line-2); display: grid; place-items: center; color: var(--gold-hi); }
+.ho-row.sel .ho-check { border-color: var(--gold); background: var(--gold-wash-2); }
+
+/* ---- sunrise ---- */
+.sr { display: flex; flex-direction: column; gap: 12px; }
+.sr-row { gap: 12px; }
+.sr-row.first { border-color: var(--gold); background: var(--gold-wash); }
+.sr-n { flex: none; width: 22px; font: 700 calc(17px * var(--ts, 1))/1 var(--font-display); color: var(--ink-3); text-align: center; }
+
+/* ---- a fight where no character stood ---- */
+.un-fight { gap: 6px; }
+.un-lines summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font: 600 calc(14px * var(--ts, 1))/1 var(--font-ui); color: var(--ink-2); }
+.un-lines p { margin: 4px 0; font: 400 calc(14px * var(--ts, 1))/1.35 var(--font-voice); color: var(--ink-2); }
+
+/* the tray's chips for a hired follower and a gift: as wide as their words, not a row each */
+.ds-tray .ds-chip.spellact.leavechip, .ds-tray .ds-chip.spellact.handchip { width: auto; max-width: 100%; align-self: flex-start; }
+.as-opt { padding: 0 12px; }

@@ -15,7 +15,9 @@ import { act } from './actions.js';
 import { ACT_LABEL, TABLE_LABEL, modal, mrChit, showToast } from './kit.js';
 import { siteBlock, siteCardRow, row as siteRow } from './sheet_clearing.js';
 import { mountSheet } from '../kit/common.js';
+import { steedName } from '../../steeds.js';
 import { learnContent } from '../kit/spells.js';
+import { seatTurnEndSheet } from './leaders.js';
 import { render } from './shell.js';
 
 // Where a Search will be made, and what the map already shows of sites on this tile: a site in another clearing is not found from here.
@@ -50,6 +52,7 @@ export function describeSlot(G, s) {
     if (s.act === 'move') return `Move to ${nameOfClearing(s.to).replace(/ (\d+)$/, '\u00A0$1')}`;       // the number never wraps on its own line
     if (s.act === 'search') return s.table ? `Search: ${tableName(G, s.table)}` : 'Search';
     if (s.act === 'follow') return s.who ? `Follow ${playerNameOf(G.st, s.who)}` : 'Follow';
+    if (s.act === 'fly' && s.with) return s.with === 'chit' ? 'Fly on a Fly chit' : `Fly on the ${steedName(G.data, s.with) ?? 'steed'}`;          // (a Fly phase that chose its carrier: steedplan.js)
     return ACT_LABEL[s.act] ?? s.act;
 }
 
@@ -57,6 +60,7 @@ export function describeSlot(G, s) {
 // The day is not retold here (the Day Overview does that, review 02-18); a blocked turn names the phases that were lost. Story tells it in sentences (storyvoice.js turn-end helpers);
 // Detail keeps the rule words (the row, the Monster Roll).
 export function turnEndSheet(G) {
+    if (G.st.ch.leader) return seatTurnEndSheet(G);          // (a hired leader's turn is told of him, leaders.js)
     const t = G.st.turnEnd, story = isStory();
     const monsterIcon = n => G.data.art?.monstersColor?.[n] ?? G.data.art?.monsters?.[n] ?? null;
     const row = (cls, art, ...kids) => h('div', { class: `ds-row te-row ${cls}` }, art ? h('span', { class: /chit/.test(cls) ? 'chitwrap' : 'art' }, art) : null, h('span', { class: 'main' }, ...kids));

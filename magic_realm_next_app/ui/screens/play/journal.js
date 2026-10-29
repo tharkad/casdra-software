@@ -15,6 +15,7 @@ import { isStory, logText } from '../../voice.js';
 import { seatText } from './shared.js';
 import { CURSE_PLAIN, ico, modal, moveDetent } from './kit.js';
 import { prowlers, render } from './shell.js';
+import { steedAloft } from '../../steeds.js';
 
 const CURSE_SHORT = { Eyemist: 'you cannot Search', Squeak: 'you cannot Hide', Wither: 'asterisk chits cannot be played', 'Ill Health': 'you cannot Rest', Ashes: 'your gold is worthless', Disgust: 'your Fame is worthless' };
 
@@ -43,7 +44,7 @@ function notices(G) {
     if (magic.length) out.push(h('button', { class: 'ds-note', 'data-act': 'magic-day', onclick: () => { G.ui.sheet = 'calendar'; render(G); } }, ...magic.map(c => h('i', { class: `ds-dot ${c.toLowerCase()}` })), `${magic.join(' and ')} magic`));
     const fx = (st.fx ?? []).filter(f => f.state !== 'done');
     if (fx.length) out.push(h('button', { class: 'ds-note', 'data-act': 'spells', 'aria-label': `Spells in effect: ${fx.map(f => G.data.spells?.[f.spell]?.name ?? f.spell).join(', ')}`, onclick: () => { G.ui.sheet = 'spells'; render(G); } }, icon('spark'), `Spells (${fx.length})`));
-    const form = st.ch.morph ? `You are ${st.ch.morph.creature?.name ?? 'a creature'}` : st.ch.mist ? 'You are mist' : st.ch.flying ? `You are flying over ${tileName(st.ch.flying.tile)}` : null;
+    const form = st.ch.morph ? `You are ${st.ch.morph.creature?.name ?? 'a creature'}` : st.ch.mist ? 'You are mist' : st.ch.flying ? `You are flying over ${tileName(st.ch.flying.tile)}${steedAloft(st, G.data) ? ` on the ${steedAloft(st, G.data).name}` : ''}` : null;
     if (form) out.push(h('span', { class: 'ds-note', 'data-act': 'form' }, icon('eye'), form));
     const tonight = (st.period === 'daylight' || st.period === 'birdsong') && !st.combat && !st.ch.onRoad ? castOptions(st, G.data).filter(o => (o.useful || o.quiet) && !ATTACK_SPELLS[o.spell]) : [];
     if (tonight.length) out.push(h('button', { class: 'ds-note', 'data-act': 'cast-tonight', title: 'The game will stop and ask you this evening, even if nothing attacks', onclick: () => { G.ui.sheet = 'spells'; render(G); } }, icon('spark'), `Cast tonight: ${[...new Set(tonight.map(o => o.name))].join(', ')}`));

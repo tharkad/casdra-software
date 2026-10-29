@@ -2,6 +2,9 @@ import { lvl } from './core.js';
 import { cardChits, BOOTS, GLOVES, EXTRA, hasTreasure, extraActs } from './modifiers.js';
 import { isCave } from './world.js';
 
+// The five Enchanted cards: carried by a hired leader they stay activated (7.2.2b); he can activate nothing else.
+const ENCHANTED_CARDS = new Set(['sacred-grail', 'golden-icon', 'flowers-of-rest', 'dragon-essence', 'cloven-hoof']);
+
 // Everything a character can own is an item: { uid, kind: 'weapon'|'armor'|'horse'|'treasure', id, active, alerted, damaged, destroyed }.
 export function makeItem(st, kind, id, extra = {}) {
     st.uidSeq = (st.uidSeq ?? 0) + 1;
@@ -80,7 +83,7 @@ export function activeHorse(st) { return st.ch.items.find(i => i.kind === 'horse
 
 export function carryCapacity(st, data) {
     if (st.ch.morph) return lvl(st.ch.morph.creature.vuln);          // a creature carries what its vulnerability weight can (RS CharacterWrapper:863-868)
-    let c = -1;
+    let c = st.ch.leader ? lvl(st.ch.leader.moveStrength) : -1;      // a hired leader's move strength defines the weight he can carry (7.3.1g, 7.7.5e)
     for (const x of st.ch.chits) if (x.state === 'active' && x.type === 'move') c = Math.max(c, lvl(x.strength));
     for (const x of st.ch.chits) if (x.state === 'active' && x.alt?.mf) c = Math.max(c, lvl(x.alt.strength));          // a Magic chit changed by Unleash Power carries like a Move chit
     const h = activeHorse(st);
@@ -181,6 +184,7 @@ export function extraPhaseCommitment(st, data, it) {
 
 // Puts a newly acquired item into use if the slots it needs are free.
 export function autoEquip(st, data, it) {
+    if (st.ch.leader) { it.active = ENCHANTED_CARDS.has(it.id) && it.kind === 'treasure'; return; }          // a hired leader activates nothing, except that an Enchanted card he carries is active (7.2.2b)
     const slots = slotsOf(data, it);
     if (it.kind === 'treasure' && !slots.length) { if (!isOneUse(data, it)) it.active = true; return; }
     if (!slots.length) return;

@@ -1,4 +1,5 @@
 import { setArtPositions } from './layout.js';
+import { fillArtGaps } from './artbook.js';
 
 // Turns the raw JSON files (data/src/*.json, copied to app/data) into the lookups the engine uses.
 const byId = (list, key = 'id') => Object.fromEntries((list ?? []).map(x => [x[key], x]));
@@ -39,5 +40,6 @@ export async function loadData(base = 'data/') {
     await Promise.all(FILES.map(async f => { raw[f] = await (await fetch(`${base}${f}.json`)).json(); }));
     const d = indexData(raw);
     try { d.art = await (await fetch(`${base}../art/manifest.json`)).json(); } catch { d.art = null; }      // the pictures are optional
+    if (d.art) fillArtGaps(d.art, d);      // a name the main art has no picture for gets the rulebook's icon (never replaces a picture we have)
     return d;
 }

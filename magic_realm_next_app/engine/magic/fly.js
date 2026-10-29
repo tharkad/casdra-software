@@ -4,6 +4,7 @@ import { abandon, weightOf, nameOf } from '../items.js';
 import { followHero } from '../hire.js';
 import { fxList, expireFx, HERO } from './fx.js';
 import { adjacentTiles } from './util.js';
+import { steedSources, hasSteed, followersTakeOff, followersLand, followersLandWith, leftBehindOnFlight } from '../steeds.js';
 import { onArrive } from '../missions.js';
 
 // Flying (rules 7.3.3, 8.3.8e, 7.12.2d; docs/design/magic/02-day-spells.md section 8; RealmSpeak `CharacterWrapper.java` getFlyStrengthChits / land / mustFly and
@@ -53,6 +54,7 @@ export const flyAwayTiles = st => (st.ch.at ? adjacentTiles(st, tileOf(st.ch.at)
 export const FLY_SPELLS = ['broomstick', 'transform', 'absorb-essence'];
 export function canRecordFly(st, data) {
     if (st.ch.flying || flySources(st, data).length) return true;
+    if (hasSteed(st, data)) return true;                                                   // a Bat or Flying Dragon in his pay that follows him (7.3.3g; steeds.js)
     if (st.ch.morph?.creature?.flies) return true;
     if ((st.ch.spells ?? []).some(id => FLY_SPELLS.includes(id))) return true;
     return st.ch.items.some(i => i.kind === 'treasure' && i.id === 'flying-carpet' && !i.destroyed);
@@ -68,10 +70,13 @@ export function planFlyError(st, data, slots, i) {
     const airborne = prior.at(-1)?.act === 'fly';
     if (!airborne) {
         const flights = prior.filter((x, k) => x.act === 'fly' && prior[k - 1]?.act !== 'fly').length + 1;
-        const src = flySources(st, data);
-        if (!src.length) return 'you have nothing to fly with.';
-        if (!src.some(x => carries(st, x))) return 'you are too heavy to fly with that.';
-        if (flights > src.length && !src.some(x => x.morph)) return 'you have no Fly chit left for another flight.';
+        const src = flySources(st, data), rides = steedSources(st, data);          // (a steed is not used up: any number of flights)
+        if (s.with && s.with !== 'chit' && !rides.some(r => r.id === s.with)) return 'that is not a flying steed that follows you and can carry you.';
+        if (!(s.with ? s.with !== 'chit' : rides.length > 0)) {                          // on a steed nothing else is needed; on a Fly chit (or with no steed) there must be one, strong enough, and one for each flight
+            if (!src.length) return 'you have nothing to fly with.';
+            if (!src.some(x => carries(st, x))) return 'you are too heavy to fly with that.';
+            if (flights > src.length && !src.some(x => x.morph)) return 'you have no Fly chit left for another flight.';
+        }
     }
     let cur = st.ch.at ? tileOf(st.ch.at) : null;
     for (const x of prior) { if (x.act === 'move' && x.to) cur = tileOf(x.to); else if (x.act === 'fly' && x.to) cur = x.to; }
@@ -101,9 +106,11 @@ export function startFlight(st, data, to, src, by = 'fly') {
         if (left.length) text = ` You had to leave behind: ${left.map(i => nameOf(data, i)).join(', ')}.`;
         expireFx(st, data, src.fx, 'the Fly chit was used');                                // the spell ends; the Magic chit that cast it tires
     }
-    st.ch.flying = { tile: to, by };
+    const steed = src?.steed ?? st.ch.flying?.steed;                                      // a flight on a steed goes on, Fly phase after Fly phase, on the same steed (steeds.js)
+    st.ch.flying = { tile: to, by, ...(steed ? { steed } : {}) };
     st.ch.hidden = false;                                                                // he is unhidden the moment he flies
-    return `You fly to the ${tileName(to)}.${text}`;
+    if (src) followersTakeOff(st, data);                                                 // the Fly chits of followers who go up with him are in use (steeds.js)
+    return `You fly to the ${tileName(to)}${src?.steed ? ` on the ${src.name}` : ''}.${text}`;
 }
 
 // Hurricane Winds takes the hero: his horses and belongings go with him (the card), he leaves the fight, and he lands when his next day begins.
@@ -129,9 +136,12 @@ export function landingClearing(st, data, tile, what = 'Landing') {
 export function landHero(st, data, why = 'You land') {
     const f = st.ch.flying;
     if (!f) return null;
-    const to = landingClearing(st, data, f.tile);
+    const to = landingClearing(st, data, f.tile), from = st.ch.at;
     st.ch.flying = null; st.ch.at = to; st.ch.arrivedFrom = null;
     followHero(st, data);
+    leftBehindOnFlight(st, data, from);                                                  // hireling rules: the underlings who cannot fly stay where they were (7.3.3a.4)
+    followersLand(st, data);                                                             // a follower's Fly chit expires the instant its owner lands (4.6.7e.1)
+    followersLandWith(st, data, to);                                                     // the followers who flew with him (hireling rules: seats that follow) come down with him
     say(st, `${why} in ${nameOfClearing(to)}.`, 'phase');
     if (st.missions) onArrive(st, data, to);          // 7.2.4e.4: landing in the clearing of the Dwelling he carries a mission chit to completes the task
     return { to, cave: isCave(st, data, to) };

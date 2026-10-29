@@ -1,0 +1,44 @@
+/* css/ds-steeds.css: visitors in the Trade sheet and steeds in the air (app/ui/steeds.js, screens/kit/visitors.js, screens/kit/companysteed.js, screens/play/steeds.js, screens/play/steedplan.js,
+   combat/steedaim.js). Written against tokens.css and core.css; every target is 44px or more and no text is under 12px. */
+
+/* a visitor does not drink with you; his Spell cards and prices */
+.kit-nodrinks { margin: 0 0 6px; }
+.kit-spelloffer .kit-what { flex: 1; min-width: 0; }
+.kit-spelloffer .kit-pricebox { align-items: center; }
+.kit-erase .ds-row { min-height: 48px; }
+.kit-erase .ds-list { max-height: none; }
+.kit-leader .ms-chit { flex: none; }
+.ds-row .art .ds-px { image-rendering: pixelated; }
+
+/* a Fly chit on a hireling: a small round badge on the corner of its counter (the card says it in words too) */
+.st-badge { position: absolute; top: -6px; right: -6px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-3, #2a2f3a); border: 2px solid var(--gold); box-shadow: 0 1px 3px rgba(0, 0, 0, .6); pointer-events: none; }
+.st-badge .ds-px { width: 20px; height: 20px; }
+.st-badge.use { background: var(--gold-wash-2, #4a3a14); border-color: var(--gold-hi, #f1d27f); }
+.kit-counter { overflow: visible; }
+.st-note { margin: 0 0 6px !important; }
+
+/* in the air on a steed: the card in the tray, and the question of letting it go */
+.st-air { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-md); border: 1px solid var(--line-gold); background: var(--gold-wash); }
+.st-air .st-ico { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: var(--counter-face); box-shadow: inset 0 0 0 2px var(--counter-edge); }
+.st-air .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.st-air .main b { font: 700 calc(15px * var(--ts, 1))/1.2 var(--font-ui); color: var(--ink); }
+.st-air .main span { font: 400 calc(14px * var(--ts, 1))/1.3 var(--font-voice); color: var(--ink-2); }
+.st-air > .ds-btn { flex: none; min-height: 44px; min-width: 76px; }
+.st-air.asking { flex-direction: column; align-items: stretch; border-color: var(--danger); background: var(--danger-wash); }
+.st-air.asking .row2 { display: flex; gap: 8px; } .st-air.asking .row2 .ds-btn { flex: 1 1 0; min-width: 0; min-height: 44px; }
+
+/* the Fly phase of the plan: what carries you */
+.st-with { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.st-opts { display: flex; flex-direction: column; gap: 6px; }
+.st-opt { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 6px 12px; text-align: left; justify-content: flex-start; }
+.st-opt .st-opt-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.st-opt .st-opt-t b { font: 700 calc(15px * var(--ts, 1))/1.2 var(--font-ui); color: var(--ink); }
+.st-opt .st-opt-t small { font: 400 calc(12px * var(--ts, 1))/1.25 var(--font-ui); color: var(--ink-2); white-space: normal; }
+.st-opt.on { border: 2px solid var(--gold); background: var(--gold-wash-2); padding: 5px 11px; }
+@media (max-height: 700px) { .st-opts { flex-direction: row; } .st-opt { flex: 1 1 0; min-width: 0; } }
+
+/* the Broomstick's chooser in the cast sheet */
+.cb-aimbroom .cb-hint-sub { margin-top: 0; }
+.kit-spellsintro { margin: 0 0 8px; font-size: calc(14px * var(--ts, 1)) !important; color: var(--ink-2) !important; }
+.st-note { display: block; }
+.cb-aimbroom .cb-aim { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); margin-bottom: 4px; } .cb-aimbroom .cb-aim .ds-btn { padding: 0 8px; justify-content: center; }

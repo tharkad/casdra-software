@@ -11,10 +11,14 @@ import { isWeaponCard, nameOf } from '../../engine/items.js';
 import { commitmentOf, voiced } from '../commit.js';
 import { heldLockOf, mistWords, energizeWords, gearPairWhy, flyWords, voicedWhy } from '../spellwhy.js';
 import * as P from './payload.js';
+import { broomstickAim } from './steedaim.js';
 import * as M from './model.js';
 import { needsConfirm, needsWhom, whomBody } from './shared.js';          // (P6: the shared fight's extra step and its confirms)
 import { targetName as pvpTargetName } from '../pvp.js';
 import { DIRS, MNV, BOX, chitText, chitKindWord, chitName, nb, listOf, baseName } from './model.js';
+import * as SEC from './sections.js';
+import { sectionsStep } from './sections_ui.js';
+import { reviewButton } from './sections_review.js';          // (hirelings on Melee Sections: the Hires step)
 
 const hint = (text, cls = '') => h('p', { class: `cb-hint${cls ? ` ${cls}` : ''}` }, text);
 const qRow = (b, right = null) => h('div', { class: 'q' }, h('b', {}, b), right);
@@ -193,6 +197,7 @@ export function aimEl(X, a, store) {
     const { render } = X;
     store.aim ??= {}; store.aimParams ??= {};
     const sel = store.aim[a.spell] ??= a.options.slice(0, a.min).map(x => x.ref);
+    if (a.spell === 'broomstick' && a.options.length > 1) return broomstickAim(X, a, store);          // (himself or a Light hireling: steedaim.js)
     const pars = Array.isArray(a.params) ? a.params : [];
     // A spell that takes clearings (Talk to Wise Bird: which clearing to ask about) is aimed ON THE MAP, like a Move or a Fly: the screen names the choice and a button opens the map with every legal clearing ringed
     const onMap = a.options.length > 0 && X.peek?.map && a.options.every(o => o.ref.kind === 'clearing');
@@ -274,6 +279,7 @@ export function stepsFor(o, X = null) {
     if (o.shield) s.push({ id: 'shield', l: 'Shield' });
     if ((o.morphParts ?? []).length) s.push({ id: 'parts', l: 'Parts' });
     if (o.boxable.length >= 2) s.push({ id: 'foes', l: 'Foes' });
+    if (SEC.inPlay(o)) s.push({ id: 'sections', l: 'Hires' });          // (a round on Melee Sections: where your hirelings' counters stand)
     s.push({ id: 'roll', l: 'Roll' });
     return s;
 }
@@ -290,6 +296,7 @@ export function meleeSheet(X) {
     const nextBtn = next ? primary(`Next: ${next.l}`, { 'data-act': 'step-next', onclick: () => go(next.id) }) : null;
     const backBtn = prev ? btn('Back', 'quiet', { 'data-act': 'step-back', onclick: () => go(prev.id) }) : null;
     const eff = M.effortLine(st, o, m);
+    if (SEC.inPlay(o)) { const sx = SEC.extras(st, data, o, cb); m.secx = sx.extras; m.secErr = sx.error; } else { m.secx = null; m.secErr = null; }          // (the hirelings' plan: sent with the answer, and the engine's words when it is not allowed)
     const w = o.weapon, wname = w ? nameOf(data, w.item) : 'bare hands';
     const tgtName = m.target ? (pvpTargetName(st, data, m.target) ?? baseNameOf(st, data, o, m.target)) : null;
     let body, lead = backBtn, prim = nextBtn;
@@ -341,6 +348,8 @@ export function meleeSheet(X) {
         body = [h('div', { class: 'cb-fields' }, ...o.morphParts.map(pt => h('div', { class: 'cb-sum' }, h('span', { class: 'v' }, pt.name), h('span', { class: 'cb-aim' },
             h('button', { type: 'button', class: `ds-btn${!m.parts[pt.id] ? ' on' : ''}`, onclick: () => { delete m.parts[pt.id]; render(); } }, 'not now'),
             ...pt.sides.map(sd => h('button', { type: 'button', class: `ds-btn${m.parts[pt.id] === sd.side ? ' on' : ''}`, onclick: () => { m.parts[pt.id] = sd.side; render(); } }, sd.side))))))];
+    } else if (cur === 'sections') {
+        body = sectionsStep(X, o, m).body;
     } else if (cur === 'foes') {
         const rows = o.boxable.map((d, i) => { const b = m.boxes[d.uid] ?? (i % 3);
             return h('button', { type: 'button', class: 'cb-sum', 'data-place': d.uid, onclick: () => { m.boxes[d.uid] = (b + 1) % 3; render(); } }, h('span', { class: 'k' }, baseNameOf(st, data, o, d.uid)), h('span', { class: 'v' }, o.boxable.length > 3 ? MNV[b] : `${BOX[b]} box`), o.boxable.length > 3 ? null : h('span', { class: 'ds-tag gold' }, 'tap to move')); });
@@ -354,14 +363,18 @@ export function meleeSheet(X) {
         if ((o.aims ?? []).length) rows.push(sumRow('Aim', o.aims.map(a => `${a.name}: ${(m.aim?.[a.spell] ?? a.options.slice(0, a.min).map(x => x.ref)).map(r => a.options.find(q => sameRef(q.ref, r))?.label ?? '').filter(Boolean).join(', ') || 'as it falls'}`).join(' · '), () => go('aim')));
         rows.push(sumRow('Guard', m.moveChit ? `${MNV[m.moveDir]}, with ${chitText(M.moveList(o).find(x => x.id === m.moveChit) ?? st.ch.chits.find(x => x.id === m.moveChit))}` : `${MNV[m.moveDir]}, no chit`, () => go('guard')));
         if (o.shield) rows.push(sumRow('Shield', `guards ${DIRS[m.shieldDir]}`, () => go('shield')));
+        if (SEC.inPlay(o)) rows.push(sumRow('Hires', m.secErr ? 'Not allowed yet: open it' : `${o.sections.length} ${o.sections.length === 1 ? 'section' : 'sections'} set`, () => go('sections')));
         if (o.boxable.length >= 2) rows.push(sumRow('Foes', o.boxable.length > 3 ? `${o.boxable.length} creatures placed` : o.boxable.map((d, i) => `${baseNameOf(st, data, o, d.uid)} ${MNV[m.boxes[d.uid] ?? (i % 3)]}`).join(' \u00B7 '), () => go('foes')));
         if (m.fightChit && !m.target && w && !o.attackSpell) { m.weaponSide ??= w.item.alerted ? 'alerted' : 'unalerted'; rows.push(sumRow('Weapon', `ends ${m.weaponSide === 'alerted' ? 'alerted' : 'not alerted'}`, () => { m.weaponSide = m.weaponSide === 'alerted' ? 'unalerted' : 'alerted'; render(); }, 'data-weapon-side')); }
         body = [h('div', { class: `cb-fields${rows.length >= 4 ? ' two' : ''}` }, ...rows)];
         lead = leadText(eff.over ? h('span', { class: 'bad', style: 'color:var(--danger)' }, `${eff.text}: ${eff.words}.`) : [`${eff.text}: `, eff.words, '.']);
-        prim = primary(sh ? 'Seal your play' : 'Roll the dice', { 'data-act': 'commit', disabled: eff.over || confirmPending, onclick: () => X.sendMelee(o, m) });
+        prim = primary(sh ? 'Seal your play' : 'Roll the dice', { 'data-act': 'commit', disabled: eff.over || confirmPending || !!m.secErr, onclick: () => X.sendMelee(o, m) });
         if (eff.over) lead = leadText(h('span', { style: 'color:var(--danger)' }, `Put a chit back: ${M.limitWord(o.effortLimit ?? 2)} asterisks at most.`));
+        else if (m.secErr) lead = leadText(h('span', { style: 'color:var(--danger)' }, 'Your hirelings are not placed yet.'));
     }
-    return sheetEl(X, 'melee', stepper, ...body, foot(lead, prim));
+    const sheetNode = sheetEl(X, 'melee', stepper, ...body, foot(lead, prim));
+    if (cur === 'sections') sheetNode.classList.add('sec-step');          // (the cards scroll inside the sheet; the foot stays on screen)
+    return sheetNode;
 }
 const sumRow = (k, v, onclick, attr = null) => h('button', { type: 'button', class: 'cb-sum', ...(attr ? { [attr]: '' } : { 'data-sum': k.toLowerCase() }), onclick }, h('span', { class: 'k' }, k), h('span', { class: 'v' }, v), icon('right'));
 // the creature's name as the counter prints it ("Wolf #2")
@@ -405,7 +418,8 @@ export function resultSheet(X, facts) {
     // the counter legend, said once (QA-14): the numbers on a creature's counter
     const legend = legendUnseen() ? h('p', { class: 'cb-legend', 'data-legend': '1' }, 'On a counter: the number at the bottom left is its attack time; the number in the circle is how fast it moves. A blow of yours lands only if your time is lower than the circle.') : null;
     if (legend) prim.addEventListener('click', legendSeen);
-    return sheetEl(X, 'result', h('div', { class: 'cb-verdict' }, ...chips, ...tags), legend,
+    const rev = reviewButton(X);          // (a round on Melee Sections: where everything ended)
+    return sheetEl(X, 'result', h('div', { class: 'cb-verdict' }, ...chips, ...tags), rev ? h('div', { class: 'cb-recrow' }, rev) : null, legend,
         foot(btn('Record', 'quiet', { 'data-act': 'record', onclick: () => { cb.record = true; render(); } }), prim));
 }
 

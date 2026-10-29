@@ -6,6 +6,7 @@ import { expireDue } from './magic/fx.js';
 import { energizePass } from './magic/energize.js';
 import { worldFadesRoll } from './magic/combathide.js';
 import { mayAttackHero } from './rules/mayAttackHero.js';
+import * as hs from './hirestate.js';
 
 // One fight in one clearing with several characters (docs/design/multiplayer-step3.md).
 //
@@ -112,6 +113,7 @@ export function startBattle(st, data, clearing, ids) {
         });
     }
     b.hires = ids.flatMap(id => st.chars[id].today.combat.hires);
+    hs.combatStart(st, data, b);                                                             // (hireling rules: the hidden ones are noted, 8.1.4b)
     inSheet(st, ids[0], () => {
         for (const m of denizensIn(st, data, clearing)) {
             const den = parts.addDen(st, data, { kind: 'mon', id: m.id }); tally(st, `faced.${data.monsters[m.id].name}`);
@@ -414,6 +416,7 @@ function deployAll(st, data) {
         t.engagedBy ??= hire.uid;
         t.sheet = null;
         hire.target = t.uid;
+        hs.entered(st, data, hire);                                                         // (hireling rules: a hidden hireling sent at a creature is no longer hidden)
     }
 }
 
@@ -572,6 +575,7 @@ function finish(st, data) {
     say(st, `The fighting at ${b.at} is over.`, 'combat', null, { who: null });
     for (const id of b.order) st.chars[id].today.combat = null;
     st.asks = st.asks.filter(a => !b.order.includes(a.who) || !/^combat-/.test(a.pending.type));
+    hs.combatEnd(st, data, b);                                                              // (hireling rules: the counters are turned to the side their status calls for, 8.8.6)
     st.battle = null;
     return 'done';
 }

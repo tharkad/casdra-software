@@ -6,7 +6,9 @@ import { NO_EFFORT_LIMIT } from '../../engine/modifiers.js';
 import { nameOf } from '../../engine/items.js';
 import { withArticle, displayName, fixNames } from '../names.js';
 import { fxTags, HERO } from '../../engine/magic/fx.js';
+import { isSectionLine, sectionStory } from './sections_voice.js';          // (hirelings on Melee Sections: the Record tells their lines in Story too)
 import { standing } from '../missions.js';
+import { bookPic, isBookPic } from '../../engine/artbook.js';
 
 export const DIRS = ['Thrust', 'Swing', 'Smash'], MNV = ['Charge', 'Dodge', 'Duck'];
 export const BOX = ['Charge/Thrust', 'Dodge/Swing', 'Duck/Smash'];          // the red boxes of the melee sheet name both (rules 4.1, 8.4.6b)
@@ -55,13 +57,23 @@ export function foesPhrase(names) {
 // "Heavy Troll #1" with a no-break space before the tag, for any sentence or label that may wrap
 export const nbTag = s => String(s).replace(/ (?=#\d)/g, '\u00A0');
 export const nameOfDen = (st, data, d) => denSide(st, data, d).name;
-// the picture on the counter: the coloured monster art, else the plain one; natives have their own
-export function picOf(st, data, d) {
-    const c = st.combat;
-    if (d.kind === 'nat') return data.art?.natives?.[d.id] ?? null;
-    const owner = d.kind === 'part' ? c.dens.find(o => o.uid === d.partOf) : null;
-    const name = d.kind === 'mon' ? data.monsters[d.id]?.name : owner ? `${data.monsters[owner.id]?.name} ${data.monsters[owner.id]?.parts?.find(x => x.id === d.id)?.name ?? ''}`.trim() : null;
-    return name ? (data.art?.monstersColor?.[name] ?? data.art?.monsters?.[name] ?? null) : null;
+// The picture on the counter, for the side it shows: the coloured monster art, else the plain one, else the rulebook's own counter for that side (never null for a creature of the game while the
+// manifest has a picture of it; a counter with none still draws its frame and its name). Natives have their own; a hireling or a horse is looked up by what it is.
+export function picOf(st, data, d, side = d?.side) {
+    const art = data.art; if (!art || !d) return null;
+    const upgrade = (p, kind, key, id) => (isBookPic(p) ? (bookPic(art, kind, key, side, id) ?? p) : p);        // a gap-filled picture is the book's first side: show the side asked for
+    const natPic = id => { const n = data.natives?.[id]; return n ? upgrade(art.natives?.[id] ?? null, 'nat', n.type, id) : null; };
+    const monPic = id => { const m = data.monsters?.[id]; return m ? upgrade(art.monstersColor?.[m.name] ?? art.monsters?.[m.name] ?? bookPic(art, 'mon', m.name, side, id), 'mon', m.name, id) : null; };
+    if (d.kind === 'nat') return natPic(d.id);
+    if (d.kind === 'mon') return monPic(d.id);
+    if (d.kind === 'hire') return d.hireKind === 'nat' || d.hireKind === 'native' ? natPic(d.id) : monPic(d.id);
+    if (d.kind === 'horse') { const nm = data.natives?.[d.owner]?.horse?.name; return nm ? (art.horses?.[nm] ?? null) : null; }
+    if (d.kind === 'character') return art.characters?.[d.id] ?? null;
+    if (d.kind === 'part') {
+        const owner = st.combat?.dens?.find(o => o.uid === d.partOf), m = owner ? data.monsters?.[owner.id] : null, nm = m ? `${m.name} ${m.parts?.find(x => x.id === d.id)?.name ?? ''}`.trim() : null;
+        return nm ? upgrade(art.monstersColor?.[nm] ?? art.monsters?.[nm] ?? bookPic(art, 'mon', nm, side), 'mon', nm) : null;
+    }
+    return null;
 }
 // the side a tap turns it to (a monster with a dark and a red side goes light, dark, red, light)
 export function otherSide(data, d) {
@@ -272,7 +284,7 @@ export function recordRounds(st) {
         if (!by.has(l.r)) by.set(l.r, []);
         by.get(l.r).push(l);
     }
-    return [...by].map(([r, lines]) => ({ r, lines }));
+    return [...by].map(([r, lines]) => ({ r, lines: lines.map(l => (l.s == null && l.k === 'combat' && isSectionLine(l.t) ? { ...l, s: sectionStory(l.t) } : l)) }));          // (a line of a Melee Section has no story of the engine's own)
 }
 // The stamps a line of the record carries (a kill, a wound, what the armor did, a miss), read from its plain and its story words.
 export function stampsOf(l) {
@@ -308,7 +320,7 @@ export function alliesOf(st, data) {
             const pick = [['light', def.light], ['dark', def.dark]].find(([, sd]) => sd && sd.harm === hs.harm && sd.attackTime === hs.atk);
             if (pick) side = pick[0];
         } catch { /* the light side */ }
-        return { uid: x.uid, kind: x.kind, id: x.id, name: def?.name ?? '?', controlled: mon, days: mon && held?.controlledUntil ? null : until, side };
+        return { uid: x.uid, kind: x.kind, id: x.id, name: def?.name ?? '?', controlled: mon, days: mon && held?.controlledUntil ? null : until, side, hidden: !!x.hidden };          // (hidden: the hireling rules, 8.1.4b: he is in the fight but not yet seen)
     });
 }
 

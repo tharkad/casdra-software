@@ -4,6 +4,7 @@ import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, 
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
 import * as combat from './combat.js';
 import * as battle from './battle.js';
+import * as hirefight from './hirefight.js';
 import { makeItem, defOf, isWeaponCard, extraPhaseCommitment, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain, noteFind, nextDayGear, gearLockedWhy } from './items.js';
 import { lootFrom, lootSiteCard, groundPileAt, sitesHere, effortOptions, payEffort, applySearchResult, peerBlocked } from './search.js';
 import { hasCurse, liftCursesAtChapel } from './effects.js';
@@ -28,6 +29,9 @@ import { planFlyError, canRecordFly, flySources, flyTiles, carries, startFlight,
 import { ownedGold } from './magic/mist.js';
 import { resolveWho, settleActor, ownerOf, withActor, isMulti as multi, livingIds, playerNameOf } from './party.js';
 import * as meet from './meet.js';
+import { chooseSource, canFollowFlier } from './steeds.js';
+import * as hs from './hirestate.js';
+import * as leaders from './leaders.js';
 import * as missions from './missions.js';
 
 // The day loop (rules digest 01 section 4): Birdsong plan, Sunrise, Daylight phases, Sunset, Evening combat, Midnight.
@@ -42,6 +46,7 @@ export const PHASES = { basic: 2, sunlight: 2 };
 // (the Birdsong barrier, see `planned`).
 export function beginDay(st, data) {
     landDenizens(st, data);
+    hs.dawn(st, data);                                                 // (hireling rules: underlings are unhidden and follow nobody until Birdsong's assignment: hirestate.js)
     if (!multi(st)) return beginChar(st, data);
     st.period = 'birdsong';
     st.dayRec = null;
@@ -86,6 +91,8 @@ export function beginChar(st, data) {
     st.companions = [];
     for (const f of fxList(st, { spell: 'phantasm', target: HERO })) spawnCompanion(st, data, { kind: 'phantasm', fx: f.id });
     st.pending = { type: 'plan' };
+    { const u = hs.planInfo(st, data, st.ch.id); if (u) st.pending.underlings = u; }          // (hireling rules: the underlings to assign to guides, 6.3.1)
+    { const l = leaders.planInfo(st, data); if (l) st.pending.leader = l; }                    // (hireling rules: a leader's turn is recorded by his hirer, 6.2.5)
     if (st.companions.length) st.pending.companions = companionInfo(st, data);
     if (prophecyOn(st)) st.pending.prophecy = true;                  // Prophecy: no turn to record; he chooses each phase as it comes (action 'pick')
 }
@@ -221,7 +228,7 @@ export function validatePlan(st, data, slots, strict = false) {          // stri
 
 // A plan comes from outside the engine (a phone, a server): before it is recorded every slot must be nothing or a { act } whose names are text. One that is not (a move "to" nothing a clearing could be
 // called) used to be recorded and then threw every time its phase was played, so that the seat could do nothing again, and in a shared game the table waits for every seat (SOAK-3).
-const SLOT_TEXT = ['act', 'to', 'table', 'who'];
+const SLOT_TEXT = ['act', 'to', 'table', 'who', 'with'];          // ('with': how a Fly phase flies, a Fly chit or a steed, steeds.js)
 function slotShapeError(slots) {
     if (!Array.isArray(slots)) return 'A plan is a list of phases.';
     if (slots.length > 16) return 'A plan has at most sixteen phases.';
@@ -549,6 +556,7 @@ function endDaylight0(st, data) {
     if (!multi(st)) st.period = 'turn-end';                           // (with several the day stays in Daylight until the last chit has been played)
     // He always stops here: the end of the turn is where he sees whether he is hidden or seen going into the evening.
     st.pending = { type: 'turn-end' };
+    hs.finish(st, data);                                              // (hireling rules: his underlings are put back on the map and follow him no more, 7.7.3b)
 }
 
 function afterTurnEnd(st, data) {
@@ -566,6 +574,7 @@ function sunset(st, data) {
 function sunsetChores(st, data) {
     expireDue(st, data, 'sunset');
     for (const m of st.mons) if (m.hired && m.controlledUntil && st.day >= m.controlledUntil) { m.hired = false; delete m.hiredBy; m.controlledUntil = null; say(st, `Your control of the ${data.monsters[m.id].name} ends with the Sunset.`, 'combat'); }
+    leaders.prune(st, data);                                // (hireling rules: a monster let go closes its sheet; what it carried is left where it stands, 7.7.5e.2)
 }
 
 // Every character has played his turn: Sunset. The evening is fought one clearing at a time (ruling R-11), in the order of today's turns (R-6): the clearing of the character drawn first,
@@ -577,9 +586,17 @@ function sunsetAll(st, data) {
     const order = [...turns, ...st.order.filter(id => !turns.includes(id))].filter(id => !st.chars[id].dead), units = [], at = new Map();
     for (const id of order) {
         const c = st.chars[id];
+        if (c.leader) {                                                // (hireling rules: a hired leader fights as a hireling of his hirer's, not as a character; a clearing of leaders without a character has a fight of its own, 8.1.2b)
+            if (c.onRoad || c.flying || c.mist || !c.at) continue;
+            let u = at.get(c.at);
+            if (!u) { u = { at: c.at, ids: [], leaders: [] }; at.set(c.at, u); units.push(u); }
+            (u.leaders ??= []).push(id);
+            continue;
+        }
         if (c.onRoad || c.flying || c.mist || !c.at) { units.push({ at: null, ids: [id] }); continue; }             // (on a road, in the air or as mist: no clearing, no fight)
         let u = at.get(c.at);
         if (!u) { u = { at: c.at, ids: [] }; at.set(c.at, u); units.push(u); }
+        else if (!u.ids.length) { units.splice(units.indexOf(u), 1); units.push(u); }          // (a character is there: his chit is the clearing's, not the leader's, 8.1.2b)
         u.ids.push(id);
     }
     st.evening = { order, units, i: -1 };
@@ -590,11 +607,55 @@ function sunsetAll(st, data) {
 function nextEvening(st, data) {
     const ev = st.evening;
     ev.i++;
-    while (ev.i < ev.units.length && ev.units[ev.i].ids.every(id => st.chars[id].dead)) ev.i++;
-    if (ev.i >= ev.units.length) return meet.openWindow(st) ? undefined : midnight(st, data);          // (those who stand together may trade first, when one asked for it: R-5)
+    while (ev.i < ev.units.length && ev.units[ev.i].ids.length && ev.units[ev.i].ids.every(id => st.chars[id].dead)) ev.i++;
+    if (ev.i >= ev.units.length) return leaders.eveningEnds(st, data) ? undefined : meet.openWindow(st) ? undefined : midnight(st, data);          // (those who stand together may trade first, when one asked for it: R-5)
     const u = ev.units[ev.i], ids = u.ids.filter(id => !st.chars[id].dead);
+    if (!ids.length) { leaderOnlyFight(st, data, u); return nextEvening(st, data); }                  // (hireling rules: a clearing with hired leaders and no character, 8.1.2b)
     if (ids.length === 1) return withActor(st, ids[0], () => sunset(st, data));
     return sharedEvening(st, data, u.at, ids);
+}
+
+// A clearing that holds hired leaders (or controlled monsters) and no character still has its combat (8.1.2b): the hiring character fights it through his hirelings, from wherever he is.
+// The fight is the ordinary one, run for the first leader of each hirer as its "character": he is hidden, so nothing is set on him, the hirer's hirelings in the clearing (the leaders among
+// them) are his side, and the Meeting rolls are made by the hirer's relationships. The hirer's decisions in it (the Encounter step, the Melee plays) are not asked for: the hirelings fight as
+// they are deployed (combat.js deployHires) and nobody plays a chit; a fight in which the hirer has more to say is the hirer's own, when he stands in the clearing.
+function leaderOnlyFight(st, data, unit) {
+    const seen = new Set();
+    for (const id of unit.leaders ?? []) {
+        const c = st.chars[id];
+        if (!c || c.dead || seen.has(c.leader.hirer)) continue;
+        seen.add(c.leader.hirer);
+        const at = unit.at;
+        if (!st.mons.some(m => !m.dead && !m.hired && m.loc?.c === at) && !st.nats.some(n => !n.dead && !n.hired && n.loc?.c === at)) { withActor(st, id, () => say(st, 'A quiet evening.', 'day', tell.quiet(st))); continue; }
+        withActor(st, id, () => {
+            st.period = 'evening';
+            const was = st.ch.hidden;
+            st.ch.hidden = true;
+            say(st, `The evening falls on ${nameOfClearing(at)}, where ${st.ch.name} stands without ${st.chars[st.ch.leader.hirer].name}: the fighting is left to the hirelings.`, 'combat');
+            combat.startCombat(st, data, at);
+            for (let guard = 0; guard < 400 && st.combat && !st.combat.ended && st.pending; guard++) {
+                const p = st.pending; st.pending = null;
+                combatAction(st, data, unattended(p));
+            }
+            if (st.combat && !st.combat.ended) { st.combat.ended = true; st.combat.why = 'quiet'; }
+            hs.combatEnd(st, data, st.combat);
+            st.combat = null; st.pending = null;
+            st.ch.hidden = was;
+        });
+    }
+}
+// What nobody at the table decides: the answers of an unattended fight. Nothing is bought, nothing is paid, no native is attacked, no chit is played.
+function unattended(p) {
+    switch (p.type) {
+        case 'combat-drinks': return { kind: 'drinks', buy: false };
+        case 'combat-pay': return { kind: 'pay', pay: false };
+        case 'combat-choice': return { kind: 'choice', fight: false };
+        case 'combat-encounter': return { kind: 'encounter', act: 'pass' };
+        case 'combat-melee': return { kind: 'melee', target: null, fightChit: null, attackDir: 0, moveChit: null, moveDir: 1, shieldDir: 2, boxes: {} };
+        case 'combat-wounds': return { kind: 'wounds', chits: p.chits.slice(0, p.count) };
+        case 'combat-fatigue': return { kind: 'fatigue', chits: p.chits.slice(0, p.need) };
+        default: return { kind: 'over' };
+    }
 }
 
 // Several characters stand in one clearing. With nothing hostile there and no spell worth casting the evening is quiet (R-18); otherwise they fight together.
@@ -640,6 +701,7 @@ function evening(st, data) {
 function afterCombatStep(st, data) {
     const c = st.combat;
     if (c && c.ended) {
+        hs.combatEnd(st, data, c);                                    // (hireling rules: the counters are turned to the side their status calls for, 8.8.6)
         // a fight he won stops on a result screen of its own (the screens set st.pauseVictory; the computer players and the tests do not)
         if (c.why === 'won' && st.pauseVictory && !c.ack && !st.ch.dead) { st.pending = { type: 'combat-over', why: 'won', killed: c.killed ?? [], gain: c.roundGain ?? null }; return; }
         if (c.why === 'ran') runAway(st, data);
@@ -663,6 +725,7 @@ function died(st, data, carryOn = true) {
     st.companions = [];
     expireHires(st, data);
     breakAllFrom(st, data, HERO);                          // what he cast through his chits ends with him
+    leaders.prune(st, data);                               // (hireling rules: the leaders and monsters that were his lose their seats: what they carried is left where they stand)
     if (st.missions) missions.dropAll(st, data, st.ch);    // 7.2.4b: the mission and campaign chits he carried are put down where he fell (nothing is charged)
     // what he carried lies where he fell, and the day's chits go back face down as at Midnight
     const items = st.ch.items.filter(i => !i.destroyed).map(i => ({ ...i, active: false, alerted: false }));
@@ -679,6 +742,7 @@ function died(st, data, carryOn = true) {
     resetChitsAtMidnight(st);
     st.combat = null;
     st.period = 'over';
+    leaders.closeTable(st);
     st.over = { reason: 'died', day: st.day, by: st.slain?.by ?? null, text: st.slain?.text ?? null, at: st.slain?.at ?? st.ch.at };
     st.score = scoreGame(st, data);
     say(st, 'Your adventure ends here.', 'day');
@@ -690,7 +754,7 @@ function died(st, data, carryOn = true) {
 function gameEnds(st, data) {
     if (st.mode === 'endless') return false;
     if (st.mode === 'sudden') {
-        if (multi(st)) return !!(st.sudden && st.sudden.day === st.day && st.sudden.ended);            // (R-20: each qualifying player was asked, and one of them said end)
+        if (leaders.partyMulti(st)) return !!(st.sudden && st.sudden.day === st.day && st.sudden.ended);            // (R-20: each qualifying player was asked, and one of them said end)
         return goalsMet(st, data);
     }
     return st.day >= (st.lastDay ?? LAST_DAY);
@@ -703,7 +767,7 @@ const goalsMet = (st, data) => { const s = scoreGame(st, data); return s.rows.le
 // have answered), false when it waits for the answers.
 function suddenAsk(st, data) {
     if (st.sudden?.day === st.day) return !!st.sudden.done;
-    const ids = livingIds(st).filter(id => withActor(st, id, () => goalsMet(st, data)));
+    const ids = livingIds(st).filter(id => !st.chars[id].leader && withActor(st, id, () => goalsMet(st, data)));
     if (!ids.length) return true;
     st.sudden = { day: st.day, ids, ended: false, done: false };
     say(st, `Sudden Death: ${ids.map(id => playerNameOf(st, id)).join(' and ')} ${ids.length === 1 ? 'has' : 'have'} met every goal and may end the game now.`, 'day', null, { who: null });
@@ -727,7 +791,7 @@ function endOption(st, data, a) {
 // the order they always had.
 function midnight(st, data) {
     st.period = 'midnight';
-    if (multi(st) && st.mode === 'sudden' && !suddenAsk(st, data)) return;
+    if (leaders.partyMulti(st) && st.mode === 'sudden' && !suddenAsk(st, data)) return;
     const each = fn => { if (multi(st)) { for (const id of livingIds(st)) withActor(st, id, fn); } else fn(); };
     expireDue(st, data, 'midnight');                       // Combat spells end at Midnight (8.9.2)
     each(() => {
@@ -763,17 +827,19 @@ function midnight(st, data) {
         st.period = 'over';
         st.over = { reason: 'finished', day: st.day };
         say(st, 'The month ends.', 'day', null, multi(st) ? { who: null } : null);
-        if (multi(st)) {
+        if (leaders.partyMulti(st)) {
             st.score = scoreParty(st, data);
             for (const id of st.order) withActor(st, id, () => { st.pending = { type: 'over' }; });
             return;
         }
+        leaders.closeTable(st);
         st.score = scoreGame(st, data);
         st.pending = { type: 'over' };
         return;
     }
     st.day += 1;
     each(() => { if (!st.ch.onRoad) followHero(st, data); });                 // natives hired yesterday (who could not follow him on that day's Move) are with him again by Birdsong (7.11.3)
+    leaders.syncSeats(st, data);                                              // (hireling rules: a leader hired yesterday, a monster taken in hand, gets his seat; one let go loses it: leaders.js)
     beginDay(st, data);
 }
 
@@ -817,6 +883,7 @@ function forcedRest(st, data) {
 function executeSlot(st, data, slot, i) {
     const t = st.turn;
     if (!slot) { t.climb = null; return 'You do nothing.'; }
+    { const no = leaders.refuse(st, slot); if (no) { t.climb = null; return no; } }              // (hireling rules: no Enchant phase for a hired leader, no Trade or Hire for a controlled monster)
     { const lost = extraLost(st, data, slot, i); if (lost) { t.climb = null; return lost; } }
     const spent = slot.act !== 'nothing' && spentChits(st);
     if (spent && slot.act !== 'rest') {
@@ -861,14 +928,13 @@ function executeSlot(st, data, slot, i) {
 function doFly(st, data, slot) {
     const t = st.turn;
     t.climb = null;
-    if (multi(st)) for (const f of meet.followersOf(st, st.actor)) meet.dropFollower(st, data, f, 'cannot follow a flier');          // (7.11.6a.5: only a follower who can fly follows a flier; none is modelled)
+    if (multi(st)) for (const f of meet.followersOf(st, st.actor)) if (!canFollowFlier(st, data, f)) meet.dropFollower(st, data, f, 'cannot follow a flier');          // (7.11.6a.5: only a follower who can fly follows a flier: a flying controlled monster can, steeds.js)
     if (!flyTiles(st, data).includes(slot.to)) return 'That tile is too far away to fly to: the phase is lost.';
     let src = null;
     if (!st.ch.flying) {
-        const all = flySources(st, data);
-        if (!all.length) return 'You have nothing to fly with: the phase is lost.';
-        src = all.find(x => carries(st, x));
-        if (!src) return 'You are too heavy to fly with that: the phase is lost.';
+        const pick = chooseSource(st, data, slot, flySources(st, data), carries);          // a steed that follows him (steeds.js), or a Fly chit
+        if (pick.error) return pick.error;
+        src = pick.src;
     }
     return startFlight(st, data, slot.to, src);
 }
@@ -1051,7 +1117,7 @@ export function searchTables(st, data = null) {
     const here = st.ch.at;
     // Magic Sight (7.5.7) replaces Peer, Locate, Loot (site and ground) and Reading Runes; the site-card tables stay
     if (data && magicSightOn(st, data)) return ['magicsight', ...(st.ch.siteCards?.[here]?.length ? ['sitecard'] : [])];
-    return [...(peerBlocked(st, data, here) ? [] : ['peer']), 'locate', 'loot', ...((st.abandoned[here] ?? []).length ? ['ground'] : []), ...(st.ch.siteCards?.[here]?.length ? ['sitecard'] : []), ...(data && runesTargets(st, data).length ? ['runes'] : [])];
+    return [...(peerBlocked(st, data, here) ? [] : ['peer']), 'locate', 'loot', ...((st.abandoned[here] ?? []).length ? ['ground'] : []), ...(st.ch.siteCards?.[here]?.length ? ['sitecard'] : []), ...(data && !st.ch.leader && runesTargets(st, data).length ? ['runes'] : [])];
 }
 
 function doSearch(st, data, slot) {
@@ -1063,9 +1129,10 @@ function doSearch(st, data, slot) {
     }
     let table = slot.table;
     if (SIGHT_REPLACES.has(table) && magicSightOn(st, data)) table = 'magicsight';           // a plan that names an old table searches with Magic Sight instead
+    if (leaders.noTable(st, table)) return 'A hired leader cannot use the Reading Runes or Magic Sight tables (7.5.2).';
     if (table === 'magicsight') return magicSightOn(st, data) ? doMagicSight(st, data) : 'You are not using Magic Sight.';
     // Searching the Cairns costs an asterisk of effort for every Loot roll, found or not, paid before the roll; the player picks the chit.
-    if (table === 'loot' && !slot.paid && sitesHere(st)[0]?.name === 'Cairns') {
+    if (table === 'loot' && !slot.paid && !st.ch.leader && sitesHere(st)[0]?.name === 'Cairns') {          // (a hired leader pays no asterisk, 7.7.2c)
         const opts = effortOptions(st);
         if (!opts.length) return 'The Cairns demand an asterisk of effort for every roll, and you have none to give: you cannot search them.';
         if (opts.length === 1) say(st, payEffort(st, opts[0]), 'info');
@@ -1109,19 +1176,25 @@ export function apply(st0, data, action) {
     st.actor = who;
     // a seat marked away is played by the autopilot (server/autopilot.mjs): every answer it gives is labelled in the log, in public words (a plan or a play is not told)
     if (action.auto && multi(st)) say(st, `${playerNameOf(st, who)}'s autopilot answers: ${action.type}${action.kind ? ' ' + action.kind : ''}.`, 'day', null, { who: null });
+    leaders.alias(st);                                                  // (hireling rules: a leader trades and hires by his hirer's relationships: leaders.js)
     step(st, data, action);
+    leaders.afterStep(st, data);                                        // (hireling rules: the counter of a leader follows his seat, his Fame and Notoriety are the hirer's)
+    hs.sync(st, data);                                                  // (hireling rules: hidden status and the side of the counters follow what the action did)
+    leaders.unalias(st);
     settleActor(st, who);
     return st;
 }
 
 function step(st, data, action) {
     if (action.type === 'meet') return meet.act(st, data, action);          // characters meeting: an offer, an answer, a policy (meet.js); anyone may, with or without a question
+    if (action.type === 'hireling') return hs.act(st, data, action);        // assigning underlings to guides, letting them stay behind (hirestate.js); the hirer may, with or without a question
     const p = st.pending;
     if (multi(st) && st.offers && meet.openOffer(st, st.actor) && p) throw new Error(`wait: ${st.chars[meet.openOffer(st, st.actor).to].name} has not answered your offer yet (withdraw it to go on)`);
     if (!p) throw new Error(multi(st) ? `${st.ch.name} has nothing to answer now (it is not his turn, or the others are still to answer)` : 'nothing to do');
     switch (action.type) {
         case 'plan': {
             if (p.type !== 'plan') throw new Error('not planning');
+            hs.assign(st, data, st.ch.id, action.assign);                   // (hireling rules: the underlings' guides are named with the plan; throws before anything changes)
             st.pending = null;
             submitPlan(st, data, action.slots ?? [], action.companions ?? null, !!action.choose);
             if ((st.pending?.type === 'phase' || st.pending?.type === 'phase-pick') && action.autoplay) autoplay(st, data);
@@ -1243,7 +1316,7 @@ function step(st, data, action) {
         }
         case 'combat': {
             if (!st.combat) throw new Error('no combat');
-            const kindFor = { 'combat-pay': 'pay', 'combat-drinks': 'drinks', 'combat-choice': 'choice', 'combat-encounter': 'encounter', 'combat-melee': 'melee', 'combat-shift': 'shift', 'combat-wounds': 'wounds', 'combat-fatigue': 'fatigue', 'combat-over': 'over', 'combat-lure': 'lure', 'combat-charge': 'charge' };
+            const kindFor = { 'combat-pay': 'pay', 'combat-drinks': 'drinks', 'combat-choice': 'choice', 'combat-encounter': 'encounter', 'combat-melee': 'melee', 'combat-shift': 'shift', 'combat-wounds': 'wounds', 'combat-fatigue': 'fatigue', 'combat-over': 'over', 'combat-lure': 'lure', 'combat-charge': 'charge', 'combat-deploy': 'deploy' };
             if (kindFor[p.type] !== action.kind && !(p.type === 'combat-melee' && action.kind === 'aim')) throw new Error(`that is not what the fight is waiting for (${kindFor[p.type] ?? p.type})`);
             st.pending = null;
             if (st.combat.shared) {                                // a fight with other characters in it (battle.js): the fight takes the answer and goes on as far as it can
@@ -1336,6 +1409,7 @@ function step(st, data, action) {
                 st.pending = afterTidy(st, data, p);
                 return st;
             }
+            if (st.ch.leader) throw new Error('A hired leader can abandon belongings but cannot activate or deactivate them (7.2.2b).');
             toggleItem(st, data, it);
             say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOf(data, it)}.`, 'info');
             st.pending = afterTidy(st, data, p);                    // (under Prophecy an item can give an extra phase the moment he activates it)
@@ -1372,6 +1446,7 @@ function combatAction(st, data, a) {
         case 'choice': return combat.choiceAction(st, data, a.fight);
         case 'encounter': return combat.encounterAction(st, data, a);
         case 'melee': return combat.meleePlay(st, data, a);
+        case 'deploy': return hirefight.deployAction(st, data, a);          // hirelings on Melee Sections (option hireSections): luring and deployment, hirefight.js
         case 'aim': return combat.meleeAim(st, data, a);          // the Melee step in two answers: the spells first (ruling S8 / R3), then the plays
         case 'shift': return combat.shiftAction(st, data, a);
         case 'wounds': return combat.chooseWounds(st, data, a.chits);
@@ -1428,12 +1503,13 @@ function endGame(st, data, reason) {
     st.over = { reason, day: st.day };
     const why = { agreed: 'The players agree to end the game here.', limit: 'The game has reached its length limit and ends here.', left: 'Nobody is left on the map: the game ends.' }[reason] ?? 'The game ends here.';
     say(st, why, 'day', null, multi(st) ? { who: null } : null);
-    if (multi(st)) {
+    if (leaders.partyMulti(st)) {
         st.score = scoreParty(st, data);
         for (const id of st.order) withActor(st, id, () => { st.pending = { type: 'over' }; });
         settleActor(st, st.order.includes(st.actor) ? st.actor : st.order[0]);
         return st;
     }
+    leaders.closeTable(st);
     st.score = scoreGame(st, data);
     st.pending = { type: 'over' };
     return st;
@@ -1443,7 +1519,7 @@ function endGame(st, data, reason) {
 function leaveMap(st, data, { viaMove = false } = {}) {
     const c = st.ch, p = st.pending;
     if (!viaMove) {
-        if (!multi(st)) throw new Error('you cannot leave the map: end the game instead');
+        if (!leaders.partyMulti(st)) throw new Error('you cannot leave the map: end the game instead');
         if (c.dead) throw new Error('your character is dead');
         if (!p || !['plan', 'phase', 'phase-pick'].includes(p.type)) throw new Error('you can leave the map when you plan, or at the start of one of your phases');
         if (!c.at || c.onRoad || c.flying || c.mist) throw new Error('you can leave the map only from a clearing');
@@ -1455,6 +1531,7 @@ function leaveMap(st, data, { viaMove = false } = {}) {
     st.companions = [];
     expireHires(st, data);
     breakAllFrom(st, data, HERO);
+    leaders.prune(st, data);                                            // (hireling rules: his leaders and controlled monsters leave with him)
     c.items = [];                                                       // (they leave play with him)
     c.dead = true; c.hidden = false;
     c.death = { day: st.day, by: null, text: null, at: c.at, left: true };
@@ -1474,6 +1551,9 @@ function leaveMap(st, data, { viaMove = false } = {}) {
     st.chars[id].today.stage = 'gone';                                   // (turnDone marks a turn as played; he has left, which is not the same)
     return st;
 }
+
+// A leader whose seat is made while Birdsong is open (a world that is loaded) is asked for his plan like the others (leaders.js).
+leaders.hooks.beginChar = (st, data) => beginChar(st, data);
 
 // The fight shared by several characters needs two things this file does: a character who falls and one who runs.
 battle.hooks.died = (st, data) => died(st, data, false);

@@ -1,4 +1,5 @@
 import { sv } from './dom.js';
+import { isBookPic } from '../engine/artbook.js';
 
 // A monster counter drawn the way the game's own counters read: the picture, its name, the vulnerability in a circle (grey when armored), Fame
 // and Notoriety, the attack (harm letter, attack time, stars, and the weapon length in brackets) at the bottom left, and the move time in a blue
@@ -19,12 +20,21 @@ const star = (cx, cy, r) => {
 };
 
 export function monsterCounter({ s, side = 'light', picture = null, flies = false, size = 92, label = null }) {
+    s = s ?? { name: label ?? 'Unknown' };                 // a counter is never blank: with nothing to say it still shows its frame and a name
     const f = FACE[side] ?? FACE.light;
-    const svg = sv('svg', { viewBox: '0 0 100 100', width: size, height: size, class: `counter ${side}`, role: 'img', 'aria-label': label ?? `${s.name}, ${side} side` });
+    const svg = sv('svg', { viewBox: '0 0 100 100', width: size, height: size, class: `counter ${side}`, role: 'img', 'aria-label': label ?? `${s.name ?? 'Unknown'}, ${side} side` });
     svg.append(sv('rect', { x: 1.5, y: 1.5, width: 97, height: 97, rx: 9, fill: f.fill, stroke: f.edge, 'stroke-width': 3 }));
+    // The rulebook's own printed counter (used only where the main art has no picture) already carries the face colour and the figures: it fills the frame, under a name strip.
+    if (picture && isBookPic(picture)) {
+        svg.append(sv('image', { href: picture, x: 4, y: 4, width: 92, height: 92, preserveAspectRatio: 'xMidYMid meet', class: 'bookface' }));
+        svg.append(sv('rect', { x: 3, y: 3, width: 94, height: 17, rx: 6, fill: '#000', 'fill-opacity': 0.62 }));
+        const nm = String(s.name ?? '');
+        svg.append(sv('text', { x: 7, y: 15, 'font-size': nm.length > 16 ? 8 : nm.length > 11 ? 9 : 10, 'font-style': 'italic', 'font-weight': 600, fill: '#fff6ec' }, nm));
+        return svg;
+    }
     if (picture) svg.append(sv('image', { href: picture, x: 15, y: 16, width: 70, height: 66, preserveAspectRatio: 'xMidYMid meet' }));
     // name, small italic, top left
-    const name = s.name;
+    const name = String(s.name ?? '');
     svg.append(sv('text', { x: 6, y: 13, 'font-size': name.length > 16 ? 8 : name.length > 11 ? 9 : 10, 'font-style': 'italic', 'font-weight': 600, fill: f.text }, name));
     // vulnerability, top right
     if (s.vuln) {

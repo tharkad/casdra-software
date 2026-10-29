@@ -31,7 +31,7 @@ export function melee(o, m) {
     const w = o.weapon;
     const boxes = {}; o.boxable.forEach((d, i) => { boxes[d.uid] = m.boxes[d.uid] ?? (i % 3); });
     const spellAim = {}; for (const a of o.aims ?? []) spellAim[a.spell] = aimOf(a, m);
-    return A({ kind: 'melee', weaponSide: m.fightChit && !m.target && w ? (m.weaponSide ?? 'alerted') : undefined, parts: m.parts && Object.keys(m.parts).length ? { ...m.parts } : undefined, target: m.target, fightChit: m.fightChit, attackDir: m.attackDir, moveChit: m.moveChit, moveDir: m.moveDir, shieldDir: o.shield ? m.shieldDir : null, boxes, spellAim });
+    return A({ kind: 'melee', weaponSide: m.fightChit && !m.target && w ? (m.weaponSide ?? 'alerted') : undefined, parts: m.parts && Object.keys(m.parts).length ? { ...m.parts } : undefined, target: m.target, fightChit: m.fightChit, attackDir: m.attackDir, moveChit: m.moveChit, moveDir: m.moveDir, shieldDir: o.shield ? m.shieldDir : null, boxes, spellAim, ...(m.secx ?? {}) });          // (m.secx: what the hirer chose on Melee Sections: hireTargets, hireSides, positions; combat/sections.js)
 }
 // The Melee step in two answers (S8, R3): the spells first. They act before anyone plays a chit, and the options are read again after them.
 export function aim(o, m) {

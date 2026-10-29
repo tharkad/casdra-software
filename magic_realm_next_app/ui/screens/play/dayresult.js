@@ -9,7 +9,8 @@ const cap = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 // What the day's log says happened. `day` is the day that ended.
 export function daySummary(G, day) {
-    const st = G.st, lines = (st.log ?? []).filter(l => l.day === day);
+    // a hired leader's turns are told apart (leaders.js: the fights he had alone are their own block of the report): the day here is the player's own
+    const st = G.st, lines = (st.log ?? []).filter(l => l.day === day && (G.shared || !l.who || !st.options?.hirelingRules || st.chars?.[l.who] && !st.chars[l.who].leader));
     const kills = [], found = [], bought = [], sold = [], curses = [], hired = [];
     let wounds = 0, died = false;
     for (const l of lines) {

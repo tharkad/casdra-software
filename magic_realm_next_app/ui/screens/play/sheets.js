@@ -24,6 +24,7 @@ import { hireSheet, tradeSheet } from './sheet_trade.js';
 import { eveningContent } from '../kit/evening.js';
 import { phaseGearContent } from '../kit/phasegear.js';
 import { mountSheet } from '../kit/common.js';
+import { assignSheet, handoverSheet, leaderSheet, sunriseSheet } from './leaders.js';
 import { render } from './shell.js';
 import { setWelcomed, vpNow, welcomed } from './state.js';
 
@@ -42,6 +43,10 @@ export function sheets(G, lookOnly = false) {
     const out = [];
     const p = lookOnly ? null : G.st.pending;
     if (G.ui.sheet === 'bug') { out.push(bugSheet(G)); return out; }
+    // hired followers and leaders (leaders.js): who goes with whom (Birdsong), the draw of the Attention chits (Sunrise), a gift between a hirer and his leader (a phase's start)
+    if (G.ui.sheet === 'assign' && p?.type === 'plan') { out.push(assignSheet(G)); return out; }
+    if (G.ui.sheet === 'sunrise' && (!p || p.type === 'phase')) { out.push(sunriseSheet(G)); return out; }
+    if (G.ui.sheet === 'handover' && p?.type === 'phase') { out.push(handoverSheet(G)); return out; }
     if (G.shared && G.ui.sheet === 'draw') { out.push(drawSheet(G)); return out; }
     if (G.shared && p?.type === 'restart') { out.push(sharedRestartSheet(G, p)); if (G.ui.sheet === 'menu') out.push(menuSheet(G)); return out; }
     if (G.shared && p?.type === 'end-option') { out.push(endOptionSheet(tc(G), p)); return out; }
@@ -81,7 +86,7 @@ export function sheets(G, lookOnly = false) {
         { kind: 'result', bare: true, eyebrow: G.st.ch.name, footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }, 'Begin')) }));
     }
     else if (p?.type === 'plan' && G.st.day > 1 && G.ui.reportedDay !== G.st.day && G.ui.sheet !== 'plan') out.push(reportSheet(G));
-    else if (G.ui.sheet === 'char') out.push(charSheet(G));
+    else if (G.ui.sheet === 'char') out.push(G.st.ch?.leader ? leaderSheet(G) : charSheet(G));          // (a hired leader's sheet is his own: leaders.js)
     else if (G.ui.sheet === 'slot') out.push(slotSheet(G));
     else if (G.ui.sheet === 'clearing' && G.ui.sel) out.push(clearingSheet(G));
     else if (G.ui.sheet === 'menu') out.push(menuSheet(G));

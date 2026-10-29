@@ -14,6 +14,8 @@ import { alertCardWhy, weaponCardOf } from '../../commit.js';
 import { heldLockOf, voicedWhy } from '../../spellwhy.js';
 import { isMeetLine, meetButton, playerOf as playerNameOf } from '../../meet.js';
 import { turnOrderLine } from '../../party.js';
+import { leaderGame, seatName } from '../../leaders.js';
+import { steedAloft } from '../../steeds.js';
 import { askBox as ask, playersStrip } from '../../shared_ui.js';
 import { phasePrompt, storyRoll } from '../../storyvoice.js';
 import { guardIfChanged } from '../../tapguard.js';
@@ -22,13 +24,16 @@ import { blockCard, followCard, newDraft as newMeetDraft, resultCards, waitingCa
 import { noteCard, tableCards } from '../tableui.js';
 import { act } from './actions.js';
 import { noticeCards, takeChips } from './chits.js';
+import { airCard } from './steeds.js';
 import { journalFresh } from './journal.js';
+import { followerChips, meetWith, seatLine } from './leaders.js';
 import { ACT_LABEL, actArt, mc, showToast, tc } from './kit.js';
 import { phaseResultLine, searchWhere, tableName } from './phases.js';
 import { newDraft, planTray } from './plan.js';
 import { resultCardFor } from './result_card.js';
 import { seatText, sharedBanner, showPlayer, tableSheetDue } from './shared.js';
 import { render } from './shell.js';
+import { switchTo } from './hotseat.js';
 import { logEnd, myId, newMeetLines } from './state.js';
 
 // A line of the log in the current voice; at a table another seat's 'You' lines are told by name (QA-103).
@@ -124,10 +129,10 @@ export function renderTray(G) {
     const m = { last: null, body: [], situ: null, lead: null, primary: null, cls: [] };
     const fallen = !!st.ch.dead;                                           // (a fallen hero is not "in plain sight": QA-18)
     const hid = fallen ? 'fallen' : st.ch.hidden ? 'hidden' : 'in plain sight';
-    m.situ = situ(nb(where), hid);
+    m.situ = situ(nb(where), hid, seatLine(G));          // (a hired leader's turn says whose it is)
     // what he has become (a creature, mist, a flier) is part of where he is
     const form = st.ch.morph ? `a ${st.ch.morph.creature?.name ?? 'creature'}` : st.ch.mist ? 'mist' : st.ch.flying ? 'flying' : null;
-    if (form && !fallen) m.situ.querySelector('.tag').textContent = st.ch.flying ? 'in the air' : `${form} · ${hid}`;
+    if (form && !fallen) m.situ.querySelector('.tag').textContent = st.ch.flying ? (steedAloft(st, G.data) ? `on the ${steedAloft(st, G.data).name}` : 'in the air') : `${form} · ${hid}`;
     m.last = lastLine(G);
 
     // free spell actions at the start of a phase: wake a permanent spell with a colour chit, or use a Phase spell he is holding
@@ -138,12 +143,23 @@ export function renderTray(G) {
         ...(p.type === 'phase' ? (lock => (lock ? [h('button', { type: 'button', class: 'ds-chip spellact is-dim', 'data-act': 'protect-locked', 'aria-disabled': 'true', title: lock.detail, 'aria-label': `Use ${lock.names[0]}: ${lock.story}`, onclick: () => showToast(G, voicedWhy(lock), true) }, `Use ${lock.names[0]}`)] : []))(heldLockOf(st, G.data)) : []),
     ] : [];
 
+    // hired followers and hired leaders (hirelingRules): leave a follower behind at the start of a phase; give to or take from his own leader
+    if (p?.type === 'phase' && st.options?.hirelingRules) {
+        freeActs.push(...followerChips(G));
+        if (leaderGame(st) && meetWith(G).ok) freeActs.push(h('button', { type: 'button', class: 'ds-chip spellact handchip', 'data-act': 'handover-open', title: 'Give to him or take from him: it is done at once',
+            onclick: () => { G.ui.hand = null; G.ui.sheet = 'handover'; render(G); } }, `Give or take: ${seatName(st, meetWith(G).other)}`));
+    }
     if (planning) {
         // the plan tray (plan.js): tabs, one line, the nine actions, and Start the day
         const pl = planTray(G);
         m.last = null; m.situ = null; m.body = [pl.body]; m.lead = pl.lead; m.primary = pl.primary; m.cls.push('planning');
     } else if (!p) {
-        if (!G.shared) { m.body = [h('p', { class: 'ds-lead-text' }, 'Working...')]; }
+        // a seat with no question now (another seat of the party is asked): say whose turn it is, and the way to him
+        const asked = leaderGame(st) && !G.shared ? st.asks.find(a => a.who !== st.actor && st.chars[a.who]) : null;
+        if (asked) {
+            m.body = [ask(`It is ${seatName(st, asked.who)}\u2019s turn.`, 'This seat has nothing to answer now. Go on with the one the game is waiting for.', { compact: true })];
+            m.primary = primary(`To ${seatName(st, asked.who)}`, { 'data-act': 'to-asked', onclick: () => switchTo(G, asked.who) });
+        } else if (!G.shared) { m.body = [h('p', { class: 'ds-lead-text' }, 'Working...')]; }
     } else if (p.type === 'plan') {
         const openPlan = () => { G.ui.draft ??= newDraft(G); G.ui.sheet = 'plan'; render(G); };
         if (p.prophecy) {
@@ -220,6 +236,7 @@ export function renderTray(G) {
     }
     if (freeActs.length) m.body.push(h('div', { class: 'spellacts' }, ...freeActs));
     // mission, campaign and visitor chits (a game with the option): a notice card for what the engine just told (the week's flip, a delivery, a win, a failure), and a Take button for each chit in his clearing
+    if (!planning) { const air = airCard(G); if (air) m.body.unshift(air); }          // (in the air on a steed: who carries him, and a way to let it go: steeds.js)
     if (!planning) { m.body.unshift(...noticeCards(G)); const takes = takeChips(G); if (takes.length) m.body.push(h('div', { class: 'spellacts ms-takes', 'data-takes': String(takes.length) }, ...takes)); }
 
     // shared table: the players strip, the table's agreements, what others did in plain sight, the waiting card

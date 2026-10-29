@@ -10,6 +10,8 @@
 // Rules for what is written here (docs/design/DESIGN-TASTE.md section 5): short, concrete, a living world; no percentages, no "row N", no dice digits or
 // "(2+3)", no rules text, no "You:" lines; a number appears only where it is the news (gold, days, a clearing's name).
 import { narrateRoll, tell } from '../engine/story.js';
+import { SECTION_RULES, sectionRoll } from './combat/sections_voice.js';          // (hirelings on Melee Sections: the lines of hirefight.js)
+import { seatVoice } from './seatvoice.js';
 
 // ---------------------------------------------------------------- small tools
 const hash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
@@ -280,6 +282,23 @@ export function lootActLine(entry) {
     return null;
 }
 
+// ---- trade with a visitor (visitors.js: the Scholar, Shaman, Warlock and Crone are one person each, so every verb is singular; he sells Spell cards for gold, 7.6.7)
+const VIS = '(Scholar|Shaman|Warlock|Crone)';
+const visRule = (src, fn) => rule(new RegExp(src), fn);
+visRule(`^You pay (\\d+) gold to the ${VIS} and learn (.+?) \\(Type \\w+, [^)]+\\), and leave the card with the \\w+\\.?$`, m => [`The ${m[2]} takes ${m[1]} gold and teaches you ${m[3]}. The card stays with the ${m[2]}.`, `${m[1]} gold, and ${m[3]} is yours. The ${m[2]} keeps the card for the next seeker.`]);
+visRule(`^You learn (.+?) \\(Type \\w+, [^)]+\\), and leave the card with the ${VIS}\\.?$`, m => [`The ${m[2]} teaches you ${m[1]} as a favour, and keeps the card. You owe a debt now.`, `You come away with ${m[1]}, a favour from the ${m[2]}. The card stays behind.`]);
+visRule(`^You learn a spell from the ${VIS}\\.?$`, m => [`The ${m[1]} teaches you a new spell.`, `You come away from the ${m[1]} with a new spell.`]);
+visRule(`^The ${VIS} takes offence and blocks you`, m => `You give offence, and the ${m[1]} bars your way.`);
+visRule(`^The ${VIS} blocks you(?: \\(.*\\))?\\.?$`, m => [`The ${m[1]} bars your way.`, `The ${m[1]} steps in front of you.`]);
+visRule(`^The ${VIS} (?:refuse to sell|refuses to sell|will not sell)\\.?$`, m => [`The ${m[1]} turns away: nothing for sale.`, `The ${m[1]} will sell you nothing.`]);
+visRule(`^No deal: the ${VIS} will not sell \\(.*\\)\\.?$`, m => `The ${m[1]} turns you away.`);
+visRule(`^You refuse the (.+?)(?::|, so) the ${VIS} blocks you\\.?$`, m => `You refuse, and the ${m[2]} bars your way.`);
+visRule(`^You decide not to trade with the ${VIS}\\.?$`, m => [`You walk away from the ${m[1]} without a deal.`, `You thank the ${m[1]} and go.`]);
+visRule(`^You sell the (.+?) to the ${VIS} for (\\d+) gold`, m => [`The ${m[2]} takes your ${m[1]} for ${m[3]} gold.`, `The ${m[2]} pays ${m[3]} gold for your ${m[1]}.`]);
+visRule(`^You buy the (.+?) from the ${VIS} for (.+?)\\.?$`, m => [`The ${m[2]} lets the ${m[1]} go for ${m[3]}.`, `You buy the ${m[1]} from the ${m[2]}, ${m[3]} lighter.`]);
+visRule(`^The ${VIS} gives you the (.+?) as a favour`, m => `The ${m[1]} hands you the ${m[2]} as a favour. You owe a debt.`);
+visRule(`^You win back the ${VIS}'s goodwill for (.+?)\\.?$`, m => `The ${m[1]} thinks better of you again, for ${m[2]}.`);
+
 // ---- trade and hire
 rule(/^No one here will trade with you/, () => ['Nobody here will deal with you.', 'Nobody here has a thing to trade with you.']);
 rule(/^There is no one here to hire/, () => ['There is no one here to hire.', 'No one here is for hire.']);
@@ -316,6 +335,13 @@ rule(/^You let the natives be/, () => ['You leave the natives in peace.', 'You l
 rule(/^The (.+?) will fight you\.?$/, m => [`The ${m[1]} have settled on a fight.`, `The ${m[1]} want blood.`]);
 
 // ---- flying
+// on a steed (steeds.js: a hired or controlled Bat or Flying Dragon that follows him, 7.3.3g) and the things around it
+rule(/^You fly to the (.+?) on the (.+?)\.(?: You had to leave behind: (.+?)\.)?$/, m => { const left = m[3] && list(m[3].split(/,\s*/).map(x => `the ${x}`)); return [`You climb onto the ${m[2]} and cross to the ${m[1]}.${left ? ` You leave ${left} behind.` : ''}`, `The ${m[2]} takes you over the ${m[1]}.${left ? ` ${cap(left)} stays on the ground.` : ''}`]; });
+rule(/^You cannot ride that/, () => 'That one cannot carry you today: it is no flier of yours that follows you. The hour is lost.');
+rule(/^You send the (.+?) away\.?$/, m => [`You send the ${m[1]} away.`, `You let the ${m[1]} go its own way.`]);
+rule(/^Your steed is no longer yours: you and the (.+?) come down in (.+?)\.?$/, m => [`The ${m[1]} is yours no longer. The two of you come down together in ${m[2]}.`, `Your steed goes free, and you both come down in ${m[2]}.`]);
+rule(/^(.+?) cannot fly: (?:he|she|it) is left behind in clearing (\d+)\.?$/, m => `${m[1]} cannot fly, and is left behind in clearing ${m[2]}.`);
+rule(/^You release (.+?) from your service\.?$/, m => [`${m[1]} is released from your service and goes his way.`, `You let ${m[1]} go.`]);
 rule(/^You fly to the (.+?)\.(?: You had to leave behind: (.+?)\.)?$/, (m) => { const left = m[2] && list(m[2].split(/,\s*/).map(x => `the ${x}`)); return [`You rise and cross to the ${m[1]}.${left ? ` You leave ${left} behind.` : ''}`, `You take to the air toward the ${m[1]}.${left ? ` ${cap(left)} stays on the ground.` : ''}`]; });
 rule(/^(?:You land|Landing) in (.+?)\.?$/, m => [`You come down in ${m[1]}.`, `The air sets you down in ${m[1]}.`]);
 rule(/^That tile is too far away to fly to/, () => 'That tile is too far to reach on the wing. The hour is lost.');
@@ -397,6 +423,7 @@ rule(/^You give yourself away by naming a target/, () => 'Naming a target gives 
 rule(/^You stay hidden\. Nothing here can find you/, () => ['You keep still. The evening passes unnoticed.', 'Nothing finds you in the dark. The evening passes.']);
 rule(/^You strike down the (.+?)(?: \(.*\))?\.?$/, m => [`You strike down the ${m[1]}.`, `The ${m[1]} goes down under your blow.`]);
 rule(/^You hit the (.+?) but harm \w is not enough/, m => `Your blow bounces off the ${m[1]}.`);
+for (const [re, fn] of SECTION_RULES) rule(re, fn);          // (before the general lines about hirelings below: a horse that takes a blow, a hireling's blow)
 rule(/^(.+?) kills (?:the )?(.+?) for you\.?$/, m => `${cap(noHash(m[1]))} cuts down the ${noHash(m[2])} for you.`);
 rule(/^(.+?) hits (?:the )?(.+?) but (?:fails to kill|does not kill it)\.?$/, m => `${cap(noHash(m[1]))} wounds the ${noHash(m[2])}, but it stands.`);
 rule(/^(.+?) hits your (.+?) but it stands\.?$/, m => `${cap(noHash(m[1]))} strikes your ${m[2]}, but it stands.`);
@@ -474,6 +501,7 @@ rule(/^(.+?) leaves the map\.?$/, m => `${m[1]} walks off the map.`);
 rule(/^Protection from Magic is prepared/, () => 'Protection from Magic stands ready.');
 rule(/^Fog: a thick fog settles/, () => ['A thick fog settles over the tile. Nobody will see far in it.', 'Fog rolls over the tile and blots out the view.']);
 rule(/^Broomstick: you now hold a Fly chit/, () => 'A broomstick waits at your hand, ready to fly.');
+rule(/^Broomstick: your hireling now holds a Fly chit/, () => ['One of your people holds a broomstick now, and will follow you into the air.', 'A broomstick waits in the hand of your hireling, to follow you when you fly.']);
 rule(/^Melt into Mist: you turn to mist/, () => 'You thin to mist: nothing can touch you, and you can do little but drift.');
 rule(/^Blend Into Background: /, () => 'Tomorrow you will blend into the background, with an extra phase to hide.');
 rule(/^(?:Peace with Nature): the Warning and Sound chits/, () => 'The woods will keep quiet around you.');
@@ -494,6 +522,8 @@ rule(/^Your (.+?) is damaged\.?$/, m => `Your ${m[1]} is damaged.`);
 // ---------------------------------------------------------------- a roll, told
 const rollTale = (e, what, res, st, anchor) => {
     let m;
+    const sx = sectionRoll(what, res);          // (the dice of a Melee Section)
+    if (sx) return sx;
     const next = () => after(anchor ?? e, st);
     if ((m = /^Search: (Peer|Locate)$/.exec(what))) { const n = next(); return { title: m[1] === 'Peer' ? 'Peering' : 'Searching', line: n ? (storyOfBare(bare(n.t), n) ?? SEARCH_BASE[m[1]][res]) : (SEARCH_BASE[m[1]][res] ?? searchTale(e, m[1], res)) }; }
     if (what === 'Search: Magic Sight') {
@@ -527,7 +557,12 @@ const rollLines = log => {
 // The game state the screens are showing, set once per render by the shell (setStoryState), so that a roll in the dice tray can find the line that followed it without every
 // caller passing `st`. A state given to a function wins over it; with neither, a roll is told from its own record alone.
 let CTX = null;
-export const setStoryState = st => { CTX = st ?? null; };
+export const setStoryState = st => {
+    CTX = st ?? null;
+    // the seats of hired leaders and controlled monsters this game has had: what they do is told of them, not of "you" (seatvoice.js); remembered after a seat closes, so an old line stays as it was told
+    for (const id of st?.order ?? []) { const c = st.chars?.[id]; if (c?.leader) SEATS.set(id, { name: c.name, kind: c.leader.kind }); }
+};
+const SEATS = new Map();
 const after = (e, st) => {
     const log = (st ?? CTX)?.log; if (!log?.length) return null;
     const rolls = rollLines(log);
@@ -609,9 +644,10 @@ export function storyLine(entry, st = null) {
 export function lineFor(entry, voice = 'story', st = null) {
     if (!entry) return '';
     if (entry.p) return entry.p;
-    if (voice !== 'story') return entry.t ?? '';
-    const s = storyLine(entry, st) ?? entry.s;
-    return STORY_SWAPS[s] ?? s;
+    const seat = entry.who ? SEATS.get(entry.who) : null;
+    if (voice !== 'story') return seat ? seatVoice(entry.t ?? '', seat) : entry.t ?? '';
+    const s = storyLine(entry, st) ?? entry.s, told = STORY_SWAPS[s] ?? s;
+    return seat ? seatVoice(told, seat) : told;
 }
 // TODO (Mike, note 21): the whole Story text needs one big pass so it stops sounding generated. Until then, engine lines that talk about "blows" are swapped here (the engine's own text is shared with the stable game).
 const STORY_SWAPS = { 'The blows stop; neither side presses on.': 'The fighting dies down.' };

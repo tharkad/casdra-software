@@ -10,8 +10,13 @@ import { nameOf } from '../../../engine/items.js';
 import { alertCardWhy, voiced, weaponCardOf } from '../../commit.js';
 import { wouldDrop } from '../kit/kit.js';
 import { flyRefusal, flyWords, voicedWhy } from '../../spellwhy.js';
+import { MONSTER_PLAN_NOTE, PLAN_ONLY_NOTE, leaderGame, planActs, seatName } from '../../leaders.js';
+import { flyWarning } from '../../steeds.js';
+import { flyChoice, flySlot } from './steedplan.js';
 import { act } from './actions.js';
+import { followersLine, needsAssign, takeAssign } from './leaders.js';
 import { btn, primary } from '../../ds.js';
+import { isStory as isStoryVoice } from '../../voice.js';
 import { actIcon, icon } from '../../icons.js';
 import { ACT_LABEL, CURSE_ACT, CURSE_PLAIN, actArt, mc, showToast } from './kit.js';
 import { describeSlot, searchWhere } from './phases.js';
@@ -68,7 +73,10 @@ export function planSentence(items) {
 const PONY_WHY = 'The pony adds a Move only after a Move of your own: they take turns, and the first Move of the day is never the pony\u2019s.';
 function actChips(G, i, at, over, others, baseOver) {
     const d = G.ui.draft, s = d.slots[i], isSpare = planInfo(G).spare === i;
-    const acts = ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(G.st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(canRecordFly(G.st, G.data) || flyRefusal(G.st, G.data) ? ['fly'] : []), ...(G.shared && i === 0 && G.ms?.followable?.length ? ['follow'] : []), 'nothing'];
+    // a hired leader's plan (6.2.5): the engine names what he may record (`pending.leader.acts`); no Enchant, no Fly of his own, and a controlled monster no Trade or Hire
+    const L = planActs(G.st.pending), followable = i === 0 && G.ms?.followable?.length;
+    const acts = L ? [...L.acts.filter(a => a !== 'follow'), ...(followable ? ['follow'] : []), 'nothing']
+        : ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(G.st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(canRecordFly(G.st, G.data) || flyRefusal(G.st, G.data) ? ['fly'] : []), ...(G.shared && followable ? ['follow'] : []), 'nothing'];
     const n = acts.length;
     return h('div', { class: `ds-acts n${n}` }, ...acts.map(a => {
         const curse = (G.st.ch.curses ?? []).find(c => CURSE_ACT[c] === a), refused = actRefusal(G.st, a) ?? (a === 'fly' && flyRefusal(G.st, G.data) ? voicedWhy(flyRefusal(G.st, G.data)) : null);          // (a transformed hero cannot play a Fly chit: the chip stays, dim, and says so)
@@ -76,7 +84,8 @@ function actChips(G, i, at, over, others, baseOver) {
         const cardOnly = a === 'alert' && !readyMagicOf(G).length ? cardWhy(G) : null;          // (no Magic chit to wake either: the Alert would do nothing)
         const why = curse ? `${curse}: ${CURSE_PLAIN[curse] ?? 'it spoils this action.'}` : refused ?? (cardOnly ? `${cardOnly.story} There is nothing to ready.` : null) ?? (isSpare && a !== 'move' ? 'This phase is the pony\u2019s: it is for a Move only.' : spent ? (isSpare ? PONY_WHY : 'All your phases are taken.') : null);
         const dim = !!why;
-        return h('button', { type: 'button', class: `ds-act chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${curse ? ' cursed' : ''}`, 'data-slot': i, 'data-pick': a, 'aria-disabled': dim ? 'true' : null, title: why ?? undefined,
+        const serves = L?.recordOnly.has(a) ? (isStoryVoice() ? PLAN_ONLY_NOTE.story : PLAN_ONLY_NOTE.detail) : null;          // (a leader's Alert and Rest are for those who follow him)
+        return h('button', { type: 'button', class: `ds-act chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${curse ? ' cursed' : ''}${serves ? ' for-followers' : ''}`, 'data-slot': i, 'data-pick': a, 'data-for-followers': serves ? '1' : null, 'aria-disabled': dim ? 'true' : null, title: why ?? serves ?? undefined,
             onclick: () => { if (dim) { showToast(G, why, true); return; } pick(G, i, a, at[i]); } }, actIcon(actArt(a), 28), ACT_LABEL[a]);
     }));
 }
@@ -88,10 +97,10 @@ function askLine(G, i, step, total) {
         return h('div', { class: 'ds-plan-ask' }, h('span', {}, 'Where to? ', h('span', { class: 'ds-dim' }, (planLocations(G)[i] || G.st.ch.onRoad) ? 'Tap a ringed clearing.' : 'You are on a road; move to one of its ends first.')),
             btn('Back', 'quiet sm', { 'data-act': 'plan-back', onclick: () => { G.ui.pickMove = null; render(G); } }));
     }
-    const info = planInfo(G), pony = info.ponyAt.includes(i);
+    const info = planInfo(G), pony = info.ponyAt.includes(i), who = G.st.ch.leader ? `${seatName(G.st, G.st.ch.id)}, ` : '';          // (a seat's plan says whose it is)
     const text = info.spare === i ? h('span', { 'data-hint': 'pony-spare' }, h('span', { 'data-v': 'story' }, `Phase ${i + 1}: one more Move, the pony\u2019s.`), h('span', { 'data-v': 'detail' }, `Phase ${i + 1}: the pony\u2019s Move (7.3.2b.3: it alternates with yours).`))
         : s && pony ? h('span', {}, `Phase ${i + 1}: `, h('span', { class: 'ds-dim' }, `pony ${nb(describeSlot(G, s))}.`))
-        : s ? h('span', {}, `Phase ${i + 1} of ${total}: `, h('span', { class: 'ds-dim' }, nb(describeSlot(G, s)), '.')) : h('span', {}, `Phase ${i + 1} of ${total}: pick one.`);
+        : s ? h('span', {}, `${who}phase ${i + 1} of ${total}: `.replace(/^(\w)/, c => c.toUpperCase()), h('span', { class: 'ds-dim' }, nb(describeSlot(G, s)), '.')) : h('span', {}, `${who}phase ${i + 1} of ${total}: pick one.`.replace(/^(\w)/, c => c.toUpperCase()));
     const clearable = s && !roadLocked(G, i) && !climbLocked(G, i);
     return h('div', { class: 'ds-plan-ask' }, text,
         clearable ? btn(`Clear ${i + 1}`, 'quiet sm clearbtn', { onclick: () => { d.slots[i] = null; if (climbLocked(G, i + 1)) d.slots[i + 1] = null; G.ui.pickMove = null; G.ui.planNote = null; G.ui.planStep = i; if (info.ponyOn) pruneOver(G, 'the pony\u2019s Move needs a Move of your own before it'); render(G); } }) : null);
@@ -103,7 +112,8 @@ const WARN_RULE = { fly: '4.6.9c, 7.3.3a.1', mist: '8.4.5p.1' };
 function planWarnings(G) {
     const slots = G.ui.draft.slots, edge = edgeIndex(slots);
     return validatePlan(G.st, G.data, slots).warnings.filter(w => edge < 0 || w.i <= edge).map(w => {
-        const text = w.text.replace(/^Phase \d+: /, ''), rule = slots[w.i]?.act === 'fly' ? WARN_RULE.fly : WARN_RULE.mist;
+        const text = w.text.replace(/^Phase \d+: /, ''), rule = slots[w.i]?.act === 'fly' ? WARN_RULE.fly : WARN_RULE.mist, fw = slots[w.i]?.act === 'fly' ? flyWarning(text, slots[w.i], G.data) : null;          // (a steed or a Fly chit that is not there: steeds.js)
+        if (fw) return { ...w, copy: { story: `Phase ${w.i + 1}: ${fw.story}`, detail: `Phase ${w.i + 1}: ${fw.detail}` } };
         return { ...w, copy: { story: `Phase ${w.i + 1}: ${text} The phase will be lost when it comes. You can still change it.`, detail: `Phase ${w.i + 1}: ${text} It is recorded, then cancelled when tried (${rule}); nothing here is refused.` } };
     });
 }
@@ -139,6 +149,11 @@ function planHints(G, i, at) {
         if (heavy.length) out.push(line(`Too heavy for you now: this Move would leave ${heavy.join(', ')} behind. Put something down or use a stronger Move chit first.`, 'bad', { 'data-hint': 'leave-behind' }));
         if (G.ui.pickMove === i && G.ui.moveMaybe?.length) out.push(line(`Dotted: ${G.ui.moveMaybe.map(nameOfClearing).join(', ')} lie along a hidden path you have not found. Your earlier Search may find it; if it has not, this Move is lost.`));
     }
+    if (G.st.ch.leader && G.ui.pickMove !== i) {          // (a seat: what Alert and Rest are for, and what a creature cannot do)
+        const L = planActs(G.st.pending), only = L && [...L.recordOnly].some(a => s?.act === a || !s);
+        if (only) out.push(h('p', { class: 'ds-hint-line', 'data-hint': 'leader-plan' }, voiced(PLAN_ONLY_NOTE)));
+        if (L?.kind === 'mon' && !s) out.push(h('p', { class: 'ds-hint-line', 'data-hint': 'monster-plan' }, voiced(MONSTER_PLAN_NOTE)));
+    }
     if (G.st.ch.mist) out.push(line('As mist you can only move and hide.', 'bad'));
     else if (G.st.ch.morph) out.push(line(`In this shape you cannot ${['rest', 'trade', 'hire', 'enchant'].map(a => ACT_LABEL[a]?.toLowerCase() ?? a).join(', ')}.`, 'bad'));
     if (s?.act === 'move' && s.to && isMountain(G.st, G.data, s.to) && !climbLocked(G, i)) {
@@ -164,6 +179,7 @@ function subPicker(G, i, at) {
     }
     if (s?.act === 'fly' || G.ui.pickFly === i) {
         return [h('p', { class: 'ds-hint-line', 'data-hint': 'fly' }, voiced(flyWords(G.st, G.data), { 'data-own-wings': flySources(G.st, G.data).some(x => x.morph) ? '1' : null })),
+            ...flyChoice(G, i),
             h('div', { class: 'ds-chips' }, ...flyTiles(G.st, G.data).map(t => h('button', { type: 'button', class: `ds-chip${s?.to === t ? ' on' : ''}`, 'data-fly-tile': t, onclick: () => setFly(G, i, t) }, tileName(t))))];
     }
     if (s?.act === 'follow' && i === 0) return [h('div', { class: 'ds-sub-scroll' }, ...followPicker(mc(G), s, who => { d.slots = Array(9).fill(null); d.slots[0] = { act: 'follow', who }; G.ui.planNote = null; render(G); }))];
@@ -193,7 +209,7 @@ export function planTray(G) {
         const edge = edgeIndex(d.slots), upTo = edge >= 0 ? edge + 1 : total;          // (a plan that leaves the map ends there)
         const names = d.slots.slice(0, Math.min(total, upTo)).map((s, i) => ({ extra: kinds[i] === 'extra', what: s ? (s.to === EDGE ? 'Leave the map' : ACT_LABEL[s.act] ?? s.act) : 'Nothing' }));
         const sum = d.slots[0]?.act === 'follow' ? describeSlot(G, d.slots[0]) : planSentence(names);
-        kids.push(h('div', { class: 'ds-plan-ask' }, h('span', { class: 'ds-dim' }, `${sum}. Ready when you are.`)), ...warningLines(G));
+        kids.push(h('div', { class: 'ds-plan-ask' }, h('span', { class: 'ds-dim' }, `${sum}. Ready when you are.`)), ...warningLines(G), followersLine(G));
         lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `${Math.min(total, upTo)} of ${Math.min(total, upTo)}`), ' set');
     } else {
         kids.push(askLine(G, step, step, total));
@@ -219,14 +235,20 @@ export function planTray(G) {
     return { body: h('div', { class: 'ds-plan' }, ...kids), lead, primary: prim };
 }
 
-function startDay(G) {
+// Is every phase of the plan set (the primary is lit)?
+export function planWhole(G) { return !!G.ui.draft && firstUnset(G) == null && !planInfo(G).errors.length; }
+
+export function startDay(G) {
+    // hired followers: the day does not start before they are given a guide (or told to stay): the sheet of who goes with whom (leaders.js), which comes back here with its answer
+    if (needsAssign(G)) { G.ui.sheet = 'assign'; render(G); return; }
     const d = G.ui.draft, { total, kinds } = planInfo(G);
     // A phase that no longer exists (a move into a cave takes the sunlight phases away) is dropped, not refused.
     const slots = d.slots.map((s, i) => (!s || s.act === 'nothing' || i >= total || kinds[i] === 'over' ? null : s));
     const edge = slots.findIndex(s => s?.to === EDGE); if (edge >= 0) for (let k = edge + 1; k < slots.length; k++) slots[k] = null;
     if (slots[0]?.act === 'follow') for (let k = 1; k < slots.length; k++) slots[k] = null;
     G.ui.draft = null; G.ui.leaveMapAsk = null; G.ui.sheet = null; G.ui.planStep = 0; G.ui.peek = false; G.ui.sel = null; G.ui.pickMove = null; G.ui.pickFly = null; G.ui.planNote = null;
-    act(G, { type: 'plan', slots });
+    const assign = takeAssign(G);
+    act(G, { type: 'plan', slots, ...(assign ? { assign } : {}) });
 }
 
 // The first phase that has nothing attached yet (null when every phase has an action, or 'Nothing' chosen on purpose).
@@ -253,7 +275,7 @@ function startButton(G, nextTo) {
 function roadLocked(G, i) { return !!G.st.ch.onRoad && i === 0; }
 
 // Fly: the tile is chosen on the map (a ring on each tile he may fly over) or by the chip fallback; the day goes on to the next phase.
-export function setFly(G, i, t) { G.ui.draft.slots[i] = { act: 'fly', to: t }; G.ui.pickFly = null; G.ui.planNote = null; advance(G, i + 1); render(G); }
+export function setFly(G, i, t) { G.ui.draft.slots[i] = flySlot(G, i, t); G.ui.pickFly = null; G.ui.planNote = null; advance(G, i + 1); render(G); }
 
 export function newDraft(G) { const slots = Array(9).fill(null); if (G.st.ch.onRoad) slots[0] = { act: 'move', to: G.st.ch.onRoad.to }; return { slots }; }
 

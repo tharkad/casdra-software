@@ -2,6 +2,7 @@
 import { loadData } from '../../../engine/data.js';
 import { daySnapshot, finalize, newRecord } from '../../../engine/gamerecord.js';
 import { upgradeState } from '../../../engine/party.js';
+import { settleSeat, tableCrew } from './leaders.js';
 import { newGame } from '../../../engine/setup.js';
 import { getRecord, putRecord } from '../../gamestore.js';
 import { mountMap } from '../../mapview.js';
@@ -35,7 +36,7 @@ export function boot(G) {
                     G.mapBox.querySelector('.ds-state-host').dataset.archived = '';
                     return;
                 }
-                G.st = upgradeState(first.view); G.answer = first; G.standings = first.standings ?? []; G.ctx.state = G.st; G.crew = party(G.st, first, myId(G));
+                G.st = upgradeState(first.view); G.answer = first; G.standings = first.standings ?? []; G.ctx.state = G.st; settleSeat(G); G.crew = tableCrew(G, party(G.st, first, myId(G)));
                 if (G.st.period === 'over') { G.ui.overAuto = true; G.ui.sheet = 'over'; }          // (a finished game opens on its result)
                 G.map = mountMap(G.mapBox); wireShell(G);
                 G.mapBox.addEventListener('pointerdown', () => { G.ui.touched = Date.now(); }, { capture: true });
@@ -86,7 +87,7 @@ export function boot(G) {
             window.addEventListener('error', e => noteError(G, null, e.error ?? e.message, 'js'));
             window.addEventListener('pagehide', () => persist(G, true));
             G.map = mountMap(G.mapBox); wireShell(G);
-            window.__mr.game = { get st() { return G.st; }, act: act.bind(null, G), data: G.data, ui: G.ui, render: () => render(G) };
+            window.__mr.game = { get st() { return G.st; }, act: act.bind(null, G), data: G.data, ui: G.ui, render: () => render(G), get rec() { return G.rec; } };          // (rec: the game record, whose `moves` are every action the screen sent: tools/ui_leaders.py reads who each one was addressed to)
             G.map.set(mapModel(G), { refit: true });
             render(G);
             requestAnimationFrame(() => { G.map.fit(false); G.map.focus(G.st.ch.at, 1.5, false); G.lastHero = G.st.ch.at; });
