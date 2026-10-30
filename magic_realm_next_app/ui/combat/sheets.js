@@ -483,7 +483,7 @@ export function recapSheet(X, recap) {
 export function beatSheet(X, recap, how) {
     const by = how === 'died' && X.slain ? X.slain : null;
     const chips = [...(by ? [h('span', { class: 'ds-tag bad' }, `Slain by the ${by}`)] : []), h('span', { class: 'ds-tag' }, plural(recap.rounds, 'round')), ...(recap.kills.length ? [h('span', { class: 'ds-tag good' }, `${plural(recap.kills.length, 'foe')} slain`)] : [])];
-    return sheetEl(X, 'beat', h('div', { class: 'cb-recap' }, h('div', { class: 'big fallen' }, how === 'died' ? 'You have fallen' : 'Victory'), h('div', { class: 'cb-verdict', style: 'margin-top:8px' }, ...chips)),
+    return sheetEl(X, 'beat', h('div', { class: 'cb-recap' }, h('div', { class: 'big fallen' }, how === 'died' ? 'You have fallen' : how === 'quiet' ? 'The fight is over' : 'Victory'), h('div', { class: 'cb-verdict', style: 'margin-top:8px' }, ...chips)),
         foot(null, primary(how === 'died' ? 'Go on' : 'On to the night', { 'data-act': 'beat-ok', onclick: () => X.beatOk() })));
 }
 

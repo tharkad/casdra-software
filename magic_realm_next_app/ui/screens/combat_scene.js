@@ -306,8 +306,8 @@ export function combatBeat({ st, data, ui, render }) {
     if (how === 'died') hero.querySelector('.face')?.setAttribute('style', 'filter:grayscale(1) brightness(.6)');
     const stage = h('div', { class: 'cb-stage' }, h('div', { class: 'cb-foes noslot' }, ...foeEls), lanesEl({}), hero);
     const deathLine = [...st.log].reverse().find(l => l.k === 'combat' && /you are slain|vital spot|Every action chit is wounded/i.test(l.t)) ?? [...st.log].reverse().find(l => l.k === 'combat' && /You have died/i.test(l.t));
-    const story = how === 'died' ? M.nbTag(deathLine ? logText({ ...deathLine, s: deathLine.s ?? null }) : 'You have fallen.') : `${recap.kills.length ? `${M.cap(M.foesPhrase(recap.kills))} fell.` : ''} The clearing is yours.`;
-    const detail = how === 'died' ? (deathLine?.t ?? 'You have died.') : 'Combat is over: nothing hostile is left.';
+    const story = how === 'quiet' ? 'The blows stop. Neither side presses on.' : how === 'died' ? M.nbTag(deathLine ? logText({ ...deathLine, s: deathLine.s ?? null }) : 'You have fallen.') : `${recap.kills.length ? `${M.cap(M.foesPhrase(recap.kills))} fell.` : ''} The clearing is yours.`;
+    const detail = how === 'died' ? (deathLine?.t ?? 'You have died.') : how === 'quiet' ? 'The fighting dies down.' : 'Combat is over: nothing hostile is left.';
     const place = nameOfClearing(c.at).replace(/ (\d+)$/, '\u00A0$1');
     const root = h('section', { class: 'cb ds-screen', 'data-mode': 'beat', 'data-beat': how },
         h('div', { class: 'cb-top' }, h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', {}, `Evening · round ${recap.rounds}`))),

@@ -35,7 +35,7 @@ export function sharedFightHost(G, out) {
     return false;
 }
 
-// The beat after the last blow of a solo fight that the engine does not stop on: a death (the scene stays up one moment, then the results take over) or a win with no result screen of its own.
+// The beat after the last blow of a solo fight that the engine does not stop on: a death (the scene stays up one moment, then the results take over) or a win or a stand-off with no result screen of its own.
 // Called by sheets() before it decides there is no fight; sets G.ui.cbBeat.how when the beat is due. The scene remembers the round before the last blow (combat_scene.js, sendMelee).
 export function fightBeat(G) {
     const b = G.ui.cbBeat;
@@ -44,6 +44,7 @@ export function fightBeat(G) {
     if (G.shared || st.combat || st.day !== b.day) { if (!st.combat) G.ui.cbBeat = null; return false; }
     if (st.over?.reason === 'died' && st.ch.dead !== false) { b.how = 'died'; return true; }
     if (st.log.slice(b.logLen).some(l => l.t === 'Combat is over: nothing hostile is left.')) { b.how = 'won'; return true; }
+    if (st.log.slice(b.logLen).some(l => l.t === 'The fighting dies down.')) { b.how = 'quiet'; return true; }            // (both sides drew back: the fight ended with no kill and no result screen: note 62)
     G.ui.cbBeat = null;
     return false;
 }
