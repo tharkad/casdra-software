@@ -58,7 +58,7 @@ export function apartHint(g) {
     return { story, detail };
 }
 export const MAX_PARTY = 4;
-export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, party: [newMember('white-knight')], open: null, goalOpen: null, view: 'party', seed: Math.floor(Math.random() * 9999) + 1, missions: { on: false, place: [] }, options: { knightsAdjustment: false, watchfulNatives: false, quietMonsters: false, castAnytime: true } });
+export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, party: [], open: null, goalOpen: null, view: 'party', seed: Math.floor(Math.random() * 9999) + 1, missions: { on: false, place: [] }, options: { knightsAdjustment: false, watchfulNatives: false, quietMonsters: false, castAnytime: true } });
 
 
 export const vpTotal = g => g.length === 'month' ? 5 : g.length === 'custom' ? g.weeks + 1 : g.length === 'sudden' ? g.suddenVp : 5;
@@ -324,7 +324,7 @@ function partyStep(g, redraw, o) {
 
 // ---- the picker: every character on one screen. It adds a member (solo) or changes the one character of a seat (a race or a shared table) ----
 function pickerStep(g, redraw, replace) {
-    const pick = CHARACTERS.find(c => c.id === g.pick) ?? CHARACTERS[0];
+    const chosen = CHARACTERS.find(c => c.id === g.pick) ?? null, pick = chosen ?? CHARACTERS[0];
     const cell = k => {
         const inP = g.party.findIndex((m, idx) => m.id === k.id && !(replace && idx === 0)), by = takenBy(g, k.id), on = g.pick === k.id;
         return h('button', { type: 'button', class: `pt-pick${on ? ' on' : ''}${inP >= 0 || by ? ' in' : ''}`, 'data-char': k.id, 'aria-pressed': on ? 'true' : 'false', disabled: inP >= 0 || by ? true : null,
@@ -336,9 +336,10 @@ function pickerStep(g, redraw, replace) {
     const wide = Object.keys(pick.rel).length > 5;
     const kv = [...pick.perks.flatMap(([t, x]) => [h('dt', {}, t), h('dd', {}, x)]), h('dt', {}, 'Begins'), h('dd', {}, pick.gear ? pick.gear.replace(' and ', ', ') : 'With no weapon or armor'),
         ...(pick.spells ? [h('dt', {}, 'Spells'), h('dd', {}, `${pick.spells.n} to choose next`)] : [])];
-    return [h('p', { class: 'ds-voice lg ds-q' }, v2(replace ? 'Who will you be?' : 'Who joins you?', replace ? 'Choose your character.' : `Add a character: ${g.party.length} of ${MAX_PARTY} so far.`)),
+    return [h('p', { class: 'ds-voice lg ds-q' }, v2(replace || !g.party.length ? 'Who will you be?' : 'Who joins you?', replace || !g.party.length ? 'Choose your character.' : `Add a character: ${g.party.length} of ${MAX_PARTY} so far.`)),
         h('div', { class: 'pt-grid', role: 'group', 'aria-label': 'Characters' }, CHARACTERS.map(cell)),
-        h('div', { class: 'pt-prev', 'data-who': pick.id },
+        !chosen ? h('div', { class: 'pt-prev pt-none', 'data-who': '' }, h('p', { class: 'ds-voice' }, v2('Tap a character to read their card.', 'Tap a character to see the card and what they begin with.')))
+        : h('div', { class: 'pt-prev', 'data-who': pick.id },
             h('div', { class: `ds-who${wide ? ' wide' : ''}` },
                 h('button', { type: 'button', class: `ds-card-art${g.flip ? ' back' : ''}`, style: `background-image:url(${cardSrc(pick.id)})`, 'data-flip': '', 'aria-label': g.flip ? 'Turn the card back over' : 'Turn the card over to read its back', onclick: () => { g.flip = !g.flip; redraw(); } }),
                 h('div', { class: 'ds-who-main' }, h('h2', { class: 'ds-h2 ds-who-name' }, pick.name),
@@ -477,7 +478,7 @@ export function newGameScreen(ctx) {
         }
     }
     if (online && g.step < first) g.step = first;
-    if (online) g.party = g.party.slice(0, 1);                       // each seat of a race or a shared table runs one character
+    if (online) g.party = g.party.length ? g.party.slice(0, 1) : [newMember('white-knight')];   // each seat of a race or a shared table runs one character, and the seat needs one at once: online keeps the White Knight as its starting choice (solo games open on an empty picker, note 63)
     const closePicker = () => { g.view = 'party'; g._scroll = 0; g.flip = false; g.reveal = true; redraw(); };
     const back = () => {
         if (g.view === 'pick') { closePicker(); return; }
@@ -496,6 +497,7 @@ export function newGameScreen(ctx) {
         }
     };
     const start = () => {
+        if (!g.party.length) g.party.push(newMember('white-knight'));        // Quick start skips the party step: the White Knight rides
         syncTogether(g); fitVp(); ensureSpells(g.party);
         const lastDay = g.length === 'custom' ? g.weeks * 7 : 28;
         if (online) { startOnline(lastDay); return; }
@@ -528,10 +530,10 @@ export function newGameScreen(ctx) {
             ctx.go('game', { online: race, invited: online.mode === 'create' });
         } catch (e) { g.busy = false; g.note = e.message; redraw(); }
     }
-    const next = () => { if (g.step < STEPS.length - 1) { g.step += 1; g._scroll = 0; g.goalOpen = null; g.removeArm = null; redraw(); } };
+    const next = () => { if (g.step < STEPS.length - 1) { g.step += 1; g._scroll = 0; g.goalOpen = null; g.removeArm = null; if (g.step === 2 && !online && !g.party.length) openPicker(); else redraw(); } };
     const openPicker = () => {
         g.view = 'pick'; g.flip = false; g._scroll = 0; g.removeArm = null;
-        g.pick = online ? lead().id : (CHARACTERS.find(c => !g.party.some(m => m.id === c.id) && !takenBy(g, c.id)) ?? CHARACTERS[0]).id;
+        g.pick = online ? lead().id : g.party.length ? (CHARACTERS.find(c => !g.party.some(m => m.id === c.id) && !takenBy(g, c.id)) ?? CHARACTERS[0]).id : null;      // the first pick is the player's own: nothing is chosen for him
         redraw();
     };
     const pickOk = () => {
@@ -568,11 +570,11 @@ export function newGameScreen(ctx) {
         ensureSpells(g.party);
         const joinNote = online?.mode === 'join' && g.race ? `${summary(g)} · with ${g.race.players.join(', ')}${g.race.open ? ` · ${g.race.open === 1 ? 'one seat' : `${g.race.open} seats`} open` : ''}` : null;
         if (g.step === 2 && g.view === 'pick') {
-            const free = !g.party.some((m, idx) => m.id === g.pick && !(online && idx === 0)) && !takenBy(g, g.pick);
-            return [bar(online ? 'Change character' : 'Add a character', { onBack: back }),
+            const free = !!g.pick && !g.party.some((m, idx) => m.id === g.pick && !(online && idx === 0)) && !takenBy(g, g.pick);
+            return [bar(online ? 'Change character' : g.party.length ? 'Add a character' : 'Your character', { onBack: back }),
                 h('div', { class: 'ds-scroll ds-pad ds-wizbody', 'data-step': 'pick', onscroll: e => { g._scroll = e.target.scrollTop; } }, ...pickerStep(g, redraw, !!online)),
                 foot(h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'pick-back', onclick: closePicker }, 'Back'),
-                    h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'pick-ok', disabled: free ? null : true, onclick: pickOk }, online ? `Use the ${charOf(g.pick).name}` : `Add ${charOf(g.pick).name}`))];
+                    h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'pick-ok', disabled: free ? null : true, onclick: pickOk }, online ? `Use the ${charOf(g.pick).name}` : g.pick ? `Add ${charOf(g.pick).name}` : 'Choose a character'))];
         }
         const bodyEls = g.step === 0 ? typeStep(g, redraw) : g.step === 1 ? realmStep(g, redraw, ctx.go, ctx, { shared: shared && online?.mode === 'create', online: !!online })
             : g.step === 2 ? partyStep(g, redraw, { online: !!online, joinNote }) : goalsStep(g, redraw, !!online);

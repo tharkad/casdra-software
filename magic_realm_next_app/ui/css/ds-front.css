@@ -305,6 +305,8 @@
 .pt-prev { margin-top: 6px; padding: 12px 12px 14px; border-radius: var(--r-md); border: 1px solid var(--line-gold); background: var(--surface-2); }
 .pt-prev .ds-card-art { width: 96px; }
 .pt-prev .ds-kv { grid-template-columns: 62px 1fr; }
+.pt-prev.pt-none { border-style: dashed; border-color: var(--line-2); background: transparent; text-align: center; padding: 18px 14px; }
+.pt-prev.pt-none p { margin: 0; }
 
 .pt-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .pt-spellbody { display: block; }
