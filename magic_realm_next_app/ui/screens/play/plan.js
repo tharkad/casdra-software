@@ -294,7 +294,18 @@ function roadLocked(G, i) { return !!G.st.ch.onRoad && i === 0; }
 // Fly: the tile is chosen on the map (a ring on each tile he may fly over) or by the chip fallback; the day goes on to the next phase.
 export function setFly(G, i, t) { G.ui.draft.slots[i] = flySlot(G, i, t); G.ui.pickFly = null; G.ui.planNote = null; advance(G, i + 1); render(G); }
 
-export function newDraft(G) { const slots = Array(9).fill(null); if (G.st.ch.onRoad) slots[0] = { act: 'move', to: G.st.ch.onRoad.to }; return { slots }; }
+export function newDraft(G) {
+    const slots = Array(9).fill(null), to = G.st.ch.onRoad?.to;
+    if (to) {
+        slots[0] = { act: 'move', to };
+        // a road that ends in a mountain is a climb: the second Move goes in with the first (as setMove does)
+        if (isMountain(G.st, G.data, to)) {
+            const trial = slots.map((x, j) => (j === 1 ? { act: 'move', to } : x)), k = planKinds(G.st, G.data, trial);
+            if (k.total > 1 && ['basic', 'sunlight', 'extra'].includes(k.kinds[1])) slots[1] = { act: 'move', to };
+        }
+    }
+    return { slots };
+}
 
 function roadLockBox(G, d) {
     const r = G.st.ch.onRoad, cur = d.slots[0]?.to;
