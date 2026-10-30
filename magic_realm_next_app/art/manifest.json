@@ -180,7 +180,8 @@
   "Short Sword": "art/weapons/short_sword.gif",
   "Axe": "art/weapons/axe.gif",
   "Mace": "art/weapons/mace.gif",
-  "Spear": "art/weapons/spear.gif"
+  "Spear": "art/weapons/spear.gif",
+  "Alchemist's Mixture": "art/weapons/alchemists_mixture.svg"
  },
  "armor": {
   "Tremendous Suit of Armor": "art/armor/suitofarmor.gif",
