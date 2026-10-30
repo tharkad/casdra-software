@@ -6,6 +6,8 @@ import { render } from './shell.js';
 import { attentionOf, leaderGame, roleOf } from '../../leaders.js';
 import { ownSeats, seatBits } from './leaders.js';
 import { showToast } from './kit.js';
+import { icon } from '../../icons.js';
+import { playerOf } from '../../meet.js';
 
 // (a party of one player; and at a shared table, a player with hired leaders: his own seats)
 export const isHotSeat = G => !G.race && (G.shared ? leaderGame(G.st) && ownSeats(G).length > 1 : (G.st?.order?.length ?? 0) > 1);
@@ -30,11 +32,11 @@ export function renderParty(G) {
     if (bar.hidden) { bar.replaceChildren(); return; }
     const waiting = new Set(st.asks.map(a => a.who));
     bar.replaceChildren(...ownSeats(G).map(id => {
-        const c = st.chars[id], on = id === st.actor;
-        return h('button', { type: 'button', class: `pchip${on ? ' on' : ''}${waiting.has(id) ? ' ask' : ''}${c.dead ? ' dead' : ''}`, 'data-act': 'switch-char', 'data-char': id, 'aria-pressed': on ? 'true' : 'false',
-            'aria-label': `${c.name}${c.leader ? `, ${roleOf(st, id).toLowerCase()}, ${attentionOf(st, G.data, id)?.label.toLowerCase() ?? ''}` : ''}${waiting.has(id) ? ', waiting for you' : ''}`,
+        const c = st.chars[id], on = id === st.actor, guide = st.follows?.[id];          // (he follows a guide today: his turn is the guide's)
+        return h('button', { type: 'button', class: `pchip${on ? ' on' : ''}${waiting.has(id) ? ' ask' : ''}${c.dead ? ' dead' : ''}${guide ? ' fol' : ''}`, 'data-act': 'switch-char', 'data-char': id, 'aria-pressed': on ? 'true' : 'false',
+            'aria-label': `${c.name}${c.leader ? `, ${roleOf(st, id).toLowerCase()}, ${attentionOf(st, G.data, id)?.label.toLowerCase() ?? ''}` : ''}${guide ? `, follows ${playerOf(st, guide)}` : ''}${waiting.has(id) ? ', waiting for you' : ''}`,
             onclick: () => { if (id === st.actor) return; switchTo(G, id); } },
-            ...seatBits(G, id), c.name, waiting.has(id) ? h('i', { class: 'pwait', 'aria-hidden': 'true' }) : null);
+            ...seatBits(G, id), c.name, guide ? h('i', { class: 'pfol', 'aria-hidden': 'true', title: `follows ${playerOf(st, guide)}` }, icon('right')) : null, waiting.has(id) ? h('i', { class: 'pwait', 'aria-hidden': 'true' }) : null);
     }));
     bar.classList.toggle('seats', leaderGame(st));
     announceTurn(G);

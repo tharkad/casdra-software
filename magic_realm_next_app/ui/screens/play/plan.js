@@ -3,7 +3,7 @@ import { planKinds, phasesFor, validatePlan } from '../../../engine/day.js';
 import { canRecordFly, flySources, flyTiles } from '../../../engine/magic/fly.js';
 import { isCave, isMountain, nameOfClearing, numOf, tileName } from '../../../engine/world.js';
 import { h } from '../../dom.js';
-import { playerOf as playerNameOf } from '../../meet.js';
+import { FOLLOW_FIRST, followReason, playerOf as playerNameOf } from '../../meet.js';
 import { EDGE, actRefusal, canLeaveAt, destName, edgeIndex, planState } from '../../planlogic.js';
 import { followPicker } from '../meetui.js';
 import { nameOf } from '../../../engine/items.js';
@@ -69,24 +69,40 @@ export function planSentence(items) {
     return cap(bits.length > 1 ? `${bits.slice(0, -1).join(', ')} and ${bits.at(-1)}` : bits[0] ?? 'Nothing');
 }
 
+// Follow in the plan: one row per other character from the engine (`meetOptions(...).followWhy`, via meetState), or none in a game of one.
+const followRows = G => (G.fw?.followWhy ?? []);
+// Why the Follow chip is dim at phase `i`, in the voice he reads; null when it can be used
+function followDim(G, i, rows) {
+    if (i !== 0) return voicedWhy(FOLLOW_FIRST);
+    if (rows.some(r => r.ok)) return null;
+    return rows.length === 1 ? voicedWhy(followReason(rows[0])) : voicedWhy({ story: 'Nobody can be followed now.', detail: 'Nobody can be followed now.' });
+}
+// the note under the chips once a dim Follow was tapped: a line for each character, with what it would take
+function followNote(G, i) {
+    const rows = followRows(G);
+    if (G.ui.followNote !== i || i !== 0 || !rows.length || rows.some(r => r.ok)) return [];
+    return rows.map(r => h('p', { class: 'ds-hint-line', 'data-hint': 'follow-why', 'data-who': r.id }, voiced(followReason(r))));
+}
+
 // The nine (or eight, ten, eleven) actions as chips. A dim chip stays tappable and says why.
 const PONY_WHY = 'The pony adds a Move only after a Move of your own: they take turns, and the first Move of the day is never the pony\u2019s.';
 function actChips(G, i, at, over, others, baseOver) {
     const d = G.ui.draft, s = d.slots[i], isSpare = planInfo(G).spare === i;
     // a hired leader's plan (6.2.5): the engine names what he may record (`pending.leader.acts`); no Enchant, no Fly of his own, and a controlled monster no Trade or Hire
-    const L = planActs(G.st.pending), followable = i === 0 && G.ms?.followable?.length;
-    const acts = L ? [...L.acts.filter(a => a !== 'follow'), ...(followable ? ['follow'] : []), 'nothing']
-        : ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(G.st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(canRecordFly(G.st, G.data) || flyRefusal(G.st, G.data) ? ['fly'] : []), ...(G.shared && followable ? ['follow'] : []), 'nothing'];
+    // Follow (7.11) is always on the sheet when there is anyone to follow in the game (several characters); it is dim, with the reason, when it cannot be used
+    const L = planActs(G.st.pending), fRows = followRows(G), showFollow = fRows.length > 0;
+    const acts = L ? [...L.acts.filter(a => a !== 'follow'), ...(showFollow ? ['follow'] : []), 'nothing']
+        : ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(G.st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(canRecordFly(G.st, G.data) || flyRefusal(G.st, G.data) ? ['fly'] : []), ...(showFollow ? ['follow'] : []), 'nothing'];
     const n = acts.length;
     return h('div', { class: `ds-acts n${n}` }, ...acts.map(a => {
         const curse = (G.st.ch.curses ?? []).find(c => CURSE_ACT[c] === a), refused = actRefusal(G.st, a) ?? (a === 'fly' && flyRefusal(G.st, G.data) ? voicedWhy(flyRefusal(G.st, G.data)) : null);          // (a transformed hero cannot play a Fly chit: the chip stays, dim, and says so)
         const spent = !curse && !refused && a !== 'nothing' && a !== 'follow' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver;
         const cardOnly = a === 'alert' && !readyMagicOf(G).length ? cardWhy(G) : null;          // (no Magic chit to wake either: the Alert would do nothing)
-        const why = curse ? `${curse}: ${CURSE_PLAIN[curse] ?? 'it spoils this action.'}` : refused ?? (cardOnly ? `${cardOnly.story} There is nothing to ready.` : null) ?? (isSpare && a !== 'move' ? 'This phase is the pony\u2019s: it is for a Move only.' : spent ? (isSpare ? PONY_WHY : 'All your phases are taken.') : null);
+        const why = curse ? `${curse}: ${CURSE_PLAIN[curse] ?? 'it spoils this action.'}` : refused ?? (a === 'follow' ? followDim(G, i, fRows) : null) ?? (cardOnly ? `${cardOnly.story} There is nothing to ready.` : null) ?? (isSpare && a !== 'move' ? 'This phase is the pony\u2019s: it is for a Move only.' : spent ? (isSpare ? PONY_WHY : 'All your phases are taken.') : null);
         const dim = !!why;
         const serves = L?.recordOnly.has(a) ? (isStoryVoice() ? PLAN_ONLY_NOTE.story : PLAN_ONLY_NOTE.detail) : null;          // (a leader's Alert and Rest are for those who follow him)
         return h('button', { type: 'button', class: `ds-act chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${curse ? ' cursed' : ''}${serves ? ' for-followers' : ''}`, 'data-slot': i, 'data-pick': a, 'data-for-followers': serves ? '1' : null, 'aria-disabled': dim ? 'true' : null, title: why ?? serves ?? undefined,
-            onclick: () => { if (dim) { showToast(G, why, true); return; } pick(G, i, a, at[i]); } }, actIcon(actArt(a), 28), ACT_LABEL[a]);
+            onclick: () => { if (dim) { if (a === 'follow' && i === 0 && !fRows.some(r => r.ok)) { G.ui.followNote = i; render(G); return; } showToast(G, why, true); return; } pick(G, i, a, at[i]); } }, actIcon(actArt(a), 28), ACT_LABEL[a]);
     }));
 }
 
@@ -139,6 +155,7 @@ function planHints(G, i, at) {
     const d = G.ui.draft, s = d.slots[i], out = [];
     const line = (txt, cls = '', attrs = {}) => h('p', { class: `ds-hint-line ${cls}`.trim(), ...attrs }, txt);
     if (G.ui.planNote) out.push(line(G.ui.planNote, 'bad'));
+    out.push(...followNote(G, i));
     out.push(...warningLines(G));
     if (s?.act === 'search' && at[i]) out.push(line(searchWhere(G, at[i]), '', { 'data-hint': 'search-where' }));
     if (G.ui.pickMove === i || s?.act === 'move') {
@@ -182,7 +199,7 @@ function subPicker(G, i, at) {
             ...flyChoice(G, i),
             h('div', { class: 'ds-chips' }, ...flyTiles(G.st, G.data).map(t => h('button', { type: 'button', class: `ds-chip${s?.to === t ? ' on' : ''}`, 'data-fly-tile': t, onclick: () => setFly(G, i, t) }, tileName(t))))];
     }
-    if (s?.act === 'follow' && i === 0) return [h('div', { class: 'ds-sub-scroll' }, ...followPicker(mc(G), s, who => { d.slots = Array(9).fill(null); d.slots[0] = { act: 'follow', who }; G.ui.planNote = null; render(G); }))];
+    if (s?.act === 'follow' && i === 0) return [h('div', { class: 'ds-sub-scroll' }, ...followPicker(mc(G), s, who => { d.slots = Array(9).fill(null); d.slots[0] = { act: 'follow', who }; G.ui.planNote = null; render(G); }, followRows(G)))];
     return null;
 }
 
@@ -300,7 +317,7 @@ function pick(G, i, a, at) {
     if (roadLocked(G, i) || climbLocked(G, i)) return;
     if (actRefusal(G.st, a) || (a === 'fly' && flyRefusal(G.st, G.data))) return;
     if (a === 'alert' && !readyMagicOf(G).length && cardWhy(G)) return;
-    G.ui.pickMove = null; G.ui.pickSearch = null;
+    G.ui.pickMove = null; G.ui.pickSearch = null; G.ui.followNote = null;
     if (a === 'move') { G.ui.pickMove = i; G.ui.pickFly = null; render(G); return; }
     if (a === 'fly') { G.ui.pickFly = i; G.ui.pickMove = null; d.slots[i] = { act: 'fly' }; render(G); return; }
     if (a === 'follow') {

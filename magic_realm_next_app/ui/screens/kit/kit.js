@@ -266,7 +266,7 @@ export function itemContent(G, it, o = {}) {
         card ?? h('div', { class: 'kit-faces' }, ...faces),
         h('div', { class: 'kit-state' }, h('span', { class: `ds-tag ${stateTag[0]}`, 'data-state': it.active ? 'active' : 'inactive' }, stateTag[1]), sub ? h('span', { class: 'ds-meta' }, sub) : null, key ? h('span', { class: 'ds-meta' }, `${SLOTS.find(s => s[0] === key)[1]} slot`) : null),
         bound ? h('div', { class: 'ds-why kit-lock kit-committed', 'data-committed': it.uid }, icon('lock', 'kit-lockico'), voiced(bound)) : null,
-        factsOf(G, it),
+        card ? null : factsOf(G, it),                  // the cream card already says weight, price and Notoriety
         h('p', { class: 'ds-voice kit-story' }, storyLine(G, it)),
         h('details', { class: 'kit-detail' }, h('summary', {}, 'Detail'), ...facts.map(t => h('p', {}, t))),
         lock && !it.destroyed ? h('div', { class: 'ds-why kit-lock' }, icon('lock', 'kit-lockico'), lockText(lock, G)) : null,

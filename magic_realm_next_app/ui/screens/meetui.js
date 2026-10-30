@@ -14,10 +14,10 @@ import { askBox } from '../shared_ui.js';
 import { btn, primary, sect } from '../ds.js';
 import { icon, actIcon } from '../icons.js';
 import { footRow } from './kit/common.js';
-import { committedNote } from '../commit.js';
+import { committedNote, voiced } from '../commit.js';
 import { isStory } from '../voice.js';
 import { nameOfClearing } from '../../engine/world.js';
-import { playerOf, joinList, offerReading, madeReading, draftReading, BLOCK_WORDS, BLOCK_COST, FOLLOW_WORDS, DAYEND_SAYS, FOLLOW_EXPLAIN, meetLines } from '../meet.js';
+import { followReason, playerOf, joinList, offerReading, madeReading, draftReading, BLOCK_WORDS, BLOCK_COST, FOLLOW_WORDS, DAYEND_SAYS, FOLLOW_EXPLAIN, meetLines } from '../meet.js';
 
 const nb = s => String(s).replace(/ (?=\d)/g, ' ');
 const placeOf = id => { try { return nb(nameOfClearing(id)); } catch { return id; } };
@@ -219,13 +219,18 @@ export function policyBlock(c) {
 
 // ------------------------------------------------------------------------------------------------------------------------------- Follow, in the plan
 /** The plan's Follow: whom (a character in my clearing), and what it means. `slot` is the draft's first slot. */
-export function followPicker(c, slot, choose) {
+export function followPicker(c, slot, choose, rows = null) {
     const { st, ms } = c;
-    const names = ms.followable.map(f => ({ ...f, player: playerOf(st, f.id) }));
+    // every other character, from the engine's `followWhy` (the ones who cannot be followed now are dim and say why); without it, the ones in `followable`
+    const all = (rows ?? ms.followWhy ?? []).length ? (rows ?? ms.followWhy) : ms.followable.map(f => ({ ...f, ok: true }));
+    const names = all.map(f => ({ ...f, player: playerOf(st, f.id) }));
+    const goesLine = f => (f.goes && st.chars?.[f.goes] ? voiced({ story: `${st.chars[f.goes].name} is following ${playerOf(st, f.goes)} today: you would go with them.`, detail: `Already recorded to follow ${st.chars[f.goes].name}: a chain goes to its end, so you would go with ${st.chars[f.goes].name} too (7.11).` }) : null);
     return [
         h('p', { class: 'ds-hint-line', 'data-hint': 'follow' }, 'Follow takes your whole day: you record nothing else.'),
-        h('div', { class: 'ds-choices mt-followpick', role: 'radiogroup', 'aria-label': 'Whom to follow' }, ...names.map(f => h('button', { type: 'button', class: `ds-choice${slot?.who === f.id ? ' on' : ''}`, role: 'radio', 'aria-checked': slot?.who === f.id ? 'true' : 'false', 'data-follow': f.id, onclick: () => choose(f.id) },
-            h('span', { class: 'main' }, h('b', {}, `${f.player}`, h('em', {}, slot?.who === f.id ? 'following' : '')), h('span', { class: 'l' }, f.name)), h('span', { class: 'dot' })))),
+        h('div', { class: 'ds-choices mt-followpick', role: 'radiogroup', 'aria-label': 'Whom to follow' }, ...names.map(f => h('button', { type: 'button', class: `ds-choice${slot?.who === f.id ? ' on' : ''}${f.ok ? '' : ' dim'}`, role: 'radio', 'aria-checked': slot?.who === f.id ? 'true' : 'false', 'aria-disabled': f.ok ? null : 'true', 'data-follow': f.id,
+            onclick: () => { if (f.ok) choose(f.id); },
+            },
+            h('span', { class: 'main' }, h('b', {}, `${f.player}`, h('em', {}, slot?.who === f.id ? 'following' : '')), f.name !== f.player ? h('span', { class: 'l' }, f.name) : null, f.ok ? goesLine(f) : h('span', { class: 'mt-why', 'data-follow-why': '' }, voiced(followReason(f)))), h('span', { class: 'dot' })))),
         h('ul', { class: 'mt-explain ds-meta', 'data-follow-explain': '' }, ...FOLLOW_EXPLAIN.map(t => h('li', {}, t))),
         h('p', { class: 'ds-meta' }, 'Your plan is secret until Sunrise. If your guide is gone by then, or you both follow each other, you have no turn today.'),
     ];

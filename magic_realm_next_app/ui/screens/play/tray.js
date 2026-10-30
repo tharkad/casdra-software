@@ -27,6 +27,7 @@ import { noticeCards, takeChips } from './chits.js';
 import { airCard } from './steeds.js';
 import { journalFresh } from './journal.js';
 import { followerChips, meetWith, seatLine } from './leaders.js';
+import { followerCard } from './follow.js';
 import { ACT_LABEL, actArt, mc, showToast, tc } from './kit.js';
 import { phaseResultLine, searchWhere, tableName } from './phases.js';
 import { newDraft, planTray } from './plan.js';
@@ -159,7 +160,10 @@ export function renderTray(G) {
         if (asked) {
             m.body = [ask(`It is ${seatName(st, asked.who)}\u2019s turn.`, 'This seat has nothing to answer now. Go on with the one the game is waiting for.', { compact: true })];
             m.primary = primary(`To ${seatName(st, asked.who)}`, { 'data-act': 'to-asked', onclick: () => switchTo(G, asked.who) });
-        } else if (!G.shared) { m.body = [h('p', { class: 'ds-lead-text' }, 'Working...')]; }
+        } else if (!G.shared) {
+            const fc = followerCard(G);          // (a character who recorded Follow, or is following: whose turn is his, and the way to it)
+            if (fc) { m.body = fc.body; m.lead = fc.lead; m.primary = fc.primary; m.situ = null; m.last = null; } else m.body = [h('p', { class: 'ds-lead-text' }, 'Working...')];
+        }
     } else if (p.type === 'plan') {
         const openPlan = () => { G.ui.draft ??= newDraft(G); G.ui.sheet = 'plan'; render(G); };
         if (p.prophecy) {

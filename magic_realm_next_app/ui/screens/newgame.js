@@ -38,7 +38,25 @@ export const LENGTHS = [
 // A member is { id, start, spells (null until the spell list has loaded and the default is chosen), vp }.
 const charOf = id => CHARACTERS.find(c => c.id === id) ?? CHARACTERS[0];
 const zeroVp = () => ({ great: 0, spells: 0, fame: 0, notoriety: 0, gold: 0 });
-export const newMember = id => ({ id, start: charOf(id).starts[0], spells: null, vp: zeroVp() });
+export const newMember = id => ({ id, start: charOf(id).starts[0], together: false, spells: null, vp: zeroVp() });
+// "Start together" (a member after the first): his start place is the first member's, kept in step while it is on, so they begin in one clearing and can follow each other (7.11.3). It cannot be on
+// where the first member's place is not on his card; then it goes off by itself and he keeps the place he has.
+export const canTogether = (g, m) => { const f = g.party[0]; return !!f && f !== m && charOf(m.id).starts.includes(f.start); };
+export function syncTogether(g) {
+    g.party.forEach((m, i) => { if (i === 0) m.together = false; else if (m.together) { if (canTogether(g, m)) m.start = g.party[0].start; else m.together = false; } });
+}
+// who starts where: [[names of those at the first place], [names at the next]...] (one dwelling is one clearing)
+export const startGroups = g => { const by = new Map(); for (const m of g.party) by.set(m.start, [...(by.get(m.start) ?? []), charOf(m.id).name]); return [...by.entries()].map(([place, names]) => ({ place, names })); };
+const nameList = l => (l.length <= 1 ? (l[0] ?? '') : `${l.slice(0, -1).join(', ')} and ${l.at(-1)}`);
+// the hint on the roster when the party does not begin in one clearing
+export function apartHint(g) {
+    const grp = startGroups(g);
+    if (g.party.length < 2 || grp.length < 2) return null;
+    const names = grp.map(x => nameList(x.names));
+    const story = grp.length === 2 ? `${names[0]} start${grp[0].names.length === 1 ? 's' : ''} apart from ${names[1]}: Follow needs the same clearing.` : `${nameList(g.party.map(m => charOf(m.id).name))} start in ${grp.length} different places: Follow needs the same clearing.`;
+    const detail = `Start places differ (${grp.map(x => `${x.place}: ${nameList(x.names)}`).join('; ')}). Follow needs the guide in the follower\u2019s clearing at Birdsong (7.11.3).`;
+    return { story, detail };
+}
 export const MAX_PARTY = 4;
 export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, party: [newMember('white-knight')], open: null, goalOpen: null, view: 'party', seed: Math.floor(Math.random() * 9999) + 1, missions: { on: false, place: [] }, options: { knightsAdjustment: false, watchfulNatives: false, quietMonsters: false, castAnytime: true } });
 
@@ -247,8 +265,20 @@ function spellsSheet(g, i, redraw) {
     close = openSheet(frag);
 }
 
+// "Start together": the row of a member after the first (default off); it says where he begins and whether he and the first member can follow each other
+function togetherRow(g, m, i, redraw) {
+    const f = g.party[0], c = charOf(m.id), fc = charOf(f.id), can = canTogether(g, m), same = m.start === f.start;
+    const line = m.together ? v2(`Begins with the ${fc.name}, at ${the(f.start)}. If the ${fc.name} moves, so does ${c.her ? 'she' : 'he'}.`, `Start: ${f.start}, as the ${fc.name} (kept in step).`)
+        : !can ? v2(`The ${c.name} cannot begin at ${the(f.start)}, so ${c.her ? 'she' : 'he'} begins at ${the(m.start)}, apart from the ${fc.name}.`, `${f.start} is not on the ${c.name}\u2019s card (${c.starts.join(', ')}): he starts apart.`)
+        : same ? v2(`Already begins at ${the(m.start)}, where the ${fc.name} does: they can follow each other.`, `Start: ${m.start}, the same as the ${fc.name}: they can follow each other (7.11.3).`)
+        : v2(`Begins at ${the(m.start)}, apart from the ${fc.name}: Follow needs the same clearing.`, `Start: ${m.start}; the ${fc.name}: ${f.start}. Follow needs one clearing (7.11.3).`);
+    return h('div', { class: 'pt-together' }, switchRow({ title: 'Start together', line, on: !!m.together, label: ['Off', 'On'], attrs: { 'data-together': m.id, class: `ds-switch-row${can ? '' : ' dim'}`, 'aria-disabled': can ? null : 'true' },
+        onToggle: () => { if (!can) return; m.together = !m.together; if (m.together) m.start = f.start; redraw(); } }));
+}
+
 function partyStep(g, redraw, o) {
     const online = !!o.online, full = g.party.length >= MAX_PARTY;
+    syncTogether(g);
     if (!online && g.seed != null && !PLACES.has(g.seed) && g._placing !== g.seed) { g._placing = g.seed; placesFor(g.seed).then(() => redraw()).catch(() => {}); }
     const bad = incomplete(g);
     const auto = bad.length ? g.party.indexOf(bad[0]) : g.party.length === 1 ? 0 : -1;          // the row that needs attention opens itself
@@ -269,6 +299,7 @@ function partyStep(g, redraw, o) {
                     onclick: () => { m.start = d; redraw(); } }, d))),
                 h('p', { class: 'ds-why', style: 'margin:6px 0 0' }, nb(`${DWELL_NAME[m.start] ?? m.start}${placeOf(g, m.start) ? `, ${placeOf(g, m.start)}` : ''}. ${dwellingBrief(m.start, c) || (m.start === 'Ghosts' ? 'Where the dead gather: a Witch King’s own.' : '')}`)))
                 : h('div', {}, h('div', { class: 'lbl' }, 'Begins'), startLine(g, m), h('p', { class: 'ds-why', style: 'margin:6px 0 0' }, nb(`The ${c.name} has only the ${c.starts[0]} on ${c.her ? 'her' : 'his'} character card.`))),
+            i > 0 && !online ? togetherRow(g, m, i, redraw) : null,
             c.spells ? h('div', {}, h('div', { class: 'lbl' }, 'Spells', h('em', { class: nd ? 'pt-need' : 'pt-ok' }, `${(m.spells ?? []).length} of ${c.spells.n}`)),
                 !Array.isArray(m.spells) ? h('p', { class: 'ds-why' }, 'Loading the spell list…')
                     : h('span', { class: 'pt-chips' }, m.spells.map(spellChip), nd ? h('button', { type: 'button', class: 'pt-chip need big', 'data-act': 'spells', onclick: () => spellsSheet(g, i, redraw) }, icon('plus'), nd === 1 ? 'Choose 1 more' : `Choose ${nd} more`) : null))
@@ -285,7 +316,7 @@ function partyStep(g, redraw, o) {
     const right = !g.party.length ? 'none yet' : bad.length ? h('b', { class: 'pt-need' }, `${charOf(bad[0].id).name} needs ${needOf(bad[0])} more spell${needOf(bad[0]) === 1 ? '' : 's'}`) : online ? '' : full ? `${g.party.length} of ${MAX_PARTY}, full` : `${g.party.length} of ${MAX_PARTY}`;
     return [o.joinNote ? h('p', { class: 'ds-meta ds-joinbar', 'data-join': '' }, o.joinNote) : null, g.note && !g.busy ? h('p', { class: 'ds-why ds-qwhy', 'data-note': '' }, g.note) : null,
         partyPrompt(g, online),
-        g.party.length ? [sect(online ? 'Your character' : 'Your party', right), h('div', { class: 'pt-acc' }, g.party.map(row))]
+        g.party.length ? [sect(online ? 'Your character' : 'Your party', right), !online && apartHint(g) ? h('p', { class: 'ds-why pt-apart', 'data-apart': '' }, v2(apartHint(g).story, apartHint(g).detail)) : null, h('div', { class: 'pt-acc' }, g.party.map(row))]
             : h('div', { class: 'pt-empty' }, h('div', { class: 'pt-seats' }, [0, 1, 2, 3].map(i => h('span', { class: 'pt-seat' }, String(i + 1)))), h('p', { class: 'ds-voice' }, v2('No one yet. Add a character to begin. You can bring up to four.', `Choose at least one character. Up to ${MAX_PARTY}, all yours.`)), h('p', { class: 'ds-why' }, 'Add character is below.')),
         g._shared ? h('p', { class: 'ds-why', 'data-sealed': '' }, 'Your goals and starting spells are sealed: the others see them only when the game is over.') : null,
         !online && g.party.length && !full ? h('p', { class: 'ds-why', style: 'margin-top:10px' }, 'Each character keeps his own spells, starting place and goals. Goals are chosen next.') : null];
@@ -465,7 +496,7 @@ export function newGameScreen(ctx) {
         }
     };
     const start = () => {
-        fitVp(); ensureSpells(g.party);
+        syncTogether(g); fitVp(); ensureSpells(g.party);
         const lastDay = g.length === 'custom' ? g.weeks * 7 : 28;
         if (online) { startOnline(lastDay); return; }
         const members = g.party.map(m => ({ id: m.id, vp: { ...m.vp }, startDwelling: m.start, spells: spellsOf(m) }));

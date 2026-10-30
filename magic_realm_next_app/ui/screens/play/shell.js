@@ -272,6 +272,8 @@ export function render(G) {
     }
     else if (!G.race && leaderGame(G.st)) G.ms = meetState(G.st, G.data, G.st.actor, null);          // (the party of one player: the plan's Follow reads who may be followed)
     else G.ms = null;
+    // Follow (7.11) reads who may be followed: in a hot seat (one player, several characters) there is no table, so no meeting rows (`G.ms` stays null), but the plan still needs the Follow answer
+    G.fw = G.ms ?? (!G.race && (G.st.order?.length ?? 0) > 1 ? meetState(G.st, G.data, G.st.actor, null) : null);
     G.ui.onSheetMove = () => setTimeout(() => { if (G.root.isConnected) syncCamera(G); }, 320);           // a decision sheet dropped to a peek (or came back): the camera follows once it has settled
     const model = mapModel(G);                           // first: it settles which clearings are ringed (G.ui.moveTargets), which the plan reads
     renderStrip(G);

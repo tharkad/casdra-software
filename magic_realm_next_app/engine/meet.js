@@ -540,7 +540,7 @@ export function shareFind(st, before) {
 // For character `who`, only what he may know: with whom he may trade right now and what of theirs he can see to ask for, what he has to give (belongings, gold, the discoveries that belong to
 // this clearing), whom he could follow at Birdsong, his standing policy, and which window (if any) is open. Nothing in it is another character's secret.
 export function meetOptions(st, data, who) {
-    const me = st.chars[who], out = { window: null, partners: [], give: { items: [], gold: 0, discoveries: [] }, followable: [], policy: policyOf(me), offers: { made: null, received: null } };
+    const me = st.chars[who], out = { window: null, partners: [], give: { items: [], gold: 0, discoveries: [] }, followable: [], followWhy: [], policy: policyOf(me), offers: { made: null, received: null } };
     if (!isMulti(st) || !me || me.dead) return out;
     const itemView = it => ({ uid: it.uid, kind: it.kind, id: it.id, name: nameOf(data, it), sub: summaryOf(data, it), active: !!it.active, damaged: !!it.damaged });
     out.window = st.tradeWindow ? 'dayend' : phaseWindow(st) ? 'phase' : null;
@@ -558,9 +558,32 @@ export function meetOptions(st, data, who) {
         for (const id of me.siteCards?.[at] ?? []) { const d = { kind: 'sitecard', id }; out.give.discoveries.push({ ...d, label: discLabel(st, data, d, at) }); }
     }
     if (st.period === 'birdsong' && me.today.stage === 'plan' && here(me)) out.followable = st.order.filter(id => id !== who && !st.chars[id].dead && here(st.chars[id]) && st.chars[id].at === at).map(id => ({ id, name: st.chars[id].name }));
+    out.followWhy = followWhy(st, who);
     const made = (st.offers ?? []).find(o => o.from === who), received = (st.offers ?? []).find(o => o.to === who);
     out.offers = { made: made ? made.id : null, received: received ? received.id : null };
     return out;
+}
+
+// Follow, for a screen that always shows it: for each OTHER character, may `who` follow him now (`ok`: the ones in `followable`, but for a guide who follows `who`), and if not, `code` and a plain `why` (the Detail voice adds
+// 7.11.3). `at` / `from` name the clearings of the guide and of the follower when they are apart. `goes` is whom the guide has recorded to follow, only where the plan is visible (a seat is never sent
+// another's plan): A who follows B who follows C goes with C, so it is no reason to refuse; a guide who follows `who` is: they would both stay home (a circle cancels, RealmSpeak).
+export function followWhy(st, who) {
+    const me = st.chars[who];
+    if (!isMulti(st) || !me) return [];
+    return st.order.filter(id => id !== who).map(id => {
+        const g = st.chars[id], row = { id, name: g.name, ok: false, code: null, why: null };
+        const plan = Array.isArray(g.today?.plan) ? g.today.plan[0] : null;
+        if (plan?.act === 'follow') row.goes = plan.who ?? null;
+        if (me.dead) { row.code = 'dead'; row.why = 'you are dead'; }
+        else if (g.dead) { row.code = 'dead'; row.why = `${g.name} is dead`; }
+        else if (st.period !== 'birdsong' || me.today.stage !== 'plan') { row.code = 'time'; row.why = 'Follow is chosen at Birdsong, while you plan'; }
+        else if (!here(me)) { row.code = 'you-away'; row.why = me.flying ? 'you are in the air, not in a clearing' : 'you are on a road, not in a clearing'; }
+        else if (!here(g)) { row.code = 'him-away'; row.why = g.flying ? `${g.name} is in the air, not in a clearing` : `${g.name} is on a road, not in a clearing`; }
+        else if (g.at !== me.at) { row.code = 'apart'; row.why = `${g.name} is not in your clearing`; row.at = nameOfClearing(g.at); row.from = nameOfClearing(me.at); }
+        else if (row.goes === who) { row.code = 'circle'; row.why = `${g.name} has already recorded to follow you`; }
+        else row.ok = true;
+        return row;
+    });
 }
 
 // ---- the action: { type: 'meet', kind, ... } ----

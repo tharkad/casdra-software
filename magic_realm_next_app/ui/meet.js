@@ -12,7 +12,8 @@ const CARDS = new Set(['treasure', 'spell']);
 const pick = (obj, keys) => Object.fromEntries(keys.filter(k => k in obj).map(k => [k, obj[k]]));
 
 /** The player's name for a character id (the table talks about players), and "Ann's Captain" when both help. */
-export const playerOf = (view, id) => view.players?.find(p => p.id === view.chars?.[id]?.owner)?.name ?? view.chars?.[id]?.name ?? id;
+// (a hot seat: one player runs every character, so "You" would name them all alike: they are told by their own names)
+export const playerOf = (view, id) => (view.players?.length === 1 && (view.order?.length ?? 0) > 1 ? null : view.players?.find(p => p.id === view.chars?.[id]?.owner)?.name) ?? view.chars?.[id]?.name ?? id;
 export const charName = (view, id) => view.chars?.[id]?.name ?? id;
 /** Character name to player name. FALLBACK ONLY: a log line of the table carries `p`, the same sentence told with the players' names (docs/design/multiplayer-harden.md section 4), and is read from that. The lines written
  * for one seat alone ("You give White Knight: ...", "You block Captain.") have no `p` yet, so their character names are still translated here; asking the engine for a `p` on those too would end it (multiplayer-harden-ui.md). */
@@ -34,11 +35,11 @@ const askableOf = (data, c) => (c.items ?? []).filter(i => !i.hidden && !i.destr
 export function meetState(view, data, myId, table = null) {
     const me = view?.chars?.[myId];
     const known = !!table && 'meetWindow' in table;          // the server says whether a meeting is possible now (answer.table.meetWindow): 'phase', 'dayend' or null
-    const out = { window: null, certain: false, partners: [], others: [], reason: null, give: { items: [], gold: 0, discoveries: [] }, followable: [], policy: policyOf(me), made: null, received: null, holder: null };
+    const out = { window: null, certain: false, partners: [], others: [], reason: null, give: { items: [], gold: 0, discoveries: [] }, followable: [], followWhy: [], policy: policyOf(me), made: null, received: null, holder: null };
     if (!me || !view.order || view.order.length < 2) return out;
     let o = null;
     try { o = meetOptions(view, data, myId); } catch { o = null; }
-    if (o) { out.give = o.give; out.followable = o.followable; out.policy = o.policy; }
+    if (o) { out.give = o.give; out.followable = o.followable; out.followWhy = o.followWhy ?? []; out.policy = o.policy; }
     const offers = view.offers ?? [];
     out.made = offers.find(x => x.from === myId) ?? null;
     out.received = offers.find(x => x.to === myId) ?? null;
@@ -160,6 +161,23 @@ export function followsToday(view) {
     const f = view.follows ?? {};
     return Object.entries(f).map(([follower, guide]) => ({ follower, guide, text: `${playerOf(view, follower)} follows ${playerOf(view, guide)}` }));
 }
+
+/** Why a character cannot be followed now, in both voices (the engine's `followWhy` row says which reason; the Detail voice cites the rule). Story says what it would take. */
+export function followReason(r) {
+    const n = r.name;
+    switch (r.code) {
+        case 'apart': return { story: `${n} is not in your clearing: ${n} is at ${r.at}. Move there first (on an earlier day), or start together.`,
+            detail: `${n} is not in your clearing (${n}: ${r.at}; you: ${r.from}). A follower stands in his guide’s clearing at Birdsong (7.11.3). Move there on an earlier day, or choose Start together in the party step of a new game.` };
+        case 'circle': return { story: `${n} has already recorded to follow you, so you cannot follow back: you would both stay home.`,
+            detail: `${n} has already recorded Follow with you as his guide. Two who follow each other make a circle: it cancels, and neither has a turn (7.11).` };
+        case 'dead': return { story: r.why[0].toUpperCase() + r.why.slice(1) + '.', detail: `${r.why[0].toUpperCase() + r.why.slice(1)}: a dead character cannot be followed or follow (7.11.3).` };
+        case 'time': return { story: 'Follow is chosen at Birdsong, while you plan your day.', detail: 'Follow is recorded in the plan at Birdsong, with the guide in your clearing (7.11.2, 7.11.3).' };
+        case 'you-away': return { story: `${r.why[0].toUpperCase() + r.why.slice(1)}.`, detail: `${r.why[0].toUpperCase() + r.why.slice(1)}: a follower and his guide both stand in a clearing at Birdsong (7.11.3).` };
+        case 'him-away': return { story: `${r.why[0].toUpperCase() + r.why.slice(1)}.`, detail: `${r.why[0].toUpperCase() + r.why.slice(1)}: a guide stands in the follower’s clearing at Birdsong (7.11.3).` };
+        default: return { story: `${r.why ?? 'Not now'}.`, detail: `${r.why ?? 'Not now'}.` };
+    }
+}
+export const FOLLOW_FIRST = { story: 'Follow takes your whole day, so it is chosen in phase 1.', detail: 'Follow is recorded in the first phase and is the only activity of the day (7.11.2).' };
 export const guideOf = (view, id) => view.follows?.[id] ?? null;
 export const followersNamed = (view, id) => followersOf(view, id).map(f => playerOf(view, f));
 

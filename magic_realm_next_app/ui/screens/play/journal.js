@@ -12,8 +12,10 @@ import { die, icon } from '../../icons.js';
 import { isMeetLine } from '../../meet.js';
 import { rollDetail, storyRoll } from '../../storyvoice.js';
 import { isStory, logText } from '../../voice.js';
+import { followNotes } from './follow.js';
 import { seatText } from './shared.js';
 import { CURSE_PLAIN, ico, modal, moveDetent } from './kit.js';
+import { itemParts } from './sheet_char.js';
 import { prowlers, render } from './shell.js';
 import { steedAloft } from '../../steeds.js';
 
@@ -38,7 +40,7 @@ const saveDetent = d => { try { localStorage.setItem(KEY, d); } catch { /* ignor
 
 // ---- the pieces ----
 function notices(G) {
-    const st = G.st, out = [];
+    const st = G.st, out = [...followNotes(G)];
     for (const c of st.ch.curses ?? []) out.push(h('button', { class: 'ds-note curse', 'data-act': 'curses', onclick: () => { G.ui.sheet = 'curses'; render(G); } }, icon('skull'), `${c}: ${CURSE_SHORT[c] ?? CURSE_PLAIN[c] ?? 'a curse'}`));
     const magic = dayColors(st.day, st.lastDay ?? 28);
     if (magic.length) out.push(h('button', { class: 'ds-note', 'data-act': 'magic-day', onclick: () => { G.ui.sheet = 'calendar'; render(G); } }, ...magic.map(c => h('i', { class: `ds-dot ${c.toLowerCase()}` })), `${magic.join(' and ')} magic`));
@@ -65,7 +67,8 @@ export function foundBoxes(G, news, from = 'journal') {
         if (n.kind === 'item') {
             const nm = nameOf(G.data, n.item), el = found({ art: 'cache', eyebrow: 'You got', title: nm, line: `${summaryOf(G.data, n.item)} · ${WEIGHT_WORDS[weightOf(G.data, n.item)] ?? ''}`.replace(/ · $/, ''), attrs: { 'data-act': 'gain', 'data-item': n.item.uid }, onclick: go(() => { G.ui.itemUid = n.item.uid; G.ui.itemFrom = from; G.ui.sheet = 'item'; }) });
             const pic = ico(G, nm, 'ico'); if (pic) el.firstChild.replaceWith(pic);
-            return el;
+            const card = itemParts(G, n.item).card;           // a treasure shows its cream card here, where he first sees it
+            return card ? h('div', { class: 'found-card' }, el, card) : el;
         }
         if (n.kind === 'curse') return found({ art: null, eyebrow: 'A curse has fallen on you', title: n.f.name, line: CURSE_PLAIN[n.f.name] ?? n.f.effect, attrs: { 'data-act': 'curse-new' }, onclick: go(() => { G.ui.sheet = 'curses'; }), cls: 'curse' });
         const card = n.kind === 'card';
@@ -88,16 +91,17 @@ function lastRoll(G) {
 // a number (a clearing, a #n) is never left alone at the start of a line: "in clearing 4." keeps its word with it (QA-21)
 const glueNumbers = t => String(t).replace(/(\S) (#?\d+)(?=[\s.,;:!?)]|$)/g, '$1\u00A0$2');
 
+const FOLLOW_LINE = /\bfollow(s|ing)?\b/;          // (who follows whom is a line of the day with no story of its own: the Journal keeps it)
 // the story so far: newest first, a section per day, the phase number at the left (R and a number for a round of a fight)
 function logSections(G) {
-    const st = G.st, out = [], lines = (st.log ?? []).filter(l => !(l.k === 'roll' || l.k === 'info' || (l.k === 'day' && !l.s) || (G.shared && isMeetLine(l))));
+    const st = G.st, out = [], lines = (st.log ?? []).filter(l => !(l.k === 'roll' || l.k === 'info' || (l.k === 'day' && !l.s && !FOLLOW_LINE.test(l.t)) || (G.shared && isMeetLine(l))));
     let day = null, ul = null, lastText = null;
     for (const l of [...lines].reverse().slice(0, 150)) {
         if (l.day !== day) {
             day = l.day; out.push(sect(l.day === st.day ? 'Today' : l.day === st.day - 1 ? 'Yesterday' : `Day ${l.day}`, l.day === st.day ? 'newest first' : '')); ul = h('ul', { class: 'ds-log' }); out.push(ul);
         }
         const ph = /^Phase (\d+)/.exec(l.t)?.[1] ?? (l.r != null ? `R${l.r}` : l.k === 'day' ? '—' : '·');
-        const text = l.k === 'phase' && !isStory() ? l.t.replace(/^Phase \d+:\s*/, '') : (G.shared ? seatText(G, l) : logText(l));
+        const text = l.k === 'phase' && !isStory() ? l.t.replace(/^Phase \d+:\s*/, '') : (G.shared ? seatText(G, l) : logText(l.p ? { ...l, p: null } : l));          // (a hot seat: the players' version of a line says "You follows You"; the characters' own names tell it)
         if (isStory() && text === lastText && l.day === day) continue;                  // (a loot line and its phase line are told with the same words: once)
         lastText = text;
         ul.append(h('li', { class: `j-${l.k}` }, h('span', { class: 'ph' }, ph), h('span', {}, glueNumbers(text))));
