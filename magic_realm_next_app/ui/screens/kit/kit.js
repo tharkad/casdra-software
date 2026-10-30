@@ -35,10 +35,15 @@ const SLOT_KEYS = SLOTS.map(s => s[0]);
 // The slot an item belongs in (the engine's slotsOf, plus the mount for a horse), or null for a treasure that has no slot and an armor card of its own.
 export function slotKey(G, it) {
     if (it.kind === 'horse') return 'mount';
+    if (it.id === 'golden-crown-1') return 'helmet';          // an armor card of its own in the rules, but worn on the head: it reads in the Helmet slot
     const s = slotsOf(G.data, it)[0];
     return SLOT_KEYS.includes(s) ? s : null;
 }
-const occupantOf = (G, key) => G.st.ch.items.find(i => i.active && !i.destroyed && slotKey(G, i) === key) ?? null;
+// (a real helmet outranks the Crown, which may be worn with it and then stays listed in the pack)
+const occupantOf = (G, key) => {
+    const on = G.st.ch.items.filter(i => i.active && !i.destroyed && slotKey(G, i) === key);
+    return on.find(i => i.id !== 'golden-crown-1') ?? on[0] ?? null;
+};
 
 // Rule 7.2.2f (ruling R6, ch7-day.md): belongings are rearranged at the start of each phase of the day's turn and in the evening after the fighting, never while the plan is recorded.
 // An extra phase from a horse or a card must already be active in Birdsong (6.2.2c.1), so it is switched on the evening before (the Evening-end sheet, screens/kit/evening.js).
