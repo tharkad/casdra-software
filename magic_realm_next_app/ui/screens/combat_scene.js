@@ -152,11 +152,11 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     });
     cb.flipNow = null;
     // lanes: the plays he has chosen (this round's plan while he plans it, last round's after it), and where the creatures stand
-    const chitOf = id => st.ch.chits.find(x => x.id === id) ?? null;
+    const chitOf = id => st.ch.chits.find(x => x.id === id) ?? o?.fightChits?.find(x => x.id === id) ?? null;
     let attack = null, guard = null, boxes = {};
     const planOf = mode === 'melee' ? m : ui.lastPlan?.fight === key ? ui.lastPlan.plan : null;
     if (planOf && mode !== 'meet' && mode !== 'over') {
-        if (mode === 'melee' ? (planOf.target || o?.attackSpell) : planOf.target) attack = { dir: planOf.attackDir ?? 0, text: o?.attackSpell && mode === 'melee' ? 'Spell' : planOf.fightChit ? M.chitText(chitOf(planOf.fightChit) ?? { type: 'fight', strength: '', time: '' }) : null };
+        if (mode === 'melee' ? (planOf.target || o?.attackSpell) : planOf.target) attack = { dir: planOf.attackDir ?? 0, text: o?.attackSpell && mode === 'melee' ? 'Spell' : planOf.fightChit ? M.chitText(chitOf(planOf.fightChit) ?? { type: 'fight', strength: '', time: '' }) : null, glove: !!planOf.fightChit?.startsWith?.('card:') };
         guard = { dir: planOf.moveDir ?? 0, text: planOf.moveChit ? M.chitText(chitOf(planOf.moveChit) ?? { type: 'move', strength: '', time: '' }) : null };
     }
     if (mode === 'shift') { const so = shiftOptions(st, data); cb.shift ??= {}; cb.shift.attackDir ??= so.attackDir; cb.shift.moveDir ??= so.moveDir; attack = so.hasAttack ? { dir: cb.shift.attackDir, text: planOf?.fightChit ? M.chitText(chitOf(planOf.fightChit) ?? { type: 'fight', strength: '', time: '' }) : null } : null; guard = so.hasMove ? { dir: cb.shift.moveDir, text: planOf?.moveChit ? M.chitText(chitOf(planOf.moveChit) ?? { type: 'move', strength: '', time: '' }) : null } : null; }

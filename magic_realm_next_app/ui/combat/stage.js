@@ -109,7 +109,7 @@ export function alliesEl({ st, data, allies, flipped = {}, onFlip, size = 56 }) 
 // attack = { dir, text } puts his Fight chit in that circle; guard = { dir, text } his Move chit in that square; boxes = { [lane]: [pictureSrc...] } the creatures standing in each red box.
 export function lanesEl({ attack = null, guard = null, boxes = {}, sec = null } = {}) {
     const top = [0, 1, 2].map(i => h('div', { class: `cb-lane${attack && attack.dir === i ? ' mine' : ''}${(boxes[i] ?? []).length ? ' crowd' : ''}`, 'data-lane': `a${i}` },
-        attack && attack.dir === i && attack.text ? h('span', { class: 'cb-pill' }, attack.text) : h('span', { class: 'lbl' }, DIRS[i]),
+        attack && attack.dir === i && attack.text ? h('span', { class: 'cb-pill' }, attack.glove ? icon('glove') : null, attack.text) : h('span', { class: 'lbl' }, DIRS[i]),
         ...(boxes[i] ?? []).slice(0, 3).map(src => h('span', { class: 'ds-counter sm', 'aria-hidden': 'true' }, src ? pic(src) : null)), (boxes[i] ?? []).length > 3 ? h('span', { class: 'cb-more' }, `+${boxes[i].length - 3}`) : null));
     const bot = [0, 1, 2].map(i => h('div', { class: `cb-lane${guard && guard.dir === i ? ' guard' : ''}`, 'data-lane': `g${i}` }, guard && guard.dir === i && guard.text ? h('span', { class: 'cb-pill g' }, guard.text) : h('span', { class: 'lbl' }, MNV[i])));
     return h('div', { class: 'cb-lanewrap', 'aria-hidden': 'true', 'data-sec': sec }, h('div', { class: 'cb-lanes top' }, ...top), h('div', { class: 'cb-lanes bot' }, ...bot));
