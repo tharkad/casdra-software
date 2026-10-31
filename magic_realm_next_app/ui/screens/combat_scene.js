@@ -24,6 +24,9 @@ import * as DP from '../combat/deploy.js';
 import { reviewSheet } from '../combat/sections_review.js';
 import { hireRound } from '../combat/sections_voice.js';
 import { denOnSheet } from '../../engine/hirefight.js';
+import { modeOfPending, SCENE_MODES } from '../combat/modes.js';
+import { fightOf } from '../fight.js';
+import * as LU from '../combat/lure.js';
 
 const RESULT_TYPES = ['combat-fatigue', 'combat-wounds', 'combat-encounter', 'combat-deploy'];          // (combat-deploy: a round on Melee Sections starts with the Deployment, so the last round's result comes before it)
 const hashOf = s => { let x = 0; for (let i = 0; i < s.length; i++) x = (Math.imul(31, x) + s.charCodeAt(i)) | 0; return x; };
@@ -63,7 +66,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     const key = fightKey(st, c);
     if (ui.cb?.fightKey !== key) ui.cb = { fightKey: key, seen: null, step: 'strike', plan: null, flipped: {}, pick: null, pipState: null, gearCard: false, flippedGear: {} };
     const cb = ui.cb;
-    const X = { st, data, ui, cb, render, p, c, root: null, shared, peek };          // (`shared`: a fight of several characters, screens/sharedfight.js: the strip, no result screen of its own, the Whom step)
+    const X = { st, data, ui, cb, render, p, c, root: null, shared, peek, fight: null };          // (`shared`: a fight of several characters, screens/sharedfight.js: the strip, no result screen of its own, the Whom step)
     X.say = text => { if (!X.root) return; const t = toast(text, { host: X.root }); const sh = X.root.querySelector('.cb-sheet'); t.style.bottom = `${(sh ? sh.offsetHeight : 160) + 10}px`; };
     // every answer to the engine goes through here: the scene's own state of the question is dropped, the engine moves on
     // (ui.trace, when a script sets it to an array, collects every answer the scene sends: tools/ui_cb_fuzz.py replays them on the bare engine)
@@ -102,7 +105,8 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
         } else cb.step = shared && SH.needsWhom(st, o0) ? 'whom' : 'strike';
     }
     if (p.type !== 'combat-melee') { cb.plan = null; }
-    const mode = p.type === 'combat-over' ? 'over' : showResult ? 'result' : p.type === 'combat-wounds' || p.type === 'combat-fatigue' ? 'grid' : ['combat-pay', 'combat-drinks', 'combat-choice'].includes(p.type) ? 'meet' : p.type === 'combat-melee' ? 'melee' : p.type === 'combat-shift' ? 'shift' : p.type === 'combat-deploy' ? 'deploy' : 'encounter';
+    const mode = p.type === 'combat-over' ? 'over' : showResult ? 'result' : p.type === 'combat-wounds' || p.type === 'combat-fatigue' ? 'grid' : ['combat-pay', 'combat-drinks', 'combat-choice'].includes(p.type) ? 'meet' : p.type === 'combat-melee' ? 'melee' : p.type === 'combat-shift' ? 'shift' : (m => (SCENE_MODES.has(m) ? m : 'unknown'))(modeOfPending(p.type));          // (a question the scene cannot draw is 'unknown': never the Encounter tiles, which the engine would refuse)
+    if (mode === 'lure') X.fight = fightOf(st, [], data, st.ch.id);
     const recap = mode === 'over' && !shared ? M.recapOf(st, data) : null;
 
     // ---- the stage ----
@@ -123,13 +127,19 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
             .map(d => { const nm = denSide(st, data, d).name, dead = d.dead; return { d, dead, tag: !dead && WORDS[res.get(nm)] ? { ...WORDS[res.get(nm)] } : null, turned: mode === 'result' && !dead && turned.has(nm) }; });
     } else if (mode === 'over') {
         foes = bodies.filter(d => d.dead && d.kind !== 'part').map(d => ({ d, dead: true }));
+    } else if (mode === 'lure') {
+        // 8.3.4: the creatures he may draw stand on the stage (they are not on any sheet yet), with the ones already on his sheet
+        const { mine, may } = LU.lureDens(st, p);
+        X.lure = { mine: new Set(mine.map(d => d.uid)), may: new Set(may.map(d => d.uid)), sel: new Set(LU.lureChosen(st, p, ui)) };
+        foes = [...mine, ...may].map(d => ({ d }));
     } else {
-        foes = M.foesOf(st).map(d => ({ d }));
+        // (the ones who are at peace with him stand last: they are on the stage because he may name them, not because they fight him)
+        foes = M.foesOf(st).map(d => ({ d })).sort((a, b) => Number(M.peacefulFoe(a.d)) - Number(M.peacefulFoe(b.d)));
     }
     const o = mode === 'melee' ? meleeOptions(st, data) : null;
     const m = mode === 'melee' ? cb.plan : null, step = o && stepsFor(o, X).some(s => s.id === cb.step) ? cb.step : (o ? stepsFor(o, X)[0].id : 'strike');
     const depTags = mode === 'deploy' ? DP.tagsOf(st, data, p, DP.planFor(st, data, p, cb)) : null;          // (the Deployment: what each creature is going to face, said on its counter)
-    const size = foeSize(foes.length, mode === 'meet');
+    const size = foeSize(foes.length, mode === 'meet' || mode === 'lure');
     const targetable = mode === 'melee' && step === 'strike' ? new Set(o.targets.filter(d => d.kind !== 'part').map(d => d.uid)) : new Set();
     // A crowded stage cannot hold a word on every counter (QA-6): from four targets on, only the chosen foe wears TARGET and the others a ghost dot (still a 44px tap); where the counters are small, the other
     // tags are said in a short word (WOUNDED, HIT, HELD) or two letters (the box). Where the counters are big there is room for the whole word.
@@ -139,9 +149,13 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
         let t = tag ?? null;
         if (!t && !dead && d.pickedUp && (mode === 'encounter' || mode === 'melee')) t = { text: d.engagedBy ? 'ON YOUR MAN' : 'HOLDS YOU', short: 'HELD', kind: 'bad' };
         else if (!t && !dead && d.pacified && (mode === 'encounter' || mode === 'melee')) t = { text: 'AT PEACE', short: 'PEACE', kind: 'ghost' };
+        else if (!t && !dead && M.peacefulFoe(d) && (mode === 'encounter' || mode === 'melee')) t = { text: 'AT PEACE', short: 'PEACE', kind: 'ghost' };          // (a native group that is not fighting him: note 70)
         else if (!t && !dead && d.kind !== 'part' && (mode === 'encounter' || mode === 'melee') && denOnSheet(st, d)) t = { text: 'FACING A HIRELING', short: 'HIRELING', kind: 'ghost' };          // (on a Melee Section: a hireling and it fight each other)
         if (!t && depTags?.[d.uid]) t = { text: depTags[d.uid].word, short: depTags[d.uid].short, kind: depTags[d.uid].word === 'ON YOU' ? 'bad' : 'ghost' };
-        if (targetable.has(d.uid)) { const sel = m.target === d.uid; t = { text: 'TARGET', kind: sel ? '' : 'ghost', dot: crowd && !sel, label: sel ? 'Target: tap to strike no one' : 'Target this creature', onclick: () => { m.target = sel ? null : d.uid; render(); } }; }
+        if (mode === 'lure' && X.lure.may.has(d.uid)) { const on = X.lure.sel.has(d.uid), crowdL = X.lure.may.size >= 4; t = { text: 'LURE', kind: on ? '' : 'ghost', dot: crowdL && !on, label: on ? `Drawing the ${denSide(st, data, d).name}: tap to leave it` : `Draw the ${denSide(st, data, d).name} onto your sheet`, onclick: () => { LU.toggleLure(st, p, ui, d.uid); render(); } }; }
+        else if (mode === 'lure' && X.lure.mine.has(d.uid)) t = { text: 'ON YOUR SHEET', short: 'MINE', kind: 'ghost' };
+        else if (targetable.has(d.uid) && M.peacefulFoe(d)) { const sel = m.target === d.uid; t = { text: sel ? 'PROVOKE' : 'AT PEACE', kind: sel ? 'bad' : 'ghost', dot: crowd && !sel, label: sel ? 'Tap to strike no one' : 'Not fighting you. Tap to strike them anyway: the whole group will fight you', onclick: () => { m.target = sel ? null : d.uid; render(); } }; }
+        else if (targetable.has(d.uid)) { const sel = m.target === d.uid; t = { text: 'TARGET', kind: sel ? '' : 'ghost', dot: crowd && !sel, label: sel ? 'Target: tap to strike no one' : 'Target this creature', onclick: () => { m.target = sel ? null : d.uid; render(); } }; }
         else if (mode === 'melee' && step !== 'strike' && step !== 'foes' && m.target === d.uid && !o.attackSpell) t = { text: 'TARGET', kind: '' };          // (a chosen foe keeps its word through every later step; only the strike step lets him change it)
         else if (mode === 'melee' && step === 'foes' && o.boxable.some(x => x.uid === d.uid)) { const i = o.boxable.findIndex(x => x.uid === d.uid), b = m.boxes[d.uid] ?? (i % 3); t = { text: M.MNV[b].toUpperCase(), short: M.MNV[b].slice(0, 2).toUpperCase(), kind: '', label: `In the ${M.BOX[b]} box: tap to move`, onclick: () => { m.boxes[d.uid] = (b + 1) % 3; render(); } }; }
         if (t && short && !t.dot && t.short) t = { ...t, text: t.short };
@@ -151,6 +165,9 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
             onFlip: (den, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[den.uid] = !cb.flipped[den.uid]; cb.flipNow = den.uid; render(); } });
     });
     cb.flipNow = null;
+    // the ones who are not fighting him stand apart under their own word (note 70: "they will not fight you" and then all of them on the stage like targets)
+    const firstPeace = foes.findIndex(f => !f.dead && M.peacefulFoe(f.d));
+    if (firstPeace >= 0 && (mode === 'encounter' || mode === 'melee')) foeEls.splice(firstPeace, 0, h('p', { class: 'cb-peace-lbl', 'data-peace': '' }, 'Not fighting you'));
     // lanes: the plays he has chosen (this round's plan while he plans it, last round's after it), and where the creatures stand
     const chitOf = id => st.ch.chits.find(x => x.id === id) ?? o?.fightChits?.find(x => x.id === id) ?? null;
     let attack = null, guard = null, boxes = {};
@@ -162,7 +179,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     if (mode === 'shift') { const so = shiftOptions(st, data); cb.shift ??= {}; cb.shift.attackDir ??= so.attackDir; cb.shift.moveDir ??= so.moveDir; attack = so.hasAttack ? { dir: cb.shift.attackDir, text: planOf?.fightChit ? M.chitText(chitOf(planOf.fightChit) ?? { type: 'fight', strength: '', time: '' }) : null } : null; guard = so.hasMove ? { dir: cb.shift.moveDir, text: planOf?.moveChit ? M.chitText(chitOf(planOf.moveChit) ?? { type: 'move', strength: '', time: '' }) : null } : null; }
     if (mode === 'melee' && (step === 'foes' || step === 'roll')) o.boxable.forEach((d, i) => { const b = m.boxes[d.uid] ?? (i % 3); (boxes[b] ??= []).push(M.picOf(st, data, d)); });
     if (mode === 'shift') M.foesOf(st).forEach(d => { if (d.box != null) (boxes[d.box] ??= []).push(M.picOf(st, data, d)); });
-    const lanes = mode === 'meet' || mode === 'deploy' ? null : lanesEl({ attack, guard, boxes, sec: mode === 'shift' ? 'shift-board' : null });
+    const lanes = mode === 'meet' || mode === 'deploy' || mode === 'lure' || mode === 'unknown' ? null : lanesEl({ attack, guard, boxes, sec: mode === 'shift' ? 'shift-board' : null });
     const allies = M.alliesOf(st, data);
     const allyEl = allies.length && mode !== 'deploy' ? alliesEl({ st, data, allies, flipped: cb.flipped, size: typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 48 : 56, onFlip: (a, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[a.uid] = !cb.flipped[a.uid]; render(); } }) : null;
     const prevChits = cb.pipState; cb.pipState = Object.fromEntries(st.ch.chits.map(x => [x.id, x.state]));
@@ -188,7 +205,9 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     else if (mode === 'melee') sheet = meleeSheet(X);
     else if (mode === 'deploy') sheet = deploySheet(X);
     else if (mode === 'shift') sheet = shiftSheet(X);
-    else sheet = encounterSheet(X);
+    else if (mode === 'lure') sheet = LU.lureSheet({ st, data, p, ui, render, act: a => X.send(a), f: X.fight }).sheet;
+    else if (mode === 'encounter') sheet = encounterSheet(X);
+    else sheet = unknownSheet(X);
 
     // The tap guard (QA-4): a result that follows a Roll, a wound that follows a result, the next Go on: each stands where the last primary stood, so for a moment after the question changes the primary ignores
     // a tap (the second half of a double tap must not skip what you should read). Not on "Next" (a step of the stepper), and a redraw of the same question does not start the window again.
@@ -206,7 +225,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
         shared ? shared.strip : null,
         shared ? null : h('div', { class: 'cb-bar' }, h('button', { type: 'button', class: 'ds-stats', 'aria-label': 'Fame, Notoriety, Gold: open your Belongings', onclick: () => peek?.gear() },
             stat('fame', 'star', ern?.fame ?? st.ch.fame), stat('notor', 'flame', ern?.notoriety ?? st.ch.notoriety), stat('gold', 'coin', st.ch.gold)), voiceSwitch()),
-        makeStage(mode === 'meet' ? narr : null), mode === 'meet' ? null : narr, sheet);
+        makeStage(mode === 'meet' || mode === 'lure' || mode === 'unknown' ? narr : null), mode === 'meet' || mode === 'lure' || mode === 'unknown' ? null : narr, sheet);
     X.root = root;
     fitStage(root);
     if (cb.gearCard) root.append(h('div', { class: 'cb-popbk', 'data-act': 'close-gear', 'aria-hidden': 'true', onclick: () => { cb.gearCard = false; render(); } }), gearPopover({ st, data, flippedGear: cb.flippedGear, onFlip: uid => { cb.flippedGear[uid] = !cb.flippedGear[uid]; render(); }, onClose: () => { cb.gearCard = false; render(); } }));
@@ -214,6 +233,14 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     if (cb.pit) root.append(pitSheet(X));
     if (cb.review) { const rs = reviewSheet(X); if (rs) root.append(rs); }
     return root;
+}
+
+// The safety net: a question the scene has no page for. It says so plainly and offers the one thing that always works, the map (and the Belongings in the top bar), never tiles the engine would refuse.
+function unknownSheet(X) {
+    const { p, peek, render } = X;
+    return sheetEl(X, 'unknown', h('div', { class: 'ds-ask', 'data-ask': '' }, h('b', {}, 'The fight is waiting, and this screen does not know for what.'),
+        h('span', {}, p.type === 'combat-charge' ? 'This is a table question (a character against a character) and there is no table here.' : `The game asked "${p.type}". Send a voice note from the menu and say what you were doing.`)),
+        h('div', { class: 'ds-actions' }, primary('Look at the map', { 'data-act': 'unknown-map', onclick: () => (peek?.map ? peek.map() : render()) })));
 }
 
 // what the narrator says: [story, detail, tone]. Story is one short sentence in the world's voice; Detail adds the rule behind it. tone: 'verdict' (gold, big) or 'bad'.
@@ -257,9 +284,17 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
     }
     if (mode === 'shift') return ['The plays are shown, and the dice have moved the creatures. Your cards allow a change.', `Round ${c.round}: before the blows land.`];
     if (mode === 'deploy') return deployNarration(X);
+    if (mode === 'lure') return LU.lureTexts(st, data, p, X.fight);
+    if (mode === 'unknown') return [`The fight is waiting for something this screen cannot show yet. Nothing is lost: your game is safe.`, `The engine is waiting for a "${p.type}" answer and the combat screen has no page for it.`];
     if (mode === 'melee') {
         const one = o.boxable.filter(d => d.kind !== 'part').length < 2;
         const lim = o.effortLimit ?? 2, limText = `You may play at most ${M.limitWord(lim)} asterisks of effort.`;
+        const tgt = step === 'strike' && X.cb.plan?.target ? c.dens.find(d => d.uid === X.cb.plan.target) : null;
+        if (tgt && M.peacefulFoe(tgt)) {
+            const nm = tgt.kind === 'nat' ? `the ${data.natives[tgt.id].group}` : `the ${denSide(st, data, tgt).name}`;
+            return [`${M.cap(nm)} ${tgt.kind === 'nat' ? 'are' : 'is'} not fighting you. Strike ${tgt.kind === 'nat' ? 'one and the whole group will' : 'it and it will fight you'}.`,
+                `Round ${c.round}, Melee: ${M.cap(nm)} ${tgt.kind === 'nat' ? 'are' : 'is'} at peace with you. Naming ${tgt.kind === 'nat' ? 'a native' : 'it'} as your target starts the fight: ${tgt.kind === 'nat' ? 'its whole group battles you from the next round' : 'it fights you from the next round'} (8.2.1a, 8.2.3a). ${limText}`];
+        }
         const line = {
             whom: ['Whom do you strike?', 'Your play is sealed until everyone has chosen. Name a creature on your sheet or on another\u2019s, a character, or a hireling: or no one.'],
             strike: [one ? 'How do you strike?' : 'Whom do you strike, and how?', 'Pick whom you strike, in which direction and with which Fight chit.'],

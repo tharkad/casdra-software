@@ -63,7 +63,7 @@ export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, 
             showRev && !dead ? h('span', { class: 'sidelbl peek', 'data-side': d.uid }, size < 76 ? 'NOT NOW' : 'NOT CURRENT SIDE') : null,
             turnedOver && !dead ? h('span', { class: 'turned', 'data-turned': d.uid }, size < 76 ? 'TURNED' : 'TURNED OVER') : null);
     if (!dead) holdable(flipBtn, onHold ? () => onHold(d) : null);
-    return h('div', { class: `cb-foe${dead ? ' dead' : ''}${justFlipped ? ' flip' : ''}${d.pacified ? ' pacified' : ''}${d.pickedUp ? ' held' : ''}${selected ? ' sel' : ''}`, style: `--foe:${size}px`, 'data-foe': d.uid },
+    return h('div', { class: `cb-foe${dead ? ' dead' : ''}${justFlipped ? ' flip' : ''}${d.pacified || (d.bystander && !d.assigned && !dead) ? ' pacified' : ''}${d.pickedUp ? ' held' : ''}${selected ? ' sel' : ''}`, style: `--foe:${size}px`, 'data-foe': d.uid },
         h('div', { class: 'tagslot' }, tagEl),
         flipBtn);
 }

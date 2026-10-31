@@ -45,6 +45,9 @@ export function peaceOf(st) {
 // a shared fight (st.battle): only the creatures on MY sheet (and the parts of those) stand on my stage; the others' are named from the Strike step. Alone, every creature is mine.
 export const onMine = (st, d) => !st.battle || !!(d.assigned || (d.partOf && st.combat.dens.find(o => o.uid === d.partOf)?.assigned));
 export const foesOf = st => st.combat.dens.filter(d => !d.dead && d.kind !== 'horse' && onMine(st, d));
+// a creature that stands in the clearing but is not fighting him (a native group that rolled peace at the Meeting, a monster that stands by): it may still be NAMED as a target, which starts the fight
+// (8.2.1a, 8.2.3a); a spell's peace (`pacified`) has its own word
+export const peacefulFoe = d => !!d && !!d.bystander && !d.pacified && !d.assigned && !d.dead && d.kind !== 'part' && d.kind !== 'horse';
 export const bodiesOf = st => foesOf(st).filter(d => d.kind !== 'part');
 export const isImp = (data, d) => d.kind === 'mon' && data.monsters[d.id]?.family === 'Imp';
 // "two Wolves", "a Troll and two Goblins": how a group of foes is named in a sentence

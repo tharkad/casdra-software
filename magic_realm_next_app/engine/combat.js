@@ -565,7 +565,7 @@ export function encounterOptions(st, data) {
     const canStay = !!st.ch.hidden && !c.dens.some(d => !d.dead && (d.assigned || d.engagedBy || d.pickedUp)) && !(c.hires ?? []).some(x => !x.dead);
     // A Fly chit is played like a Move chit (spell durations, Fly): strictly faster than every creature on his sheet, strong enough to carry him (what is heavier is left behind).
     // It takes him out of the fight to a neighbouring tile (8.3.8e) and is spent. A Tremendous monster that holds him still holds him (8.4.7 d.2).
-    const flyChits = pickedUp || st.ch.mist ? [] : flySources(st, data).filter(x => !x.morph && x.time < slowest && carries(st, x) && !c.played?.[x.id]);
+    const flyChits = pickedUp || st.ch.mist ? [] : flySources(st, data).filter(x => !x.morph && !x.carpet && x.time < slowest && carries(st, x) && !c.played?.[x.id]);
     // Why a section is missing (8.3.7a, 8.3.8): the gate is the slowest creature ON HIS SHEET; a hidden hero with nothing assigned has none. The screen says it in words.
     const denGate = dens.length ? dens.reduce((a, d) => (speedOf(d) < speedOf(a) ? d : a)) : null;
     const chargeGate = charged.length ? charged.reduce((a, x) => (x.time < a.time ? x : a)) : null;

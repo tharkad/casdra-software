@@ -22,6 +22,7 @@ import { chargeBody, deathCallout, pvpChips, pvpHow } from './pvpui.js';
 import { foeEl, foeSize, heroEl } from '../combat/stage.js';
 import { onMine, foesPhrase, cap } from '../combat/model.js';
 import { fixNames } from '../names.js';
+import { lureSheet, lureWords, lureDens } from '../combat/lure.js';
 
 const nb = s => fixNames(String(s)).replace(/ (?=\d)/g, '\u00A0');          // (the spelling of a name is one thing everywhere: QA-125)
 const WORD = { N: 'Negligible', L: 'Light', M: 'Medium', H: 'Heavy', T: 'Tremendous' };
@@ -73,53 +74,6 @@ function sceneEl({ st, data, ui, f, kind, peek, narr, sheet, stage = null, cls =
 }
 const sheetBox = (kind, ...kids) => h('div', { class: `cb-sheet sf-sheet${kind === 'lure' ? ' sf-pick' : ''}`, 'data-kind': kind }, ...kids);
 const footRow = (lead, prim) => h('div', { class: 'ds-actions' }, lead ? h('div', { class: 'lead' }, lead) : null, prim);
-
-// ---- the lure (8.3.4) ----
-function denPicture(data, d) {
-    const a = data.art;
-    if (d.kind === 'mon') { const nm = data.monsters[d.id]?.name; return a?.monstersColor?.[nm] ?? a?.monsters?.[nm] ?? null; }
-    return a?.natives?.[d.id] ?? null;
-}
-function lureSheet({ st, data, p, ui, render, act, f }) {
-    const sel = ui.lureSel ??= [];
-    for (let i = sel.length - 1; i >= 0; i--) if (!p.lurable.some(o => o.uid === sel[i])) sel.splice(i, 1);
-    const dens = st.battle?.dens ?? st.combat?.dens ?? [];
-    const hidden = !!st.ch.hidden, byId = Object.fromEntries(f.members.map(m => [m.id, m]));
-    const rows = p.lurable.map(o => {
-        const d = dens.find(x => x.uid === o.uid) ?? { uid: o.uid, kind: 'mon', id: '', side: 'light' };
-        let s = null; try { s = denSide(st, data, d); } catch { /* a name only */ }
-        const on = sel.includes(o.uid), from = o.from ? byId[o.from] : null, pic = denPicture(data, d);
-        const meaning = [from ? `On ${from.player}’s sheet: draw it away and it comes for you, not ${from.player}.` : null, d.kind === 'nat' ? 'A native: its whole group will fight you.' : null].filter(Boolean).join(' ') || null;
-        const stat = s ? [s.attack === 'none' ? 'no attack' : s.attack === 'spell' ? 'casts' : `hits ${WORD[String(s.harm)[0]] ?? s.harm}${'*'.repeat(s.stars || 0)}`, s.atk != null && s.attack !== 'none' ? `speed ${s.atk}` : null, s.vuln ? `falls to ${WORD[s.vuln] ?? s.vuln}` : null].filter(Boolean).join(' · ') : '';
-        return h('button', { type: 'button', class: `ds-row sf-lure${on ? ' on sel' : ''}`, role: 'checkbox', 'aria-checked': on ? 'true' : 'false', 'data-lure': o.uid, 'data-from': o.from ?? '',
-            onclick: () => { const i = sel.indexOf(o.uid); if (i >= 0) sel.splice(i, 1); else sel.push(o.uid); render(); } },
-            h('span', { class: 'art' }, pic ? h('img', { src: pic, alt: '' }) : null),
-            h('span', { class: 'main sf-ltext' }, h('b', {}, o.name), stat ? h('span', {}, stat) : null, meaning ? h('span', { class: 'mean' }, meaning) : null),
-            h('span', { class: 'sf-tick', 'aria-hidden': 'true' }, on ? icon('check') : icon('plus')));
-    });
-    // what cannot be drawn, and the plain reason (shown muted, so nothing is offered that the rules forbid)
-    const lurableIds = new Set(p.lurable.map(o => o.uid)), mineIds = new Set(p.mine ?? []);
-    const cannot = [...f.held, ...f.standingBy, ...f.sheets.filter(s => !s.owner.mine).flatMap(s => s.dens).filter(d => !lurableIds.has(d.uid) && !mineIds.has(d.uid))].filter(d => !lurableIds.has(d.uid) && !mineIds.has(d.uid));
-    const names = sel.map(u => p.lurable.find(o => o.uid === u)?.name).filter(Boolean), none = !sel.length;
-    const scroll = h('div', { class: 'sf-scroll' },
-        hidden ? h('p', { class: 'ds-hint-line bad', 'data-sf-hidden-lure': '' }, 'Drawing a creature onto your sheet gives you away.') : null,
-        h('div', { class: 'ds-list sf-lures', role: 'group', 'aria-label': 'Creatures you may draw', 'data-sf-lures': '' }, ...rows),
-        cannot.length ? h('p', { class: 'cb-hint sf-cannot', 'data-sf-cannot': '' }, `Not available: ${joinList([...new Set(cannot.map(d => `the ${d.name} (${whyNotLurable(d)})`))])}.`) : null);
-    const lead = none ? null : btn('Lure none', 'quiet', { 'data-act': 'lure-none', onclick: () => { ui.lureSel = []; render(); } });
-    const go = primary(none ? 'Lure none' : `Draw ${names.length === 1 ? `the ${names[0]}` : `${names.length} creatures`}${hidden ? ' and be seen' : ''}`,
-        { 'data-act': 'lure-go', 'data-count': String(sel.length), onclick: () => { const dens = sel.slice(); ui.lureSel = null; ui.melee = null; act({ type: 'combat', kind: 'lure', dens }); } });
-    const mineNow = f.sheets.find(s => s.owner.mine)?.dens ?? [];
-    return { sheet: sheetBox('lure', h('div', { class: 'sf-ask' }, askBox(`Round ${p.round}: draw any creature onto your sheet?`, 'One on your sheet attacks you alone, and what it pays is yours. The dice deal out whatever nobody draws.')), scroll, footRow(lead, go)),
-        narr: lureNarr(st, data, f, mineNow) };
-}
-// the creatures that circle, in a sentence ("An Ogre and two Wolves circle the clearing.")
-function lureNarr(st, data, f, mineNow) {
-    const all = [...f.sheets.flatMap(s => s.dens), ...f.loose, ...f.held, ...f.standingBy], seen = new Set(), names = [];
-    for (const d of all) if (!seen.has(d.uid)) { seen.add(d.uid); names.push(d.name); }
-    // (QA-125: "an Ogre", never "a Ogre": the article follows the first letter, whatever the phrase builder wrote)
-    const phrase = fixNames(cap(foesPhrase(names))).replace(/\b([Aa]) (?=[AEIOUaeiou])/g, '$1n ');
-    return names.length ? `${phrase} circle${names.length === 1 && !/s$/.test(names[0]) ? 's' : ''} the clearing.` : 'The clearing is quiet.';
-}
 
 // ---- waiting, and watching ----
 // Your sealed play, in one chip: "Sealed: Thrust at the Wolf, Duck". Only your own: nobody else's is on the page before the reveal.
@@ -359,8 +313,8 @@ export function sharedFightSheet(ctx) {
         return sceneEl({ st, data, ui, f, kind: 'charge', peek, narr, sheet: h('div', { class: 'cb-sheet sf-sheet sf-pick', 'data-kind': 'charge' }, h('div', { class: 'sf-scroll' }, ...body), foot) });
     }
     if (p?.type === 'combat-lure') {
-        const { sheet, narr } = lureSheet({ st, data, p, ui, render, act, f });
-        return sceneEl({ st, data, ui, f, kind: 'lure', peek, narr, sheet });
+        const { sheet } = lureSheet({ st, data, p, ui, render, act, f }), { mine, may } = lureDens(st, p);
+        return sceneEl({ st, data, ui, f, kind: 'lure', peek, narr: lureWords(st, data, p, f), sheet, stage: stageEl({ st, data, ui, dens: [...mine, ...may] }) });
     }
     if (p?.type?.startsWith('combat') && f.me.state === 'in') {
         return combatScene({ st, data, act, ui, render, peek, shared: { fight: f, strip: stripBlock(f) } });

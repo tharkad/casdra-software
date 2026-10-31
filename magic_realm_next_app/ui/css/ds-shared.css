@@ -163,6 +163,7 @@
 .cb-sheet.sf-pick .sf-scroll, .cb-sheet.sf-watch .sf-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 8px; padding-bottom: 6px;
     -webkit-mask-image: linear-gradient(#000 calc(100% - 14px), transparent); mask-image: linear-gradient(#000 calc(100% - 14px), transparent); }
 .cb-sheet.sf-pick > .ds-actions { flex: none; }
+.cb-sheet.sf-pick > .ds-actions .ds-btn { white-space: normal; height: auto; min-height: var(--tap-main, 52px); line-height: 1.15; padding-block: 8px; text-wrap: balance; }          /* "Draw the Tremendous Troll and be seen" says what it does, in two lines when it must */
 .sf-waitline { font: 500 calc(17px * var(--ts, 1))/1.3 var(--font-ui); color: var(--ink); }
 .sf-line, .sf-why { margin: 0; } .sf-why { color: var(--ink-3); font-size: calc(14px * var(--ts, 1)); }
 .cb-sheet .sf-sealed { margin: 0 0 4px; justify-content: flex-start; }

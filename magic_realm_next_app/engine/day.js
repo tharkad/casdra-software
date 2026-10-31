@@ -25,7 +25,7 @@ import { prophecyOn, startPro, phaseOptions, consume, noteCave } from './magic/p
 import { magicSightOn, SIGHT_REPLACES, doMagicSight, takeChosen, perceive } from './magic/sight.js';
 import { MORPH_REFUSED } from './magic/morph.js';
 import { beginHire, hireAction, followHero, expireHires, dismissHire } from './hire.js';
-import { planFlyError, canRecordFly, flySources, flyTiles, carries, startFlight, landHero, landingClearing } from './magic/fly.js';
+import { planFlyError, canRecordFly, hasCarpet, CARPET_DRY, flySources, flyTiles, carries, startFlight, landHero, landingClearing } from './magic/fly.js';
 import { ownedGold } from './magic/mist.js';
 import { resolveWho, settleActor, ownerOf, withActor, isMulti as multi, livingIds, playerNameOf } from './party.js';
 import * as meet from './meet.js';
@@ -933,7 +933,7 @@ function doFly(st, data, slot) {
     let src = null;
     if (!st.ch.flying) {
         const pick = chooseSource(st, data, slot, flySources(st, data), carries);          // a steed that follows him (steeds.js), or a Fly chit
-        if (pick.error) return pick.error;
+        if (pick.error) return hasCarpet(st) && /nothing to fly with/.test(pick.error) ? `${CARPET_DRY} The phase is lost.` : pick.error;
         src = pick.src;
     }
     return startFlight(st, data, slot.to, src);

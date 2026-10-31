@@ -6,6 +6,7 @@ import { fxList, expireFx, HERO } from './fx.js';
 import { adjacentTiles } from './util.js';
 import { steedSources, hasSteed, followersTakeOff, followersLand, followersLandWith, leftBehindOnFlight } from '../steeds.js';
 import { onArrive } from '../missions.js';
+import { colorsAt, colorChits } from './colour.js';
 
 // Flying (rules 7.3.3, 8.3.8e, 7.12.2d; docs/design/magic/02-day-spells.md section 8; RealmSpeak `CharacterWrapper.java` getFlyStrengthChits / land / mustFly and
 // `ActionRow.java` doFlyAction, read as a behaviour oracle). Written for the hero; a second character will need `st.chars` first.
@@ -19,8 +20,7 @@ import { onArrive } from '../missions.js';
 //   - he lands before any other activity and at the end of his last phase (7.3.3b): one die, unmodified, picks the clearing of the tile he is over, rolled again for a number the
 //     tile lacks (7.3.3b.1). If he lands in a cave in a Sunlight phase the sunlight phases still to come are lost (spec 8, test 4);
 //   - in the air he cannot be blocked (7.12.2d), cannot cast or energize with the clearing's colours (only the tile's, energize.js fxPlaces), and cannot trade or rearrange gear.
-// Fly sources: today only the Broomstick spell (a held record, Light, time 1). The Flying Carpet is a treasure with a Permanent Purple spell on it that is not built yet; when
-// it is, it only has to appear in `flySources`.
+// Fly sources: the Broomstick spell (a held record, Light, time 1) and the Flying Carpet (7.3.3h: Medium, time 2, energized by Purple magic, see carpetPower).
 
 export const isFlying = st => !!st.ch?.flying;
 
@@ -29,14 +29,43 @@ export const isFlying = st => !!st.ch?.flying;
 // A transmorphized hero cannot play a Fly chit (4.6.7e.3: his action chits are frozen, 4.6.9e; 7.3.3d.3: he cannot rearrange belongings); a creature that flies (the Transform
 // Table's Dragon, Eagle and Bird, or an absorbed flying monster) flies with its own flying values (7.3.3a.2, 7.3.3e): its vulnerability weight carries it. That source has no
 // spell (`morph: true`, `fx: null`) and is used up by nothing; the Encounter step does not offer it (a creature's Move chit runs, a Fly chit flies away: 8.3.8e).
+// The Flying Carpet (7.3.3h): "a permanent flying spell on it, which can be energized using Purple magic ... may use it repeatedly and without limit to fly during the day ...
+// If he uses a Purple Magic chit to energize the Flying Carpet, it remains energized for the whole day, regardless of how often he lands." Treasures: "Fly M2 spell powered by purple".
+// It is energized for the day once Purple has filled his clearing at a take-off or a Purple chit has been spent (st.ch.carpetDay); Midnight ends it (the day number moves on).
+// Returns null (not energized and nothing to energize it with at this take-off) or { how: 'day' | 'land' | 'chit', chit }.
+export const hasCarpet = st => (st.ch?.items ?? []).some(i => i.kind === 'treasure' && i.id === 'flying-carpet' && !i.destroyed);
+export function carpetPower(st, data) {
+    if (!hasCarpet(st) || st.ch.dead || st.ch.mist || st.ch.morph) return null;          // (a mist or transmorphized hero cannot rearrange: 7.3.3d.3 by analogy)
+    if (st.ch.carpetDay === st.day) return { how: 'day' };
+    if (st.ch.flying || st.ch.onRoad || !st.ch.at) return null;
+    if (colorsAt(st, data, st.ch.at).has('Purple')) return { how: 'land' };              // the day's colour, an enchanted tile or the Dragon Essence in his clearing
+    const chit = colorChits(st, 'Purple')[0];
+    return chit ? { how: 'chit', chit: chit.id } : null;
+}
+export const CARPET_DRY = 'The Flying Carpet is not energized: it needs Purple magic (the land, an enchanted tile or a Purple chit of your own).';
+// Called as the Carpet takes off: a Purple chit is spent the first time that day; the Carpet then stays energized until Midnight.
+function energizeCarpet(st, src) {
+    if (st.ch.carpetDay === st.day) return '';
+    st.ch.carpetDay = st.day;
+    if (src.power?.how === 'chit') {
+        const c = st.ch.chits.find(x => x.id === src.power.chit);
+        if (c) c.state = 'fatigued';
+        return ' A Purple chit is used up to energize the Flying Carpet: it stays energized until Midnight.';
+    }
+    return ' The Purple magic here energizes the Flying Carpet until Midnight.';
+}
+
 export function flySources(st, data) {
     if (st.ch.mist || st.ch.dead) return [];
     if (st.ch.morph) {
         const cr = st.ch.morph.creature;
         return cr.flies ? [{ id: 'fly:morph', fx: null, spell: null, name: `${cr.name}'s own wings`, strength: cr.vuln, time: cr.light?.move ?? 1, morph: true }] : [];
     }
-    return fxList(st, { spell: 'broomstick', target: HERO, any: true }).filter(f => f.state === 'held' || f.state === 'live')
+    const chits = fxList(st, { spell: 'broomstick', target: HERO, any: true }).filter(f => f.state === 'held' || f.state === 'live')
         .map(f => ({ id: `fly:${f.id}`, fx: f.id, spell: f.spell, name: 'Broomstick Fly chit', strength: f.data?.strength ?? 'L', time: f.data?.time ?? 1 }));
+    const power = carpetPower(st, data);
+    // the Carpet first: it is not used up (a Fly chit is)
+    return power ? [{ id: 'fly:carpet', fx: null, spell: null, name: 'Flying Carpet', strength: 'M', time: 2, carpet: true, power }, ...chits] : chits;
 }
 // Strong enough to carry him (7.3.3a.2): the Fly chit's strength must reach his own weight.
 export const carries = (st, src) => !!src.morph || lvl(src.strength) >= lvl(st.ch.weight);          // (a creature carries itself)
@@ -73,9 +102,9 @@ export function planFlyError(st, data, slots, i) {
         const src = flySources(st, data), rides = steedSources(st, data);          // (a steed is not used up: any number of flights)
         if (s.with && s.with !== 'chit' && !rides.some(r => r.id === s.with)) return 'that is not a flying steed that follows you and can carry you.';
         if (!(s.with ? s.with !== 'chit' : rides.length > 0)) {                          // on a steed nothing else is needed; on a Fly chit (or with no steed) there must be one, strong enough, and one for each flight
-            if (!src.length) return 'you have nothing to fly with.';
+            if (!src.length) return hasCarpet(st) ? CARPET_DRY.charAt(0).toLowerCase() + CARPET_DRY.slice(1) : 'you have nothing to fly with.';
             if (!src.some(x => carries(st, x))) return 'you are too heavy to fly with that.';
-            if (flights > src.length && !src.some(x => x.morph)) return 'you have no Fly chit left for another flight.';
+            if (flights > src.length && !src.some(x => x.morph || x.carpet)) return 'you have no Fly chit left for another flight.';
         }
     }
     let cur = st.ch.at ? tileOf(st.ch.at) : null;
@@ -102,9 +131,11 @@ export function leaveBehind(st, data, strength) {
 export function startFlight(st, data, to, src, by = 'fly') {
     let text = '';
     if (src) {
+        const carpet = src.carpet ? energizeCarpet(st, src) : '';
         const left = leaveBehind(st, data, src.strength);
         if (left.length) text = ` You had to leave behind: ${left.map(i => nameOf(data, i)).join(', ')}.`;
-        expireFx(st, data, src.fx, 'the Fly chit was used');                                // the spell ends; the Magic chit that cast it tires
+        text += carpet;
+        if (src.fx) expireFx(st, data, src.fx, 'the Fly chit was used');                                // the spell ends; the Magic chit that cast it tires
     }
     const steed = src?.steed ?? st.ch.flying?.steed;                                      // a flight on a steed goes on, Fly phase after Fly phase, on the same steed (steeds.js)
     st.ch.flying = { tile: to, by, ...(steed ? { steed } : {}) };

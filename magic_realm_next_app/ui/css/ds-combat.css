@@ -50,6 +50,8 @@
 .cb-foe.flip .ds-cs-wrap { animation: cb-flip var(--d-base) var(--ease-io); }
 @keyframes cb-flip { from { transform: rotateY(90deg); } to { transform: rotateY(0); } }
 .cb-foe.pacified .ds-cs-wrap { opacity: .7; }
+.cb .cb-peace-lbl { flex: 0 0 100%; margin: 4px 0 -6px; text-align: center; font: 700 calc(12px * var(--ts, 1))/16px var(--font-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }          /* natives at peace: they may be named, and then they fight (8.2.1a) */
+.cb-foe.pacified .ds-cs-wrap svg { filter: grayscale(.5) drop-shadow(0 3px 5px rgba(0, 0, 0, .6)); }
 .cb-foe.sel .ds-cs-wrap svg { filter: drop-shadow(0 0 6px rgba(241, 210, 127, .8)); }
 .cb-foe.held::before { content: ""; position: absolute; inset: -3px; border-radius: 12px; border: 2px solid var(--danger); pointer-events: none; }
 .cb-lanes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0; }
