@@ -61,6 +61,8 @@ function meetNarr(st, data, c, group) {
     return [tale ?? `${M.cap(last.result ?? '')}.`, last.result ? `${M.cap(last.result)}${/[.!?]$/.test(last.result) ? '' : '.'}` : null];
 }
 
+// Note 76: the game menu is on every screen, the fight included (the status strip is not on screen here).
+const menuBtn = (ui, render) => h('button', { type: 'button', class: 'cb-menu', 'data-act': 'menu', 'aria-label': 'Menu', onclick: () => { ui.sheet = ui.sheet === 'menu' ? null : 'menu'; render(); } }, icon('menu', 'lg'));
 export function combatScene({ st, data, act, ui, render, peek, shared = null }) {
     const p = st.pending, c = st.combat;
     const key = fightKey(st, c);
@@ -219,7 +221,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     const sight = M.sightOf(st);
     const stat = (cls, ic, n) => h('span', { class: `ds-stat ${cls}` }, icon(ic), String(n));
     const root = h('section', { class: `cb ds-screen${shared ? ' sf' : ''}`, 'data-mode': mode, 'data-ask-type': p.type, 'data-step': mode === 'melee' ? step : null, 'data-sf': shared ? 'step' : null },
-        h('div', { class: 'cb-top' },
+        h('div', { class: 'cb-top' }, shared ? null : menuBtn(ui, render),
             h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', {}, p.spellOnly ? 'Evening · quiet' : `Evening · round ${c.round}`)),
             h('span', { class: `cb-sight${sight.hidden ? ' hid' : ''}`, 'data-sight': sight.hidden ? 'hidden' : 'seen' }, sight.text)),
         shared ? shared.strip : null,
@@ -346,7 +348,7 @@ export function combatBeat({ st, data, ui, render }) {
     const detail = how === 'died' ? (deathLine?.t ?? 'You have died.') : how === 'quiet' ? 'The fighting dies down.' : 'Combat is over: nothing hostile is left.';
     const place = nameOfClearing(c.at).replace(/ (\d+)$/, '\u00A0$1');
     const root = h('section', { class: 'cb ds-screen', 'data-mode': 'beat', 'data-beat': how },
-        h('div', { class: 'cb-top' }, h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', {}, `Evening · round ${recap.rounds}`))),
+        h('div', { class: 'cb-top' }, menuBtn(ui, render), h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', {}, `Evening · round ${recap.rounds}`))),
         h('div', { class: 'cb-bar' }, h('span'), voiceSwitch()), stage,
         h('p', { class: `cb-narr verdict${how === 'died' ? ' bad' : ''}`, role: 'status', 'aria-live': 'polite' }, h('span', { 'data-v': 'story' }, story), h('span', { 'data-v': 'detail' }, detail)),
         beatSheet(X, recap, how));

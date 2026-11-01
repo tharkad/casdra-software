@@ -10,6 +10,7 @@ import { openPiece, pieceSheet } from './piece_card.js';
 import { cardInfoSheet, charSheet, itemSheet, spellSheet } from './sheet_char.js';
 import { clearingSheet } from './sheet_clearing.js';
 import { journalSheet } from './journal.js';
+import { menuSheet } from './sheet_info.js';
 import { playersSheet } from './shared.js';
 
 // A shared fight. Returns true when it filled `out` (the caller returns it as it is), false when there is no fight screen for this seat after all.
@@ -64,7 +65,8 @@ export function combatHost(G, out) {
     const peek = { gear: () => { G.ui.sheet = 'char'; render(G); }, map: () => { G.ui.combatMap = true; G.ui.sheet = null; render(G); }, piece: d => openPiece(G, { kind: d.kind, id: d.id, side: d.side ?? 'light', tag: d.tag ?? null }) };
     if (inFight) { if (G.st.pending.type === 'combat-over') G.ui.cbBeat = null; out.push(combatScene({ st: G.st, data: G.data, act: act.bind(null, G), ui: G.ui, render: () => render(G), peek })); }
     else out.push(combatBeat({ st: G.st, data: G.data, ui: G.ui, render: () => render(G) }));
-    if (G.ui.sheet === 'char') out.push(charSheet(G));
+    if (G.ui.sheet === 'menu') out.push(menuSheet(G));
+    else if (G.ui.sheet === 'char') out.push(charSheet(G));
     else if (G.ui.sheet === 'item') out.push(itemSheet(G));
     else if (G.ui.sheet === 'cardinfo') out.push(cardInfoSheet(G));
     else if (G.ui.sheet === 'spell') out.push(spellSheet(G));
