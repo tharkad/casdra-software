@@ -20,7 +20,7 @@ import { askBox as ask, playersStrip } from '../../shared_ui.js';
 import { phasePrompt, storyRoll } from '../../storyvoice.js';
 import { guardIfChanged } from '../../tapguard.js';
 import { isStory, logText } from '../../voice.js';
-import { blockCard, followCard, newDraft as newMeetDraft, resultCards, waitingCard, windowCard } from '../meetui.js';
+import { blockCard, followCard, joinCard, newDraft as newMeetDraft, resultCards, waitingCard, windowCard } from '../meetui.js';
 import { noteCard, tableCards } from '../tableui.js';
 import { act } from './actions.js';
 import { noticeCards, takeChips } from './chits.js';
@@ -212,9 +212,9 @@ export function renderTray(G) {
         m.body.push(ask('Sudden Death: you have met every goal.', 'The game waits for you to say whether it ends at this Midnight. The question is on screen; the map is one tap away.', { compact: true }));
     } else if (G.shared && p.type === 'meet-offer') {
         m.body.push(ask(`${playerNameOf(st, p.from)} has made you an offer.`, 'The offer is on screen. Look at it, then accept or decline; the map is one tap away.', { compact: true }));
-    } else if (G.shared && (p.type === 'meet-block' || p.type === 'meet-follow' || p.type === 'meet-window')) {
+    } else if (G.shared && (p.type === 'meet-block' || p.type === 'meet-follow' || p.type === 'meet-join' || p.type === 'meet-window')) {
         if (p.type === 'meet-window' && G.ui.windowDay !== st.day) { G.ui.windowDay = st.day; G.ui.windowLog = logEnd(G); }          // (what counts as "traded" starts when the window opens)
-        const k = (p.type === 'meet-block' ? blockCard : p.type === 'meet-follow' ? followCard : windowCard)(mc(G), p);
+        const k = (p.type === 'meet-block' ? blockCard : p.type === 'meet-follow' ? followCard : p.type === 'meet-join' ? joinCard : windowCard)(mc(G), p);
         m.body.push(k.body); [m.lead, m.primary] = k.actions;
     } else {
         // a question that waits on a sheet (a table, a trade, a hire, a rest ...): the tray stands dim under it

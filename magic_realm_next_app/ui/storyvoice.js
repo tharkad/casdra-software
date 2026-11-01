@@ -491,6 +491,9 @@ rule(/^The Power of the Pit finds no target/, () => 'The Pit has nothing to take
 rule(/^Power of the Pit at (.+?): (Fiery Chasm|Carried Away|Terror|Blight|Forget|Rust) \(rolled [^)]*\)\./, m => `The Pit answers at ${noHash(m[1])}: ${m[2]}.`);
 rule(/^(.+?) is held off by a Pentangle/, m => `A pentangle holds ${m[1]} off.`);
 rule(/^You name a monster you control as your target: the spell that holds it is broken/, () => 'You turn on a monster that served you, and the spell that held it breaks.');
+// (luring, 8.3.4: the engine's line says "onto his sheet"; the Story voice says what happens in the clearing: the creature is drawn to him and fights him)
+rule(/^(.+?) lures the (.+?) away from (.+?)\.$/, m => `${m[1]} draws the ${noHash(m[2])} away from ${m[3]}.`);
+rule(/^(.+?) lures the (.+?) onto (?:his|her|their|your) sheet\.$/, m => `${m[1]} draws the ${noHash(m[2])} to ${m[1] === 'You' ? 'you' : 'themselves'}.`);
 rule(/^You lure the (.+?): (.+?) is broken, and it comes for you/, m => `You lure the ${noHash(m[1])}: ${m[2]} breaks, and it comes for you.`);
 rule(/^Luring it breaks the spell that kept the peace/, () => 'Luring it breaks the spell that kept the peace.');
 rule(/^Your play of the (Fight|Move) chit is cancelled: the spell forbids it/, m => `A spell takes the ${m[1]} chit out of your hand: that play is called off.`);
@@ -515,6 +518,13 @@ rule(/^Enchant Artifact: the (.+?) already holds/, m => `The ${m[1]} holds that 
 rule(/^Premonition: /, () => 'You see which way tomorrow leans.');
 rule(/^Bad Luck: /, () => 'Bad luck settles on the target like a cloak.');
 rule(/^Bad Luck is already in force there/, () => 'Bad luck hangs there already.');
+rule(/^Sense Danger: while it is energized/, () => 'Your sense of danger waits on Purple magic: with it you may alert once more.');
+rule(/^(.+?) is already in force there: casting it again does nothing/, m => `${m[1]} is already at work there. Casting it again changes nothing.`);
+rule(/^You are out of the fight, in the air\.?$/, () => 'You rise out of the fight and into the air.');
+rule(/^You come down in (.+?)\.?$/, m => `You come down in ${m[1]}.`);
+rule(/^Blazing Light fills the cave: /, () => 'Blazing Light fills the cave. Stay here, and tomorrow you may do one thing more.');
+rule(/^(Fiery Chasm|Roof Collapses|Lightning Bolt|Stones Fly|Fiery Blast) kills: /, m => `${m[1]} cuts down everything that stood in its way.`);
+rule(/^Your Wish of Strength strikes with (\w+) harm/, m => `Your wish lends your blow ${m[1].toLowerCase()} force.`);
 rule(/^Dissolve Spell: (.+?) is broken\.?$/, m => `Dissolve Spell unravels ${m[1]}.`);
 rule(/^Health: .*restored/, () => 'Health floods back into you.');
 rule(/^Your (.+?) is damaged\.?$/, m => `Your ${m[1]} is damaged.`);

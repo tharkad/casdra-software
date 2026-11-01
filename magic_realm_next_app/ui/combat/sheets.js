@@ -278,7 +278,7 @@ export function stepsFor(o, X = null) {
     s.push({ id: 'guard', l: 'Guard' });
     if (o.shield) s.push({ id: 'shield', l: 'Shield' });
     if ((o.morphParts ?? []).length) s.push({ id: 'parts', l: 'Parts' });
-    if (o.boxable.length >= 2) s.push({ id: 'foes', l: 'Foes' });
+    if (X ? M.placementMatters(X.st, o, X.cb?.plan) : o.boxable.length >= 2) s.push({ id: 'foes', l: 'Foes' });          // (three or fewer counters: no step, any plan is the same odds: 06-PLACEMENT-PROOF.md)
     if (SEC.inPlay(o)) s.push({ id: 'sections', l: 'Hires' });          // (a round on Melee Sections: where your hirelings' counters stand)
     s.push({ id: 'roll', l: 'Roll' });
     return s;
@@ -364,7 +364,7 @@ export function meleeSheet(X) {
         rows.push(sumRow('Guard', m.moveChit ? `${MNV[m.moveDir]}, with ${chitText(M.moveList(o).find(x => x.id === m.moveChit) ?? st.ch.chits.find(x => x.id === m.moveChit))}` : `${MNV[m.moveDir]}, no chit`, () => go('guard')));
         if (o.shield) rows.push(sumRow('Shield', `guards ${DIRS[m.shieldDir]}`, () => go('shield')));
         if (SEC.inPlay(o)) rows.push(sumRow('Hires', m.secErr ? 'Not allowed yet: open it' : `${o.sections.length} ${o.sections.length === 1 ? 'section' : 'sections'} set`, () => go('sections')));
-        if (o.boxable.length >= 2) rows.push(sumRow('Foes', o.boxable.length > 3 ? `${o.boxable.length} creatures placed` : o.boxable.map((d, i) => `${baseNameOf(st, data, o, d.uid)} ${MNV[m.boxes[d.uid] ?? (i % 3)]}`).join(' \u00B7 '), () => go('foes')));
+        if (M.placementMatters(st, o, m) && o.boxable.length >= 2) rows.push(sumRow('Foes', o.boxable.length > 3 ? `${o.boxable.length} creatures placed` : o.boxable.map((d, i) => `${baseNameOf(st, data, o, d.uid)} ${MNV[m.boxes[d.uid] ?? (i % 3)]}`).join(' \u00B7 '), () => go('foes')));
         if (m.fightChit && !m.target && w && !o.attackSpell) { m.weaponSide ??= w.item.alerted ? 'alerted' : 'unalerted'; rows.push(sumRow('Weapon', `ends ${m.weaponSide === 'alerted' ? 'alerted' : 'not alerted'}`, () => { m.weaponSide = m.weaponSide === 'alerted' ? 'unalerted' : 'alerted'; render(); }, 'data-weapon-side')); }
         body = [h('div', { class: `cb-fields${rows.length >= 4 ? ' two' : ''}` }, ...rows)];
         lead = leadText(eff.over ? h('span', { class: 'bad', style: 'color:var(--danger)' }, `${eff.text}: ${eff.words}.`) : [`${eff.text}: `, eff.words, '.']);

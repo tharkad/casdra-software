@@ -48,7 +48,7 @@ export function counterOf(st, data, d, side, flies = false) {
 }
 
 // One foe: its counter (tap to turn it over), and an optional tag (TARGET, a box, WOUNDED YOU). `view` says which side shows; `tag` is { text, kind, onclick? }.
-export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, onFlip, size = 92, justFlipped = false, selected = false, turnedOver = false, onHold = null }) {
+export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, onFlip, size = 92, justFlipped = false, selected = false, turnedOver = false, onHold = null, seton = null }) {
     let other = null; try { other = otherSide(data, d); } catch { other = null; }
     const showRev = !!flipped && other && other !== (d.side ?? 'light');
     const view = showRev ? { ...d, side: other } : d;
@@ -63,9 +63,10 @@ export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, 
             showRev && !dead ? h('span', { class: 'sidelbl peek', 'data-side': d.uid }, size < 76 ? 'NOT NOW' : 'NOT CURRENT SIDE') : null,
             turnedOver && !dead ? h('span', { class: 'turned', 'data-turned': d.uid }, size < 76 ? 'TURNED' : 'TURNED OVER') : null);
     if (!dead) holdable(flipBtn, onHold ? () => onHold(d) : null);
-    return h('div', { class: `cb-foe${dead ? ' dead' : ''}${justFlipped ? ' flip' : ''}${d.pacified || (d.bystander && !d.assigned && !dead) ? ' pacified' : ''}${d.pickedUp ? ' held' : ''}${selected ? ' sel' : ''}`, style: `--foe:${size}px`, 'data-foe': d.uid },
+    return h('div', { class: `cb-foe${dead ? ' dead' : ''}${justFlipped ? ' flip' : ''}${d.pacified || (d.bystander && !d.assigned && !dead) ? ' pacified' : ''}${d.pickedUp ? ' held' : ''}${selected ? ' sel' : ''}`, style: `--foe:${size}px`, 'data-foe': d.uid, 'data-on': seton?.on ?? null },
         h('div', { class: 'tagslot' }, tagEl),
-        flipBtn);
+        flipBtn,
+        seton && !dead ? h('span', { class: `seton ${seton.kind}`, 'data-seton': d.uid }, seton.text) : null);
 }
 
 // A long name ("Company Short Swords #1") would run off the counter: shrink it to fit the printed strip, and if it would be too small to read, set it on two lines. Needs the counters to be in the page (text is
@@ -86,6 +87,58 @@ export function fitNames(root) {
         const t2 = t.cloneNode(false); t2.textContent = words.slice(cut).join('\u00A0'); t2.setAttribute('y', '21'); t2.setAttribute('font-size', '7.5'); t2.dataset.fit = '1';
         t.after(t2);
     }
+}
+
+// The other characters standing in the clearing, and the hirelings that are theirs, drawn as counters under the foes (F1 "The Clearing": everyone who is here is on the stage). `others` = M.othersHere();
+// `targetable` = the uids the engine lets him name; `target` = the one he named. A tap on a targetable one names it; a hidden one is dimmed with a dashed ring.
+export function othersEl({ others, targetable = new Set(), target = null, onPick = null, size = 52 }) {
+    const face = (o, kind) => h('span', { class: `face${o.hidden ? ' hid' : ''}${kind === 'hire' ? ' hire' : ''}` }, o.pic ? pic(o.pic, '') : h('i', {}, (o.name ?? '?')[0]));
+    const one = (o, kind, ownerId) => {
+        const can = targetable.has(o.uid), sel = target === o.uid;
+        const tag = can ? h('button', { type: 'button', class: `tag ${sel ? '' : 'ghost'}`, 'data-tag': o.uid, 'aria-label': sel ? `Target: ${o.name}. Tap to strike no one` : `Target ${o.name}`, onclick: e => { e.stopPropagation(); onPick?.(sel ? null : o.uid); } }, 'TARGET') : null;
+        const body = h(can ? 'button' : 'span', { class: 'cb-flip', ...(can ? { type: 'button', 'data-pick': o.uid, 'aria-pressed': sel ? 'true' : 'false', 'aria-label': `${o.name}${o.hidden ? ', hidden' : ''}: ${sel ? 'your target' : 'tap to name as your target'}`, onclick: () => onPick?.(sel ? null : o.uid), style: 'padding:0;display:block' } : {}) }, face(o, kind));
+        return h('div', { class: `cb-other${kind === 'hire' ? ' hire' : ''}${sel ? ' sel' : ''}${o.hidden ? ' dim' : ''}`, style: `--foe:${size}px`, 'data-other': kind === 'hire' ? o.uid : o.id, 'data-owner': ownerId ?? null },
+            h('div', { class: 'tagslot' }, tag), body,
+            h('span', { class: 'cap' }, h('b', {}, o.name), h('small', {}, kind === 'hire' ? 'a hireling' : o.hidden ? 'hidden' : 'in plain sight')));
+    };
+    return h('div', { class: 'cb-others', role: 'group', 'aria-label': `Also here: ${others.map(o => o.name).join(', ')}` },
+        ...others.flatMap(o => [one(o, 'char', null), ...o.hires.map(x => one(x, 'hire', o.id))]));
+}
+
+// Threads on the stage (F1): the one he named, a gold thread from him to it; a creature set on another character, a thread to that character. Drawn in the stage's own units (the layout offsets, which
+// the stage's zoom does not change), from what is in the page, so it follows the counters wherever they stand. `root` is the scene.
+export function drawThreads(root) {
+    const inner = root.querySelector('.cb-stagein');
+    if (!inner) return;
+    inner.querySelector(':scope > svg.cb-threads')?.remove();
+    const where = el => { let x = 0, y = 0, n = el; while (n && n !== inner) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; } return { x: x + el.offsetWidth / 2, y, w: el.offsetWidth, h: el.offsetHeight }; };
+    const hero = inner.querySelector('.cb-hero .face');
+    const art = el => el;          // (the whole of a creature: its counter and the word under it)
+    const lines = [];
+    const target = inner.querySelector('.cb-foe.sel[data-foe], .cb-other.sel');
+    if (hero && target) lines.push({ a: hero, b: art(target), cls: 'tgt' });          // (from him to what he named: the arrow ends on it)
+    for (const f of inner.querySelectorAll('.cb-foe[data-foe][data-on]')) {
+        const on = f.dataset.on; if (!on || on === 'you' || f === target) continue;
+        const to = inner.querySelector(`.cb-other[data-other="${CSS.escape(on)}"]`); if (to) lines.push({ a: art(f), b: art(to), cls: 'on' });
+    }
+    if (!lines.length) return;
+    const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'cb-threads'); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('width', String(inner.offsetWidth)); svg.setAttribute('height', String(inner.offsetHeight));
+    const defs = document.createElementNS(NS, 'defs'); svg.append(defs);
+    for (const cls of ['tgt', 'on']) {
+        const m = document.createElementNS(NS, 'marker'); m.setAttribute('id', `cbth-${cls}`); m.setAttribute('viewBox', '0 0 10 10'); m.setAttribute('refX', '8'); m.setAttribute('refY', '5'); m.setAttribute('markerWidth', '7'); m.setAttribute('markerHeight', '7'); m.setAttribute('orient', 'auto-start-reverse');
+        const pth = document.createElementNS(NS, 'path'); pth.setAttribute('d', 'M0 0 L10 5 L0 10 z'); pth.setAttribute('class', `cb-thead ${cls}`); m.append(pth); defs.append(m);
+    }
+    for (const { a, b, cls } of lines) {
+        const A = where(a), B = where(b);
+        // from the edge of one to the edge of the other: the lower one's top, the upper one's bottom
+        const up = A.y < B.y, x1 = A.x, y1 = up ? A.y + A.h : A.y, x2 = B.x, y2 = up ? B.y : B.y + B.h;
+        const p = document.createElementNS(NS, 'path'), bend = Math.abs(x2 - x1) < 6 ? 28 : 0;
+        p.setAttribute('d', `M${x1} ${y1} Q ${(x1 + x2) / 2 + bend} ${(y1 + y2) / 2} ${x2} ${y2}`); p.setAttribute('class', `cb-thread ${cls}`); p.setAttribute('marker-end', `url(#cbth-${cls})`);
+        if (cls === 'tgt') p.setAttribute('data-thread', 'target');
+        svg.append(p);
+    }
+    inner.prepend(svg);
 }
 
 // The hirelings (and the creatures a spell won over) beside you, as real counters (QA-116): the picture, the name, the days left as pips, and a tap turns the counter over like a foe's.
@@ -174,4 +227,20 @@ export function cursePopover({ st, onClose }) {
     return h('div', { class: 'cb-pop curse', role: 'dialog', 'aria-label': 'Your curse', onclick: onClose },
         h('p', { class: 'story' }, wither ? WITHER_STORY : `You bear ${st.ch.curses.join(' and ')}: see the Journal for what it takes away.`),
         wither ? h('p', { class: 'detail' }, WITHER_DETAIL) : null);
+}
+
+// When the stage holds more than it has room for (six creatures, a tall sheet), the whole stage is scaled to fit rather than letting anything overlap. One look after the scene is in the page, and again
+// when the phone turns or the keyboard comes and goes.
+export function fitStage(root) {
+    const fit = () => {
+        const stage = root.querySelector('.cb-stage'), inner = stage?.querySelector('.cb-stagein');
+        if (!stage || !inner || !root.isConnected) return;
+        fitNames(root);
+        inner.style.zoom = ''; inner.style.removeProperty('--z');
+        const cs = getComputedStyle(stage), room = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom), need = inner.scrollHeight;
+        if (need > room + 1 && room > 80) { const z = Math.max(0.55, room / need); inner.style.zoom = String(z); inner.style.setProperty('--z', String(z)); }
+        drawThreads(root);
+    };
+    requestAnimationFrame(fit);
+    if (typeof ResizeObserver === 'function') { const ro = new ResizeObserver(() => fit()); ro.observe(root); const gone = new MutationObserver(() => { if (!root.isConnected) { ro.disconnect(); gone.disconnect(); } }); gone.observe(document.body, { childList: true, subtree: true }); }
 }

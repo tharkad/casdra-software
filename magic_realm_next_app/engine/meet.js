@@ -95,12 +95,22 @@ function discLabel(st, data, d, at) {
     if (d.kind === 'site') return `the ${st.chits.find(x => x.id === d.id)?.name ?? 'site'} here`;
     return `the ${st.twt?.[d.id]?.name ?? 'site card'} here`;
 }
+// 4.5.5d (selling) and 7.5.5b.2 (looting), ruling I2 (Mike 2026-11-01): a face-down Site chit is turned up for all to see, then put in its clearing FACE DOWN again. Every character in the
+// game has now seen it (`seen`), and it is marked `known`: it is turned over later like any chit but summons nothing (summon.js), because everyone already saw it. Returns true when it was shown.
+export function showSiteChit(st, chit) {
+    if (!chit || chit.kind !== 'site' || chit.up || chit.known) return false;
+    chit.clearing = chit.num;
+    chit.known = true;
+    for (const c of Object.values(st.chars ?? {})) if (!(c.seen ??= []).includes(chit.id)) c.seen.push(chit.id);
+    say(st, `A site chit is shown to all and put face down in its clearing: the ${chit.name} in clearing ${chit.num}.`, 'discover', null, { who: null });
+    return true;
+}
 // He now knows it. Returns true when it was news.
 function grant(st, c, d, at, { turnUp = false } = {}) {
     if (d.kind === 'path') { if (c.discovered.paths.includes(d.key)) return false; c.discovered.paths.push(d.key); return true; }
     if (d.kind === 'site') {
         const chit = st.chits.find(x => x.id === d.id);
-        if (turnUp && chit && !chit.up) { chit.up = true; if (chit.kind === 'site') chit.clearing = chit.num; say(st, `A site chit turns up: the ${chit.name} in clearing ${chit.num}.`, 'discover', null, { who: null }); }       // 4.5.5d: sold, it is turned up for all
+        if (turnUp) showSiteChit(st, chit);                                                    // 4.5.5d: sold, it is shown to all and put in its clearing face down
         if (!(c.seen ??= []).includes(d.id)) c.seen.push(d.id);
         if (c.discovered.sites.includes(d.id)) return false;
         c.discovered.sites.push(d.id); return true;
@@ -447,6 +457,32 @@ export function beforeActivity(st, data) {
     for (const f of asked) { st.chars[f].today.followVote = 'pending'; st.asks.push({ who: f, pending: { type: 'meet-follow', guide: g, guideName: nameOfChar(st, g), i: t.i } }); }
     return 'wait';
 }
+// 7.11.6f (ruling F2, Mike 2026-11-01): "each follower who is a character can do the activity or not, as he chooses". When the guide begins a Rest or an Alert phase, every follower who is a
+// character and has the standing choice `follow: 'ask'` is asked (together; the answers are independent and come in any order) whether to Rest / Alert with him: { join, opt?, magic? }
+// (`opt`: which way to rest, a position in the rest options the follower sees; `magic`: the Magic chit to alert instead of his weapon). Followers who are not asked, and hired leaders, do it
+// as they always did (the first way to rest, the weapon readied). Returns 'wait' when somebody is asked.
+export function askJoin(st, data) {
+    const g = st.actor, t = st.turn, slot = t ? st.plan?.[t.i] : null;
+    if (!t || !slot || (slot.act !== 'rest' && slot.act !== 'alert') || t.joinChecked === t.i) return null;
+    t.joinChecked = t.i; delete t.joins;
+    const asked = followersOf(st, g).filter(f => !st.chars[f].leader && policyOf(st.chars[f]).follow === 'ask');
+    if (!asked.length) return null;
+    st.joinCheck = { guide: g, asked: asked.slice(), act: slot.act };
+    for (const f of asked) { st.chars[f].today.joinVote = 'pending'; st.asks.push({ who: f, pending: { type: 'meet-join', guide: g, guideName: nameOfChar(st, g), act: slot.act, i: t.i } }); }
+    return 'wait';
+}
+function answerJoin(st, data, a) {
+    const jc = st.joinCheck, c = st.chars[a.who], ask = askOf(st, a.who);
+    if (!jc || ask?.pending.type !== 'meet-join') throw new Error('nobody is asking you whether to rest or alert with your guide');
+    c.today.joinVote = { join: a.join !== false, opt: a.opt ?? null, magic: a.magic ?? null };
+    st.asks.splice(st.asks.indexOf(ask), 1);
+    if (!jc.asked.every(id => st.chars[id].today.joinVote !== 'pending')) return st;
+    delete st.joinCheck;
+    const joins = {};
+    for (const id of st.order.filter(x => jc.asked.includes(x))) { joins[id] = st.chars[id].today.joinVote; delete st.chars[id].today.joinVote; }
+    withActor(st, jc.guide, () => { st.turn.joins = joins; hooks.resumePhase(st, data); });
+    return st;
+}
 function answerFollow(st, data, a) {
     const fc = st.followCheck, c = st.chars[a.who], ask = askOf(st, a.who);
     if (!fc || ask?.pending.type !== 'meet-follow') throw new Error('nobody is asking you whether to stop following');
@@ -588,7 +624,7 @@ export function followWhy(st, who) {
 
 // ---- the action: { type: 'meet', kind, ... } ----
 // Anyone may take part in a meeting whether or not he has a question: an offer from a character who is only watching, a policy, stopping to follow. The answers are to the questions
-// meet-offer, meet-block, meet-follow and meet-window.
+// meet-offer, meet-block, meet-follow, meet-join and meet-window.
 export function act(st, data, a) {
     if (!isMulti(st)) throw new Error('there is nobody here to meet');
     switch (a.kind) {
@@ -598,6 +634,7 @@ export function act(st, data, a) {
         case 'policy': return setPolicy(st, a);
         case 'block': return answerBlock(st, data, a);
         case 'follow-drop': return answerFollow(st, data, a);
+        case 'join': return answerJoin(st, data, a);
         case 'stop-follow': return stopFollow(st, data, a);
         case 'ditch': return ditch(st, data, a);
         case 'done': return windowDone(st, data, a);

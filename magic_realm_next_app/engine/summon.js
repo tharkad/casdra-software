@@ -89,6 +89,11 @@ export function endOfTurn(st, data) {
         report[c.id] ??= { id: c.id, kind: c.kind, name: c.name, letter: c.letter ?? null, num: c.num ?? null, summons: [], dest: null, already: true, why: 'it has already called out today' };
     }
     if (!quiet) for (const c of [...st.chits.filter(x => faceUp(x) && !x.summoned && !(peace && quietChit(x)))].sort((a, b) => rank(a) - rank(b))) {
+        if (c.known) {                                    // a Site chit shown to all when it was sold or looted (4.5.5d, 7.5.5b.2; ruling I2): everyone has seen it, so it calls no one
+            report[c.id] ??= { id: c.id, kind: c.kind, name: c.name, letter: c.letter ?? null, num: c.num ?? null, summons: [], dest: null, already: true };
+            report[c.id].why = 'it was shown to everyone when it was sold or looted, so it calls no one';
+            continue;
+        }
         const row = boxesOfRow(data, st.prowl);
         const matching = row.filter(b => boxMatches(b, c, letter));
         const box = matching.find(b => monstersInBox(st, b.id).length);

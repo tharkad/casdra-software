@@ -60,7 +60,7 @@ export function lureTexts(st, data, p, f) {
     const story = hidden
         ? `${circle} You are hidden: draw one and you are seen.`
         : `${circle} Draw one to fight it yourself.`;
-    const detail = `Round ${p.round}, Lure (8.3.4): take any unhired creature onto your own sheet; the dice deal out the rest.${hidden ? ' A hidden character who lures is unhidden at once (8.3.4b); one who draws none stays hidden.' : ''}${natives ? ' Natives you draw bring their whole group (8.2.3a).' : ''}`;
+    const detail = `Round ${p.round}, Lure (8.3.4): you may draw any unhired creature to you, and it fights you alone; the dice deal out the rest.${hidden ? ' A hidden character who lures is unhidden at once (8.3.4b); one who draws none stays hidden.' : ''}${natives ? ' Natives you draw bring their whole group (8.2.3a).' : ''}`;
     return [story, detail];
 }
 
@@ -74,7 +74,7 @@ export function lureSheet({ st, data, p, ui, render, act, f = null }) {
         const d = dens.find(x => x.uid === o.uid) ?? { uid: o.uid, kind: 'mon', id: '', side: 'light' };
         let s = null; try { s = denSide(st, data, d); } catch { /* a name only */ }
         const on = sel.includes(o.uid), from = o.from ? byId[o.from] : null, pic = denPicture(data, d);
-        const meaning = [from ? `On ${from.player}’s sheet: draw it away and it comes for you, not ${from.player}.` : null, d.kind === 'nat' ? 'A native: its whole group will fight you.' : null].filter(Boolean).join(' ') || null;
+        const meaning = [from ? `Set on ${from.player}: draw it away and it comes for you, not ${from.player}.` : null, d.kind === 'nat' ? 'A native: its whole group will fight you.' : null].filter(Boolean).join(' ') || null;
         const stat = s ? [s.attack === 'none' ? 'no attack' : s.attack === 'spell' ? 'casts' : `hits ${WORD[String(s.harm)[0]] ?? s.harm}${'*'.repeat(s.stars || 0)}`, s.atk != null && s.attack !== 'none' ? `speed ${s.atk}` : null, s.vuln ? `falls to ${WORD[s.vuln] ?? s.vuln}` : null].filter(Boolean).join(' · ') : '';
         return h('button', { type: 'button', class: `ds-row sf-lure${on ? ' on sel' : ''}`, role: 'checkbox', 'aria-checked': on ? 'true' : 'false', 'data-lure': o.uid, 'data-from': o.from ?? '',
             onclick: () => { toggleLure(st, p, ui, o.uid); render(); } },
@@ -93,5 +93,5 @@ export function lureSheet({ st, data, p, ui, render, act, f = null }) {
     const lead = none ? null : btn(hidden ? 'Stay hidden' : 'Lure none', 'quiet', { 'data-act': 'lure-none', onclick: () => { ui.lureSel = []; render(); } });
     const go = primary(none ? (hidden ? 'Stay hidden' : 'Lure none') : `Draw ${names.length === 1 ? `the ${names[0]}` : `${names.length} creatures`}${hidden ? ' and be seen' : ''}`,
         { 'data-act': 'lure-go', 'data-count': String(sel.length), onclick: () => { const dens = sel.slice(); ui.lureSel = null; ui.lureFor = null; ui.melee = null; act({ type: 'combat', kind: 'lure', dens }); } });
-    return { sheet: sheetBox(h('div', { class: 'sf-ask' }, askBox(`Round ${p.round}: draw any creature onto your sheet?`, 'One on your sheet attacks you alone, and what it pays is yours. The dice deal out whatever nobody draws.')), scroll, footRow(lead, go)), f };
+    return { sheet: sheetBox(h('div', { class: 'sf-ask' }, askBox(`Round ${p.round}: draw any creature to you?`, 'A creature you draw attacks you alone, and what it pays is yours. The dice deal out whatever nobody draws.')), scroll, footRow(lead, go)), f };
 }

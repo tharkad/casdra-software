@@ -302,20 +302,24 @@ function lureAction(st, data, a) {
 }
 
 // ---- charging (8.3.6b) and sending hirelings at characters (8.3.6a): character against character only ----
-// What he may do now: the characters he may go for, the Move chits he could charge with (strictly faster than every creature on his sheet and every charge already aimed at him, strong
-// enough to carry him: the same chits that could run), and his hirelings. null when there is nobody to charge and nothing to send.
+// 8.3.6c: "a hireling can be deployed against a hidden character only if he is a hired leader who has found hidden enemies that day. Underling and monsters can never be assigned to hidden
+// targets." A hired leader is a seat (leaders.js, game option hirelingRules) whose own `hiddenEnemies` says what HE found; a controlled monster is a monster. (ruling C6, Mike 2026-11-01)
+const leaderFoundHidden = (st, h) => h.kind === 'nat' && !!st.chars[h.id]?.leader && st.chars[h.id].leader.kind === 'nat' && !!st.chars[h.id].hiddenEnemies;
+// What he may do now: the characters he may go for, the Move chits he could charge with (any Move chit strong enough to carry him: 8.3.6b.1, "not limited by the denizens on his sheet"; ruling C5,
+// Mike 2026-11-01; a charged character's chits are limited by the charge, not the charger's by the creatures), and his hirelings. null when there is nobody to charge and nothing to send.
 function chargeOptions(st, data, id) {
-    const foes = charFoes(st, id), b = st.battle;
+    const b = st.battle, mine = b.hires.filter(h => h.owner === id && !h.dead);
+    const foes = charFoes(st, id, false, mine.some(h => leaderFoundHidden(st, h)));          // (a hidden one is a target only for what may be sent at him: filtered again in chargeAction)
     if (!foes.length) return null;
     // with no creature left in the fight, a character may simply say he means no harm: if everyone who is asked says so, the evening is friendly and is over
     const peace = !b.dens.some(d => !d.dead && !d.pacified && d.kind !== 'part' && d.kind !== 'horse');
     return inSheet(st, id, c => {
         c.played = {}; c.asterisks = { move: 0, fight: 0, magic: 0 }; c.casts = [];            // (nothing has been played this round yet; the Encounter step starts the same way)
         const opt = encounterOptions(st, data);
-        const chits = opt.pickedUp || st.ch.mist ? [] : opt.runChits.map(x => ({ id: x.id, type: x.type, strength: x.strength, time: x.time, effort: x.effort ?? 0, name: x.name ?? parts.chitName(x) }));
+        const chits = opt.pickedUp || st.ch.mist ? [] : opt.chargeChits.map(x => ({ id: x.id, type: x.type, strength: x.strength, time: x.time, effort: x.effort ?? 0, name: x.name ?? parts.chitName(x) }));
         const hires = c.hires.filter(h => !h.dead).map(h => ({ uid: h.uid, id: h.id, kind: h.kind, name: hireStats(data, h.id, h.kind, st).name }));
         if (!chits.length && !hires.length && !peace) return null;
-        return { targets: foes.map(f => ({ id: f, name: nameOf(st, f), hidden: !!st.chars[f].hidden })), chits, hires, peace };
+        return { targets: foes.map(f => ({ id: f, name: nameOf(st, f), hidden: !!st.chars[f].hidden })), chits, hires, peace, hirelingsAtHidden: c.hires.filter(h => !h.dead && leaderFoundHidden(st, h)).map(h => h.uid) };
     });
 }
 // Nobody who was asked means harm and no creature is there: the characters part in peace (R-18: an evening of friends is skipped by agreement). The trade window of the day's end is step 4's.
@@ -330,11 +334,17 @@ function friendly(st, data) {
 function chargeAction(st, data, a) {
     const id = st.ch.id, b = st.battle, m = b.members[id];
     if (b.step !== 'charge' || m.charge !== 'asked') throw new Error('nobody is asking you to charge now');
-    const ask = chargeOptions(st, data, id) ?? { targets: [], chits: [], hires: [] }, deploy = a.deploy ?? {};
+    const ask = chargeOptions(st, data, id) ?? { targets: [], chits: [], hires: [], hirelingsAtHidden: [] }, deploy = a.deploy ?? {};
+    // 8.3.6c: a hidden character may be charged only by one who found hidden enemies, and a hireling sent at him only if he is a hired leader who found them; underlings and monsters never.
+    // A charge reveals him ("charge first, then the hirelings"), so the hirelings may follow it; and a leader sent first reveals him for the charge (the book's Patrol HQ example).
+    const hiddenNow = t => !!st.chars[t]?.hidden, hirerFound = !!st.chars[id].hiddenEnemies;
+    const chargeFirst = a.act === 'charge' && hirerFound;
     for (const [uid, t] of Object.entries(deploy)) {
         if (!ask.hires.some(h => h.uid === uid)) throw new Error('you have no such hireling to send');
         if (!ask.targets.some(x => x.id === t)) throw new Error('you cannot send a hireling at that character');
+        if (hiddenNow(t) && !(chargeFirst && a.target === t) && !ask.hirelingsAtHidden.includes(uid)) throw new Error('only a hired leader who has found hidden enemies can be sent at a hidden character: underlings and monsters never');
     }
+    if (a.act === 'charge' && hiddenNow(a.target) && !hirerFound && !Object.entries(deploy).some(([uid, t]) => t === a.target && ask.hirelingsAtHidden.includes(uid))) throw new Error('you can charge a hidden character only if you have found hidden enemies today');
     let chit = null;
     if (a.act === 'peace') {
         if (!ask.peace) throw new Error('there are creatures here: you cannot say that nobody means harm');
@@ -348,22 +358,29 @@ function chargeAction(st, data, a) {
     if (a.act === 'charge') {
         if (!ask.targets.some(x => x.id === a.target)) throw new Error('you cannot charge that character');
         chit = ask.chits.find(x => x.id === (a.chit ?? ask.chits[0]?.id));
-        if (!chit) throw new Error('you have no Move chit you can charge with: it must be faster than every creature on your sheet and every charge aimed at you');
+        if (!chit) throw new Error('you have no Move chit you can charge with: it must be active and strong enough to carry you');
     }
     inSheet(st, id, c => {
-        for (const [uid, t] of Object.entries(deploy)) {
-            const h = c.hires.find(x => x.uid === uid);
-            h.targetChar = t;
-            say(st, `${st.ch.name} sends his ${hireStats(data, h.id, h.kind, st).name} at ${nameOf(st, t)}.`, 'combat');
-        }
-        if (chit) {
+        const sendAll = () => {
+            for (const [uid, t] of Object.entries(deploy)) {
+                const h = c.hires.find(x => x.uid === uid);
+                h.targetChar = t;
+                say(st, `${st.ch.name} sends his ${hireStats(data, h.id, h.kind, st).name} at ${nameOf(st, t)}.`, 'combat');
+                if (st.chars[t].hidden) { st.chars[t].hidden = false; say(st, `${nameOf(st, t)}, who was hidden, is found and revealed.`, 'combat'); }          // (8.3.6c: the target, and the leader sent at him, are no longer hidden)
+                hs.entered(st, data, h);
+            }
+        };
+        const doCharge = () => {
             c.charge = { on: a.target, chit: chit.id };
             b.charges.push({ by: id, on: a.target, time: chit.time });
             m.charged = a.target;
             say(st, `${st.ch.name} charges ${nameOf(st, a.target)}.`, 'combat');
             if (st.ch.hidden) { st.ch.hidden = false; say(st, `${st.ch.name} gives himself away by charging.`, 'combat'); }
             if (st.chars[a.target].hidden) { st.chars[a.target].hidden = false; say(st, `${nameOf(st, a.target)}, who was hidden, is found and revealed.`, 'combat'); }
-        }
+        };
+        if (!chit) sendAll();
+        else if (chargeFirst || !hiddenNow(a.target)) { doCharge(); sendAll(); }          // the charge first, then the hirelings (8.3.6c)
+        else { sendAll(); doCharge(); }                                                      // a hired leader found him: he is revealed by the leader, then charged
     });
     m.charge = 'done';
 }

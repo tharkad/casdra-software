@@ -19,7 +19,7 @@
 .cb-top .ds-btn.icon { color: var(--ink-2); }
 .cb-bar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 var(--gutter) 4px 4px; }          /* Fame / Notoriety / Gold: never hidden in a fight */
 .cb-stage { flex: 1; min-height: 150px; position: relative; padding: 6px var(--gutter) 6px; overflow: hidden; }
-.cb-stagein { min-height: 100%; display: flex; flex-direction: column; justify-content: space-between; transform-origin: 50% 0; }
+.cb-stagein { position: relative; min-height: 100%; display: flex; flex-direction: column; justify-content: space-between; transform-origin: 50% 0; }
 .cb .cb-foes { padding-top: 2px; display: flex; flex-direction: row; grid-template-columns: none; flex-wrap: wrap; justify-content: center; align-content: flex-start; gap: 10px; }
 .cb .cb-foes.noslot { padding-top: 12px; }
 .cb-foe { position: relative; flex: none; text-align: center; padding: 0; display: flex; flex-direction: column; align-items: center; }
@@ -253,3 +253,33 @@
 .cb-hero .cb-curse { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; min-height: 44px; padding: 0 8px; color: var(--danger); background: none; border: 0; font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); }
 .cb-hero .cb-curse .ds-i { width: 14px; height: 14px; }
 .cb-pop.curse { flex-direction: column; text-align: left; } .cb-pop.curse p { margin: 0; font: 500 calc(13px * var(--ts, 1))/1.35 var(--font-ui); color: var(--ink-2); } .cb-pop.curse p.detail { color: var(--ink-3); }
+
+/* ---- the whole clearing on the stage (F1 "The Clearing", docs/design/combat-metaphor): a word under every creature saying whom it is set on, the other characters and their hirelings as counters, and threads ---- */
+.cb-foe .seton { display: block; width: max-content; max-width: calc(var(--foe) + 24px); margin: 3px auto 0; padding: 1px 8px; border-radius: var(--r-pill); border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink-2); font: 600 calc(12px * var(--ts, 1))/calc(16px * var(--ts, 1)) var(--font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-foe .seton.you { color: var(--gold-hi); border-color: var(--line-gold); }
+.cb-foe .seton.other { color: var(--mood-ally, #8fb6e8); border-color: var(--mood-ally, #8fb6e8); }
+.cb-foe .seton.none, .cb-foe .seton.peace { color: var(--ink-3); border-style: dashed; }
+.cb-others { flex: none; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 4px 16px; margin-top: 4px; }
+.cb-other .face { position: relative; display: grid; place-items: center; width: var(--foe, 52px); height: var(--foe, 52px); border-radius: 50%; background: var(--counter-face); box-shadow: 0 0 0 3px var(--gold-lo), 0 3px 10px rgba(0, 0, 0, .55); overflow: hidden; }
+.cb-other .face img { width: 82%; height: 82%; object-fit: contain; }
+.cb-other .face i { font: 700 22px/1 var(--font-display); color: var(--ink-on-gold); font-style: normal; }
+.cb-other .face.hire { border-radius: 12px; box-shadow: 0 0 0 3px var(--mood-ally, #8fb6e8), 0 3px 10px rgba(0, 0, 0, .55); }
+.cb-other.dim .face { opacity: .8; outline: 2px dashed var(--gold-hi); outline-offset: 3px; }
+.cb-other.sel .face { box-shadow: 0 0 0 3px var(--gold), 0 0 12px rgba(241, 210, 127, .85); }
+.cb-other .tagslot { height: 22px; }
+.cb-other .cap { display: flex; flex-direction: column; align-items: center; margin-top: 3px; max-width: 110px; }
+.cb-other .cap b { font: 700 calc(12px * var(--ts, 1))/1.1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); text-align: center; overflow-wrap: anywhere; }
+.cb-other .cap small { font: 500 calc(12px * var(--ts, 1))/1.15 var(--font-ui); color: var(--ink-3); }
+.cb-other .cb-flip { position: relative; }
+.cb-other button.cb-flip::after { content: ""; position: absolute; inset: min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }
+.cb-threads { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 0; overflow: visible; }          /* under the counters, over the lanes */
+.cb-thread { fill: none; stroke-width: 2.5; stroke-linecap: round; }
+.cb-thread.tgt { stroke: var(--gold); stroke-dasharray: 7 6; opacity: .95; }
+.cb-thread.on { stroke: var(--mood-ally, #8fb6e8); stroke-dasharray: 3 6; opacity: .8; }
+.cb-thead.tgt { fill: var(--gold); } .cb-thead.on { fill: var(--mood-ally, #8fb6e8); }
+@media (max-height: 700px) { .cb-others { gap: 2px 12px; } .cb-other .cap small { display: none; } }
+.cb-other { position: relative; flex: none; text-align: center; padding: 0; display: flex; flex-direction: column; align-items: center; }
+.cb-other .tagslot { display: flex; align-items: flex-end; justify-content: center; }
+.cb-other .tag { position: relative; height: 18px; padding: 2px 7px; margin-bottom: 2px; border: 0; border-radius: var(--r-pill); background: var(--gold); color: var(--ink-on-gold); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .08em; white-space: nowrap; z-index: 2; }
+.cb-other .tag.ghost { background: var(--surface-2); color: var(--ink-3); border: 1px dashed var(--st-illegal); }
+.cb-other .tag::after { content: ""; position: absolute; inset: min(0px, calc((18px - 44px / var(--z, 1)) / 2)) min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }

@@ -19,8 +19,8 @@ import { fightLines, fightOf, chargeNews, roundReport, playsOf, playsFromLines, 
 import { pvpRound, pvpHeadline, allKills, targetName } from '../pvp.js';
 import { combatScene } from './combat_scene.js';
 import { chargeBody, deathCallout, pvpChips, pvpHow } from './pvpui.js';
-import { foeEl, foeSize, heroEl } from '../combat/stage.js';
-import { onMine, foesPhrase, cap } from '../combat/model.js';
+import { foeEl, foeSize, heroEl, othersEl, fitStage } from '../combat/stage.js';
+import { foesPhrase, cap, clearingBodies, othersHere, setOn } from '../combat/model.js';
 import { fixNames } from '../names.js';
 import { lureSheet, lureWords, lureDens } from '../combat/lure.js';
 
@@ -56,13 +56,15 @@ function topBar(f, peek) {
         peek ? h('button', { type: 'button', class: 'ds-btn icon quiet', 'data-act': 'peek-map', 'aria-label': 'Map', onclick: peek.map }, icon('pin', 'lg')) : null);
 }
 
-// the stage of a seat that is not asked: my creatures (the ones on my sheet) across the top, me at the bottom. `dens` overrides (the reveal shows every creature of the fight, the slain stamped).
+// the stage of a seat that is not asked: everything that is in the clearing (F1 "The Clearing"): every creature across the top, each saying whom it is set on, the other characters and their hirelings,
+// and me at the bottom. `dens` overrides (the reveal shows every creature of the fight, the slain stamped; the watcher of a fight he has left shows none).
 function stageEl({ st, data, ui, dens = null, dead = false }) {
     ui.sfFlip ??= {};
-    const list = dens ?? (st.combat ? st.combat.dens.filter(d => !d.dead && d.kind !== 'horse' && d.kind !== 'part' && onMine(st, d)) : []);
+    const list = dens ?? (st.combat ? clearingBodies(st) : []);
     const size = foeSize(list.length);
-    const foes = list.map(d => foeEl({ st, data, d, size, dead: !!d.dead || dead, flipped: !!ui.sfFlip[d.uid], onFlip: (den, has) => { if (has) { ui.sfFlip[den.uid] = !ui.sfFlip[den.uid]; ui.sfRender?.(); } } }));
-    return h('div', { class: 'cb-stage' }, h('div', { class: 'cb-stagein' }, h('div', { class: 'cb-foes' }, ...foes), h('div'), heroEl({ st, data, ribbon: st.ch.morph ? `You are a ${st.ch.morph.creature?.name ?? 'creature'}` : null })));
+    const foes = list.map(d => foeEl({ st, data, d, size, dead: !!d.dead || dead, flipped: !!ui.sfFlip[d.uid], seton: !d.dead && !dead ? setOn(st, d) : null, onFlip: (den, has) => { if (has) { ui.sfFlip[den.uid] = !ui.sfFlip[den.uid]; ui.sfRender?.(); } } }));
+    const others = dens && !dens.length ? [] : othersHere(st, data);
+    return h('div', { class: 'cb-stage' }, h('div', { class: 'cb-stagein' }, h('div', { class: 'cb-foes' }, ...foes), others.length ? othersEl({ others, size: 52 }) : h('div'), heroEl({ st, data, ribbon: st.ch.morph ? `You are a ${st.ch.morph.creature?.name ?? 'creature'}` : null })));
 }
 
 /** One screen of the fight: the scene's frame (top bar, strip, stage), a narrator line and a sheet. `kind` is the data-sf value the tests read. */
@@ -70,6 +72,7 @@ function sceneEl({ st, data, ui, f, kind, peek, narr, sheet, stage = null, cls =
     const root = h('section', { class: `cb ds-screen sf${cls ? ` ${cls}` : ''}`, 'data-sf': kind },
         topBar(f, peek), stripBlock(f, { reveal: kind === 'reveal' }), stage ?? stageEl({ st, data, ui }),
         narr ? h('p', { class: `cb-narr${tone ? ` ${tone}` : ''}`, role: 'status', 'aria-live': 'polite' }, narr) : null, sheet);
+    fitStage(root);          // (a crowded clearing is scaled to the stage, and the threads are drawn where the counters ended up)
     return root;
 }
 const sheetBox = (kind, ...kids) => h('div', { class: `cb-sheet sf-sheet${kind === 'lure' ? ' sf-pick' : ''}`, 'data-kind': kind }, ...kids);
@@ -95,9 +98,9 @@ function sealedChip(st, data) {
 }
 const WAIT_WHY = {
     meet: 'Each character deals with the natives here in turn: drinks, a payment, or a fight. Nothing is hidden, and nothing moves until everyone has answered.',
-    lure: 'In the order of today’s draw each character may draw creatures onto their sheet; the dice deal out the rest afterwards.',
+    lure: 'In the order of today’s draw each character may draw creatures to them; the dice deal out the rest afterwards.',
     charge: 'In the order of the draw each character may charge another, or send hirelings at one. A charge is made in the open; nothing else is told until the plays are shown.',
-    encounter: 'In the order of the draw each character takes one Encounter action against the creatures on their own sheet. The plays follow.',
+    encounter: 'In the order of the draw each character takes one Encounter action against the creatures set on them. The plays follow.',
     harm: 'Each character settles their own wounds and fatigue. Nothing is rolled; the next round starts when all are done.',
     melee: 'Nothing is shown until everyone has played, and a sealed play cannot be changed.',
 };
@@ -314,7 +317,7 @@ export function sharedFightSheet(ctx) {
     }
     if (p?.type === 'combat-lure') {
         const { sheet } = lureSheet({ st, data, p, ui, render, act, f }), { mine, may } = lureDens(st, p);
-        return sceneEl({ st, data, ui, f, kind: 'lure', peek, narr: lureWords(st, data, p, f), sheet, stage: stageEl({ st, data, ui, dens: [...mine, ...may] }) });
+        return sceneEl({ st, data, ui, f, kind: 'lure', peek, narr: lureWords(st, data, p, f), sheet, stage: stageEl({ st, data, ui, dens: [...mine, ...may, ...(st.combat ? clearingBodies(st) : []).filter(d => ![...mine, ...may].some(x => x.uid === d.uid))] }) });          // (the whole clearing: the ones he may draw and everything else that is here)
     }
     if (p?.type?.startsWith('combat') && f.me.state === 'in') {
         return combatScene({ st, data, act, ui, render, peek, shared: { fight: f, strip: stripBlock(f) } });

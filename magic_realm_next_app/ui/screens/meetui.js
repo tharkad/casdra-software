@@ -3,6 +3,7 @@
 //   offerSheet      what a `meet-offer` question says: who, what is offered, what they would have, what happens if you accept (Decline / Accept)
 //   blockCard       `meet-block`: "do you block him?" with what it costs both of you ("Let them pass" on the left, "Block" on the right)
 //   followCard      `meet-follow`: keep following or stop, and what stopping does
+//   joinCard        `meet-join`: rest or alert with the guide, or not (7.11.6f)
 //   windowCard      `meet-window`: the trade window after the fights, with a skip
 //   waitingCard     my own offer is open: who has not answered, and Withdraw
 //   resultCards     what the game wrote for me about a meeting, told first (a deal, a refusal, a block, a spy's notice)
@@ -168,6 +169,14 @@ export function followCard(c, q) {
     const body = h('div', { class: 'mt-card follow', 'data-meet-card': 'follow', 'data-guide': q.guide },
         ask(`You are following ${g}, who is about to start phase ${(q.i ?? 0) + 1}.`, `Keep following and you do what ${g} does in this phase. Stop and your turn ends where you stand: the chits of your place are turned and creatures that prowl here may come to you.`));
     return { body, actions: pair(btn('Keep following', '', { 'data-act': 'follow-stay', onclick: () => act(c, { kind: 'follow-drop', drop: false }) }), primary('Stop following', { 'data-act': 'follow-stop', onclick: () => act(c, { kind: 'follow-drop', drop: true }) })) };
+}
+
+/** `meet-join` (7.11.6f): I follow a guide who is about to Rest or Alert; I may do it with him or not. */
+export function joinCard(c, q) {
+    const { st } = c, g = playerOf(st, q.guide), verb = q.act === 'alert' ? 'alert' : 'rest';
+    const body = h('div', { class: 'mt-card join', 'data-meet-card': 'join', 'data-guide': q.guide },
+        ask(`${g} is about to ${verb}.`, `You may ${verb} with ${g} or not, as you choose. Nobody sees your answer until all of you have given it.`));
+    return { body, actions: pair(btn(`Not this time`, '', { 'data-act': 'join-no', onclick: () => act(c, { kind: 'join', join: false }) }), primary(verb === 'alert' ? 'Alert too' : 'Rest too', { 'data-act': 'join-yes', onclick: () => act(c, { kind: 'join', join: true }) })) };
 }
 
 /** `meet-window`: after the fights, before Midnight, those who stand together may trade. */

@@ -1,6 +1,6 @@
 // combat/shared.js (P6): what the combat scene needs when the fight is SHARED (several characters in one clearing, screens/sharedfight.js passes `shared` = { fight, ... } to combatScene).
-// Only the creatures on MY sheet stand on my stage, so the Strike step cannot name the others' creatures, the characters or the other players' hirelings by tapping a foe: the extra step "Whom"
-// lists every legal target (the engine's own `meleeOptions().targets`), with what the rules let me know of each, and a confirm before treachery or breaking my word. Nothing here decides a rule.
+// The stage draws the whole clearing (model.js clearingFoes, othersHere), and a tap on anything the engine lets me name names it; the "Whom" step is the same choice as a list, and the one place the
+// characters and the other players' hirelings are told apart with what the rules let me know of each. It lists every legal target (the engine's own `meleeOptions().targets`), with what the rules let me know of each, and a confirm before treachery or breaking my word. Nothing here decides a rule.
 import { h } from '../dom.js';
 import { icon } from '../icons.js';
 import { pcEl } from '../shared_ui.js';
@@ -79,7 +79,7 @@ export function whomBody(X, o, m) {
         const owner = !onMine(st, d) && d.sheet ? ownerOf(st, f, d.sheet) : null, name = denSide(st, data, d).name, pic = picOf(st, data, d), on = m.target === d.uid;
         return h('button', { type: 'button', class: `ds-row pv-creature${on ? ' sel' : ''}`, role: 'radio', 'aria-checked': on ? 'true' : 'false', 'data-target': d.uid, onclick: () => pick(d.uid) },
             h('span', { class: 'art' }, pic ? h('img', { src: pic, alt: '' }) : null),
-            h('span', { class: 'main' }, h('b', {}, name), h('span', {}, onMine(st, d) ? 'On your sheet.' : owner ? `On ${owner}’s sheet: a blow that kills it is yours.` : 'Loose: on no one’s sheet.')),
+            h('span', { class: 'main' }, h('b', {}, name), h('span', {}, onMine(st, d) ? 'Set on you.' : owner ? `Set on ${owner}. If your blow kills it, the kill is yours.` : d.engagedBy ? 'Fighting a hireling.' : 'Set on no one.')),
             h('span', { class: 'sf-tick', 'aria-hidden': 'true' }, on ? icon('check') : null));
     };
     out.push(none());

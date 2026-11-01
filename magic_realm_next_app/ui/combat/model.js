@@ -42,13 +42,47 @@ export function peaceOf(st) {
 
 // ---- the creatures on the stage ----
 // Everything that stands against him and is not dead (a horse is part of its rider; a head or a club is a counter of its own, as on the melee sheet).
-// a shared fight (st.battle): only the creatures on MY sheet (and the parts of those) stand on my stage; the others' are named from the Strike step. Alone, every creature is mine.
+// a shared fight (st.battle): the creatures on MY sheet (and the parts of those). The stage no longer stops there (it draws clearingFoes); this is what the rules ask of my own sheet. Alone, every creature is mine.
 export const onMine = (st, d) => !st.battle || !!(d.assigned || (d.partOf && st.combat.dens.find(o => o.uid === d.partOf)?.assigned));
 export const foesOf = st => st.combat.dens.filter(d => !d.dead && d.kind !== 'horse' && onMine(st, d));
 // a creature that stands in the clearing but is not fighting him (a native group that rolled peace at the Meeting, a monster that stands by): it may still be NAMED as a target, which starts the fight
 // (8.2.1a, 8.2.3a); a spell's peace (`pacified`) has its own word
 export const peacefulFoe = d => !!d && !!d.bystander && !d.pacified && !d.assigned && !d.dead && d.kind !== 'part' && d.kind !== 'horse';
 export const bodiesOf = st => foesOf(st).filter(d => d.kind !== 'part');
+// ---- the whole clearing (F1 "The Clearing", docs/design/combat-metaphor): the stage draws everything that is here, whoever it is set on ----
+// Every living creature in the clearing (a head or a club is a counter of its own, a horse is part of its rider), on my sheet or on another's or on no one's. The stage draws these; `foesOf` (mine) is
+// only for what the rules ask of MY sheet.
+export const clearingFoes = st => (st.combat?.dens ?? []).filter(d => !d.dead && d.kind !== 'horse');
+export const clearingBodies = st => clearingFoes(st).filter(d => d.kind !== 'part');
+// Is the fight shared with other characters (a hot-seat party on one phone, or a table)? Then every creature says whom it is set on.
+export const crowdedFight = st => !!st.battle && (st.battle.order ?? []).filter(id => st.battle.members?.[id]?.state === 'in').length > 1;
+const charName = (st, id) => displayName(st.chars?.[id]?.name ?? id);
+// The other characters standing in the clearing, in the fight (not me), each with the hirelings that are theirs: { uid, id, name, hidden, pic, hires: [{ uid, id, kind, name, pic }] }.
+// A character who has fled or fallen is no longer here. The uid is the one the engine names a character by when he may be struck (`char:<id>`).
+export function othersHere(st, data) {
+    const b = st.battle;
+    if (!b?.order) return [];
+    const art = data.art ?? {};
+    return b.order.filter(id => id !== st.ch.id && b.members?.[id]?.state === 'in' && !st.chars?.[id]?.dead).map(id => {
+        const hires = (b.hires ?? []).filter(x => x.owner === id && !x.dead).map(x => {
+            let name = x.id, pic = null;
+            try { const hs = hireStats(data, x.id, x.kind, st); name = hs.name ?? name; } catch { /* the id */ }
+            try { pic = picOf(st, data, { kind: 'hire', hireKind: x.kind, id: x.id, side: 'light' }); } catch { pic = null; }
+            return { uid: `hire:${x.uid}`, id: x.id, kind: x.kind, name, pic };
+        });
+        return { uid: `char:${id}`, id, name: charName(st, id), hidden: !!st.chars?.[id]?.hidden, pic: art.characters?.[id] ? art.characters[id].replace(/\.gif$/, '.png') : null, hires };
+    });
+}
+// Whom a creature is set on, in a word a player says ("on you", "on the White Knight", "on no one"). Alone, nothing needs saying (every creature that fights is on you), so this is null.
+// Returns { text, kind: 'you' | 'other' | 'none' | 'peace' | 'hire', on: 'you' | <character id> | null }.
+export function setOn(st, d) {
+    if (!crowdedFight(st) || !d || d.kind === 'part' || d.kind === 'horse') return null;
+    if (d.pacified || (d.bystander && !d.assigned)) return { text: 'at peace', kind: 'peace', on: null };
+    if (d.engagedBy) return { text: 'on a hireling', kind: 'hire', on: null };
+    if (d.assigned) return { text: 'on you', kind: 'you', on: 'you' };
+    if (d.sheet && d.sheet !== st.ch.id) return { text: `on ${charName(st, d.sheet)}`, kind: 'other', on: d.sheet };
+    return { text: 'on no one', kind: 'none', on: null };
+}
 export const isImp = (data, d) => d.kind === 'mon' && data.monsters[d.id]?.family === 'Imp';
 // "two Wolves", "a Troll and two Goblins": how a group of foes is named in a sentence
 export function foesPhrase(names) {
@@ -163,6 +197,19 @@ export function guardHint(st, data, o, m) {
     if (under.length) return nb(`At ${mv.time}, ${listOf(under.map(d => `${denSide(st, data, d).name} (${denSide(st, data, d).atk})`))} ${under.length > 1 ? 'get' : 'gets'} under your guard.`);
     return `At ${mv.time}, nothing gets under your guard: only a blow aimed at your ${MNV[m.moveDir]} finds you.`;
 }
+// ---- the Foes step: does where the creatures stand in the three boxes matter? ----
+// docs/design/combat-metaphor/06-PLACEMENT-PROOF.md, held by tests/combat_placement_proof.test.mjs: with three or fewer attacking counters on his sheet (a head or a club is a counter, a horse is not) every
+// plan the rules accept gives the same odds, because each counter must take its own box (8.4.5m) and the repositioning die is a fair shuffle of the boxes (8.4.6a). So the screen does not ask:
+// it sends the default placement. Four or more counters, or a round on Melee Sections (hirelings place their own, 8.4.6d), keep the step. `m` is the plan in progress (the creature he names joins the
+// counters he already has on his sheet; a spell that may name many counts everything that is here).
+export function placementCounters(st, o, m) {
+    const dens = st.combat?.dens ?? [], live = dens.filter(d => !d.dead && d.kind !== 'horse'), set = new Set(o.boxable.map(d => d.uid));
+    if (o.attackSpell?.many) return live.length;
+    const t = m?.target ? dens.find(d => d.uid === m.target && !d.dead) : null;
+    if (t && t.kind !== 'part') { set.add(t.uid); for (const p of live) if (p.partOf === t.uid) set.add(p.uid); }
+    return set.size;
+}
+export const placementMatters = (st, o, m) => !!o.sections || placementCounters(st, o, m) > 3;
 export const effortLine = (st, o, m) => {
     const lim = o.effortLimit ?? 2, ast = effortOf(st, o, m);
     return { ast, lim, over: ast > lim, text: lim >= NO_EFFORT_LIMIT ? `Effort ${ast}, no limit` : `Effort ${ast} of ${lim}`, words: ast <= 1 ? 'nothing tires' : ast > lim ? `put a chit back: ${limitWord(lim)} at most` : `${ast - 1} asterisk${ast - 1 === 1 ? '' : 's'} tire` };

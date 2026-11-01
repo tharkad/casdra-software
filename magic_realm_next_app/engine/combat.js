@@ -48,11 +48,12 @@ export const charOfUid = uid => (typeof uid === 'string' && uid.startsWith('char
 const hireOfUid = uid => (typeof uid === 'string' && uid.startsWith('hire:') ? uid.slice(5) : null);
 // Who may `me` strike or charge (8.4.2, 8.3.6b): the others in the fight, never one of the same player's, and a hidden one only if he found hidden enemies today (8.4.2b.5).
 // `playing`: only those who make a play this round (the Melee step); without it everyone still in the fight (the charge).
-export function charFoes(st, me = st.ch.id, playing = false) {
+// `hiddenToo`: the hidden ones as well (the Deployment step: a hired leader who found hidden enemies may be sent at one, 8.3.6c).
+export function charFoes(st, me = st.ch.id, playing = false, hiddenToo = false) {
     const b = st.battle;
     if (!b?.pvp) return [];
     const mine = st.chars[me];
-    return b.order.filter(id => id !== me && b.members[id].state === 'in' && !st.chars[id].dead && st.chars[id].owner !== mine.owner && (!playing || b.members[id].melee) && (!st.chars[id].hidden || mine.hiddenEnemies));
+    return b.order.filter(id => id !== me && b.members[id].state === 'in' && !st.chars[id].dead && st.chars[id].owner !== mine.owner && (!playing || b.members[id].melee) && (!st.chars[id].hidden || mine.hiddenEnemies || hiddenToo));
 }
 // Do two or more different players' characters stand in this fight (is there anyone to fight but creatures)? Used to keep a creature-less fight going.
 export const contested = st => { const b = st.battle; return !!b?.pvp && new Set(b.order.filter(id => b.members[id].state === 'in').map(id => st.chars[id].owner)).size > 1; };
@@ -158,7 +159,7 @@ const nextUid = st => { st.uidSeq = (st.uidSeq ?? 0) + 1; return 'd' + st.uidSeq
 
 export function denizensIn(st, data, clearing) {
     const out = [];
-    for (const m of st.mons) if (!m.dead && !m.hired && m.loc?.c === clearing) out.push({ kind: 'mon', id: m.id });
+    for (const m of st.mons) if (!m.dead && !m.hired && m.loc?.c === clearing) out.push({ kind: 'mon', id: m.id, pacify: m.pacify ?? null });          // (the record's own pacify list: a spell from an earlier day or fight keeps it calm)
     return out;
 }
 export function nativesIn(st, data, clearing) {
@@ -560,12 +561,14 @@ export function encounterOptions(st, data) {
     const wlvl = w ? lvl(data.weapons[w.item.id].weight) : 0;
     const fight = activeChits(st, 'fight', data).filter(x => x.time < slowest && lvl(x.strength) >= wlvl);
     const load = st.ch.morph ? 0 : carriedWeight(st, data);       // (a creature's gear is switched off or bound up in the spell: nothing to carry)
-    const move = activeChits(st, 'move', data).filter(x => x.time < slowest && lvl(x.strength) >= (x.isHorse ? Math.max(load, lvl(st.ch.weight)) : load));
+    const carriers = activeChits(st, 'move', data).filter(x => lvl(x.strength) >= (x.isHorse ? Math.max(load, lvl(st.ch.weight)) : load));          // every Move chit strong enough to carry him (a charge is not held back by the creatures on his sheet, 8.3.6b.1; chargeChits below keeps only the limit of a charge already aimed at him)
+    const move = carriers.filter(x => x.time < slowest);
     // hidden, and nothing is on his sheet (denizens cannot be assigned to a hidden character): nothing can attack him, so he may simply let the evening pass
     const canStay = !!st.ch.hidden && !c.dens.some(d => !d.dead && (d.assigned || d.engagedBy || d.pickedUp)) && !(c.hires ?? []).some(x => !x.dead);
     // A Fly chit is played like a Move chit (spell durations, Fly): strictly faster than every creature on his sheet, strong enough to carry him (what is heavier is left behind).
+    // The Flying Carpet (7.3.3h) flies him away too (ruling N4(c), Mike 2026-11-01) once it is already energized for the day: no Purple chit is spent in the middle of a fight, and the Carpet is not used up.
     // It takes him out of the fight to a neighbouring tile (8.3.8e) and is spent. A Tremendous monster that holds him still holds him (8.4.7 d.2).
-    const flyChits = pickedUp || st.ch.mist ? [] : flySources(st, data).filter(x => !x.morph && !x.carpet && x.time < slowest && carries(st, x) && !c.played?.[x.id]);
+    const flyChits = pickedUp || st.ch.mist ? [] : flySources(st, data).filter(x => !x.morph && (!x.carpet || x.power?.how === 'day') && x.time < slowest && carries(st, x) && !c.played?.[x.id]);
     // Why a section is missing (8.3.7a, 8.3.8): the gate is the slowest creature ON HIS SHEET; a hidden hero with nothing assigned has none. The screen says it in words.
     const denGate = dens.length ? dens.reduce((a, d) => (speedOf(d) < speedOf(a) ? d : a)) : null;
     const chargeGate = charged.length ? charged.reduce((a, x) => (x.time < a.time ? x : a)) : null;
@@ -580,6 +583,7 @@ export function encounterOptions(st, data) {
     const fastEnough = x => x.time < slowest;
     const why = {
         gate: gate ? { name: gateName, speed: slowest } : null,
+        chargeGate: chargeGate ? { name: `${chargeGate.name}, charging you`, speed: chargeGate.time } : null,          // (only a charge aimed at him holds back his own charge: 8.3.6b.1)
         alert: !w || (fight.length && !gripped && !card) ? null
             : card ? `Your ${wname} is a weapon card: it cannot be alerted, it stays face up while it is active.`
             : gripped ? 'Your Gripping Dust keeps the weapon alerted: it cannot be turned over.'
@@ -596,7 +600,7 @@ export function encounterOptions(st, data) {
     const casts = (c.spellOnly ? quietCasts(st, data, true) : castOptions(st, data, { slowest })).map(o => (c.spellOnly ? { ...o, aim: previewAim(st, data, o) } : o));       // (a quiet-evening cast has no Melee step: it is aimed on the cast screen)
     const canLure = !!st.ch.hidden && !sharedFight(st) && !c.spellOnly && !HF.inRound(st) && (assignable(st, data).length > 0 || luredPeaceful(st, data).length > 0 || luredPacified(st, data).length > 0);          // (a shared fight lures in its own step: battle.js)
     const mist = !!st.ch.mist;          // (the Encounter step of a mist hero offers only running away, 8.4.5p.1)
-    return { canStay, canLure: canLure && !mist, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), energize: energizeOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && !card && fight.length > 0 && !gripped && !mist, alertChits: fight, berserkChits: mist ? [] : berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
+    return { canStay, canLure: canLure && !mist, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), energize: energizeOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && !card && fight.length > 0 && !gripped && !mist, alertChits: fight, berserkChits: mist ? [] : berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, chargeChits: carriers.filter(x => x.time < Math.min(99, ...charged.map(t => t.time))), pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
 }
 const canRunNow = (move, st, data) => move.length > 0 && runDestinations(st, data).length > 0;
 
@@ -616,11 +620,25 @@ export function encounterAction(st, data, a) {
             // Rule 8.1.3a: a quiet clearing still gets its rounds, one spell to a round. When another spell is worth casting, the next round is held for it
             // (not the same spell again: a second one on the same target would only be nullified).
             (c.quietDone ??= []).push(a.spell);
+            c.quiet = 0;                                        // 8.8.2: a round with a spell cast is not a quiet round: the count of quiet rounds starts again
             expireDue(st, data, 'round-end');
             if (st.fx?.length) worldFadesRoll(st, data);                        // ruling S11 (Mike, 2026-10-26: the recommendation): 8.1.3a calls these rounds of combat, so World Fades rolls Hide at the end of this one too
             c.casts = []; c.played = {};                        // (this round's spells are done: the next round starts clean)
             if (!c.ended && !st.ch.dead && !st.ch.mist && !st.ch.flying && quietCasts(st, data).length) {
                 if (sharedFight(st)) { c.spellOnly = false; c.again = true; c.casts = []; c.played = {}; mem(st).enc = 'done'; mem(st).done = true; return; }          // (the next round is the table's: battle.js)
+                c.round += 1;
+                energizePass(st, data, 'round');
+                return enterSpellOnly(st, data);
+            }
+        }
+        else if (!sharedFight(st)) {
+            // Rules 8.8.2 / 8.8.3: he does nothing this round, which is a quiet round; combat in the clearing ends after TWO CONSECUTIVE quiet rounds, not after the first. (A bug found by the
+            // setup agent, fixed 2026-11-01: a pass used to end the evening at once.) If nothing can be cast any more the rounds that are left could only be passes, so it ends now.
+            c.quiet = (c.quiet ?? 0) + 1;
+            if (c.quiet < 2 && !st.ch.dead && !st.ch.mist && !st.ch.flying && quietCasts(st, data).length) {
+                expireDue(st, data, 'round-end');
+                if (st.fx?.length) worldFadesRoll(st, data);
+                c.casts = []; c.played = {};
                 c.round += 1;
                 energizePass(st, data, 'round');
                 return enterSpellOnly(st, data);
@@ -1081,7 +1099,11 @@ export function meleeCollect(st, data, X, peers = null) {
         const side = { harm: sp0.harm, stars: sp0.stars, time: (c.casts ?? []).find(x => x.spell === sp0.spell)?.time ?? 0, length: sp0.length, missile: true };
         const spName = data.spells[sp0.spell]?.name ?? sp0.spell;
         const spAll = spChars.length ? [...spTargets, ...spChars.map(id => ({ uid: charUid(id), char: id }))] : spTargets;
-        for (const { den: t, n } of spellHitPlan(sp0, spAll, p.target ? spAll.find(d => d.uid === p.target) ?? spAll[0] : spAll[0])) {
+        const attention = p.target ? spAll.find(d => d.uid === p.target) ?? spAll[0] : spAll[0];
+        // 8.7.2c: whatever the spell kills in one instant is scored most valuable first, so the blows fall in that order (stable: equal bounties keep the order named)
+        const worth = d => (d.char ? bountyOfChar(st, d.char) : bountyOfDen(st, data, d));
+        const inOrder = spAll.map((d, i) => ({ d, i, w: worth(d) })).sort((a, b) => b.w - a.w || a.i - b.i).map(x => x.d);
+        for (const { den: t, n } of spellHitPlan(sp0, inOrder, attention)) {
             if (t.char) {          // pvp: the spell falls on a character as a weapon would: it hits if it goes the way his maneuver faces, undercuts it, or he played none
                 const rival = peers?.[t.char], vname = st.chars[t.char].name;
                 if (!rival || rival.stop) { log(`${spName}: ${vname} is no longer there to be struck.`); continue; }
@@ -1464,7 +1486,8 @@ function spellHitPlan(sp, targets, attention) {
 function roofHits(st, data, { hits, log, move, mnvDir }) {
     const c = st.combat, sp = c.attackSpell, spName = data.spells[sp.spell]?.name ?? sp.spell;
     const side = { harm: sp.harm, stars: sp.stars ?? 0, time: sp.time, length: sp.length, missile: false, dir: sp.dir };
-    for (const d of c.dens.filter(x => !x.dead && x.kind !== 'part' && x.kind !== 'horse')) {
+    const victims = c.dens.filter(x => !x.dead && x.kind !== 'part' && x.kind !== 'horse').map((d, i) => ({ d, i, w: bountyOfDen(st, data, d) })).sort((a, b) => b.w - a.w || a.i - b.i).map(x => x.d);          // (most valuable first, 8.7.2c)
+    for (const d of victims) {
         // the roof falls on a native and on its horse alike: the horse does not shield its rider from a spell that attacks them both
         const horse = c.dens.find(h => h.kind === 'horse' && h.partOf === d.uid && !h.dead);
         for (const def of horse ? [d, horse] : [d]) {
@@ -1598,14 +1621,21 @@ export function legalBoxPlan(st, data, p) {
 }
 
 // ---- hits ----
+// What a victim is worth in points, without multiplication (8.7.2c): a denizen's Fame and Notoriety bounty, a character's recorded Notoriety (and a transformed one's creature).
+const bountyOfDen = (st, data, d) => { const s = denSide(st, data, d); return (s.fame ?? 0) + (s.notor ?? 0); };
+const bountyOfChar = (st, id) => { const ch = st.chars[id], f = ch.morph?.creature; return (ch.notoriety ?? 0) + (f?.notor ?? 0) + (f?.fame ?? 0); };
 function killReward(st, data, den, s) {
     st.ch.killsToday = (st.ch.killsToday ?? 0) + 1;
-    const k = st.ch.killsToday;
+    // 8.7.2c: kills of one instant are scored one at a time, the most valuable first. A character killed in this instant is settled only when the instant is over (settleKills), but he comes
+    // first in the count when he is worth at least as much as this one (the blows of one spell fall most valuable first: meleeCollect), so he is already one of the kills that multiply it.
+    const mine = (s.fame ?? 0) + (s.notor ?? 0);
+    const before = new Set(killQ.filter(x => x.killer === st.ch.id && !x.hire && bountyOfChar(st, x.victim) >= mine).map(x => x.victim)).size;
+    const k = st.ch.killsToday + before;
     const fame = (s.fame ?? 0) * k, notor = (s.notor ?? 0) * k;
     st.ch.fame += fame; st.ch.notoriety += notor; st.ch.gold += s.gold ?? 0;
     if (st.combat) { const g = (st.combat.roundGain ??= { fame: 0, notoriety: 0, gold: 0 }); g.fame += fame; g.notoriety += notor; g.gold += s.gold ?? 0; }
     // a shared fight: what was paid is remembered for the instant, in case another character's blow killed it at the same moment (8.7.1: the points are then split)
-    if (sharedFight(st) && den) den.slain = { by: st.ch.id, g: st.combat.groupNo ?? 0, total: { fame, notoriety: notor, gold: s.gold ?? 0 }, paid: { [st.ch.id]: { fame, notoriety: notor, gold: s.gold ?? 0 } } };
+    if (sharedFight(st) && den) den.slain = { by: st.ch.id, g: st.combat.groupNo ?? 0, total: { fame, notoriety: notor, gold: s.gold ?? 0 }, base: { fame: s.fame ?? 0, notoriety: s.notor ?? 0 }, kills: { [st.ch.id]: k }, paid: { [st.ch.id]: { fame, notoriety: notor, gold: s.gold ?? 0 } } };
     const bits = [];
     if (fame) bits.push(`+${fame} Fame`);
     if (notor) bits.push(`+${notor} Notoriety`);
@@ -1634,17 +1664,21 @@ export function slayDenizen(st, data, den, { pay = true, shared = false, spell =
     return reward;
 }
 
-// A second (third ...) character kills a creature in the very instant another did: everyone who killed it gets an equal share of what the first was paid, the odd points going to the first;
-// each counts it as a kill today. Returns the words for the log.
+// A second (third ...) character kills a creature in the very instant another did: the bounty points divide equally, fractions kept, and each sharer gets HIS share multiplied by HIS own
+// number of kills today, the shared one included (8.7.1b, ruling C7, Mike 2026-11-01: the Elf's fourth kill is half a point x 4, the Druid's first half a point x 1). The gold is not multiplied
+// (8.7.2a): it divides equally in whole pieces, the odd one going to the first. Returns the words for the log.
 function splitKill(st, data, den) {
     const sl = den.slain, me = st.ch.id, ids = [...Object.keys(sl.paid), me], n = ids.length;
     st.ch.killsToday = (st.ch.killsToday ?? 0) + 1;
+    (sl.kills ??= {})[me] = st.ch.killsToday;
     (st.combat.killed ??= []).push(denSide(st, data, den).name);
     tally(st, 'kills');
-    const share = k => Math.floor(sl.total[k] / n);
+    const goldShare = Math.floor(sl.total.gold / n);
     for (const [i, id] of ids.entries()) {
         const ch = st.chars[id], want = {}, had = sl.paid[id] ?? { fame: 0, notoriety: 0, gold: 0 };
-        for (const k of ['fame', 'notoriety', 'gold']) want[k] = i === 0 ? sl.total[k] - (n - 1) * share(k) : share(k);
+        const mult = sl.kills[id] ?? st.chars[id].killsToday ?? 1;
+        want.fame = (sl.base.fame / n) * mult; want.notoriety = (sl.base.notoriety / n) * mult;
+        want.gold = i === 0 ? sl.total.gold - (n - 1) * goldShare : goldShare;
         ch.fame += want.fame - had.fame; ch.notoriety += want.notoriety - had.notoriety; ch.gold += want.gold - had.gold;
         const g = ch.today.combat && (ch.today.combat.roundGain ??= { fame: 0, notoriety: 0, gold: 0 });
         if (g) { g.fame += want.fame - had.fame; g.notoriety += want.notoriety - had.notoriety; g.gold += want.gold - had.gold; }

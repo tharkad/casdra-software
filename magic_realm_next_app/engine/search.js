@@ -8,7 +8,7 @@ import { rollCurse, hasCurse, pit } from './effects.js';
 import { roll2, chitWord } from './core.js';
 import { convertCard, oneDie, modRoll, modNote } from './modifiers.js';
 import { isMulti } from './party.js';
-import { spyOnLoot, snap, shareFind, followersOf } from './meet.js';
+import { spyOnLoot, snap, shareFind, followersOf, showSiteChit } from './meet.js';
 import { opensVault } from './leaders.js';
 
 // Looting: a discovered site in the clearing, or things lying on the ground (rules digest 04 section 3.4).
@@ -87,6 +87,7 @@ export function lootFrom(st, data, r, groundOnly = false, { paid = false, sight 
     const pileList = site ? st.sites[site.name] : (st.abandoned[here]?.length ? st.abandoned[here] : null);
     if (!pileList) return `${what} (${r.dice.join('+')}): there is nothing here to loot. You need to discover a site first.`;
     const label = site ? site.name : 'the things on the ground';
+    if (site) showSiteChit(st, site);          // 7.5.5b.2: a face-down Site chit is shown to all and put in its clearing, face down
     // Conditions at the more dangerous sites.
     // (the Cairns' toll is paid before the roll is made: see doSearch)
     if (site?.name === 'Vault' && !st.sitesOpen?.Vault) {

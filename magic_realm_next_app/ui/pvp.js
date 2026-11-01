@@ -88,8 +88,8 @@ export function targetName(view, data, uid) {
 export function chargeChits(view, data, p) {
     const me = view?.ch ?? view?.chars?.[view.actor];
     let slowest = 99, gate = null, pickedUp = false;
-    try { const o = encounterOptions(view, data); slowest = o.slowest ?? 99; gate = o.why?.gate ?? null; pickedUp = !!o.pickedUp; } catch { /* the engine will say if it must */ }
-    // what holds a chit back, in words: a creature on my sheet ("the Ogre, which moves at 4") or another character's charge ("Ann\u2019s charge, which moves at 3")
+    try { const o = encounterOptions(view, data); gate = o.why?.chargeGate ?? null; slowest = gate?.speed ?? 99; pickedUp = !!o.pickedUp; } catch { /* the engine will say if it must */ }
+    // what holds a chit back, in words: another character's charge (a creature on my sheet holds a charge back no longer, 8.3.6b.1) ("Ann\u2019s charge, which moves at 3")
     let gateText = null;
     if (gate) {
         const by = /^(.+), charging you$/.exec(gate.name), who = by ? Object.values(view.chars ?? {}).find(c => c.name === by[1]) : null;

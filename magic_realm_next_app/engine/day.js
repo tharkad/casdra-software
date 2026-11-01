@@ -422,6 +422,7 @@ function runPhase(st, data) {
     if (t.fresh) delete t.fresh;                  // (what he came by before this phase began was his to arrange at its start: see gearPause)
     if (multi(st)) meet.lapsePhaseOffers(st, 'the phase has begun');
     if (multi(st) && meet.beforeActivity(st, data) === 'wait') return;      // the followers may stop now (7.11.5); the phase goes on when they have answered
+    if (multi(st) && meet.askJoin(st, data) === 'wait') return;               // the followers who ask may decline a Rest or an Alert (7.11.6f)
     const r = executeSlot(st, data, slot, i);
     if (r === 'wait') return;                     // a decision is pending
     finishPhase(st, data, r);
@@ -1046,7 +1047,12 @@ function doHide(st, data) {
 // The Alert activity readies the active weapon, or alerts one Magic chit (4.6.3c, 7.9.3): an alerted Magic chit has time 0, so it can be played
 // in the Encounter step against the fastest creature; if it is not used it tires at Midnight.
 function doAlert(st, data, slot = {}) {
-    if (multi(st)) for (const f of meet.followersOf(st, st.actor)) withActor(st, f, () => {            // each follower who is a character does the same (7.11.6f): he readies his weapon
+    const joins = st.turn?.joins; if (st.turn) delete st.turn.joins;                                   // (what the followers who were asked answered: askJoin)
+    if (multi(st)) for (const f of meet.followersOf(st, st.actor)) withActor(st, f, () => {            // each follower who is a character does the same (7.11.6f) unless he said no: he readies his weapon, or alerts the Magic chit he named
+        const j = joins?.[f];
+        if (j && !j.join) { say(st, 'You do not alert with your guide.', 'info'); return; }
+        const m = j?.magic ? st.ch.chits.find(c => c.id === j.magic && c.type === 'magic' && c.state === 'active' && !c.alerted) : null;
+        if (m) { m.alerted = true; say(st, `You alert Magic ${m.numeral}${m.time}${'*'.repeat(m.effort)}.`, 'info'); return; }
         const w = st.ch.items.find(i => i.kind === 'weapon' && i.active);
         if (w && !w.alerted && !isWeaponCard(data, w)) { w.alerted = true; say(st, `You ready your ${nameOf(data, w)}.`, 'info'); }
     });
@@ -1069,9 +1075,12 @@ function doAlert(st, data, slot = {}) {
 
 // Resting: each Rest phase returns one asterisk of effort (a wounded chit takes two rests per asterisk).
 function doRest(st, data) {
-    if (multi(st)) for (const f of meet.followersOf(st, st.actor)) withActor(st, f, () => {            // each follower who is a character rests too (7.11.6f); he cannot choose now, so the first way offered
-        const o = hasCurse(st, 'Ill Health') ? [] : restOptions(st);
-        if (o.length) { applyRest(st, o[0]); say(st, `You rest (${o[0].text}).`, 'info'); }
+    const joins = st.turn?.joins; if (st.turn) delete st.turn.joins;                                   // (what the followers who were asked answered: askJoin)
+    if (multi(st)) for (const f of meet.followersOf(st, st.actor)) withActor(st, f, () => {            // each follower who is a character rests too (7.11.6f) unless he said no; the way he rests is the one he named, else the first offered
+        const j = joins?.[f];
+        if (j && !j.join) { say(st, 'You do not rest with your guide.', 'info'); return; }
+        const o = hasCurse(st, 'Ill Health') ? [] : restOptions(st), pick = o[j?.opt ?? 0] ?? o[0];
+        if (pick) { applyRest(st, pick); say(st, `You rest (${pick.text}).`, 'info'); }
     });
     if (hasCurse(st, 'Ill Health')) return 'Ill Health: you cannot rest.';
     const opts = restOptions(st);
@@ -1380,6 +1389,17 @@ function step(st, data, action) {
             if (!st.missions) throw new Error('there are no mission, campaign or visitor chits in this game');
             if (!['phase', 'phase-pick', 'plan', 'turn-end', 'evening-end'].includes(p.type)) throw new Error('you can give a campaign up between phases, not in the middle of something');
             missions.abandonChit(st, data, action.chit);
+            st.pending = keep(st, data, p);
+            return st;
+        }
+        case 'unhide': {
+            // 7.4.3 (ruling F4, Mike 2026-11-01): "voluntarily becoming unhidden" at any time he is free to act: in Birdsong while he records his plan, or at the start of a phase. A hidden guide's followers
+            // share his hidden status (7.11.6b), so they come out with him. In a fight he is unhidden only by what the fight does (a charge, being named).
+            if (!['plan', 'phase', 'phase-pick'].includes(p.type)) throw new Error('you can stop hiding in Birdsong or at the start of a phase, not in the middle of something');
+            if (!st.ch.hidden) throw new Error('you are not hidden');
+            st.ch.hidden = false;
+            say(st, 'You step out of hiding.', 'info');
+            if (multi(st) && st.turn) meet.syncHidden(st);
             st.pending = keep(st, data, p);
             return st;
         }

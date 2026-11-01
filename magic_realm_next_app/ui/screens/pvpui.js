@@ -53,8 +53,8 @@ export function chargeBody({ st, data, p, ui, render, act, f }) {
     // the Move chit that makes the charge, and why the others cannot. One plain sentence; the reasons, chit by chit, sit behind "Why?" (QA-130)
     if (canCharge || model.chits.rows.length) {
         const gate = model.chits.slowest < 99
-            ? `A charge needs a Move chit strictly faster than everything holding you back (${model.chits.gateText ?? `time ${model.chits.slowest}`}), and strong enough to carry all you own.`
-            : 'A charge needs a Move chit strong enough to carry all you own; no creature is on your sheet to hold it back.';
+            ? `A charge needs a Move chit strictly faster than the charge aimed at you (${model.chits.gateText ?? `time ${model.chits.slowest}`}), and strong enough to carry all you own.`
+            : 'A charge needs a Move chit strong enough to carry all you own; the creatures set on you do not hold it back.';
         const no = model.chits.rows.filter(r => !r.ok), byWhy = new Map();
         for (const r of no) byWhy.set(r.why, [...(byWhy.get(r.why) ?? []), r.text]);          // (one line for every reason, not one bracket for every chit)
         const chargedBy = (f.charges ?? []).find(x => x.on.mine);

@@ -285,6 +285,8 @@ function checkMeet(st, bad) {
     if (bc) for (const id of bc.asked) if (!ask(id, 'meet-block') && !['yes', 'no'].includes(st.chars[id].today.blockVote)) bad(`${id} is asked to block but has no question and has not answered`);
     const fc = st.followCheck;
     if (fc) for (const id of fc.asked) if (!ask(id, 'meet-follow') && !['drop', 'stay'].includes(st.chars[id].today.followVote)) bad(`${id} is asked to stop following but has no question and has not answered`);
+    const jc = st.joinCheck;
+    if (jc) for (const id of jc.asked) if (!ask(id, 'meet-join') && st.chars[id].today.joinVote === 'pending') bad(`${id} is asked to rest or alert with his guide but has no question`);
     const tw = st.tradeWindow;
     if (tw) for (const g of tw.groups) for (const id of g.ids) {
         if (!g.done.includes(id) && !ask(id, 'meet-window')) bad(`${id} has not left the trade window and has no question`);
