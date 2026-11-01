@@ -183,12 +183,17 @@ export function chargerOf(st, gate) {
     const chg = Object.values(st.chars ?? {}).find(x => x.name === by[1]);
     return st.players?.find(p => p.id === chg?.owner)?.name ?? by[1];
 }
+// Note 75: the Wither curse (4.6.8a.3) keeps every asterisk chit tired; those chits show a withered pip, not the plain tired look
+export const isWithered = (st, c) => c.state === 'fatigued' && (st.ch.curses ?? []).includes('Wither') && (c.effort > 0 || c.type === 'magic');
+export const WITHER_STORY = 'Withered. A curse drains your strongest efforts: every chit with an asterisk is spent and cannot be restored until the curse is lifted. A Chapel lifts it at Midnight (Awful Valley 5), or the spell Make Whole.';
+export const WITHER_DETAIL = 'Curse: Wither (4.6.8a.3). All asterisk chits are fatigued and cannot be activated, even by Rest. Lifted by: a Chapel in your clearing at Midnight (4.6.8a.5), Make Whole, Small Blessing, Health Wish.';
 export function encounterVerbs(st, data, o, c) {
     const slow = o.why?.gate ? `Nothing of yours is faster than ${gateWords(st, o.why.gate)}.` : null;
+    const wither = (st.ch.curses ?? []).includes('Wither'), tooSlow = wither && st.ch.chits.some(x => isWithered(st, x) && x.type !== 'magic') ? 'too slow: Wither tired your fast chits' : 'too slow';
     const gated = t => !!t && /faster than/.test(t);
-    const alert = o.canAlert && o.weapon ? { ok: true } : { ok: false, sub: !o.weapon ? 'no weapon' : /weapon card/.test(o.why?.alert ?? '') ? 'a card' : gated(o.why?.alert) ? 'too slow' : 'no chit', why: gated(o.why?.alert) ? slow : (o.why?.alert ?? 'You have nothing to ready.') };
-    const run = o.canRun ? { ok: true } : { ok: false, sub: o.pickedUp ? 'held' : gated(o.why?.run) ? 'too slow' : !o.runTo.length ? 'no road' : 'no chit', why: o.pickedUp ? 'You are seized and cannot run.' : gated(o.why?.run) ? slow : (o.why?.run ?? 'You cannot run now.') };
-    const cast = o.casts.length ? { ok: true } : { ok: false, sub: 'none ready', why: o.blocked?.length ? `${o.blocked[0].name}: ${o.blocked[0].why}` : 'No spell is ready tonight.' };
+    const alert = o.canAlert && o.weapon ? { ok: true } : { ok: false, sub: !o.weapon ? 'no weapon' : /weapon card/.test(o.why?.alert ?? '') ? 'a card' : gated(o.why?.alert) ? tooSlow : 'no chit', why: gated(o.why?.alert) ? slow : (o.why?.alert ?? 'You have nothing to ready.') };
+    const run = o.canRun ? { ok: true } : { ok: false, sub: o.pickedUp ? 'held' : gated(o.why?.run) ? tooSlow : !o.runTo.length ? 'no road' : 'no chit', why: o.pickedUp ? 'You are seized and cannot run.' : gated(o.why?.run) ? slow : (o.why?.run ?? 'You cannot run now.') };
+    const cast = o.casts.length ? { ok: true } : { ok: false, sub: wither && st.ch.chits.some(x => x.type === 'magic' && isWithered(st, x)) ? 'Your Magic chit is withered' : 'none ready', why: o.blocked?.length ? `${o.blocked[0].name}: ${o.blocked[0].why}` : 'No spell is ready tonight.' };
     return { alert, run, cast, fly: o.canFly ? { ok: true } : null };
 }
 // "Weapon ready" verbs read the weapon's state

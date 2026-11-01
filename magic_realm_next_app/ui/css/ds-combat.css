@@ -245,3 +245,10 @@
 
 /* the Record button on the Encounter card when the foot's lead slot is taken: a quiet row of its own */
 .cb-recrow { display: flex; justify-content: flex-start; margin: 4px 0 0; }
+
+/* note 75: Wither: a withered pip (tired, struck through) and the curse badge on the hero */
+.cb-pips .ds-chit.mini.withered { color: var(--danger); border-style: dotted; }
+.cb-pips .ds-chit.mini.withered::after { background: var(--danger); }
+.cb-hero .cb-curse { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; min-height: 44px; padding: 0 8px; color: var(--danger); background: none; border: 0; font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); }
+.cb-hero .cb-curse .ds-i { width: 14px; height: 14px; }
+.cb-pop.curse { flex-direction: column; text-align: left; } .cb-pop.curse p { margin: 0; font: 500 calc(13px * var(--ts, 1))/1.35 var(--font-ui); color: var(--ink-2); } .cb-pop.curse p.detail { color: var(--ink-3); }

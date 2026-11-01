@@ -13,7 +13,7 @@ import { clone } from '../../engine/core.js';
 import { denSide, meleeOptions, shiftOptions, encounterOptions, legalBoxPlan } from '../../engine/combat.js';
 import { nameOfClearing } from '../../engine/world.js';
 import * as M from '../combat/model.js';
-import { foeEl, foeSize, lanesEl, heroEl, alliesEl, gearPopover, fitNames } from '../combat/stage.js';
+import { foeEl, foeSize, lanesEl, heroEl, alliesEl, gearPopover, cursePopover, fitNames } from '../combat/stage.js';
 import { sheetEl, meetingSheet, encounterSheet, meleeSheet, shiftSheet, resultSheet, gridSheet, recapSheet, beatSheet, recordSheet, pitSheet, stepsFor } from '../combat/sheets.js';
 import * as P from '../combat/payload.js';
 import * as SH from '../combat/shared.js';
@@ -183,7 +183,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     const allies = M.alliesOf(st, data);
     const allyEl = allies.length && mode !== 'deploy' ? alliesEl({ st, data, allies, flipped: cb.flipped, size: typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 48 : 56, onFlip: (a, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[a.uid] = !cb.flipped[a.uid]; render(); } }) : null;
     const prevChits = cb.pipState; cb.pipState = Object.fromEntries(st.ch.chits.map(x => [x.id, x.state]));
-    const hero = heroEl({ st, data, prevChits, onPeekGear: () => peek?.gear(), onPeekMap: () => peek?.map(), ribbon: st.ch.morph ? `You are ${article(st.ch.morph.creature.name)} ${st.ch.morph.creature.name}` : st.ch.berserk ? 'Berserk until midnight' : null, onGear: () => { cb.gearCard = !cb.gearCard; render(); } });
+    const hero = heroEl({ st, data, prevChits, onPeekGear: () => peek?.gear(), onPeekMap: () => peek?.map(), onCurse: () => { cb.curseCard = !cb.curseCard; render(); }, ribbon: st.ch.morph ? `You are ${article(st.ch.morph.creature.name)} ${st.ch.morph.creature.name}` : st.ch.berserk ? 'Berserk until midnight' : null, onGear: () => { cb.gearCard = !cb.gearCard; render(); } });
     // (DR-20: the Meeting's steps have no lanes, so the stage had a void between the foes and you: the narrator stands in it, between the two, and not under you)
     const makeStage = narrIn => h('div', { class: 'cb-stage' }, h('div', { class: 'cb-stagein' }, h('div', { class: `cb-foes${mode === 'melee' || mode === 'result' || mode === 'grid' || anyTag ? '' : ' noslot'}` }, ...foeEls), lanes, allyEl, narrIn ? h('div', { class: 'cb-void' }, narrIn) : null, hero));
 
@@ -228,6 +228,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
         makeStage(mode === 'meet' || mode === 'lure' || mode === 'unknown' ? narr : null), mode === 'meet' || mode === 'lure' || mode === 'unknown' ? null : narr, sheet);
     X.root = root;
     fitStage(root);
+    if (cb.curseCard && (st.ch.curses ?? []).length) root.append(h('div', { class: 'cb-popbk', 'data-act': 'close-curse', 'aria-hidden': 'true', onclick: () => { cb.curseCard = false; render(); } }), cursePopover({ st, onClose: () => { cb.curseCard = false; render(); } }));
     if (cb.gearCard) root.append(h('div', { class: 'cb-popbk', 'data-act': 'close-gear', 'aria-hidden': 'true', onclick: () => { cb.gearCard = false; render(); } }), gearPopover({ st, data, flippedGear: cb.flippedGear, onFlip: uid => { cb.flippedGear[uid] = !cb.flippedGear[uid]; render(); }, onClose: () => { cb.gearCard = false; render(); } }));
     if (cb.record) root.append(recordSheet(X, M.recordRounds(st)));
     if (cb.pit) root.append(pitSheet(X));

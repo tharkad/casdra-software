@@ -5,7 +5,7 @@ import { icon } from '../icons.js';
 import { monsterCounter, itemFace } from '../counter.js';
 import { denSide, weaponOf, activeArmor } from '../../engine/combat.js';
 import { nameOf, defOf } from '../../engine/items.js';
-import { DIRS, MNV, otherSide, picOf, chitText, WORD } from './model.js';
+import { DIRS, MNV, otherSide, picOf, chitText, WORD, isWithered, WITHER_STORY, WITHER_DETAIL } from './model.js';
 import { displayName, tieNumber } from '../names.js';
 
 // foe counter size by how many stand on the stage: the full size (92, or 64 on a short phone) up to three, then smaller so six still fit in two rows
@@ -119,13 +119,13 @@ export function lanesEl({ attack = null, guard = null, boxes = {}, sec = null } 
 export function pipsEl(st, prev = null) {
     const order = { fight: 0, move: 1, magic: 2 };
     const chits = [...st.ch.chits].sort((a, b) => (order[a.type] ?? 3) - (order[b.type] ?? 3));
-    const cls = x => (x.state === 'fatigued' ? 'tired' : x.state === 'wounded' ? 'wounded' : x.state === 'committed' ? 'committed' : x.state === 'enchanted' ? 'enchanted' : '');
+    const cls = x => (isWithered(st, x) ? 'tired withered' : x.state === 'fatigued' ? 'tired' : x.state === 'wounded' ? 'wounded' : x.state === 'committed' ? 'committed' : x.state === 'enchanted' ? 'enchanted' : '');
     return h('div', { class: 'cb-pips', role: 'img', 'aria-label': `${chits.filter(x => x.state === 'active').length} chits ready, ${chits.filter(x => x.state === 'fatigued').length} tired, ${chits.filter(x => x.state === 'wounded').length} wounded` },
         ...chits.map(x => h('i', { class: `ds-chit mini ${x.type}${cls(x) ? ` ${cls(x)}` : ''}${prev && prev[x.id] && prev[x.id] !== x.state ? ' fresh' : ''}`, 'data-pip': x.id }, ({ fight: 'F', move: 'M', magic: '✦' })[x.type] || '?')));
 }
 
 // you: the weapon on the left, the armor on the right, your face and a pip per chit between. A morphed hero is the creature's counter. Tap a piece of gear to read it (and turn it over).
-export function heroEl({ st, data, onGear, onPeekGear = null, onPeekMap = null, hurtArmor = false, ribbon = null, prevChits = null, wasHidden = false }) {
+export function heroEl({ st, data, onGear, onPeekGear = null, onPeekMap = null, onCurse = null, hurtArmor = false, ribbon = null, prevChits = null, wasHidden = false }) {
     const ch = st.ch, w = weaponOf(st, data), armor = activeArmor(st, data).map(a => a.item ?? a).filter(x => x && x.uid);
     const wName = w ? nameOf(data, w.item) : null, aName = armor[0] ? nameOf(data, armor[0]) : null;
     const cr = ch.morph?.creature, lt = cr?.light ?? {};
@@ -142,7 +142,7 @@ export function heroEl({ st, data, onGear, onPeekGear = null, onPeekMap = null, 
     const gcol = (kids, peekBtn) => h('div', { class: 'gcol' }, ...kids, peekBtn);
     return h('div', { class: 'cb-hero' },
         ch.morph ? gcol([], peek('peek-gear', 'Belongings', 'bag', onPeekGear)) : gear('weapon', wName, wName ? data.art?.weapons?.[wName] : null, w ? 1 : 0, false, peek('peek-gear', 'Belongings', 'bag', onPeekGear)),
-        h('div', { class: `mid${onPeekGear ? ' tappable' : ''}`, 'data-act': onPeekGear ? 'peek-hero' : null, onclick: onPeekGear ?? null }, face, h('span', { class: 'name' }, displayName(ch.name)), ribbon ? h('span', { class: 'ribbon' }, ribbon) : null, pipsEl(st, prevChits)),
+        h('div', { class: `mid${onPeekGear ? ' tappable' : ''}`, 'data-act': onPeekGear ? 'peek-hero' : null, onclick: onPeekGear ?? null }, face, h('span', { class: 'name' }, displayName(ch.name)), ribbon ? h('span', { class: 'ribbon' }, ribbon) : null, pipsEl(st, prevChits), (ch.curses ?? []).length && onCurse ? h('button', { type: 'button', class: 'cb-curse', 'data-act': 'curse-badge', 'aria-label': `Cursed: ${ch.curses.join(', ')}. Tap to read`, onclick: e => { e.stopPropagation(); onCurse(); } }, icon('skull'), ch.curses.join(', ')) : null),
         ch.morph ? gcol([], peek('peek-map', 'Map', 'pin', onPeekMap)) : gear('armor', aName, aName ? data.art?.armor?.[aName] : null, armor.length, hurtGear, peek('peek-map', 'Map', 'pin', onPeekMap)));
 }
 
@@ -167,3 +167,11 @@ export function gearPopover({ st, data, flippedGear, onFlip, onClose }) {
 }
 
 export { chitText };
+
+// Note 75: the curse badge's card (the map shell shows the same skull): the Story line, then the rule
+export function cursePopover({ st, onClose }) {
+    const wither = (st.ch.curses ?? []).includes('Wither');
+    return h('div', { class: 'cb-pop curse', role: 'dialog', 'aria-label': 'Your curse', onclick: onClose },
+        h('p', { class: 'story' }, wither ? WITHER_STORY : `You bear ${st.ch.curses.join(' and ')}: see the Journal for what it takes away.`),
+        wither ? h('p', { class: 'detail' }, WITHER_DETAIL) : null);
+}

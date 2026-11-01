@@ -160,6 +160,7 @@ function planHints(G, i, at) {
     if (G.ui.planNote) out.push(line(G.ui.planNote, 'bad'));
     out.push(...followNote(G, i));
     out.push(...warningLines(G));
+    if ((G.st.ch.curses ?? []).includes('Wither')) out.push(line('Wither: chits with an asterisk stay tired. Resting will not bring them back.', '', { 'data-hint': 'wither' }));
     if (s?.act === 'search' && at[i]) out.push(line(searchWhere(G, at[i]), '', { 'data-hint': 'search-where' }));
     if (G.ui.pickMove === i || s?.act === 'move') {
         // where monsters wait: they block you at the end of the phase unless you are hidden, so the ones you could walk into are named
