@@ -310,6 +310,9 @@
 
 .pt-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .pt-spellbody { display: block; }
+.pt-where { margin: 0 0 12px; } .pt-rbody .pt-where { margin: 0; }
+.pt-where .lbl { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font: 600 calc(12px * var(--ts, 1))/1.3 var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.pt-where .ds-seg button { min-height: 44px; font-size: calc(15px * var(--ts, 1)); padding: 0 4px; }
 .pt-rbody .ds-seg button { min-height: 44px; font-size: calc(15px * var(--ts, 1)); padding: 0 4px; }
 .pt-pick:disabled { cursor: default; }
 .pt-rhead:focus-visible, .pt-pick:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }

@@ -175,7 +175,7 @@ const FEEL = { 2: 'your allies', 1: 'friendly to you', '-1': 'wary of you', '-2'
 export function dwellingBrief(dwelling, who = {}) {
     const e = SELLS[dwelling]; if (!e) return '';
     const feel = FEEL[String(who.rel?.[e[0]] ?? 0)];
-    return feel ? `${e[1]} The ${e[0]}: ${feel}.` : e[1];
+    return feel ? `${e[1]} The ${e[0]}: ${feel}.` : `${e[1]} The ${e[0]} live here.`;
 }
 
 // One character, as a portrait strip plus one card: allies and foes as chips, the perks as short rows.
@@ -276,6 +276,32 @@ function togetherRow(g, m, i, redraw) {
         onToggle: () => { if (!can) return; m.together = !m.together; if (m.together) m.start = f.start; redraw(); } }));
 }
 
+// Where he begins (rules 3.3.5): a strategic choice, made with the goals. One button for each dwelling on his card, the first (the Inn) chosen until he says otherwise, and a line from the data under
+// it: where that dwelling stands in this realm, who lives there and what they sell, how they take to him. It is drawn in the party step AND beside the goals, and both change the same `m.start`.
+// A character with one dwelling on his card gets the line without the buttons.
+export function startBrief(g, m) {
+    const c = charOf(m.id), place = placeOf(g, m.start);
+    const brief = dwellingBrief(m.start, c) || (m.start === 'Ghosts' ? 'The two Ghosts stand in this clearing at the start.' : '');
+    return `${DWELL_NAME[m.start] ?? m.start}${place ? `, ${place}` : ''}. ${brief}`.trim();
+}
+export function pickStart(g, m, d) {
+    if (!charOf(m.id).starts.includes(d)) return false;
+    m.start = d;
+    if (m.together && g.party[0] && d !== g.party[0].start) m.together = false;        // choosing a place of his own ends "Start together"
+    syncTogether(g);                                                                    // and the ones who follow the first member go where he goes
+    return true;
+}
+function startPicker(g, m, redraw) {
+    const c = charOf(m.id);
+    if (c.starts.length < 2) {
+        return h('div', { 'data-start': m.id }, h('div', { class: 'lbl' }, 'Begins'), startLine(g, m), h('p', { class: 'ds-why', style: 'margin:6px 0 0' }, nb(`The ${c.name} has only the ${c.starts[0]} on ${c.her ? 'her' : 'his'} character card. ${dwellingBrief(m.start, c)}`.trim())));
+    }
+    return h('div', { 'data-start': m.id }, h('div', { class: 'lbl' }, c.her ? 'Where she begins' : 'Where he begins'),
+        h('div', { class: 'ds-seg', role: 'radiogroup', 'aria-label': 'Starting place' }, c.starts.map(d => h('button', { type: 'button', class: m.start === d ? 'on' : null, role: 'radio', 'aria-checked': m.start === d ? 'true' : 'false', 'data-dwelling': d,
+            onclick: () => { pickStart(g, m, d); redraw(); } }, d))),
+        h('p', { class: 'ds-why', 'data-start-brief': '', style: 'margin:6px 0 0' }, nb(startBrief(g, m))));
+}
+
 function partyStep(g, redraw, o) {
     const online = !!o.online, full = g.party.length >= MAX_PARTY;
     syncTogether(g);
@@ -291,14 +317,9 @@ function partyStep(g, redraw, o) {
             nd ? h('span', { class: 'st pt-need', 'aria-label': `Needs ${nd} more spell${nd === 1 ? '' : 's'}` }, icon('warn'), `${nd} spell${nd === 1 ? '' : 's'}`) : h('span', { class: 'st pt-ok', 'aria-label': 'Ready' }, icon('check')),
             h('span', { class: 'pt-go' }, icon(open ? 'up' : 'down')));
         if (!open) return h('div', { class: `pt-row${nd ? ' need' : ''}`, 'data-row': m.id }, head);
-        const dw = c.starts.length > 1;
         const body = h('div', { class: 'pt-rbody' },
             h('div', { class: 'pt-tags' }, h('span', { class: 'ds-tag gold' }, c.weight), h('span', { class: 'ds-meta' }, online ? v2('Played by you', 'Player: you') : v2(`Played by you, ${ORDINAL[i]}`, `Player: you · Order: ${i + 1}`))),
-            dw ? h('div', {}, h('div', { class: 'lbl' }, c.her ? 'Where she begins' : 'Where he begins'),
-                h('div', { class: 'ds-seg', role: 'radiogroup', 'aria-label': 'Starting place' }, c.starts.map(d => h('button', { type: 'button', class: m.start === d ? 'on' : null, role: 'radio', 'aria-checked': m.start === d ? 'true' : 'false', 'data-dwelling': d,
-                    onclick: () => { m.start = d; redraw(); } }, d))),
-                h('p', { class: 'ds-why', style: 'margin:6px 0 0' }, nb(`${DWELL_NAME[m.start] ?? m.start}${placeOf(g, m.start) ? `, ${placeOf(g, m.start)}` : ''}. ${dwellingBrief(m.start, c) || (m.start === 'Ghosts' ? 'Where the dead gather: a Witch King’s own.' : '')}`)))
-                : h('div', {}, h('div', { class: 'lbl' }, 'Begins'), startLine(g, m), h('p', { class: 'ds-why', style: 'margin:6px 0 0' }, nb(`The ${c.name} has only the ${c.starts[0]} on ${c.her ? 'her' : 'his'} character card.`))),
+            startPicker(g, m, redraw),
             i > 0 && !online ? togetherRow(g, m, i, redraw) : null,
             c.spells ? h('div', {}, h('div', { class: 'lbl' }, 'Spells', h('em', { class: nd ? 'pt-need' : 'pt-ok' }, `${(m.spells ?? []).length} of ${c.spells.n}`)),
                 !Array.isArray(m.spells) ? h('p', { class: 'ds-why' }, 'Loading the spell list…')
@@ -358,7 +379,9 @@ function goalsStep(g, redraw, online) {
     };
     const list = m => h('div', { class: 'ds-list' }, GOAL_ORDER.map(k => goal(m, VP_ROWS.find(r => r.k === k))));
     const sealed = g._shared ? h('p', { class: 'ds-why ds-qwhy', 'data-sealed': '' }, 'Your goals are sealed: the others see them only when the game is over.') : null;
-    if (!many) return [q('What are you playing for?'), sect('Your goals', `${total} points to spend`), sealed, list(g.party[0])];
+    // where he begins is chosen here too, beside the goals: the two go together (the party step has the same control)
+    const where = m => h('div', { class: 'pt-where' }, startPicker(g, m, redraw));
+    if (!many) return [q('What are you playing for?'), where(g.party[0]),sect('Your goals', `${total} points to spend`), sealed, list(g.party[0])];
     const unbalanced = g.party.findIndex(m => goalsUsed(m) !== total);
     const openAt = g.goalOpen == null ? unbalanced : g.goalOpen;
     const row = (m, i) => {
@@ -366,13 +389,13 @@ function goalsStep(g, redraw, online) {
         const twin = g.party.find((o, j) => j !== i && goalsUsed(o) === total && GOAL_ORDER.some(k => o.vp[k] !== m.vp[k]));
         const head = h('button', { type: 'button', class: 'pt-rhead', 'aria-expanded': open ? 'true' : 'false', 'data-member': m.id, 'data-act': 'toggle-goals', onclick: () => { g.goalOpen = open ? -1 : i; g.reveal = true; redraw(); } },
             face(m.id, i, { sm: true, flag: left !== 0 }),
-            h('span', { class: 'main' }, h('span', { class: 'pt-name' }, h('span', { class: 'nm' }, c.name)), h('span', { class: 'sumline' }, open ? 'Tap to close' : goalsText(m) || 'No goals yet')),
+            h('span', { class: 'main' }, h('span', { class: 'pt-name' }, h('span', { class: 'nm' }, c.name)), h('span', { class: 'sumline' }, open ? 'Tap to close' : `${goalsText(m) || 'No goals yet'} · from ${the(m.start)}`)),
             left ? h('span', { class: 'st pt-need' }, icon('warn'), left > 0 ? `${left} left` : `${-left} over`) : h('span', { class: 'st pt-ok', 'aria-label': 'Ready' }, icon('check')),
             h('span', { class: 'pt-go' }, icon(open ? 'up' : 'down')));
         return h('div', { class: `pt-row${open ? ' open' : ''}${left ? ' need' : ''}`, 'data-row': m.id }, head,
-            open ? h('div', { class: 'pt-rbody' }, list(m), twin ? h('button', { type: 'button', class: 'ds-btn sm', 'data-act': 'copy-goals', onclick: () => { m.vp = { ...twin.vp }; redraw(); } }, icon('plus'), `Same goals as the ${charOf(twin.id).name}`) : null) : null);
+            open ? h('div', { class: 'pt-rbody' }, where(m), list(m), twin ? h('button', { type: 'button', class: 'ds-btn sm', 'data-act': 'copy-goals', onclick: () => { m.vp = { ...twin.vp }; redraw(); } }, icon('plus'), `Same goals as the ${charOf(twin.id).name}`) : null) : null);
     };
-    return [q('What does each of them play for?'), sect('Goals, one set for each', `${total} points each`), sealed, h('div', { class: 'pt-acc' }, g.party.map(row))];
+    return [q('What does each of them play for, and where do they begin?'), sect('Goals, one set for each', `${total} points each`), sealed, apartHint(g) ? h('p', { class: 'ds-why pt-apart', 'data-apart': '' }, v2(apartHint(g).story, apartHint(g).detail)) : null, h('div', { class: 'pt-acc' }, g.party.map(row))];
 }
 
 // Optional rules (3.1 section 10). Everything is off until switched on, as printed. A plain sentence on the row; the rule number and the full text sit behind the (i).
