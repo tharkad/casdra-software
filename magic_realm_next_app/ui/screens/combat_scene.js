@@ -28,7 +28,7 @@ import { modeOfPending, SCENE_MODES } from '../combat/modes.js';
 import { fightOf } from '../fight.js';
 import * as LU from '../combat/lure.js';
 
-const RESULT_TYPES = ['combat-fatigue', 'combat-wounds', 'combat-encounter', 'combat-deploy'];          // (combat-deploy: a round on Melee Sections starts with the Deployment, so the last round's result comes before it)
+const RESULT_TYPES = ['combat-fatigue', 'combat-wounds', 'combat-encounter', 'combat-deploy', 'combat-lure', 'combat-charge'];          // (combat-lure / combat-charge: a fight of several characters starts its next round there, so each one sees the last round first; combat-deploy: a round on Melee Sections starts with the Deployment, so the last round's result comes before it)
 const hashOf = s => { let x = 0; for (let i = 0; i < s.length; i++) x = (Math.imul(31, x) + s.charCodeAt(i)) | 0; return x; };
 const MEET = /^Evening meeting with the /;
 
@@ -89,7 +89,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
     const events = c.events ?? [];
     const resultKey = `${c.roundRollFrom ?? 0}|${hashOf(events.join('\n'))}`;
     X.resultKey = resultKey;
-    const showResult = !shared && RESULT_TYPES.includes(p.type) && events.length > 0 && cb.seen !== resultKey && !((p.type === 'combat-encounter' || p.type === 'combat-deploy') && (c.round === 1 || p.spellOnly));
+    const showResult = !shared && RESULT_TYPES.includes(p.type) && events.length > 0 && cb.seen !== resultKey && !((p.type === 'combat-encounter' || p.type === 'combat-deploy') && (c.round === 1 || p.spellOnly)) && !((p.type === 'combat-lure' || p.type === 'combat-charge') && (p.round ?? c.round) <= 1);
     const facts = M.roundFacts(events);
     const aimedNow = p.type === 'combat-melee' && !!p.aimed;          // (the spells of this round have acted: ruling S8, the options are read again after them)
     if (p.type === 'combat-melee' && (!cb.plan || cb.planRound !== c.round || (aimedNow && cb.planAimed !== c.round))) {
