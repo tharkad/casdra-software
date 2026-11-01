@@ -1,4 +1,5 @@
 // play/results.js: the Day Result (the morning report and its overview). The result card of a phase is result_card.js, the end of the game (death, victory) endscreen.js.
+import { kindIcon, kindOfName } from '../../kindicons.js';
 import { h } from '../../dom.js';
 import { frames, voiceSwitch } from '../../ds.js';
 import { actIcon, icon } from '../../icons.js';
@@ -32,7 +33,7 @@ function pic(G, name, kind, group = null) {
     const bare = n => String(n).replace(/ #?\d+$/, '').trim(), nats = Object.values(G.data.natives ?? {});
     const nat = nats.find(n => n.name === name) ?? nats.find(n => bare(n.name) === bare(name)) ?? (group ? nats.find(n => n.group === group && n.leader) ?? nats.find(n => n.group === group) : null);
     const src = kind === 'mon' ? (a.monstersColor?.[name] ?? a.monsters?.[name] ?? (nat && a.natives?.[nat.id])) : (picOf(G, name) ?? null);
-    return h('span', { class: 'ds-counter sm' }, src ? h('img', { src, alt: '' }) : actIcon('cache', 32));
+    return h('span', { class: 'ds-counter sm' }, src ? h('img', { src, alt: '' }) : kindIcon(kindOfName(G.data, name)) ?? actIcon('cache', 32));
 }
 const sgn = n => (n > 0 ? `+${n}` : n < 0 ? `\u2212${Math.abs(n)}` : '0');
 

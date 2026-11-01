@@ -3,6 +3,7 @@
 import { h } from '../../dom.js';
 import { btn, setDetent, sheet } from '../../ds.js';
 import { icon as dsIcon } from '../../icons.js';
+import { kindIcon, kindOfName } from '../../kindicons.js';
 import { guardIfChanged } from '../../tapguard.js';
 import { act } from './actions.js';
 import { itemParts } from './sheet_char.js';
@@ -126,7 +127,13 @@ export function modal(G, title, body, { close, footer, kind, detent, eyebrow, he
 // Pictures from the original game, when we have them.
 export function picOf(G, name) { const a = G.data.art; return a ? (a.weapons?.[name] ?? a.armor?.[name] ?? a.horses?.[name] ?? null) : null; }
 
-export function ico(G, name, cls = 'ico') { const s = picOf(G, name); return s ? h('img', { class: cls, src: s, alt: '', decoding: 'sync' }) : null; }
+// The picture of a belonging by name: the game's art when it has one, else the drawn symbol of its kind (a treasure or a spell), so a row is never blank. null only for a name that is neither.
+export function ico(G, name, cls = 'ico') {
+    const s = picOf(G, name);
+    if (s) return h('img', { class: cls, src: s, alt: '', decoding: 'sync' });
+    const k = kindOfName(G.data, name);
+    return k ? kindIcon(k, { cls: `${cls} kico` }) : null;
+}
 
 export function nativePic(G, id) { return G.data.art?.natives?.[id] ?? null; }
 

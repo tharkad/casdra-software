@@ -26,6 +26,7 @@
 .card-band { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
 .card-band b { font-family: var(--font-display); font-size: calc(18px * var(--ts, 1)); display: block; }
 .card-band small { display: block; font-size: calc(12.5px * var(--ts, 1)); opacity: .85; }
+.card-sym { flex: none; width: 44px; height: 44px; display: grid; place-items: center; background: #efe6d0; border-radius: 8px; color: #1d1a12; } .card-sym .ds-i { width: 36px; height: 36px; }
 .card-pic { width: 44px; height: 44px; object-fit: contain; background: #efe6d0; border-radius: 8px; }
 .card-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 8px 12px 0; font-size: calc(13.5px * var(--ts, 1)); }
 .card-stats em { font-style: normal; font-weight: 700; }

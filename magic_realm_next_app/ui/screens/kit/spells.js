@@ -9,6 +9,7 @@ import { render } from '../play/shell.js';
 import { cardEl } from '../../card.js';
 import { h } from '../../dom.js';
 import { icon } from '../../icons.js';
+import { spellKindIcon } from '../../kindicons.js';
 import { castLine, synopsis } from '../../spelltext.js';
 import { ask } from '../../ds.js';
 import { footRow } from './common.js';
@@ -25,7 +26,8 @@ function printedBody(G, sp) {
     return { target: m?.[1] ?? sp.target ?? null, body: m?.[3] ?? full };
 }
 
-export const colorArt = sp => (CHIT_ART[sp.color] ? h('img', { class: 'ds-px', width: 32, height: 32, src: `art/colormagic/${CHIT_ART[sp.color]}.gif`, alt: '', draggable: 'false' }) : icon('spark', 'lg'));
+// The colour's own chit picture; a spell with no colour of its own (Control Bats, Bad Luck) gets the drawn symbol of "any colour" (never a blank). `data` lets the symbol be looked up in the kinds table.
+export const colorArt = (sp, data = null) => (CHIT_ART[sp.color] ? h('img', { class: 'ds-px', width: 32, height: 32, src: `art/colormagic/${CHIT_ART[sp.color]}.gif`, alt: '', draggable: 'false' }) : spellKindIcon(data, sp, { cls: 'lg' }) ?? icon('spark', 'lg'));
 export const typeTag = sp => `Type ${sp.type} · ${sp.color ?? 'any colour'}`;
 
 // The status of a spell he knows tonight, in words: what the engine says blocks it, else where its magic comes from.
@@ -46,7 +48,7 @@ export function spellRow(G, id, blocked, { status: showStatus = true } = {}) {
     if (!sp) return h('div', { class: 'ds-spell', 'data-spell': id }, h('span', { class: 'main' }, h('b', {}, id)));
     const st = showStatus ? status(G, sp, blocked) : null, { target, body } = printedBody(G, sp);
     return h('article', { class: 'ds-spell kit-spell', 'data-spell': id },
-        h('span', { class: 'col' }, colorArt(sp)),
+        h('span', { class: 'col' }, colorArt(sp, G.data)),
         h('span', { class: 'main' },
             h('b', {}, sp.name, h('span', { class: 'ds-tag kit-tag' }, typeTag(sp))),
             h('span', { class: 'l' }, synopsis(sp, printedOf(G, id))),
@@ -65,7 +67,7 @@ function inForce(G) {
         h('div', { class: 'ds-list' }, fxOn.map(f => {
             const sp = G.data.spells?.[f.spell], chit = f.source?.kind === 'chit' ? G.st.ch.chits.find(c => c.id === f.source.id) : null;
             return h('div', { class: 'ds-row kit-fxrow', 'data-fx': f.id },
-                h('span', { class: 'art' }, sp ? colorArt(sp) : icon('spark')),
+                h('span', { class: 'art' }, sp ? colorArt(sp, G.data) : icon('spark')),
                 h('span', { class: 'main' }, h('b', {}, sp?.name ?? f.spell),
                     h('span', {}, `${fxEnds(G, f)}.${chit ? ` Your Magic ${chit.numeral}${chit.time}${'*'.repeat(chit.effort)} is tied to it and tires when it ends.` : ''}`),
                     f.state === 'held' && lock ? voiced(lock, { class: 'st no', 'data-held-lock': f.id }) : null));
@@ -93,7 +95,7 @@ export function spellCardEl(G, sp) {
     return h('div', { class: 'kit-spellcard' },
         cardEl({ title: sp.name, kind: sp.color ?? 'any', tag: `Type ${sp.type} spell · ${color === 'any' ? 'any colour of magic' : `${color} magic`} · ${sp.duration}`,
             stats: [...(target ? [['Target', target]] : []), ['Cast with', `a Magic chit of type ${sp.type}`], ['Colour needed', color === 'any' ? 'any' : color]], text: body,
-            notes: [castable(sp) ? castLine(sp) : 'This spell cannot be cast yet.'] }),
+            notes: [castable(sp) ? castLine(sp) : 'This spell cannot be cast yet.'], symbol: spellKindIcon(G.data, sp, { withType: true }) }),
         castable(sp) ? h('details', { class: 'kit-detail' }, h('summary', {}, 'Detail'),
             h('p', {}, 'You cast this in the Encounter step of the evening, where its colour of magic is present. If nothing is fighting you the evening is still held (rule 8.1.3a) and the game stops to ask whether you want to cast it, when there is something for it to do.')) : null);
 }
@@ -122,7 +124,7 @@ export function learnContent(G, p) {
                 const sp = G.data.spells?.[c.spell];
                 return h('button', { type: 'button', class: `ds-row${pick === c.spell ? ' sel' : ''}${c.learnable ? '' : ' dim'}`, 'data-learn': c.spell, 'aria-pressed': pick === c.spell ? 'true' : 'false',
                     onclick: () => { G.ui.sightPick = c.learnable ? (pick === c.spell ? null : c.spell) : null; render(G); } },
-                    h('span', { class: 'art' }, sp ? colorArt(sp) : icon('spark')),
+                    h('span', { class: 'art' }, sp ? colorArt(sp, G.data) : icon('spark')),
                     h('span', { class: 'main' }, h('b', {}, c.name), h('span', {}, c.learnable ? synopsis(sp, printedOf(G, c.spell)) : 'You hold no Magic chit of this type, so you cannot learn it.')),
                     h('span', { class: 'end' }, `Type ${c.type}`, h('small', {}, c.color ?? 'any')));
             })));
@@ -139,7 +141,7 @@ export function learnContent(G, p) {
         p.full ? h('div', { class: 'kit-forget' },
             h('div', { class: 'ds-ask warn' }, h('b', {}, `Your spellbook is full (${MAX_SPELLS}).`), h('span', {}, 'Forget one to make room:')),
             h('div', { class: 'ds-list' }, (G.st.ch.spells ?? []).map(id => { const s2 = G.data.spells?.[id]; return h('button', { type: 'button', class: `ds-row${erase === id ? ' sel' : ''}`, 'data-erase': id, 'aria-pressed': erase === id ? 'true' : 'false', onclick: () => { G.ui.erase = erase === id ? null : id; render(G); } },
-                h('span', { class: 'art' }, s2 ? colorArt(s2) : icon('spark')), h('span', { class: 'main' }, h('b', {}, s2?.name ?? id), h('span', {}, s2 ? typeTag(s2) : '')), erase === id ? h('span', { class: 'end' }, 'forget') : null); }))) : null);
+                h('span', { class: 'art' }, s2 ? colorArt(s2, G.data) : icon('spark')), h('span', { class: 'main' }, h('b', {}, s2?.name ?? id), h('span', {}, s2 ? typeTag(s2) : '')), erase === id ? h('span', { class: 'end' }, 'forget') : null); }))) : null);
     const need = p.full && !erase;
     const foot = footRow({ note: need ? 'Choose which spell to forget.' : '',
         secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'leave', onclick: () => { G.ui.erase = null; act(G, { type: 'learn-spell', learn: false }); } }, 'Leave it'),

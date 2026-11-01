@@ -5,6 +5,7 @@ import { WEIGHT_WORDS } from '../../../engine/core.js';
 import { defOf, nameOf, priceOf, weightOf } from '../../../engine/items.js';
 import { h } from '../../dom.js';
 import { actIcon, art, icon } from '../../icons.js';
+import { itemKindIcon } from '../../kindicons.js';
 import { modal, nativePic, picOf, voidBy } from '../play/kit.js';
 import { render } from '../play/shell.js';
 import { ROAD_STORY, roadLockOf } from '../../commit.js';
@@ -42,7 +43,8 @@ const GLYPH = { boots: 'move', gloves: 'glove', treasure: 'cache', spell: 'spell
 export function itemArt(G, it) {
     const name = nameOf(G.data, it), pic = picOf(G, name) ?? (defOf(G.data, it)?.name ? picOf(G, defOf(G.data, it).name) : null);
     const glyph = /boots|slippers/i.test(name) ? GLYPH.boots : /gloves|gauntlets/i.test(name) ? GLYPH.gloves : GLYPH.treasure;
-    return pic ? h('img', { src: pic, alt: '', draggable: 'false' }) : glyph === 'glove' ? icon('glove', 'lg') : actIcon(glyph, 28);
+    // the game's own art first; else the drawn symbol of its kind (ui/kindicons.js: every treasure has one); else the neutral glyph
+    return pic ? h('img', { src: pic, alt: '', draggable: 'false' }) : itemKindIcon(G.data, it, { cls: 'lg' }) ?? (glyph === 'glove' ? icon('glove', 'lg') : actIcon(glyph, 28));
 }
 export const itemTile = (G, it, cls = '') => h('span', { class: `ds-counter ${cls}` }, itemArt(G, it));
 

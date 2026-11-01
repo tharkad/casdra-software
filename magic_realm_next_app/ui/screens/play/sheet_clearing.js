@@ -2,6 +2,7 @@
 // drawn as the real stack of face-down cards, Small and Large, numbered by depth), signs, what lies on the ground, the roads. The same site blocks stand inside the choice screens
 // (the Search table, the Loot pick): the owner asked for exactly that, "the site contents should be in the choice screens so you can see what you could get".
 // Only what the Setup Card tells everyone is drawn: Large above Small, never which card is Great (that is unknown until it is looted: the printed rule).
+import { kindIcon, kindOfId } from '../../kindicons.js';
 import { lvl } from '../../../engine/core.js';
 import { nameOf } from '../../../engine/items.js';
 import { colorSources } from '../../../engine/spells.js';
@@ -75,7 +76,7 @@ export function siteBlock(G, c, { fresh = false, withPile = true, compact = fals
     const needs = found && pile.length ? siteNeeds(G, c.name) : null;
     return h('div', { class: `ds-site sitecard${found ? ' found' : ''}${fresh ? ' fresh' : ''}`, 'data-site': c.name },
         compact ? h('span', { class: 'ds-dim setupline' }, left) : h('div', { class: 'head' },
-            h('span', { class: 'ds-counter sm' }, actIcon(found ? 'cache' : 'search', 32)),
+            h('span', { class: 'ds-counter sm' }, found ? kindIcon(G.data.kinds?.sites?.[c.name]) ?? actIcon('cache', 32) : actIcon('search', 32)),       // a site found: the drawn symbol of that site (ui/kindicons.js)
             h('span', { class: 'main' }, h('b', {}, c.name, fresh ? h('span', { class: 'ds-tag gold' }, 'Just found') : null), h('span', { class: 'ds-dim setupline' }, left))),
         withPile && (found || printed?.length) ? pileEl(G, c.name, pile, printed) : null,
         needs ? h('p', { class: 'ds-meta setupline dim' }, needs) : null,
@@ -105,7 +106,7 @@ export function siteCardRow(G, cid, bare = false) {
     };
     const tm = (box?.box ?? name) === 'Crypt of the Knight' ? 'Needs a Tremendous-strength chit or the Lost Keys on every roll.' : null;
     return h('div', { class: 'ds-site sitecard found', 'data-sitecard': cid },
-        bare ? null : h('div', { class: 'head' }, h('span', { class: 'ds-counter sm' }, actIcon('cache', 32)), h('span', { class: 'main' }, h('b', {}, name), h('span', { class: 'ds-dim' }, 'Found by looting: a place you can search here with a Loot phase.'))),
+        bare ? null : h('div', { class: 'head' }, h('span', { class: 'ds-counter sm' }, kindIcon(kindOfId(G.data, 'treasures', cid)) ?? actIcon('cache', 32)), h('span', { class: 'main' }, h('b', {}, name), h('span', { class: 'ds-dim' }, 'Found by looting: a place you can search here with a Loot phase.'))),
         h('div', { class: 'ds-twt' }, ...Object.entries(T).map(([roll, res]) => h('div', { class: 'twtrow' }, h('b', {}, roll), h('span', {}, what(res))))),
         tm ? h('p', { class: 'ds-meta setupline dim' }, tm) : null);
 }

@@ -75,6 +75,7 @@
 .journal-sheet .ds-sheet-body { padding-top: 0; }
 .journal .ds-notes { margin: 6px 0 4px; }
 .journal .ds-note { cursor: pointer; } .journal .ds-note.on { border-color: var(--gold); }
+.journal .ds-found .ki { width: 32px; height: 32px; flex: none; background: none; padding: 0; margin: 0; }
 .journal .ds-found .ds-px, .journal .ds-found img { width: 32px; height: 32px; flex: none; object-fit: contain; }
 .journal .ds-found.curse { border-color: var(--danger); background: var(--danger-wash); } .journal .ds-found.curse .eyebrow { color: var(--danger); }
 .ds-log { display: flex; flex-direction: column; margin: 0; padding: 0; }

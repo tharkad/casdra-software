@@ -49,7 +49,7 @@ export function spellsRoom(G, p, sel, onPick) {
             h('div', { class: 'kit-trow-main' },
                 h('button', { type: 'button', class: `ds-row kit-multi${on ? ' sel' : ''}${why ? ' dim' : ''}`, 'data-multi': '', 'data-spell-card': c.id, role: 'checkbox', 'aria-checked': on ? 'true' : 'false', 'aria-disabled': why ? 'true' : null,
                     onclick: () => (why ? say(G, voicedWhy(why)) : onPick(c.id)) },
-                    h('span', { class: 'art' }, sp ? colorArt(sp) : icon('spark'), on ? tick() : null),
+                    h('span', { class: 'art' }, sp ? colorArt(sp, G.data) : icon('spark'), on ? tick() : null),
                     h('span', { class: 'main' }, h('b', {}, c.name, h('span', { class: 'ds-tag kit-tag' }, `Type ${c.type}`)), h('span', {}, sp ? synopsis(sp, printedOf(G, c.id)) : ''),
                         why ? voiced(why, { class: 'ds-why', 'data-spell-why': c.id }) : null),
                     h('span', { class: 'end' }, goldEl(G, SPELL_PRICE), h('small', {}, 'list'))),
@@ -82,7 +82,7 @@ export function eraseBlock(G) {
                 const s2 = G.data.spells?.[id], on = chosen === id;
                 return h('button', { type: 'button', class: `ds-row${on ? ' sel' : ''}`, role: 'radio', 'aria-checked': on ? 'true' : 'false', 'data-erase': id,
                     onclick: () => { G.ui.spellErase = on ? null : id; render(G); } },
-                    h('span', { class: 'art' }, s2 ? colorArt(s2) : icon('spark')), h('span', { class: 'main' }, h('b', {}, s2?.name ?? id), h('span', {}, s2 ? typeTag(s2) : '')),
+                    h('span', { class: 'art' }, s2 ? colorArt(s2, G.data) : icon('spark')), h('span', { class: 'main' }, h('b', {}, s2?.name ?? id), h('span', {}, s2 ? typeTag(s2) : '')),
                     on ? h('span', { class: 'end' }, 'erase') : null);
             }))));
     return { node, chosen, need: !chosen };
@@ -97,7 +97,7 @@ function blocker(G, p, er, pay) {
     return null;
 }
 const hero = (G, p, sp) => h('div', { class: 'kit-what', 'data-spell-offer': p.spell },
-    h('span', { class: 'ds-counter' }, sp ? colorArt(sp) : icon('spark', 'lg')),
+    h('span', { class: 'ds-counter' }, sp ? colorArt(sp, G.data) : icon('spark', 'lg')),
     h('div', {}, h('b', {}, p.name), h('span', { class: 'ds-meta' }, sp ? typeTag(sp) : '')));
 
 // spellOfferContent(G, p) -> { title, body, foot, decision, detent } for a trade-offer that is a Spell card (p.spell)
@@ -124,7 +124,7 @@ export function spellOfferContent(G, p) {
 // What boon.js needs for a Spell card offered as a favour: { art, node, block, erase }.
 export function spellBoonBits(G, p) {
     const sp = G.data.spells?.[p.spell], er = eraseBlock(G), why = !p.learnable ? learnWhy(p.why) : null;
-    return { art: h('span', { class: 'ds-counter lg' }, sp ? colorArt(sp) : icon('spark', 'lg')), node: [why ? voiced(why, { class: 'ds-why bad', 'data-spell-why': p.spell }) : null, er?.node],
+    return { art: h('span', { class: 'ds-counter lg' }, sp ? colorArt(sp, G.data) : icon('spark', 'lg')), node: [why ? voiced(why, { class: 'ds-why bad', 'data-spell-why': p.spell }) : null, er?.node],
         block: !p.learnable ? voicedWhy(learnWhy(p.why)) : er?.need ? 'Choose which spell to erase first: your spellbook is full.' : null, erase: er?.chosen ?? null };
 }
 

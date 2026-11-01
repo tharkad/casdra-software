@@ -36,6 +36,10 @@ button:where([class^="ds-"], [class*=" ds-"]) { font: inherit; color: inherit; b
 .ds-i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .ds-i.fill { fill: currentColor; stroke: none; }
 .ds-i.lg { width: 24px; height: 24px; }
+/* the drawn symbol of a kind (ui/kindicons.js): a treasure or spell that has no picture of its own. Sits in a counter, a row's art tile or the band of a card. */
+.ds-counter .ki { width: 62%; height: 62%; }
+.ki { color: var(--counter-ink); } .ki .ki-num { font-family: var(--font-ui); }
+svg.ico.kico { padding: 6px; box-sizing: border-box; stroke-width: 1.6; }
 
 /* ---- status strip ---- */
 .ds-strip { flex: none; height: var(--strip-h); display: grid; grid-template-columns: 44px 1fr auto auto; align-items: center; gap: 0 4px; padding: 0 var(--gutter) 0 4px; background: var(--surface-1); border-bottom: 1px solid var(--line-1); position: relative; z-index: 3; }

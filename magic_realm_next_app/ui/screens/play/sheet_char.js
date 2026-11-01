@@ -5,6 +5,7 @@ import { cardEl } from '../../card.js';
 import { itemFace } from '../../counter.js';
 import { mendCardText } from '../../cardfix.js';
 import { h } from '../../dom.js';
+import { kindIcon, kindOfId } from '../../kindicons.js';
 import { itemContent, kitContent, slotPickerContent } from '../kit/kit.js';
 import { mountSheet } from '../kit/common.js';
 import { spellCardEl, spellContent, spellsContent } from '../kit/spells.js';
@@ -68,7 +69,7 @@ export function cardInfoSheet(G) {
     if (!td) return modal(G, 'Card', h('p', { class: 'hint' }, 'Unknown card.'), back);
     const text = mendCardText(G.data.cardtext?.treasures?.[G.ui.cardId] ?? td.effectText ?? '');
     return modal(G, td.name, h('div', { class: 'itemsheet' },
-        cardEl({ title: td.name, kind: 'treasure', tag: td.kind === 'twt' ? 'Treasure within Treasure' : 'Treasure', stats: [], text, notes: G.ui.cardId === 'chest' ? [] : ['A treasure within a treasure: it is not carried off; what it holds is described on the card.'] }),
+        cardEl({ title: td.name, kind: 'treasure', tag: td.kind === 'twt' ? 'Treasure within Treasure' : 'Treasure', stats: [], text, notes: G.ui.cardId === 'chest' ? [] : ['A treasure within a treasure: it is not carried off; what it holds is described on the card.'], symbol: kindIcon(kindOfId(G.data, 'treasures', G.ui.cardId)) }),
         h('button', { type: 'button', class: 'ds-btn block', onclick: back.close }, 'Back')), back);
 }
 
@@ -109,7 +110,7 @@ export function itemParts(G, it, { size } = {}) {
         const notes = [];
         if (td?.great) notes.push('A Great Treasure: it counts toward the Great Treasures goal while you keep it.');
         if (td?.fameReward) notes.push(`Sold to the ${td.fameReward.group} it earns ${td.fameReward.points} Fame.`);
-        card = cardEl({ title: td?.name ?? name, kind: td?.great ? 'great' : 'treasure', tag: `${td?.great ? 'Great treasure' : td?.kind === 'large' ? 'Large treasure' : td?.kind === 'small' ? 'Small treasure' : 'Treasure'}${td?.magic ? ` \u00B7 ${typeof td.magic === 'object' ? `Magic ${(td.magic.numerals ?? [td.magic.numeral]).filter(Boolean).join('/')}${td.magic.colour ? ` ${td.magic.colour}` : ''}` : `magic ${td.magic}`}` : ''}`, stats, text, notes, picture: pic });
+        card = cardEl({ title: td?.name ?? name, kind: td?.great ? 'great' : 'treasure', tag: `${td?.great ? 'Great treasure' : td?.kind === 'large' ? 'Large treasure' : td?.kind === 'small' ? 'Small treasure' : 'Treasure'}${td?.magic ? ` \u00B7 ${typeof td.magic === 'object' ? `Magic ${(td.magic.numerals ?? [td.magic.numeral]).filter(Boolean).join('/')}${td.magic.colour ? ` ${td.magic.colour}` : ''}` : `magic ${td.magic}`}` : ''}`, stats, text, notes, picture: pic, symbol: kindIcon(kindOfId(G.data, 'treasures', td?.id ?? key)) });
     }
     if (card == null) {
         // what it is worth: gold when sold (armor already says whole and damaged above), and the Fame and Notoriety it adds while he owns it

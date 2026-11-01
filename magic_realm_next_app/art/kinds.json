@@ -1,0 +1,340 @@
+{
+ "meta": {
+  "note": "One drawn symbol per kind (app/ui/kindicons.js). The 8 site cards of the Setup Card are mapped by name. Every treasure id and every spell id is mapped to exactly one kind; tests/kinds.test.mjs checks it. Real art always has priority over these symbols.",
+  "groups": {
+   "treasures": [
+    "garment",
+    "boots",
+    "gloves",
+    "band",
+    "potion",
+    "salve",
+    "herb",
+    "map",
+    "sight",
+    "wand",
+    "key",
+    "lantern",
+    "pipes",
+    "book",
+    "scroll",
+    "charm",
+    "ring",
+    "jewel",
+    "regalia",
+    "sacred",
+    "remains",
+    "chest",
+    "carpet",
+    "place"
+   ],
+   "spells": [
+    "white",
+    "grey",
+    "gold",
+    "purple",
+    "black",
+    "any"
+   ],
+   "sites": [
+    "site-hoard",
+    "site-lair",
+    "site-altar",
+    "site-shrine",
+    "site-pool",
+    "site-vault",
+    "site-cairns",
+    "site-statue"
+   ]
+  }
+ },
+ "kinds": {
+  "garment": {
+   "label": "Garment",
+   "about": "cloaks, tabards, vests and garb"
+  },
+  "boots": {
+   "label": "Boots",
+   "about": "boots and slippers"
+  },
+  "gloves": {
+   "label": "Gloves",
+   "about": "gloves and gauntlets"
+  },
+  "band": {
+   "label": "Belt or band",
+   "about": "belts, girtles, arm bands and bracelets"
+  },
+  "potion": {
+   "label": "Potion",
+   "about": "vials, draughts, flasks and essences"
+  },
+  "salve": {
+   "label": "Salve",
+   "about": "ointments, greases, oils, dusts and poultices"
+  },
+  "herb": {
+   "label": "Herb",
+   "about": "flowers and plants"
+  },
+  "map": {
+   "label": "Map",
+   "about": "maps"
+  },
+  "sight": {
+   "label": "Sight",
+   "about": "crystal, telescope, spectacles, glass and eyes"
+  },
+  "wand": {
+   "label": "Wand",
+   "about": "a magic wand"
+  },
+  "key": {
+   "label": "Keys",
+   "about": "keys"
+  },
+  "lantern": {
+   "label": "Lantern",
+   "about": "a lantern"
+  },
+  "pipes": {
+   "label": "Pipes",
+   "about": "musical pipes"
+  },
+  "book": {
+   "label": "Book",
+   "about": "spell books"
+  },
+  "scroll": {
+   "label": "Scroll",
+   "about": "scrolls"
+  },
+  "charm": {
+   "label": "Charm",
+   "about": "amulets, pendants, claws and hooves worn or carried for luck"
+  },
+  "ring": {
+   "label": "Ring",
+   "about": "rings"
+  },
+  "jewel": {
+   "label": "Jewel",
+   "about": "gems and jewels"
+  },
+  "regalia": {
+   "label": "Regalia",
+   "about": "crowns and sceptres"
+  },
+  "sacred": {
+   "label": "Sacred object",
+   "about": "grail, icon and statue"
+  },
+  "remains": {
+   "label": "Remains",
+   "about": "skulls and skeletons"
+  },
+  "chest": {
+   "label": "Chest",
+   "about": "a locked chest"
+  },
+  "carpet": {
+   "label": "Carpet",
+   "about": "a flying carpet"
+  },
+  "place": {
+   "label": "Place",
+   "about": "site cards that stay in the clearing"
+  },
+  "white": {
+   "label": "White magic",
+   "about": "spells of white magic"
+  },
+  "grey": {
+   "label": "Grey magic",
+   "about": "spells of grey magic"
+  },
+  "gold": {
+   "label": "Gold magic",
+   "about": "spells of gold magic"
+  },
+  "purple": {
+   "label": "Purple magic",
+   "about": "spells of purple magic"
+  },
+  "black": {
+   "label": "Black magic",
+   "about": "spells of black magic"
+  },
+  "any": {
+   "label": "Any colour",
+   "about": "spells with no colour of magic of their own"
+  },
+  "site-hoard": {
+   "label": "Hoard",
+   "about": "a pile of treasure"
+  },
+  "site-lair": {
+   "label": "Lair",
+   "about": "a monster lair in a cave"
+  },
+  "site-altar": {
+   "label": "Altar",
+   "about": "an altar"
+  },
+  "site-shrine": {
+   "label": "Shrine",
+   "about": "a shrine"
+  },
+  "site-pool": {
+   "label": "Pool",
+   "about": "a pool"
+  },
+  "site-vault": {
+   "label": "Vault",
+   "about": "a locked vault"
+  },
+  "site-cairns": {
+   "label": "Cairns",
+   "about": "stacked stones"
+  },
+  "site-statue": {
+   "label": "Statue",
+   "about": "a statue"
+  }
+ },
+ "treasures": {
+  "imperial-tabard": "garment",
+  "cloak-of-mist": "garment",
+  "elusive-cloak": "garment",
+  "garb-of-speed": "garment",
+  "bejeweled-dwarf-vest": "garment",
+  "seven-league-boots": "boots",
+  "shoes-of-stealth": "boots",
+  "elven-slippers": "boots",
+  "power-boots": "boots",
+  "quick-boots": "boots",
+  "deft-gloves": "gloves",
+  "gloves-of-strength": "gloves",
+  "handy-gloves": "gloves",
+  "power-gauntlets": "gloves",
+  "belt-of-strength": "band",
+  "golden-arm-band": "band",
+  "battle-bracelets": "band",
+  "girtle-of-energy": "band",
+  "draught-of-speed": "potion",
+  "vial-of-healing": "potion",
+  "potion-of-energy": "potion",
+  "alchemists-mixture": "potion",
+  "dragon-essence": "potion",
+  "poultice-of-health": "salve",
+  "ointment-of-steel": "salve",
+  "ointment-of-bite": "salve",
+  "penetrating-grease": "salve",
+  "reflecting-grease": "salve",
+  "oil-of-poison": "salve",
+  "gripping-dust": "salve",
+  "flowers-of-rest": "herb",
+  "map-of-lost-castle": "map",
+  "map-of-lost-city": "map",
+  "map-of-ruins": "map",
+  "crystal-ball": "sight",
+  "ancient-telescope": "sight",
+  "magic-spectacles": "sight",
+  "phantom-glass": "sight",
+  "eye-of-the-moon": "sight",
+  "magic-wand": "wand",
+  "lost-keys": "key",
+  "shielded-lantern": "lantern",
+  "beast-pipes": "pipes",
+  "black-book": "book",
+  "book-of-lore": "book",
+  "good-book": "book",
+  "scroll-of-alchemy": "scroll",
+  "scroll-of-nature": "scroll",
+  "amulet": "charm",
+  "lucky-charm": "charm",
+  "withered-claw": "charm",
+  "cloven-hoof": "charm",
+  "dragonfang-necklace": "charm",
+  "glimmering-ring": "ring",
+  "hidden-ring": "ring",
+  "toadstool-ring": "ring",
+  "blasted-jewel": "jewel",
+  "glowing-gem": "jewel",
+  "timeless-jewel": "jewel",
+  "eye-of-the-idol": "jewel",
+  "golden-crown": "regalia",
+  "royal-sceptre": "regalia",
+  "regent-of-jewels": "regalia",
+  "sacred-grail": "sacred",
+  "golden-icon": "sacred",
+  "sacred-statue": "sacred",
+  "enchanters-skull": "remains",
+  "mouldy-skeleton": "remains",
+  "remains-of-thief": "remains",
+  "chest": "chest",
+  "flying-carpet": "carpet",
+  "toadstool-circle": "place",
+  "crypt-of-the-knight": "place",
+  "enchanted-meadow": "place"
+ },
+ "spells": {
+  "exorcise": "white",
+  "make-whole": "white",
+  "peace": "white",
+  "small-blessing": "white",
+  "blend-into-background": "grey",
+  "fog": "grey",
+  "prophecy": "purple",
+  "stones-fly": "grey",
+  "talk-to-wise-bird": "gold",
+  "witch-s-brew": "grey",
+  "elven-grace": "gold",
+  "faerie-lights": "gold",
+  "illusion": "gold",
+  "lost": "gold",
+  "persuade": "gold",
+  "see-hidden-signs": "gold",
+  "blazing-light": "purple",
+  "elemental-spirit": "purple",
+  "fiery-blast": "purple",
+  "hurricane-winds": "purple",
+  "lightning-bolt": "purple",
+  "roof-collapses": "purple",
+  "violent-storm": "purple",
+  "absorb-essence": "black",
+  "ask-demon": "black",
+  "broomstick": "black",
+  "curse": "grey",
+  "pentangle": "black",
+  "power-of-the-pit": "black",
+  "dissolve-spell": "purple",
+  "enchant-artifact": "purple",
+  "melt-into-mist": "purple",
+  "phantasm": "purple",
+  "transform": "purple",
+  "unleash-power": "purple",
+  "world-fades": "black",
+  "control-bats": "any",
+  "peace-with-nature": "gold",
+  "premonition": "grey",
+  "protection-from-magic": "gold",
+  "sense-danger": "purple",
+  "bad-luck": "any",
+  "deal-with-goblins": "black",
+  "guide-spider-or-octopus": "grey",
+  "poison": "grey",
+  "remedy": "grey",
+  "whistle-for-monsters": "purple"
+ },
+ "sites": {
+  "Hoard": "site-hoard",
+  "Lair": "site-lair",
+  "Altar": "site-altar",
+  "Shrine": "site-shrine",
+  "Pool": "site-pool",
+  "Vault": "site-vault",
+  "Cairns": "site-cairns",
+  "Statue": "site-statue"
+ }
+}

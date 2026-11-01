@@ -40,6 +40,7 @@ export async function loadData(base = 'data/') {
     await Promise.all(FILES.map(async f => { raw[f] = await (await fetch(`${base}${f}.json`)).json(); }));
     const d = indexData(raw);
     try { d.art = await (await fetch(`${base}../art/manifest.json`)).json(); } catch { d.art = null; }      // the pictures are optional
+    try { d.kinds = await (await fetch(`${base}../art/kinds.json`)).json(); } catch { d.kinds = null; }      // which drawn symbol a treasure or spell without a picture gets (ui/kindicons.js)
     if (d.art) fillArtGaps(d.art, d);      // a name the main art has no picture for gets the rulebook's icon (never replaces a picture we have)
     return d;
 }
