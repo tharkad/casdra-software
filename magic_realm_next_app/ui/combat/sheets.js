@@ -272,7 +272,7 @@ function castPick(X, o, round, back, itemsBtn) {
 
 // ================= the Melee stepper =================
 export function stepsFor(o, X = null) {
-    const s = X?.shared && needsWhom(X.st, o) ? [{ id: 'whom', l: 'Whom' }] : [];          // (a shared fight: others' creatures, characters and hirelings can be named too)
+    const s = X && needsWhom(X.st, o) ? [{ id: 'whom', l: 'Whom' }] : [];          // (a fight with others in it, shared or hot-seat: others' creatures, characters and hirelings can be named too)
     s.push({ id: 'strike', l: 'Strike' });
     if ((o.aims ?? []).length) s.push({ id: 'aim', l: 'Aim' });
     s.push({ id: 'guard', l: 'Guard' });
@@ -289,7 +289,7 @@ export function meleeSheet(X) {
     const { st, data, cb, send, render, c } = X;
     const o = meleeOptions(st, data), m = cb.plan, steps = stepsFor(o, X), sh = !!X.shared;
     const cur = steps.some(s => s.id === cb.step) ? cb.step : steps[0].id, idx = steps.findIndex(s => s.id === cur);
-    const confirmPending = sh && !!needsConfirm(st, data, o.targets.find(t => t.uid === m.target)) && m.sure !== m.target;
+    const confirmPending = !!needsConfirm(st, data, o.targets.find(t => t.uid === m.target)) && m.sure !== m.target;
     const go = id => { cb.step = id; render(); };
     const stepper = h('div', { class: 'cb-steps', role: 'tablist' }, ...steps.map((s, i) => h('button', { type: 'button', role: 'tab', 'aria-selected': i === idx ? 'true' : 'false', 'data-step': s.id, class: `cb-step${i < idx ? ' done' : ''}${i === idx ? ' on' : ''}`, onclick: () => go(s.id) }, `${i + 1} ${s.l}`)));
     const next = steps[idx + 1], prev = steps[idx - 1];

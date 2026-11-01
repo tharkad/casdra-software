@@ -104,7 +104,7 @@ export function combatScene({ st, data, act, ui, render, peek, shared = null }) 
             if (old.moveChit && M.moveList(o0).some(x => x.id === old.moveChit)) np.moveChit = old.moveChit;
             for (const d of o0.boxable) if (old.boxes?.[d.uid] != null) np.boxes[d.uid] = old.boxes[d.uid];
             np.aim = old.aim; np.aimParams = old.aimParams;
-        } else cb.step = shared && SH.needsWhom(st, o0) ? 'whom' : 'strike';
+        } else cb.step = SH.needsWhom(st, o0) ? 'whom' : 'strike';
     }
     if (p.type !== 'combat-melee') { cb.plan = null; }
     const mode = p.type === 'combat-over' ? 'over' : showResult ? 'result' : p.type === 'combat-wounds' || p.type === 'combat-fatigue' ? 'grid' : ['combat-pay', 'combat-drinks', 'combat-choice'].includes(p.type) ? 'meet' : p.type === 'combat-melee' ? 'melee' : p.type === 'combat-shift' ? 'shift' : (m => (SCENE_MODES.has(m) ? m : 'unknown'))(modeOfPending(p.type));          // (a question the scene cannot draw is 'unknown': never the Encounter tiles, which the engine would refuse)

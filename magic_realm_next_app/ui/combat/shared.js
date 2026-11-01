@@ -11,6 +11,8 @@ import { displayName } from '../names.js';
 
 export { onMine };
 const personOf = (f, id) => f?.members.find(m => m.id === id)?.person ?? null;
+/** Whose sheet a creature is on: the shared table's member, or in a hot-seat party the character's own name. */
+const ownerOf = (st, f, id) => f ? f.members.find(x => x.id === id)?.player : (st.chars?.[id] ? displayName(st.chars[id].name ?? id) : null);
 
 // ---- a character as a row: the same row is a charge target and a melee target ----
 /** One character, as the rules show him. `on`: chosen; `facts`: foeFacts(); a deal made (or `extra`) turns it into a warning. */
@@ -64,8 +66,8 @@ export function sharedPlan(st, o, m) {
 
 /** The body of the Whom step: { els, blocked } (`blocked`: a confirm is pending, so Roll stays off). `m` is the plan in progress. */
 export function whomBody(X, o, m) {
-    const { st, data, render } = X, f = X.shared.fight;
-    const charged = st.combat?.charge?.on ? f.members.find(x => x.id === st.combat.charge.on) : null;
+    const { st, data, render } = X, f = X.shared?.fight ?? null;
+    const charged = st.combat?.charge?.on ? f?.members.find(x => x.id === st.combat.charge.on) : null;
     const pick = uid => { if (m.target !== uid) { m.target = uid; m.sure = null; } render(); };
     const chars = o.targets.filter(t => t.kind === 'character'), hires = o.targets.filter(t => t.kind === 'hire'), others = hires.filter(t => !t.own), own = hires.filter(t => t.own);
     const creatures = o.targets.filter(t => t.kind !== 'character' && t.kind !== 'hire' && t.kind !== 'part');
@@ -74,10 +76,10 @@ export function whomBody(X, o, m) {
     const none = () => h('button', { type: 'button', class: `ds-row pv-none${m.target == null ? ' sel' : ''}`, role: 'radio', 'aria-checked': m.target == null ? 'true' : 'false', 'data-target': '', onclick: () => { m.target = null; m.sure = null; render(); } },
         h('span', { class: 'main' }, h('b', {}, 'No one'), h('span', {}, 'Strike no one this round.')), h('span', { class: 'sf-tick', 'aria-hidden': 'true' }, m.target == null ? icon('check') : null));
     const creatureRow = d => {
-        const owner = !onMine(st, d) ? (d.sheet ? f.members.find(x => x.id === d.sheet) : null) : null, name = denSide(st, data, d).name, pic = picOf(st, data, d), on = m.target === d.uid;
+        const owner = !onMine(st, d) && d.sheet ? ownerOf(st, f, d.sheet) : null, name = denSide(st, data, d).name, pic = picOf(st, data, d), on = m.target === d.uid;
         return h('button', { type: 'button', class: `ds-row pv-creature${on ? ' sel' : ''}`, role: 'radio', 'aria-checked': on ? 'true' : 'false', 'data-target': d.uid, onclick: () => pick(d.uid) },
             h('span', { class: 'art' }, pic ? h('img', { src: pic, alt: '' }) : null),
-            h('span', { class: 'main' }, h('b', {}, name), h('span', {}, onMine(st, d) ? 'On your sheet.' : owner ? `On ${owner.player}’s sheet: a blow that kills it is yours.` : 'Loose: on no one’s sheet.')),
+            h('span', { class: 'main' }, h('b', {}, name), h('span', {}, onMine(st, d) ? 'On your sheet.' : owner ? `On ${owner}’s sheet: a blow that kills it is yours.` : 'Loose: on no one’s sheet.')),
             h('span', { class: 'sf-tick', 'aria-hidden': 'true' }, on ? icon('check') : null));
     };
     out.push(none());
