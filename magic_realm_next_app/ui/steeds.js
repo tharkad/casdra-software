@@ -6,6 +6,7 @@
 import { isVisitorName } from '../engine/visitors.js';
 import { flyChitOf, steedSources } from '../engine/steeds.js';
 import { flySources, carries } from '../engine/magic/fly.js';
+import { nextDayWith } from '../engine/magic/colour.js';
 import { h } from './dom.js';
 import { actIcon } from './icons.js';
 import { chitEl } from './missions.js';
@@ -50,9 +51,14 @@ export function airborneAt(slots, i) {
 
 // The wording of a Fly phase's warning (validatePlan: the phase is recorded and cancelled when it comes), or null when the general wording will do.
 // `text` is the engine's sentence without its "Phase N: ", `slot` the phase.
-export function flyWarning(text, slot, data) {
+export function flyWarning(text, slot, data, st) {
     const ride = steedName(data, slot?.with), t = String(text ?? '');
     const lost = ' The phase will be lost when it comes. You can still change it.';
+    if (/Flying Carpet is not energized/i.test(t)) {          // a Carpet owned but asleep: not "nothing to fly with"
+        const next = st ? nextDayWith('Purple', st.day, st.lastDay ?? 28) : null;
+        return { story: `Your Flying Carpet sleeps: it wakes only to Purple magic, and there is none here today.${next ? ` The next day the land is full of Purple is Day ${next}.` : ''} A Fly phase planned now will be lost. You can still change it.`,
+            detail: `Flying Carpet (Fly M2) needs Purple magic: the land, an enchanted tile, the Dragon Essence, or an enchanted Purple chit of your own (7.3.3h). None supplies it here, so the Fly is recorded and then cancelled (7.3.3a.1, 6.2.1a).${next ? ` Next Purple day: ${next}.` : ''}` };
+    }
     if (/not a flying steed that follows you/.test(t)) return { story: `${ride ? `The ${ride} is` : 'That steed is'} not a flier who follows you and can carry you.${lost}`, detail: `${cap(t)} It is recorded, then cancelled when tried (7.3.3a.1, 7.3.3g, 4.6.9c); nothing here is refused.` };
     if (/nothing to fly with/.test(t)) return { story: `You have nothing to fly with: no Fly chit and no steed that follows you.${lost}`, detail: `${cap(t)} It is recorded, then cancelled when tried (7.3.3a.1, 7.3.3a.2, 4.6.9c); nothing here is refused.` };
     if (/too heavy to fly with/.test(t)) return { story: `Your Fly chit is too light to carry you, and no steed follows you.${lost}`, detail: `${cap(t)} It is recorded, then cancelled when tried (7.3.3a.1, 7.3.3a.2, 4.6.9c); nothing here is refused.` };

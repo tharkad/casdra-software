@@ -68,6 +68,9 @@ export function flyWords(st, data) {
             story: `You fly on your own wings as the ${name}: no Fly chit is used, and you carry yourself. Tap a ringed tile on the map. You come down in one of its clearings, and nothing can block you aloft.`,
             detail: `Transformed into a flying ${name}, you fly with its own flying values: a Fly activity needs no Fly chit and no weight check, it carries itself (7.3.3e). Tap a ringed tile on the map: you land in a clearing of it (7.3.3b), and nothing can block you aloft.` };
     }
+    if (flySources(st, data).some(x => x.carpet)) return { own: false, carpet: true,
+        story: 'The Flying Carpet is awake: Purple magic fills the clearing. It carries you and anything up to Medium weight, and stays awake until Midnight. Tap a ringed tile on the map.',
+        detail: 'Flying Carpet (Fly M2) is energized by Purple magic (7.3.3h): it carries you and belongings up to Medium weight, is not used up, and stays energized until Midnight (7.3.3a.2). Tap a ringed tile on the map: you land in one of its clearings (7.3.3b).' };
     return { own: false,
         story: 'Take to the air: tap a ringed tile on the map. You come down in one of its clearings, and nothing can block you aloft.',
         detail: 'Take to the air on a Fly chit: tap a ringed tile on the map. You land in one of its clearings (7.3.3b), and nothing can block you aloft.' };

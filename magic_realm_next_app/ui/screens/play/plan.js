@@ -1,6 +1,6 @@
 // play/plan.js: the plan tray (planTray: tabs, one line, the nine actions, Start the day; tray.js puts it in the tray) and the draft logic behind it (pick, setMove, advance, pruneOver, startDay).
 import { planKinds, phasesFor, validatePlan } from '../../../engine/day.js';
-import { canRecordFly, flySources, flyTiles } from '../../../engine/magic/fly.js';
+import { canRecordFly, flySources, flyTiles, hasCarpet } from '../../../engine/magic/fly.js';
 import { isCave, isMountain, nameOfClearing, numOf, tileName } from '../../../engine/world.js';
 import { h } from '../../dom.js';
 import { FOLLOW_FIRST, followReason, playerOf as playerNameOf } from '../../meet.js';
@@ -12,6 +12,7 @@ import { wouldDrop } from '../kit/kit.js';
 import { flyRefusal, flyWords, voicedWhy } from '../../spellwhy.js';
 import { MONSTER_PLAN_NOTE, PLAN_ONLY_NOTE, leaderGame, planActs, seatName } from '../../leaders.js';
 import { flyWarning } from '../../steeds.js';
+import { hasSteed } from '../../../engine/steeds.js';
 import { flyChoice, flySlot } from './steedplan.js';
 import { act } from './actions.js';
 import { followersLine, needsAssign, takeAssign } from './leaders.js';
@@ -86,6 +87,8 @@ function followNote(G, i) {
 
 // The nine (or eight, ten, eleven) actions as chips. A dim chip stays tappable and says why.
 const PONY_WHY = 'The pony adds a Move only after a Move of your own: they take turns, and the first Move of the day is never the pony\u2019s.';
+// A Flying Carpet he owns that sleeps today and nothing else to fly with: the Fly chip stays on (7.3.3a.1) and says why it will fail
+const carpetAsleep = G => hasCarpet(G.st) && !flySources(G.st, G.data).length && !G.st.ch.flying && !G.st.ch.morph && !hasSteed(G.st, G.data);
 function actChips(G, i, at, over, others, baseOver) {
     const d = G.ui.draft, s = d.slots[i], isSpare = planInfo(G).spare === i;
     // a hired leader's plan (6.2.5): the engine names what he may record (`pending.leader.acts`); no Enchant, no Fly of his own, and a controlled monster no Trade or Hire
@@ -102,7 +105,7 @@ function actChips(G, i, at, over, others, baseOver) {
         const dim = !!why;
         const serves = L?.recordOnly.has(a) ? (isStoryVoice() ? PLAN_ONLY_NOTE.story : PLAN_ONLY_NOTE.detail) : null;          // (a leader's Alert and Rest are for those who follow him)
         return h('button', { type: 'button', class: `ds-act chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${curse ? ' cursed' : ''}${serves ? ' for-followers' : ''}`, 'data-slot': i, 'data-pick': a, 'data-for-followers': serves ? '1' : null, 'aria-disabled': dim ? 'true' : null, title: why ?? serves ?? undefined,
-            onclick: () => { if (dim) { if (a === 'follow' && i === 0 && !fRows.some(r => r.ok)) { G.ui.followNote = i; render(G); return; } showToast(G, why, true); return; } pick(G, i, a, at[i]); } }, actIcon(actArt(a), 28), ACT_LABEL[a]);
+            onclick: () => { if (dim) { if (a === 'follow' && i === 0 && !fRows.some(r => r.ok)) { G.ui.followNote = i; render(G); return; } showToast(G, why, true); return; } pick(G, i, a, at[i]); } }, actIcon(actArt(a), 28), a === 'fly' && carpetAsleep(G) ? h('span', { class: 'ds-act-lbl' }, ACT_LABEL[a], h('small', { 'data-hint': 'carpet-asleep' }, 'Carpet, asleep')) : ACT_LABEL[a]);
     }));
 }
 
@@ -128,7 +131,7 @@ const WARN_RULE = { fly: '4.6.9c, 7.3.3a.1', mist: '8.4.5p.1' };
 function planWarnings(G) {
     const slots = G.ui.draft.slots, edge = edgeIndex(slots);
     return validatePlan(G.st, G.data, slots).warnings.filter(w => edge < 0 || w.i <= edge).map(w => {
-        const text = w.text.replace(/^Phase \d+: /, ''), rule = slots[w.i]?.act === 'fly' ? WARN_RULE.fly : WARN_RULE.mist, fw = slots[w.i]?.act === 'fly' ? flyWarning(text, slots[w.i], G.data) : null;          // (a steed or a Fly chit that is not there: steeds.js)
+        const text = w.text.replace(/^Phase \d+: /, ''), rule = slots[w.i]?.act === 'fly' ? WARN_RULE.fly : WARN_RULE.mist, fw = slots[w.i]?.act === 'fly' ? flyWarning(text, slots[w.i], G.data, G.st) : null;          // (a steed or a Fly chit that is not there: steeds.js)
         if (fw) return { ...w, copy: { story: `Phase ${w.i + 1}: ${fw.story}`, detail: `Phase ${w.i + 1}: ${fw.detail}` } };
         return { ...w, copy: { story: `Phase ${w.i + 1}: ${text} The phase will be lost when it comes. You can still change it.`, detail: `Phase ${w.i + 1}: ${text} It is recorded, then cancelled when tried (${rule}); nothing here is refused.` } };
     });
