@@ -169,7 +169,7 @@ html[data-calm="on"] .mv-ov .ds-ring.legal { animation: none; }
 .ds-map-btn.ds-bare-btn { bottom: 64px; }
 .ds-bare-btn.on { border-color: var(--gold); color: var(--gold-hi, #f1d27f); }
 .mapbox .sitehalo { display: none; fill: none; stroke: #f1d27f; stroke-width: 3; }
-.mapbox.bare .labels, .mapbox.bare .leaders, .mapbox.bare .numbadge, .mapbox.bare .artnum, .mapbox.bare .num, .mapbox.bare .undisc-mark, .mapbox.bare .chit { display: none; }
+.mapbox.bare .labels, .mapbox.bare .leaders, .mapbox.bare .numbadge, .mapbox.bare .artnum, .mapbox.bare .num, .mapbox.bare .undisc-mark, .mapbox.bare .chit, .mapbox.bare .ds-stop, .mapbox.bare .mv-route { display: none; }   /* (the plan's numbered stops and its road too: they sat over the clearing numbers) */
 .mapbox.bare .sitehalo { display: block; animation: bare-throb 1.8s ease-in-out infinite; }
 .mapbox.bare .found-path { stroke-width: 3; animation: bare-throb 1.8s ease-in-out infinite; }
 @keyframes bare-throb { 0%, 100% { opacity: .55; filter: drop-shadow(0 0 1px rgba(241, 210, 127, .5)); } 50% { opacity: 1; filter: drop-shadow(0 0 5px rgba(241, 210, 127, .95)); } }
