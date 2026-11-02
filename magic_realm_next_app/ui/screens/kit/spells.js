@@ -1,7 +1,7 @@
 // screens/kit/spells.js (P2): the Spells room of the Kit sheet and the spell flows: a card per spell you know (a plain synopsis, a status line built from the state, the printed
 // text one tap under it), the spells in force, the printed spell card, and the learn sheet (the runes show a spell: learn it, and forget one if the spellbook is full).
 // The wording of "why not" comes from the engine (blockedSpells); nothing here decides a rule.
-import { MAX_SPELLS } from '../../../engine/runes.js';
+import { MAX_SPELLS } from '../../../engine/catalogue.js';
 import { blockedSpells, castable, colorChits, colorsAt } from '../../../engine/spells.js';
 import { act } from '../play/actions.js';
 import { fxEnds } from '../play/sheet_char.js';
@@ -15,6 +15,7 @@ import { ask } from '../../ds.js';
 import { footRow } from './common.js';
 import { heldLockOf } from '../../spellwhy.js';
 import { voiced } from '../../commit.js';
+import { ownSheet, gameOf } from '../../combat/feed.js';
 
 const CHIT_ART = { White: 'whitechit', Black: 'blackchit', Grey: 'graychit', Purple: 'purplechit', Gold: 'goldchit' };
 export const printedOf = (G, id) => G.data.cardtext?.spells?.[id] ?? '';
@@ -36,7 +37,7 @@ function status(G, sp, blocked) {
     const b = blocked.find(x => x.spell === sp.id);
     if (b) return { ok: false, text: `Not tonight. ${b.why.split(/(?<=\.)\s/).slice(0, 2).join(' ')}` };
     try {
-        const here = colorsAt(G.st, G.data, G.st.ch.at);
+        const here = colorsAt(G.st, G.data, ownSheet(G.st, G.data).at);
         if (sp.color) return { ok: true, text: here.has(sp.color) ? `Castable tonight: ${sp.color} magic is here.` : colorChits(G.st, sp.color).length ? `Castable tonight: your enchanted ${sp.color} chit gives the magic.` : 'Castable tonight.' };
         return { ok: true, text: here.size ? 'Castable tonight: magic is here.' : 'Castable tonight.' };
     } catch { return { ok: true, text: 'Cast in the evening.' }; }
@@ -65,7 +66,7 @@ function inForce(G) {
     return h('div', { class: 'cursesheet kit-fx' },
         h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'In force now'), h('small', {}, `${fxOn.length}`)),
         h('div', { class: 'ds-list' }, fxOn.map(f => {
-            const sp = G.data.spells?.[f.spell], chit = f.source?.kind === 'chit' ? G.st.ch.chits.find(c => c.id === f.source.id) : null;
+            const sp = G.data.spells?.[f.spell], chit = f.source?.kind === 'chit' ? ownSheet(G.st, G.data).chits.find(c => c.id === f.source.id) : null;
             return h('div', { class: 'ds-row kit-fxrow', 'data-fx': f.id },
                 h('span', { class: 'art' }, sp ? colorArt(sp, G.data) : icon('spark')),
                 h('span', { class: 'main' }, h('b', {}, sp?.name ?? f.spell),
@@ -109,7 +110,7 @@ export function spellContent(G, id) {
 
 // ---- the Spells sheet of the dock bar: your spells with the ones in force on top ----
 export function spellsContent(G) {
-    return { title: 'Spells', eyebrow: `Day ${G.st.day} · Spells`, body: h('div', { class: 'kit' }, spellsTab(G, { fxFirst: true })) };
+    return { title: 'Spells', eyebrow: `Day ${gameOf(G.st, G.data).day} · Spells`, body: h('div', { class: 'kit' }, spellsTab(G, { fxFirst: true })) };
 }
 
 // ---- learning: the runes show a spell ----

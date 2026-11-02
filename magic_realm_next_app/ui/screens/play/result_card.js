@@ -6,7 +6,7 @@
 //   resultInfo(G)          the facts of the phase just played (or null): { n, slot, line, deltas, news, rolls } read from G.st and the mark.
 //   resultCardFor(G)       the card as a DOM node (or null when no phase has just been played). The shared table (P6) calls this too: it only reads G.st, G.ui.pmark and the voice.
 import { earned } from '../../../engine/score.js';
-import { nameOfClearing } from '../../../engine/world.js';
+import { nameOfClearing } from '../../../engine/catalogue.js';
 import { h } from '../../dom.js';
 import { resultCard } from '../../ds.js';
 import { lineFor, lootActLine } from '../../storyvoice.js';
@@ -15,6 +15,7 @@ import { foundBoxes } from './journal.js';
 import { render } from './shell.js';
 import { ACT_LABEL } from './kit.js';
 import { tableName } from './phases.js';
+import { ownSheet, gameOf, questionOf } from '../../combat/feed.js';
 
 // ---- the mark: where things stood when the phase began ----
 // Fame and Notoriety as the strip shows them: what was recorded plus what the things he owns add (a Blasted Jewel is Fame and Notoriety the moment he holds it: QA-108).
@@ -25,10 +26,10 @@ export function markPhase(G, action) {
     const starts = (p.type === 'phase' && action.type === 'next') || (p.type === 'phase-pick' && (action.type === 'pick' || action.type === 'next'));
     if (!starts) return;
     const e = earnedNow(G);
-    G.ui.pmark = { day: G.st.day, i: p.i, fame: c.fame, notor: c.notoriety, gold: c.gold, efame: e?.fame ?? c.fame, enotor: e?.notoriety ?? c.notoriety, gain: G.st.gainSeq ?? 0, find: G.st.findSeq ?? 0, roll: G.st.rollSeq ?? 0 };
+    G.ui.pmark = { day: gameOf(G.st, G.data).day, i: p.i, fame: c.fame, notor: c.notoriety, gold: c.gold, efame: e?.fame ?? c.fame, enotor: e?.notoriety ?? c.notoriety, gain: G.st.gainSeq ?? 0, find: G.st.findSeq ?? 0, roll: G.st.rollSeq ?? 0 };
 }
 
-const mine = (G, x) => !x.who || !G.shared || x.who === G.st.ch.id;
+const mine = (G, x) => !x.who || !G.shared || x.who === ownSheet(G.st, G.data).id;
 
 // What the phase just played came to. `n` is the phase number (1-based). null while no phase has been played (or the one on screen is not finished).
 export function resultInfo(G) {
@@ -89,7 +90,7 @@ function tradeStory(G, info) {
     const out = [];
     if (sold.length) out.push(`You sell ${listOf(sold)} for ${gold} gold.`);
     for (const b of bought) out.push(`You buy ${b.name} for ${b.cost}.`);
-    if (no.length) { const w = G.ui.lastBuy && G.ui.lastBuy.day === G.st.day ? G.ui.lastBuy.name : null; out.push(`The ${no[0]} will not sell you ${w ? `the ${w}` : 'it'}.`); }
+    if (no.length) { const w = G.ui.lastBuy && G.ui.lastBuy.day === gameOf(G.st, G.data).day ? G.ui.lastBuy.name : null; out.push(`The ${no[0]} will not sell you ${w ? `the ${w}` : 'it'}.`); }
     return out.length ? { story: out.join(' '), detail: `${info.trades.map(l => l.t).filter(t => /^You (?:sell|buy) /.test(t) || /^No deal/.test(t)).join(' ').replace(/ \([^()]*rolled [^()]*\)/g, '')} ${info.line.t.replace(/^Phase \d+:\s*/, '')}`.trim() } : null;
 }
 
@@ -119,7 +120,7 @@ export function resultCardFor(G) {
     const auto = !navigator.webdriver || window.__mrAutoCard;          // (off for the older UI scripts, as tapguard.js is; tools/ui_autocard.py turns it on)
     if (got && auto && G.ui.itemSeenUid !== got.uid) {
         G.ui.itemSeenUid = got.uid;
-        setTimeout(() => { if (!G.ui.sheet && G.st.pending?.type !== 'over') { G.ui.itemUid = got.uid; G.ui.itemFrom = 'dock'; G.ui.sheet = 'item'; render(G); } }, 350);
+        setTimeout(() => { if (!G.ui.sheet && questionOf(G.st, G.data)?.type !== 'over') { G.ui.itemUid = got.uid; G.ui.itemFrom = 'dock'; G.ui.sheet = 'item'; render(G); } }, 350);
     }
     return card;
 }

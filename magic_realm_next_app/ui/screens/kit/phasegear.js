@@ -6,7 +6,7 @@
 import { h } from '../../dom.js';
 import { icon } from '../../icons.js';
 import { ROAD_STORY, commitmentOf, roadLockOf, voiced } from '../../commit.js';
-import { nameOf } from '../../../engine/items.js';
+import { nameOf } from '../../../engine/catalogue.js';
 import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
 import { footRow, itemArt, oneLine, say, twoLine } from './common.js';

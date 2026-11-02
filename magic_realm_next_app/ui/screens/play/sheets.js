@@ -1,7 +1,8 @@
 // play/sheets.js: which sheet or card is on screen: sheets() decides, from the pending question and G.ui.sheet, what the layer shows; the Journal is journal.js.
 import { phasesFor } from '../../../engine/day.js';
-import { nameOf } from '../../../engine/items.js';
-import { nameOfClearing, tileName } from '../../../engine/world.js';
+import { questionOf, ownSheet, gameOf, tableFight } from '../../combat/feed.js';
+import { nameOf } from '../../../engine/catalogue.js';
+import { nameOfClearing, tileName } from '../../../engine/catalogue.js';
 import { ask } from '../../ask.js';
 import { h } from '../../dom.js';
 import { lengthLine, timed } from '../../gametext.js';
@@ -35,13 +36,13 @@ const LOOKS = new Set(['char', 'menu', 'calendar', 'score', 'journal', 'dice', '
 const QUESTIONS = new Set(['turn-end', 'evening-end', 'phase-gear', 'rest', 'search-table', 'search-choice', 'effort-cost', 'runes-target', 'learn-spell', 'enchant-choice', 'trade', 'trade-offer', 'hire', 'hire-offer']);
 
 export function sheets(G, lookOnly = false) {
-    if (!lookOnly && LOOKS.has(G.ui.sheet) && QUESTIONS.has(G.st.pending?.type)) {
+    if (!lookOnly && LOOKS.has(G.ui.sheet) && QUESTIONS.has(questionOf(G.st, G.data)?.type)) {
         const look = G.ui.sheet; G.ui.sheet = null;
         let under; try { under = sheets(G); } finally { G.ui.sheet = look; }
         return [...under, ...sheets(G, true)];
     }
     const out = [];
-    const p = lookOnly ? null : G.st.pending;
+    const p = lookOnly ? null : questionOf(G.st, G.data);
     if (G.ui.sheet === 'bug') { out.push(bugSheet(G)); return out; }
     // hired followers and leaders (leaders.js): who goes with whom (Birdsong), the draw of the Attention chits (Sunrise), a gift between a hirer and his leader (a phase's start)
     if (G.ui.sheet === 'assign' && p?.type === 'plan') { out.push(assignSheet(G)); return out; }
@@ -53,7 +54,7 @@ export function sheets(G, lookOnly = false) {
     if (G.shared && G.ui.sheet === 'fightover') { out.push(fightOverSheet(G)); return out; }
     { const ts = G.shared && !lookOnly ? tableSheet(G) : null; if (ts) { out.push(ts); return out; } }          // (what the table asks me: a vote, marked away, welcome back)
     // A shared fight: a seat that is in it (or was, and watches) gets the shared frame; the map is one tap away at every step. Anyone else only sees the banner in the dock.
-    if (G.shared && G.st.battle?.members?.[G.st.ch.id] && sharedFightHost(G, out)) return out;
+    if (G.shared && tableFight(G.st, G.data)?.members?.[ownSheet(G.st, G.data).id] && sharedFightHost(G, out)) return out;
     if (p?.type?.startsWith('combat') || fightBeat(G)) { combatHost(G, out); return out; }
     // The game is over (solo or a race): the death callout or the verdict, full screen, once the fight has had its one beat. A dead character may return tomorrow (a sheet over it).
     if (!G.shared && p?.type === 'over') { out.push(overScreen(G)); if (G.ui.restartVp) out.push(restartSheet(G)); if (G.ui.sheet === 'menu') out.push(menuSheet(G)); return out; }
@@ -75,23 +76,23 @@ export function sheets(G, lookOnly = false) {
     else if (p?.type === 'hire' || p?.type === 'hire-offer') out.push(hireSheet(G, p));
     else if (G.shared && p?.type === 'meet-offer') { out.push(offerSheet(mc(G), p)); if (G.ui.sheet === 'players') out.push(playersSheet(G)); }
     else if (G.shared && G.ui.sheet === 'meet') out.push(meetSheet(mc(G)));
-    else if (!G.ui.welcomeDone && !welcomed() && G.st.day === 1 && p?.type === 'plan') {
+    else if (!G.ui.welcomeDone && !welcomed() && gameOf(G.st, G.data).day === 1 && p?.type === 'plan') {
         // two lines, in the voice of the rest of the game (QA-9): where you stand, then the shape of a day. The phase count is the one the tray shows (phasesFor); no number, place or item name breaks across a line (DR-18).
-        const things = G.st.ch.items.map(i => nameOf(G.data, i).replace(/ /g, '\u00A0'));
+        const things = ownSheet(G.st, G.data).items.map(i => nameOf(G.data, i).replace(/ /g, '\u00A0'));
         const gear = things.length ? ` with ${things.length > 1 ? `${things.slice(0, -1).join(', ')} and ${things.at(-1)}` : things[0]}` : ', with no weapon or armor yet';
         const n = phasesFor(G.st, G.data, []).total;
         out.push(modal(G, 'Welcome', h('div', { class: 'welcome' },
             h('p', { class: 'ds-voice' }, `You wake at the ${G.st.ch.startDwelling}${gear}. ${lengthLine(G.st)}`.replace(/ (\d+)/g, '\u00A0$1')),
             h('p', { class: 'ds-voice' }, `Each morning you plan ${n}\u00A0phases in secret. Then the day plays out, and at night you fight whoever shares your clearing.`)),
-        { kind: 'result', bare: true, eyebrow: G.st.ch.name, footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }, 'Begin')) }));
+        { kind: 'result', bare: true, eyebrow: ownSheet(G.st, G.data).name, footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }, 'Begin')) }));
     }
-    else if (p?.type === 'plan' && G.st.day > 1 && G.ui.reportedDay !== G.st.day && G.ui.sheet !== 'plan') out.push(reportSheet(G));
+    else if (p?.type === 'plan' && gameOf(G.st, G.data).day > 1 && G.ui.reportedDay !== gameOf(G.st, G.data).day && G.ui.sheet !== 'plan') out.push(reportSheet(G));
     else if (G.ui.sheet === 'char') out.push(G.st.ch?.leader ? leaderSheet(G) : charSheet(G));          // (a hired leader's sheet is his own: leaders.js)
     else if (G.ui.sheet === 'slot') out.push(slotSheet(G));
     else if (G.ui.sheet === 'clearing' && G.ui.sel) out.push(clearingSheet(G));
     else if (G.ui.sheet === 'menu') out.push(menuSheet(G));
     else if (G.ui.sheet === 'confirm-abandon' && !G.race) out.push(modal(G, 'Abandon this game?', h('div', { class: 'confirmbox' },
-        h('p', {}, `${G.st.ch?.name ?? 'Your hero'} is on day ${G.st.day}${timed(G.st) ? ` of ${G.st.lastDay ?? 28}` : ''}, with ${G.st.ch?.gold ?? 0} gold, ${G.st.ch?.fame ?? 0} Fame and ${G.st.ch?.notoriety ?? 0} Notoriety.`),
+        h('p', {}, `${G.st.ch?.name ?? 'Your hero'} is on day ${gameOf(G.st, G.data).day}${timed(G.st) ? ` of ${gameOf(G.st, G.data).lastDay ?? 28}` : ''}, with ${G.st.ch?.gold ?? 0} gold, ${G.st.ch?.fame ?? 0} Fame and ${G.st.ch?.notoriety ?? 0} Notoriety.`),
         h('p', { class: 'hint bad' }, 'Abandoning ends this adventure for good. It stays in History as abandoned, but it cannot be picked up again.')),
         { close: () => { G.ui.sheet = null; render(G); }, bare: true, footer: h('div', { class: 'ds-opt-foot' },
             h('button', { type: 'button', class: 'ds-btn danger', 'data-act': 'confirm-abandon', onclick: () => abandon(G) }, 'Abandon this game'),
@@ -102,7 +103,7 @@ export function sheets(G, lookOnly = false) {
     else if (G.ui.sheet === 'leave-confirm' && G.shared) out.push(leaveSheet(tc(G), vpNow(G)));
     else if (G.ui.sheet === 'calendar') out.push(calendarSheet(G));
     else if (G.ui.sheet === 'over' && G.shared) out.push(sharedOverSheet(G));
-    else if (G.ui.sheet === 'card') out.push(modal(G, G.st.ch.name, h('div', {}, G.data.art?.cards?.[G.st.ch.id] ? h('img', { class: 'cardpic', src: G.data.art.cards[G.st.ch.id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
+    else if (G.ui.sheet === 'card') out.push(modal(G, ownSheet(G.st, G.data).name, h('div', {}, G.data.art?.cards?.[ownSheet(G.st, G.data).id] ? h('img', { class: 'cardpic', src: G.data.art.cards[ownSheet(G.st, G.data).id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
     else if (G.ui.sheet === 'journal' || G.ui.sheet === 'dice' || G.ui.sheet === 'log') out.push(journalSheet(G));
     else if (G.ui.sheet === 'tables') out.push(modal(G, 'Tables', h('div', { class: 'tables' },
         ...[['Meeting Table', 'meetingTable'], ['Search table', 'searchTable'], ['Missile table', 'missileTable'], ['Power of the Pit', 'pitTable']].filter(([, k]) => G.data.art?.misc?.[k])

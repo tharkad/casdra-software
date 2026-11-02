@@ -2,7 +2,7 @@
 // this file only chooses defaults for the player's plan, finds the words for what happened (from the lines the engine already wrote) and says why a control is dim.
 import { lvl, WEIGHT_WORDS, NO_EFFORT_LIMIT, nameOf, bookPic, isBookPic } from '../../engine/catalogue.js';
 import { denSide, hireStats, sheetOf } from './feed.js';
-import { fightLinesOf, harmOf } from '../voice/fight.js';
+import { fightLinesOf, harmOf, stampsOf as stampsOfLine, paidOf, whyWords } from '../voice/fight.js';
 import { withArticle, displayName, fixNames } from '../names.js';
 import { isSectionLine, sectionStory } from './sections_voice.js';          // (hirelings on Melee Sections: the Record tells their lines in Story too)
 import { standing } from '../missions.js';
@@ -234,9 +234,9 @@ export const WITHER_DETAIL = 'Curse: Wither (4.6.8a.3). All asterisk chits are f
 export function encounterVerbs(fm, data, o, c) {
     const slow = o.why?.gate ? `Nothing of yours is faster than ${gateWords(fm, o.why.gate)}.` : null;
     const wither = (fm.ch.curses ?? []).includes('Wither'), tooSlow = wither && fm.ch.chits.some(x => isWithered(fm, x) && x.type !== 'magic') ? 'too slow: Wither tired your fast chits' : 'too slow';
-    const gated = t => !!t && /faster than/.test(t);
-    const alert = o.canAlert && o.weapon ? { ok: true } : { ok: false, sub: !o.weapon ? 'no weapon' : /weapon card/.test(o.why?.alert ?? '') ? 'a card' : gated(o.why?.alert) ? tooSlow : 'no chit', why: gated(o.why?.alert) ? slow : (o.why?.alert ?? 'You have nothing to ready.') };
-    const run = o.canRun ? { ok: true } : { ok: false, sub: o.pickedUp ? 'held' : gated(o.why?.run) ? tooSlow : !o.runTo.length ? 'no road' : 'no chit', why: o.pickedUp ? 'You are seized and cannot run.' : gated(o.why?.run) ? slow : (o.why?.run ?? 'You cannot run now.') };
+    const gated = k => o.whyCode?.[k]?.code === 'chit.too-slow';          // (the reason's code, not its sentence)
+    const alert = o.canAlert && o.weapon ? { ok: true } : { ok: false, sub: !o.weapon ? 'no weapon' : o.whyCode?.alert?.code === 'weapon.card' ? 'a card' : gated('alert') ? tooSlow : 'no chit', why: gated('alert') ? slow : (whyWords(o, 'alert', data) ?? 'You have nothing to ready.') };
+    const run = o.canRun ? { ok: true } : { ok: false, sub: o.pickedUp ? 'held' : gated('run') ? tooSlow : !o.runTo.length ? 'no road' : 'no chit', why: o.pickedUp ? 'You are seized and cannot run.' : gated('run') ? slow : (whyWords(o, 'run', data) ?? 'You cannot run now.') };
     const cast = o.casts.length ? { ok: true } : { ok: false, sub: wither && fm.ch.chits.some(x => x.type === 'magic' && isWithered(fm, x)) ? 'Your Magic chit is withered' : 'none ready', why: o.blocked?.length ? `${o.blocked[0].name}: ${o.blocked[0].why}` : 'No spell is ready tonight.' };
     return { alert, run, cast, fly: o.canFly ? { ok: true } : null };
 }
@@ -301,17 +301,7 @@ export function missNote(events) {
 export const fightLines = fightLinesOf;          // (the voice layer cuts the fight's run of lines: voice/fight.js)
 export function recapOf(fm, data) {
     const lines = fightLines(fm);
-    const gain = { fame: 0, notoriety: 0, gold: 0 }, kills = [];
-    for (const l of lines) {
-        if (l.k !== 'combat') continue;
-        const t = l.t;
-        const g = /\(([^)]*kill \d+ today)\)/.exec(t);
-        if (g) {
-            for (const bit of g[1].split(/[,;] */)) { const x = /^\+(\d+) (Fame|Notoriety|gold)/.exec(bit); if (x) gain[x[2] === 'gold' ? 'gold' : x[2].toLowerCase()] += Number(x[1]); }
-            const who = /^You kill (?:the )?(.+?)(?: with| \(|\.|$)/.exec(t) ?? /(?:^|: )([\w' #-]+?) dies/.exec(t);
-            kills.push(who ? baseName(who[1]) : 'a foe');
-        }
-    }
+    const { gain, kills } = paidOf(lines, uid => fm.combat?.dens.find(d => d.uid === uid)?.stat?.name ?? null, baseName);          // (the voice layer: the events of the lines, else their words)
     const { wounded, tired, destroyed, damaged } = harmOf(lines);          // (read from the events of the lines where the game records them, else from their words)
     const rounds = Math.max(1, ...lines.map(l => l.r ?? 1));
     return { rounds, gain, kills, wounded, tired, destroyed, damaged, lines };
@@ -327,17 +317,8 @@ export function recordRounds(fm) {
     }
     return [...by].map(([r, lines]) => ({ r, lines: lines.map(l => (l.s == null && l.k === 'combat' && isSectionLine(l.t) ? { ...l, s: sectionStory(l.t) } : l)) }));          // (a line of a Melee Section has no story of the engine's own)
 }
-// The stamps a line of the record carries (a kill, a wound, what the armor did, a miss), read from its plain and its story words.
-export function stampsOf(l) {
-    const t = l.t ?? '', s = l.s ?? t, out = [];
-    if (/^You kill /.test(t) || /^Your .+? (?:cleaves|strikes down|cuts down|brings down|drops) the .+?, which /.test(s)) out.push(['kill', 'Slain']);
-    if (/^You take a wound|^The blow gets through|^You are wounded/.test(t + ' ' + s)) out.push(['wound', 'Wound']);
-    if (/^No effect/.test(t)) out.push(['armor', 'Armor holds']);
-    else if (/ is destroyed/.test(t)) out.push(['armor', 'Armor destroyed']);
-    else if (/ is (?:dented and )?damaged|takes the blow and is damaged/.test(t + ' ' + s) && /^Your /.test(t)) out.push(['armor', 'Armor damaged']);
-    if (/: miss\b|empty air|misses you|carries you clear/.test(t + ' ' + s)) out.push(['miss', 'Miss']);
-    return out;
-}
+// The stamps a line of the record carries (a kill, a wound, what the armor did, a miss): the voice layer reads the line's event, else its words.
+export const stampsOf = stampsOfLine;
 
 // ---- the Meeting's "let them be": why they are not looking for a fight, from how the group stands with him (st.ch.rel, the engine's own -2 Enemy .. +2 Ally) ----
 // Only a native group has a standing; a monster that stands by has none. Returns "The Order are your allies." / "The Order are friendly to you." or null.

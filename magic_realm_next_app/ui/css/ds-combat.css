@@ -53,7 +53,7 @@
 .cb-foe.pacified .ds-cs-wrap { opacity: .7; }
 .cb .cb-peace-lbl { flex: 0 0 100%; margin: 4px 0 -6px; text-align: center; font: 700 calc(12px * var(--ts, 1))/16px var(--font-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }          /* natives at peace: they may be named, and then they fight (8.2.1a) */
 .cb-foe.pacified .ds-cs-wrap svg { filter: grayscale(.5) drop-shadow(0 3px 5px rgba(0, 0, 0, .6)); }
-.cb-foe.sel .ds-cs-wrap svg { filter: drop-shadow(0 0 6px rgba(241, 210, 127, .8)); }
+.cb-foe.sel .ds-cs-wrap svg { filter: drop-shadow(0 0 6px rgba(181, 227, 156, .8)); }
 .cb-foe.held::before { content: ""; position: absolute; inset: -3px; border-radius: 12px; border: 2px solid var(--danger); pointer-events: none; }
 .cb-lanes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0; }
 .cb-lane { min-height: 36px; opacity: .85; border: 1.5px dashed var(--line-2); border-radius: var(--r-sm); display: flex; flex-wrap: wrap; align-content: center; align-items: center; justify-content: center; gap: 4px; font: 600 calc(12px * var(--ts, 1))/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); position: relative; padding: 0 4px; }
@@ -265,7 +265,7 @@
 .cb-other .face i { font: 700 22px/1 var(--font-display); color: var(--ink-on-gold); font-style: normal; }
 .cb-other .face.hire { border-radius: 12px; box-shadow: 0 0 0 3px var(--mood-ally, #8fb6e8), 0 3px 10px rgba(0, 0, 0, .55); }
 .cb-other.dim .face { opacity: .8; outline: 2px dashed var(--gold-hi); outline-offset: 3px; }
-.cb-other.sel .face { box-shadow: 0 0 0 3px var(--gold), 0 0 12px rgba(241, 210, 127, .85); }
+.cb-other.sel .face { box-shadow: 0 0 0 3px var(--gold), 0 0 12px rgba(181, 227, 156, .85); }
 .cb-other .tagslot { height: 22px; }
 .cb-other .cap { display: flex; flex-direction: column; align-items: center; margin-top: 3px; max-width: 110px; }
 .cb-other .cap b { font: 700 calc(12px * var(--ts, 1))/1.1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); text-align: center; overflow-wrap: anywhere; }

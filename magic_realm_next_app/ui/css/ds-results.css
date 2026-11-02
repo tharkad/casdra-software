@@ -113,7 +113,7 @@
 .ds-card { position: relative; flex: none; border-radius: 6px; background: repeating-linear-gradient(135deg, #2a3350, #2a3350 6px, #323c5e 6px, #323c5e 12px); border: 1.5px solid var(--line-2); display: grid; place-items: center; color: var(--ink-2); font: 700 calc(15px * var(--ts, 1))/1 var(--font-ui); }
 .ds-card.small { width: 40px; height: 54px; } .ds-card.large { width: 48px; height: 68px; }
 .ds-card .t { position: absolute; left: 0; right: 0; top: -15px; text-align: center; font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); letter-spacing: .06em; color: var(--ink-3); text-transform: uppercase; }
-.ds-card.reach { border-color: var(--gold); color: var(--gold-hi); box-shadow: 0 0 0 2px rgba(241, 210, 127, .18); }
+.ds-card.reach { border-color: var(--gold); color: var(--gold-hi); box-shadow: 0 0 0 2px rgba(181, 227, 156, .18); }
 .ds-card.deep { opacity: .45; border-style: dashed; }
 .ds-pile-key { display: flex; justify-content: space-between; gap: 8px; font: 400 calc(13px * var(--ts, 1))/1.3 var(--font-ui); color: var(--ink-3); }
 .ds-pile-key span:nth-child(n+2) { flex: 1; text-align: right; }
@@ -144,7 +144,7 @@
 .chit-sheet .restsheet { display: flex; flex-direction: column; gap: 10px; }
 .ds-chitgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .ds-chitgrid .ds-chit { width: 100%; height: 64px; }
-.ds-chitgrid .ds-chit.pick { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(241, 210, 127, .22); }
+.ds-chitgrid .ds-chit.pick { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(181, 227, 156, .22); }
 .ds-chitgrid .ds-chit.dim { opacity: .5; }
 .ds-chitgrid .ds-chit.pick { opacity: 1; }
 
@@ -162,7 +162,7 @@
 /* QA-110: the Rest sheet's chits are picked, then the foot does it; the folded list of ready chits */
 .chit-sheet .rest-ready { margin: 0; } .chit-sheet .rest-ready > summary { color: var(--ink-2); font: 500 calc(15px * var(--ts, 1))/1.2 var(--font-ui); }
 .chit-sheet .rest-ready .ds-chitgrid { margin-top: 4px; }
-.ds-chitgrid .ds-chit.on { border-color: var(--gold-hi); box-shadow: 0 0 0 3px rgba(241, 210, 127, .38); background: var(--gold-wash-2); }
+.ds-chitgrid .ds-chit.on { border-color: var(--gold-hi); box-shadow: 0 0 0 3px rgba(181, 227, 156, .38); background: var(--gold-wash-2); }
 .ds-opt-foot > .ds-btn.quiet { flex: 0 0 auto; }
 /* QA-102: the restart sheet's goals are ds-rows with a stepper; the foot carries the one primary */
 .restart-goals { display: flex; flex-direction: column; gap: 8px; }
@@ -176,8 +176,8 @@
 .ds-opt-foot .ds-btn.primary[disabled] { flex: 0 1 62%; }
 
 /* QA-109 / QA-117: a win is VICTORY (big, gold, the trophy glowing); a loss is quiet and cold ("Short of your goals"); every goal that moved the score is a visible row and the rows add up to the total */
-.ds-end.won .end-hero h1 { font-size: calc(40px * var(--ts, 1)); letter-spacing: .16em; line-height: 1.05; margin: 8px 0 10px; text-shadow: 0 0 26px rgba(241, 210, 127, .35); }
-.ds-end.won .end-mark.win { filter: drop-shadow(0 0 14px rgba(241, 210, 127, .55)); }
+.ds-end.won .end-hero h1 { font-size: calc(40px * var(--ts, 1)); letter-spacing: .16em; line-height: 1.05; margin: 8px 0 10px; text-shadow: 0 0 26px rgba(181, 227, 156, .35); }
+.ds-end.won .end-mark.win { filter: drop-shadow(0 0 14px rgba(181, 227, 156, .55)); }
 .ds-end.lost .end-hero h1 { font-size: calc(26px * var(--ts, 1)); color: var(--ink-2); letter-spacing: .08em; }
 .ds-end .end-deed { margin: 10px 0 0; font: italic 400 calc(16px * var(--ts, 1))/1.3 var(--font-voice); color: var(--ink-2); text-wrap: balance; }
 .ds-end .ds-egoal.idle { min-height: 56px; border-style: dashed; }

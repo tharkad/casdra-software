@@ -9,6 +9,7 @@ import { modal, picOf, voidBy } from './kit.js';
 import { unattendedBlock } from './leaders.js';
 import { render } from './shell.js';
 import { vpNow } from './state.js';
+import { gameOf } from '../../combat/feed.js';
 
 // The lines of a group, with each combat round in a box of its own under a "Round N" marker (a round is always labelled: the marker and its lines are one box).
 function roundBoxes(G, lines) {
@@ -48,8 +49,8 @@ function scoreNote(G) {
 
 // The morning review, as mockup 02 c3: first the day told in one sentence with its rows and its score (Story or Detail), then (Overview) the day step by step.
 export function reportSheet(G) {
-    const day = G.st.day - 1, sum = daySummary(G, day);
-    const goOn = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'report-ok', onclick: () => { G.ui.reportedDay = G.st.day; render(G); } }, `On to day\u00A0${G.st.day}`);
+    const day = gameOf(G.st, G.data).day - 1, sum = daySummary(G, day);
+    const goOn = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'report-ok', onclick: () => { G.ui.reportedDay = gameOf(G.st, G.data).day; render(G); } }, `On to day\u00A0${gameOf(G.st, G.data).day}`);
     if (G.ui.reportPage !== day + ':overview') {
         const group = list => { const c = new Map(); for (const n of list) c.set(n, (c.get(n) ?? 0) + 1); return [...c].map(([n, k]) => (k > 1 ? `${n} \u00D7${k}` : n)); };
         const row = (k, names, imgs) => h('div', { class: 'line', 'data-row': k.toLowerCase() }, h('span', { class: 'k' }, k), ...imgs, h('span', { class: 'what' }, names.join(' \u00B7 ')));

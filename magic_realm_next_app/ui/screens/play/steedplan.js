@@ -7,6 +7,7 @@ import { h } from '../../dom.js';
 import { actIcon } from '../../icons.js';
 import { airborneAt, flightSources } from '../../steeds.js';
 import { render } from './shell.js';
+import { ownSheet } from '../../combat/feed.js';
 
 // The options now: [{ key, title, line }], or [] when there is no choice to make.
 export function flyOptions(G) {
@@ -25,7 +26,7 @@ export function flyWithNow(G, i) {
 // The chooser for phase `i`: one tappable card per way to fly, the one in use lit. Returns the nodes to show (empty when nothing is asked).
 export function flyChoice(G, i) {
     const slots = G.ui.draft.slots;
-    if (G.st.ch.flying || airborneAt(slots, i)) {
+    if (ownSheet(G.st, G.data).flying || airborneAt(slots, i)) {
         return airborneAt(slots, i) ? [h('p', { class: 'ds-hint-line', 'data-hint': 'fly-airborne' }, voiced({ story: 'You are already in the air from the phase before: this flight needs no chit and no steed.', detail: 'A Fly phase that follows another needs no Fly chit of its own: he is already in the air (7.3.3a).' }))] : [];
     }
     const opts = flyOptions(G);

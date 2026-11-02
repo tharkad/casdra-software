@@ -73,7 +73,7 @@ button.chit2:disabled { cursor: default; }
 
 /* goals: progress first, the arithmetic behind a triangle */
 .goalbar { height: 10px; border-radius: 8px; background: var(--panel2, #232838); overflow: hidden; margin: 6px 0 4px; }
-.goalbar i { display: block; height: 100%; background: linear-gradient(90deg, #c19532, #e2c068); border-radius: 8px; min-width: 0; }
+.goalbar i { display: block; height: 100%; background: linear-gradient(90deg, #5fa96a, #8fcb80); border-radius: 8px; min-width: 0; }
 .sr-math summary, .sr-idle summary { cursor: pointer; color: var(--dim); font-size: calc(13.5px * var(--ts, 1)); margin: 6px 0 0; }
 .scorerow2.ifnow { background: transparent; border-style: dashed; }
 
@@ -123,7 +123,7 @@ button.chit2:disabled { cursor: default; }
 .calday.past { opacity: .5; } .calday.today { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold) inset; }
 .calday.magic { border-color: #8f7cc0; }
 .calday .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin: 0 1px; border: 1px solid #000; }
-.dot.white { background: #f4f1e6; } .dot.black { background: #222; border-color: #aaa; } .dot.grey { background: #9aa0a6; } .dot.purple { background: #a77bd1; } .dot.gold { background: #e2c068; }
+.dot.white { background: #f4f1e6; } .dot.black { background: #222; border-color: #aaa; } .dot.grey { background: #9aa0a6; } .dot.purple { background: #a77bd1; } .dot.gold { background: #8fcb80; }
 .calrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
 .crow.magic { display: flex; align-items: center; gap: 12px; }
 
@@ -133,10 +133,10 @@ button.chit2:disabled { cursor: default; }
 .sc-key span { display: inline-flex; align-items: center; gap: 5px; }
 .sc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 8px; }
 .sc-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.sc-card.site.found { border-color: #e2c068; box-shadow: 0 0 0 1px #e2c068 inset; }
+.sc-card.site.found { border-color: #8fcb80; box-shadow: 0 0 0 1px #8fcb80 inset; }
 .sc-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .sc-title { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
-.sc-title b { font-size: calc(16px * var(--ts, 1)); } .sc-title em { font-style: normal; font-size: calc(12px * var(--ts, 1)); color: #e2c068; } .sc-title small { color: var(--dim); font-size: calc(12.5px * var(--ts, 1)); }
+.sc-title b { font-size: calc(16px * var(--ts, 1)); } .sc-title em { font-style: normal; font-size: calc(12px * var(--ts, 1)); color: #8fcb80; } .sc-title small { color: var(--dim); font-size: calc(12.5px * var(--ts, 1)); }
 .sc-card .mrchit { width: 52px; height: 52px; }
 .sc-guard { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,.18); border-radius: 8px; padding: 4px 6px; }
 .sc-guard img { width: 38px; height: 38px; object-fit: contain; flex: none; }
@@ -147,7 +147,7 @@ button.chit2:disabled { cursor: default; }
 .sc-t small, .sc-treasure > small { color: var(--dim); font-size: calc(12px * var(--ts, 1)); margin-left: 3px; }
 .pip { display: inline-block; border-radius: 50%; border: 1px solid #000; }
 .pip.small { width: 9px; height: 9px; background: #d9d4c4; }
-.pip.large { width: 13px; height: 13px; background: #e2c068; }
+.pip.large { width: 13px; height: 13px; background: #8fcb80; }
 .sc-spell { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 22px; padding: 0 5px; border-radius: 8px; background: #5b4a8c; color: #fff; font-style: normal; font-weight: 700; font-size: calc(12.5px * var(--ts, 1)); }
 .sc-need { font-size: calc(12.5px * var(--ts, 1)); color: #e08a7a; }
 .sc-dw { width: 52px; height: 52px; object-fit: contain; flex: none; }

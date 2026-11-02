@@ -3,8 +3,8 @@
 // Pure functions of a redacted view (server/redact.mjs) and the engine's own meetOptions; no DOM, so tests/meet_ui.test.mjs runs them in node against the real engine and the real redaction.
 // Nothing here reads another seat's secret: it uses what a seat is sent (positions, hidden flags, open gear, the public day) and the viewer's own record and lines.
 import { meetOptions, tradeError, policyOf, followersOf, isBlocked, turnHolder } from '../engine/meet.js';
-import { nameOf, summaryOf } from '../engine/items.js';
-import { nameOfClearing } from '../engine/world.js';
+import { nameOf, summaryOf } from '../engine/catalogue.js';
+import { nameOfClearing } from '../engine/catalogue.js';
 
 export const joinList = list => (list.length <= 1 ? (list[0] ?? '') : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`);
 const here = c => !!c?.at && !c.onRoad && !c.flying;

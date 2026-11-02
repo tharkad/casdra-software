@@ -3,7 +3,7 @@
 import { denSide } from '../../../engine/combat.js';
 import { h } from '../../dom.js';
 import { monsterCounter } from '../../counter.js';
-import { bookPic, isBookPic } from '../../../engine/artbook.js';
+import { bookPic, isBookPic } from '../../../engine/catalogue.js';
 import { icon } from '../../icons.js';
 import { modal } from './kit.js';
 import { render } from './shell.js';

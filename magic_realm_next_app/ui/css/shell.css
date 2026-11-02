@@ -32,6 +32,6 @@
 .realm-svg .tok text { font-size: calc(9px * var(--ts, 1)); font-weight: 700; fill: #fff; }
 .realm-svg .tok.mon circle { fill: #b44; } .realm-svg .tok.nat circle { fill: #4a78c0; } .realm-svg .tok.dwelling circle { fill: #a08040; }
 .realm-svg .tok.site circle { fill: #7a5fb0; } .realm-svg .tok.sound circle { fill: #8f6a3a; }
-.realm-svg .hero { fill: var(--gold); stroke: #1b1405; stroke-width: 1.5; }
+.realm-svg .hero { fill: var(--gold); stroke: #0d1a0f; stroke-width: 1.5; }
 .realm-svg .planring { fill: none; stroke: var(--gold); stroke-width: 2; stroke-dasharray: 3 3; }
 .realm-svg .clr.sel circle:nth-of-type(2) { stroke: var(--gold); stroke-width: 3.5; }

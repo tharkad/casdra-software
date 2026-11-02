@@ -6,7 +6,7 @@
 import { isVisitorName } from '../engine/visitors.js';
 import { flyChitOf, steedSources } from '../engine/steeds.js';
 import { flySources, carries } from '../engine/magic/fly.js';
-import { nextDayWith } from '../engine/magic/colour.js';
+import { nextDayWith } from '../engine/catalogue.js';
 import { h } from './dom.js';
 import { actIcon } from './icons.js';
 import { chitEl } from './missions.js';

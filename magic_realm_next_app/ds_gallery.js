@@ -99,7 +99,7 @@ stage('j3', 'j3 Loading', 'Never a blank frame: skeleton strip, a card with a go
     h('footer', { class: 'ds-tray' }, T('ds-grab'), h('div', { style: 'padding:6px var(--gutter) calc(18px + var(--safe-b));display:flex;flex-direction:column;gap:12px' }, h('div', { class: 'ds-skel', style: 'height:22px;width:70%' }), h('div', { class: 'ds-skel', style: 'height:52px' })))],
     { fix: el => { el.querySelector('.ds-day .ds-skel').style.cssText = 'width:90px;height:16px'; } });
 stage('j4', 'j4 Error', 'An error you can leave: Try again (primary, right), Back to the title (quiet, left).', () => [
-    h('header', { class: 'ds-strip' }, h('span', { class: 'menu' }), T('ds-day', h('b', {}, 'Magic Realm')), h('span'), h('span')),
+    h('header', { class: 'ds-strip' }, h('span', { class: 'menu' }), T('ds-day', h('b', {}, 'Nolava')), h('span'), h('span')),
     h('section', { class: 'ds-map', style: 'display:grid;place-items:center' }, state({ glyph: 'warn', color: 'var(--danger)', title: 'The realm would not open', text: 'We could not reach the game. Check your connection and try again.', body: btn('Details', 'quiet sm') })),
     tray({ lead: btn('Back to the title', 'quiet'), primary: btn([icon('retry'), ' Try again'], 'primary') })]);
 

@@ -1,9 +1,9 @@
 // play/phases.js: the day's phase screens: how a planned phase is worded (describeSlot, searchWhere, phaseResultLine), the end-of-turn sheet, and the small decision sheets
 // (Prophecy pick, effort cost, Rest, Reading Runes).
-import { chitLabel } from '../../../engine/day.js';
-import { nameOfClearing, numOf, tileName, tileOf } from '../../../engine/world.js';
+import { chitLabel } from '../../../engine/catalogue.js';
+import { nameOfClearing, numOf, tileName, tileOf } from '../../../engine/catalogue.js';
 import { ask } from '../../ask.js';
-import { nameOf } from '../../../engine/items.js';
+import { nameOf } from '../../../engine/catalogue.js';
 import { alertCardWhy, weaponCardOf } from '../../commit.js';
 import { h } from '../../dom.js';
 import { btn, sect, twoLine, voiceSwitch } from '../../ds.js';
@@ -19,6 +19,7 @@ import { steedName } from '../../steeds.js';
 import { learnContent } from '../kit/spells.js';
 import { seatTurnEndSheet } from './leaders.js';
 import { render } from './shell.js';
+import { ownSheet, gameOf } from '../../combat/feed.js';
 
 // Where a Search will be made, and what the map already shows of sites on this tile: a site in another clearing is not found from here.
 export function searchWhere(G, at) {
@@ -33,13 +34,13 @@ export function searchWhere(G, at) {
 // a table's name for the player: the site card he found is named (Loot the Crypt of the Knight)
 export function tableName(G, t) {
     if (t !== 'sitecard') return TABLE_LABEL[t] ?? t;
-    const id = G.st.ch.siteCards?.[G.st.ch.at]?.[0];
+    const id = G.st.ch.siteCards?.[ownSheet(G.st, G.data).at]?.[0];
     return id ? `Loot the ${G.data.treasures?.[id]?.name ?? 'site card'}` : TABLE_LABEL[t];
 }
 
 // What a phase that has just been played came to, in the current voice: the story line, or the exact words (dice and all).
 export function phaseResultLine(G, n, fallback = null) {
-    const l = [...G.st.log].reverse().find(x => x.k === 'phase' && x.day === G.st.day && x.t.startsWith(`Phase ${n}:`));
+    const l = [...G.st.log].reverse().find(x => x.k === 'phase' && x.day === gameOf(G.st, G.data).day && x.t.startsWith(`Phase ${n}:`));
     if (!l) return fallback ? { text: fallback.replace(/^Phase \d+:\s*/, ''), bad: false } : null;
     const detail = l.t.replace(/^Phase \d+:\s*/, '');
     const bad = /fail to hide|you are seen|nothing at that depth|cancelled|are lost|blocked|no one here|will not|cannot/i.test(detail);
@@ -60,7 +61,7 @@ export function describeSlot(G, s) {
 // The day is not retold here (the Day Overview does that, review 02-18); a blocked turn names the phases that were lost. Story tells it in sentences (storyvoice.js turn-end helpers);
 // Detail keeps the rule words (the row, the Monster Roll).
 export function turnEndSheet(G) {
-    if (G.st.ch.leader) return seatTurnEndSheet(G);          // (a hired leader's turn is told of him, leaders.js)
+    if (ownSheet(G.st, G.data).leader) return seatTurnEndSheet(G);          // (a hired leader's turn is told of him, leaders.js)
     const t = G.st.turnEnd, story = isStory();
     const monsterIcon = n => G.data.art?.monsters?.[n] ?? null;
     const row = (cls, art, ...kids) => h('div', { class: `ds-row te-row ${cls}` }, art ? h('span', { class: /chit/.test(cls) ? 'chitwrap' : 'art' }, art) : null, h('span', { class: 'main' }, ...kids));
@@ -74,7 +75,7 @@ export function turnEndSheet(G) {
         else rows.push(row('chit', mrChit(c), h('b', {}, 'Calls out'), icons, h('small', {}, where)));
     }
     for (const c of t.chits.filter(c => !(c.summons?.length) && c.why && !/already called|not the one prowling/.test(c.why))) if (!story) rows.push(row('chit quiet', mrChit(c), h('small', {}, `Calls nothing out today: ${c.why}.`)));
-    if (quietChits.length) rows.push(h('p', { class: 'ds-meta te-quiet', 'data-quiet-chits': String(quietChits.length) }, story ? quietChitsLine(quietChits) : `Call nothing out today (row not prowling; Monster Roll ${G.st.prowl ?? '?'}): ${[...new Set(quietChits.map(c => c.name ?? c.kind))].join(', ')}.`));
+    if (quietChits.length) rows.push(h('p', { class: 'ds-meta te-quiet', 'data-quiet-chits': String(quietChits.length) }, story ? quietChitsLine(quietChits) : `Call nothing out today (row not prowling; Monster Roll ${gameOf(G.st, G.data).prowl ?? '?'}): ${[...new Set(quietChits.map(c => c.name ?? c.kind))].join(', ')}.`));
     for (const a of t.arrivals.filter(a => a.why === 'prowls in your tile')) rows.push(row('mon', null, story ? h('span', { class: 'one' }, arrivalLine(a)) : [h('b', {}, `${a.name} arrives`), h('small', {}, 'it was prowling in this tile and comes to your clearing')]));
     for (const nn of t.natives) rows.push(row('nat', null, story ? h('span', { class: 'one' }, nativesLine(nn)) : [h('b', {}, `The ${nn.group} appear`), h('small', {}, `${nn.count} of them, at the ${nn.at}`)]));
     if (t.blocked) rows.push(row('mon', null, story ? h('span', { class: 'one' }, blockedLine(t.blockers)) : [h('b', {}, t.blockers.length ? `Blocked by ${[...new Set(t.blockers)].join(', ')}` : 'Your turn was cut short'), h('small', {}, 'the rest of your turn was lost')]));
@@ -83,7 +84,7 @@ export function turnEndSheet(G) {
     const lostPhases = (t.blocked ? (G.st.plan ?? []).map((s, i) => ({ i, s })).filter(x => x.i >= (t.plan?.length ?? 0) && x.s && x.s.act !== 'nothing').map(x => ({ i: x.i, what: describeSlot(G, x.s) })) : []);
     if (lostPhases.length) rows.push(h('p', { class: 'ds-meta te-lost' }, story ? `Lost with the turn: ${lostPhases.map(l => l.what).join(', ')}.` : lostPhases.map(l => `Phase ${l.i + 1} ${l.what}: lost, because you were blocked.`).join(' ')));
     // Shared Daylight (7.12.4): monsters that arrived at someone else's turn's end closed in on him before his own chit was drawn; he has no turn today.
-    const noTurnLine = t.noTurn ? [...G.st.log].reverse().find(l => l.k === 'block' && l.day === G.st.day && l.who === G.st.ch.id) : null;
+    const noTurnLine = t.noTurn ? [...G.st.log].reverse().find(l => l.k === 'block' && l.day === gameOf(G.st, G.data).day && l.who === ownSheet(G.st, G.data).id) : null;
     const dWhy = t.noTurn ? `Creatures closed in on you before your chit was drawn, so you are seen and have no turn today. Nothing was lost but the turn.`
         : t.blocked ? `${t.blockers.length ? [...new Set(t.blockers)].join(', ') + ' closed in' : 'Your turn was cut short'}, so you are seen${lostPhases.length ? ` and your remaining ${lostPhases.length === 1 ? 'phase is' : 'phases are'} lost` : ''}.`
         : t.closedIn?.length ? `${[...new Set(t.closedIn)].join(', ')} found you after your turn was over, so you are seen. No phase was lost.`
@@ -93,11 +94,11 @@ export function turnEndSheet(G) {
         h('b', {}, story ? sv.title : t.noTurn ? 'You have no turn today' : t.hidden ? 'You are hidden' : 'You are in plain sight'), h('span', {}, story ? sv.why : dWhy),
         noTurnLine ? h('span', {}, logText(noTurnLine, G.st)) : null);
     // Blocked by other characters (7.12): told first, in a card of its own, with who did it
-    const bl = G.shared && !t.noTurn ? meetLines(G.st, G.st.ch.id).filter(l => l.kind === 'blocked').at(-1) : null;
+    const bl = G.shared && !t.noTurn ? meetLines(G.st, ownSheet(G.st, G.data).id).filter(l => l.kind === 'blocked').at(-1) : null;
     const blockCardEl = bl && t.blocked ? h('div', { class: 'phase-result bad meet-result', role: 'status', 'data-meet-result': 'blocked' }, h('div', { class: 'pr-head' }, h('small', {}, 'Blocked')), h('p', { class: 'pr-line' }, voice() === 'story' ? bl.story : bl.text)) : null;
     const place = nameOfClearing(t.at).replace(/ (\d+)$/, '\u00A0$1');
     return modal(G, 'Turn\u2019s end', h('div', { class: 'turnend clearing' }, blockCardEl, status, rows.length ? sect('At the end of your turn') : null, ...rows),
-        { kind: 'result', bare: true, eyebrow: `Day ${G.st.day} \u00B7 ${place}`, head: voiceSwitch(), cls: 'turnend-sheet',
+        { kind: 'result', bare: true, eyebrow: `Day ${gameOf(G.st, G.data).day} \u00B7 ${place}`, head: voiceSwitch(), cls: 'turnend-sheet',
             footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'turn-ok', onclick: () => act(G, { type: 'continue' }) }, 'End turn')) });
 }
 
@@ -205,11 +206,11 @@ export function pickSheet(G, p) {
     const eyebrow = `Phase ${p.i + 1} \u00B7 ${ACT_LABEL[act2] ?? act2}`, close = () => { G.ui.pickAct = null; render(G); };
     if (act2 === 'search') {
         const LINE = { peer: 'Hidden enemies, hidden\u00A0paths.', locate: 'Secret passages, clues, sites hidden here.', loot: 'Reach into a pile you have found.', ground: 'Take what lies here.', sitecard: 'A place you found by looting.', runes: 'Learn a spell from a site or an item.' };
-        return pickSheetOf(G, { title: 'Which table?', eyebrow, situation: `Search ${nbsp_(nameOfClearing(G.st.ch.at))}: one roll on one table.`, why: 'Each table finds different things.', key: 'tablePick', kind: 'info', close,
+        return pickSheetOf(G, { title: 'Which table?', eyebrow, situation: `Search ${nbsp_(nameOfClearing(ownSheet(G.st, G.data).at))}: one roll on one table.`, why: 'Each table finds different things.', key: 'tablePick', kind: 'info', close,
             opts: (p.tables ?? []).map(t => ({ k: t, table: t, title: tableName(G, t), line: LINE[t] ?? '', art: actIcon(t === 'peer' ? 'peer' : t === 'loot' || t === 'ground' || t === 'sitecard' ? 'cache' : 'search', 28), attrs: { 'data-pick-table': t } })),
             idle: { button: 'Choose a table', lead: 'One roll on one table.', toast: 'Pick one of the tables first.' }, verb: 'Search', act: o => send({ act: 'search', table: o.table }) });
     }
-    const mags = G.st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active'), pr = phasePrompt('alert', {}), card = weaponCardOf(G.st, G.data);          // (a weapon card cannot be alerted, 2.3.4d)
+    const mags = ownSheet(G.st, G.data).chits.filter(c => c.type === 'magic' && c.state === 'active'), pr = phasePrompt('alert', {}), card = weaponCardOf(G.st, G.data);          // (a weapon card cannot be alerted, 2.3.4d)
     return pickSheetOf(G, { title: 'Alert', eyebrow, situation: 'Ready your weapon, or wake a Magic chit.', why: 'An alerted Magic chit acts first, and tires at Midnight if unused.', key: 'alertPick', kind: 'info', close,
         opts: [{ k: 'weapon', title: 'Your weapon', label: 'weapon', line: 'It strikes at its own time.', art: actIcon('alert', 28), ...(card ? { dim: true, why: alertCardWhy(nameOf(G.data, card)).story } : {}) }, ...mags.map(c => ({ k: c.id, title: `Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}`, label: `Magic ${c.numeral}${c.time}`, line: 'It will answer before anything else until midnight.', art: actIcon('spell', 28), attrs: { 'data-pick-magic': c.id } }))],
         idle: { button: 'Choose one', lead: 'Weapon or Magic chit.', toast: 'Pick the weapon or a chit first.' }, verb: 'Alert', act: o => send(o.k === 'weapon' ? { act: 'alert' } : { act: 'alert', magic: o.k }) });
@@ -231,7 +232,7 @@ const chitGrid = (G, tiles) => h('div', { class: 'ds-chitgrid' }, ...tiles);
 // Cairns / Pool: tap the chit that pays an asterisk of effort (a two-asterisk chit may make change for a tired one-asterisk chit).
 export function effortSheet(G, p) {
     const sameKind = (a, b) => a.type === b.type && (a.strength ?? a.numeral) === (b.strength ?? b.numeral) && a.time === b.time && a.effort === b.effort;
-    const chits = G.st.ch.chits;
+    const chits = ownSheet(G.st, G.data).chits;
     const optIdx = p.options.map((o, n) => ({ o, n }));
     const pieces = optIdx.filter(({ o }) => !o.chit);          // the Vault (7.5.5d.2): a horse or a card with Tremendous strength breaks the door and is not tired, so it is no chit
     const vault = p.site === 'Vault';
@@ -269,7 +270,7 @@ export function effortSheet(G, p) {
 export function restSheet(G, p) {
     const mine = new Map();
     for (const o of p.options) (mine.get(o.chit) ?? mine.set(o.chit, []).get(o.chit)).push(o);
-    const chits = G.st.ch.chits;
+    const chits = ownSheet(G.st, G.data).chits;
     const waiting = G.ui.restChit && mine.has(G.ui.restChit) ? G.ui.restChit : null;
     const changers = new Set(waiting ? mine.get(waiting).map(o => o.change).filter(Boolean) : []);
     const key = waiting ? 'restPay' : 'restSel', can = id => (waiting ? changers.has(id) : mine.has(id));
@@ -301,7 +302,7 @@ export function restSheet(G, p) {
     const lead = waiting ? h('button', { type: 'button', class: 'ds-btn quiet sm', 'data-act': 'rest-other', onclick: () => { G.ui.restChit = null; G.ui.restPay = null; render(G); } }, 'Another chit')
         : h('span', { class: 'lead ds-lead-text' }, lit.length ? 'One chit, one rest.' : 'Nothing to rest.');
     const foot = choiceFoot(lead, primary);
-    const place = nbsp_(nameOfClearing(G.st.ch.at ?? ''));
+    const place = nbsp_(nameOfClearing(ownSheet(G.st, G.data).at ?? ''));
     return modal(G, 'Rest', h('div', { class: 'restsheet' }, askEl, chitGrid(G, lit.map(t => t.el)),
         ready.length ? h('details', { class: 'ds-more rest-ready' }, h('summary', {}, (waiting ? `${ready.length} other ${ready.length === 1 ? 'chit' : 'chits'}` : `${ready.length} ${ready.length === 1 ? 'chit is' : 'chits are'} ready already`)), chitGrid(G, ready.map(t => t.el))) : null),
     { eyebrow: place, bare: true, cls: 'chit-sheet', footer: foot });

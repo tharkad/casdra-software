@@ -9,6 +9,7 @@ import { markGroup } from '../../groups.js';
 import { tieNumber } from '../../names.js';
 import { offerDice, payBlock } from './trade.js';
 import { isVisitorName, spellBoonBits } from './visitors.js';
+import { ownSheet } from '../../combat/feed.js';
 
 // boonContent(G, p, kind) -> { title, eyebrow, body, foot, decision }
 export function boonContent(G, p, kind) {
@@ -18,7 +19,7 @@ export function boonContent(G, p, kind) {
         : h('div', { class: 'kit-hero' }, h('div', { class: 'cs' }, (p.members ?? []).map(id => markGroup(h('span', { class: 'ds-counter tall' }, nativeArt(G, id) ? art(nativeArt(G, id).replace(/^art\//, ''), '', '') : null), G.data.natives[id]?.group))),
             h('div', {}, h('div', { class: 'ds-h2 kit-heroname' }, p.names.length === 1 ? tieNumber(p.names[0]) : `The ${p.group}`), h('span', { class: 'ds-meta' }, `Wages ${p.wage} Gold. Hired for 14 days.`)));
     const pay = trade ? payBlock(G, p) : null;
-    const payOk = trade ? pay.ok && !sb?.block : p.affordable, short = trade ? pay.short : p.price - G.st.ch.gold;
+    const payOk = trade ? pay.ok && !sb?.block : p.affordable, short = trade ? pay.short : p.price - ownSheet(G.st, G.data).gold;
     const body = h('div', { class: 'kit kit-boon' },
         offerDice(G, p) ?? (p.rollNote ?? p.why ? h('p', { class: 'ds-meta' }, p.rollNote ?? p.why) : null),
         hero,
@@ -29,7 +30,7 @@ export function boonContent(G, p, kind) {
         h('button', { type: 'button', class: 'ds-btn sm quiet kit-turndown', 'data-act': 'boon-decline', onclick: () => { G.ui.payWith = null; act(G, { type: kind, act: 'decline' }); } }, 'Turn it down'));
     const price = trade ? pay.goldDue : p.price, label = `Pay ${price} Gold`;
     const payBtn = payOk ? h('button', { type: 'button', class: 'ds-btn', 'data-act': trade ? 'buy-ok' : 'hire-pay', onclick: () => { const items = trade ? pay.chosen : null, erase = sb?.erase; G.ui.payWith = null; G.ui.spellErase = null; act(G, trade ? { type: 'trade', act: 'accept', items, ...(erase ? { erase } : {}) } : { type: 'hire', act: 'accept' }); } }, label)
-        : dimBtn(G, label, `Pay ${price} Gold instead? You have ${G.st.ch.gold}${trade && G.st.ch.items.length ? ': hand over things to cover the rest' : ''}.`, { 'data-act': trade ? 'buy-ok' : 'hire-pay' });
+        : dimBtn(G, label, `Pay ${price} Gold instead? You have ${ownSheet(G.st, G.data).gold}${trade && ownSheet(G.st, G.data).items.length ? ': hand over things to cover the rest' : ''}.`, { 'data-act': trade ? 'buy-ok' : 'hire-pay' });
     // DR-7: a dim Pay says why in the foot, in red, the same line the Trade and Hire feet give
     const foot = footRow({ note: sb?.block ?? (payOk ? null : `You are ${short} Gold short of paying.`), bad: !payOk || !!sb?.block, secondary: payBtn,
         primary: sb?.block ? dimBtn(G, 'Take it as a boon', sb.block, { 'data-act': 'take-boon' }, 'primary')

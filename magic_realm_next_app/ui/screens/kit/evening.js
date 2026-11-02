@@ -11,6 +11,7 @@ import { footRow, itemArt, say, twoLine } from './common.js';
 import { ACT_LABEL } from '../play/kit.js';
 import { tidyAct } from './kit.js';
 import { ROAD_STORY, roadLockOf, voiced } from '../../commit.js';
+import { ownSheet } from '../../combat/feed.js';
 
 const cap = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 const names = list => (list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0] ?? '');
@@ -18,7 +19,7 @@ const nb = t => String(t).replace(/ (\d+)/g, ' $1');
 
 // One thing that decides tomorrow's plan. `g` is an entry of nextDayGear: { uid, name, active, act, gives, canActivate, why }.
 function gearRow(G, g) {
-    const it = G.st.ch.items.find(i => i.uid === g.uid);
+    const it = ownSheet(G.st, G.data).items.find(i => i.uid === g.uid);
     const state = g.active ? ['gold', 'On'] : g.canActivate ? ['', 'Off'] : ['bad', 'Cannot be on'];
     const sub = g.active ? 'Ready for tomorrow.' : g.canActivate ? 'No extra phase tomorrow.' : g.why;
     const pony = it?.kind === 'horse' && G.data.horses[it.id]?.kind === 'pony';

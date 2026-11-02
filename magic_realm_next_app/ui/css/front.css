@@ -7,18 +7,18 @@
 .btn { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: var(--tap); padding: 0 20px; border-radius: 12px; border: 1px solid var(--line);
     background: var(--panel); font-family: var(--font-ui); font-weight: 500; font-size: calc(19px * var(--ts, 1)); letter-spacing: .02em; cursor: pointer; text-align: center; }
 .btn:active { transform: translateY(1px); background: var(--panel2); }
-.btn.primary { background: linear-gradient(180deg, #e2c068, #c19532); border-color: #f1d27f; color: #1b1405; font-weight: 700; white-space: nowrap; }
-.btn.primary:active { background: linear-gradient(180deg, #c19532, #a87a22); }
+.btn.primary { background: linear-gradient(180deg, #8fcb80, #5fa96a); border-color: #b5e39c; color: #0d1a0f; font-weight: 700; white-space: nowrap; }
+.btn.primary:active { background: linear-gradient(180deg, #5fa96a, #468a50); }
 .btn.big { min-height: 50px; font-size: calc(19px * var(--ts, 1)); }
 .btn small { display: block; font-size: calc(13px * var(--ts, 1)); font-weight: 400; color: var(--dim); }
-.btn.primary small { color: #4a3a12; }
+.btn.primary small { color: #2b4a2e; }
 .btn .col { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
 .btn[disabled], .btn.soon { opacity: .5; cursor: default; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 /* ---- generic sub-screens ---- */
 .back { width: 44px; height: 44px; margin-left: -10px; border: 0; background: none; font-size: calc(30px * var(--ts, 1)); line-height: 1; color: var(--gold); cursor: pointer; }
-.note { margin: 10px 0; padding: 10px 12px; border-left: 3px solid var(--gold-deep); background: rgba(217, 180, 90, .07); font-family: var(--font-text); font-size: calc(16px * var(--ts, 1)); color: var(--dim); }
+.note { margin: 10px 0; padding: 10px 12px; border-left: 3px solid var(--gold-deep); background: rgba(134, 196, 122, .07); font-family: var(--font-text); font-size: calc(16px * var(--ts, 1)); color: var(--dim); }
 
 /* ---- new game wizard ---- */
 .where { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; font-size: calc(14px * var(--ts, 1)); color: var(--dim); }
@@ -26,7 +26,7 @@
 .choices { display: flex; flex-direction: column; gap: 10px; }
 .choice { display: flex; gap: 14px; align-items: flex-start; width: 100%; padding: 14px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel);
     text-align: left; cursor: pointer; font: inherit; }
-.choice.on { border-color: var(--gold); background: linear-gradient(180deg, #232433, var(--panel)); box-shadow: 0 0 0 1px rgba(217, 180, 90, .35) inset; }
+.choice.on { border-color: var(--gold); background: linear-gradient(180deg, #232433, var(--panel)); box-shadow: 0 0 0 1px rgba(134, 196, 122, .35) inset; }
 .choice .dot { flex: none; width: 22px; height: 22px; margin-top: 2px; border-radius: 50%; border: 2px solid var(--dim); }
 .choice.on .dot { border-color: var(--gold); background: radial-gradient(circle, var(--gold) 0 45%, transparent 50%); }
 .choice-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }

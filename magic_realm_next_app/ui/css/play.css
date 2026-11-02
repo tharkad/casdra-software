@@ -40,8 +40,8 @@
 .cb-gear-h { color: var(--dim); letter-spacing: .04em; }
 .foe.gear { background: var(--panel); border-color: var(--line); }
 
-.cb-victory { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; border: 2px solid #e2c068; background: rgba(226, 192, 104, .12); }
-.cb-victory b { font-size: calc(20px * var(--ts, 1)); color: #f1d27f; }
+.cb-victory { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; border: 2px solid #8fcb80; background: rgba(226, 192, 104, .12); }
+.cb-victory b { font-size: calc(20px * var(--ts, 1)); color: #b5e39c; }
 .cb-victory span { color: var(--text); font-size: calc(15px * var(--ts, 1)); }
 
 .gain-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -63,7 +63,7 @@
 .deathbox small { color: var(--dim); font-size: calc(14px * var(--ts, 1)); }
 
 /* a discovered site: a gold edge round its pill (and a tick in its name) */
-.realm-svg .pill.disc rect { stroke: #f1d27f; stroke-width: 2.4; }
+.realm-svg .pill.disc rect { stroke: #b5e39c; stroke-width: 2.4; }
 
 /* curses: always in view while they last */
 
@@ -91,7 +91,7 @@
 .grab .grip { flex: none; width: 38px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--text) 38%, transparent); }
 .grab .peek { display: none; align-items: center; gap: 8px; font-size: calc(13px * var(--ts, 1)); letter-spacing: .04em; padding: 3px 0 1px; }
 
-.grab .badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #e2c068; color: #1b1608; font-size: calc(11px * var(--ts, 1)); font-weight: 800; display: inline-grid; place-items: center; }
+.grab .badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #8fcb80; color: #0d1a0f; font-size: calc(11px * var(--ts, 1)); font-weight: 800; display: inline-grid; place-items: center; }
 .grab .chev { font-size: calc(15px * var(--ts, 1)); line-height: 1; transform: translateY(1px); color: var(--dim); }
 
 /* the pinned action buttons: tall enough for a thumb, no taller */
@@ -137,11 +137,11 @@
 .cb-results { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px; }
 .cb-results .res-h { font-family: var(--font-display); font-size: calc(13px * var(--ts, 1)); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); font-weight: 400; }
 .cb-results .res-row { display: flex; flex-direction: column; gap: 3px; border-left: 3px solid var(--line); padding-left: 10px; }
-.cb-results .res-row.fight { border-color: #d0506a; } .cb-results .res-row.asks { border-color: #e2c068; } .cb-results .res-row.calm { border-color: #5fb58a; }
+.cb-results .res-row.fight { border-color: #d0506a; } .cb-results .res-row.asks { border-color: #8fcb80; } .cb-results .res-row.calm { border-color: #5fb58a; }
 .cb-results .res-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .cb-results .res-top b { font-size: calc(17px * var(--ts, 1)); }
 .cb-results .res-pill { font-size: calc(13px * var(--ts, 1)); color: var(--dim); }
-.cb-results .res-row.fight .res-pill { color: #ff8aa0; } .cb-results .res-row.asks .res-pill { color: #e2c068; } .cb-results .res-row.calm .res-pill { color: #7fd0a4; }
+.cb-results .res-row.fight .res-pill { color: #ff8aa0; } .cb-results .res-row.asks .res-pill { color: #8fcb80; } .cb-results .res-row.calm .res-pill { color: #7fd0a4; }
 .cb-results .res-verdict { margin: 0; font-size: calc(16px * var(--ts, 1)); line-height: 1.3; }
 .cb-results .res-dice summary { font-size: calc(13px * var(--ts, 1)); color: var(--dim); cursor: pointer; }
 .cb-results.small { padding: 6px 10px; gap: 4px; }

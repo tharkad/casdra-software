@@ -1,7 +1,7 @@
 // The table in a SHARED game, as the phone reads it: who is where, who is doing what, in what order the day is played, and what to say while it is not your move.
 // Pure functions of a redacted view (server/redact.mjs) and the answer around it (docs/design/online-shared.md); no DOM, so tests/shared_ui.test.mjs runs them in node.
 // Nothing here reads a secret: it uses only what the policy makes public (position, hidden flag, Fame, Notoriety, "has planned", who is asked) and the viewer's own record.
-import { nameOfClearing, tileName } from '../engine/world.js';
+import { nameOfClearing, tileName } from '../engine/catalogue.js';
 import { fightOf, nowLine, third } from './fight.js';
 import { displayName, fixNames } from './names.js';
 

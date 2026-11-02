@@ -1,7 +1,7 @@
 // play/shared.js: the shared-realm host: the things a seat at a shared table sees that a solo game does not: the draw of the chits, the end of a fight I was in, the banner that stands
 // in for the phase buttons when it is not my move, the players sheet, the soft camera, the restart question after a death, and the end of the game.
-import { nameOf } from '../../../engine/items.js';
-import { nameOfClearing } from '../../../engine/world.js';
+import { nameOf } from '../../../engine/catalogue.js';
+import { nameOfClearing } from '../../../engine/catalogue.js';
 import { lengthLine } from '../../gametext.js';
 import { h } from '../../dom.js';
 import { fightSummary } from '../../fight.js';
@@ -23,6 +23,7 @@ import { modal, showToast, tc } from './kit.js';
 import { prowlers, render } from './shell.js';
 import { backSeen, drawSeen, markBackSeen, markDrawSeen, markOverSeen, myId, overSeen, setWelcomed, welcomed } from './state.js';
 import { playerOf } from '../../meet.js';
+import { ownSheet, gameOf, questionOf, tableFight } from '../../combat/feed.js';
 
 function clearTag(G) { clearTimeout(G.ui.tagTimer); G.ui.tagTimer = setTimeout(() => { if (G.ui.tag) { G.ui.tag = null; if (G.root.isConnected) render(G); } }, 6000); }
 
@@ -34,9 +35,9 @@ export function showPlayer(G, p) {
 }
 
 export function maybeShowFightOver(G) {
-    if (G.st.battle || G.ui.sheet || G.st.pending?.type === 'restart') return;
+    if (tableFight(G.st, G.data) || G.ui.sheet || questionOf(G.st, G.data)?.type === 'restart') return;
     const me = myId(G), sum = fightSummary(G.st, me);
-    if (!sum.over || !sum.lines.length || sum.day < G.st.day - 1 || overSeen(G, sum.key) || G.ui.fightOverKey === sum.key) return;
+    if (!sum.over || !sum.lines.length || sum.day < gameOf(G.st, G.data).day - 1 || overSeen(G, sum.key) || G.ui.fightOverKey === sum.key) return;
     G.ui.fightOverKey = sum.key; G.ui.sheet = 'fightover';
 }
 
@@ -51,10 +52,10 @@ export function fightOverSheet(G) {
 
 export function maybeShowDraw(G) {
     if (G.ui.sheet && G.ui.sheet !== 'draw') return;
-    if (G.st.battle || G.st.period === 'evening' || G.st.period === 'sunset') return;                 // (the chits were drawn at dawn: not now, in the middle of a fight)
+    if (tableFight(G.st, G.data) || gameOf(G.st, G.data).period === 'evening' || gameOf(G.st, G.data).period === 'sunset') return;                 // (the chits were drawn at dawn: not now, in the middle of a fight)
     const d = drawInfo(G.st);
-    if (!d || d.day !== G.st.day || drawSeen(G, d.day) || G.ui.draw?.day === d.day && G.ui.sheet !== 'draw') return;
-    const p = G.st.pending;
+    if (!d || d.day !== gameOf(G.st, G.data).day || drawSeen(G, d.day) || G.ui.draw?.day === d.day && G.ui.sheet !== 'draw') return;
+    const p = questionOf(G.st, G.data);
     if (p && !['phase', 'phase-pick', 'turn-end', 'plan'].includes(p.type)) return;
     if (G.ui.sheet === 'draw') return;
     const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.calm === 'on';
@@ -75,9 +76,9 @@ function endDraw(G) { clearInterval(G.ui.drawTimer); if (G.ui.draw) markDrawSeen
 export function drawSheet(G) {
     const d = drawInfo(G.st), dd = G.ui.draw;
     if (!d) { G.ui.sheet = null; return h('div'); }
-    const dawn = G.st.log.find(l => l.day === G.st.day && /^Dawn of day/.test(l.t));
+    const dawn = G.st.log.find(l => l.day === gameOf(G.st, G.data).day && /^Dawn of day/.test(l.t));
     const dawnText = dawn ? (voice() === 'story' ? (dawn.s ?? null) : dawn.t) : null;
-    const prowling = G.st.prowl && !(voice() === 'story' && dawnText) ? (voice() === 'story' ? `The wilds stir: ${prowlers(G).join(', ') || 'no one'}.` : `Monster Roll ${G.st.prowl}: ${prowlers(G).join(', ') || 'none left'}.`) : null;
+    const prowling = gameOf(G.st, G.data).prowl && !(voice() === 'story' && dawnText) ? (voice() === 'story' ? `The wilds stir: ${prowlers(G).join(', ') || 'no one'}.` : `Monster Roll ${gameOf(G.st, G.data).prowl}: ${prowlers(G).join(', ') || 'none left'}.`) : null;
     const finished = dd.step >= d.order.length;
     const c = drawCard({ view: G.st, draw: d, people: G.crew, step: dd.step, finished, fresh: dd.fresh, dawn: dawnText, prowling,
         onSkip: () => { clearInterval(G.ui.drawTimer); G.ui.draw.step = d.order.length; G.ui.draw.fresh = false; render(G); }, onDone: () => endDraw(G) });
@@ -122,14 +123,14 @@ export function tableSheetDue(G) {
 // "Welcome" at a table: who is here, that plans are secret and then the chits are drawn, and that you wait for your turn (the solo welcome says "you fight whoever shares your clearing", which is not the story here).
 function tableIntroSheet(G) {
     const me = G.crew.find(p => p.mine), others = G.crew.filter(p => !p.mine);
-    const gear = G.st.ch.items.length ? ` with ${joinNames(G.st.ch.items.map(i => nameOf(G.data, i).replace(/ (?=\S+$)/, '\u00A0')))}` : ', with no weapon or armor yet';
+    const gear = ownSheet(G.st, G.data).items.length ? ` with ${joinNames(ownSheet(G.st, G.data).items.map(i => nameOf(G.data, i).replace(/ (?=\S+$)/, '\u00A0')))}` : ', with no weapon or armor yet';
     const who = joinNames(others.map(p => `${p.player} (${p.character})`));
     const pvp = !!G.st.options?.pvp;
     const body = h('div', { class: 'welcome table-welcome', 'data-welcome': 'table' },
         h('p', { class: 'ds-voice' }, `You wake at the ${G.st.ch.startDwelling}${gear}. ${lengthLine(G.st)}`.replace(/ (\d+)/g, '\u00A0$1')),
         h('p', { class: 'ds-voice' }, others.length ? `${who} ${others.length === 1 ? 'shares' : 'share'} this realm with you, on one map.` : 'You share this realm with the others, on one map.'),
         h('p', { class: 'ds-voice' }, `Each morning you all plan in secret. Then the chits are drawn and the day is played one turn at a time: you wait for yours and watch the others. At night you fight whatever shares your clearing${pvp ? ', and players may charge one another' : '; nobody can attack another player'}.`));
-    return modal(G, `Welcome, ${me?.player ?? G.st.ch.name}`, body, { kind: 'result', eyebrow: 'A shared game', footer: footRow({ primary: primary('Begin', { 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }) }) });
+    return modal(G, `Welcome, ${me?.player ?? ownSheet(G.st, G.data).name}`, body, { kind: 'result', eyebrow: 'A shared game', footer: footRow({ primary: primary('Begin', { 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }) }) });
 }
 export function tableSheet(G) {
     const due = tableSheetDue(G);
@@ -142,19 +143,19 @@ export function tableSheet(G) {
 // The camera: it follows the player whose turn it is, softly, but never while I have a decision to make, a sheet open or my finger on the map; and it comes back to me when my turn begins.
 export function sharedCamera(G) {
     if (!G.shared || !G.map) return;
-    const mine = !!G.st.pending && G.st.pending.type !== 'over';
+    const mine = !!questionOf(G.st, G.data) && questionOf(G.st, G.data).type !== 'over';
     if (mine) {
-        if (!G.hadAsk && G.st.period === 'daylight') { const at = G.st.ch.onRoad ? G.st.ch.onRoad.from : G.st.ch.at; if (at && !G.map.visible(at)) G.map.pan(at); }
+        if (!G.hadAsk && gameOf(G.st, G.data).period === 'daylight') { const at = ownSheet(G.st, G.data).onRoad ? ownSheet(G.st, G.data).onRoad.from : ownSheet(G.st, G.data).at; if (at && !G.map.visible(at)) G.map.pan(at); }
         G.hadAsk = true; return;
     }
     G.hadAsk = false;
     if (G.ui.sheet || G.ui.sel || Date.now() - (G.ui.touched ?? 0) < 6000) return;
     // a fight is on: the map shows where (once per fight)
-    if (G.st.battle?.at) { const key = `fight|${G.st.day}|${G.st.battle.at}`; if (G.ui.followKey !== key) { G.ui.followKey = key; G.map.pan(G.st.battle.at); } return; }
+    if (tableFight(G.st, G.data)?.at) { const key = `fight|${gameOf(G.st, G.data).day}|${tableFight(G.st, G.data).at}`; if (G.ui.followKey !== key) { G.ui.followKey = key; G.map.pan(tableFight(G.st, G.data).at); } return; }
     const who = G.crew.find(p => p.status === 'playing' && !p.mine);
     const at = who?.at ?? who?.onRoad?.from;
     if (!at) return;
-    const key = `${G.st.day}|${who.id}|${at}`;
+    const key = `${gameOf(G.st, G.data).day}|${who.id}|${at}`;
     if (G.ui.followKey === key) return;
     G.ui.followKey = key; G.map.pan(at);
 }
@@ -164,20 +165,20 @@ export function sharedCamera(G) {
 // character for now (the others are dim and say why), until the ones ahead have answered. (Found by P3: with three fallen, a later seat picked another character and the engine refused.)
 export function sharedRestartSheet(G, p0) {
     // a seat that restarted a moment ago may have taken one of the characters the question listed: only the ones nobody holds now (my own fallen one is mine to take again)
-    const p = { ...p0, characters: p0.characters.filter(id => id === G.st.ch.id || !G.st.order.includes(id)) };
+    const p = { ...p0, characters: p0.characters.filter(id => id === ownSheet(G.st, G.data).id || !G.st.order.includes(id)) };
     const total = p.budget, v = (G.ui.sharedRestartVp ??= (() => { const fame = Math.min(5, Math.ceil(total * 0.6)); return { great: 0, spells: 0, fame, notoriety: Math.min(5, total - fame), gold: 0 }; })());
-    const order = p0.pickOrder ?? [], at = order.indexOf(G.st.ch.id), waiting = G.answer?.waitingFor ?? [];
+    const order = p0.pickOrder ?? [], at = order.indexOf(ownSheet(G.st, G.data).id), waiting = G.answer?.waitingFor ?? [];
     const ahead = at > 0 ? order.slice(0, at).filter(x => waiting.some(w => w.character === x && w.doing === 'restart')) : [];
     const nameOf = id => G.crew.find(c => c.id === id)?.player ?? G.st.chars?.[id]?.name ?? id;
-    const own = G.st.ch.id;
+    const own = ownSheet(G.st, G.data).id;
     if (ahead.length && G.ui.sharedRestartChar && G.ui.sharedRestartChar !== own) G.ui.sharedRestartChar = own;
     G.ui.sharedRestartChar ??= p.characters.includes(own) ? own : p.characters[0];
     const used = Object.values(v).reduce((a, b) => a + b, 0), d = p.death ?? {};
     const rows = [['fame', 'Fame', 10], ['notoriety', 'Notoriety', 20], ['gold', 'Gold', 30], ['great', 'Great treasures', 1], ['spells', 'Spells', 2]];
-    const by = d.by ? String(d.by).replace(/ #\d+$/, '') : null, fall = G.st.battle?.pvp || G.st.options?.pvp ? myFall(G.st, G.crew, G.st.ch.id) : null;
-    const aheadWhy = ahead.length ? `${joinNames(ahead.map(nameOf))} choose${ahead.length === 1 ? 's' : ''} first (the die decided). You may start again as ${G.st.ch.name} now.` : null;
-    const dead = fall ? deathCallout({ st: G.st, f: null, k: fall, viewerId: G.st.ch.id, next: 'Choose who returns, below.' })
-        : h('div', { class: 'sf-death deathbox me', role: 'alert' }, h('small', {}, `Day ${d.day ?? G.st.day - 1}${d.at ? ` · ${nameOfClearing(d.at)}` : ''}`), h('b', {}, 'You have fallen'), h('span', { class: 'dwho' }, by ? `Slain by the ${by}.` : 'Your character has died.'));
+    const by = d.by ? String(d.by).replace(/ #\d+$/, '') : null, fall = tableFight(G.st, G.data)?.pvp || G.st.options?.pvp ? myFall(G.st, G.crew, ownSheet(G.st, G.data).id) : null;
+    const aheadWhy = ahead.length ? `${joinNames(ahead.map(nameOf))} choose${ahead.length === 1 ? 's' : ''} first (the die decided). You may start again as ${ownSheet(G.st, G.data).name} now.` : null;
+    const dead = fall ? deathCallout({ st: G.st, f: null, k: fall, viewerId: ownSheet(G.st, G.data).id, next: 'Choose who returns, below.' })
+        : h('div', { class: 'sf-death deathbox me', role: 'alert' }, h('small', {}, `Day ${d.day ?? gameOf(G.st, G.data).day - 1}${d.at ? ` · ${nameOfClearing(d.at)}` : ''}`), h('b', {}, 'You have fallen'), h('span', { class: 'dwho' }, by ? `Slain by the ${by}.` : 'Your character has died.'));
     // who returns: the wizard's portrait strip and the card of the one picked (QA-133); a character that an earlier seat chooses first is greyed, and says why when tapped
     const picks = p.characters.map(id => CHARACTERS.find(c => c.id === id) ?? { id, name: G.data.characters[id]?.name ?? id, weight: null, strongest: null, perks: [], starts: [] });
     const who = picks.find(c => c.id === G.ui.sharedRestartChar) ?? picks[0];
@@ -195,7 +196,7 @@ export function sharedRestartSheet(G, p0) {
             who.strongest ? h('p', { class: 'ds-meta' }, `Strongest Move chit ${who.strongest}`) : null,
             who.perks?.length ? h('dl', { class: 'ds-kv' }, who.perks.flatMap(([t, x]) => [h('dt', {}, t), h('dd', {}, x)])) : null));
     const body = h('div', { class: 'restsheet sf-restart', 'data-restart': '' }, dead,
-        askBox('Choose who comes back, and set new goals.', `Your new character arrives at the Inn with fresh chits and gear, and ${total} victory points to spend. The others wait to begin day ${G.st.day}.`),
+        askBox('Choose who comes back, and set new goals.', `Your new character arrives at the Inn with fresh chits and gear, and ${total} victory points to spend. The others wait to begin day ${gameOf(G.st, G.data).day}.`),
         order.length > 1 ? h('p', { class: 'ds-meta', 'data-pick-order': '' }, `The die decided who chooses first: ${joinNames(order.map(x => (x === own ? 'you' : nameOf(x))))}.`) : null,
         h('div', { class: 'ds-portraits', role: 'radiogroup', 'aria-label': 'Who returns' }, ...picks.map(portrait)),
         card,

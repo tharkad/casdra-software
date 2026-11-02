@@ -3,8 +3,8 @@
 // button and says why; his goods are priced from the Visitor Prices list (the engine's `sellable(st, data, group)` and `stockOf` already carry that price, here a row says it is his);
 // his Spell cards are a room of the sheet (Spells), a spell offer is a card he looks at, names, rolls for and pays 10 Gold for (basic), with a spell erased first when he knows fourteen (7.5.6g).
 // Payloads are the engine's: { type: 'trade', act: 'buy', spell } then { type: 'trade', act: 'accept', items, erase? } (or { act: 'accept', boon: true, erase? } / { act: 'decline' }).
-import { priceOf } from '../../../engine/items.js';
-import { MAX_SPELLS } from '../../../engine/runes.js';
+import { priceOf } from '../../../engine/catalogue.js';
+import { MAX_SPELLS } from '../../../engine/catalogue.js';
 import { SPELL_PRICE } from '../../../engine/visitors.js';
 import { voiced } from '../../commit.js';
 import { h } from '../../dom.js';
@@ -18,6 +18,7 @@ import { render } from '../play/shell.js';
 import { dimBtn, footRow, goldEl, say, tick, twoLine } from './common.js';
 import { colorArt, printedOf, spellCardEl, typeTag } from './spells.js';
 import { offerDice, payBlock } from './trade.js';
+import { ownSheet } from '../../combat/feed.js';
 
 export { isVisitorName };
 
@@ -114,7 +115,7 @@ export function spellOfferContent(G, p) {
     const block = blocker(G, p, er, pay), small = pay.things ? `${pay.goldDue} Gold and ${pay.things === 1 ? '1 thing' : `${pay.things} things`}` : `${p.price} Gold`;
     const label = twoLine('Buy it', small);
     const clear = () => { G.ui.payWith = null; G.ui.tradeTab = null; G.ui.spellErase = null; G.ui.tradePick = null; };
-    const foot = footRow({ note: block ?? `Gold ${G.st.ch.gold} to ${G.st.ch.gold - pay.goldDue}`, bad: !!block,
+    const foot = footRow({ note: block ?? `Gold ${ownSheet(G.st, G.data).gold} to ${ownSheet(G.st, G.data).gold - pay.goldDue}`, bad: !!block,
         secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'trade-decline', onclick: () => { clear(); act(G, { type: 'trade', act: 'decline' }); } }, 'Not at that price'),
         primary: block ? dimBtn(G, label, block, { 'data-act': 'buy-ok' }, 'primary')
             : h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'buy-ok', onclick: () => { const items = pay.chosen, erase = er?.chosen ?? undefined; clear(); act(G, { type: 'trade', act: 'accept', items, ...(erase ? { erase } : {}) }); } }, label) });

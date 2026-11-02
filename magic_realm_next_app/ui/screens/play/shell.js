@@ -1,7 +1,8 @@
 // play/shell.js: the render loop and the layout it fills: render() redraws the status strip, the tray, the sheet layer and the map; mapModel() is what the map is told to draw.
 import { earned } from '../../../engine/score.js';
-import { dayColors } from '../../../engine/spells.js';
-import { isCave, knownPathPairs, nameOfClearing, roadsFrom, tileClearings, tileOf } from '../../../engine/world.js';
+import { dayColors } from '../../../engine/catalogue.js';
+import { nameOfClearing, tileOf } from '../../../engine/catalogue.js';
+import { isCave, knownPathPairs, roadsFrom, tileClearings } from '../../../engine/world.js';
 import { flyTiles } from '../../../engine/magic/fly.js';
 import { h } from '../../dom.js';
 import { lastDayOf, timed } from '../../gametext.js';
@@ -25,6 +26,7 @@ import { sheets } from './sheets.js';
 import { doneLoading } from './states.js';
 import { renderTray } from './tray.js';
 import { myId, saveUi, vpNow } from './state.js';
+import { ownSheet, fresh, gameOf, questionOf, tableFight } from '../../combat/feed.js';
 
 // ---- model for the map ----
 export function mapModel(G) {
@@ -49,7 +51,7 @@ export function mapModel(G) {
     // a site card he found by looting (the Crypt of the Knight, the Toadstool Circle...) is a place in that clearing, and shows like a discovered site
     for (const [at, ids] of Object.entries(G.st.ch.siteCards ?? {})) for (const id of ids) add(at, { k: 'site', disc: true, label: `\u25C6 ${G.data.treasures?.[id]?.name ?? id} \u2713` });
     for (const d of G.st.dwellings) {
-        const here = d.at === G.st.ch.at;
+        const here = d.at === ownSheet(G.st, G.data).at;
         add(d.at, { k: 'dwelling', label: d.kind, img: art?.dwellings?.[d.kind] ?? null });
     }
     // creatures by name: "Wolf x2", natives by group
@@ -65,11 +67,11 @@ export function mapModel(G) {
     if (G.shared) {
         // a hireling is its hirer's alone (7.7): each character's are shown where that character stands, named for him
         const here = new Map();                                      // clearing -> owner -> how many
-        for (const n of hires) { const owner = n.hiredBy ?? G.st.ch.id, at = G.st.chars[owner]?.at; if (!at || G.st.chars[owner]?.onRoad) continue; const m = here.get(at) ?? here.set(at, new Map()).get(at); m.set(owner, (m.get(owner) ?? 0) + 1); }
+        for (const n of hires) { const owner = n.hiredBy ?? ownSheet(G.st, G.data).id, at = G.st.chars[owner]?.at; if (!at || G.st.chars[owner]?.onRoad) continue; const m = here.get(at) ?? here.set(at, new Map()).get(at); m.set(owner, (m.get(owner) ?? 0) + 1); }
         // one pill a clearing (two would crowd it into a marker): "Your hirelings x2", "Ann\u2019s hirelings x1", or "Hirelings: Ann 1, Tom 1" when several have them here
         for (const [at, owners] of here) {
             const list = [...owners].sort((a, b) => G.st.order.indexOf(a[0]) - G.st.order.indexOf(b[0]));
-            add(at, { k: 'ally', label: list.length === 1 ? `${list[0][0] === G.st.ch.id ? 'Your' : `${playerNameOf(G.st, list[0][0])}\u2019s`} hirelings x${list[0][1]}` : `Hirelings: ${list.map(([o, k]) => `${o === G.st.ch.id ? 'yours' : playerNameOf(G.st, o)} ${k}`).join(', ')}` });
+            add(at, { k: 'ally', label: list.length === 1 ? `${list[0][0] === ownSheet(G.st, G.data).id ? 'Your' : `${playerNameOf(G.st, list[0][0])}\u2019s`} hirelings x${list[0][1]}` : `Hirelings: ${list.map(([o, k]) => `${o === ownSheet(G.st, G.data).id ? 'yours' : playerNameOf(G.st, o)} ${k}`).join(', ')}` });
         }
     } else if (G.st.options?.hirelingRules) {
         // hireling rules: each follower is where his guide left him (not all with the hero), a hired leader or controlled creature is a counter of his own on the map (a seat), and a hidden one is said so
@@ -80,12 +82,12 @@ export function mapModel(G) {
             e.n++; if (o.hidden) e.hid++;
         }
         for (const [at, e] of by) add(at, { k: 'ally', label: `${e.hid === e.n ? 'Hidden' : 'Your'} hirelings x${e.n}` });          // (all of them hidden: dark side up)
-    } else if (hires.length && G.st.ch.at) add(G.st.ch.at, { k: 'ally', label: `Your hirelings x${hires.length}` });
+    } else if (hires.length && ownSheet(G.st, G.data).at) add(ownSheet(G.st, G.data).at, { k: 'ally', label: `Your hirelings x${hires.length}` });
     // while a Move phase is being set, the clearings he can walk to are ringed on the map: the map is where moves are chosen
     G.ui.moveTargets = []; G.ui.moveMaybe = [];
-    if (G.ui.sheet === 'plan' && G.st.pending?.type === 'plan' && G.ui.draft) {
+    if (G.ui.sheet === 'plan' && questionOf(G.st, G.data)?.type === 'plan' && G.ui.draft) {
         const i = G.ui.planStep;
-        if (i != null && (G.ui.pickMove === i || (G.st.ch.onRoad && i === 0))) {
+        if (i != null && (G.ui.pickMove === i || (ownSheet(G.st, G.data).onRoad && i === 0))) {
             // planlogic.js: the roads he can walk (no cave in a sunlight phase, only the mountain once a climb is begun) and the hidden paths a Search earlier in the plan may find (6.2.4e)
             const o = moveOptions(G.st, G.data, G.ui.draft.slots, i);
             G.ui.moveTargets = o.sure; G.ui.moveMaybe = o.maybe;
@@ -94,7 +96,7 @@ export function mapModel(G) {
     const localParty = !G.shared && !G.race && leaderGame(G.st);
     return {
         tiles: G.data.tiles, art: G.data.art, placements: G.st.placements, side: 'normal', showHidden: false, discovered: knownPathPairs(G.st),
-        chitsByTile, tokens, hero: G.st.ch.onRoad || G.st.ch.dead || G.st.ch.flying ? null : G.st.ch.at, heroAir: !G.st.ch.dead && G.st.ch.flying ? G.st.ch.flying.tile : null, heroHidden: G.st.ch.hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
+        chitsByTile, tokens, hero: ownSheet(G.st, G.data).onRoad || G.st.ch.dead || ownSheet(G.st, G.data).flying ? null : ownSheet(G.st, G.data).at, heroAir: !G.st.ch.dead && ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : null, heroHidden: ownSheet(G.st, G.data).hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
         onTap: id => {
             // a spell aimed on the map (Talk to Wise Bird): a tap on a ringed clearing is the answer; the fight comes back with it chosen
             if (G.ui.combatMap && G.ui.aimMap) {
@@ -110,12 +112,12 @@ export function mapModel(G) {
                 else { showPin(G, id, `No more than ${a.max}.`, 'bad'); return; }
                 render(G); return;
             }
-            if (G.ui.sheet === 'plan' && G.st.pending?.type === 'plan' && G.ui.draft) {
+            if (G.ui.sheet === 'plan' && questionOf(G.st, G.data)?.type === 'plan' && G.ui.draft) {
                 // planning: a tap on a clearing next to where this phase starts sets the move; any other tap just looks at that clearing
                 const i = G.ui.planStep;
                 // Fly: a tap on any clearing of a ringed tile chooses that tile
                 if (i != null && (G.ui.pickFly === i || (G.ui.draft.slots[i]?.act === 'fly' && !G.ui.draft.slots[i].to))) { const t = tileOf(id); if (flyTiles(G.st, G.data).includes(t)) { setFly(G, i, t); return; } }
-                const wantsMove = i != null && (G.ui.pickMove === i || (G.st.ch.onRoad && i === 0));
+                const wantsMove = i != null && (G.ui.pickMove === i || (ownSheet(G.st, G.data).onRoad && i === 0));
                 // only a clearing that is ringed can be chosen: the same list the ring is drawn from (so no cave in a sunlight phase, and nothing that would wipe the later phases)
                 if (wantsMove && (G.ui.moveTargets.includes(id) || G.ui.moveMaybe.includes(id))) { setMove(G, i, id); return; }
                 const why = wantsMove ? dimWhy(G, i).get(id) : null;
@@ -123,7 +125,7 @@ export function mapModel(G) {
                 clearPin(G);
                 G.ui.sel = id; G.ui.peek = true; render(G); return;
             }
-            if (G.st.pending?.type === 'phase-pick' && G.ui.pickAct === 'move' && (G.st.pending.moves ?? []).includes(id)) { G.ui.pickAct = null; act(G, { type: 'pick', slot: { act: 'move', to: id } }); return; }          // Prophecy: the Move is chosen on the map
+            if (questionOf(G.st, G.data)?.type === 'phase-pick' && G.ui.pickAct === 'move' && (questionOf(G.st, G.data).moves ?? []).includes(id)) { G.ui.pickAct = null; act(G, { type: 'pick', slot: { act: 'move', to: id } }); return; }          // Prophecy: the Move is chosen on the map
             clearPin(G); G.ui.sel = id; G.ui.sheet = 'clearing'; render(G);
         },
         // a shared table: one counter a player; a party with hired leaders: one counter a seat (the hirer round, a leader square, a creature a diamond; leaders.js)
@@ -139,7 +141,7 @@ export function mapModel(G) {
 }
 
 // Where he is for the camera: his clearing, the near end of the road he fled along, or (in the air) the tile he is over, whose id the map also takes.
-const heroSpot = G => (G.st.ch.flying ? G.st.ch.flying.tile : G.st.ch.onRoad ? G.st.ch.onRoad.from : G.st.ch.at);
+const heroSpot = G => (ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : ownSheet(G.st, G.data).onRoad ? ownSheet(G.st, G.data).onRoad.from : ownSheet(G.st, G.data).at);
 
 // ---- the map's overlay (rings, the route, the "why" pin) and its camera: the vocabulary of mapview.js (docs/design/redesign/MAP-API.md) ----
 // Why a road he could see is not open to this Move: said in one sentence on a pin when he taps it (the ring is dashed).
@@ -202,7 +204,7 @@ function revealChoices(G, hero) {
     if (G.ui.aimMap) return;                 // (aiming a spell on the map: the player looks where they like)
     const ids = G.map.getOverlay().rings.filter(r => r.kind !== 'illegal').map(r => r.id);
     if (!ids.length) { G.ui.revealKey = null; return; }
-    const key = [G.st.day, G.ui.planStep, G.st.pending?.type, G.ui.pickAct, ...ids].join('|');
+    const key = [gameOf(G.st, G.data).day, G.ui.planStep, questionOf(G.st, G.data)?.type, G.ui.pickAct, ...ids].join('|');
     if (G.ui.revealKey === key) return;
     G.ui.revealKey = key;
     G.map.reveal([hero, ...ids]);
@@ -222,18 +224,18 @@ function syncCamera(G, force = false) {
 // The status strip (mockup 01): menu, Day and phase (opens the calendar), Fame / Notoriety / Gold (one button: the Kit), VP (the goals).
 function renderStrip(G) {
     // A hired leader's seat is on screen: his Fame, Notoriety and the score are his hirer's at once (7.7.2b), so the strip shows the hirer's (his own gold is on his sheet)
-    const seat = G.st.ch?.leader ? G.st.chars[G.st.ch.leader.hirer] : null, ch = seat ?? G.st.ch, asHirer = fn => (seat ? withActor(G.st, seat.id, fn) : fn());
-    const cursed = (ch.curses ?? []).length > 0, magicToday = dayColors(G.st.day, G.st.lastDay ?? 28);
+    const seat = G.st.ch?.leader ? G.st.chars[ownSheet(G.st, G.data).leader.hirer] : null, ch = seat ?? G.st.ch, asHirer = fn => (seat ? withActor(G.st, seat.id, fn) : fn());
+    const cursed = (ch.curses ?? []).length > 0, magicToday = dayColors(gameOf(G.st, G.data).day, gameOf(G.st, G.data).lastDay ?? 28);
     // Fame and Notoriety are what counts (recorded plus what the things he owns add); the recorded part is in the Kit.
     let ern = null; try { ern = asHirer(() => earned(G.st, G.data)); } catch { /* scoring not available */ }
     const total = (kind, val) => (ern && (kind === 'fame' || kind === 'notoriety') ? ern[kind] : val);
-    const tot = asHirer(() => vpNow(G)), dead = G.st.period === 'over' && ch.dead;
+    const tot = asHirer(() => vpNow(G)), dead = gameOf(G.st, G.data).period === 'over' && ch.dead;
     // The score is counted from the shortfall of each goal, so on day 1 it is a negative number: the honest figure, and the one Mike wants on the chip (it said "0/N" until the first night: QA-19, reversed by note 32).
     // DR-14: the strip does not run ahead of the Day Result. While the morning report is on screen it keeps the day, the phase and the numbers it showed at midnight; the new day shows when it is closed.
-    const cur = { day: G.st.day, total: lastDayOf(G.st), phase: G.st.period === 'over' ? 'finished' : G.st.period, gold: ch.gold, fame: total('fame', ch.fame), notor: total('notoriety', ch.notoriety),
+    const cur = { day: gameOf(G.st, G.data).day, total: lastDayOf(G.st), phase: gameOf(G.st, G.data).period === 'over' ? 'finished' : gameOf(G.st, G.data).period, gold: ch.gold, fame: total('fame', ch.fame), notor: total('notoriety', ch.notoriety),
         vp: tot > 0 ? `+${tot}` : String(tot).replace('-', '\u2212'), vpc: dead ? 'bad' : tot > 0 ? 'pos' : 'neg', tot };
-    const reportUp = !G.shared && G.st.pending?.type === 'plan' && G.st.day > 1 && G.ui.reportedDay !== G.st.day && G.ui.sheet !== 'plan';
-    const held = reportUp && G.ui.stripSnap && G.ui.stripSnap.day === G.st.day - 1 ? { ...G.ui.stripSnap, phase: 'midnight' } : null;
+    const reportUp = !G.shared && questionOf(G.st, G.data)?.type === 'plan' && gameOf(G.st, G.data).day > 1 && G.ui.reportedDay !== gameOf(G.st, G.data).day && G.ui.sheet !== 'plan';
+    const held = reportUp && G.ui.stripSnap && G.ui.stripSnap.day === gameOf(G.st, G.data).day - 1 ? { ...G.ui.stripSnap, phase: 'midnight' } : null;
     if (!reportUp) G.ui.stripSnap = cur;
     const f = held ?? cur;
     const el = strip({ day: f.day, total: f.total, phase: f.phase, gold: f.gold, fame: f.fame, notor: f.notor, vp: f.vp, vpc: f.vpc,
@@ -262,6 +264,7 @@ function renderStrip(G) {
 }
 
 export function render(G) {
+    fresh(G.st);
     setStoryState(G.st);                                 // (the Story voice finds what a roll came to without every caller passing the state)
     if (G.shared) {
         G.crew = tableCrew(G, party(G.st, G.answer, myId(G)));
@@ -284,8 +287,8 @@ export function render(G) {
     renderTray(G);
     // Sheets are rebuilt on every change; keep each scrolling area where it was while the same question is still on screen
     // (tapping a chit or a target must not throw the view back to the top). A new question starts at the top.
-    const sfKey = G.shared && G.st.battle?.members?.[G.st.ch.id] ? `${G.st.battle.round}.${G.st.battle.step}.${G.st.battle.members[G.st.ch.id].state}.${revealKey(G.st, { at: G.st.battle.at }) && G.ui.revealSeen !== revealKey(G.st, { at: G.st.battle.at }) ? 'r' : ''}` : '';
-    const viewKey = `${G.st.pending?.type ?? ''}|${G.st.combat?.round ?? ''}|${G.ui.sheet ?? ''}|${sfKey}`;
+    const sfKey = G.shared && tableFight(G.st, G.data)?.members?.[ownSheet(G.st, G.data).id] ? `${tableFight(G.st, G.data).round}.${tableFight(G.st, G.data).step}.${tableFight(G.st, G.data).members[ownSheet(G.st, G.data).id].state}.${revealKey(G.st, { at: tableFight(G.st, G.data).at }) && G.ui.revealSeen !== revealKey(G.st, { at: tableFight(G.st, G.data).at }) ? 'r' : ''}` : '';
+    const viewKey = `${questionOf(G.st, G.data)?.type ?? ''}|${G.st.combat?.round ?? ''}|${G.ui.sheet ?? ''}|${sfKey}`;
     const scrolled = new Map();
     const SCROLLERS = '.cb-scroll, .ds-sheet-body, .tray-body, .journal';
     if (G.ui.scrollKey === viewKey) G.layer.querySelectorAll(SCROLLERS).forEach(el => scrolled.set(el.className, el.scrollTop));
@@ -304,8 +307,8 @@ export function render(G) {
     if (moved) { const first = G.lastHero === null; G.lastHero = hero; G.map.focus(hero, undefined, !first); }
     revealChoices(G, hero);
     // A Move phase that is about to be played: show where he is and where he is going, so the press is a decision with the road in view.
-    { const pp = G.st.pending, slot = pp?.type === 'phase' ? G.st.plan?.[pp.i] : null;
-      if (slot?.act === 'move' && slot.to && slot.to !== EDGE) { const key = `${G.st.day}.${pp.i}.${slot.to}`; if (G.ui.framedMove !== key) { G.ui.framedMove = key; G.map.frame([hero, slot.to]); } } }
+    { const pp = questionOf(G.st, G.data), slot = pp?.type === 'phase' ? G.st.plan?.[pp.i] : null;
+      if (slot?.act === 'move' && slot.to && slot.to !== EDGE) { const key = `${gameOf(G.st, G.data).day}.${pp.i}.${slot.to}`; if (G.ui.framedMove !== key) { G.ui.framedMove = key; G.map.frame([hero, slot.to]); } } }
     syncCamera(G, moved);
     syncMapButton(G);
     saveUi(G);
@@ -356,7 +359,7 @@ export function syncMapButton(G) {
 
 // Monsters whose home row the Monster Roll has just called: they are the ones that can come to you at the end of the turn.
 export function prowlers(G) {
-    const alive = G.st.mons.filter(m => !m.dead && !m.hired && (G.data.monsters[m.id].homeRow === G.st.prowl || G.data.monsters[m.id].prowlsEveryDay));
+    const alive = G.st.mons.filter(m => !m.dead && !m.hired && (G.data.monsters[m.id].homeRow === gameOf(G.st, G.data).prowl || G.data.monsters[m.id].prowlsEveryDay));
     const by = {};
     for (const m of alive) (by[G.data.monsters[m.id].name] ??= 0), by[G.data.monsters[m.id].name]++;
     return Object.entries(by).map(([name, n]) => (n > 1 ? `${name} x${n}` : name));

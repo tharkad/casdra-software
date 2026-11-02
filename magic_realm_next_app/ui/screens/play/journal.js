@@ -1,10 +1,11 @@
 // play/journal.js: the Journal (mockup 02-c2): one sheet for what the drawer, the dice sheet and the log used to be. A row of standing states (curse, the day's magic, spells in force,
 // the wilds), what is new (an item, a find, a curse: tap to read it), the last roll with its dice, then the story so far, newest first, grouped by day, in the voice the player chose.
 // Story | Detail sits in the head (one stored preference). It opens at half with the map above and remembers its detent (mr-journal-detent: half or tall).
-import { WEIGHT_WORDS } from '../../../engine/core.js';
-import { nameOf, summaryOf, weightOf } from '../../../engine/items.js';
-import { ATTACK_SPELLS, castOptions, dayColors } from '../../../engine/spells.js';
-import { nameOfClearing, tileName } from '../../../engine/world.js';
+import { WEIGHT_WORDS } from '../../../engine/catalogue.js';
+import { nameOf, summaryOf, weightOf } from '../../../engine/catalogue.js';
+import { dayColors } from '../../../engine/catalogue.js';
+import { ATTACK_SPELLS, castOptions } from '../../../engine/spells.js';
+import { nameOfClearing, tileName } from '../../../engine/catalogue.js';
 import { latestRoll } from '../../dice.js';
 import { h } from '../../dom.js';
 import { found, sect, voiceSwitch } from '../../ds.js';
@@ -18,6 +19,7 @@ import { CURSE_PLAIN, ico, modal, moveDetent } from './kit.js';
 import { itemParts } from './sheet_char.js';
 import { prowlers, render } from './shell.js';
 import { steedAloft } from '../../steeds.js';
+import { gameOf } from '../../combat/feed.js';
 
 const CURSE_SHORT = { Eyemist: 'you cannot Search', Squeak: 'you cannot Hide', Wither: 'asterisk chits cannot be played', 'Ill Health': 'you cannot Rest', Ashes: 'your gold is worthless', Disgust: 'your Fame is worthless' };
 
@@ -116,10 +118,10 @@ export function journalSheet(G) {
     const nt = notices(G), news = foundBoxes(G, journalNew(G)), roll = lastRoll(G), log = logSections(G);
     const body = h('div', { class: 'journal' },
         nt.length ? h('div', { class: 'ds-notes' }, ...nt) : null,
-        G.ui.jWilds && G.st.prowl ? wildsLine(G) : null,
+        G.ui.jWilds && gameOf(G.st, G.data).prowl ? wildsLine(G) : null,
         news.length ? [sect('New'), ...news] : null,
         roll, ...(log.length ? log : [h('p', { class: 'ds-meta' }, 'Nothing has happened yet. Your story begins here.')]));
-    const frag = modal(G, 'The story so far', body, { close, detent, eyebrow: `Day ${G.st.day}`, head: voiceSwitch(), cls: 'journal-sheet', noPull: true });
+    const frag = modal(G, 'The story so far', body, { close, detent, eyebrow: `Day ${gameOf(G.st, G.data).day}`, head: voiceSwitch(), cls: 'journal-sheet', noPull: true });
     const el = frag.sheet;
     // the handle: pull up for tall, down for half, down again to put it away
     const grab = el.querySelector('.ds-grab'); let y0 = null;

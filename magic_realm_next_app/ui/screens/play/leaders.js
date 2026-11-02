@@ -13,7 +13,7 @@
 //   showSeat(G, id)          a tap on a seat's counter on the map
 // Story words are plain and short; Detail names the rule. Nothing here decides a rule: the engine refuses, the sheet says why.
 import { meetOptions } from '../../../engine/meet.js';
-import { nameOfClearing } from '../../../engine/world.js';
+import { nameOfClearing } from '../../../engine/catalogue.js';
 import { voiced } from '../../commit.js';
 import { h } from '../../dom.js';
 import { btn, primary, sect, voiceSwitch } from '../../ds.js';
@@ -30,6 +30,7 @@ import { render } from './shell.js';
 import { switchTo } from './hotseat.js';
 import { myId } from './state.js';
 import { playerOf } from '../../meet.js';
+import { gameOf, questionOf } from '../../combat/feed.js';
 
 const nb = s => String(s).replace(/ (\d+)$/, ' $1');
 
@@ -88,16 +89,16 @@ export function seatLine(G) {
 // ---------------------------------------------------------------------------------------------------------------------------------- who goes with whom
 function assignState(G) {
     const a = G.ui.assign;
-    if (!a || a.day !== G.st.day || a.who !== G.st.actor) G.ui.assign = { day: G.st.day, who: G.st.actor, picked: {}, confirmed: false };
+    if (!a || a.day !== gameOf(G.st, G.data).day || a.who !== G.st.actor) G.ui.assign = { day: gameOf(G.st, G.data).day, who: G.st.actor, picked: {}, confirmed: false };
     return G.ui.assign;
 }
 /** Does the plan still need the assignment sheet? Underlings that can be assigned today and no confirmation yet. */
 export function needsAssign(G) {
-    const p = G.st.pending, a = G.ui.assign;
+    const p = questionOf(G.st, G.data), a = G.ui.assign;
     if (p?.type !== 'plan' || !p.underlings?.some(u => !u.today)) return false;
-    return !(a && a.day === G.st.day && a.who === G.st.actor && a.confirmed);
+    return !(a && a.day === gameOf(G.st, G.data).day && a.who === G.st.actor && a.confirmed);
 }
-export const assignRows = G => { const a = assignState(G); return underlingRows(G.st, G.data, G.st.pending?.underlings, G.ui.assignMemory, a.picked); };
+export const assignRows = G => { const a = assignState(G); return underlingRows(G.st, G.data, questionOf(G.st, G.data)?.underlings, G.ui.assignMemory, a.picked); };
 /** The `assign` map the plan carries, and what was chosen is remembered for tomorrow's default. */
 export function takeAssign(G) {
     const rows = assignRows(G);
@@ -140,7 +141,7 @@ export function assignSheet(G) {
 
 /** The one line the plan tray shows once the plan is whole: who follows whom, and the button to change it. */
 export function followersLine(G) {
-    const p = G.st.pending;
+    const p = questionOf(G.st, G.data);
     if (p?.type !== 'plan' || !p.underlings?.length) return null;
     const rows = assignRows(G), sum = assignSummary(rows), a = assignState(G);
     return h('div', { class: 'as-line', 'data-as-line': '' }, h('span', { class: 'ds-dim' }, sum ? `Followers: ${nb(sum)}.` : 'Your followers wait until tomorrow.'),

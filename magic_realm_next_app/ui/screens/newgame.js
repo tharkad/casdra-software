@@ -4,7 +4,7 @@ import { sheet, sect } from '../ds.js';
 import { castable } from '../../engine/spells.js';
 import { loadData } from '../dataload.js';
 import { newGame as startState } from '../../engine/setup.js';
-import { nameOfClearing } from '../../engine/world.js';
+import { nameOfClearing } from '../../engine/catalogue.js';
 import { createRace, joinRace, peekRace, serverUrl } from '../online.js';
 import { createShared, joinShared, chooseShared } from '../shared_online.js';
 import { bar, cardSrc, foot, nb, openSheet, portraitSrc, seatBadge, sum, switchRow } from '../front.js';

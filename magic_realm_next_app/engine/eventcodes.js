@@ -115,6 +115,7 @@ export const EVENT_CODES = {
     'den.survived': ['8.5.3', 'fight'],
     'hero.struck': ['8.5', 'fight'],
     'hero.armor.hit': ['8.5.2', 'fight'],
+    'hero.hurt': ['8.5.3', 'fight'],
     'hero.wounded': ['8.5.3', 'fight'],
     'hero.fatigued': ['8.5.3', 'fight'],
     'hero.slain': ['8.5.3', 'fight'],

@@ -7,6 +7,7 @@ import { scoreGame } from '../../../engine/score.js';
 import { h } from '../../dom.js';
 import { putRecord } from '../../gamestore.js';
 import { meetLines } from '../../meet.js';
+import { gameOf } from '../../combat/feed.js';
 
 const SAVE_KEY = 'mr-save-v1';
 
@@ -89,7 +90,7 @@ export function drawSeen(G, day) { try { return Number(localStorage.getItem(draw
 export function markDrawSeen(G, day) { try { localStorage.setItem(drawKey(G), String(day)); } catch { /* ignore */ } }
 
 // The score as it stands today, worked the way the game works it out at the end.
-export function vpNow(G) { try { return G.st.period === 'over' && G.st.ch.dead ? -100 : scoreGame(G.st, G.data).total; } catch { return 0; } }
+export function vpNow(G) { try { return gameOf(G.st, G.data).period === 'over' && G.st.ch.dead ? -100 : scoreGame(G.st, G.data).total; } catch { return 0; } }
 
 // The one mutable object of the game screen. Fields:
 //   ctx            the router context (go(), params, saved, state, data)

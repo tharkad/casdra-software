@@ -1,8 +1,9 @@
 // play/dayresult.js: what a day came to, as facts (daySummary) and as a Story sentence. The Day Result sheet (results.js reportSheet) leads with the headline, then the rows that have
 // something in them (Slain, Found, Bought, Sold, Cursed), then the three score frames. Everything is read from the day's log lines (the engine logs no structured record of a day) and from
 // `st.report` (what Fame, Notoriety and Gold moved over the day). Nothing here writes to the game.
-import { nameOfClearing } from '../../../engine/world.js';
+import { nameOfClearing } from '../../../engine/catalogue.js';
 import { crowd } from '../../storyvoice.js';
+import { ownSheet } from '../../combat/feed.js';
 
 const strip = n => String(n).replace(/ #\d+$/, '').replace(/ \d+$/, '').trim();            // "Rogue Swordsman 6" / "Ghost #2" -> "Rogue Swordsman" / "Ghost"
 const cap = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -44,7 +45,7 @@ export function daySummary(G, day) {
 // "You cut down a Wolf at Curst Valley 4 and walked away with a Ruby." The kill leads (taste: "lead with the fact that I killed the monsters").
 function storyHeadline(G, s) {
     if (s.empty) return 'A quiet day. Nothing won, nothing lost.';
-    const at = G.st.ch?.at && !G.st.ch.onRoad ? nameOfClearing(G.st.ch.at) : null;
+    const at = G.st.ch?.at && !ownSheet(G.st, G.data).onRoad ? nameOfClearing(ownSheet(G.st, G.data).at) : null;
     const things = s.found.filter(f => !f.site).map(f => f.name), sites = s.found.filter(f => f.site).map(f => f.name);
     const lead = [];
     if (s.kills.length) lead.push(`You cut down ${crowd(s.kills.map(k => k.name)).text}${at ? ` at ${at.replace(/ (\d+)$/, ' $1')}` : ''}`);

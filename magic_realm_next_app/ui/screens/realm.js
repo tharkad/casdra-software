@@ -1,9 +1,9 @@
 import { h, sv } from '../dom.js';
 import { bar, foot, sum } from '../front.js';
-import { EDGES, hexCenter, edgeDir, corners, worldEdge } from '../../engine/hex.js';
+import { EDGES, hexCenter, edgeDir, corners, worldEdge } from '../../engine/catalogue.js';
 import { makeRng } from '../../engine/rng.js';
 import { generateRealm, tileById } from '../../engine/mapbuild.js';
-import { layoutSide } from '../../engine/layout.js';
+import { layoutSide } from '../../engine/catalogue.js';
 
 // Realm viewer: a generated 20-tile realm you can pan and zoom, with a sheet for the tapped clearing.
 // This is a development view (every path is shown on request); the real game shows each character only what they have discovered.

@@ -1,13 +1,13 @@
 // screens/kit/hire.js (P2): the Hire sheet as a parley. First a card per group that will hire out (the printed counters, their mood, the wages, one chip that changes the dice: stand a
 // round), then one button, "Ask the Lancers"; then the answer: the roll, the price as the headline, who you would get and for how long, and "Not at that price" as easy as the yes.
 // Payloads are the old sheet's: { type: 'hire', act: 'pick', group, rehire, drinks } / 'accept' / 'decline' / 'pay' / 'fight' / 'back'.
-import { WEIGHT_WORDS } from '../../../engine/core.js';
+import { WEIGHT_WORDS } from '../../../engine/catalogue.js';
 import { hireStats } from '../../../engine/combat.js';
 import { drinksCost } from '../../../engine/meeting.js';
 import { relFor } from '../../../engine/hire.js';
 import { noDrinks } from '../../../engine/missions.js';
 import { hasCurse } from '../../../engine/effects.js';
-import { nameOfClearing } from '../../../engine/world.js';
+import { nameOfClearing } from '../../../engine/catalogue.js';
 import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
 import { h } from '../../dom.js';
@@ -17,6 +17,7 @@ import { markGroup } from '../../groups.js';
 import { boonContent } from './boon.js';
 import { ask, dimBtn, footRow, moodTag, nativeArt, say, skipBtn, twoLine } from './common.js';
 import { insultContent, offerDice } from './trade.js';
+import { ownSheet, gameOf } from '../../combat/feed.js';
 
 // The counters of a group, as the printed art on the cream tile (monsters in colour, natives as their counters).
 function counters(G, ids, monsters) {
@@ -49,8 +50,8 @@ const titleOf = (G, o) => {
 
 // ---- the answer: a price (the roll, the price as the headline, who you get, the gold left) ----
 function offerContent(G, p) {
-    const until = p.rehire ? (G.st.nats.find(n => n.id === p.members[0])?.hiredUntil ?? G.st.day) + 14 : G.st.day + 13;
-    const left = G.st.ch.gold - p.price;
+    const until = p.rehire ? (G.st.nats.find(n => n.id === p.members[0])?.hiredUntil ?? gameOf(G.st, G.data).day) + 14 : gameOf(G.st, G.data).day + 13;
+    const left = ownSheet(G.st, G.data).gold - p.price;
     const body = h('div', { class: 'kit kit-offer kit-hire-offer' },
         offerDice(G, p) ?? h('p', { class: 'ds-meta' }, p.why),
         h('div', { class: 'kit-pricebox' }, h('div', { class: 'ds-price', 'data-price': String(p.price) }, `${p.price} GOLD`, h('small', {}, `Wages ${p.wage} × ${p.mult}`))),
@@ -59,7 +60,7 @@ function offerContent(G, p) {
             h('p', { class: 'ds-meta' }, `${strengthLine(G, p.members, p.monsters)} They follow you and fight beside you until midnight of day ${until}.`.trim())));
     const label = p.rehire ? `Extend · ${p.price} Gold` : `Hire them · ${p.price} Gold`;
     // (the reason the primary is dim is the foot's line, in red, above the buttons: never below the fold of a scroll)
-    const foot = footRow({ note: p.affordable ? `Gold ${G.st.ch.gold} to ${left}` : `You are ${-left} Gold short.`, bad: !p.affordable,
+    const foot = footRow({ note: p.affordable ? `Gold ${ownSheet(G.st, G.data).gold} to ${left}` : `You are ${-left} Gold short.`, bad: !p.affordable,
         secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'hire-decline', onclick: () => act(G, { type: 'hire', act: 'decline' }) }, 'Not at that price'),
         primary: p.affordable ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'hire-ok', onclick: () => act(G, { type: 'hire', act: 'accept' }) }, label)
             : dimBtn(G, label, `You are ${-left} Gold short.`, { 'data-act': 'hire-ok' }, 'primary') });
@@ -75,8 +76,8 @@ function chooser(G, p) {
     const ashes = hasCurse(G.st, 'Ashes');
     const cards = p.options.map(o => {
         const key = keyOf(o), on = key === sel, dc = drinksCost(G.st, G.data, o.group), rel = o.monsters ? 0 : relFor(G.st, o.group), round = rounds === key;          // (drinks work for pacified monsters too, one gold each, H1)
-        const days = o.rehire ? Math.max(0, Math.min(...o.members.map(id => (G.st.nats.find(n => n.id === id)?.hiredUntil ?? G.st.day) - G.st.day + 1))) : null;
-        const why = G.st.ch.gold < dc ? `A round costs ${dc} Gold and you have ${G.st.ch.gold}.` : null;
+        const days = o.rehire ? Math.max(0, Math.min(...o.members.map(id => (G.st.nats.find(n => n.id === id)?.hiredUntil ?? gameOf(G.st, G.data).day) - gameOf(G.st, G.data).day + 1))) : null;
+        const why = ownSheet(G.st, G.data).gold < dc ? `A round costs ${dc} Gold and you have ${ownSheet(G.st, G.data).gold}.` : null;
         return h('div', { class: `ds-group kit-hcard${on ? ' sel' : ''}`, 'data-hire-card': o.group },
             h('button', { type: 'button', class: 'kit-pick', 'data-hire-group': o.group, 'data-rehire': o.rehire ? '1' : '0', role: 'radio', 'aria-checked': on ? 'true' : 'false', onclick: () => { G.ui.hireSel = on && p.options.length > 1 ? null : key; render(G); } },
                 h('div', { class: 'hd' }, h('b', {}, titleOf(G, o)), o.monsters ? h('span', { class: 'kit-tags' }, h('span', { class: 'ds-tag' }, 'pacified'), round ? moodTag(1) : null) : moodTag(round ? Math.min(2, rel + 1) : rel)),
@@ -95,10 +96,10 @@ function chooser(G, p) {
     const go = () => { const o = pickedOpt, drinks = rounds === keyOf(o); G.ui.hireSel = null; G.ui.drinksFor = null; G.ui.drinks = false; act(G, { type: 'hire', act: 'pick', group: o.group, rehire: !!o.rehire, drinks }); };
     // a planned Hire can be passed: nobody worth hiring, or nothing to hire with. The engine's own answer is `cancel` ("You decide not to hire anyone").
     const skip = skipBtn(() => { G.ui.hireSel = null; G.ui.drinksFor = null; act(G, { type: 'hire', act: 'cancel' }); });
-    const foot = footRow({ note: `You have ${G.st.ch.gold} Gold`, aside: skip, secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'hire-back', onclick: () => { G.ui.hireSel = null; G.ui.drinksFor = null; act(G, { type: 'hire', act: 'back' }); } }, 'Back'),
+    const foot = footRow({ note: `You have ${ownSheet(G.st, G.data).gold} Gold`, aside: skip, secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'hire-back', onclick: () => { G.ui.hireSel = null; G.ui.drinksFor = null; act(G, { type: 'hire', act: 'back' }); } }, 'Back'),
         primary: pickedOpt ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'hire-go', onclick: go }, twoLine(`Ask the ${pickedOpt.group}`, 'roll for the price'))
             : dimBtn(G, twoLine('Ask', 'choose who first'), 'Choose a group to ask first.', { 'data-act': 'hire-go' }, 'primary') });
-    return { title: 'Hire', eyebrow: nameOfClearing(G.st.ch.at), body, foot, decision: true, detent: 'tall' };
+    return { title: 'Hire', eyebrow: nameOfClearing(ownSheet(G.st, G.data).at), body, foot, decision: true, detent: 'tall' };
 }
 
 // hireContent(G, p) -> { title, eyebrow, body, foot, decision }

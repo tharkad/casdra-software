@@ -1,7 +1,7 @@
 // play/steeds.js: the tray while he is in the air on a STEED (7.3.3g): who carries him, what it means, and the one thing he may do about it between two Fly phases: let the steed go (the engine's
 // `dismiss`; 7.3.3g.5: when the steed stops following him he and it must land, in the same clearing, by the usual die). Two taps, like every dismissal: the first asks, the second lets it go.
 // The engine: steeds.js steedReleased (called by hire.js dismissHire). Payload: { type: 'dismiss', kind: 'monster' | 'native', id }.
-import { tileName } from '../../../engine/world.js';
+import { tileName } from '../../../engine/catalogue.js';
 import { voiced } from '../../commit.js';
 import { h } from '../../dom.js';
 import { actIcon } from '../../icons.js';

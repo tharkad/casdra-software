@@ -16,7 +16,7 @@ export function showLoading(G, text = 'The tiles are finding their places.') {
 // An error you can leave. `text` is what happened in the game's own words; `details` (the technical message) is one tap away for the bug report.
 // back: { label, act, go } the quiet button on the left; retry: fn or null (the primary on the right).
 export function showError(G, { title = 'The realm would not open', text = 'Something went wrong while opening the game.', details = '', glyph = 'warn', back = null, retry = null } = {}) {
-    G.strip.replaceChildren(h('span', { class: 'menu' }), h('div', { class: 'ds-day' }, h('b', {}, 'Magic Realm')), h('span'), h('span'));
+    G.strip.replaceChildren(h('span', { class: 'menu' }), h('div', { class: 'ds-day' }, h('b', {}, 'Nolava')), h('span'), h('span'));
     G.mapBox.querySelector('.ds-state-host')?.remove();
     let shown = false; const more = details ? btn('Details', 'quiet sm', { 'data-act': 'error-details', onclick: e => { shown = !shown; e.currentTarget.nextSibling?.remove(); if (shown) e.currentTarget.after(h('p', { class: 'ds-meta ds-error-details' }, details)); } }) : null;
     const card = state({ glyph, color: 'var(--danger)', title, text, body: more });

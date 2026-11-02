@@ -1,4 +1,5 @@
-import { roadsFrom, isMountain, isCave, mapEdgeClearings, nameOfClearing } from '../engine/world.js';
+import { nameOfClearing } from '../engine/catalogue.js';
+import { roadsFrom, isMountain, isCave, mapEdgeClearings } from '../engine/world.js';
 import { planKinds } from '../engine/day.js';
 import { MORPH_REFUSED } from '../engine/magic/morph.js';
 

@@ -2,10 +2,11 @@
 // goals got) and the VERDICT of a finished game (won or not enough: one sentence, the victory points, the three frames, every goal with its bar and what it is worth, the story of the run, what to do
 // next). One screen, shown once, the moment the game is over: the fight stays under the death for the one beat the combat scene gives it (fightBeat), then this. The old death box in the tray and the
 // two death sheets are gone. The restart question (a dead character may return tomorrow with new goals) is a sheet over this screen.
-import { CATS, FACTORS, earned, scoreGame, targets } from '../../../engine/score.js';
-import { priceOf } from '../../../engine/items.js';
+import { CATS, FACTORS } from '../../../engine/catalogue.js';
+import { earned, scoreGame, targets } from '../../../engine/score.js';
+import { priceOf } from '../../../engine/catalogue.js';
 import { ownedItems } from '../../../engine/magic/mist.js';
-import { nameOfClearing } from '../../../engine/world.js';
+import { nameOfClearing } from '../../../engine/catalogue.js';
 import { ask } from '../../ask.js';
 import { carriedGoals } from '../../restartgoals.js';
 import { h } from '../../dom.js';

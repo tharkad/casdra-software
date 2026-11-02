@@ -1,7 +1,7 @@
 // play/actions.js: how an action reaches the game. act() applies it locally, or sends it to the race (actRemote) or to the shared table (actShared); applyAnswer takes the server's
 // answers back in; tableCall / tableNews are the shared table's agreements; refresh, abandon and copyInvite are the online helpers the menu uses.
-import { apply } from '../../../engine/day.js';
-import { nameOf } from '../../../engine/items.js';
+import { apiOf } from '../../../engine/api.js';
+import { nameOf } from '../../../engine/catalogue.js';
 import { daySnapshot, finalize } from '../../../engine/gamerecord.js';
 import { upgradeState } from '../../../engine/party.js';
 import { putRecord } from '../../gamestore.js';
@@ -12,6 +12,7 @@ import { settleSeat, tableCrew } from './leaders.js';
 import { markPhase } from './result_card.js';
 import { render } from './shell.js';
 import { clearSaved, meetEnd, myId, noteError, persist, saveGame } from './state.js';
+import { gameOf, questionOf } from '../../combat/feed.js';
 
 function commit(G, next) { G.st = next; G.ctx.state = G.st; if (!G.race && !G.shared) saveGame(G.st); render(G); forcedAnswer(G); }
 
@@ -20,7 +21,7 @@ export const isForced = p => !!p && p.type === 'search-table' && (p.options ?? [
 function forcedAnswer(G) {
     const p = G.st?.pending;
     if (!isForced(p)) return;
-    const key = `${G.st.day}|${G.st.log?.length ?? 0}|${p.options[0]}`;
+    const key = `${gameOf(G.st, G.data).day}|${G.st.log?.length ?? 0}|${p.options[0]}`;
     if (G.ui.forcedKey === key) return;
     G.ui.forcedKey = key;
     setTimeout(() => { if (G.root.isConnected && G.st?.pending?.type === 'search-table') act(G, { type: 'search-table', table: p.options[0] }); }, 0);
@@ -34,15 +35,17 @@ const addressed = (G, a) => (a.who == null && !G.race && a.type !== 'table' && l
 export function act(G, action) {
     action = addressed(G, action);
     G.ui.combatMap = false; G.ui.mapPeek = false; if (action.type !== 'tidy') G.ui.tradePick = null;
-    if (action.type === 'trade' && action.act === 'buy') { const it = (G.st?.stock?.[G.st.pending?.group] ?? [])[action.idx]; G.ui.lastBuy = it ? { name: nameOf(G.data, it), day: G.st.day } : null; }          // (a refusal does not name the thing: the card says what was asked for)
+    if (action.type === 'trade' && action.act === 'buy') { const it = (G.st?.stock?.[questionOf(G.st, G.data)?.group] ?? [])[action.idx]; G.ui.lastBuy = it ? { name: nameOf(G.data, it), day: gameOf(G.st, G.data).day } : null; }          // (a refusal does not name the thing: the card says what was asked for)
     if (action.type !== 'tidy') markPhase(G, action);                                // (a phase begins: the result card measures what it brought)
     if (action.type !== 'tidy') { G.ui.gainSeen = G.st.gainSeq ?? 0; G.ui.findSeen = G.st.findSeq ?? 0; if (G.shared) G.ui.meetSeen = meetEnd(G); }          // what he found last time is old news once he does something else
     if (G.race) { actRemote(G, action); return; }
     if (G.shared) { actShared(G, action); return; }
     try {
-        const next = apply(G.st, G.data, action);
+        const r = apiOf(G.data).apply(G.st, action);          // (through the API: a refusal is a value; the sentence is still the engine's)
+        if (!r.ok) throw new Error(r.error.params.text);
+        const next = r.state;
         G.rec?.moves.push(JSON.parse(JSON.stringify(action)));
-        const newDay = next.day !== G.st.day;
+        const newDay = next.day !== gameOf(G.st, G.data).day;
         commit(G, next);
         if (newDay) G.rec?.days.push(daySnapshot(next));
         persist(G, next.period === 'over');
@@ -59,7 +62,7 @@ export function actMany(G, actions, { ok } = {}) {
     if (G.shared) { actManyShared(G, actions, ok); return true; }          // (one after the other, each answer the server's: the second is the one the first made possible)
     try {
         let next = G.st; const done = [];
-        for (const a0 of actions) { const a = addressed(G, a0); next = apply(next, G.data, a); done.push(JSON.parse(JSON.stringify(a))); }
+        for (const a0 of actions) { const a = addressed(G, a0); const r = apiOf(G.data).apply(next, a); if (!r.ok) throw new Error(r.error.params.text); next = r.state; done.push(JSON.parse(JSON.stringify(a))); }
         G.rec?.moves.push(...done);
         commit(G, next);
         persist(G, next.period === 'over');
@@ -101,12 +104,12 @@ export function applyAnswer(G, a) {
     G.st = upgradeState(a.view); G.ctx.state = G.st;
     settleSeat(G);          // (a table: the seat of my party that is asked something is the one on screen)
     G.crew = tableCrew(G, party(G.st, a, myId(G)));
-    if (G.st.pending?.type !== 'restart') { G.ui.sharedRestartVp = null; G.ui.sharedRestartChar = null; }
+    if (questionOf(G.st, G.data)?.type !== 'restart') { G.ui.sharedRestartVp = null; G.ui.sharedRestartChar = null; }
     // the game just ended: the result is told first (places, a shared victory, the realm laid bare), once
-    if (G.st.period === 'over' && !G.ui.overAuto) { G.ui.overAuto = true; G.ui.sheet = 'over'; G.ui.mapPeek = false; }
+    if (gameOf(G.st, G.data).period === 'over' && !G.ui.overAuto) { G.ui.overAuto = true; G.ui.sheet = 'over'; G.ui.mapPeek = false; }
     // what the others did in plain sight since I last looked (they moved, hid, fell): the table's own lines are in the log
-    if (before?.chars && before.day === G.st.day) { const seen = observe(before, G.st, myId(G)); if (seen.length) G.feed = [...G.feed, ...seen].slice(-6); }
-    else if (before && before.day !== G.st.day) G.feed = [];
+    if (before?.chars && before.day === gameOf(G.st, G.data).day) { const seen = observe(before, G.st, myId(G)); if (seen.length) G.feed = [...G.feed, ...seen].slice(-6); }
+    else if (before && before.day !== gameOf(G.st, G.data).day) G.feed = [];
     if (G.map) render(G);
     forcedAnswer(G);
 }

@@ -68,15 +68,15 @@ svg.ico.kico.ki-colour { padding: 0; }
 .ds-map-bg { position: absolute; inset: 0; background-repeat: no-repeat; background-position: 50% var(--map-y, 42%); background-size: var(--map-size, 393px auto); transition: background-position var(--d-sheet) var(--ease-io); }
 .ds-map-btn { position: absolute; right: 12px; bottom: 12px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(15, 17, 23, .72); border: 1px solid var(--line-2); color: var(--ink); backdrop-filter: blur(4px); }
 /* map overlays (design vocabulary: the map layer itself is drawn by mapview.js; these are the states it must express) */
-.ds-ring { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; border: 2.5px solid var(--st-legal); box-shadow: 0 0 0 4px rgba(241, 210, 127, .16); pointer-events: none; }
+.ds-ring { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; border: 2.5px solid var(--st-legal); box-shadow: 0 0 0 4px rgba(181, 227, 156, .16); pointer-events: none; }
 .ds-ring.legal { animation: ds-pulse 2.2s var(--ease-io) infinite; }
 .ds-ring.maybe { border-style: dotted; border-color: var(--st-maybe); box-shadow: none; }
 .ds-ring.illegal { border: 2px dashed var(--st-illegal); box-shadow: none; }
 .ds-ring.danger { border-color: var(--st-danger); box-shadow: 0 0 0 4px rgba(226, 104, 92, .18); }
 .ds-ring.locked { border-color: var(--st-locked); box-shadow: 0 0 0 4px rgba(142, 166, 208, .18); }
-.ds-ring.chosen { border-color: var(--gold); background: rgba(217, 180, 90, .22); box-shadow: 0 0 0 5px rgba(217, 180, 90, .28); animation: none; }
-@keyframes ds-pulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(241, 210, 127, .10); } 50% { box-shadow: 0 0 0 8px rgba(241, 210, 127, .22); } }
-.ds-hero { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: #0d0f15; border: 2.5px solid var(--gold-hi); box-shadow: 0 0 0 4px rgba(10, 12, 17, .55), 0 0 14px rgba(241, 210, 127, .5); pointer-events: none; }
+.ds-ring.chosen { border-color: var(--gold); background: rgba(134, 196, 122, .22); box-shadow: 0 0 0 5px rgba(134, 196, 122, .28); animation: none; }
+@keyframes ds-pulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(181, 227, 156, .10); } 50% { box-shadow: 0 0 0 8px rgba(181, 227, 156, .22); } }
+.ds-hero { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: #0d0f15; border: 2.5px solid var(--gold-hi); box-shadow: 0 0 0 4px rgba(10, 12, 17, .55), 0 0 14px rgba(181, 227, 156, .5); pointer-events: none; }
 .ds-hero::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--gold-hi); }
 .ds-hero.hidden::after { background: transparent; }            /* hollow = hidden */
 .ds-hero.hidden { border-style: dashed; }
@@ -134,7 +134,7 @@ svg.ico.kico.ki-colour { padding: 0; }
 .ds-pip img { position: relative; width: 20px; height: 20px; opacity: .8; }
 .ds-pip.done img { opacity: .35; filter: grayscale(.6); }
 .ds-pip.done::after { content: ""; position: absolute; right: -2px; bottom: -3px; width: 12px; height: 12px; border-radius: 50%; background: var(--success) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2.8 6.2l2.2 2.2 4.2-4.6' fill='none' stroke='%230f1117' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>") center/12px no-repeat; }
-.ds-pip.now::before { border-color: var(--gold-hi); background: var(--gold-wash-2); box-shadow: 0 0 0 2px rgba(241, 210, 127, .2); }
+.ds-pip.now::before { border-color: var(--gold-hi); background: var(--gold-wash-2); box-shadow: 0 0 0 2px rgba(181, 227, 156, .2); }
 .ds-pip.now img { opacity: 1; }
 .ds-pip.empty::before { border-style: dashed; } .ds-pip.empty img { opacity: 0; }
 .ds-pip.locked::before { border-color: var(--st-locked); }
@@ -203,7 +203,7 @@ svg.ico.kico.ki-colour { padding: 0; }
 .ds-counter img { max-width: 80%; max-height: 80%; }
 .ds-counter.sm { width: 44px; height: 44px; } .ds-counter.lg { width: 92px; height: 92px; }
 .ds-counter.tall { height: 84px; width: 64px; }
-.ds-counter.sel { box-shadow: inset 0 0 0 2px var(--counter-edge), 0 0 0 3px var(--gold), 0 0 14px rgba(241, 210, 127, .45); }
+.ds-counter.sel { box-shadow: inset 0 0 0 2px var(--counter-edge), 0 0 0 3px var(--gold), 0 0 14px rgba(181, 227, 156, .45); }
 .ds-counter.dead { filter: grayscale(1) brightness(.6); }
 .ds-counter .lbl { position: absolute; left: 4px; right: 4px; bottom: 2px; font: 700 calc(12px * var(--ts, 1))/1 var(--font-ui); color: #6b4a1e; text-align: left; }
 .ds-chit { position: relative; flex: none; width: 52px; height: 58px; border-radius: 10px; background: var(--surface-3); border: 1.5px solid var(--line-2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font: 700 calc(16px * var(--ts, 1))/1 var(--font-ui); }

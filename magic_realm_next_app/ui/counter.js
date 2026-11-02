@@ -1,5 +1,5 @@
 import { sv } from './dom.js';
-import { isBookPic } from '../engine/artbook.js';
+import { isBookPic } from '../engine/catalogue.js';
 import { groupTint } from './groups.js';
 
 // A monster counter drawn the way the game's own counters read: the picture, its name, the vulnerability in a circle (grey when armored), Fame

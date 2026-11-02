@@ -2,7 +2,7 @@
 // on the map and on the Setup Card, Abandon for a campaign), where the six chits are, and Row 6 of the Appearance Chart with the chit in each of its seven boxes.
 // The engine's carriedTasks() says everything shown here; Abandon sends `abandon-chit` after a second tap.
 import { carriedTasks, dwellingAt } from '../../../engine/missions.js';
-import { nameOfClearing } from '../../../engine/world.js';
+import { nameOfClearing } from '../../../engine/catalogue.js';
 import { h } from '../../dom.js';
 import { icon } from '../../icons.js';
 import { chartEl, chitEl, costText, faceInfo, kindTag, whereWords, whyCopy } from '../../missions.js';
@@ -10,6 +10,7 @@ import { voicedWhy } from '../../spellwhy.js';
 import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
 import { say } from './common.js';
+import { ownSheet, questionOf } from '../../combat/feed.js';
 
 const nb = s => String(s).replace(/ (\d+)$/, ' $1');
 const list = a => (a.length <= 1 ? (a[0] ?? '') : `${a.slice(0, -1).join(', ')} and ${a.at(-1)}`);
@@ -25,7 +26,7 @@ function daysTag(t) {
 
 // Give a campaign up: two taps, the first asks (nothing is refunded, and the cost is not paid again)
 function abandonRow(G, t) {
-    const key = `abandon:${t.chit}`, asking = G.ui.abandonAsk === key, between = ABANDON_OK.has(G.st.pending?.type);
+    const key = `abandon:${t.chit}`, asking = G.ui.abandonAsk === key, between = ABANDON_OK.has(questionOf(G.st, G.data)?.type);
     if (t.kind !== 'campaign') return h('p', { class: 'ds-meta ms-nogiveup' }, 'A mission cannot be given up. Keep it until it is delivered or the time runs out.');
     if (!t.mayAbandon || !between) {
         const why = !t.mayAbandon ? whyCopy('a foe of your campaign is still on the map: you cannot give it up (7.2.4j)') : { story: 'You can give a campaign up between phases, not in the middle of something.', detail: 'A campaign can be given up between phases, not in the middle of something (7.2.4j).' };
@@ -74,7 +75,7 @@ function whereRows(G) {
         const info = faceInfo(G.data, c.face), here = !!c.loc?.c;
         const open = () => { G.ui.sel = c.loc.c; G.ui.sheet = 'clearing'; G.ui.peek = false; render(G); };
         const kids = [h('span', { class: 'art2' }, chitEl(G.data, c.face)),
-            h('span', { class: 'main' }, h('b', {}, info.name, kindTag(G.data, c.face)), h('span', {}, c.loc?.c ? `Lying in ${nb(nameOfClearing(c.loc.c))}.` : c.loc?.by ? (c.loc.by === G.st.ch.id ? 'You carry it.' : `${whereWords(G.st, G.data, c)[0].toUpperCase()}${whereWords(G.st, G.data, c).slice(1)}.`) : `Still in its box on the Appearance Chart.`)),
+            h('span', { class: 'main' }, h('b', {}, info.name, kindTag(G.data, c.face)), h('span', {}, c.loc?.c ? `Lying in ${nb(nameOfClearing(c.loc.c))}.` : c.loc?.by ? (c.loc.by === ownSheet(G.st, G.data).id ? 'You carry it.' : `${whereWords(G.st, G.data, c)[0].toUpperCase()}${whereWords(G.st, G.data, c).slice(1)}.`) : `Still in its box on the Appearance Chart.`)),
             here ? icon('right') : null];
         return here ? h('button', { type: 'button', class: 'ds-row ms-where', 'data-act': 'chit-where', 'data-chit': c.id, onclick: open }, ...kids) : h('div', { class: 'ds-row ms-where', 'data-chit': c.id }, ...kids);
     });

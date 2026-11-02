@@ -1,7 +1,7 @@
 import { h, sv } from './dom.js';
-import { EDGES, hexCenter, edgeDir, corners, worldEdge } from '../engine/hex.js';
-import { layoutSide, chitSlotsFor } from '../engine/layout.js';
-import { tileName } from '../engine/world.js';
+import { EDGES, hexCenter, edgeDir, corners, worldEdge } from '../engine/catalogue.js';
+import { layoutSide, chitSlotsFor } from '../engine/catalogue.js';
+import { tileName } from '../engine/catalogue.js';
 import { layoutLabels, pillWidth, PILL_H, COMPACT } from './labels.js';
 import { shapeEl, fan, tagText } from './party.js';
 

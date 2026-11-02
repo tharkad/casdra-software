@@ -17,7 +17,7 @@ import { icon, actIcon } from '../icons.js';
 import { footRow } from './kit/common.js';
 import { committedNote, voiced } from '../commit.js';
 import { isStory } from '../voice.js';
-import { nameOfClearing } from '../../engine/world.js';
+import { nameOfClearing } from '../../engine/catalogue.js';
 import { followReason, playerOf, joinList, offerReading, madeReading, draftReading, BLOCK_WORDS, BLOCK_COST, FOLLOW_WORDS, DAYEND_SAYS, FOLLOW_EXPLAIN, meetLines } from '../meet.js';
 
 const nb = s => String(s).replace(/ (?=\d)/g, ' ');

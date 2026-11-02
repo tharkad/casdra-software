@@ -20,6 +20,7 @@ import { guardIfChanged } from '../tapguard.js';
 import { article, fixNames } from '../names.js';
 import { deploySheet, deployNarration } from '../combat/deploy_ui.js';
 import * as DP from '../combat/deploy.js';
+import { meetingPaid } from '../voice/fight.js';
 import { reviewSheet } from '../combat/sections_review.js';
 import { hireRound } from '../combat/sections_voice.js';
 import { modeOfPending, SCENE_MODES } from '../combat/modes.js';
@@ -37,12 +38,12 @@ const fightKey = (fm, c) => `${fm.day}:${c.at}:${c.rollFrom ?? 0}${fm.battle ? '
 function meetLines(fm, data, c) {
     const by = new Map();
     for (const r of (fm.rolls ?? []).filter(x => x.n > (c.rollFrom ?? 0) && MEET.test(x.what))) by.set(r.what.replace(/^Evening meeting with the ([^:]+).*$/, '$1'), r);
-    const lines = M.fightLines(fm).map(l => l.t);
+    const lines = M.fightLines(fm);
     const story = [], detail = [];
     for (const [g, r] of by) {
         const t = narrateRoll(r)?.line ?? M.cap(r.result ?? '');
         const asked = /^They (?:insult|challenge) you/.test(r.result ?? '');
-        const paid = lines.map(x => new RegExp(`^You pay (\\d+) (\\w+) to avoid the (?:insult|challenge) from the ${g}\\.$`, 'i').exec(x)).find(Boolean);
+        const paid = meetingPaid(lines, g);          // (the voice layer: the event of the payment, else its words)
         const out = asked ? (c.battling?.[g] ? 'You stood your ground. Steel is drawn.' : paid ? `You paid ${paid[1]} ${M.cap(paid[2])}. The ${g} let it lie.` : t) : t;
         story.push(by.size > 1 ? `The ${g}: ${out}` : out);
         detail.push(`${g}: ${r.result ?? ''}${/[.!?]$/.test(r.result ?? '') ? '' : '.'}${asked && paid ? ` You paid ${paid[1]} ${paid[2]}.` : asked && c.battling?.[g] ? ' You chose to fight.' : ''}`);
@@ -344,7 +345,7 @@ export function combatBeat({ st: engineState, data, ui, render }) {
     const hero = heroEl({ st: snap, data, ribbon: null });
     if (how === 'died') hero.querySelector('.face')?.setAttribute('style', 'filter:grayscale(1) brightness(.6)');
     const stage = h('div', { class: 'cb-stage' }, h('div', { class: 'cb-foes noslot' }, ...foeEls), lanesEl({}), hero);
-    const deathLine = [...fm.log].reverse().find(l => l.k === 'combat' && /you are slain|vital spot|Every action chit is wounded/i.test(l.t)) ?? [...fm.log].reverse().find(l => l.k === 'combat' && /You have died/i.test(l.t));
+    const deathLine = [...fm.log].reverse().find(l => l.k === 'combat' && /you are slain|vital spot|Every action chit is wounded/i.test(l.t)) ?? [...fm.log].reverse().find(l => l.k === 'combat' && /You have died/i.test(l.t));          // (still read from the words: a blow that slays him is told in many sentences, and the event does not say which one this screen shows)
     const story = how === 'quiet' ? 'The blows stop. Neither side presses on.' : how === 'died' ? M.nbTag(deathLine ? logText({ ...deathLine, s: deathLine.s ?? null }) : 'You have fallen.') : `${recap.kills.length ? `${M.cap(M.foesPhrase(recap.kills))} fell.` : ''} The clearing is yours.`;
     const detail = how === 'died' ? (deathLine?.t ?? 'You have died.') : how === 'quiet' ? 'The fighting dies down.' : 'Combat is over: nothing hostile is left.';
     const place = nameOfClearing(c.at).replace(/ (\d+)$/, '\u00A0$1');

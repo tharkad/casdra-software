@@ -117,7 +117,7 @@ export function settingsScreen(ctx) {
                     row('Report a bug', null, () => bugSheetFront(), { 'data-act': 'bug' }),
                     row('Advanced', 'Game server address', () => { advanced = !advanced; redraw(); }, { 'data-act': 'advanced', 'aria-expanded': advanced ? 'true' : 'false' }),
                     advanced ? h('div', { class: 'ds-advanced' }, field('Game server address', serverIn), h('p', { class: 'ds-why' }, 'Leave it alone when this page was opened from the game server itself.')) : null),
-                h('p', { class: 'ds-meta ds-about' }, `Magic Realm, third edition · v${VERSION}${BUILD ? `-${BUILD}` : ''}`, h('br'), 'An unofficial fan project. Magic Realm belongs to its owners.'))];
+                h('p', { class: 'ds-meta ds-about' }, `Nolava: a Magical Realm · v${VERSION}${BUILD ? `-${BUILD}` : ''}`, h('br'), 'An unofficial fan project, based on Magic Realm, which belongs to its owners.'))];
     };
     const redraw = () => { const y = root.querySelector('.ds-scroll')?.scrollTop ?? 0; root.replaceChildren(...build()); const s = root.querySelector('.ds-scroll'); if (s && y) s.scrollTop = y; };
     root.append(...build());

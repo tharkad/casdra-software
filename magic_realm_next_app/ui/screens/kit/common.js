@@ -1,8 +1,8 @@
 // screens/kit/common.js (P2): small helpers the Kit, Company, Spells, Trade, Hire and Boon screens share. No state of its own: everything comes in through G.
 // The screens in this folder return sheet CONTENT: { title, eyebrow, body, foot, decision, detent } built with ds.js / dom.js h(), taking G and a small options object.
 // They do not depend on the frame they are shown in. mountSheet() (below) puts the content into the shell's frame, modal() (P0b: a wrapper over ds.js sheet()); `bare` keeps the sheet-body shim for old contents off.
-import { WEIGHT_WORDS } from '../../../engine/core.js';
-import { defOf, nameOf, priceOf, weightOf } from '../../../engine/items.js';
+import { WEIGHT_WORDS } from '../../../engine/catalogue.js';
+import { defOf, nameOf, priceOf, weightOf } from '../../../engine/catalogue.js';
 import { h } from '../../dom.js';
 import { actIcon, art, icon } from '../../icons.js';
 import { itemKindIcon } from '../../kindicons.js';

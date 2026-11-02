@@ -12,7 +12,7 @@ import { clearingSheet } from './sheet_clearing.js';
 import { journalSheet } from './journal.js';
 import { menuSheet } from './sheet_info.js';
 import { playersSheet } from './shared.js';
-import { fightModel, own } from '../../combat/feed.js';
+import { fightModel, ownSheet } from '../../combat/feed.js';
 import { endOfFight } from '../../voice/fight.js';
 
 // A shared fight. Returns true when it filled `out` (the caller returns it as it is), false when there is no fight screen for this seat after all.
@@ -32,7 +32,7 @@ export function sharedFightHost(G, out) {
         else if (G.ui.sheet === 'players') out.push(playersSheet(G));
         else if (G.ui.sheet === 'dice' || G.ui.sheet === 'journal') out.push(journalSheet(G));
         else if (G.ui.sheet === 'log') out.push(journalSheet(G));
-        else if (G.ui.sheet === 'card') out.push(modal(G, own(G.st, G.data).name, h('div', {}, G.data.art?.cards?.[own(G.st, G.data).id] ? h('img', { class: 'cardpic', src: G.data.art.cards[own(G.st, G.data).id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
+        else if (G.ui.sheet === 'card') out.push(modal(G, ownSheet(G.st, G.data).name, h('div', {}, G.data.art?.cards?.[ownSheet(G.st, G.data).id] ? h('img', { class: 'cardpic', src: G.data.art.cards[ownSheet(G.st, G.data).id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
         return true;
     }
     return false;
@@ -73,6 +73,6 @@ export function combatHost(G, out) {
     else if (G.ui.sheet === 'cardinfo') out.push(cardInfoSheet(G));
     else if (G.ui.sheet === 'spell') out.push(spellSheet(G));
     else if (G.ui.sheet === 'piece' && G.ui.piece) out.push(pieceSheet(G));
-    else if (G.ui.sheet === 'card') out.push(modal(G, own(G.st, G.data).name, h('div', {}, G.data.art?.cards?.[own(G.st, G.data).id] ? h('img', { class: 'cardpic', src: G.data.art.cards[own(G.st, G.data).id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
+    else if (G.ui.sheet === 'card') out.push(modal(G, ownSheet(G.st, G.data).name, h('div', {}, G.data.art?.cards?.[ownSheet(G.st, G.data).id] ? h('img', { class: 'cardpic', src: G.data.art.cards[ownSheet(G.st, G.data).id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
     return out;
 }

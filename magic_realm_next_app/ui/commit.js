@@ -9,7 +9,8 @@
 //   voiced(copy)                  a <span> that shows the Story or the Detail words by the voice switch
 //   committedNote(st, data)       the one short line under a list that leaves committed belongings out (sell, pay with, hand over), or null
 import { h } from './dom.js';
-import { extraPhaseCommitment, gearLockedWhy, isWeaponCard, nameOf } from '../engine/items.js';
+import { isWeaponCard, nameOf } from '../engine/catalogue.js';
+import { extraPhaseCommitment, gearLockedWhy } from '../engine/items.js';
 
 export function weaponCardOf(st, data) {
     const w = st.ch?.items?.find(i => i.kind === 'weapon' && i.active && !i.destroyed);

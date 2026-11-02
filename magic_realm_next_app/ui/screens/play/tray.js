@@ -1,11 +1,12 @@
 // play/tray.js: the tray, the decision layer under the map (mockup 01): the last action (one line, tap = the Journal), one situation line, and the action row (pips or a count on the left,
 // ONE primary on the right). It replaces the dock, the dice bar and the drawer. While a plan is being made the plan tray stands in its body (plan.js). Shared table: the players strip and the
 // waiting or decision cards of the table take the body (they scroll, the tray never grows past its budget).
-import { nameOf } from '../../../engine/items.js';
+import { nameOf } from '../../../engine/catalogue.js';
 import { energizeOptions } from '../../../engine/magic/energize.js';
 import { heldOptions } from '../../../engine/magic/phase.js';
 import { phasesFor } from '../../../engine/day.js';
-import { isMountain, nameOfClearing, tileName } from '../../../engine/world.js';
+import { nameOfClearing, tileName } from '../../../engine/catalogue.js';
+import { isMountain } from '../../../engine/world.js';
 import { EDGE, destName } from '../../planlogic.js';
 import { h } from '../../dom.js';
 import { btn, last, pips, primary, situ, tray, twoLine } from '../../ds.js';
@@ -36,6 +37,7 @@ import { seatText, sharedBanner, showPlayer, tableSheetDue } from './shared.js';
 import { render } from './shell.js';
 import { switchTo } from './hotseat.js';
 import { logEnd, myId, newMeetLines } from './state.js';
+import { ownSheet, questionOf } from '../../combat/feed.js';
 
 // A line of the log in the current voice; at a table another seat's 'You' lines are told by name (QA-103).
 const lt = (G, l) => (G.shared ? seatText(G, l) : logText(l));
@@ -77,7 +79,7 @@ function lastLine(G) {
     const x = lastParts(G), news = journalFresh(G).length;
     const el = last({ dice: x.dice.slice(0, 3), b: x.b, t: x.t, attrs: { 'data-act': 'dice', 'aria-label': `The last action: ${x.b}. ${x.t} Open the Journal`, onclick: () => { G.ui.sheet = 'journal'; render(G); } } });
     // DR-22: the day's one narrative beat, what is prowling, is read in full (two lines) while no phase has been played yet; every later phase has the one-line rule
-    if (x.wilds && G.st.pending?.type === 'phase' && G.st.pending.i === 0) {
+    if (x.wilds && questionOf(G.st, G.data)?.type === 'phase' && questionOf(G.st, G.data).i === 0) {
         el.classList.add('two');
     }
     if (x.phase) el.dataset.phaseResult = String(x.phase);                  // (the phase that was just played, told in the line)
@@ -123,7 +125,7 @@ const WAITING = { 'turn-end': ['End of turn', ''], 'evening-end': ['Evening', 'b
     'learn-spell': ['Learn', 'a spell'], 'enchant-choice': ['Enchant', 'choose'], trade: ['Trade', 'choose'], 'trade-offer': ['Trade', 'the price'], hire: ['Hire', 'choose'], 'hire-offer': ['Hire', 'the price'] };
 
 export function renderTray(G) {
-    const p = G.st.pending, st = G.st;
+    const p = questionOf(G.st, G.data), st = G.st;
     const where = st.ch.onRoad ? 'On the road' : st.ch.flying ? `Over the ${tileName(st.ch.flying.tile)}` : nameOfClearing(st.ch.at);
     const planning = p?.type === 'plan' && G.ui.sheet === 'plan' && G.ui.draft;
     const banner = G.shared && !p ? sharedBanner(G) : null;
@@ -299,7 +301,7 @@ function glideHeight(G, from) {
     const done = () => {
         el.removeEventListener('transitionend', onEnd); clearTimeout(G.ui.glideTimer);
         el.style.transition = ''; el.style.height = '';
-        const hero = G.st?.ch?.flying ? G.st.ch.flying.tile : G.st?.ch?.onRoad ? G.st.ch.onRoad.from : G.st?.ch?.at;
+        const hero = G.st?.ch?.flying ? ownSheet(G.st, G.data).flying.tile : G.st?.ch?.onRoad ? ownSheet(G.st, G.data).onRoad.from : G.st?.ch?.at;
         if (to > from && hero && !(G.ui.keepCamUntil > Date.now()) && G.map && G.root.isConnected) G.map.reveal?.([hero], { margin: 56 });
     };
     const onEnd = e => { if (e.target === el && e.propertyName === 'height') done(); };

@@ -5,7 +5,7 @@ import { h, sv } from './dom.js';
 import { ask, btn, primary } from './ds.js';
 import { icon } from './icons.js';
 import { shapeEl, statusLine, tagText, waitingText, joinNames } from './party.js';
-import { nameOfClearing } from '../engine/world.js';
+import { nameOfClearing } from '../engine/catalogue.js';
 import { isStory, logText } from './voice.js';
 import { displayName, fixNames } from './names.js';
 

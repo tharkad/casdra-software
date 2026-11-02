@@ -14,6 +14,7 @@ import { act, applyAnswer, refresh } from './actions.js';
 import { mapModel, render, wireShell } from './shell.js';
 import { plainReason, showError, showLoading } from './states.js';
 import { loadSaved, myId, noteError, persist, restoreUi, saveGame } from './state.js';
+import { ownSheet, gameOf } from '../../combat/feed.js';
 
 export function boot(G) {
     showLoading(G);
@@ -37,7 +38,7 @@ export function boot(G) {
                     return;
                 }
                 G.st = upgradeState(first.view); G.answer = first; G.standings = first.standings ?? []; G.ctx.state = G.st; settleSeat(G); G.crew = tableCrew(G, party(G.st, first, myId(G)));
-                if (G.st.period === 'over') { G.ui.overAuto = true; G.ui.sheet = 'over'; }          // (a finished game opens on its result)
+                if (gameOf(G.st, G.data).period === 'over') { G.ui.overAuto = true; G.ui.sheet = 'over'; }          // (a finished game opens on its result)
                 G.map = mountMap(G.mapBox); wireShell(G);
                 G.mapBox.addEventListener('pointerdown', () => { G.ui.touched = Date.now(); }, { capture: true });
                 window.__mr.game = { get st() { return G.st; }, act: act.bind(null, G), data: G.data, ui: G.ui, render: () => render(G), shared: G.shared, get sconn() { return G.sconn; }, get answer() { return G.answer; }, get standings() { return G.standings; }, get crew() { return G.crew; }, get feed() { return G.feed; }, get map() { return G.map; } };
@@ -45,7 +46,7 @@ export function boot(G) {
                 render(G);
                 G.sconn.watch();
                 // (the trade window after the day's fights is a lobby option, on by default and kept with the game: the server gives every character the standing choice; nothing is sent from here)
-                requestAnimationFrame(() => { G.map.fit(false); G.map.focus(G.st.ch.onRoad ? G.st.ch.onRoad.from : G.st.ch.at, 1.5, false); G.lastHero = G.st.ch.at; });
+                requestAnimationFrame(() => { G.map.fit(false); G.map.focus(ownSheet(G.st, G.data).onRoad ? ownSheet(G.st, G.data).onRoad.from : ownSheet(G.st, G.data).at, 1.5, false); G.lastHero = ownSheet(G.st, G.data).at; });
                 window.addEventListener('resize', () => G.map?.fit(false));
                 return;
             }
@@ -58,7 +59,7 @@ export function boot(G) {
                 window.__mr.game = { get st() { return G.st; }, act: act.bind(null, G), data: G.data, ui: G.ui, render: () => render(G), race: G.race, get standings() { return G.standings; } };
                 G.map.set(mapModel(G), { refit: true });
                 render(G);
-                requestAnimationFrame(() => { G.map.fit(false); G.map.focus(G.st.ch.onRoad ? G.st.ch.onRoad.from : G.st.ch.at, 1.5, false); G.lastHero = G.st.ch.at; });
+                requestAnimationFrame(() => { G.map.fit(false); G.map.focus(ownSheet(G.st, G.data).onRoad ? ownSheet(G.st, G.data).onRoad.from : ownSheet(G.st, G.data).at, 1.5, false); G.lastHero = ownSheet(G.st, G.data).at; });
                 window.addEventListener('resize', () => G.map?.fit(false));
                 return;
             }
@@ -90,7 +91,7 @@ export function boot(G) {
             window.__mr.game = { get st() { return G.st; }, act: act.bind(null, G), data: G.data, ui: G.ui, render: () => render(G), get rec() { return G.rec; } };          // (rec: the game record, whose `moves` are every action the screen sent: tools/ui_leaders.py reads who each one was addressed to)
             G.map.set(mapModel(G), { refit: true });
             render(G);
-            requestAnimationFrame(() => { G.map.fit(false); G.map.focus(G.st.ch.at, 1.5, false); G.lastHero = G.st.ch.at; });
+            requestAnimationFrame(() => { G.map.fit(false); G.map.focus(ownSheet(G.st, G.data).at, 1.5, false); G.lastHero = ownSheet(G.st, G.data).at; });
             window.addEventListener('resize', () => G.map?.fit(false));
         } catch (e) {
             console.error(e);

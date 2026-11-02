@@ -5,7 +5,7 @@
 /* Magic Realm: portrait-first. The design is a night survey map: blue-black ground, parchment type, one gold accent. */
 :root {
     --bg: #0f1117; --panel: #181c27; --panel2: #202636; --line: #323a52; --text: #efe6d0; --dim: #a39a84;
-    --gold: #d9b45a; --gold-deep: #b98a2c; --ember: #d0673c; --moss: #6fae8a; --arcane: #968de0;
+    --gold: #86c47a; --gold-deep: #4f9559; --ember: #d0673c; --moss: #6fae8a; --arcane: #968de0;
     --font-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
     --font-text: 'Alegreya', Georgia, 'Times New Roman', serif;
     --font-ui: 'Alegreya Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;

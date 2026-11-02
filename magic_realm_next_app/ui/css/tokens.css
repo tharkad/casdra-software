@@ -13,20 +13,20 @@
     /* hairlines and control borders */
     --line-1: #262d42;      /* dividers */
     --line-2: #3a4463;      /* control borders */
-    --line-gold: rgba(217, 180, 90, .48);
+    --line-gold: rgba(134, 196, 122, .48);
     /* ink: parchment on night */
     --ink: #efe6d0;         /* primary text */
     --ink-2: #c3b99f;       /* secondary text (8:1 on surface-2) */
     --ink-3: #a29b84;       /* tertiary, 12px labels only in caps (4.9:1 on surface-4, 5.7 on surface-3, 6.8 on the ground: DR-9) */
-    --ink-on-gold: #1b1405;
-    /* gold: the one accent */
-    --gold: #d9b45a;
-    --gold-hi: #f1d27f;
-    --gold-lo: #b98a2c;
-    --gold-wash: rgba(217, 180, 90, .10);
-    --gold-wash-2: rgba(217, 180, 90, .18);
-    --gold-grad: linear-gradient(180deg, #e6c56f 0%, #cfa23a 100%);
-    --gold-grad-press: linear-gradient(180deg, #cfa23a 0%, #b98a2c 100%);
+    --ink-on-gold: #0d1a0f;
+    /* the one accent: a leaf green since Nolava (the names still say gold) */
+    --gold: #86c47a;
+    --gold-hi: #b5e39c;
+    --gold-lo: #4f9559;
+    --gold-wash: rgba(134, 196, 122, .10);
+    --gold-wash-2: rgba(134, 196, 122, .18);
+    --gold-grad: linear-gradient(180deg, #9bd28a 0%, #6db476 100%);
+    --gold-grad-press: linear-gradient(180deg, #6db476 0%, #4f9559 100%);
     /* the three scores */
     --c-gold: #d9b45a;      /* Gold (coins) */
     --c-fame: #7fb0e8;      /* Fame (star) */
@@ -40,7 +40,7 @@
     --info: #7fb0e8;
     /* state colours: one meaning each, on the map and in lists */
     --st-legal: var(--gold-hi);              /* lit: you may choose it */
-    --st-maybe: rgba(241, 210, 127, .75);    /* dotted: maybe (a hidden path) */
+    --st-maybe: rgba(181, 227, 156, .75);    /* dotted: maybe (a hidden path) */
     --st-illegal: rgba(143, 136, 114, .55);  /* dim, dashed: not now; always with a reason */
     --st-selected: var(--gold);              /* chosen */
     --st-locked: #8ea6d0;                    /* fixed by the rules: cannot be cleared */

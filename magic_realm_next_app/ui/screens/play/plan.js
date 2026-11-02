@@ -1,12 +1,13 @@
 // play/plan.js: the plan tray (planTray: tabs, one line, the nine actions, Start the day; tray.js puts it in the tray) and the draft logic behind it (pick, setMove, advance, pruneOver, startDay).
 import { planKinds, phasesFor, validatePlan } from '../../../engine/day.js';
 import { canRecordFly, flySources, flyTiles, hasCarpet } from '../../../engine/magic/fly.js';
-import { isCave, isMountain, nameOfClearing, numOf, tileName } from '../../../engine/world.js';
+import { nameOfClearing, numOf, tileName } from '../../../engine/catalogue.js';
+import { isCave, isMountain } from '../../../engine/world.js';
 import { h } from '../../dom.js';
 import { FOLLOW_FIRST, followReason, playerOf as playerNameOf } from '../../meet.js';
 import { EDGE, actRefusal, canLeaveAt, destName, edgeIndex, planState } from '../../planlogic.js';
 import { followPicker } from '../meetui.js';
-import { nameOf } from '../../../engine/items.js';
+import { nameOf } from '../../../engine/catalogue.js';
 import { alertCardWhy, voiced, weaponCardOf } from '../../commit.js';
 import { wouldDrop } from '../kit/kit.js';
 import { flyRefusal, flyWords, voicedWhy } from '../../spellwhy.js';
@@ -22,6 +23,7 @@ import { actIcon, icon } from '../../icons.js';
 import { ACT_LABEL, CURSE_ACT, CURSE_PLAIN, actArt, mc, showToast } from './kit.js';
 import { describeSlot, searchWhere } from './phases.js';
 import { render } from './shell.js';
+import { ownSheet, questionOf } from '../../combat/feed.js';
 
 // ---- planning: the plan tray (mockup 01 a2 to a6) ----
 // Five tabs, one line that says what to do, the nine actions as game art in a 3x3, and the action row: how many phases are left on the left, Start the day on the right (dim, with its
@@ -30,7 +32,7 @@ import { render } from './shell.js';
 function planLocations(G) { return planState(G.st, G.data, G.ui.draft.slots).at; }
 
 // A weapon card has no alerted side (2.3.4d): while the weapon in hand is one, the Alert phase can only wake a Magic chit. `cardWhy` is the plain sentence, or null when the weapon can be readied.
-const readyMagicOf = G => G.st.ch.chits.filter(x => x.type === 'magic' && x.state === 'active');
+const readyMagicOf = G => ownSheet(G.st, G.data).chits.filter(x => x.type === 'magic' && x.state === 'active');
 function cardWhy(G) { const w = weaponCardOf(G.st, G.data); return w ? alertCardWhy(nameOf(G.data, w)) : null; }
 function cardAlertErrors(G, slots, kinds) {
     const why = cardWhy(G);
@@ -88,17 +90,17 @@ function followNote(G, i) {
 // The nine (or eight, ten, eleven) actions as chips. A dim chip stays tappable and says why.
 const PONY_WHY = 'The pony adds a Move only after a Move of your own: they take turns, and the first Move of the day is never the pony\u2019s.';
 // A Flying Carpet he owns that sleeps today and nothing else to fly with: the Fly chip stays on (7.3.3a.1) and says why it will fail
-const carpetAsleep = G => hasCarpet(G.st) && !flySources(G.st, G.data).length && !G.st.ch.flying && !G.st.ch.morph && !hasSteed(G.st, G.data);
+const carpetAsleep = G => hasCarpet(G.st) && !flySources(G.st, G.data).length && !ownSheet(G.st, G.data).flying && !ownSheet(G.st, G.data).morph && !hasSteed(G.st, G.data);
 function actChips(G, i, at, over, others, baseOver) {
     const d = G.ui.draft, s = d.slots[i], isSpare = planInfo(G).spare === i;
     // a hired leader's plan (6.2.5): the engine names what he may record (`pending.leader.acts`); no Enchant, no Fly of his own, and a controlled monster no Trade or Hire
     // Follow (7.11) is always on the sheet when there is anyone to follow in the game (several characters); it is dim, with the reason, when it cannot be used
-    const L = planActs(G.st.pending), fRows = followRows(G), showFollow = fRows.length > 0;
+    const L = planActs(questionOf(G.st, G.data)), fRows = followRows(G), showFollow = fRows.length > 0;
     const acts = L ? [...L.acts.filter(a => a !== 'follow'), ...(showFollow ? ['follow'] : []), 'nothing']
-        : ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(G.st.ch.chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(canRecordFly(G.st, G.data) || flyRefusal(G.st, G.data) ? ['fly'] : []), ...(showFollow ? ['follow'] : []), 'nothing'];
+        : ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(ownSheet(G.st, G.data).chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(canRecordFly(G.st, G.data) || flyRefusal(G.st, G.data) ? ['fly'] : []), ...(showFollow ? ['follow'] : []), 'nothing'];
     const n = acts.length;
     return h('div', { class: `ds-acts n${n}` }, ...acts.map(a => {
-        const curse = (G.st.ch.curses ?? []).find(c => CURSE_ACT[c] === a), refused = actRefusal(G.st, a) ?? (a === 'fly' && flyRefusal(G.st, G.data) ? voicedWhy(flyRefusal(G.st, G.data)) : null);          // (a transformed hero cannot play a Fly chit: the chip stays, dim, and says so)
+        const curse = (ownSheet(G.st, G.data).curses ?? []).find(c => CURSE_ACT[c] === a), refused = actRefusal(G.st, a) ?? (a === 'fly' && flyRefusal(G.st, G.data) ? voicedWhy(flyRefusal(G.st, G.data)) : null);          // (a transformed hero cannot play a Fly chit: the chip stays, dim, and says so)
         const spent = !curse && !refused && a !== 'nothing' && a !== 'follow' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver;
         const cardOnly = a === 'alert' && !readyMagicOf(G).length ? cardWhy(G) : null;          // (no Magic chit to wake either: the Alert would do nothing)
         const why = curse ? `${curse}: ${CURSE_PLAIN[curse] ?? 'it spoils this action.'}` : refused ?? (a === 'follow' ? followDim(G, i, fRows) : null) ?? (cardOnly ? `${cardOnly.story} There is nothing to ready.` : null) ?? (isSpare && a !== 'move' ? 'This phase is the pony\u2019s: it is for a Move only.' : spent ? (isSpare ? PONY_WHY : 'All your phases are taken.') : null);
@@ -113,10 +115,10 @@ function actChips(G, i, at, over, others, baseOver) {
 function askLine(G, i, step, total) {
     const d = G.ui.draft, s = d.slots[i], moving = G.ui.pickMove === i;
     if (moving) {
-        return h('div', { class: 'ds-plan-ask' }, h('span', {}, 'Where to? ', h('span', { class: 'ds-dim' }, (planLocations(G)[i] || G.st.ch.onRoad) ? 'Tap a ringed clearing.' : 'You are on a road; move to one of its ends first.')),
+        return h('div', { class: 'ds-plan-ask' }, h('span', {}, 'Where to? ', h('span', { class: 'ds-dim' }, (planLocations(G)[i] || ownSheet(G.st, G.data).onRoad) ? 'Tap a ringed clearing.' : 'You are on a road; move to one of its ends first.')),
             btn('Back', 'quiet sm', { 'data-act': 'plan-back', onclick: () => { G.ui.pickMove = null; render(G); } }));
     }
-    const info = planInfo(G), pony = info.ponyAt.includes(i), who = G.st.ch.leader ? `${seatName(G.st, G.st.ch.id)}, ` : '';          // (a seat's plan says whose it is)
+    const info = planInfo(G), pony = info.ponyAt.includes(i), who = ownSheet(G.st, G.data).leader ? `${seatName(G.st, ownSheet(G.st, G.data).id)}, ` : '';          // (a seat's plan says whose it is)
     const text = info.spare === i ? h('span', { 'data-hint': 'pony-spare' }, h('span', { 'data-v': 'story' }, `Phase ${i + 1}: one more Move, the pony\u2019s.`), h('span', { 'data-v': 'detail' }, `Phase ${i + 1}: the pony\u2019s Move (7.3.2b.3: it alternates with yours).`))
         : s && pony ? h('span', {}, `Phase ${i + 1}: `, h('span', { class: 'ds-dim' }, `pony ${nb(describeSlot(G, s))}.`))
         : s ? h('span', {}, `${who}phase ${i + 1} of ${total}: `.replace(/^(\w)/, c => c.toUpperCase()), h('span', { class: 'ds-dim' }, nb(describeSlot(G, s)), '.')) : h('span', {}, `${who}phase ${i + 1} of ${total}: pick one.`.replace(/^(\w)/, c => c.toUpperCase()));
@@ -160,7 +162,7 @@ function planHints(G, i, at) {
     if (G.ui.planNote) out.push(line(G.ui.planNote, 'bad'));
     out.push(...followNote(G, i));
     out.push(...warningLines(G));
-    if ((G.st.ch.curses ?? []).includes('Wither')) out.push(line('Wither: chits with an asterisk stay tired. Resting will not bring them back.', '', { 'data-hint': 'wither' }));
+    if ((ownSheet(G.st, G.data).curses ?? []).includes('Wither')) out.push(line('Wither: chits with an asterisk stay tired. Resting will not bring them back.', '', { 'data-hint': 'wither' }));
     if (s?.act === 'search' && at[i]) out.push(line(searchWhere(G, at[i]), '', { 'data-hint': 'search-where' }));
     if (G.ui.pickMove === i || s?.act === 'move') {
         // where monsters wait: they block you at the end of the phase unless you are hidden, so the ones you could walk into are named
@@ -170,13 +172,13 @@ function planHints(G, i, at) {
         if (heavy.length) out.push(line(`Too heavy for you now: this Move would leave ${heavy.join(', ')} behind. Put something down or use a stronger Move chit first.`, 'bad', { 'data-hint': 'leave-behind' }));
         if (G.ui.pickMove === i && G.ui.moveMaybe?.length) out.push(line(`Dotted: ${G.ui.moveMaybe.map(nameOfClearing).join(', ')} lie along a hidden path you have not found. Your earlier Search may find it; if it has not, this Move is lost.`));
     }
-    if (G.st.ch.leader && G.ui.pickMove !== i) {          // (a seat: what Alert and Rest are for, and what a creature cannot do)
-        const L = planActs(G.st.pending), only = L && [...L.recordOnly].some(a => s?.act === a || !s);
+    if (ownSheet(G.st, G.data).leader && G.ui.pickMove !== i) {          // (a seat: what Alert and Rest are for, and what a creature cannot do)
+        const L = planActs(questionOf(G.st, G.data)), only = L && [...L.recordOnly].some(a => s?.act === a || !s);
         if (only) out.push(h('p', { class: 'ds-hint-line', 'data-hint': 'leader-plan' }, voiced(PLAN_ONLY_NOTE)));
         if (L?.kind === 'mon' && !s) out.push(h('p', { class: 'ds-hint-line', 'data-hint': 'monster-plan' }, voiced(MONSTER_PLAN_NOTE)));
     }
-    if (G.st.ch.mist) out.push(line('As mist you can only move and hide.', 'bad'));
-    else if (G.st.ch.morph) out.push(line(`In this shape you cannot ${['rest', 'trade', 'hire', 'enchant'].map(a => ACT_LABEL[a]?.toLowerCase() ?? a).join(', ')}.`, 'bad'));
+    if (ownSheet(G.st, G.data).mist) out.push(line('As mist you can only move and hide.', 'bad'));
+    else if (ownSheet(G.st, G.data).morph) out.push(line(`In this shape you cannot ${['rest', 'trade', 'hire', 'enchant'].map(a => ACT_LABEL[a]?.toLowerCase() ?? a).join(', ')}.`, 'bad'));
     if (s?.act === 'move' && s.to && isMountain(G.st, G.data, s.to) && !climbLocked(G, i)) {
         const next = d.slots[i + 1];
         if (!(next?.act === 'move' && next.to === s.to)) out.push(line(`${nameOfClearing(s.to)} is a mountain: it takes two Move phases in a row, so the next phase must be this Move too.`, 'bad'));
@@ -188,7 +190,7 @@ function planHints(G, i, at) {
 // the pickers that stand in for the chips: weapon or Magic chit (Alert), the tile to fly over (Fly), the guide to follow (Follow)
 function subPicker(G, i, at) {
     const d = G.ui.draft, s = d.slots[i];
-    const readyMagic = G.st.ch.chits.filter(x => x.type === 'magic' && x.state === 'active');
+    const readyMagic = ownSheet(G.st, G.data).chits.filter(x => x.type === 'magic' && x.state === 'active');
     if (s?.act === 'alert' && readyMagic.length) {
         const chip = (label, on, fn, key) => h('button', { type: 'button', class: `ds-chip${on ? ' on' : ''}`, 'data-alert': key, onclick: fn }, label);
         const card = cardWhy(G);
@@ -251,7 +253,7 @@ export function planTray(G) {
     }
     // a step that is waiting on nothing but "Next" (a fixed road, a climb's second half) or on the Alert's weapon-or-chit question (Weapon is the default: the question is a choice, not a gate)
     // offers "Next phase" too, so choosing Alert never leaves the player at a dim Start with no way on (QA-7)
-    const alertAsk = step != null && d.slots[step]?.act === 'alert' && !cardWhy(G) && G.ui.pickMove !== step && G.st.ch.chits.some(x => x.type === 'magic' && x.state === 'active');
+    const alertAsk = step != null && d.slots[step]?.act === 'alert' && !cardWhy(G) && G.ui.pickMove !== step && ownSheet(G.st, G.data).chits.some(x => x.type === 'magic' && x.state === 'active');
     prim = startButton(G, step != null && (roadLocked(G, step) || climbLocked(G, step) || alertAsk) && !whole ? open ?? null : false);
     return { body: h('div', { class: 'ds-plan' }, ...kids), lead, primary: prim };
 }
@@ -293,13 +295,13 @@ function startButton(G, nextTo) {
 
 // Out on the road after running away, the first phase is not a choice: it is a Move to one of the road's two ends (rule 8.3.8). The plan starts with it filled in
 // and it cannot be cleared or turned into anything else; only which end can be changed.
-function roadLocked(G, i) { return !!G.st.ch.onRoad && i === 0; }
+function roadLocked(G, i) { return !!ownSheet(G.st, G.data).onRoad && i === 0; }
 
 // Fly: the tile is chosen on the map (a ring on each tile he may fly over) or by the chip fallback; the day goes on to the next phase.
 export function setFly(G, i, t) { G.ui.draft.slots[i] = flySlot(G, i, t); G.ui.pickFly = null; G.ui.planNote = null; advance(G, i + 1); render(G); }
 
 export function newDraft(G) {
-    const slots = Array(9).fill(null), to = G.st.ch.onRoad?.to;
+    const slots = Array(9).fill(null), to = ownSheet(G.st, G.data).onRoad?.to;
     if (to) {
         slots[0] = { act: 'move', to };
         // a road that ends in a mountain is a climb: the second Move goes in with the first (as setMove does)
@@ -312,7 +314,7 @@ export function newDraft(G) {
 }
 
 function roadLockBox(G, d) {
-    const r = G.st.ch.onRoad, cur = d.slots[0]?.to;
+    const r = ownSheet(G.st, G.data).onRoad, cur = d.slots[0]?.to;
     return h('div', { class: 'roadlock' },
         h('div', { class: 'ds-lockbox', role: 'note' }, icon('lock'), h('span', {}, `Fixed: you fled along the road between ${nb(nameOfClearing(r.from))} and ${nb(nameOfClearing(r.to))}. You must Move to one end of it first.`)),
         h('div', { class: 'row2' }, ...[r.from, r.to].map(id => h('button', { type: 'button', class: `ds-btn${cur === id ? ' primary' : ''}`, 'data-road-end': id, 'aria-pressed': cur === id ? 'true' : 'false', onclick: () => { d.slots[0] = { act: 'move', to: id }; G.ui.planNote = null; G.ui.pickMove = null; advance(G, 1); render(G); } }, `${id === r.from ? 'Back to' : 'On to'} ${nb(nameOfClearing(id))}`))));
@@ -343,7 +345,7 @@ function pick(G, i, a, at) {
     d.slots[i] = { act: a };
     G.ui.planNote = null;
     pruneOver(G);
-    if (a === 'alert' && G.st.ch.chits.some(x => x.type === 'magic' && x.state === 'active')) { G.ui.planStep = i; render(G); return; }      // stay: weapon or Magic chit is asked next
+    if (a === 'alert' && ownSheet(G.st, G.data).chits.some(x => x.type === 'magic' && x.state === 'active')) { G.ui.planStep = i; render(G); return; }      // stay: weapon or Magic chit is asked next
     advance(G, i + 1);
     render(G);
 }
@@ -365,7 +367,7 @@ export function setMove(G, i, to) {
         advance(G, i + 1); render(G); return;
     }
     G.ui.leaveMapAsk = null;
-    if (roadLocked(G, i) && to !== G.st.ch.onRoad.from && to !== G.st.ch.onRoad.to) return;
+    if (roadLocked(G, i) && to !== ownSheet(G.st, G.data).onRoad.from && to !== ownSheet(G.st, G.data).onRoad.to) return;
     if (climbLocked(G, i + 1)) d.slots[i + 1] = null;                      // a changed Move takes the second half of its old climb with it
     d.slots[i] = { act: 'move', to };
     // a mountain takes two moves in a row: fill the next phase with the same move

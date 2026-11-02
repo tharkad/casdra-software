@@ -17,13 +17,14 @@ import { switchTo } from '../play/hotseat.js';
 import { flyBadge } from '../../steeds.js';
 import { standing } from '../../missions.js';
 import { steedNote, steedAskWords } from './companysteed.js';
+import { ownSheet, gameOf, questionOf } from '../../combat/feed.js';
 
 // Everyone who is with this character and alive: natives and monsters he hired, and creatures a spell put under his command.
-export function hirelings(G) { return hirelingsOf(G.st, G.st.ch.id).filter(o => !o.dead); }
+export function hirelings(G) { return hirelingsOf(G.st, ownSheet(G.st, G.data).id).filter(o => !o.dead); }
 export const hireCount = G => hirelings(G).length;
 
 const isNat = (G, o) => G.st.nats.includes(o);
-const daysLeft = (G, o) => Math.max(0, (o.hiredUntil ?? G.st.day) - G.st.day + 1);          // hired on day D it runs to midnight of D+13: 14 days counting today
+const daysLeft = (G, o) => Math.max(0, (o.hiredUntil ?? gameOf(G.st, G.data).day) - gameOf(G.st, G.data).day + 1);          // hired on day D it runs to midnight of D+13: 14 days counting today
 
 // The art of a hireling's counter: a native's counter, or a monster's colour counter.
 function counterArt(G, o) {
@@ -95,7 +96,7 @@ function titleOf(G, g) {
 // Let a hireling go (action 'dismiss', between phases only). Two taps: the first asks, the second does it, so a stray tap never costs a hireling.
 const CAN_DISMISS = new Set(['plan', 'phase', 'phase-pick']);
 function dismissRow(G, g, ctl) {
-    const key = `${g.kind}:${g.key}`, can = CAN_DISMISS.has(G.st.pending?.type), asking = G.ui.dismissAsk === key && can;
+    const key = `${g.kind}:${g.key}`, can = CAN_DISMISS.has(questionOf(G.st, G.data)?.type), asking = G.ui.dismissAsk === key && can;
     const who = g.members.length > 1 ? 'them' : g.kind === 'mon' ? 'it' : 'him';
     const go = () => { G.ui.dismissAsk = null; for (const o of g.members) act(G, { type: 'dismiss', kind: g.kind === 'mon' ? 'monster' : 'native', id: o.id }); };
     if (asking) return h('div', { class: 'kit-dismiss asking', 'data-dismiss-ask': '' },

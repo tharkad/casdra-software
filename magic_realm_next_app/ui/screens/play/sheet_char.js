@@ -1,6 +1,6 @@
 // play/sheet_char.js: the character's belongings and spells: the character sheet, item cards, spell cards, spells in force, curses, treasure cards.
-import { WEIGHT_WORDS } from '../../../engine/core.js';
-import { defOf, nameOf, priceOf } from '../../../engine/items.js';
+import { WEIGHT_WORDS } from '../../../engine/catalogue.js';
+import { defOf, nameOf, priceOf } from '../../../engine/catalogue.js';
 import { cardEl } from '../../card.js';
 import { itemFace } from '../../counter.js';
 import { mendCardText } from '../../cardfix.js';
@@ -11,6 +11,7 @@ import { mountSheet } from '../kit/common.js';
 import { spellCardEl, spellContent, spellsContent } from '../kit/spells.js';
 import { CURSE_PLAIN, modal, picOf, voidBy } from './kit.js';
 import { render } from './shell.js';
+import { ownSheet, gameOf } from '../../combat/feed.js';
 
 // The Kit sheet (P2): Kit | Company | Spells, built in screens/kit/*.js. The slot picker is a second small sheet over it.
 export function charSheet(G) { return mountSheet(G, kitContent(G), { close: () => { G.ui.sheet = null; render(G); }, cls: 'kit-sheet' }); }
@@ -39,7 +40,7 @@ export function fxEnds(G, f) {
     if (f.state === 'held') return '(held, not yet used)';
     const e = f.expires;
     if (!e) return f.dur === 'permanent' ? 'until it is broken' : '';
-    return e.at === 'sunset' ? `until Sunset${e.day === G.st.day ? '' : e.day === G.st.day + 1 ? ' tomorrow' : ` of day ${e.day}`}` : e.at === 'midnight' ? 'until Midnight' : e.at === 'phase-end' ? 'this phase' : 'this round';
+    return e.at === 'sunset' ? `until Sunset${e.day === gameOf(G.st, G.data).day ? '' : e.day === gameOf(G.st, G.data).day + 1 ? ' tomorrow' : ` of day ${e.day}`}` : e.at === 'midnight' ? 'until Midnight' : e.at === 'phase-end' ? 'this phase' : 'this round';
 }
 
 // The spells you know, with the ones in force on top: what the dock's spell bar opens (built in screens/kit/spells.js).
@@ -50,9 +51,9 @@ export function spellsSheet(G) {
 
 export function cursesSheet(G) {
     const back = { close: () => { G.ui.sheet = null; render(G); } };
-    const mine = G.st.ch.curses ?? [];
+    const mine = ownSheet(G.st, G.data).curses ?? [];
     const rows = Object.values(G.data.tables.curses.rows);
-    const atChapel = G.st.dwellings.some(d => d.kind === 'Chapel' && d.at === G.st.ch.at);
+    const atChapel = G.st.dwellings.some(d => d.kind === 'Chapel' && d.at === ownSheet(G.st, G.data).at);
     return modal(G, mine.length ? 'You are cursed' : 'Curses', h('div', { class: 'cursesheet' },
         mine.length ? null : h('p', { class: 'hint' }, 'You carry no curse. A curse can fall on you from a Treasure Location card, a Reading Runes result or a Loot result.'),
         ...mine.map(n => h('div', { class: 'curserow' }, h('span', { class: 'skull', 'aria-hidden': 'true' }, '\u2620'), h('div', {}, h('b', {}, n), h('p', {}, CURSE_PLAIN[n] ?? rows.find(r => r.name === n)?.effect ?? '')))),
@@ -122,7 +123,7 @@ export function itemParts(G, it, { size } = {}) {
 }
 
 export function itemSheet(G) {
-    const it = G.st.ch.items.find(i => i.uid === G.ui.itemUid);
+    const it = ownSheet(G.st, G.data).items.find(i => i.uid === G.ui.itemUid);
     const back = { close: () => { G.ui.sheet = G.ui.itemFrom === 'dock' ? null : G.ui.itemFrom === 'journal' ? 'journal' : 'char'; G.ui.itemFrom = null; G.ui.leaveAsk = null; render(G); } };
     if (!it) return modal(G, 'Belonging', h('p', { class: 'hint' }, 'You no longer have it.'), back);
     return mountSheet(G, itemContent(G, it), back);

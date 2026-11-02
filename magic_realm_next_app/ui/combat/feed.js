@@ -34,6 +34,14 @@ export function makeChange(st, data, ids) {
     const chits = heroOf(st, data)?.chits ?? [];
     return (optionsOf(st, data)?.makeChange?.[[...new Set(ids)].sort().join('+')] ?? []).map(id => chits.find(x => x.id === id)).filter(Boolean);
 }
+/** A render starts from a fresh view of the state on screen (a state changed in place since the last render - a script, a test - is read as it is now). */
+export const fresh = st => { if (st) cache.delete(raw(st)); };
+/** The table's game as everyone sees it (view.table.game): day, period, mode, length, options, who is to play. */
+export const gameOf = (st, data, who) => viewOf(st, data, who).table.game;
+/** The fight of the clearing as the table sees it (view.table.fight), or null. */
+export const tableFight = (st, data, who) => viewOf(st, data, who).table.fight;
+/** The question the engine is asking him, as the API shows it (view.pending): the screens that draw a question read it here, not from the state. */
+export const questionOf = (st, data, who) => viewOf(st, data, who).pending;
 /** His own sheet of the fight (view.me.fight): the creatures on it with their stats, his hirelings, the round's tallies. Null outside a fight. */
 export const sheetOf = (st, data, who) => viewOf(st, data, who).me?.fight ?? null;
 /** His own sheet in one record: his public sheet (chits, position, Fame, Notoriety, morph, mist, hidden ...) with what only he knows added (gold, every belonging in full, curses). A spectator, or a state with no such seat, gets an empty sheet. */
@@ -57,6 +65,8 @@ export function fightModel(st, data, who) {
     Object.defineProperty(fm, '__st', { value: s });
     return fm;
 }
+/** `own` under a name that no local variable in the play screens uses. */
+export const ownSheet = own;
 /** His public sheet (table.characters[id]): chits, gear in view, position, Fame, Notoriety ... */
 export const heroOf = (st, data, who) => { const v = viewOf(st, data, who); return v.table.characters[v.viewer.seat] ?? null; };
 /** The API's answer to "would this be accepted?" and the what-if probes of the Melee step (api.check). */

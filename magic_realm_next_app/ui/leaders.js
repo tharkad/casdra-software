@@ -16,9 +16,9 @@
 //   counterLook(o)                 how a hired counter's `side` and `hidden` look: { side, hidden, dark, red, word }
 //   unattendedLines(st, day)       the log of fights a leader had where no character stood (8.1.2b)
 //   seatMarkers(st, data, actor)   the map's counters for the seats of one player's party
-import { WEIGHT_WORDS } from '../engine/core.js';
-import { defOf, nameOf, summaryOf } from '../engine/items.js';
-import { nameOfClearing } from '../engine/world.js';
+import { WEIGHT_WORDS } from '../engine/catalogue.js';
+import { defOf, nameOf, summaryOf } from '../engine/catalogue.js';
+import { nameOfClearing } from '../engine/catalogue.js';
 import { displayName } from './names.js';
 
 export const rulesOn = st => !!st?.options?.hirelingRules;
@@ -147,7 +147,7 @@ export function unattendedFights(st, day) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------- the map
-const SHAPE = { char: 'circle', nat: 'square', mon: 'diamond' }, COLOR = { char: '#d9b45a', nat: '#5fb8a5', mon: '#d9715f' };
+const SHAPE = { char: 'circle', nat: 'square', mon: 'diamond' }, COLOR = { char: '#86c47a', nat: '#5fb8a5', mon: '#d9715f' };
 /** One counter for each living seat of the party that stands somewhere (the engine's `at`, `onRoad`, `flying`): the hirer round and gold, a leader square and teal, a creature a red diamond. */
 export function seatMarkers(st, data, actor) {
     return (st.order ?? []).filter(id => { const c = st.chars[id]; return c && (c.at || c.onRoad || c.flying); }).map(id => {

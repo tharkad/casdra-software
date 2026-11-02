@@ -3,10 +3,11 @@
 // (the Search table, the Loot pick): the owner asked for exactly that, "the site contents should be in the choice screens so you can see what you could get".
 // Only what the Setup Card tells everyone is drawn: Large above Small, never which card is Great (that is unknown until it is looted: the printed rule).
 import { kindIcon, kindOfId } from '../../kindicons.js';
-import { lvl } from '../../../engine/core.js';
-import { nameOf } from '../../../engine/items.js';
+import { lvl } from '../../../engine/catalogue.js';
+import { nameOf } from '../../../engine/catalogue.js';
 import { colorSources } from '../../../engine/spells.js';
-import { nameOfClearing, numOf, roadsFrom, tileName, tileOf } from '../../../engine/world.js';
+import { nameOfClearing, numOf, tileName, tileOf } from '../../../engine/catalogue.js';
+import { roadsFrom } from '../../../engine/world.js';
 import { h } from '../../dom.js';
 import { sect } from '../../ds.js';
 import { actIcon, icon } from '../../icons.js';
@@ -20,6 +21,7 @@ import { openPiece } from './piece_card.js';
 import { markGroup } from '../../groups.js';
 import { render } from './shell.js';
 import { counterLook } from '../../leaders.js';
+import { ownSheet } from '../../combat/feed.js';
 
 const nbsp = s => String(s).replace(/ (\d+)$/, ' $1');
 const REACH = 6;                                                                   // a Loot roll is 1 to 6: the first six cards of a pile can be reached
@@ -40,8 +42,8 @@ function siteCardText(G, e) {
 
 // What looting a site demands, in words (null when it demands nothing).
 function siteNeeds(G, name) {
-    const asterisk = G.st.ch.chits.some(x => x.state === 'active' && x.effort > 0);
-    const tChit = G.st.ch.chits.some(x => x.state === 'active' && lvl(x.strength) >= 4) || G.st.ch.items.some(i => i.id === 'lost-keys' && i.active);
+    const asterisk = ownSheet(G.st, G.data).chits.some(x => x.state === 'active' && x.effort > 0);
+    const tChit = ownSheet(G.st, G.data).chits.some(x => x.state === 'active' && lvl(x.strength) >= 4) || ownSheet(G.st, G.data).items.some(i => i.id === 'lost-keys' && i.active);
     if (name === 'Cairns') return `Every Loot roll costs an asterisk of effort, found or not. ${asterisk ? 'You have one ready.' : 'You have none ready now, so you could not loot it.'}`;
     if (name === 'Pool') return `Each thing taken costs an asterisk of effort. ${asterisk ? 'You have one ready.' : 'You have none ready now.'}`;
     if (name === 'Vault') return G.st.sitesOpen?.Vault ? 'The Vault is open, for everyone.' : `Sealed until opened with a Tremendous-strength chit or the Lost Keys. ${tChit ? 'You can open it.' : 'You cannot open it now.'}`;
@@ -122,7 +124,7 @@ function setupDwelling(G, kind) {
 
 // The sites of the clearing he stands in that Loot could reach, the ground and any site card: for the choice screens (Loot, Search choice).
 export function hereBlocks(G) {
-    const at = G.st.ch.at; if (!at || G.st.ch.onRoad) return [];
+    const at = ownSheet(G.st, G.data).at; if (!at || ownSheet(G.st, G.data).onRoad) return [];
     const tile = tileOf(at), n = numOf(at), out = [];
     for (const c of G.st.chits.filter(x => x.kind === 'site' && x.tile === tile && x.num === n && !x.pile && G.st.ch.discovered.sites.includes(x.id))) out.push(siteBlock(G, c));
     const ground = G.st.abandoned?.[at] ?? [];
@@ -134,7 +136,7 @@ export function hereBlocks(G) {
 // ---- who is here, who lives here ----
 // Meeting the others in the clearing I stand in: who I may give or trade with now, who I may not (and why), and who follows whom today.
 function meetRowsFor(G, id) {
-    if (!G.ms || G.st.ch.at !== id || G.st.ch.onRoad) return [];
+    if (!G.ms || ownSheet(G.st, G.data).at !== id || ownSheet(G.st, G.data).onRoad) return [];
     const out = [];
     for (const p of G.ms.partners) out.push(h('button', { type: 'button', class: 'ds-row meetwith', 'data-act': 'meet-with', 'data-meet-with': p.id, onclick: () => { G.ui.meet = newMeetDraft(); G.ui.meet.to = p.id; G.ui.sheet = 'meet'; render(G); } },
         h('span', { class: 'main' }, h('b', {}, `Meet ${p.player}`), h('span', {}, G.ms.window === 'dayend' ? 'Give or trade before Midnight' : 'Give or trade: nothing changes hands until they accept')), icon('right')));
@@ -148,7 +150,7 @@ function companionRows(G, id) {
     const out = [], by = new Map();
     for (const o of [...G.st.nats, ...G.st.mons]) if (o.hired && !o.dead && o.hiredBy && o.loc?.c === id) (by.get(o.hiredBy) ?? by.set(o.hiredBy, []).get(o.hiredBy)).push(o);
     for (const [owner, list] of by) {
-        const mine = owner === G.st.ch.id || (G.st.ch.leader && owner === G.st.ch.leader.hirer), nm = o => G.data.natives[o.id]?.name ?? G.data.monsters[o.id]?.name ?? o.id, until = Math.max(...list.map(o => o.hiredUntil ?? o.controlledUntil ?? 0));
+        const mine = owner === ownSheet(G.st, G.data).id || (ownSheet(G.st, G.data).leader && owner === ownSheet(G.st, G.data).leader.hirer), nm = o => G.data.natives[o.id]?.name ?? G.data.monsters[o.id]?.name ?? o.id, until = Math.max(...list.map(o => o.hiredUntil ?? o.controlledUntil ?? 0));
         if (G.st.options?.hirelingRules) {
             // hireling rules (leaders.js): each follower is with a guide today or spends the day where he stands; a hired leader has a seat of his own and is a counter on the map
             for (const o of list) {
@@ -169,7 +171,7 @@ const tile_ = (src, label = null, group = null) => markGroup(h('span', { class: 
 export function clearingSheet(G) {
     const id = G.ui.sel, tile = tileOf(id), n = numOf(id);
     const cdef = G.data.tile(tile).sides.normal.clearings.find(c => c.n === n);
-    const here = G.st.ch.at === id && !G.st.ch.onRoad;
+    const here = ownSheet(G.st, G.data).at === id && !ownSheet(G.st, G.data).onRoad;
     const fresh = G.ui.foundSite ?? null;
     const sections = [];
     const put = (key, title, rows, right = '') => { if (rows?.length || rows?.nodeType) sections.push({ key, node: [sect(title, right), ...(Array.isArray(rows) ? rows : [rows])] }); };
@@ -178,7 +180,7 @@ export function clearingSheet(G) {
     const hereRows = [];
     const srcs = colorSources(G.st, G.data, id);
     if (G.shared) { hereRows.push(...rosterRows(G.crew, id, row)); }
-    else if (here) hereRows.push(row('me', 'You', `${G.st.ch.name}, ${G.st.ch.hidden ? 'hidden: nothing can block you' : 'in plain sight'}`, tile_(G.data.art?.characters?.[G.st.ch.id], G.st.ch.name)));
+    else if (here) hereRows.push(row('me', 'You', `${ownSheet(G.st, G.data).name}, ${ownSheet(G.st, G.data).hidden ? 'hidden: nothing can block you' : 'in plain sight'}`, tile_(G.data.art?.characters?.[ownSheet(G.st, G.data).id], ownSheet(G.st, G.data).name)));
     for (const x of srcs) hereRows.push(row('magic', `${x.color} magic`, x.why, `art/colormagic/${{ Grey: 'gray' }[x.color] ?? x.color.toLowerCase()}chit.gif`));          // (the chit's own art in the tile: DR-3)
     if (G.shared) hereRows.push(...meetRowsFor(G, id));
     put('here', G.shared ? 'Who is here' : 'Here now', hereRows);
@@ -206,7 +208,7 @@ export function clearingSheet(G) {
         const md = G.data.monsters[l[0].id], ls = md.light;
         const blow = ls.attack === 'spell' ? `casts a Type ${ls.spell ?? ''} spell at ${ls.attackTime}` : ls.harm ? `harm ${ls.harm}${'*'.repeat(ls.stars || 0)} at ${ls.attackTime}` : `no attack on this side (${md.dark?.harm ? `harm ${md.dark.harm}${'*'.repeat(md.dark.stars || 0)} at ${md.dark.attackTime} on the other` : 'it only blocks'})`;
         living.push(h('button', { type: 'button', class: 'ds-row mon pieceopen', 'data-act': 'piece-open', 'data-piece-open': l[0].id, onclick: () => openPiece(G, { kind: 'mon', id: l[0].id }) }, tile_(G.data.art?.monsters?.[name], name),
-            h('span', { class: 'main' }, h('b', {}, `${name}${l.length > 1 ? ` ×${l.length}` : ''}`), ...storyDetail(G.st.ch.hidden ? 'It has not seen you.' : 'It will block you if you are seen.', `vuln ${md.vulnerability}${md.armored ? ' (armored)' : ''} · ${blow} · moves ${ls.moveTime}${md.flies ? ' · flies' : ''}. It will block you if you are seen.`))));
+            h('span', { class: 'main' }, h('b', {}, `${name}${l.length > 1 ? ` ×${l.length}` : ''}`), ...storyDetail(ownSheet(G.st, G.data).hidden ? 'It has not seen you.' : 'It will block you if you are seen.', `vuln ${md.vulnerability}${md.armored ? ' (armored)' : ''} · ${blow} · moves ${ls.moveTime}${md.flies ? ' · flies' : ''}. It will block you if you are seen.`))));
     }
     put('living', 'Living here', living);
 

@@ -10,7 +10,7 @@
 //   voicedWhy(copy)              the copy as one string in the voice that is on now (for a toast)
 import { rearrangeLockWhy, heldOptions } from '../engine/magic/phase.js';
 import { elsewhere } from '../engine/magic/fx.js';
-import { TYPE_COLOR } from '../engine/magic/colour.js';
+import { TYPE_COLOR } from '../engine/catalogue.js';
 import { flySources } from '../engine/magic/fly.js';
 import { isStory } from './voice.js';
 

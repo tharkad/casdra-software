@@ -1,9 +1,10 @@
 // screens/kit/kit.js (P2): the Kit sheet: one sheet with three rooms, Kit | Company | Spells (remembered), and the Kit room itself: the eight slots, the carry limit,
 // the pack with worth in gold, the slot picker and the item card. It replaces the Active/Inactive switches of the old belongings list. The engine is untouched: choosing for a slot
 // is the same `tidy` action the switches sent (toggleItem takes a rival out of the slot by itself), so every payload is byte-identical to the old one.
-import { WEIGHT_WORDS, letterOf, lvl } from '../../../engine/core.js';
-import { BOOTS } from '../../../engine/modifiers.js';
-import { bootsStrongEnough, carriedLevel, carryCapacity, defOf, isOneUse, isWeaponCard, nameOf, onPackHorse, priceOf, slotsOf, weightOf } from '../../../engine/items.js';
+import { WEIGHT_WORDS, letterOf, lvl } from '../../../engine/catalogue.js';
+import { BOOTS } from '../../../engine/catalogue.js';
+import { defOf, isOneUse, isWeaponCard, nameOf, priceOf, slotsOf, weightOf } from '../../../engine/catalogue.js';
+import { bootsStrongEnough, carriedLevel, carryCapacity, onPackHorse } from '../../../engine/items.js';
 import { isCave } from '../../../engine/world.js';
 import { itemParts } from '../play/sheet_char.js';
 import { act } from '../play/actions.js';
@@ -16,6 +17,7 @@ import { companyTab, hireCount } from './company.js';
 import { carriedCount, chitsTab } from './chits.js';
 import { dimBtn, footRow, goldEl, guards, itemArt, oneLine, plural, say, seg, signed, weightWord } from './common.js';
 import { spellCount, spellsTab } from './spells.js';
+import { ownSheet, gameOf, questionOf, tableFight } from '../../combat/feed.js';
 
 // ---- the rooms ----
 const TAB_KEY = 'mr-kit-tab';
@@ -41,7 +43,7 @@ export function slotKey(G, it) {
 }
 // (a real helmet outranks the Crown, which may be worn with it and then stays listed in the pack)
 const occupantOf = (G, key) => {
-    const on = G.st.ch.items.filter(i => i.active && !i.destroyed && slotKey(G, i) === key);
+    const on = ownSheet(G.st, G.data).items.filter(i => i.active && !i.destroyed && slotKey(G, i) === key);
     return on.find(i => i.id !== 'golden-crown-1') ?? on[0] ?? null;
 };
 
@@ -54,24 +56,24 @@ export const PLAN_LOCK_DETAIL = 'Rule 7.2.2f: belongings are rearranged only at 
 // change only what he has just come by (`pending.items`): pass the item to ask about it; without one the answer is for the Kit as a whole (open while something new waits).
 export const FRESH_LOCK = 'Only what you have just come by can be changed now. The rest waits for the start of your next phase.';
 export function gearLock(G, it = null) {
-    const p = G.st.pending?.type;
-    if (G.st.combat || p?.startsWith('combat') || (G.shared && G.st.battle?.members?.[G.st.ch.id])) return 'In a fight, changing your gear is your Encounter action, once.';
-    if (G.st.ch.morph) return 'Your gear is of no use to a creature.';
-    if (G.st.ch.flying) return 'You cannot rearrange your gear in the air.';
+    const p = questionOf(G.st, G.data)?.type;
+    if (G.st.combat || p?.startsWith('combat') || (G.shared && tableFight(G.st, G.data)?.members?.[ownSheet(G.st, G.data).id])) return 'In a fight, changing your gear is your Encounter action, once.';
+    if (ownSheet(G.st, G.data).morph) return 'Your gear is of no use to a creature.';
+    if (ownSheet(G.st, G.data).flying) return 'You cannot rearrange your gear in the air.';
     if (roadLockOf(G.st)) return ROAD_STORY;          // 8.3.8d: out on a road between clearings (the engine's gearLockedWhy); ROAD_STORY is the Story words, lockText gives the Detail
     if (p === 'plan') return PLAN_LOCK;
-    if (p === 'phase-gear') return it && !(G.st.pending.items ?? []).includes(it.uid) ? FRESH_LOCK : null;
+    if (p === 'phase-gear') return it && !(questionOf(G.st, G.data).items ?? []).includes(it.uid) ? FRESH_LOCK : null;
     if (!['phase', 'phase-pick', 'evening-end'].includes(p)) return 'Gear can be changed between phases.';
     return null;
 }
 // Is `uid` one of the things he may change right now on the 'phase-gear' question? (true when that question is not asked)
-const freshOk = (G, uid) => G.st.pending?.type !== 'phase-gear' || (G.st.pending.items ?? []).includes(uid);
+const freshOk = (G, uid) => questionOf(G.st, G.data)?.type !== 'phase-gear' || (questionOf(G.st, G.data).items ?? []).includes(uid);
 // The lock of one slot: its occupant's, or for an empty slot (on 'phase-gear') whether something he has just come by could go there.
 function slotLock(G, key, occupant) {
     if (occupant) return gearLock(G, occupant);
     const base = gearLock(G);
-    if (base || G.st.pending?.type !== 'phase-gear') return base;
-    return G.st.ch.items.some(i => !i.destroyed && slotKey(G, i) === key && freshOk(G, i.uid)) ? null : FRESH_LOCK;
+    if (base || questionOf(G.st, G.data)?.type !== 'phase-gear') return base;
+    return ownSheet(G.st, G.data).items.some(i => !i.destroyed && slotKey(G, i) === key && freshOk(G, i.uid)) ? null : FRESH_LOCK;
 }
 
 // The words of a lock line: the plan's one has a Story and a Detail voice; the others are plain.
@@ -151,7 +153,7 @@ const KIND_ORDER = { weapon: 0, armor: 1, horse: 2, treasure: 3 };
 
 // Everything he carries is worth this much (information only: it never changes the score), and what owning it adds to Fame and Notoriety.
 function worthLine(G) {
-    const items = G.st.ch.items.filter(i => !i.destroyed);
+    const items = ownSheet(G.st, G.data).items.filter(i => !i.destroyed);
     const worth = items.reduce((n, i) => n + priceOf(G.data, i), 0);
     const fm = items.reduce((n, i) => n + (defOf(G.data, i)?.fame ?? 0), 0), nt = items.reduce((n, i) => n + (defOf(G.data, i)?.notoriety ?? 0), 0);
     const adds = [fm ? `Fame ${signed(fm)}` : '', nt ? `Notoriety ${signed(nt)}` : ''].filter(Boolean);
@@ -163,19 +165,19 @@ function worthLine(G) {
 function chitsEl(G) {
     const label = c => (c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`), word = c => (c.type === 'move' ? 'MOVE' : c.type === 'fight' ? 'FIGHT' : c.type === 'duck' ? 'DUCK' : c.type === 'berserk' ? 'BERSERK' : 'MAGIC');
     const state = c => (c.state === 'fatigued' ? 'tired' : c.state === 'wounded' ? 'wounded' : '');
-    return h('div', { class: 'kit-chits', 'data-chits': '' }, G.st.ch.chits.map(c => h('span', { class: `ds-chit ${c.type} ${state(c)}`, 'data-chit': c.id, 'aria-label': `${word(c).toLowerCase()} chit ${label(c)}${c.effort ? `, effort ${c.effort}` : ''}${state(c) ? `, ${state(c)}` : ''}` },
+    return h('div', { class: 'kit-chits', 'data-chits': '' }, ownSheet(G.st, G.data).chits.map(c => h('span', { class: `ds-chit ${c.type} ${state(c)}`, 'data-chit': c.id, 'aria-label': `${word(c).toLowerCase()} chit ${label(c)}${c.effort ? `, effort ${c.effort}` : ''}${state(c) ? `, ${state(c)}` : ''}` },
         h('span', {}, label(c), c.effort ? h('sup', {}, '*'.repeat(c.effort)) : null), h('small', {}, word(c)))));
 }
 
 function kitRoom(G, o) {
-    const lock = gearLock(G), items = G.st.ch.items;
+    const lock = gearLock(G), items = ownSheet(G.st, G.data).items;
     const inSlot = new Set(SLOTS.map(([k]) => occupantOf(G, k)).filter(Boolean));
     const pack = items.filter(i => !inSlot.has(i)).sort((a, b) => (KIND_ORDER[a.kind] ?? 9) - (KIND_ORDER[b.kind] ?? 9) || priceOf(G.data, b) - priceOf(G.data, a));
     return h('div', { class: 'kit-room' },
         carryLimit(G),
         sect2('In use', 'one of each'),
         h('div', { class: 'ds-slots' }, SLOTS.map(s => slotEl(G, s, slotLock(G, s[0], occupantOf(G, s[0])), o))),
-        lock || G.st.pending?.type === 'phase-gear' ? h('div', { class: 'ds-why kit-lock', 'data-lock': '' }, icon('lock', 'kit-lockico'), lockText(lock ?? FRESH_LOCK, G)) : null,
+        lock || questionOf(G.st, G.data)?.type === 'phase-gear' ? h('div', { class: 'ds-why kit-lock', 'data-lock': '' }, icon('lock', 'kit-lockico'), lockText(lock ?? FRESH_LOCK, G)) : null,
         sect2('In your pack', pack.length ? plural(pack.length, 'thing') : ''),
         pack.length ? h('div', { class: 'ds-list' }, pack.map(i => packRow(G, i, o))) : h('p', { class: 'kit-none' }, 'Nothing else. Your pack is empty.'),
         items.length ? worthLine(G) : null,
@@ -199,7 +201,7 @@ export function kitContent(G, o = {}) {
     const tab = o.tab ?? kitTab(G), pick = o.onTab ?? (t => setKitTab(G, t)), ch = G.st.ch;
     const ctl = { openItem: o.openItem ?? (it => { G.ui.itemUid = it.uid; G.ui.itemFrom = null; G.ui.sheet = 'item'; render(G); }) };
     const room = tab === 'co' ? companyTab(G) : tab === 'sp' ? spellsTab(G, o) : tab === 'ch' && G.st.missions ? chitsTab(G) : kitRoom(G, ctl);
-    return { title: displayName(ch.name), eyebrow: `Day ${G.st.day} · ${tab === 'co' ? 'Company' : tab === 'sp' ? 'Spells' : tab === 'ch' ? 'Chits' : 'Kit'}`, detent: 'tall',
+    return { title: displayName(ch.name), eyebrow: `Day ${gameOf(G.st, G.data).day} · ${tab === 'co' ? 'Company' : tab === 'sp' ? 'Spells' : tab === 'ch' ? 'Chits' : 'Kit'}`, detent: 'tall',
         body: h('div', { class: 'kit' },
             seg([{ key: 'kit', label: 'Kit' }, { key: 'co', label: 'Company', n: hireCount(G) }, { key: 'sp', label: 'Spells', n: spellCount(G) }, ...(G.st.missions ? [{ key: 'ch', label: 'Chits', n: carriedCount(G) }] : [])], tab, pick, 'data-kit-tab'),
             room) };
@@ -208,7 +210,7 @@ export function kitContent(G, o = {}) {
 // ---- the slot picker: a small decision sheet listing only what fits ----
 export function slotPickerContent(G, key) {
     const def = SLOTS.find(s => s[0] === key), here = occupantOf(G, key);
-    const cands = G.st.ch.items.filter(i => slotKey(G, i) === key && i !== here && !i.destroyed && freshOk(G, i.uid));
+    const cands = ownSheet(G.st, G.data).items.filter(i => slotKey(G, i) === key && i !== here && !i.destroyed && freshOk(G, i.uid));
     const choose = it => { G.ui.slotPick = null; G.ui.sheet = 'char'; tidyAct(G, it); };
     const rowFor = it => {
         const why = whyNot(G, it), worth = priceOf(G.data, it);

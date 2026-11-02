@@ -1486,7 +1486,7 @@ function morphPit(st, data, h, log) {
     const { row, dice } = rollPit(st, data, 'Your spell (Power of the Pit)');
     log(`Your spell at the ${name}: ${row.name} (rolled ${dice.join('+')}). ${row.effect}`);
     if (row.name === 'Fiery Chasm' || row.name === 'Terror') pitSweep(st, data, row.name, { pay: true, log });
-    else if (row.name === 'Carried Away') log(`The ${name} is carried away${slayDenizen(st, data, den, { spell: 'Power of the Pit' })}.`);
+    else if (row.name === 'Carried Away') { const reward = slayDenizen(st, data, den, { spell: 'Power of the Pit' }); log(`The ${name} is carried away${reward}.`, null, { ev: { code: 'den.killed', by: 'power-of-the-pit', den: den.uid, harm: 'T', ...paid } }); }
     else log(`${row.name} works only on a character: the ${name} is untouched.`);
     c.eventful = true;
 }
@@ -1648,6 +1648,8 @@ export function legalBoxPlan(st, data, p) {
 // What a victim is worth in points, without multiplication (8.7.2c): a denizen's Fame and Notoriety bounty, a character's recorded Notoriety (and a transformed one's creature).
 const bountyOfDen = (st, data, d) => { const s = denSide(st, data, d); return (s.fame ?? 0) + (s.notor ?? 0); };
 const bountyOfChar = (st, id) => { const ch = st.chars[id], f = ch.morph?.creature; return (ch.notoriety ?? 0) + (f?.notor ?? 0) + (f?.fame ?? 0); };
+// What the last kill paid (fame, notoriety, gold), for the event of the line that tells it: killReward writes it, slayDenizen clears it, the caller that puts the reward in a line reads it right after.
+let paid = { fame: 0, notoriety: 0, gold: 0 };
 function killReward(st, data, den, s) {
     st.ch.killsToday = (st.ch.killsToday ?? 0) + 1;
     // 8.7.2c: kills of one instant are scored one at a time, the most valuable first. A character killed in this instant is settled only when the instant is over (settleKills), but he comes
@@ -1660,6 +1662,7 @@ function killReward(st, data, den, s) {
     if (st.combat) { const g = (st.combat.roundGain ??= { fame: 0, notoriety: 0, gold: 0 }); g.fame += fame; g.notoriety += notor; g.gold += s.gold ?? 0; }
     // a shared fight: what was paid is remembered for the instant, in case another character's blow killed it at the same moment (8.7.1: the points are then split)
     if (sharedFight(st) && den) den.slain = { by: st.ch.id, g: st.combat.groupNo ?? 0, total: { fame, notoriety: notor, gold: s.gold ?? 0 }, base: { fame: s.fame ?? 0, notoriety: s.notor ?? 0 }, kills: { [st.ch.id]: k }, paid: { [st.ch.id]: { fame, notoriety: notor, gold: s.gold ?? 0 } } };
+    paid = { fame, notoriety: notor, gold: s.gold ?? 0 };
     const bits = [];
     if (fame) bits.push(`+${fame} Fame`);
     if (notor) bits.push(`+${notor} Notoriety`);
@@ -1671,6 +1674,7 @@ function killReward(st, data, den, s) {
 // (a "shared" kill still counts toward the day's total), and the monster or native leaves the map. Returns the bounty text for the log.
 export function slayDenizen(st, data, den, { pay = true, shared = false, spell = null } = {}) {
     const c = st.combat, s = denSide(st, data, den);
+    paid = { fame: 0, notoriety: 0, gold: 0 };
     den.dead = true; den.slainBy = spell;
     if (den.kind === 'mon' || den.kind === 'nat') lostTarget(st, data, { kind: den.kind, id: den.id });          // spells aimed at it end with it
     if (den.kind === 'horse') { const nat = st.nats.find(n => n.id === den.owner); if (nat) nat.horseDead = true; c.eventful = true; return ''; }
@@ -1772,7 +1776,7 @@ function myHit(st, data, h, ctx) {
             return;
         }
         const reward = slayDenizen(st, data, den, { shared, spell: ctx.spell ?? null });
-        ctx.log(`You kill the ${s.name} with ${finalL} harm${note}${reward}.`, tell.kill(st, ctx.spell ?? (ctx.w ? nameOfItem(st, data, ctx.w.item) : ctx.morphName ?? 'bare hands'), s.name, reward), { ev: { code: 'den.killed', by: st.ch.id, den: den.uid, harm: finalL, shared } });
+        ctx.log(`You kill the ${s.name} with ${finalL} harm${note}${reward}.`, tell.kill(st, ctx.spell ?? (ctx.w ? nameOfItem(st, data, ctx.w.item) : ctx.morphName ?? 'bare hands'), s.name, reward), { ev: { code: 'den.killed', by: st.ch.id, den: den.uid, harm: finalL, shared, ...paid } });
         c.eventful = true;
     } else {
         tally(st, 'hitsNotKilling');
@@ -2018,14 +2022,14 @@ function strikeHero(st, data, b, ctx) {
     if (wounded) {
         c.newWounds = (c.newWounds ?? 0) + 1; tally(st, 'woundsTaken'); tally(st, `wounds.${b.name}`);
         c.eventful = true;
-        ctx.log('You take a wound.', tell.wound(st));
+        ctx.log('You take a wound.', tell.wound(st), { ev: { code: 'hero.hurt', who: st.ch.id, by: den?.uid ?? tokenOf(b.name) } });
     } else if (!changed && !greased && !st.ch.dead) {
         // nothing came of it, and the player should be told why
         const why = armor
             ? `${WEIGHT_WORDS[L] ?? L} harm is not enough to hurt your ${armor.def.name} (toughness ${WEIGHT_WORDS[armor.def.toughness ?? armor.def.weight] ?? armor.def.toughness}), and it is too light to hurt you through it.`
             : `${WEIGHT_WORDS[L] ?? L} harm is too light to wound you.`;
         ctx.log(`No effect: ${why}`, tell.noEffect(st, WEIGHT_WORDS[L] ?? L, armor?.def.name, armor ? (WEIGHT_WORDS[armor.def.toughness ?? armor.def.weight] ?? armor.def.toughness) : null),
-            armor ? { ev: { code: 'hero.armor.hit', who: st.ch.id, item: armor.item.uid, result: 'held' } } : null);
+            { ev: { code: 'hero.armor.hit', who: st.ch.id, item: armor?.item.uid, result: 'held' } });
     }
     // a tremendous monster that hurts him and leaves him alive will pick him up when the round ends
     if (!st.ch.dead) {

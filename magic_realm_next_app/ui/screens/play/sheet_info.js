@@ -1,8 +1,10 @@
 // play/sheet_info.js: the information sheets: calendar and magic colours, the race standings, the menu, "Report a problem", the score/goals sheet and the Setup Card.
-import { defOf, nameOf, priceOf } from '../../../engine/items.js';
-import { CATS, FACTORS, earned, progress, scoreGame, targets } from '../../../engine/score.js';
-import { COLORS, COLOR_MEANING, colorSources, dayColors, isMagicDay } from '../../../engine/spells.js';
-import { nameOfClearing } from '../../../engine/world.js';
+import { defOf, nameOf, priceOf } from '../../../engine/catalogue.js';
+import { CATS, FACTORS } from '../../../engine/catalogue.js';
+import { earned, progress, scoreGame, targets } from '../../../engine/score.js';
+import { COLORS, COLOR_MEANING, dayColors, isMagicDay } from '../../../engine/catalogue.js';
+import { colorSources } from '../../../engine/spells.js';
+import { nameOfClearing } from '../../../engine/catalogue.js';
 import { ask } from '../../ask.js';
 import { collect as collectReport, send as sendReport } from '../../bugreport.js';
 import { h } from '../../dom.js';
@@ -13,24 +15,25 @@ import { abandon, copyInvite } from './actions.js';
 import { colorChip, modal, mrChit, picOf } from './kit.js';
 import { render } from './shell.js';
 import { persist } from './state.js';
+import { ownSheet, gameOf } from '../../combat/feed.js';
 
 export function calendarSheet(G) {
-    const last = G.st.lastDay ?? 28, weeks = Math.ceil(last / 7);
+    const last = gameOf(G.st, G.data).lastDay ?? 28, weeks = Math.ceil(last / 7);
     const cell = d => {
-        const cols = dayColors(d, G.st.lastDay ?? 28);
-        return h('div', { class: `calday${d === G.st.day ? ' today' : ''}${d < G.st.day ? ' past' : ''}${cols.length ? ' magic' : ''}` },
+        const cols = dayColors(d, gameOf(G.st, G.data).lastDay ?? 28);
+        return h('div', { class: `calday${d === gameOf(G.st, G.data).day ? ' today' : ''}${d < gameOf(G.st, G.data).day ? ' past' : ''}${cols.length ? ' magic' : ''}` },
             h('b', {}, String(d)), ...cols.map(c => h('i', { class: `dot ${c.toLowerCase()}`, title: c })));
     };
-    const here = colorSources(G.st, G.data, G.st.ch.at);
+    const here = colorSources(G.st, G.data, ownSheet(G.st, G.data).at);
     return modal(G, 'Calendar and magic', h('div', { class: 'calendar' },
-        ask(isMagicDay(G.st.day) ? `Today the land is filled with ${dayColors(G.st.day, G.st.lastDay ?? 28).join(' and ')} magic.` : `Day ${G.st.day}${timed(G.st) ? ` of ${last}` : ''}: an ordinary day for magic.`,
+        ask(isMagicDay(gameOf(G.st, G.data).day) ? `Today the land is filled with ${dayColors(gameOf(G.st, G.data).day, gameOf(G.st, G.data).lastDay ?? 28).join(' and ')} magic.` : `Day ${gameOf(G.st, G.data).day}${timed(G.st) ? ` of ${last}` : ''}: an ordinary day for magic.`,
             'On the seventh day of each week one colour of magic fills the whole realm, from sunrise to midnight, in every clearing. Spells of that colour can be cast anywhere that evening.'),
         h('div', { class: 'calgrid' }, ...Array.from({ length: weeks }, (_, w) => h('div', { class: 'calweek' }, h('small', {}, `Week ${w + 1}`), ...Array.from({ length: 7 }, (_, k) => cell(w * 7 + k + 1))))),
         h('h3', {}, 'The week\'s colours'),
-        ...Array.from({ length: weeks }, (_, w) => h('p', { class: 'calrow' }, h('b', {}, `Day ${(w + 1) * 7}`), ...dayColors((w + 1) * 7, G.st.lastDay ?? 28).map(c => colorChip(c)))),
+        ...Array.from({ length: weeks }, (_, w) => h('p', { class: 'calrow' }, h('b', {}, `Day ${(w + 1) * 7}`), ...dayColors((w + 1) * 7, gameOf(G.st, G.data).lastDay ?? 28).map(c => colorChip(c)))),
         h('h3', {}, 'What each colour is'),
         ...COLORS.map(c => h('p', { class: 'calrow' }, colorChip(c), h('span', {}, COLOR_MEANING[c]))),
-        h('h3', {}, `In your clearing (${nameOfClearing(G.st.ch.at).replace(/ (\d+)$/, '\u00A0$1')})`),
+        h('h3', {}, `In your clearing (${nameOfClearing(ownSheet(G.st, G.data).at).replace(/ (\d+)$/, '\u00A0$1')})`),
         here.length ? h('div', {}, ...here.map(x => h('p', { class: 'calrow' }, colorChip(x.color), h('span', {}, x.why)))) : h('p', { class: 'hint' }, 'No colour of magic is present here today.'),
         h('p', { class: 'hint' }, 'Colours of magic come from the seventh day and from a Chapel (White).')),
         { close: () => { G.ui.sheet = null; render(G); } });
@@ -112,17 +115,17 @@ export function bugSheet(G) {
 export function scoreSheet(G) {
     const res = scoreGame(G.st, G.data), e = earned(G.st, G.data), need = targets(G.st), vp = G.st.ch.vp ?? {};
     const NAME = { great: 'Great Treasures', spells: 'Spells', fame: 'Fame', notoriety: 'Notoriety', gold: 'Gold' };
-    const belong = (key) => G.st.ch.items.filter(i => !i.destroyed).map(i => { const d = defOf(G.data, i); const t = i.card ? G.data.treasures[i.card] : d; return { name: nameOf(G.data, i), v: (t?.[key] ?? d?.[key] ?? 0) }; }).filter(x => x.v);
+    const belong = (key) => ownSheet(G.st, G.data).items.filter(i => !i.destroyed).map(i => { const d = defOf(G.data, i); const t = i.card ? G.data.treasures[i.card] : d; return { name: nameOf(G.data, i), v: (t?.[key] ?? d?.[key] ?? 0) }; }).filter(x => x.v);
     const how = {
         great: `Great Treasures you own and can carry (${e.great}). Each is worth one point of the goal.`,
         spells: SPELLS_HOW,
         fame: 'Recorded Fame plus the Fame of what you own.',
         notoriety: 'Recorded Notoriety plus the Notoriety of what you own.',
-        gold: `Recorded gold ${G.st.ch.gold} minus your starting value ${G.st.ch.startValue ?? 10} (your starting gold and the price of the gear you began with). Only gold counts, not the price of things you own.`,
+        gold: `Recorded gold ${ownSheet(G.st, G.data).gold} minus your starting value ${G.st.ch.startValue ?? 10} (your starting gold and the price of the gear you began with). Only gold counts, not the price of things you own.`,
     };
     const rows = res.rows ?? [];
     const sign = n => (n > 0 ? `+${n}` : String(n));
-    const pr = progress(G.st, G.data), over = G.st.period === 'over';
+    const pr = progress(G.st, G.data), over = gameOf(G.st, G.data).period === 'over';
     const sumUp = c => { const r = rows.find(x => x.cat === c); return r ? `${sign(r.basic + r.bonus)} points if the game ended now` : ''; };
     const goalCard = g => {
         const r = rows.find(x => x.cat === g.cat);
@@ -142,21 +145,21 @@ export function scoreSheet(G) {
             const own = belong(cat), rec = G.st.ch[cat] ?? 0;
             return [[`Recorded ${NAME[cat]} (earned so far)`, rec], ...own.map(x => [x.name, x.v]), ...(own.length ? [] : [['What you own adds nothing', 0]])];
         }
-        if (cat === 'great') return G.st.ch.items.filter(i => !i.destroyed && (i.card ? G.data.treasures[i.card] : defOf(G.data, i))?.great).map(i => [nameOf(G.data, i), 1]);
-        if (cat === 'gold') return [['Gold you hold', G.st.ch.gold], ['Your starting value (gold and the price of your first gear)', -(G.st.ch.startValue ?? 10)]];
+        if (cat === 'great') return ownSheet(G.st, G.data).items.filter(i => !i.destroyed && (i.card ? G.data.treasures[i.card] : defOf(G.data, i))?.great).map(i => [nameOf(G.data, i), 1]);
+        if (cat === 'gold') return [['Gold you hold', ownSheet(G.st, G.data).gold], ['Your starting value (gold and the price of your first gear)', -(G.st.ch.startValue ?? 10)]];
         return [];
     };
     // what the goods would fetch if he sold the lot at their printed prices: for his information only, it never changes the score
-    const saleRows = () => G.st.ch.items.filter(i => !i.destroyed).map(i => [nameOf(G.data, i), priceOf(G.data, i)]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
+    const saleRows = () => ownSheet(G.st, G.data).items.filter(i => !i.destroyed).map(i => [nameOf(G.data, i), priceOf(G.data, i)]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
     const saleEl = g => {
         const list = saleRows(), sum = list.reduce((a, x) => a + x[1], 0), start = G.st.ch.startValue ?? 10;
         if (g.cat !== 'gold') return null;
-        return h('details', { class: 'sr-parts sr-sale' }, h('summary', {}, `If you sold everything you own: ${G.st.ch.gold + sum - start} of ${g.need}`),
+        return h('details', { class: 'sr-parts sr-sale' }, h('summary', {}, `If you sold everything you own: ${ownSheet(G.st, G.data).gold + sum - start} of ${g.need}`),
             h('p', { class: 'hint' }, 'For your information only: it does not change your score. Only gold in hand counts, and trading prices vary with the roll.'),
             ...list.map(([n, v]) => h('div', { class: 'sr-part' }, h('span', {}, n), h('b', {}, `+${v}`))),
-            h('div', { class: 'sr-part' }, h('span', {}, 'Gold you hold'), h('b', {}, String(G.st.ch.gold))),
+            h('div', { class: 'sr-part' }, h('span', {}, 'Gold you hold'), h('b', {}, String(ownSheet(G.st, G.data).gold))),
             h('div', { class: 'sr-part' }, h('span', {}, 'Your starting value'), h('b', {}, String(-start))),
-            h('div', { class: 'sr-part total' }, h('span', {}, `Gold would stand at (${g.need} needed)`), h('b', {}, String(G.st.ch.gold + sum - start))));
+            h('div', { class: 'sr-part total' }, h('span', {}, `Gold would stand at (${g.need} needed)`), h('b', {}, String(ownSheet(G.st, G.data).gold + sum - start))));
     };
     const partsEl = g => {
         const rowsOf = parts(g.cat);

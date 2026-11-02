@@ -54,7 +54,8 @@ function combatOf(st, data, who, p) {
             if (o.canFly) out.answers.push(entry({ kind: 'encounter', act: 'fly' }, { pick: { chit: ids('chits', chitIds(o.flyChits)), to: ids('tiles', o.flyTiles) } }));
             out.answers.push(entry({ kind: 'encounter', act: 'pass' }));
             for (const e of o.energize ?? []) out.free.push({ action: { type: 'energize', fx: e.fx ?? e.id }, pick: { colorChit: ids('chits', chitIds(e.chits ?? [])) } });
-            out.options = plain(o);
+            const { why, ...optRest } = o;          // (the sentences of `why.alert` / `why.run` stay in the engine; the options carry their codes, `whyCode`, and the numbers of the gate)
+            out.options = plain({ ...optRest, why: { gate: why.gate, chargeGate: why.chargeGate } });
             break;
         }
         case 'combat-melee': {
@@ -114,6 +115,25 @@ function combatOf(st, data, who, p) {
     return out;
 }
 
+// ---- the questions that finish a phase: Rest, the Search tables and their results, the price of a site, Enchant, Reading Runes, a spell offered (Phase 3 slice 2, first step) ----
+// Each is a plain list of options in the question already (a Rest option is a chit, a table is a name ...): `legal` turns every option into an action template. `options` is the question's own record.
+export const PHASE_QUESTIONS = ['rest', 'search-table', 'search-choice', 'effort-cost', 'enchant-choice', 'runes-target', 'learn-spell'];
+const turn = (type, fields = {}, extra = {}) => ({ action: { type, ...fields }, ...extra });
+function phaseOf(p) {
+    const out = { answers: [], free: [], options: plain(p) }, os = p.options ?? [];
+    switch (p.type) {
+        case 'rest': out.answers = os.map(o => turn('rest', { chit: o.chit, ...(o.change != null ? { change: o.change } : {}) }, { preview: { chit: o.chit, from: o.from, to: o.to, cost: o.cost } })); break;
+        case 'search-table': out.answers = os.map(t => turn('search-table', { table: t })); break;
+        case 'search-choice': out.answers = os.map(r => turn('search-choice', { result: r })); break;
+        case 'effort-cost': out.answers = os.map((o, n) => turn('effort-cost', { n }, { preview: { chits: o.chits, cost: o.cost } })); break;
+        case 'enchant-choice': out.answers = os.map(o => turn('enchant-choice', { chit: o.chit, kind: o.kind ?? 'chit' }, { preview: { tile: o.tile, color: o.color } })); break;
+        case 'runes-target': out.answers = os.map(o => turn('runes-target', { target: o.key })); break;
+        case 'learn-spell': out.answers = [turn('learn-spell', { learn: true }, { pick: p.full ? { erase: { free: true } } : {} }), turn('learn-spell', { learn: false })]; break;
+        default: break;
+    }
+    return out;
+}
+
 /** The legal record of `who` for a fight question; null when his question is not one of the twelve. @returns {{ answers: object[], free: object[], options: object|null }|null} */
 export function legalCombat(state, data, who) {
     const st = clone(state);
@@ -131,6 +151,6 @@ export function legalFor(state, viewer, data, pending) {
     const waiting = state.asks.filter(a => a.who !== viewer).map(a => ({ who: a.who }));
     const base = { for: viewer ?? '', question: pending, answers: [], free: [], waiting };
     if (!viewer || !pending) return { ...base, covered: true };
-    const c = COMBAT_QUESTIONS.includes(pending.type) ? legalCombat(state, data, viewer) : null;
+    const c = COMBAT_QUESTIONS.includes(pending.type) ? legalCombat(state, data, viewer) : PHASE_QUESTIONS.includes(pending.type) ? phaseOf(pending) : null;
     return c ? { ...base, answers: c.answers, free: c.free, options: c.options, covered: true } : { ...base, covered: false };
 }
