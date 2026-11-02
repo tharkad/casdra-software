@@ -5,24 +5,19 @@ import { h } from '../../dom.js';
 import { monsterCounter } from '../../counter.js';
 import { bookPic, isBookPic } from '../../../engine/catalogue.js';
 import { icon } from '../../icons.js';
+import { SIDE_WORD, nextSide, sideLabel, sidesOf } from '../../sides.js';
 import { modal } from './kit.js';
 import { render } from './shell.js';
 
 export function openPiece(G, spec) {
     G.ui.pieceFrom = G.ui.sheet ?? null;
     G.ui.piece = { side: 'light', ...spec };
+    G.ui.piece.now = G.ui.piece.side;          // (the side that is up now: the card says which side it is showing, this one or the other)
     G.ui.sheet = 'piece';
     render(G);
 }
 
 const HARM = { L: 'Light', M: 'Medium', H: 'Heavy', T: 'Tremendous' };
-const SIDE_WORD = { light: 'Light side', dark: 'Dark side', red: 'Red side' };
-
-// the sides this piece has, in the order a tap turns them
-function sidesOf(def, kind) {
-    if (kind !== 'mon') return ['light'];
-    return ['light', def.dark ? 'dark' : null, def.red ? 'red' : null].filter(Boolean);
-}
 
 // What the numbers on the counter mean, in plain words (printed rules 3.1: vulnerability, harm, attack time, move time).
 function factsOf(s, def, kind) {
@@ -41,13 +36,14 @@ export function pieceSheet(G) {
     const sp = G.ui.piece, back = { close: () => { G.ui.sheet = G.ui.pieceFrom ?? null; G.ui.piece = G.ui.pieceFrom = null; render(G); } };
     const def = sp && (sp.kind === 'mon' ? G.data.monsters[sp.id] : G.data.natives[sp.id]);
     if (!def) return modal(G, 'Piece', h('p', { class: 'hint' }, 'Nothing to show.'), back);
-    const sides = sidesOf(def, sp.kind), side = sides.includes(sp.side) ? sp.side : 'light';
+    const sides = sidesOf(def, sp.kind), side = sides.includes(sp.side) ? sp.side : 'light', now = sides.includes(sp.now) ? sp.now : side;
     const s = denSide(G.st, G.data, { kind: sp.kind, id: sp.id, side, tag: sp.tag });
     let pic = sp.kind === 'nat' ? G.data.art?.natives?.[sp.id] : (G.data.art?.monsters?.[def.name]);
     if (isBookPic(pic)) pic = bookPic(G.data.art, sp.kind === 'nat' ? 'nat' : 'mon', sp.kind === 'nat' ? def.type : def.name, side, sp.id) ?? pic;      // the rulebook's counter (no other art): the side being shown
     const counter = monsterCounter({ s, side, picture: pic ?? null, flies: !!def.flies, size: 220 });
     return modal(G, sp.tag ? s.name : def.name, h('div', { class: 'piececard', 'data-piece': sp.id },
         h('div', { class: 'big' }, counter),
-        sides.length > 1 ? h('button', { type: 'button', class: 'ds-btn quiet block', 'data-act': 'piece-turn', onclick: () => { G.ui.piece = { ...sp, side: sides[(sides.indexOf(side) + 1) % sides.length] }; render(G); } }, icon('retry'), `${SIDE_WORD[side]}: turn it over`) : null,
+        sides.length > 1 ? h('p', { class: `sidenow ${side === now ? 'current' : 'other'}`, 'data-side-state': side === now ? 'current' : 'other', 'data-side': side }, sideLabel(G.data, sp.kind, sp.id, side, now).say) : null,
+        sides.length > 1 ? h('button', { type: 'button', class: 'ds-btn quiet block', 'data-act': 'piece-turn', onclick: () => { G.ui.piece = { ...sp, side: nextSide(def, sp.kind, side) }; render(G); } }, icon("retry"), `Turn it over to the ${SIDE_WORD[nextSide(def, sp.kind, side)].toLowerCase()}`) : null,
         h('ul', { class: 'facts' }, ...factsOf(s, def, sp.kind).map(t => h('li', {}, t)))), back);
 }

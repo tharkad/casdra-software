@@ -133,16 +133,22 @@ export const tryApply = (st, data, action, who) => apiOf(data).apply(raw(st), { 
 // ---- what a creature, a hireling and the hero's gear are, found in what the API returned ----
 /** The stats of a creature or counter as the rules read them now (name, size, vulnerability, harm, attack and move times ...). A creature of the hero's sheet carries them (`stat`); one lying on the map is read from the data. */
 export function denSide(st, data, d) {
-    if (d.stat) return d.stat;
+    const want = d.side ?? 'light';
     const f = sheetOf(st, data);
     const on = f?.dens.find(x => x.uid === d.uid) ?? f?.hires.find(x => x.uid === d.uid);
+    // A counter turned over to look at its other side (a peek, note 97) is asked for with the other `side`: the stat the sheet carries is the side in play, so it must not answer for the printed other side.
+    // A record that says nothing of its side is trusted as before.
+    const sameSide = x => !x || x.side == null || (x.side ?? 'light') === want;
+    const turned = !!on && !sameSide(on);
+    if (turned) return denStats(data, { ...d, stat: undefined }, { combat: { dens: f?.dens ?? [] } });
+    if (d.stat) return d.stat;
     if (on?.stat) return on.stat;
     const o = optionsOf(st, data)?.targets?.find(x => x.uid === d.uid);
-    if (o?.stat) return o.stat;
+    if (o?.stat && sameSide(o)) return o.stat;
     const t = viewOf(st, data).table.fight;          // (a creature of a fight of several: table talk)
     const pub = t?.dens.find(x => x.uid === d.uid) ?? t?.hires.find(x => x.uid === d.uid);
-    if (pub?.stat) return pub.stat;
-    return denStats(data, d);
+    if (pub?.stat && sameSide(pub)) return pub.stat;
+    return denStats(data, d, { combat: { dens: f?.dens ?? [] } });
 }
 /** What a hired native or monster fights with. One on the hero's sheet carries it (`stat`); otherwise it is read from the data. */
 export function hireStats(st, data, id, kind = 'nat', side = null) {

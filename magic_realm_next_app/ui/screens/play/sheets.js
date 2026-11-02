@@ -5,8 +5,7 @@ import { nameOf } from '../../../engine/catalogue.js';
 import { nameOfClearing, tileName } from '../../../engine/catalogue.js';
 import { ask } from '../../ask.js';
 import { h } from '../../dom.js';
-import { lengthLine, timed } from '../../gametext.js';
-import { HELP } from '../info.js';
+import { lengthLine } from '../../gametext.js';
 import { meetSheet, offerSheet } from '../meetui.js';
 import { endOptionSheet, leaveSheet, quitSheet } from '../tableui.js';
 import { abandon, act, isForced } from './actions.js';
@@ -17,7 +16,7 @@ import { overScreen, restartSheet } from './endscreen.js';
 import { reportSheet } from './results.js';
 import { journalSheet } from './journal.js';
 import { drawSheet, fightOverSheet, playersSheet, sharedOverSheet, sharedRestartSheet, tableSheet } from './shared.js';
-import { cardInfoSheet, charSheet, cursesSheet, itemSheet, slotSheet, spellSheet, spellsSheet } from './sheet_char.js';
+import { cardInfoSheet, cursesSheet, itemSheet, slotSheet, spellSheet, spellsSheet } from './sheet_char.js';
 import { pieceSheet } from './piece_card.js';
 import { clearingSheet } from './sheet_clearing.js';
 import { bugSheet, calendarSheet, menuSheet, raceSheet, scoreSheet, setupCardSheet } from './sheet_info.js';
@@ -25,7 +24,8 @@ import { hireSheet, tradeSheet } from './sheet_trade.js';
 import { eveningContent } from '../kit/evening.js';
 import { phaseGearContent } from '../kit/phasegear.js';
 import { mountSheet } from '../kit/common.js';
-import { assignSheet, handoverSheet, leaderSheet, sunriseSheet } from './leaders.js';
+import { assignSheet, handoverSheet, sunriseSheet } from './leaders.js';
+import { abandonSheet, cardSheet, helpSheet, keySheet, lookSheet, tablesSheet } from './looks.js';
 import { render } from './shell.js';
 import { setWelcomed, vpNow, welcomed } from './state.js';
 
@@ -92,27 +92,20 @@ export function sheets(G, lookOnly = false) {
         { kind: 'result', bare: true, eyebrow: ownSheet(G.st, G.data).name, footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }, 'Begin')) }));
     }
     else if (p?.type === 'plan' && gameOf(G.st, G.data).day > 1 && G.ui.reportedDay !== gameOf(G.st, G.data).day && G.ui.sheet !== 'plan') out.push(reportSheet(G));
-    else if (G.ui.sheet === 'char') out.push(G.st.ch?.leader ? leaderSheet(G) : charSheet(G));          // (a hired leader's sheet is his own: leaders.js)
+    else if (G.ui.sheet === 'char') out.push(lookSheet(G));          // (his sheet, or a hired leader's own: looks.js)
     else if (G.ui.sheet === 'slot') out.push(slotSheet(G));
     else if (G.ui.sheet === 'clearing' && G.ui.sel) out.push(clearingSheet(G));
     else if (G.ui.sheet === 'menu') out.push(menuSheet(G));
-    else if (G.ui.sheet === 'confirm-abandon' && !G.race) out.push(modal(G, 'Abandon this game?', h('div', { class: 'confirmbox' },
-        h('p', {}, `${G.st.ch?.name ?? 'Your hero'} is on day ${gameOf(G.st, G.data).day}${timed(G.st) ? ` of ${gameOf(G.st, G.data).lastDay ?? 28}` : ''}, with ${G.st.ch?.gold ?? 0} gold, ${G.st.ch?.fame ?? 0} Fame and ${G.st.ch?.notoriety ?? 0} Notoriety.`),
-        h('p', { class: 'hint bad' }, 'Abandoning ends this adventure for good. It stays in History as abandoned, but it cannot be picked up again.')),
-        { close: () => { G.ui.sheet = null; render(G); }, bare: true, footer: h('div', { class: 'ds-opt-foot' },
-            h('button', { type: 'button', class: 'ds-btn danger', 'data-act': 'confirm-abandon', onclick: () => abandon(G) }, 'Abandon this game'),
-            h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'keep-playing', onclick: () => { G.ui.sheet = null; render(G); } }, 'Keep playing')) }));
+    else if (G.ui.sheet === 'confirm-abandon' && !G.race) out.push(abandonSheet(G));
     else if (G.ui.sheet === 'race' && G.race) out.push(raceSheet(G));
     else if (G.ui.sheet === 'players' && G.shared) out.push(playersSheet(G));
     else if (G.ui.sheet === 'quit-confirm' && G.shared) out.push(quitSheet(tc(G)));
     else if (G.ui.sheet === 'leave-confirm' && G.shared) out.push(leaveSheet(tc(G), vpNow(G)));
     else if (G.ui.sheet === 'calendar') out.push(calendarSheet(G));
     else if (G.ui.sheet === 'over' && G.shared) out.push(sharedOverSheet(G));
-    else if (G.ui.sheet === 'card') out.push(modal(G, ownSheet(G.st, G.data).name, h('div', {}, G.data.art?.cards?.[ownSheet(G.st, G.data).id] ? h('img', { class: 'cardpic', src: G.data.art.cards[ownSheet(G.st, G.data).id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
+    else if (G.ui.sheet === 'card') out.push(cardSheet(G));
     else if (G.ui.sheet === 'journal' || G.ui.sheet === 'dice' || G.ui.sheet === 'log') out.push(journalSheet(G));
-    else if (G.ui.sheet === 'tables') out.push(modal(G, 'Tables', h('div', { class: 'tables' },
-        ...[['Meeting Table', 'meetingTable'], ['Search table', 'searchTable'], ['Missile table', 'missileTable'], ['Power of the Pit', 'pitTable']].filter(([, k]) => G.data.art?.misc?.[k])
-            .flatMap(([t, k]) => [h('h3', {}, t), h('img', { class: 'tablepic', src: G.data.art.misc[k], alt: t })])), { close: () => { G.ui.sheet = null; render(G); } }));
+    else if (G.ui.sheet === 'tables') out.push(tablesSheet(G));
     else if (G.ui.sheet === 'setupcard') out.push(setupCardSheet(G));
     else if (G.ui.sheet === 'item') out.push(itemSheet(G));
     else if (G.ui.sheet === 'cardinfo') out.push(cardInfoSheet(G));
@@ -120,14 +113,8 @@ export function sheets(G, lookOnly = false) {
     else if (G.ui.sheet === 'spells') out.push(spellsSheet(G));
     else if (G.ui.sheet === 'spell') out.push(spellSheet(G));
     else if (G.ui.sheet === 'score') out.push(scoreSheet(G));
-    else if (G.ui.sheet === 'key') out.push(modal(G, 'Map key', h('div', { class: 'key' },
-        ...[['I H C G', 'Dwellings: Inn, House, Chapel, Guard house; the number beside it is the natives there'],
-            ['\u25C6 \u2713', 'A site you have discovered (gold edge): you may loot it or read its runes'], ['\u25C6', 'A site chit that has turned up but is not yet discovered: Locate it first'], ['\u266A', 'A sound chit that has turned up: monsters stir in that clearing'],
-            ['?', 'A face-down chit in that tile; a letter means you have peeked at it'], ['red', 'Monsters (the number is how many)'], ['blue', 'Natives'],
-            ['5 \u25A0 \u25A0 \u25C6 \u266A', 'A busy clearing: when its names will not fit beside it they become one marker. The number is the clearing; each chip is a kind of thing there (red monsters, blue people, \u2302 dwellings, \u25C6 sites, \u266A sounds, with how many). Tap it to see everything in the clearing'],
-            ['? on a dotted line', 'A hidden path or secret passage printed on the tile that you have not discovered yet: you cannot use it until you do'],
-            ['\u25C7', 'You: solid when you are seen, hollow when you are hidden']].map(([k, t]) => h('p', {}, h('b', {}, k), ' ', t))), { close: () => { G.ui.sheet = null; render(G); } }));
-    else if (G.ui.sheet === 'help') out.push(modal(G, 'How to play', h('div', {}, ...HELP.flatMap(([t, x]) => [h('h3', {}, t), h('p', {}, x)])), { close: () => { G.ui.sheet = null; render(G); } }));
+    else if (G.ui.sheet === 'key') out.push(keySheet(G));
+    else if (G.ui.sheet === 'help') out.push(helpSheet(G));
     if (lookAt && out.length) out.push(clearingSheet(G));
     return out;
 }

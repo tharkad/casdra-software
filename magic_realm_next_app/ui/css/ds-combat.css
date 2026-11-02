@@ -94,6 +94,15 @@
 .cb-hero .gear.none { background: transparent; box-shadow: none; border: 1.5px dashed var(--line-2); }
 .cb-hero .gear::after { content: ""; position: absolute; inset: min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }          /* 44px at rest, and 44px on screen when the stage is scaled down */
 .cb-hero .gear .more { position: absolute; right: -5px; bottom: -5px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--gold-lo); font: 700 calc(12px * var(--ts, 1))/calc(16px * var(--ts, 1)) var(--font-ui); color: var(--gold-hi); }
+/* Note 100: the weapon chip says whether the weapon is alerted: a green ring and a green plate ALERTED with the figures of the side up (harm and attack time), or a quiet outlined plate NOT ALERTED (a weapon card: WEAPON CARD, it cannot be alerted) */
+.cb-hero:has(.gear[data-wstate]) .gcol { width: 92px; }
+.cb-hero .gear .wfig { position: absolute; right: -9px; top: -7px; min-width: 22px; padding: 0 4px; border-radius: 9px; font: 800 calc(12px * var(--ts, 1))/16px var(--font-ui); letter-spacing: .02em; white-space: nowrap; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line-2); }
+.cb-hero .gear.w-alerted { box-shadow: inset 0 0 0 3px var(--gold), 0 0 10px rgba(134, 196, 122, .55); }
+.cb-hero .gear.w-alerted .wfig { background: var(--gold); color: var(--ink-on-gold); border-color: var(--gold-hi); }
+.cb-hero .gear.w-unalerted img { opacity: .78; }
+.cb-hero .wplate { display: block; margin-top: 1px; padding: 1px 7px; border-radius: var(--r-pill); font: 800 calc(12px * var(--ts, 1))/calc(15px * var(--ts, 1)) var(--font-ui); letter-spacing: .04em; white-space: nowrap; text-align: center; }
+.cb-hero .wplate.alerted { background: var(--gold); color: var(--ink-on-gold); }
+.cb-hero .wplate.unalerted, .cb-hero .wplate.card { background: transparent; color: var(--ink-3); border: 1px solid var(--line-2); padding: 0 6px; }
 .cb-hero .mid { display: flex; flex-direction: column; align-items: center; }
 .cb-hero .mid.tappable { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .cb-hero .name { font: 700 calc(13px * var(--ts, 1))/1 var(--font-display); letter-spacing: .12em; color: var(--ink); text-transform: uppercase; text-align: center; margin-top: 4px; white-space: nowrap; }
@@ -283,3 +292,4 @@
 .cb-other .tag { position: relative; height: 18px; padding: 2px 7px; margin-bottom: 2px; border: 0; border-radius: var(--r-pill); background: var(--gold); color: var(--ink-on-gold); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .08em; white-space: nowrap; z-index: 2; }
 .cb-other .tag.ghost { background: var(--surface-2); color: var(--ink-3); border: 1px dashed var(--st-illegal); }
 .cb-other .tag::after { content: ""; position: absolute; inset: min(0px, calc((18px - 44px / var(--z, 1)) / 2)) min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }
+@media (max-height: 700px) { .cb-hero .gcol:has(.wplate) { gap: 1px; } .cb-hero .wplate { margin-top: 0; padding-top: 0; padding-bottom: 0; line-height: 13px; } }          /* (a short phone: the weapon's plate leaves the Belongings button its room) */

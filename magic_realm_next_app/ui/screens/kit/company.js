@@ -1,7 +1,8 @@
 // screens/kit/company.js (P2): the Company room of the Kit sheet: who is with you. One card per hired group (natives, hired monsters, creatures under your control), shown as the
 // printed counters (tap one to turn it over), the days left as pips (14, amber at 3 or fewer), the Extend chip (lit only in a Hire phase, where the engine offers it), where you
 // stand with each group, and what you owe. There is no dismiss action in the engine, so none is offered; hirelings fight beside you without orders (the engine deploys them).
-import { hireStats, denSide } from '../../../engine/combat.js';
+import { hireStats } from '../../../engine/combat.js';
+import { SIDE_WORD, nextSide, sideFigures } from '../../sides.js';
 import { hirelingsOf } from '../../../engine/party.js';
 import { policyBlock } from '../meetui.js';
 import { act } from '../play/actions.js';
@@ -33,16 +34,14 @@ function counterArt(G, o) {
     return G.data.art?.monsters?.[name] ?? null;
 }
 
-// What shows on a counter turned over: the other side's blow and move, as the printed counter has them.
-function otherSide(G, o) {
+// What shows on a counter turned over: the blow and move printed on its other side (light, dark and, for a Tremendous monster, red), read from the data for that side, with the side's name and which side is up now (note 97).
+function otherSide(G, o, sideNow = null) {
     try {
-        const nat = isNat(G, o), now = hireStats(G.data, o.id, nat ? 'nat' : 'mon', G.st);
-        const def = nat ? G.data.natives[o.id] : G.data.monsters[o.id];
-        const sides = [['light', def.light], ['dark', def.dark]].filter(([, s]) => s);
-        const pick = sides.find(([, s]) => s && !(s.harm === now.harm && s.attackTime === now.atk)) ?? sides[1];
-        if (!pick) return null;
-        const d = denSide(G.st, G.data, { kind: nat ? 'nat' : 'mon', id: o.id, side: pick[0] });
-        return { name: pick[0] === 'dark' ? 'Dark side' : 'Light side', hit: d.attack === 'none' ? 'no blow' : `${d.harm}${d.atk}`, move: d.move != null ? `move ${d.move}` : '' };
+        const nat = isNat(G, o), kind = nat ? 'nat' : 'mon', def = nat ? G.data.natives[o.id] : G.data.monsters[o.id];
+        const now = [sideNow, o.side].find(x => x && (x === 'light' || def[x])) ?? 'light', side = nextSide(def, kind, now);
+        if (side === now) return null;
+        const f = sideFigures(G.data, kind, o.id, side);
+        return { name: SIDE_WORD[side], side, now: SIDE_WORD[now].toLowerCase(), hit: f.attack === 'none' ? 'no blow' : `${f.harm}${f.atk ?? ''}`, move: f.move != null ? `move ${f.move}` : '' };
     } catch { return null; }
 }
 
@@ -50,13 +49,13 @@ function counter(G, o, ctl) {
     const nat = isNat(G, o), def = nat ? G.data.natives[o.id] : G.data.monsters[o.id], flipped = !!G.ui.coFlip?.[o.id];
     let s = null; try { s = hireStats(G.data, o.id, nat ? 'nat' : 'mon', G.st); } catch { /* a name only */ }
     const lbl = nat && def.leader ? 'Lead' : s?.harm ? `${s.harm}${s.atk ?? ''}` : '';
-    const back = flipped ? otherSide(G, o) : null;
     const img = counterArt(G, o);
-    const look = gameOf(G.st, G.data).options?.hirelingRules ? counterLook(o) : null;          // (hireling rules: the counter lies dark side up while he is hidden, red for a hidden Tremendous monster)
+    const look = gameOf(G.st, G.data).options?.hirelingRules ? counterLook(o) : null;
+    const back = flipped ? otherSide(G, o, look?.side) : null;          // (hireling rules: the counter lies dark side up while he is hidden, red for a hidden Tremendous monster)
     const el = h('button', { type: 'button', class: `ds-counter tall kit-counter hc${flipped ? ' flipped' : ''}`, 'data-hireling': o.id, 'data-flip': '', 'data-side': look?.side ?? null, 'data-hidden': look ? (look.hidden ? '1' : '0') : null,
-        'aria-label': `${def.name}: tap to turn the counter over${look?.hidden ? `. It is ${look.word}` : ''}`, 'aria-pressed': flipped ? 'true' : 'false',
+        'aria-label': `${def.name}: ${back ? `${back.name.toLowerCase()} showing, the other side; the ${back.now} is up now. Tap to turn it back` : 'tap to turn the counter over'}${look?.hidden ? `. It is ${look.word}` : ''}`, 'aria-pressed': flipped ? 'true' : 'false',
         onclick: () => { (G.ui.coFlip ??= {})[o.id] = !flipped; render(G); } },
-        flipped ? h('span', { class: 'kit-back' }, back ? [h('small', {}, back.name), h('b', {}, back.hit), h('small', {}, back.move)] : [h('small', {}, 'No other side')]) : (img ? art(img.replace(/^art\//, ''), '', def.name) : h('span', { class: 'kit-noart' }, def.name)),
+        flipped ? h('span', { class: 'kit-back' }, back ? [h('small', { 'data-side': back.side }, back.name), h('b', {}, back.hit), h('small', {}, back.move)] : [h('small', {}, 'No other side')]) : (img ? art(img.replace(/^art\//, ''), '', def.name) : h('span', { class: 'kit-noart' }, def.name)),
         flipped ? null : h('span', { class: 'lbl' }, lbl), look?.hidden && !flipped ? h('span', { class: 'hc-tag' }, 'hidden') : null, flyBadge(G.st, nat ? 'nat' : 'mon', o.id, def.name));          // (a Fly chit on a hireling: steeds.js)
     return nat ? markGroup(el, def.group) : el;
 }

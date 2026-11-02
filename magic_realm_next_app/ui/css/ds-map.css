@@ -10,3 +10,9 @@
 /* DR-19: a hidden hero is a hollow gold ring with a dark edge outside it, so it holds its own on busy green art (the dashed dark disc was the quietest thing on the map) */
 .mv-ov .ds-hero.hidden, .mv-key .ds-hero.hidden { border-style: solid; border-color: rgba(181, 227, 156, .92); background: rgba(13, 15, 21, .35);
     box-shadow: 0 0 0 1px rgba(8, 10, 14, .85), 0 0 0 3px rgba(181, 227, 156, .6), 0 0 0 4.5px rgba(8, 10, 14, .7), 0 0 14px rgba(181, 227, 156, .45); }
+
+/* Note 98: the hero marks his clearing with a RING, never a dot: the dot (and the dark fill) lay over the clearing's numbered disc, so he could not read which number he stood in. The ring is hollow; the disc and its number
+   show through it, and a hidden hero's ring is dashed (a plain solid one: in plain sight). A dark edge outside keeps it readable on busy art. mapview.js sizes it to the numbered disc at the zoom shown. */
+.mv-ov .ds-hero:not(.air) { background: transparent; border: 3px solid var(--gold-hi, #b5e39c); box-shadow: 0 0 0 1.5px rgba(8, 10, 14, .85), 0 0 12px rgba(181, 227, 156, .55); }
+.mv-ov .ds-hero:not(.air)::after { display: none; }
+.mv-ov .ds-hero.hidden:not(.air) { background: transparent; border-style: dashed; border-color: rgba(127, 209, 200, .95); box-shadow: 0 0 0 1.5px rgba(8, 10, 14, .85), 0 0 10px rgba(127, 209, 200, .45); }

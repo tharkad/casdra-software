@@ -26,8 +26,8 @@ export { weaponSide };
 /** The stats of a creature or hireling counter from the DATA alone: name, size, vulnerability, harm, attack and move times ... of `{ kind: 'mon'|'nat'|'hire', id, side?, tag? }`.
  * It knows nothing of spells in force or a transformed counter (those are in `view`: `den.stat` of a creature on a character's sheet); it is what a counter lying on the map shows.
  * @param {any} data @param {{ kind: string, id: string, side?: string, tag?: string|number, hireKind?: string }} den */
-export function denStats(data, den) {
-    return engineDenSide({ chars: {}, fx: [] }, data, den);
+export function denStats(data, den, extra = {}) {          // (`extra.combat`: the fight a part belongs to, so a part's own side can be read)
+    return engineDenSide({ chars: {}, fx: [], ...extra }, data, den);
 }
 /** What a hired native or monster fights with (the hire price list and the Melee Sections use it): see combat.js `hireStats`. */
 export const hireFacts = (data, id, kind = 'nat', side = null) => engineHireStats(data, id, kind, null, side);

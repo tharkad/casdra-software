@@ -3,7 +3,7 @@
 import { h } from '../dom.js';
 import { icon } from '../icons.js';
 import { monsterCounter, itemFace } from '../counter.js';
-import { nameOf, defOf } from '../../engine/catalogue.js';
+import { nameOf, defOf, isWeaponCard, weaponSide } from '../../engine/catalogue.js';
 import { denSide, weaponOf, activeArmor, own } from './feed.js';
 import { DIRS, MNV, otherSide, picOf, chitText, WORD, isWithered, WITHER_STORY, WITHER_DETAIL } from './model.js';
 import { displayName, tieNumber } from '../names.js';
@@ -44,14 +44,15 @@ export function safeSide(fm, data, d) {
 export function counterOf(fm, data, d, side, flies = false) {
     let picture = null;
     try { picture = picOf(fm, data, d, side); } catch { picture = null; }
-    return monsterCounter({ s: safeSide(fm, data, { ...d, side }), side, picture, flies, size: 92 });
+    const turned = side !== (d?.side ?? 'light');          // (the other side: what is printed on it, never the stat of the side in play)
+    return monsterCounter({ s: safeSide(fm, data, { ...d, side, ...(turned ? { stat: undefined } : {}) }), side, picture, flies, size: 92 });
 }
 
 // One foe: its counter (tap to turn it over), and an optional tag (TARGET, a box, WOUNDED YOU). `view` says which side shows; `tag` is { text, kind, onclick? }.
 export function foeEl({ st: fm, data, d, flipped = false, tag = null, dead = false, onFlip, size = 92, justFlipped = false, selected = false, turnedOver = false, onHold = null, seton = null }) {
     let other = null; try { other = otherSide(data, d); } catch { other = null; }
     const showRev = !!flipped && other && other !== (d.side ?? 'light');
-    const view = showRev ? { ...d, side: other } : d;
+    const view = showRev ? { ...d, side: other, stat: undefined } : d;
     const s = safeSide(fm, data, view);
     const side = showRev ? other : (d.side ?? 'light');
     const flies = d.kind === 'mon' && !!data.monsters?.[d.id]?.flies;
@@ -177,6 +178,16 @@ export function pipsEl(fm, prev = null, data = null) {
         ...chits.map(x => h('i', { class: `ds-chit mini ${x.type}${cls(x) ? ` ${cls(x)}` : ''}${prev && prev[x.id] && prev[x.id] !== x.state ? ' fresh' : ''}`, 'data-pip': x.id }, ({ fight: 'F', move: 'M', magic: '✦' })[x.type] || '?')));
 }
 
+/** What the hero's weapon chip says about it: { state: 'alerted' | 'unalerted' | 'card', words: 'ALERTED' | 'NOT ALERTED' | 'WEAPON CARD', fig: 'H6', say: plain words for a screen reader }.
+ * A weapon counter is "alerted" when its red side is face up (rule 2.3.4d); a weapon card cannot be alerted and stays face up. The figures are the harm and attack time of the side up now. */
+export function weaponState(data, w) {
+    const card = isWeaponCard(data, w.item), s = weaponSide(w);
+    const fig = `${s.harm ?? ''}${'*'.repeat(s.stars ?? 0)}${s.time ?? ''}`;
+    const state = card ? 'card' : w.item.alerted ? 'alerted' : 'unalerted';
+    const words = card ? 'WEAPON CARD' : state === 'alerted' ? 'ALERTED' : 'NOT ALERTED';
+    return { state, words, fig, say: `harm ${s.harm}${s.time != null ? `, attack time ${s.time}` : ''}${card ? ', always ready' : ''}` };
+}
+
 /** The Belongings and the map buttons (DR-21): an icon button that opens one of them and brings the fight back. */
 export const peekBtn = (act, label, ic, on) => (on ? h('button', { type: 'button', class: 'ds-btn icon quiet cb-peek', 'data-act': act, 'aria-label': label, onclick: on }, icon(ic, 'lg')) : null);
 
@@ -188,10 +199,14 @@ export function heroEl({ st: fm, data, onGear, onPeekGear = null, onPeekMap = nu
     const face = cr
         ? h('span', { class: 'face morph' }, monsterCounter({ s: { name: cr.name, vuln: cr.vuln, armored: !!cr.armored, attack: lt.attack ?? 'weapon', harm: lt.harm, stars: lt.stars ?? 0, atk: lt.atk, move: lt.move, length: lt.length ?? 0, fame: cr.fame ?? 0, notor: cr.notor ?? 0 }, side: 'light', picture: data.art?.monsters?.[cr.name] ?? null, flies: !!cr.flies, size: 72 }))
         : h('span', { class: `face${ch.hidden ? ' hid' : ''}` }, data.art?.characters?.[ch.id] ? pic(data.art.characters[ch.id].replace(/\.gif$/, '.png'), displayName(ch.name)) : null);
+    // Note 100: the weapon says on its own chip whether it is alerted, in the item card's words (ALERTED / NOT ALERTED, or a weapon card, which cannot be alerted: rule 2.3.4d), with the figures of the side up now.
+    const ws = w ? weaponState(data, w) : null;
     const gear = (kind, name, src, more, hurt, peekBtn = null) => h('div', { class: 'gcol' },
-        h('button', { type: 'button', class: `gear${src ? '' : ' none'}${hurt ? ' hurt' : ''}`, 'data-act': 'peek-gear-card', 'aria-label': name ? `${name}: read it` : `No ${kind}`, onclick: () => onGear?.(kind), disabled: !name || null },
-            src ? pic(src) : null, more > 1 ? h('span', { class: 'more' }, `+${more - 1}`) : null),
-        h('span', { class: 'cap' }, name ?? (ch.morph ? '' : `no ${kind}`)), peekBtn);
+        h('button', { type: 'button', class: `gear${src ? '' : ' none'}${hurt ? ' hurt' : ''}${kind === 'weapon' && ws ? ` w-${ws.state}` : ''}`, 'data-act': 'peek-gear-card', ...(kind === 'weapon' && ws ? { 'data-alerted': ws.state === 'alerted' ? '1' : '0', 'data-wstate': ws.state } : {}),
+            'aria-label': name ? `${name}${kind === 'weapon' && ws ? `, ${ws.words.toLowerCase()}, ${ws.say}` : ''}: read it` : `No ${kind}`, onclick: () => onGear?.(kind), disabled: !name || null },
+            src ? pic(src) : null, more > 1 ? h('span', { class: 'more' }, `+${more - 1}`) : null, kind === 'weapon' && ws ? h('span', { class: 'wfig', 'aria-hidden': 'true' }, ws.fig) : null),
+        h('span', { class: 'cap' }, name ?? (ch.morph ? '' : `no ${kind}`)),
+        kind === 'weapon' && ws ? h('span', { class: `wplate ${ws.state}`, 'data-wplate': ws.state }, ws.words) : null, peekBtn);
     const hurtGear = armor.some(a => a.damaged);
     // DR-21: the Belongings and the map are one thumb away, bottom left and bottom right of the stage under the weapon and the armor, not in the top 100px. (data-act peek-gear / peek-map: the tests' hooks)
     const peek0 = peekBtn;

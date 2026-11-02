@@ -209,7 +209,8 @@ export function clearingSheet(G) {
     const table = viewOf(G.st, G.data).table, dw = table.map.dwellings.filter(d => d.at === id);
     const natHere = table.natives.filter(x => !x.dead && !x.hired && x.loc?.c === id);
     const byGroup = {};
-    for (const x of natHere) (byGroup[G.data.natives[x.id].group] ??= []).push(G.data.natives[x.id]);
+    const natSide = {};          // (the side each native stands on: its card opens on that side)
+    for (const x of natHere) { (byGroup[G.data.natives[x.id].group] ??= []).push(G.data.natives[x.id]); natSide[x.id] = x.side ?? 'light'; }
     const living = [];
     for (const d of dw) {
         const grp = G.data.setupcard?.dwellings?.find(x => x.name === d.kind)?.group;
@@ -217,7 +218,7 @@ export function clearingSheet(G) {
     }
     for (const [g, list] of Object.entries(byGroup)) {
         const rel = REL[String(standing(G.st, g))], lead = list.find(x => x.leader) ?? list[0];
-        living.push(h('button', { type: 'button', class: 'ds-row nat pieceopen', 'data-act': 'piece-open', 'data-piece-open': lead.id, onclick: () => openPiece(G, { kind: 'nat', id: lead.id }) }, tile_(G.data.art?.natives?.[lead.id], g, g),
+        living.push(h('button', { type: 'button', class: 'ds-row nat pieceopen', 'data-act': 'piece-open', 'data-piece-open': lead.id, onclick: () => openPiece(G, { kind: 'nat', id: lead.id, side: natSide[lead.id] ?? 'light' }) }, tile_(G.data.art?.natives?.[lead.id], g, g),
             h('span', { class: 'main' }, h('b', {}, `${g}${list.length > 1 ? ` ×${list.length}` : ''}`), ...storyDetail(MOOD[rel], `${rel[0].toUpperCase()}${rel.slice(1)} to you; ${list.map(x => x.name.replace(/^\w+ /, '')).join(', ')}`)),
             h('span', { class: `ds-tag mood ${rel}` }, rel[0].toUpperCase() + rel.slice(1))));
     }
@@ -226,7 +227,7 @@ export function clearingSheet(G) {
     for (const [name, l] of Object.entries(mons)) {
         const md = G.data.monsters[l[0].id], ls = md.light;
         const blow = ls.attack === 'spell' ? `casts a Type ${ls.spell ?? ''} spell at ${ls.attackTime}` : ls.harm ? `harm ${ls.harm}${'*'.repeat(ls.stars || 0)} at ${ls.attackTime}` : `no attack on this side (${md.dark?.harm ? `harm ${md.dark.harm}${'*'.repeat(md.dark.stars || 0)} at ${md.dark.attackTime} on the other` : 'it only blocks'})`;
-        living.push(h('button', { type: 'button', class: 'ds-row mon pieceopen', 'data-act': 'piece-open', 'data-piece-open': l[0].id, onclick: () => openPiece(G, { kind: 'mon', id: l[0].id }) }, tile_(G.data.art?.monsters?.[name], name),
+        living.push(h('button', { type: 'button', class: 'ds-row mon pieceopen', 'data-act': 'piece-open', 'data-piece-open': l[0].id, onclick: () => openPiece(G, { kind: 'mon', id: l[0].id, side: l[0].side ?? 'light' }) }, tile_(G.data.art?.monsters?.[name], name),
             h('span', { class: 'main' }, h('b', {}, `${name}${l.length > 1 ? ` ×${l.length}` : ''}`), ...storyDetail(ownSheet(G.st, G.data).hidden ? 'It has not seen you.' : 'It will block you if you are seen.', `vuln ${md.vulnerability}${md.armored ? ' (armored)' : ''} · ${blow} · moves ${ls.moveTime}${md.flies ? ' · flies' : ''}. It will block you if you are seen.`))));
     }
     put('living', 'Living here', living);

@@ -470,7 +470,11 @@ export function mountMap(host) {
                 const bd = badgeOf.get(gr.id), bx = r.boxes[0], w0 = bd.boxes[0].w;
                 const el = badgeEl(bd, w0 - 1, { lod: level.lod, x: bx.x + 0.5 * sc, y: bx.y + 0.5 * sc, scale: sc });          // the layout box is the frame: half a unit wider than the chips
                 names.append(el); track(el, gr, r.boxes);
-                if (r.leader && !gr.noLeader) { leaders.append(sv('line', { x1: gr.ax.toFixed(1), y1: gr.ay.toFixed(1), x2: (bx.x + bx.w / 2).toFixed(1), y2: (bx.y + bx.h / 2).toFixed(1), class: `leader ${gr.kind ?? 'site'}` })); leaders.append(leaderMark(gr)); }
+                if (r.leader && !gr.noLeader) {
+                    // the line starts at the edge of the clearing's ring, not at its middle: it never runs over the clearing's number (note 98)
+                    const tx = bx.x + bx.w / 2, ty = bx.y + bx.h / 2, dx = tx - gr.ax, dy = ty - gr.ay, len = Math.hypot(dx, dy) || 1, k = Math.min(1, (gr.ar + 1) / len);
+                    leaders.append(sv('line', { x1: (gr.ax + dx * k).toFixed(1), y1: (gr.ay + dy * k).toFixed(1), x2: tx.toFixed(1), y2: ty.toFixed(1), class: `leader ${gr.kind ?? 'site'}` })); leaders.append(leaderMark(gr));
+                }
                 continue;
             }
             const make = makeLabel.get(gr.id);
@@ -622,7 +626,7 @@ export function mountMap(host) {
         if (!view || !model) return;
         const k = view.k, sx = p => p[0] * k + view.x, sy = p => p[1] * k + view.y;
         // a ring is 44px where the map is zoomed in and shrinks with the clearings when it is zoomed far out, never below 26
-        const ringD = Math.round(clamp(26, 44, 38 * k)), heroD = Math.round(clamp(14, 22, 30 * k));
+        const ringD = Math.round(clamp(26, 44, 38 * k)), heroD = Math.round(clamp(24, 40, 21 * k + 11));          // (the hero's ring goes round the clearing's numbered disc, which stays readable inside it: note 98)
         for (const { id, el } of ringEls) { const p = posOf.get(id); el.hidden = !p; if (p) { sizeEl(el, ringD); at(el, sx(p), sy(p)); } }
         if (heroEl) { const p = posOf.get(model.hero) ?? tileC.get(model.heroAir); heroEl.hidden = !p; if (p) { sizeEl(heroEl, heroEl.classList.contains('air') ? heroD + 10 : heroD); at(heroEl, sx(p), sy(p)); } }
         if (routeSvg) {

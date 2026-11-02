@@ -12,7 +12,7 @@ import { modal, mrChit, picOf } from './kit.js';
 import { calendarSheet as buildCalendar } from './sheet_calendar.js';
 import { render } from './shell.js';
 import { persist } from './state.js';
-import { ownSheet, gameOf, standingOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, standingOf, questionOf } from '../../combat/feed.js';
 import { colorSources } from '../../../engine/spells.js';
 
 // The Calendar sheet (its own file: the Days and Turn order tabs). The colours of magic in the viewer's clearing are read here and handed in.
@@ -44,7 +44,11 @@ export function menuSheet(G) {
         h('h4', {}, 'This game'),
         row('Journal', 'What has happened, day by day', go('log')),
         row('Calendar and magic', 'The colours of magic through the month', go('calendar'), { act: 'open-calendar' }),
-        row('Show the whole realm', null, () => { G.ui.sheet = null; G.map.fit(); render(G); }),
+        row('Show the whole realm', null, () => {
+            G.ui.sheet = null;
+            if (questionOf(G.st, G.data)?.type?.startsWith('combat')) { G.ui.combatMap = true; render(G); G.map.fit(); return; }          // (in a fight the map is the fight's own one-tap look, with "Back to the fight": notes 99, 101)
+            G.map.fit(); render(G);
+        }),
         ...(G.race || G.shared ? [] : [row('This game\u2019s record', null, () => { persist(G, true); G.ctx.go('history', { id: G.st.session?.id, back: 'game' }); })]),
         h('h4', {}, 'Reference'),
         row('How to play', null, go('help')),
