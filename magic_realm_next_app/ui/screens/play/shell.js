@@ -1,5 +1,4 @@
 // play/shell.js: the render loop and the layout it fills: render() redraws the status strip, the tray, the sheet layer and the map; mapModel() is what the map is told to draw.
-import { earned } from '../../../engine/score.js';
 import { dayColors } from '../../../engine/catalogue.js';
 import { nameOfClearing, tileOf } from '../../../engine/catalogue.js';
 import { isCave, knownPathPairs, roadsFrom, tileClearings } from '../../../engine/world.js';
@@ -12,7 +11,6 @@ import { displayName } from '../../names.js';
 import { EDGE, moveOptions, planState } from '../../planlogic.js';
 import { strip } from '../../ds.js';
 import { renderParty } from './hotseat.js';
-import { withActor } from '../../../engine/party.js';
 import { leaderGame, seatMarkers } from '../../leaders.js';
 import { maybeShowSunrise, ownSeats, showSeat, tableCrew } from './leaders.js';
 import { setStoryState } from '../../storyvoice.js';
@@ -27,7 +25,7 @@ import { sheets } from './sheets.js';
 import { doneLoading } from './states.js';
 import { renderTray } from './tray.js';
 import { myId, saveUi, vpNow } from './state.js';
-import { ownSheet, fresh, gameOf, questionOf, tableFight, charsOf, missionsOf, todayOf, tableModel, seatOf } from '../../combat/feed.js';
+import { ownSheet, fresh, gameOf, questionOf, tableFight, charsOf, missionsOf, todayOf, tableModel, seatOf, mapChits, viewOf, standingOf } from '../../combat/feed.js';
 
 // ---- model for the map ----
 export function mapModel(G) {
@@ -37,41 +35,42 @@ export function mapModel(G) {
     const KINDNAME = { 'lost-city': 'Lost City', 'lost-castle': 'Lost Castle' };
     // every chit of a tile keeps its own spot on the picture, even while it is shown at its clearing instead
     const slotOf = {}, nextSlot = {};
-    for (const c of G.st.chits) if (!c.pile && c.tile && !(c.kind === 'warning' && c.letter === 'V')) slotOf[c.id] = (nextSlot[c.tile] = (nextSlot[c.tile] ?? -1) + 1);
-    for (const c of G.st.chits) {
+    const chits = mapChits(G.st, G.data), me = ownSheet(G.st, G.data), seenIds = new Set(chits.filter(c => c.seen).map(c => c.id));
+    for (const c of chits) if (!c.pile && c.tile && !(c.kind === 'warning' && c.letter === 'V')) slotOf[c.id] = (nextSlot[c.tile] = (nextSlot[c.tile] ?? -1) + 1);
+    for (const c of chits) {
         if (c.pile || !c.tile) continue;
         if (c.kind === 'warning' && c.letter === 'V') continue;
-        const known = c.up || G.st.ch.seen.includes(c.id);
+        const known = c.up || seenIds.has(c.id);
         const name = KINDNAME[c.kind] ?? c.name;
         // a site he has DISCOVERED (Locate, Discover chits) carries a tick and a gold edge: it may be looted. A site chit merely turned up does not.
-        const disc = c.kind === 'site' && G.st.ch.discovered.sites.includes(c.id);
+        const disc = c.kind === 'site' && me.discovered.sites.includes(c.id);
         if (c.up && c.clearing && (c.kind === 'sound' || c.kind === 'site')) { add(c.tile + c.clearing, { k: c.kind, disc, label: c.kind === 'sound' ? `\u266A ${name}` : `\u25C6 ${name}${disc ? ' \u2713' : ''}` }); continue; }
         if (!c.up && c.kind === 'site' && disc) { add(c.tile + c.num, { k: 'site', disc: true, label: `\u25C6 ${name} \u2713` }); continue; }
         (chitsByTile[c.tile] ??= []).push({ up: known, name: known ? (c.kind === 'sound' ? `${name} ${c.num}` : name) : '?', id: c.id, kind: known ? c.kind : null, slot: slotOf[c.id] });
     }
     // a site card he found by looting (the Crypt of the Knight, the Toadstool Circle...) is a place in that clearing, and shows like a discovered site
-    for (const [at, ids] of Object.entries(G.st.ch.siteCards ?? {})) for (const id of ids) add(at, { k: 'site', disc: true, label: `\u25C6 ${G.data.treasures?.[id]?.name ?? id} \u2713` });
-    for (const d of G.st.dwellings) {
+    for (const [at, ids] of Object.entries(me.siteCards ?? {})) for (const id of ids) add(at, { k: 'site', disc: true, label: `\u25C6 ${G.data.treasures?.[id]?.name ?? id} \u2713` });
+    for (const d of viewOf(G.st, G.data).table.map.dwellings) {
         const here = d.at === ownSheet(G.st, G.data).at;
         add(d.at, { k: 'dwelling', label: d.kind, img: art?.dwellings?.[d.kind] ?? null });
     }
     // creatures by name: "Wolf x2", natives by group
     const group = (list, key) => { const m = {}; for (const x of list) { const k = x.loc.c + '|' + key(x); (m[k] ??= { at: x.loc.c, name: key(x), n: 0 }).n++; } return Object.values(m); };
-    const mons = group(G.st.mons.filter(m => !m.dead && m.loc?.c), m => G.data.monsters[m.id].name);
-    const nats = group(G.st.nats.filter(n => !n.dead && !n.hired && n.loc?.c), n => G.data.natives[n.id].group);
-    const monImg = {}; for (const m of G.st.mons) monImg[G.data.monsters[m.id].name] = art?.monsters?.[G.data.monsters[m.id].name] ?? null;
-    const natImg = {}; for (const n of G.st.nats) { const g = G.data.natives[n.id].group; if (!natImg[g] || G.data.natives[n.id].leader) natImg[g] = art?.natives?.[n.id] ?? natImg[g] ?? null; }
+    const table = viewOf(G.st, G.data).table, mons = group(table.monsters.filter(m => !m.dead && m.loc?.c), m => G.data.monsters[m.id].name);
+    const nats = group(table.natives.filter(n => !n.dead && !n.hired && n.loc?.c), n => G.data.natives[n.id].group);
+    const monImg = {}; for (const m of table.monsters) monImg[G.data.monsters[m.id].name] = art?.monsters?.[G.data.monsters[m.id].name] ?? null;
+    const natImg = {}; for (const n of table.natives) { const g = G.data.natives[n.id].group; if (!natImg[g] || G.data.natives[n.id].leader) natImg[g] = art?.natives?.[n.id] ?? natImg[g] ?? null; }
     for (const m of mons) add(m.at, { k: 'mon', label: m.n > 1 ? `${m.name} x${m.n}` : m.name, img: monImg[m.name] });
     for (const n of nats) add(n.at, { k: 'nat', label: n.n > 1 ? `${n.name} x${n.n}` : n.name, img: natImg[n.name] });
     if (missionsOf(G.st, G.data)) for (const t of mapTokens(G.st, G.data)) add(t.at, { k: t.k, label: t.label });          // visitor, mission and campaign chits lying in a clearing (they lie face up: public)
-    const hires = G.st.nats.filter(n => n.hired && !n.dead);
+    const hires = table.natives.filter(n => n.hired && !n.dead);
     if (G.shared) {
         // a hireling is its hirer's alone (7.7): each character's are shown where that character stands, named for him
         const here = new Map();                                      // clearing -> owner -> how many
         for (const n of hires) { const owner = n.hiredBy ?? ownSheet(G.st, G.data).id, at = charsOf(G.st, G.data)[owner]?.at; if (!at || charsOf(G.st, G.data)[owner]?.onRoad) continue; const m = here.get(at) ?? here.set(at, new Map()).get(at); m.set(owner, (m.get(owner) ?? 0) + 1); }
         // one pill a clearing (two would crowd it into a marker): "Your hirelings x2", "Ann\u2019s hirelings x1", or "Hirelings: Ann 1, Tom 1" when several have them here
         for (const [at, owners] of here) {
-            const list = [...owners].sort((a, b) => G.st.order.indexOf(a[0]) - G.st.order.indexOf(b[0]));
+            const list = [...owners].sort((a, b) => tableModel(G.st, G.data).order.indexOf(a[0]) - tableModel(G.st, G.data).order.indexOf(b[0]));
             add(at, { k: 'ally', label: list.length === 1 ? `${list[0][0] === ownSheet(G.st, G.data).id ? 'Your' : `${playerNameOf(tableModel(G.st, G.data), list[0][0])}\u2019s`} hirelings x${list[0][1]}` : `Hirelings: ${list.map(([o, k]) => `${o === ownSheet(G.st, G.data).id ? 'yours' : playerNameOf(tableModel(G.st, G.data), o)} ${k}`).join(', ')}` });
         }
     } else if (gameOf(G.st, G.data).options?.hirelingRules) {
@@ -109,8 +108,8 @@ export function mapModel(G) {
         }
     }
     return {
-        tiles: G.data.tiles, art: G.data.art, placements: G.st.placements, side: 'normal', showHidden: false, discovered: knownPathPairs(G.st),
-        chitsByTile, tokens, hero: ownSheet(G.st, G.data).onRoad || G.st.ch.dead || ownSheet(G.st, G.data).flying ? null : ownSheet(G.st, G.data).at, heroAir: !G.st.ch.dead && ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : null, heroHidden: ownSheet(G.st, G.data).hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
+        tiles: G.data.tiles, art: G.data.art, placements: viewOf(G.st, G.data).table.map.placements, side: 'normal', showHidden: false, discovered: knownPathPairs(G.st),
+        chitsByTile, tokens, hero: ownSheet(G.st, G.data).onRoad || ownSheet(G.st, G.data).dead || ownSheet(G.st, G.data).flying ? null : ownSheet(G.st, G.data).at, heroAir: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : null, heroHidden: ownSheet(G.st, G.data).hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
         onTap: id => {
             // a spell aimed on the map (Talk to Wise Bird): a tap on a ringed clearing is the answer; the fight comes back with it chosen
             if (G.ui.combatMap && G.ui.aimMap) {
@@ -238,12 +237,12 @@ function syncCamera(G, force = false) {
 // The status strip (mockup 01): menu, Day and phase (opens the calendar), Fame / Notoriety / Gold (one button: the Kit), VP (the goals).
 function renderStrip(G) {
     // A hired leader's seat is on screen: his Fame, Notoriety and the score are his hirer's at once (7.7.2b), so the strip shows the hirer's (his own gold is on his sheet)
-    const seat = G.st.ch?.leader ? tableModel(G.st, G.data).chars[ownSheet(G.st, G.data).leader.hirer] : null, ch = seat ?? G.st.ch, asHirer = fn => (seat ? withActor(G.st, seat.id, fn) : fn());
+    const seat = G.st.ch?.leader ? tableModel(G.st, G.data).chars[ownSheet(G.st, G.data).leader.hirer] : null, ch = seat ?? G.st.ch;
     const cursed = (ch.curses ?? []).length > 0, magicToday = dayColors(gameOf(G.st, G.data).day, gameOf(G.st, G.data).lastDay ?? 28);
     // Fame and Notoriety are what counts (recorded plus what the things he owns add); the recorded part is in the Kit.
-    let ern = null; try { ern = asHirer(() => earned(G.st, G.data)); } catch { /* scoring not available */ }
+    let ern = null; try { ern = standingOf(G.st, G.data, seat?.id).earned; } catch { /* scoring not available */ }
     const total = (kind, val) => (ern && (kind === 'fame' || kind === 'notoriety') ? ern[kind] : val);
-    const tot = asHirer(() => vpNow(G)), dead = gameOf(G.st, G.data).period === 'over' && ch.dead;
+    const tot = vpNow(G, seat?.id), dead = gameOf(G.st, G.data).period === 'over' && ch.dead;
     // The score is counted from the shortfall of each goal, so on day 1 it is a negative number: the honest figure, and the one Mike wants on the chip (it said "0/N" until the first night: QA-19, reversed by note 32).
     // DR-14: the strip does not run ahead of the Day Result. While the morning report is on screen it keeps the day, the phase and the numbers it showed at midnight; the new day shows when it is closed.
     const cur = { day: gameOf(G.st, G.data).day, total: lastDayOf(G.st), phase: gameOf(G.st, G.data).period === 'over' ? 'finished' : gameOf(G.st, G.data).period, gold: ch.gold, fame: total('fame', ch.fame), notor: total('notoriety', ch.notoriety),

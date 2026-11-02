@@ -48,6 +48,15 @@ export const sheetOf = (st, data, who) => viewOf(st, data, who).me?.fight ?? nul
 export const tradeOf = (st, data, who) => legalOf(st, data, who).options ?? { ashes: false, groups: {}, stock: [], goods: [], mine: [], canPay: true, choices: [] };
 /** His own day (view.me.today): the plan as drawn up (`planFull`, `planBase`), how far the turn has come (`turn`: `i`, `results`, `enchants` ...), how it ended (`turnEnd`), who is with him. {} for a spectator. */
 export const todayOf = (st, data, who) => viewOf(st, data, who).me?.today ?? {};
+/** The chits of the map as the map draws them, as the raw chit records read (`id, tile, pile, up, clearing` (the clearing's NUMBER, once it is face up), `kind, name, num` for a chit he can name), plus `seen`
+ * (he looked at it: Magic Sight, a Locate) and `exchanged` (a valley warning, swapped for a dwelling). A face-down chit he knows nothing of carries no kind: it is a '?' on the map. From view.table.chits and view.me.knows. */
+export function mapChits(st, data, who) {
+    const v = viewOf(st, data, who), known = v.me?.knows.chits ?? {};
+    return v.table.chits.map(c => {
+        const f = c.up ? c.face : known[c.id];
+        return { id: c.id, tile: c.tile, pile: c.pile, up: c.up, clearing: c.clearing != null ? Number(c.clearing.slice(c.tile.length)) : null, ...(f ? { kind: f.kind, name: f.name, num: f.num, ...(f.letter != null ? { letter: f.letter } : {}) } : {}), seen: !!known[c.id], ...(c.exchanged ? { exchanged: true, kind: 'warning', letter: 'V' } : {}) };
+    });
+}
 /** The site chits he can name: the ones face up, and the face-down ones he has discovered or seen. [{ id, kind: 'site', name, num, tile, up, pile, discovered }] (a face-down chit he knows nothing of is not here). */
 export function siteChits(st, data, who) {
     const v = viewOf(st, data, who), known = v.me?.knows.chits ?? {}, found = new Set(v.me?.discoveries.sites ?? []);
@@ -55,6 +64,11 @@ export function siteChits(st, data, who) {
 }
 /** Facts about his spells now (view.me.magic): `fx` (in force), `held`, `energize`, `heldLock`, `fly`. An empty record for a spectator. */
 export const magicOf = (st, data, who) => viewOf(st, data, who).me?.magic ?? { fx: [], held: [], heldLock: null, energize: [], fly: { sources: [], holdsBroomstick: false } };
+/** His goals and standing (view.me.standing): `score`, `targets`, `progress`, and `earned` (view.me.earned: what he holds toward each goal now). */
+export function standingOf(st, data, who) {
+    const v = viewOf(st, data, who);
+    return { earned: v.me?.earned ?? null, ...(v.me?.standing ?? { score: null, targets: null, progress: null }) };
+}
 /** The story so far (view.me.journal): the log lines he may read, no dice, no notes, oldest first. [] for a spectator. */
 export const journalLines = (st, data, who) => viewOf(st, data, who).me?.journal ?? [];
 /** The dice of the game so far, newest last (view.me.fightLog.rolls). */

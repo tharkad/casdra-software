@@ -948,16 +948,17 @@ export function meleeSetup(st, data, p) {
     if (gone(p.fightChit, o.fightChits, o2.fightChits)) { log(`Your play of the Fight chit is cancelled: the spell forbids it (4.6.10a).`, null, { ev: { code: 'play.cancelled', who: st.ch.id, play: 'fight', why: 'spell' } }); p = { ...p, fightChit: null }; }
     if (gone(p.moveChit, [...o.moveChits, ...o.duckChits], [...o2.moveChits, ...o2.duckChits])) { log(`Your play of the Move chit is cancelled: the spell forbids it (4.6.10a).`, null, { ev: { code: 'play.cancelled', who: st.ch.id, play: 'move', why: 'spell' } }); p = { ...p, moveChit: null }; }
     let fight = null, move = null;
+    const cancelled = [];          // (plays cancelled as illegal: 8.4.5g)
     if (p.fightChit) {
         fight = o2.fightChits.find(x => x.id === p.fightChit);
         if (!fight) throw new Error('that Fight chit is not available');
-        if (!o2.fightOk(fight)) throw new Error('that Fight chit is too weak for your weapon');
+        if (!o2.fightOk(fight)) { cancelled.push(fight); log('Your play of the Fight chit is cancelled: it is too weak for your weapon (8.4.5f.3). The chit is used, and its asterisks count (8.4.5g).', null, { ev: { code: 'play.cancelled', who: st.ch.id, play: 'fight', why: 'too-weak' } }); fight = null; }          // (8.4.5g: an illegal play is cancelled, not refused: no effect, the chit is used, its asterisks count)
     }
     if (p.moveChit) {
         move = o2.moveChits.find(x => x.id === p.moveChit) ?? o2.duckChits.find(x => x.id === p.moveChit);
         if (!move) throw new Error('that Move chit is not available');
         if (move.duck && p.moveDir !== DUCK_SQUARE) throw new Error('the Duck chit may only be placed in the Duck square');
-        if (!move.duck && !o2.moveOk(move)) throw new Error('that Move chit is too weak to carry your gear');
+        if (!move.duck && !o2.moveOk(move)) { cancelled.push(move); log('Your play of the Move chit is cancelled: it is too weak to carry your gear (8.4.5f.3). The chit is used, and its asterisks count (8.4.5g).', null, { ev: { code: 'play.cancelled', who: st.ch.id, play: 'move', why: 'too-weak' } }); move = null; }
     }
     if (fight && move && fight.id === move.id) throw new Error('a Move/Fight chit is played as one or the other, not both');
     if (hm) {
@@ -968,10 +969,14 @@ export function meleeSetup(st, data, p) {
             if (!p.target) throw new Error('name the creature the part attacks');
         }
     }
-    const ast = o2.asterisksPlayed + (fight?.effort ?? 0) + (move?.effort ?? 0);
-    if (ast > effortLimit(st)) throw new Error(`at most ${effortLimit(st)} effort asterisks may be played in a round`);
+    // 8.4.5f.2: a chit that would take the asterisks of the round above the limit is a play that is cancelled (and 8.4.5g: used, its asterisks counted), not refused
+    { let used = o2.asterisksPlayed + cancelled.reduce((n, x) => n + (x.effort ?? 0), 0);
+      const over = (x, kind) => { used += x.effort ?? 0; return used > effortLimit(st) ? (cancelled.push(x), log(`Your play of the ${kind} chit is cancelled: it takes the round above ${effortLimit(st)} effort asterisks (8.4.5f.2). The chit is used, and its asterisks count (8.4.5g).`, null, { ev: { code: 'play.cancelled', who: st.ch.id, play: kind.toLowerCase(), why: 'effort-limit' } }), true) : false; };
+      if (fight && over(fight, 'Fight')) fight = null;
+      if (move && over(move, 'Move')) move = null; }
     if (fight) playChit(st, fight);
     if (move) playChit(st, move);
+    for (const x of cancelled) playChit(st, x);
     // Wish 6 (Strength): the next Fight chit or Gloves he plays strikes with a flat Tremendous harm, whatever he swings, and the wish is used up
     const wish = fight && !fight.morph && st.ch.wishStrength ? st.ch.wishStrength : null;
     if (wish) st.ch.wishStrength = null;
@@ -1347,7 +1352,18 @@ export function deliverBlows(st, data, parts, run = (pt, f) => f(), shared = fal
         killQ.length = 0;
         dmg.forEach(f => f());
         if (killQ.length) settleKills(st, data, killQ.splice(0), parts, run);          // (pvp: who killed a character gets his belongings, gold and Notoriety, once the instant is over)
+        stampDeaths(st, parts);          // (9.1.2b: the characters who fell in this instant fell together; a later instant is later)
     }
+}
+
+// 9.1.2b: when several players lose a character on one day, the one who lost his first chooses first; deaths in the same instant are simultaneous (chance decides). Every instant of the order of blows that
+// kills a character gives the dead of that instant the next number of `st.deathClock`: the pick order reads the numbers.
+function stampDeaths(st, parts) {
+    if (Object.keys(st.chars ?? {}).length < 2) return;          // (one character: there is no order to settle, and a one-character game's state stays as it was)
+    const fresh = parts.filter(pt => pt.dead() && st.chars[pt.by] && st.chars[pt.by].today.deathSeq == null);
+    if (!fresh.length) return;
+    st.deathClock = (st.deathClock ?? 0) + 1;
+    for (const pt of fresh) st.chars[pt.by].today.deathSeq = st.deathClock;
 }
 
 // What is left to do for one character once every blow has fallen: Tremendous monsters that hurt him turn red, his weapon is alerted or not, the spell not used is lost.

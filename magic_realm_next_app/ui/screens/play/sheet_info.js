@@ -1,7 +1,6 @@
 // play/sheet_info.js: the information sheets: calendar and magic colours, the race standings, the menu, "Report a problem", the score/goals sheet and the Setup Card.
 import { defOf, nameOf, priceOf } from '../../../engine/catalogue.js';
 import { CATS, FACTORS } from '../../../engine/catalogue.js';
-import { earned, progress, scoreGame, targets } from '../../../engine/score.js';
 import { ask } from '../../ask.js';
 import { collect as collectReport, send as sendReport } from '../../bugreport.js';
 import { h } from '../../dom.js';
@@ -13,7 +12,7 @@ import { modal, mrChit, picOf } from './kit.js';
 import { calendarSheet as buildCalendar } from './sheet_calendar.js';
 import { render } from './shell.js';
 import { persist } from './state.js';
-import { ownSheet, gameOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, standingOf } from '../../combat/feed.js';
 import { colorSources } from '../../../engine/spells.js';
 
 // The Calendar sheet (its own file: the Days and Turn order tabs). The colours of magic in the viewer's clearing are read here and handed in.
@@ -93,7 +92,7 @@ export function bugSheet(G) {
 }
 
 export function scoreSheet(G) {
-    const res = scoreGame(G.st, G.data), e = earned(G.st, G.data), need = targets(G.st), vp = ownSheet(G.st, G.data).vp ?? {};
+    const sd = standingOf(G.st, G.data), res = sd.score, e = sd.earned, need = sd.targets, vp = ownSheet(G.st, G.data).vp ?? {};
     const NAME = { great: 'Great Treasures', spells: 'Spells', fame: 'Fame', notoriety: 'Notoriety', gold: 'Gold' };
     const belong = (key) => ownSheet(G.st, G.data).items.filter(i => !i.destroyed).map(i => { const d = defOf(G.data, i); const t = i.card ? G.data.treasures[i.card] : d; return { name: nameOf(G.data, i), v: (t?.[key] ?? d?.[key] ?? 0) }; }).filter(x => x.v);
     const how = {
@@ -105,7 +104,7 @@ export function scoreSheet(G) {
     };
     const rows = res.rows ?? [];
     const sign = n => (n > 0 ? `+${n}` : String(n));
-    const pr = progress(G.st, G.data), over = gameOf(G.st, G.data).period === 'over';
+    const pr = sd.progress, over = gameOf(G.st, G.data).period === 'over';
     const sumUp = c => { const r = rows.find(x => x.cat === c); return r ? `${sign(r.basic + r.bonus)} points if the game ended now` : ''; };
     const goalCard = g => {
         const r = rows.find(x => x.cat === g.cat);

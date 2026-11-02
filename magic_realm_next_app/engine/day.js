@@ -56,7 +56,19 @@ export function beginDay(st, data) {
     // Several seats starting again on the same morning (9.1.2b): the die decides who picks first. A seat may start again as the same character at once; one who wants ANOTHER character waits
     // for those ahead of him to answer (restartChar), so that two cannot grab the same one by being quick. The order is on the table.
     const dead = st.asks.filter(a => a.pending.type === 'restart');
-    if (dead.length > 1) { const order = shuffle(st, dead.map(a => a.who), 'order.dead'); for (const a of dead) a.pending.pickOrder = order.slice(); say(st, `${order.map(id => playerNameOf(st, id)).join(', then ')} start again, in that order of choosing a character.`, 'day', null, { who: null }); }
+    if (dead.length > 1) { const order = pickOrderOfDead(st, dead.map(a => a.who)); for (const a of dead) a.pending.pickOrder = order.slice(); say(st, `${order.map(id => playerNameOf(st, id)).join(', then ')} start again, in that order of choosing a character.`, 'day', null, { who: null }); }
+}
+
+// 9.1.2b: the player who lost his character first picks first; characters killed together each roll one die and the high roll picks first (a tie on the roll is rolled again among the tied only: ruling 10, Mike 2026-10-24).
+function pickOrderOfDead(st, ids) {
+    const seq = id => st.chars[id]?.today?.deathSeq ?? 0, out = [];
+    const rank = tied => {          // players tied on the death: the high die first, tied dice again among themselves
+        if (tied.length < 2) return tied;
+        const rolled = tied.map(id => ({ id, d: die(st, 'order.dead') })), top = [...new Set(rolled.map(r => r.d))].sort((a, b) => b - a);
+        return top.flatMap(v => rank(rolled.filter(r => r.d === v).map(r => r.id)));
+    };
+    for (const n of [...new Set(ids.map(seq))].sort((a, b) => a - b)) out.push(...rank(ids.filter(id => seq(id) === n)));
+    return out;
 }
 
 // One character's Birdsong chores: he is the actor.
@@ -168,7 +180,7 @@ export function phasesFor(st, data, slots) {
     const intoCave = slots.some(s => s?.act === 'move' && isCave(st, data, s.to));
     const sunlight = !startsInCave && !intoCave && !noSunlight(st);          // the Dwarf's Short Legs: no sunlight phases ever
     // A working horse in use, and some treasure cards, give one more phase each, restricted to one activity.
-    const extras = extraActs(st, data, { startsInCave, intoCave });
+    const extras = extraActs(st, data, { startsInCave, intoCave, planning: true });
     // Blazing Light (Day, cast in a cave): in the Birdsong after it was cast, a character who starts the day in that cave clearing may record one more phase, for any activity
     const blazing = startsInCave && !!st.ch.at && fxTags(st, { kind: 'clearing', id: st.ch.at }, 'extraPhase').length > 0;
     const base = PHASES.basic + (sunlight ? PHASES.sunlight : 0) + (blazing ? 1 : 0);
@@ -736,6 +748,7 @@ function died(st, data, carryOn = true) {
     if (multi(st)) {
         st.combat = null; st.turn = null; st.pending = null;
         st.ch.death = { day: st.day, by: st.slain?.by ?? null, text: st.slain?.text ?? null, at: st.slain?.at ?? st.ch.at };
+        st.ch.today.deathSeq ??= (st.deathClock = (st.deathClock ?? 0) + 1);          // (a death the order of blows did not stamp: it falls at this moment)
         st.ch.today.stage = 'dead';
         say(st, `${st.ch.name}'s adventure ends here.`, 'day');
         if (!carryOn) return;                                                              // (he fell in a fight shared with others: the fight goes on without him, battle.js)
@@ -1448,6 +1461,7 @@ function step(st, data, action) {
             const locked = gearLockedWhy(st); if (locked) throw new Error(locked);          // 8.3.8d
             const chest = st.ch.items.find(i => i.uid === action.item && i.id === 'chest');
             if (!chest) throw new Error('no chest to open');
+            if (!chest.active) refuse('chest.inactive', 'The Chest has to be active, with the Lost Keys active as well.', {}, 'List of Treasures: Chest');          // (the book: he can open the Chest only if he has the Lost Keys and the Chest active at the same time)
             if (!st.ch.items.some(i => i.id === 'lost-keys' && i.active)) throw new Error('The Chest needs the Lost Keys.');
             st.ch.items = st.ch.items.filter(i => i.uid !== chest.uid);
             for (const l of st.twt.chest.large) { const got = makeItem(st, l.kind, l.id); st.ch.items.push(got); noteGain(st, got); }

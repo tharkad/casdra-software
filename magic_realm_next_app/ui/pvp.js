@@ -166,15 +166,16 @@ export function parseSpoils(lines, byName, records = null, data = null) {
     }
     return out;
 }
-/** The swing at a character that a `blow.landed` / `blow.missed` event of the fight tells (it carries the `lane` he met), or null. Two quirks of the sentence reading are kept so that the screens say the same:
- * a swing at a maneuver played with a horse, a hit that undercuts, and every miss are not read from "You: Thrust at X (Dodge (his horse)): hit" / "hit by undercutting (...)" (they do not fit SWING), so they are not read from the event either. */
+/** The swing at a character that a `blow.landed` / `blow.missed` event of the fight tells (it carries the `lane` he met), or null: { dir, atMember, result, maneuver, horse }. */
 function swingOfEvent(ev, byId) {
-    if (!ev || ev.code !== 'blow.landed' || !ev.lane) return null;          // (a miss is never read: its sentence, "miss (Thrust hits Dodge; ...)", does not fit SWING either, so `missStory` has never had a swing to tell)
+    if (!ev || (ev.code !== 'blow.landed' && ev.code !== 'blow.missed') || !ev.lane) return null;
     const atMember = byId.get(ev.target);
-    if (!atMember || ev.lane.endsWith('-horse') || (ev.code === 'blow.landed' && ev.how === 'undercut')) return null;
-    return { dir: ev.dir[0].toUpperCase() + ev.dir.slice(1), atMember, result: 'hit', maneuver: ev.lane === 'none' ? null : ev.lane[0].toUpperCase() + ev.lane.slice(1) };
+    if (!atMember) return null;
+    const horse = ev.lane.endsWith('-horse'), lane = ev.lane.replace(/-horse$/, '');
+    return { dir: ev.dir[0].toUpperCase() + ev.dir.slice(1), atMember, result: ev.code === 'blow.landed' ? 'hit' : 'miss', maneuver: lane === 'none' ? null : lane[0].toUpperCase() + lane.slice(1), horse };
 }
-const SWING = /^You: (Thrust|Swing|Smash) at (.+?) \((no maneuver|[^)]*?)\): (hit|miss)(?:[;(:] ?(.*))?\.?$/;
+// ("You: Thrust at Captain (Dodge (his horse)): hit by undercutting (your time 4 beats his 5)." / "... (Dodge): miss (Thrust hits Charge; his time 2 is not slower than your 6).": a hit or a miss, with or without a note; the maneuver is a word, with his horse when it was the horse's)
+const SWING = /^You: (Thrust|Swing|Smash) at (.+?) \((no maneuver|[A-Za-z]+(?: \(his horse\))?)\): (hit|miss)\b[;:]? ?(.*?)\.?$/;
 /** The facts of a round that involve characters, from the lines the server sent the viewer (each in the voice of the one it happened to) and the table's record:
  *  swings  every attack named at someone: { by, dir, at, atMember, result, maneuver, note }
  *  blows   every blow that landed on a character: { from:{ member|name }, label, dir, harm, to, gear:{name,fate}|null, wound, slain, noEffect, horse }
@@ -192,12 +193,13 @@ export function pvpRound(view, f, report, round = report?.round, data = null) {
             let x;
             const sw = swingOfEvent(l.ev, byId);          // (a swing at a character, as the engine's event tells it; any other line, or a line without an event, is read from its sentence)
             if (sw) {
-                swings.push({ by: m, dir: sw.dir, at: sw.atMember.character, atMember: sw.atMember, result: sw.result, maneuver: sw.maneuver, note: '', story: l.s ?? null, line: l });
+                swings.push({ by: m, dir: sw.dir, at: sw.atMember.character, atMember: sw.atMember, result: sw.result, maneuver: sw.maneuver, horse: sw.horse, note: '', story: l.s ?? null, line: l });
                 cur = null; continue;
             }
             if ((x = SWING.exec(t))) {
                 const at = x[2], atMember = byName.get(at) ?? null;
-                swings.push({ by: m, dir: x[1], at, atMember, result: x[4], maneuver: x[3] === 'no maneuver' ? null : x[3], note: x[5] ?? '', story: l.s ?? null, line: l });
+                const horse = / \(his horse\)$/.test(x[3]);
+                swings.push({ by: m, dir: x[1], at, atMember, result: x[4], maneuver: x[3] === 'no maneuver' ? null : x[3].replace(/ \(his horse\)$/, ''), horse, note: '', story: l.s ?? null, line: l });
                 cur = null; continue;
             }
             // a blow that falls on this character (told in his voice)
@@ -306,7 +308,7 @@ export function blowStory(view, b) {
 }
 /** A swing that did not land, in the table's voice. */
 export function missStory(s) {
-    const man = s.maneuver ? `, who plays ${s.maneuver}` : '';
+    const man = s.maneuver ? `, who plays ${s.maneuver}${s.horse ? ' on his horse' : ''}` : '';
     return `${s.by.player}’s ${s.dir.toLowerCase()} at ${s.at}${man} finds nothing.`;
 }
 

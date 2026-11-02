@@ -22,7 +22,7 @@ import { openPiece } from './piece_card.js';
 import { markGroup } from '../../groups.js';
 import { render } from './shell.js';
 import { counterLook } from '../../leaders.js';
-import { ownSheet, charsOf, gameOf, tableModel } from '../../combat/feed.js';
+import { ownSheet, charsOf, gameOf, tableModel, mapChits, viewOf } from '../../combat/feed.js';
 
 const nbsp = s => String(s).replace(/ (\d+)$/, ' $1');
 const REACH = 6;                                                                   // a Loot roll is 1 to 6: the first six cards of a pile can be reached
@@ -67,7 +67,7 @@ export function pileEl(G, name, pile, sizes = null) {
 
 // A site: its counter, whether it is found, what is left (and the pile), what looting it needs. `fresh`: it has just been found (the tag, and it leads the sheet).
 export function siteBlock(G, c, { fresh = false, withPile = true, compact = false } = {}) {
-    const found = G.st.ch.discovered.sites.includes(c.id);
+    const found = ownSheet(G.st, G.data).discovered.sites.includes(c.id);
     const e = G.data.setupcard?.sites?.find(x => x.name === c.name);
     const pile = found ? (G.st.sites?.[c.name] ?? []) : [];
     const spells = G.st.spellBox?.sites?.[c.name]?.length ?? 0;
@@ -127,10 +127,10 @@ function setupDwelling(G, kind) {
 export function hereBlocks(G) {
     const at = ownSheet(G.st, G.data).at; if (!at || ownSheet(G.st, G.data).onRoad) return [];
     const tile = tileOf(at), n = numOf(at), out = [];
-    for (const c of G.st.chits.filter(x => x.kind === 'site' && x.tile === tile && x.num === n && !x.pile && G.st.ch.discovered.sites.includes(x.id))) out.push(siteBlock(G, c));
+    for (const c of mapChits(G.st, G.data).filter(x => x.kind === 'site' && x.tile === tile && x.num === n && !x.pile && ownSheet(G.st, G.data).discovered.sites.includes(x.id))) out.push(siteBlock(G, c));
     const ground = G.st.abandoned?.[at] ?? [];
     if (ground.length) out.push(row('loot', 'On the ground', ground.map(i => nameOf(G.data, i)).join(', ') + '.', actIcon('cache', 32)));
-    for (const cid of G.st.ch.siteCards?.[at] ?? []) out.push(siteCardRow(G, cid));
+    for (const cid of ownSheet(G.st, G.data).siteCards?.[at] ?? []) out.push(siteCardRow(G, cid));
     return out.length ? [h('div', { class: 'here', 'data-here': 'search' }, ...out)] : [h('p', { class: 'ds-meta' }, 'No site here is found yet, so Loot would find nothing. Locate is how a site is found.')];
 }
 
@@ -206,8 +206,8 @@ export function clearingSheet(G) {
     if (G.shared || gameOf(G.st, G.data).options?.hirelingRules) put('companions', 'Companions', companionRows(G, id));
 
     // living here: dwellings and natives (counters, mood), then the monsters
-    const dw = G.st.dwellings.filter(d => d.at === id);
-    const natHere = G.st.nats.filter(x => !x.dead && !x.hired && x.loc?.c === id);
+    const table = viewOf(G.st, G.data).table, dw = table.map.dwellings.filter(d => d.at === id);
+    const natHere = table.natives.filter(x => !x.dead && !x.hired && x.loc?.c === id);
     const byGroup = {};
     for (const x of natHere) (byGroup[G.data.natives[x.id].group] ??= []).push(G.data.natives[x.id]);
     const living = [];
@@ -222,7 +222,7 @@ export function clearingSheet(G) {
             h('span', { class: `ds-tag mood ${rel}` }, rel[0].toUpperCase() + rel.slice(1))));
     }
     const mons = {};
-    for (const m of G.st.mons.filter(m => !m.dead && m.loc?.c === id)) (mons[G.data.monsters[m.id].name] ??= []).push(m);
+    for (const m of table.monsters.filter(m => !m.dead && m.loc?.c === id)) (mons[G.data.monsters[m.id].name] ??= []).push(m);
     for (const [name, l] of Object.entries(mons)) {
         const md = G.data.monsters[l[0].id], ls = md.light;
         const blow = ls.attack === 'spell' ? `casts a Type ${ls.spell ?? ''} spell at ${ls.attackTime}` : ls.harm ? `harm ${ls.harm}${'*'.repeat(ls.stars || 0)} at ${ls.attackTime}` : `no attack on this side (${md.dark?.harm ? `harm ${md.dark.harm}${'*'.repeat(md.dark.stars || 0)} at ${md.dark.attackTime} on the other` : 'it only blocks'})`;
@@ -235,16 +235,16 @@ export function clearingSheet(G) {
 
     // what you could get: the sites found here (the one just found first), the site cards, what lies on the ground
     const get = [];
-    const siteChits = G.st.chits.filter(c => !c.pile && c.tile === tile && c.kind === 'site' && ((c.clearing === n && c.up) || (c.num === n && G.st.ch.discovered.sites.includes(c.id))));
+    const siteChits = mapChits(G.st, G.data).filter(c => !c.pile && c.tile === tile && c.kind === 'site' && ((c.clearing === n && c.up) || (c.num === n && ownSheet(G.st, G.data).discovered.sites.includes(c.id))));
     siteChits.sort((a, b) => (b.id === fresh) - (a.id === fresh));
     for (const c of siteChits) get.push(siteBlock(G, c, { fresh: c.id === fresh }));
-    for (const cid of G.st.ch.siteCards?.[id] ?? []) get.push(siteCardRow(G, cid));
+    for (const cid of ownSheet(G.st, G.data).siteCards?.[id] ?? []) get.push(siteCardRow(G, cid));
     const ground = G.st.abandoned[id] ?? [];
     if (ground.length) get.push(h('div', { class: 'ds-site found ground' }, h('div', { class: 'head' }, h('span', { class: 'ds-counter sm' }, actIcon('cache', 32)), h('span', { class: 'main' }, h('b', {}, 'On the ground'), h('span', { class: 'ds-dim' }, `${ground.map(i => nameOf(G.data, i)).join(', ')}. Anyone here may pick it up with a Loot phase.`)))));
     put('get', 'What you could get', get, get.length ? 'found here' : '');
 
     // signs: sounds and warnings that have turned up in this clearing, each with what it can call on this tile (the Appearance chart's rows for it, with the Monster Roll that brings them)
-    const signs = G.st.chits.filter(c => !c.pile && c.tile === tile && c.clearing === n && c.up && c.kind !== 'site').map(c => signRow(G, c, tile));
+    const signs = mapChits(G.st, G.data).filter(c => !c.pile && c.tile === tile && c.clearing === n && c.up && c.kind !== 'site').map(c => signRow(G, c, tile));
     put('signs', 'Signs', signs);
 
     // roads: collapsed (a long list; one tap)

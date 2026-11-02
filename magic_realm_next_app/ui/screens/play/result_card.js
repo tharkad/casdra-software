@@ -5,7 +5,6 @@
 //   markPhase(G, action)   called by act() before an action goes out: when it starts a phase, remember where the score and the counters stood.
 //   resultInfo(G)          the facts of the phase just played (or null): { n, slot, line, deltas, news, rolls } read from G.st and the mark.
 //   resultCardFor(G)       the card as a DOM node (or null when no phase has just been played). The shared table (P6) calls this too: it only reads G.st, G.ui.pmark and the voice.
-import { earned } from '../../../engine/score.js';
 import { nameOfClearing, nameOf } from '../../../engine/catalogue.js';
 import { h } from '../../dom.js';
 import { resultCard } from '../../ds.js';
@@ -15,11 +14,11 @@ import { foundBoxes } from './journal.js';
 import { render } from './shell.js';
 import { ACT_LABEL } from './kit.js';
 import { tableName } from './phases.js';
-import { ownSheet, gameOf, questionOf, todayOf, planSlots, viewOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, questionOf, todayOf, planSlots, viewOf, standingOf } from '../../combat/feed.js';
 
 // ---- the mark: where things stood when the phase began ----
 // Fame and Notoriety as the strip shows them: what was recorded plus what the things he owns add (a Blasted Jewel is Fame and Notoriety the moment he holds it: QA-108).
-const earnedNow = G => { try { return earned(G.st, G.data); } catch { return null; } };
+const earnedNow = G => { try { return standingOf(G.st, G.data).earned; } catch { return null; } };
 export function markPhase(G, action) {
     const p = G.st ? questionOf(G.st, G.data) : null, c = G.st ? ownSheet(G.st, G.data) : null;
     if (!p || !c?.id) return;

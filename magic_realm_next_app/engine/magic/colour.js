@@ -21,7 +21,9 @@ const cardCarriedNear = (st, at, id) => (st.order?.length ?? 0) > 1 && st.order.
     const c = st.chars[who];
     return who !== st.actor && c.at === at && !c.dead && !c.onRoad && !c.flying && c.items.some(i => isCard(i, id));
 });
-const cardHere = (st, clearing, id) => !!clearing && ((clearing === st.ch.at && st.ch.items.some(i => isCard(i, id))) || cardCarriedNear(st, clearing, id) || (st.abandoned?.[clearing] ?? []).some(i => isCard(i, id)));
+// 7.7.2a.3: the belongings of a hired leader's own native group stay on the Setup Card, out of play; an ACTIVATED Enchanted card among them still radiates its colour in the clearing where the hired leader stands.
+const cardInLeaderGroup = (st, data, clearing, id) => !!clearing && st.nats.some(n => n.hired && !n.dead && n.loc?.c === clearing && data.natives?.[n.id]?.leader && (st.stock?.[data.natives[n.id].group] ?? []).some(i => isCard(i, id) && i.active));
+const cardHere = (st, data, clearing, id) => !!clearing && (cardInLeaderGroup(st, data, clearing, id) || (clearing === st.ch.at && st.ch.items.some(i => isCard(i, id))) || cardCarriedNear(st, clearing, id) || (st.abandoned?.[clearing] ?? []).some(i => isCard(i, id)));
 const WEEK_COLORS = [['White', 'Black'], ['Grey'], ['Purple'], ['Gold']];            // day 7, 14, 21, 28 (and again for a longer game)
 export const isMagicDay = day => day > 0 && day % 7 === 0;
 // Day 7 gives White and Black in a one-month game; in a game of several months it alternates, White in the first month, Black in the second, and so on (6.1.2, 10.E.2.3).
@@ -44,7 +46,7 @@ export function colorSources(st, data, clearing, { road = false } = {}) {
     if (road) return out.concat(tileSources(st, data, clearing));
     if (st.dwellings.some(d => d.kind === 'Chapel' && d.at === clearing)) out.push({ color: 'White', why: 'the Chapel in this clearing' });
     // the five Enchanted cards, the Cloven Hoof among them (Treasures 5): see CARD_COLOR above
-    for (const [id, color] of Object.entries(CARD_COLOR)) if (cardHere(st, clearing, id)) out.push({ color, why: `the ${data.treasures?.[id]?.name ?? id} in this clearing` });
+    for (const [id, color] of Object.entries(CARD_COLOR)) if (cardHere(st, data, clearing, id)) out.push({ color, why: `the ${data.treasures?.[id]?.name ?? id} in this clearing` });
     return out.concat(tileSources(st, data, clearing));
 }
 // an enchanted tile: each of its clearings carries the colours printed on that side (4.6.2)

@@ -8,6 +8,7 @@
 //   .watch() / .unwatch()    the push channel (SSE `update` carries this seat's whole answer); if it falls silent for 20 s, or cannot connect, the client polls instead
 // Every answer has the same shape (SharedResponse in server/types.js): { phase, seq, you, view, waitingFor, yourTurn, paused, lobby?, standings, game }.
 import { ApiError, rememberRace, parseInvite, peekRace } from './online.js';
+import { RECORD_SHARED } from './version.js';
 
 export { ApiError, parseInvite };
 /** Ask the server about a game by invite before taking a seat: { kind, status, maxSeats, seats:[{seat,name,character,ready}], taken:[character ids], seedCommit, ... }. */
@@ -26,7 +27,8 @@ async function call(server, path, { method = 'GET', token, body, signal } = {}) 
 /** Start a shared game as its host. `choices`: { maxSeats (2-4), mode, lastDay, options: { pvp, knightsAdjustment, watchfulNatives, quietMonsters }, character, vp, startDwelling, startSpells }.
  * Returns the game as this device keeps it: { kind:'shared', server, game, token, seat, name, invite, seedCommit }. */
 export async function createShared(server, name, choices = {}) {
-    const r = await call(server, '', { method: 'POST', body: { ...choices, name, kind: 'shared' } });
+    const options = { ...(choices.options ?? {}), ...(RECORD_SHARED ? { record: true } : {}) };          // (the next channel's games keep their events; the stable build's do not: version.js)
+    const r = await call(server, '', { method: 'POST', body: { ...choices, options, name, kind: 'shared' } });
     const game = { kind: 'shared', server, game: r.game, token: r.token, seat: r.seat, name, invite: r.invite, seedCommit: r.seedCommit };
     rememberRace(game); return game;
 }

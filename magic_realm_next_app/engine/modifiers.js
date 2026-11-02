@@ -1,6 +1,6 @@
 import { lvl } from './core.js';
 import { activeHorse } from './items.js';
-import { fxTags, HERO } from './magic/fx.js';
+import { fxTags, inertPermanentTags, HERO } from './magic/fx.js';
 import { chitTime } from './rules/chitTime.js';
 import { tableResult } from './rules/tableResult.js';
 import { runesDiceCount } from './rules/runesDiceCount.js';
@@ -18,7 +18,7 @@ export const noSunlight = st => (st.ch.adv ?? []).includes('short-legs');
 
 // `intoCave` is accepted for callers that know it, but nothing is dropped by it: the workhorse's extra Move may itself be the Move into a cave (7.3.2a.2: the horse
 // is inactivated on arrival); only a day that STARTS in a cave bars the horse's extra phase (6.2.2c.1). The sunlight phases are what a cave takes away, not the extras.
-export function extraActs(st, data, { startsInCave = false } = {}) {
+export function extraActs(st, data, { startsInCave = false, planning = false } = {}) {
     const out = [];
     const h = activeHorse(st), hd = h ? data.horses[h.id] : null;
     if (hd?.kind === 'workhorse' && !startsInCave) out.push('move');
@@ -29,7 +29,8 @@ export function extraActs(st, data, { startsInCave = false } = {}) {
     if ((st.ch.adv ?? []).includes('stamina')) out.push('move');            // the Amazon's extra Move phase, even when riding
     if ((st.ch.adv ?? []).includes('aura-of-power')) out.push('enchant');   // the Sorcerer's extra spell (Enchant) phase
     if ((st.ch.adv ?? []).includes('magical-paraphernalia')) out.push('alert');   // the Magician's extra Alert phase (6.2.2, 7.9.3: weapon or one Magic chit)
-    for (const t of fxTags(st, HERO, 'extraPhase')) out.push(t.value);       // Day and energized Permanent spells: Blend Into Background (hide), See Hidden Signs (search), Sense Danger (alert)
+    for (const t of fxTags(st, HERO, 'extraPhase')) out.push(t.value);
+    if (planning) for (const t of inertPermanentTags(st, HERO, 'extraPhase')) out.push(t.value);          // (6.2.2c.2: recorded while the Permanent spell is inert; the phase is lost when the turn comes if it was not energized: extraLost)       // Day and energized Permanent spells: Blend Into Background (hide), See Hidden Signs (search), Sense Danger (alert)
     return out;
 }
 

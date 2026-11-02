@@ -68,6 +68,8 @@ export function fxTags(st, target, tag) {
     const aboutMe = !target || sameRef(target, HERO);
     return (st.fx ?? []).filter(f => f.state === 'live' && (!aboutMe || !elsewhere(st, f)) && (!target || f.targets.some(t => sameRef(t, target)))).map(f => ({ fx: f, value: tagsOf(f)[tag] })).filter(x => x.value !== undefined);
 }
+// The tags of the Permanent spells that are INERT on a target (6.2.2c.2: an activity a Permanent spell causes may be recorded in Birdsong although the spell is inert; he is then committed to energizing it if he can).
+export const inertPermanentTags = (st, target, tag) => (st.fx ?? []).filter(f => f.state === 'inert' && f.dur === 'permanent' && !elsewhere(st, f) && f.targets.some(t => sameRef(t, target))).map(f => ({ fx: f, value: tagsOf(f)[tag] })).filter(x => x.value !== undefined);
 // Is the target shielded from bewitching spells and curses (Pentangle, Protection from Magic, Melt into Mist)?
 export const shielded = (st, target) => fxTags(st, target, 'shield').length > 0;
 

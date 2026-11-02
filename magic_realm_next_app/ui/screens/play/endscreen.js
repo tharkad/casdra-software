@@ -3,12 +3,11 @@
 // next). One screen, shown once, the moment the game is over: the fight stays under the death for the one beat the combat scene gives it (fightBeat), then this. The old death box in the tray and the
 // two death sheets are gone. The restart question (a dead character may return tomorrow with new goals) is a sheet over this screen.
 import { CATS, FACTORS } from '../../../engine/catalogue.js';
-import { earned, scoreGame, targets } from '../../../engine/score.js';
 import { priceOf } from '../../../engine/catalogue.js';
 import { ownedItems } from '../../../engine/magic/mist.js';
 import { nameOfClearing } from '../../../engine/catalogue.js';
 import { ask } from '../../ask.js';
-import { gameOf, ownSheet } from '../../combat/feed.js';
+import { gameOf, ownSheet, standingOf } from '../../combat/feed.js';
 import { carriedGoals } from '../../restartgoals.js';
 import { h } from '../../dom.js';
 import { lastDayOf } from '../../gametext.js';
@@ -30,7 +29,7 @@ const nbsp = s => String(s).replace(/ (\d+)$/, ' $1');
 function goalRows(G) {
     const st = G.st, s = st.score;
     if (s?.rows?.length) return s.rows.map(r => ({ ...r, pts: r.basic + r.bonus }));
-    const e = earned(st, G.data), need = targets(st);                              // (a dead character has no rows: show how far each goal got)
+    const sd = standingOf(st, G.data), e = sd.earned, need = sd.targets;                              // (a dead character has no rows: show how far each goal got)
     return CATS.map(c => ({ cat: c, earned: e[c], need: need[c], diff: e[c] - need[c], pts: null }));
 }
 
@@ -106,7 +105,7 @@ function saleLine(G) {
 
 // ---- the screen ----
 export function overScreen(G) {
-    const st = G.st, g = gameOf(st, G.data), me = ownSheet(st, G.data), o = g.over ?? {}, dead = o.reason === 'died' || !!me.dead, s = st.score ?? scoreGame(st, G.data);
+    const st = G.st, g = gameOf(st, G.data), me = ownSheet(st, G.data), o = g.over ?? {}, dead = o.reason === 'died' || !!me.dead, s = st.score ?? standingOf(st, G.data).score;
     const rows = goalRows(G), won = !dead && s.won, mode = g.mode ?? 'month';
     const canRestart = dead && mode !== 'endless' && g.day < g.lastDay && !G.race;
     const goTitle = () => { clearSaved(); G.ctx.go('title'); };
