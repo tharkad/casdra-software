@@ -1,5 +1,5 @@
 // play/plan.js: the plan tray (planTray: tabs, one line, the nine actions, Start the day; tray.js puts it in the tray) and the draft logic behind it (pick, setMove, advance, pruneOver, startDay).
-import { planKinds, phasesFor, validatePlan } from '../../combat/feed.js';
+import { planKinds, phasesFor, validatePlan, tableModel } from '../../combat/feed.js';
 import { canRecordFly, flySources, flyTiles, hasCarpet } from '../../../engine/magic/fly.js';
 import { nameOfClearing, numOf, tileName } from '../../../engine/catalogue.js';
 import { isCave, isMountain } from '../../../engine/world.js';
@@ -119,7 +119,7 @@ function askLine(G, i, step, total) {
         return h('div', { class: 'ds-plan-ask' }, h('span', {}, 'Where to? ', h('span', { class: 'ds-dim' }, (planLocations(G)[i] || ownSheet(G.st, G.data).onRoad) ? 'Tap a ringed clearing.' : 'You are on a road; move to one of its ends first.')),
             btn('Back', 'quiet sm', { 'data-act': 'plan-back', onclick: () => { G.ui.pickMove = null; render(G); } }));
     }
-    const info = planInfo(G), pony = info.ponyAt.includes(i), who = ownSheet(G.st, G.data).leader ? `${seatName(G.st, ownSheet(G.st, G.data).id)}, ` : '';          // (a seat's plan says whose it is)
+    const info = planInfo(G), pony = info.ponyAt.includes(i), who = ownSheet(G.st, G.data).leader ? `${seatName(tableModel(G.st, G.data), ownSheet(G.st, G.data).id)}, ` : '';          // (a seat's plan says whose it is)
     const text = info.spare === i ? h('span', { 'data-hint': 'pony-spare' }, h('span', { 'data-v': 'story' }, `Phase ${i + 1}: one more Move, the pony\u2019s.`), h('span', { 'data-v': 'detail' }, `Phase ${i + 1}: the pony\u2019s Move (7.3.2b.3: it alternates with yours).`))
         : s && pony ? h('span', {}, `Phase ${i + 1}: `, h('span', { class: 'ds-dim' }, `pony ${nb(describeSlot(G, s))}.`))
         : s ? h('span', {}, `${who}phase ${i + 1} of ${total}: `.replace(/^(\w)/, c => c.toUpperCase()), h('span', { class: 'ds-dim' }, nb(describeSlot(G, s)), '.')) : h('span', {}, `${who}phase ${i + 1} of ${total}: pick one.`.replace(/^(\w)/, c => c.toUpperCase()));
@@ -246,7 +246,7 @@ export function planTray(G) {
             const over = slots => planKinds(G.st, G.data, slots).kinds.filter(k => k === 'over').length;
             const others = d.slots.map((x, j) => (j === step ? null : x));
             const followDay = d.slots[0]?.act === 'follow';
-            if (followDay && step > 0) kids.push(h('p', { class: 'ds-hint-line', 'data-hint': 'follow-day' }, `You follow ${playerNameOf(G.st, d.slots[0].who)} today: there is nothing else to record. Pick another action in phase 1 to plan your own day.`));
+            if (followDay && step > 0) kids.push(h('p', { class: 'ds-hint-line', 'data-hint': 'follow-day' }, `You follow ${playerNameOf(tableModel(G.st, G.data), d.slots[0].who)} today: there is nothing else to record. Pick another action in phase 1 to plan your own day.`));
             else kids.push(actChips(G, step, at, over, others, over(others)));
         }
         kids.push(...planHints(G, step, at));

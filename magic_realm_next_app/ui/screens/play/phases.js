@@ -19,7 +19,7 @@ import { steedName } from '../../steeds.js';
 import { learnContent } from '../kit/spells.js';
 import { seatTurnEndSheet } from './leaders.js';
 import { render } from './shell.js';
-import { ownSheet, gameOf, todayOf, planSlots, siteChits, legalOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, todayOf, planSlots, siteChits, legalOf, tableModel } from '../../combat/feed.js';
 
 // Where a Search will be made, and what the map already shows of sites on this tile: a site in another clearing is not found from here.
 export function searchWhere(G, at) {
@@ -52,7 +52,7 @@ export function describeSlot(G, s) {
     if (s.act === 'move' && s.to === 'Edge') return 'Leave the map';
     if (s.act === 'move') return `Move to ${nameOfClearing(s.to).replace(/ (\d+)$/, '\u00A0$1')}`;       // the number never wraps on its own line
     if (s.act === 'search') return s.table ? `Search: ${tableName(G, s.table)}` : 'Search';
-    if (s.act === 'follow') return s.who ? `Follow ${playerNameOf(G.st, s.who)}` : 'Follow';
+    if (s.act === 'follow') return s.who ? `Follow ${playerNameOf(tableModel(G.st, G.data), s.who)}` : 'Follow';
     if (s.act === 'fly' && s.with) return s.with === 'chit' ? 'Fly on a Fly chit' : `Fly on the ${steedName(G.data, s.with) ?? 'steed'}`;          // (a Fly phase that chose its carrier: steedplan.js)
     return ACT_LABEL[s.act] ?? s.act;
 }
@@ -94,7 +94,7 @@ export function turnEndSheet(G) {
         h('b', {}, story ? sv.title : t.noTurn ? 'You have no turn today' : t.hidden ? 'You are hidden' : 'You are in plain sight'), h('span', {}, story ? sv.why : dWhy),
         noTurnLine ? h('span', {}, logText(noTurnLine, G.st)) : null);
     // Blocked by other characters (7.12): told first, in a card of its own, with who did it
-    const bl = G.shared && !t.noTurn ? meetLines(G.st, ownSheet(G.st, G.data).id).filter(l => l.kind === 'blocked').at(-1) : null;
+    const bl = G.shared && !t.noTurn ? meetLines(tableModel(G.st, G.data), ownSheet(G.st, G.data).id).filter(l => l.kind === 'blocked').at(-1) : null;
     const blockCardEl = bl && t.blocked ? h('div', { class: 'phase-result bad meet-result', role: 'status', 'data-meet-result': 'blocked' }, h('div', { class: 'pr-head' }, h('small', {}, 'Blocked')), h('p', { class: 'pr-line' }, voice() === 'story' ? bl.story : bl.text)) : null;
     const place = nameOfClearing(t.at).replace(/ (\d+)$/, '\u00A0$1');
     return modal(G, 'Turn\u2019s end', h('div', { class: 'turnend clearing' }, blockCardEl, status, rows.length ? sect('At the end of your turn') : null, ...rows),
@@ -154,7 +154,7 @@ export function searchSheet(G, p) {
     for (const t of opts.filter(x => !['peer', 'locate', 'loot', 'ground', 'sitecard', 'runes'].includes(x))) defs.push({ k: t, table: t, title: tableName(G, t), line: '', art: actIcon('search', 28) });
     const names = sites.map(c => c.name);
     const why = names.length ? `The ${names.join(' and the ')} ${names.length === 1 ? 'lies' : 'lie'} here, found but not yet opened.` : 'Nothing here is open yet: no site has shown itself in this clearing.';
-    const slot = G.ui.pmark?.i != null && G.ui.pmark.day === st.day ? G.ui.pmark.i + 1 : null;
+    const slot = G.ui.pmark?.i != null && G.ui.pmark.day === gameOf(st, G.data).day ? G.ui.pmark.i + 1 : null;
     return pickSheetOf(G, { title: 'Which table?', eyebrow: `${slot ? `Phase ${slot} · ` : ''}Search`, situation: `Search ${place}: one roll on one table.`, why, detailWhy: `${why} Each table finds different things.`, opts: defs, key: 'tablePick',
         idle: { button: 'Choose a table', lead: 'One roll on one table.', toast: 'Pick one of the tables first.' }, verb: 'Search', act: o => act(G, { type: 'search-table', table: o.table }) });
 }

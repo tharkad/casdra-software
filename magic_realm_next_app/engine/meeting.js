@@ -56,11 +56,11 @@ export const meetingMeaning = (res, evening = false) => (evening ? EVENING_MEANI
 
 // One whole Meeting Table roll in a column, following Trouble (roll again as Unfriendly) and Opportunity (roll again one level friendlier).
 // Returns { res, r, note }: the final result, the last dice, and a note on what chained.
-export function meetingOutcome(st, col, what = 'Meeting Table', data = null, evening = false, activity = evening ? 'battle' : null) {
+export function meetingOutcome(st, col, what = 'Meeting Table', data = null, evening = false, activity = evening ? 'battle' : null, group = null) {
     const seen = [];
     const rollOnce = (c, label) => {
         const r = meetingDice(st, data, activity), res = meetingResult(c, r.value);
-        seen.push(noteRoll(st, label, r.raw, r.value, meetingMeaning(res, evening), r.used).n);
+        seen.push(noteRoll(st, label, r.raw, r.value, meetingMeaning(res, evening), r.used, { ev: { code: 'roll.made', what: evening ? 'meeting.evening' : 'meeting.table', result: String(res).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), ...(group ? { group } : {}) } }).n);
         return { r, res };
     };
     let { r, res } = rollOnce(col, what), note = '';

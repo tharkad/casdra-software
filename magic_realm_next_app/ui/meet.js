@@ -233,7 +233,7 @@ export function meetLines(view, myId) {
             const pm = l.p ? P_ENDS_WITH.exec(l.p) : null, g = pm ? pm[2] : pn(m[2]);
             e = { kind: 'ends-with', other: g, story: `Your turn ends with ${g}’s.` };
         }
-        if (e) out.push({ i: skipped + i, pos: i, text: t, ...e });
+        if (e) out.push({ i: l.i ?? skipped + i, pos: i, text: t, ...e });
     }
     return out;
 }

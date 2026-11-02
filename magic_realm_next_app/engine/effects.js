@@ -23,7 +23,7 @@ export function rollCurse(st, data, target = HERO, roller = HERO) {
     if (shielded(st, target)) { say(st, `${mine ? 'You are' : `${charName(st, target)} is`} shielded from magic: the curse finds nothing to hold on to.`, 'curse'); return 'nothing (Protection from Magic)'; }
     const r = modRoll(st, data, 'curse', roll2(st, 'curse'));       // (Bad Luck adds one, Illusion does not apply here)
     const row = data.tables.curses.rows[String(r.value)];
-    noteRoll(st, 'Curse', r.dice, r.value, row.name);
+    noteRoll(st, 'Curse', r.dice, r.value, row.name, null, { ev: { code: 'roll.made', what: 'curse.laid' } });
     if (shielded(st, target)) { say(st, `${mine ? 'You are' : `${charName(st, target)} is`} shielded from magic: the ${row.name} curse has no hold.`, 'curse'); return row.name; }
     who.curses ??= [];
     if (who.curses.includes(row.name)) { say(st, `${mine ? 'You already bear' : `${charName(st, target)} already bears`} the ${row.name} curse: it has no further effect.`, 'curse'); return row.name; }
@@ -54,7 +54,7 @@ export function liftCursesAtChapel(st) {
 export function rollPit(st, data, what = 'Power of the Pit') {
     const r = modRoll(st, data, 'pit', roll2(st, 'pit'));
     const row = data.tables.powerOfThePit.rows[String(r.value)];
-    noteRoll(st, what, r.dice, r.value, row.name);
+    noteRoll(st, what, r.dice, r.value, row.name, null, what === 'Power of the Pit' ? { ev: { code: 'roll.made', what: 'pit.rolled' } } : null);
     return { row, dice: r.dice };
 }
 

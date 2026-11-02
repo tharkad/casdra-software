@@ -70,7 +70,7 @@ export function readRunes(st, data, targetKey) {
       r.value = runesRollResult(r.value, adv, m + (hoof ? 1 : 0)); if (m) r.mod = m; if (hoof) r.hoof = true; if (adv === 'knowledge' && before > 1) r.know = true; }
     const res = data.tables.readRunes[String(r.value)];
     const LABEL = { 'learn-and-awaken': 'Learn and awaken', awaken: 'Awaken', curse: 'Curse!', nothing: 'Nothing' };
-    noteRoll(st, 'Search: Read runes', r.dice, r.value, (LABEL[res] ?? res) + modNote(r));
+    noteRoll(st, 'Search: Read runes', r.dice, r.value, (LABEL[res] ?? res) + modNote(r), null, { ev: { code: 'roll.made', what: 'search.runes', result: String(res) } });
     const lead = `You read the runes of ${t.label.toLowerCase()} (${r.dice.join('+')}):`;
     if (res === 'nothing') return `${lead} nothing.`;
     if (res === 'curse') return `${lead} a curse! ${rollCurse(st, data)}.`;

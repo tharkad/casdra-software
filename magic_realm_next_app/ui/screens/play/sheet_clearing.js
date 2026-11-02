@@ -21,7 +21,7 @@ import { openPiece } from './piece_card.js';
 import { markGroup } from '../../groups.js';
 import { render } from './shell.js';
 import { counterLook } from '../../leaders.js';
-import { ownSheet, charsOf, gameOf } from '../../combat/feed.js';
+import { ownSheet, charsOf, gameOf, tableModel } from '../../combat/feed.js';
 
 const nbsp = s => String(s).replace(/ (\d+)$/, ' $1');
 const REACH = 6;                                                                   // a Loot roll is 1 to 6: the first six cards of a pile can be reached
@@ -141,7 +141,7 @@ function meetRowsFor(G, id) {
     for (const p of G.ms.partners) out.push(h('button', { type: 'button', class: 'ds-row meetwith', 'data-act': 'meet-with', 'data-meet-with': p.id, onclick: () => { G.ui.meet = newMeetDraft(); G.ui.meet.to = p.id; G.ui.sheet = 'meet'; render(G); } },
         h('span', { class: 'main' }, h('b', {}, `Meet ${p.player}`), h('span', {}, G.ms.window === 'dayend' ? 'Give or trade before Midnight' : 'Give or trade: nothing changes hands until they accept')), icon('right')));
     for (const o of G.ms.others) out.push(row('meet off', `${o.player}: not now`, o.why));
-    for (const [f, g] of Object.entries(G.st.follows ?? {})) if (charsOf(G.st, G.data)[f]?.at === id || charsOf(G.st, G.data)[g]?.at === id) out.push(row('meet', `${playerNameOf(G.st, f)} follows ${playerNameOf(G.st, g)} today`, 'A follower goes wherever the guide goes and is called out with him.'));
+    for (const [f, g] of Object.entries(tableModel(G.st, G.data).follows ?? {})) if (charsOf(G.st, G.data)[f]?.at === id || charsOf(G.st, G.data)[g]?.at === id) out.push(row('meet', `${playerNameOf(tableModel(G.st, G.data), f)} follows ${playerNameOf(tableModel(G.st, G.data), g)} today`, 'A follower goes wherever the guide goes and is called out with him.'));
     return out;
 }
 
@@ -155,11 +155,11 @@ function companionRows(G, id) {
             // hireling rules (leaders.js): each follower is with a guide today or spends the day where he stands; a hired leader has a seat of his own and is a counter on the map
             for (const o of list) {
                 const seat = charsOf(G.st, G.data)[o.id]?.leader, look = counterLook(o), guide = o.guide ? charsOf(G.st, G.data)[o.guide]?.name : null;
-                out.push(row('nat', nm(o), seat ? `${mine ? 'Your' : 'Hired'} leader, a seat of the party: he takes his own turn.` : `${mine ? 'Hired by you' : `Hired by ${playerNameOf(G.st, owner)}`}. ${guide ? `With ${guide} today.` : 'Spending the day here.'}${look.hidden ? ' Hidden.' : ''}`, G.data.art?.natives?.[o.id] ?? G.data.art?.monsters?.[G.data.monsters?.[o.id]?.name]));
+                out.push(row('nat', nm(o), seat ? `${mine ? 'Your' : 'Hired'} leader, a seat of the party: he takes his own turn.` : `${mine ? 'Hired by you' : `Hired by ${playerNameOf(tableModel(G.st, G.data), owner)}`}. ${guide ? `With ${guide} today.` : 'Spending the day here.'}${look.hidden ? ' Hidden.' : ''}`, G.data.art?.natives?.[o.id] ?? G.data.art?.monsters?.[G.data.monsters?.[o.id]?.name]));
             }
             continue;
         }
-        out.push(row('nat', `${list.map(nm).join(', ')}`, `${mine ? 'Hired by you' : `Hired by ${playerNameOf(G.st, owner)}`}: they follow ${mine ? 'you' : 'their employer'} and fight for no one else${until ? `, until the end of day ${until}` : ''}.`, G.data.art?.natives?.[list[0].id]));
+        out.push(row('nat', `${list.map(nm).join(', ')}`, `${mine ? 'Hired by you' : `Hired by ${playerNameOf(tableModel(G.st, G.data), owner)}`}: they follow ${mine ? 'you' : 'their employer'} and fight for no one else${until ? `, until the end of day ${until}` : ''}.`, G.data.art?.natives?.[list[0].id]));
     }
     return out;
 }

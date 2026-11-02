@@ -7,7 +7,7 @@ import { scoreGame } from '../../../engine/score.js';
 import { h } from '../../dom.js';
 import { putRecord } from '../../gamestore.js';
 import { meetLines } from '../../meet.js';
-import { gameOf } from '../../combat/feed.js';
+import { gameOf, tableModel, questionOf } from '../../combat/feed.js';
 
 const SAVE_KEY = 'mr-save-v1';
 
@@ -32,21 +32,21 @@ export function saveUi(G) {
         const st = G.st, d = G.ui.draft, rec = { session: st?.session?.id, day: st?.day };
         if (G.shared || G.race || !rec.session) { localStorage.removeItem(UI_KEY); return; }
         const held = G.ui.drafts && Object.values(G.ui.drafts).some(x => x?.draft);          // (a party's other plans, held back until all are legal: partyplan.js)
-        if (st.pending?.type === 'plan' && (d || held)) Object.assign(rec, { ...(d ? { draft: d, planStep: G.ui.planStep === undefined ? 0 : G.ui.planStep, open: G.ui.sheet === 'plan' } : {}), ...(held ? { drafts: G.ui.drafts } : {}) });
-        if ((st.pending?.type === 'phase' || st.pending?.type === 'phase-pick') && G.ui.pmark?.day === st.day) rec.pmark = G.ui.pmark;
+        if (questionOf(st, G.data)?.type === 'plan' && (d || held)) Object.assign(rec, { ...(d ? { draft: d, planStep: G.ui.planStep === undefined ? 0 : G.ui.planStep, open: G.ui.sheet === 'plan' } : {}), ...(held ? { drafts: G.ui.drafts } : {}) });
+        if ((questionOf(st, G.data)?.type === 'phase' || questionOf(st, G.data)?.type === 'phase-pick') && G.ui.pmark?.day === gameOf(st, G.data).day) rec.pmark = G.ui.pmark;
         if (rec.draft || rec.drafts || rec.pmark) localStorage.setItem(UI_KEY, JSON.stringify(rec)); else localStorage.removeItem(UI_KEY);
     } catch { /* storage may be unavailable */ }
 }
 export function restoreUi(G) {
     try {
         const raw = localStorage.getItem(UI_KEY), u = raw ? JSON.parse(raw) : null, st = G.st;
-        if (!u || G.shared || G.race || u.session !== st?.session?.id || u.day !== st.day) return false;
+        if (!u || G.shared || G.race || u.session !== st?.session?.id || u.day !== gameOf(st, G.data).day) return false;
         let any = false;
-        if (st.pending?.type === 'plan') {
+        if (questionOf(st, G.data)?.type === 'plan') {
             if (u.drafts && typeof u.drafts === 'object') { G.ui.drafts = u.drafts; any = true; }
             if (Array.isArray(u.draft?.slots)) { G.ui.draft = u.draft; G.ui.planStep = u.planStep === undefined ? 0 : u.planStep; if (u.open) G.ui.sheet = 'plan'; any = true; }
         }
-        if ((st.pending?.type === 'phase' || st.pending?.type === 'phase-pick') && u.pmark?.day === st.day) { G.ui.pmark = u.pmark; any = true; }
+        if ((questionOf(st, G.data)?.type === 'phase' || questionOf(st, G.data)?.type === 'phase-pick') && u.pmark?.day === gameOf(st, G.data).day) { G.ui.pmark = u.pmark; any = true; }
         return any;
     } catch { return false; }
 }
@@ -54,11 +54,11 @@ export function restoreUi(G) {
 export function myId(G) { return G.answer?.you?.character ?? G.st?.actor ?? null; }
 
 // the meeting lines I have already looked at: everything up to here is old news (a result card tells what came after)
-export function meetEnd(G) { const l = G.st?.log ? meetLines(G.st, myId(G)) : []; return l.length ? l.at(-1).i + 1 : 0; }
+export function meetEnd(G) { const l = G.st?.log ? meetLines(tableModel(G.st, G.data), myId(G)) : []; return l.length ? l.at(-1).i + 1 : 0; }
 
 export function logEnd(G) { return (G.st?.logSkipped ?? 0) + (G.st?.log?.length ?? 0); }          // (the first line ever is 0, whatever the server trimmed from this view)
 
-export function newMeetLines(G) { if (!G.shared) return []; if (G.ui.meetSeen == null || G.ui.meetSeen > logEnd(G)) G.ui.meetSeen = meetEnd(G); return meetLines(G.st, myId(G)).filter(l => l.i >= G.ui.meetSeen); }
+export function newMeetLines(G) { if (!G.shared) return []; if (G.ui.meetSeen == null || G.ui.meetSeen > logEnd(G)) G.ui.meetSeen = meetEnd(G); return meetLines(tableModel(G.st, G.data), myId(G)).filter(l => l.i >= G.ui.meetSeen); }
 
 export function persist(G, now = false) {
     if (!G.rec || !G.st) return;
@@ -68,7 +68,7 @@ export function persist(G, now = false) {
 }
 
 export function noteError(G, action, e, kind) {
-    G.rec?.errors.push({ day: G.st?.day, period: G.st?.period, pending: G.st?.pending?.type ?? null, action: action ? JSON.parse(JSON.stringify(action)) : null, message: String(e?.message ?? e), kind,
+    G.rec?.errors.push({ day: G.st?.day, period: G.st?.period, pending: questionOf(G.st, G.data)?.type ?? null, action: action ? JSON.parse(JSON.stringify(action)) : null, message: String(e?.message ?? e), kind,
         bug: /^(TypeError|ReferenceError|RangeError)$/.test(e?.name ?? '') });
     persist(G);
 }

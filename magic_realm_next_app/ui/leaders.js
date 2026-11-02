@@ -4,36 +4,36 @@
 // Pure functions of a game state (or a seat's redacted view of it) and the game data: no DOM, no state, so tests/leaders_ui.test.mjs runs them in node against the real engine. The words are
 // in both voices ({ story, detail }): Story is plain and short, Detail names the rule. Nothing here decides a rule: the engine says whether, these functions only read and word it.
 //
-//   rulesOn(st)                    the game has the option
-//   isSeat(ch) / seatIds(st)       a record that is a leader's (or a controlled monster's) seat, and the ones in the party
-//   leaderGame(st)                 the option is on AND there is at least one seat now (what turns the leader screens on)
-//   hirerOf(st, id)                the real character a seat acts for (or the character himself)
-//   attentionOf(st, data, id)      { kind, no, label, short }: the Attention chit (a red numbered chit, or an unused character's chit)
-//   seatName(st, id) / roleOf(st, id) / introOf(st, data, id)    the name, "Hired leader" / "Controlled monster" / "You", and the one-line words
+//   rulesOn(tm)                    the game has the option
+//   isSeat(ch) / seatIds(tm)       a record that is a leader's (or a controlled monster's) seat, and the ones in the party
+//   leaderGame(tm)                 the option is on AND there is at least one seat now (what turns the leader screens on)
+//   hirerOf(tm, id)                the real character a seat acts for (or the character himself)
+//   attentionOf(tm, data, id)      { kind, no, label, short }: the Attention chit (a red numbered chit, or an unused character's chit)
+//   seatName(tm, id) / roleOf(tm, id) / introOf(tm, data, id)    the name, "Hired leader" / "Controlled monster" / "You", and the one-line words
 //   planActs(pending)              the activities a leader's plan sheet offers (from `pending.leader.acts`), with the ones that only serve his followers marked
-//   underlingRows(st, data, rows, memory)   the "who goes with whom" sheet's rows; defaultAssign / assignMap turn the choices into the plan's `assign`
-//   followersOf(st, data, guideId) / stayHirer(st, guideId)    the underlings walking with a guide now, and whose action `stay` is
+//   underlingRows(tm, data, rows, memory)   the "who goes with whom" sheet's rows; defaultAssign / assignMap turn the choices into the plan's `assign`
+//   followersOf(tm, data, guideId) / stayHirer(tm, guideId)    the underlings walking with a guide now, and whose action `stay` is
 //   counterLook(o)                 how a hired counter's `side` and `hidden` look: { side, hidden, dark, red, word }
-//   unattendedLines(st, day)       the log of fights a leader had where no character stood (8.1.2b)
-//   seatMarkers(st, data, actor)   the map's counters for the seats of one player's party
+//   unattendedLines(tm, day)       the log of fights a leader had where no character stood (8.1.2b)
+//   seatMarkers(tm, data, actor)   the map's counters for the seats of one player's party
 import { WEIGHT_WORDS } from '../engine/catalogue.js';
 import { defOf, nameOf, summaryOf } from '../engine/catalogue.js';
 import { nameOfClearing } from '../engine/catalogue.js';
 import { displayName } from './names.js';
 
-export const rulesOn = st => !!st?.options?.hirelingRules;
+export const rulesOn = tm => !!tm?.options?.hirelingRules;
 export const isSeat = ch => !!ch?.leader;
-export const seatIds = st => (st?.order ?? []).filter(id => st.chars?.[id]?.leader);
-export const realIds = st => (st?.order ?? []).filter(id => !st.chars?.[id]?.leader);
-export const leaderGame = st => rulesOn(st) && seatIds(st).length > 0;
-export const hirerOf = (st, id) => st.chars?.[id]?.leader?.hirer ?? id;
-export const seatName = (st, id) => displayName(st.chars?.[id]?.name ?? id);
+export const seatIds = tm => (tm?.order ?? []).filter(id => tm.chars?.[id]?.leader);
+export const realIds = tm => (tm?.order ?? []).filter(id => !tm.chars?.[id]?.leader);
+export const leaderGame = tm => rulesOn(tm) && seatIds(tm).length > 0;
+export const hirerOf = (tm, id) => tm.chars?.[id]?.leader?.hirer ?? id;
+export const seatName = (tm, id) => displayName(tm.chars?.[id]?.name ?? id);
 
 const join = list => (list.length <= 1 ? (list[0] ?? '') : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`);
 
 // ---------------------------------------------------------------------------------------------------------------------------------- the seat
-export function attentionOf(st, data, id) {
-    const a = st.chars?.[id]?.attention;
+export function attentionOf(tm, data, id) {
+    const a = tm.chars?.[id]?.attention;
     if (!a) return null;
     if (a.kind === 'red') return { kind: 'red', no: a.number, label: `Red chit ${a.number}`, short: String(a.number) };
     const who = displayName(data?.characters?.[a.character]?.name ?? a.character);
@@ -41,25 +41,25 @@ export function attentionOf(st, data, id) {
 }
 
 /** "Hired leader" / "Controlled monster" / "You" (for a real character). */
-export function roleOf(st, id) {
-    const c = st.chars?.[id];
+export function roleOf(tm, id) {
+    const c = tm.chars?.[id];
     if (!c?.leader) return 'You';
     return c.leader.kind === 'mon' ? 'Controlled monster' : 'Hired leader';
 }
 
 /** What a seat is, in one line, in both voices. */
-export function introOf(st, data, id) {
-    const c = st.chars?.[id];
+export function introOf(tm, data, id) {
+    const c = tm.chars?.[id];
     if (!c?.leader) return null;
-    const hirer = seatName(st, c.leader.hirer), mon = c.leader.kind === 'mon', att = attentionOf(st, data, id);
+    const hirer = seatName(tm, c.leader.hirer), mon = c.leader.kind === 'mon', att = attentionOf(tm, data, id);
     return {
-        story: mon ? `${seatName(st, id)} is under your spell: you plan its day, and it acts when its chit is drawn.` : `${seatName(st, id)} works for ${hirer}: you plan his day, and he acts when his chit is drawn.`,
-        detail: `${seatName(st, id)} ${mon ? 'is a controlled monster' : 'is a hired leader'} and a seat of ${hirer}’s party (6.2.5, 7.7.${mon ? '5e' : '2'}). ${att ? `${att.label}. ` : ''}${hirer} records his activities in Birdsong.`,
+        story: mon ? `${seatName(tm, id)} is under your spell: you plan its day, and it acts when its chit is drawn.` : `${seatName(tm, id)} works for ${hirer}: you plan his day, and he acts when his chit is drawn.`,
+        detail: `${seatName(tm, id)} ${mon ? 'is a controlled monster' : 'is a hired leader'} and a seat of ${hirer}’s party (6.2.5, 7.7.${mon ? '5e' : '2'}). ${att ? `${att.label}. ` : ''}${hirer} records his activities in Birdsong.`,
     };
 }
 
 /** How much he can carry: the weight of his move strength (a native's vulnerability letter, 7.3.1g). */
-export const carryWord = (st, id) => WEIGHT_WORDS[st.chars?.[id]?.leader?.moveStrength] ?? null;
+export const carryWord = (tm, id) => WEIGHT_WORDS[tm.chars?.[id]?.leader?.moveStrength] ?? null;
 
 // ---------------------------------------------------------------------------------------------------------------------------------- the plan sheet
 // The engine's `pending.leader.acts` (move hide search trade hire follow rest alert; a monster has no trade or hire) and which of them only serve his followers.
@@ -81,9 +81,9 @@ export const MONSTER_PLAN_NOTE = {
 
 // ---------------------------------------------------------------------------------------------------------------------------------- the underlings
 /** The rows of the "who goes with whom" sheet. `rows` is `pending.underlings`; `memory` is yesterday's choice { underling id: guide id | null }. `choice` is what is picked now ('' = stays). */
-export function underlingRows(st, data, rows, memory = {}, picked = {}) {
+export function underlingRows(tm, data, rows, memory = {}, picked = {}) {
     return (rows ?? []).map(u => {
-        const guides = (u.guides ?? []).map(id => ({ id, name: seatName(st, id), seat: !!st.chars?.[id]?.leader }));
+        const guides = (u.guides ?? []).map(id => ({ id, name: seatName(tm, id), seat: !!tm.chars?.[id]?.leader }));
         const ids = new Set(guides.map(g => g.id));
         const remembered = memory?.[u.id] && ids.has(memory[u.id]) ? memory[u.id] : null;
         const choice = u.today ? null : (u.id in picked ? picked[u.id] : remembered);
@@ -108,11 +108,11 @@ export function assignSummary(rows) {
     return parts.join('; ');
 }
 
-const countersOf = st => [...(st.nats ?? []), ...(st.mons ?? [])];
+const countersOf = tm => [...(tm.nats ?? []), ...(tm.mons ?? [])];
 /** The underlings walking with this guide today. */
-export const followersOf = (st, data, guideId) => countersOf(st).filter(o => o.hired && !o.dead && o.guide === guideId && !(data?.natives?.[o.id]?.leader) && o.tie?.kind !== 'control');
+export const followersOf = (tm, data, guideId) => countersOf(tm).filter(o => o.hired && !o.dead && o.guide === guideId && !(data?.natives?.[o.id]?.leader) && o.tie?.kind !== 'control');
 /** The action `{ type: 'hireling', kind: 'stay' }` is the hirer's: a leader's followers are his hirer's. */
-export const stayHirer = (st, guideId) => hirerOf(st, guideId);
+export const stayHirer = (tm, guideId) => hirerOf(tm, guideId);
 export const nameOfCounter = (data, o) => displayName(data.natives?.[o.id]?.name ?? data.monsters?.[o.id]?.name ?? o.id);
 
 // ---------------------------------------------------------------------------------------------------------------------------------- the counters
@@ -125,11 +125,11 @@ export function counterLook(o) {
 // ---------------------------------------------------------------------------------------------------------------------------------- the fights nobody played
 /** The lines of fights a hired leader had in a clearing where no character stood (the engine's `leaderOnlyFight`, 8.1.2b): a seat's `combat` lines of that day, from the line that opens such a fight
  *  ("The evening falls on ..., where X stands without Y") to the next one that is not his. */
-export function unattendedLines(st, day) {
-    const seats = new Set(seatIds(st)), out = [];
+export function unattendedLines(tm, day) {
+    const seats = new Set(seatIds(tm)), out = [];
     if (!seats.size) return out;
     let on = null;
-    for (const l of st.log ?? []) {
+    for (const l of tm.log ?? []) {
         if (l.day !== day) continue;
         if (l.who && seats.has(l.who) && l.k === 'combat' && /stands without/.test(l.t)) { on = l.who; }
         else if (on && l.who !== on) on = null;
@@ -139,27 +139,27 @@ export function unattendedLines(st, day) {
 }
 
 /** The same lines, grouped by the seat that spoke, with the clearing the fight was in. */
-export function unattendedFights(st, day) {
+export function unattendedFights(tm, day) {
     const out = new Map();
-    for (const l of unattendedLines(st, day)) (out.get(l.who) ?? out.set(l.who, []).get(l.who)).push(l);
-    return [...out].map(([id, lines]) => ({ id, name: seatName(st, id), lines, place: /evening falls on (.+?), where/.exec(lines[0]?.t ?? '')?.[1] ?? null,
+    for (const l of unattendedLines(tm, day)) (out.get(l.who) ?? out.set(l.who, []).get(l.who)).push(l);
+    return [...out].map(([id, lines]) => ({ id, name: seatName(tm, id), lines, place: /evening falls on (.+?), where/.exec(lines[0]?.t ?? '')?.[1] ?? null,
         kills: lines.map(l => /^.+? kills the (.+?)(?: for you|\.)/.exec(l.t)?.[1]).filter(Boolean).map(n => displayName(n.replace(/ #?\d+$/, ''))) }));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------- the map
 const SHAPE = { char: 'circle', nat: 'square', mon: 'diamond' }, COLOR = { char: '#86c47a', nat: '#5fb8a5', mon: '#d9715f' };
 /** One counter for each living seat of the party that stands somewhere (the engine's `at`, `onRoad`, `flying`): the hirer round and gold, a leader square and teal, a creature a red diamond. */
-export function seatMarkers(st, data, actor) {
-    return (st.order ?? []).filter(id => { const c = st.chars[id]; return c && (c.at || c.onRoad || c.flying); }).map(id => {
-        const c = st.chars[id], kind = c.leader ? c.leader.kind : 'char', name = seatName(st, id);
-        return { id, name, character: c.leader ? `hired by ${seatName(st, c.leader.hirer)}` : 'you', letter: (name.trim()[0] ?? '?').toUpperCase(), shape: SHAPE[kind], color: COLOR[kind], mine: id === actor, active: id === actor,
+export function seatMarkers(tm, data, actor) {
+    return (tm.order ?? []).filter(id => { const c = tm.chars[id]; return c && (c.at || c.onRoad || c.flying); }).map(id => {
+        const c = tm.chars[id], kind = c.leader ? c.leader.kind : 'char', name = seatName(tm, id);
+        return { id, name, character: c.leader ? `hired by ${seatName(tm, c.leader.hirer)}` : 'you', letter: (name.trim()[0] ?? '?').toUpperCase(), shape: SHAPE[kind], color: COLOR[kind], mine: id === actor, active: id === actor,
             hidden: !!c.hidden, dead: !!c.dead, away: false, at: c.onRoad || c.flying ? null : c.at, onRoad: c.onRoad ?? null, flying: c.flying ?? null };
     });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------- his things
-export const beltOf = (st, data, id) => (st.chars?.[id]?.items ?? []).filter(i => !i.destroyed).map(it => ({ it, name: displayName(nameOf(data, it)), sub: summaryOf(data, it), def: defOf(data, it) }));
-export const discoveriesOf = (st, id) => { const d = st.chars?.[id]?.discovered ?? { paths: [], sites: [] }; return { paths: d.paths?.length ?? 0, sites: d.sites?.length ?? 0 }; };
+export const beltOf = (tm, data, id) => (tm.chars?.[id]?.items ?? []).filter(i => !i.destroyed).map(it => ({ it, name: displayName(nameOf(data, it)), sub: summaryOf(data, it), def: defOf(data, it) }));
+export const discoveriesOf = (tm, id) => { const d = tm.chars?.[id]?.discovered ?? { paths: [], sites: [] }; return { paths: d.paths?.length ?? 0, sites: d.sites?.length ?? 0 }; };
 
 // ---------------------------------------------------------------------------------------------------------------------------------- the new-game option
 // One entry for the wizard's list of optional rules (screens/newgame.js adds it to the end of OPTION_GROUPS, and leaves it out of a race: a race seat has no table for the leaders' turns).

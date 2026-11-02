@@ -2,7 +2,7 @@
 // ONE primary on the right). It replaces the dock, the dice bar and the drawer. While a plan is being made the plan tray stands in its body (plan.js). Shared table: the players strip and the
 // waiting or decision cards of the table take the body (they scroll, the tray never grows past its budget).
 import { nameOf } from '../../../engine/catalogue.js';
-import { phasesFor } from '../../combat/feed.js';
+import { phasesFor, tableModel, seatOf, gameOf } from '../../combat/feed.js';
 import { nameOfClearing, tileName } from '../../../engine/catalogue.js';
 import { isMountain } from '../../../engine/world.js';
 import { EDGE, destName } from '../../planlogic.js';
@@ -45,15 +45,15 @@ const nb = s => String(s).replace(/ (\d+)$/, ' $1');                      // "C
 // ---- the last action: one line, what happened most recently, in the voice the player chose ----
 const LABEL = { combat: 'The fight', trade: 'Trade', loot: 'Loot', discover: 'Discovery', curse: 'A curse', monster: 'The wilds', native: 'The wilds', block: 'Blocked' };
 function lastParts(G) {
-    const st = G.st, p = st.pending, log = st.log ?? [];
+    const st = G.st, p = questionOf(st, G.data), log = st.log ?? [];
     const skip = l => l.k === 'day' || l.k === 'info' || (G.shared && isMeetLine(l));
     let i = log.length - 1;
     while (i >= 0 && skip(log[i])) i--;
     // Birdsong: today's Monster roll is the newest line, but the morning asks about last night
-    const birdsong = p?.type === 'plan' && st.day > 1;
+    const birdsong = p?.type === 'plan' && gameOf(st, G.data).day > 1;
     if (birdsong) {
-        let j = i; while (j >= 0 && (skip(log[j]) || log[j].k === 'roll' || log[j].day === st.day)) j--;
-        const l = j >= 0 && log[j].day === st.day - 1 ? log[j] : null;
+        let j = i; while (j >= 0 && (skip(log[j]) || log[j].k === 'roll' || log[j].day === gameOf(st, G.data).day)) j--;
+        const l = j >= 0 && log[j].day === gameOf(st, G.data).day - 1 ? log[j] : null;
         return { b: 'Last night', t: l ? lt(G, l) : 'A quiet evening. Nothing came for you.', dice: [] };
     }
     const l = log[i];
@@ -108,7 +108,7 @@ export function shortPrompt(G, slot) {
     else if (a === 'move') small = slot.to === EDGE ? 'leave the map' : slot.to ? `to ${nb(nameOfClearing(slot.to))}` : null;
     else if (a === 'fly') small = slot?.to ? `over the ${tileName(slot.to)}` : 'take to the air';
     else if (a === 'enchant') small = todayOf(st, G.data).turn?.enchants ? 'shape your power' : 'gather your power';
-    else if (a === 'follow') small = slot.who ? playerNameOf(G.st, slot.who) : null;
+    else if (a === 'follow') small = slot.who ? playerNameOf(tableModel(G.st, G.data), slot.who) : null;
     else small = lowerFirst(pr.line).replace(/\.$/, '');
     return { small, why: [pr.line, pr.why].filter(Boolean).join(' ') };
 }
@@ -147,8 +147,8 @@ export function renderTray(G) {
     // hired followers and hired leaders (hirelingRules): leave a follower behind at the start of a phase; give to or take from his own leader
     if (p?.type === 'phase' && st.options?.hirelingRules) {
         freeActs.push(...followerChips(G));
-        if (leaderGame(st) && meetWith(G).ok) freeActs.push(h('button', { type: 'button', class: 'ds-chip spellact handchip', 'data-act': 'handover-open', title: 'Give to him or take from him: it is done at once',
-            onclick: () => { G.ui.hand = null; G.ui.sheet = 'handover'; render(G); } }, `Give or take: ${seatName(st, meetWith(G).other)}`));
+        if (leaderGame(tableModel(G.st, G.data)) && meetWith(G).ok) freeActs.push(h('button', { type: 'button', class: 'ds-chip spellact handchip', 'data-act': 'handover-open', title: 'Give to him or take from him: it is done at once',
+            onclick: () => { G.ui.hand = null; G.ui.sheet = 'handover'; render(G); } }, `Give or take: ${seatName(tableModel(G.st, G.data), meetWith(G).other)}`));
     }
     if (planning) {
         // the plan tray (plan.js): tabs, one line, the nine actions, and Start the day
@@ -156,10 +156,10 @@ export function renderTray(G) {
         m.last = null; m.situ = null; m.body = [pl.body]; m.lead = pl.lead; m.primary = pl.primary; m.cls.push('planning');
     } else if (!p) {
         // a seat with no question now (another seat of the party is asked): say whose turn it is, and the way to him
-        const asked = leaderGame(st) && !G.shared ? st.asks.find(a => a.who !== st.actor && st.chars[a.who]) : null;
+        const asked = leaderGame(tableModel(G.st, G.data)) && !G.shared ? st.asks.find(a => a.who !== seatOf(st, G.data) && tableModel(st, G.data).chars[a.who]) : null;
         if (asked) {
-            m.body = [ask(`It is ${seatName(st, asked.who)}\u2019s turn.`, 'This seat has nothing to answer now. Go on with the one the game is waiting for.', { compact: true })];
-            m.primary = primary(`To ${seatName(st, asked.who)}`, { 'data-act': 'to-asked', onclick: () => switchTo(G, asked.who) });
+            m.body = [ask(`It is ${seatName(tableModel(G.st, G.data), asked.who)}\u2019s turn.`, 'This seat has nothing to answer now. Go on with the one the game is waiting for.', { compact: true })];
+            m.primary = primary(`To ${seatName(tableModel(G.st, G.data), asked.who)}`, { 'data-act': 'to-asked', onclick: () => switchTo(G, asked.who) });
         } else if (!G.shared) {
             const fc = followerCard(G);          // (a character who recorded Follow, or is following: whose turn is his, and the way to it)
             if (fc) { m.body = fc.body; m.lead = fc.lead; m.primary = fc.primary; m.situ = null; m.last = null; } else m.body = [h('p', { class: 'ds-lead-text' }, 'Working...')];
@@ -211,9 +211,9 @@ export function renderTray(G) {
     } else if (G.shared && p.type === 'end-option') {
         m.body.push(ask('Sudden Death: you have met every goal.', 'The game waits for you to say whether it ends at this Midnight. The question is on screen; the map is one tap away.', { compact: true }));
     } else if (G.shared && p.type === 'meet-offer') {
-        m.body.push(ask(`${playerNameOf(st, p.from)} has made you an offer.`, 'The offer is on screen. Look at it, then accept or decline; the map is one tap away.', { compact: true }));
+        m.body.push(ask(`${playerNameOf(tableModel(G.st, G.data), p.from)} has made you an offer.`, 'The offer is on screen. Look at it, then accept or decline; the map is one tap away.', { compact: true }));
     } else if (G.shared && (p.type === 'meet-block' || p.type === 'meet-follow' || p.type === 'meet-join' || p.type === 'meet-window')) {
-        if (p.type === 'meet-window' && G.ui.windowDay !== st.day) { G.ui.windowDay = st.day; G.ui.windowLog = logEnd(G); }          // (what counts as "traded" starts when the window opens)
+        if (p.type === 'meet-window' && G.ui.windowDay !== gameOf(st, G.data).day) { G.ui.windowDay = gameOf(st, G.data).day; G.ui.windowLog = logEnd(G); }          // (what counts as "traded" starts when the window opens)
         const k = (p.type === 'meet-block' ? blockCard : p.type === 'meet-follow' ? followCard : p.type === 'meet-join' ? joinCard : windowCard)(mc(G), p);
         m.body.push(k.body); [m.lead, m.primary] = k.actions;
     } else {
@@ -227,10 +227,10 @@ export function renderTray(G) {
         if (G.ms.made && (!p || p.type === 'phase' || p.type === 'phase-pick' || p.type === 'meet-window')) { const w = waitingCard(mc(G)); m.body = [w.body]; m.lead = w.actions; m.primary = null; }
         else if (!p && G.crew.find(x => x.mine)?.status === 'following') {
             // I follow someone: his turn is mine. I may stop at the start of any of his activities (the game says so if it is not the moment)
-            m.primary = btn(`Stop following ${playerNameOf(st, st.follows?.[ownSheet(st, G.data).id] ?? '')}`.trim(), '', { 'data-act': 'stop-follow', onclick: () => act(G, { type: 'meet', kind: 'stop-follow' }) });
-        } else if (p?.type === 'phase' && ownSheet(st, G.data).hidden && Object.values(st.follows ?? {}).includes(ownSheet(st, G.data).id) && !G.ms.made) {
+            m.primary = btn(`Stop following ${playerNameOf(tableModel(G.st, G.data), tableModel(st, G.data).follows?.[ownSheet(st, G.data).id] ?? '')}`.trim(), '', { 'data-act': 'stop-follow', onclick: () => act(G, { type: 'meet', kind: 'stop-follow' }) });
+        } else if (p?.type === 'phase' && ownSheet(st, G.data).hidden && Object.values(tableModel(st, G.data).follows ?? {}).includes(ownSheet(st, G.data).id) && !G.ms.made) {
             // a hidden guide may leave behind followers who have not found hidden enemies (7.11.6a.1); the game says if every one has
-            const g = playerNameOf(st, Object.keys(st.follows).find(f => st.follows[f] === ownSheet(st, G.data).id));
+            const g = playerNameOf(tableModel(G.st, G.data), Object.keys(tableModel(st, G.data).follows).find(f => tableModel(st, G.data).follows[f] === ownSheet(st, G.data).id));
             m.body.push(h('p', { class: 'ds-hint-line', 'data-hint': 'ditch' }, `You are hidden and ${g} follows you. You may slip away and leave ${g} behind, unless they have found hidden enemies today.`));
             m.lead = btn('Leave them behind', 'sm', { 'data-act': 'ditch', onclick: () => act(G, { type: 'meet', kind: 'ditch' }) });
         } else if (G.ms.partners.length && (!p || p.type === 'phase' || p.type === 'phase-pick')) {
@@ -281,7 +281,7 @@ export function renderTray(G) {
     G.tray.replaceChildren(...t.childNodes);
     glideHeight(G, from);
     // the primary of a tray that has just changed (a phase played, a result shown, a question answered) ignores a tap for ~350 ms: the second half of a double tap must not skip what there is to read (QA-4)
-    guardIfChanged(G.ui.guards ??= {}, 'tray', planning ? `plan|${st.day}` : `${p?.type ?? ''}|${p?.i ?? ''}|${st.day}|${G.shared || G.race ? '' : st.log?.length ?? 0}|${m.cls.join(' ')}`, G.tray);
+    guardIfChanged(G.ui.guards ??= {}, 'tray', planning ? `plan|${gameOf(st, G.data).day}` : `${p?.type ?? ''}|${p?.i ?? ''}|${gameOf(st, G.data).day}|${G.shared || G.race ? '' : st.log?.length ?? 0}|${m.cls.join(' ')}`, G.tray);
     wireGrab(G, G.tray.querySelector('.ds-grab'));
 }
 

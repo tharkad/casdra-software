@@ -8,13 +8,14 @@ import { actIcon } from '../../icons.js';
 import { steedAloft } from '../../steeds.js';
 import { act } from './actions.js';
 import { render } from './shell.js';
+import { questionOf } from '../../combat/feed.js';
 
 const OPEN = new Set(['phase', 'phase-pick']);          // (the engine lets him dismiss at the start of a phase or while planning; in the air only a phase of the day is open)
 
 // The card for the tray body, or null when he is not on a steed (a Fly chit asks nothing of him).
 export function airCard(G) {
     const st = G.st, s = steedAloft(st, G.data);
-    if (!s || !st.ch.flying || !OPEN.has(st.pending?.type)) return null;
+    if (!s || !st.ch.flying || !OPEN.has(questionOf(st, G.data)?.type)) return null;
     const over = tileName(st.ch.flying.tile), asking = G.ui.steedAsk === s.id;
     if (asking) {
         return h('div', { class: 'st-air asking', role: 'alertdialog', 'aria-label': `Let the ${s.name} go?`, 'data-steed-ask': s.id },

@@ -70,8 +70,8 @@ export function autopilotRecord(view, myName) {
     for (let i = 0; i < log.length; i++) {
         const t = log[i].t ?? '', m = mine.exec(t);
         if (!m) continue;
-        if (/ is marked away by the table/.test(t)) { marked = skipped + i; back = -1; answers.length = 0; }
-        else if (/ is back: /.test(t)) back = skipped + i;
+        if (/ is marked away by the table/.test(t)) { marked = log[i].i ?? skipped + i; back = -1; answers.length = 0; }
+        else if (/ is back: /.test(t)) back = log[i].i ?? skipped + i;
         else if (m[1] && marked >= 0 && back < 0) answers.push(m[1]);
     }
     return { marked, back, answers, key: marked >= 0 ? `${marked}|${back}` : null };

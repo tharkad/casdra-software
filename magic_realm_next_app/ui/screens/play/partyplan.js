@@ -12,7 +12,7 @@ import { render } from './shell.js';
 import { showToast } from './kit.js';
 import { isHotSeat, switchTo } from './hotseat.js';
 import { planSnapshot } from './plan.js';
-import { charsOf, gameOf, questionOf, viewOf } from '../../combat/feed.js';
+import { charsOf, gameOf, questionOf, viewOf, tableModel } from '../../combat/feed.js';
 
 /** The seat on screen (the character the engine is speaking to). */
 export const actorOf = G => viewOf(G.st, G.data).viewer.seat;
@@ -20,7 +20,7 @@ export const actorOf = G => viewOf(G.st, G.data).viewer.seat;
 /** The party that is planning now, or null: one phone, no table, no hired leaders, and two or more of its characters are asked for a plan (or must first say who returns, a fallen seat's restart). */
 export function partyPlan(G) {
     const st = G.st;
-    if (!st || G.shared || G.race || leaderGame(st) || !isHotSeat(G)) return null;
+    if (!st || G.shared || G.race || leaderGame(tableModel(G.st, G.data)) || !isHotSeat(G)) return null;
     const kind = id => questionOf(st, G.data, id);          // (the question the engine is asking that seat: view.pending)
     const seats = gameOf(st, G.data).order.filter(id => ['plan', 'restart'].includes(kind(id)?.type));
     if (seats.length < 2 || !seats.some(id => kind(id).type === 'plan') || seats.some(id => kind(id).underlings?.length || kind(id).leader)) return null;          // (hired followers are given their guides with the plan: that stays one character at a time, plan.js startDay)

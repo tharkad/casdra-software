@@ -66,7 +66,39 @@ const SEARCH = {
     'Locate': { 'Nothing': 'You search the stones. Nothing.', 'Discover chits': 'Something is here, and you have found it.', 'Passages and Clues': 'Hidden ways whisper their secrets.', 'Choice': 'The signs point more than one way.' },
 };
 const pick = (list, text) => { for (const [re, to] of list) { const m = re.exec(text); if (m) return typeof to === 'function' ? to(m) : to; } return null; };
+// The same lines, by the code of the result (a roll the engine tagged with `kind` and `res`, Phase 3 round 8): the words are the ones above, chosen without reading a sentence.
+const EVENING_BY = { 'price-x1': 'Friends here. No blades will be drawn.', 'price-x2': 'Wary eyes, but no blades.', 'price-x3': 'A cool stare. No blades drawn.', 'price-x4': 'A cold silence. They let you be.',
+    boon: 'They greet you gladly. No blades.', 'boon-x1': 'They greet you gladly. No blades.', 'no-deal': 'They turn away: no blades, no words.', opportunity: 'A chance to win them over.', trouble: 'The mood sours.',
+    insult: 'An insult hangs in the air. Pay 5 Notoriety, or draw steel.', challenge: 'A challenge is thrown down. Pay 5 Fame, or fight.', 'block-battle': 'Steel is drawn. They attack!' };
+const TRADE_BY = { 'price-x1': 'A warm welcome: a fair price.', 'price-x2': 'Guarded, but willing: a price is named.', 'price-x3': 'Grudging: they will deal, at a premium.', 'price-x4': 'Cold: they will deal, but dearly.',
+    boon: 'Glad of you: they offer a favour.', 'boon-x1': 'Glad of you: they offer a favour.', 'no-deal': 'They turn their backs. No deal.', opportunity: 'Your words land: they hear you out again.',
+    trouble: 'The talk sours. They hear you out, grudgingly.', insult: 'An insult.', challenge: 'A challenge.', 'block-battle': 'They bar the way, blades out.' };
+const SEARCH_BY = { 'search.peer': { nothing: 'You watch. Nothing stirs.', 'hidden-enemies': 'You see them: hidden watchers revealed.', 'hidden-enemies-and-paths': 'Watchers and secret ways lie open to you.', paths: 'A hidden way shows itself.' },
+    'search.locate': { nothing: 'You search the stones. Nothing.', 'discover-chits': 'Something is here, and you have found it.', 'passages-and-clues': 'Hidden ways whisper their secrets.', choice: 'The signs point more than one way.' } };
+function narrateByKind(r) {
+    const res = r.result ?? '', t = r.res;
+    const group = () => r.group ?? (/^Evening meeting with the ([^:]+)/.exec(r.what ?? '') ?? /^Meeting roll: .* the ([^:]+)/.exec(r.what ?? ''))?.[1];
+    switch (r.kind) {
+        case 'meeting.evening': return { title: `The ${group()}`, line: EVENING_BY[t] ?? res };
+        case 'meeting.table': return { title: `The ${group()}`, line: TRADE_BY[t] ?? res };
+        case 'move.hide': return { title: 'Hiding', line: t === 'seen' ? 'Eyes find you. There is no cover.' : 'You slip out of sight.' };
+        case 'day.prowl': { const row = /^row-(\d)/.exec(t ?? '')?.[1]; return { title: 'The wilds', line: r.tale ?? (row ? 'Something stirs in the wilds.' : res) }; }
+        case 'combat.reposition': return { title: 'The melee', line: t === 'shuffle' ? 'The creatures circle and trade places.' : 'Nothing shifts.' };
+        case 'combat.tactics': return { title: `The ${r.box} box`, line: t === 'flip' ? 'A snarl, a twist: they change their stance.' : 'They hold their stance.' };
+        case 'combat.missile': case 'combat.missile.foe': {
+            const own = r.kind === 'combat.missile', d = /^([+-])(\d)/.exec(t ?? ''), who = own ? 'Your shot' : 'The shot';
+            return { title: own ? 'Your shot' : 'Their shot', line: !d ? res : d[1] === '+' ? `${who} bites deeper than it looked.` : `${who} loses its sting.` };
+        }
+        case 'search.peer': case 'search.locate': return { title: r.kind === 'search.peer' ? 'Peering' : 'Searching', line: SEARCH_BY[r.kind][t] ?? res };
+        case 'search.runes': return { title: 'The runes', line: t === 'learn-and-awaken' ? 'The runes yield their secret: a spell, yours to learn.' : t === 'awaken' ? 'The runes stir: you may look, no more.' : t === 'curse' ? 'The runes bite back.' : 'The runes stay silent.' };
+        case 'curse.laid': return { title: 'A curse', line: `A curse takes hold: ${res}.` };
+        case 'pit.rolled': return { title: 'The Pit', line: `From the Pit: ${res}.` };
+        default: return undefined;
+    }
+}
 export function narrateRoll(r) {
+    const byKind = r.kind ? narrateByKind(r) : undefined;
+    if (byKind) return byKind;
     const w = r.what ?? '', res = r.result ?? '';
     let m;
     if ((m = /^Evening meeting with the ([^:]+)/.exec(w))) return { title: `The ${m[1]}`, line: pick(EVENING, res) ?? res };

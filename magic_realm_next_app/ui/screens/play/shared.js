@@ -23,7 +23,7 @@ import { modal, showToast, tc } from './kit.js';
 import { prowlers, render } from './shell.js';
 import { backSeen, drawSeen, markBackSeen, markDrawSeen, markOverSeen, myId, overSeen, setWelcomed, welcomed } from './state.js';
 import { playerOf } from '../../meet.js';
-import { ownSheet, gameOf, questionOf, tableFight, charsOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, questionOf, tableFight, charsOf, tableModel } from '../../combat/feed.js';
 
 function clearTag(G) { clearTimeout(G.ui.tagTimer); G.ui.tagTimer = setTimeout(() => { if (G.ui.tag) { G.ui.tag = null; if (G.root.isConnected) render(G); } }, 6000); }
 
@@ -108,14 +108,14 @@ export function playersSheet(G) {
 // in the middle of a question that has a sheet of its own (that question comes first); otherwise it waits, and the tray says only how a vote stands.
 export function tableSheetDue(G) {
     if (!G.shared || !G.answer) return null;
-    const st = G.st, p = st.pending;
+    const st = G.st, p = questionOf(st, G.data);
     // the welcome of a table (QA-131), once, at the first plan of day 1: the same moment as the solo welcome, which it stands in for at a table
-    if (!G.ui.welcomeDone && !welcomed() && st.day === 1 && p?.type === 'plan' && !st.battle?.members?.[st.ch.id]) return { kind: 'intro' };
+    if (!G.ui.welcomeDone && !welcomed() && gameOf(st, G.data).day === 1 && p?.type === 'plan' && !st.battle?.members?.[st.ch.id]) return { kind: 'intro' };
     if (G.ui.sheet) return null;
-    if (st.battle?.members?.[st.ch.id] || st.period === 'over') return null;
+    if (st.battle?.members?.[st.ch.id] || gameOf(st, G.data).period === 'over') return null;
     if (p && !['plan', 'phase', 'phase-pick'].includes(p.type)) return null;
     if (G.answer.you?.away) return { kind: 'away' };
-    const rec = autopilotRecord(st, playerOf(st, st.ch.id)), back = rec.back >= 0 && rec.key && !backSeen(G, rec.key) ? rec : null;
+    const rec = autopilotRecord(st, playerOf(tableModel(G.st, G.data), st.ch.id)), back = rec.back >= 0 && rec.key && !backSeen(G, rec.key) ? rec : null;
     if (back) return { kind: 'welcome', rec: back };
     const a = pendingVote(G.answer, G.mySeat);
     return a ? { kind: 'vote', a } : null;

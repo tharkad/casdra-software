@@ -12,25 +12,25 @@ import { settleSeat, tableCrew } from './leaders.js';
 import { markPhase } from './result_card.js';
 import { render } from './shell.js';
 import { clearSaved, meetEnd, myId, noteError, persist, saveGame } from './state.js';
-import { gameOf, questionOf } from '../../combat/feed.js';
+import { gameOf, questionOf, tableModel, seatOf } from '../../combat/feed.js';
 
 function commit(G, next) { G.st = next; G.ctx.state = G.st; if (!G.race && !G.shared) saveGame(G.st); render(G); forcedAnswer(G); }
 
 // A question with one possible answer is not asked (QA-118): Magic Sight leaves one table, so the Search goes straight to it.
 export const isForced = p => !!p && p.type === 'search-table' && (p.options ?? []).length === 1 && p.options[0] !== 'sitecard';
 function forcedAnswer(G) {
-    const p = G.st?.pending;
+    const p = questionOf(G.st, G.data);
     if (!isForced(p)) return;
     const key = `${gameOf(G.st, G.data).day}|${G.st.log?.length ?? 0}|${p.options[0]}`;
     if (G.ui.forcedKey === key) return;
     G.ui.forcedKey = key;
-    setTimeout(() => { if (G.root.isConnected && G.st?.pending?.type === 'search-table') act(G, { type: 'search-table', table: p.options[0] }); }, 0);
+    setTimeout(() => { if (G.root.isConnected && questionOf(G.st, G.data)?.type === 'search-table') act(G, { type: 'search-table', table: p.options[0] }); }, 0);
 }
 
 // Hired leaders and controlled monsters are seats of one player's party, and several of them may be asked something at once (every Birdsong, each one's plan): an answer says whose it is.
-// The local game addresses it to the seat on screen (`st.actor`); without that an answer would go to whoever happens to be the only one asked.
+// The local game addresses it to the seat on screen (`seatOf(st, G.data)`); without that an answer would go to whoever happens to be the only one asked.
 // (at a shared table the server answers for my own character unless told otherwise: only a seat of my party needs the address)
-const addressed = (G, a) => (a.who == null && !G.race && a.type !== 'table' && leaderGame(G.st) && (!G.shared || G.st.actor !== myId(G)) ? { ...a, who: G.st.actor } : a);
+const addressed = (G, a) => (a.who == null && !G.race && a.type !== 'table' && leaderGame(tableModel(G.st, G.data)) && (!G.shared || seatOf(G.st, G.data) !== myId(G)) ? { ...a, who: seatOf(G.st, G.data) } : a);
 
 export function act(G, action) {
     action = addressed(G, action);

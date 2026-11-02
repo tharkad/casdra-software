@@ -12,6 +12,7 @@ import { encounterOptions, meleeOptions, shiftOptions, makeChangeOptions } from 
 import { askOptions } from './hirefight.js';
 import { denSide } from './combat.js';
 import { siteLeft } from './search.js';
+import { tradeFacts, TRADE_QUESTIONS } from './tradefacts.js';
 
 export const COMBAT_QUESTIONS = ['combat-pay', 'combat-drinks', 'combat-choice', 'combat-encounter', 'combat-melee', 'combat-shift', 'combat-wounds', 'combat-fatigue', 'combat-over', 'combat-lure', 'combat-charge', 'combat-deploy'];
 
@@ -159,6 +160,11 @@ export function legalFor(state, viewer, data, pending) {
     const waiting = state.asks.filter(a => a.who !== viewer).map(a => ({ who: a.who }));
     const base = { for: viewer ?? '', question: pending, answers: [], free: [], waiting };
     if (!viewer || !pending) return { ...base, covered: true };
+    if (TRADE_QUESTIONS.includes(pending.type)) {          // (the answers of a meeting are not listed yet: the facts the sheet needs are; `covered` stays false)
+        const st = clone(state);
+        const options = withActor(st, viewer, () => plain(tradeFacts(st, data, st.pending)));
+        return { ...base, options, covered: false };
+    }
     const c = COMBAT_QUESTIONS.includes(pending.type) ? legalCombat(state, data, viewer) : PHASE_QUESTIONS.includes(pending.type) ? phaseOf(pending, state, data, viewer) : null;
     return c ? { ...base, answers: c.answers, free: c.free, options: c.options, covered: true } : { ...base, covered: false };
 }

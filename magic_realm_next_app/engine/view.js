@@ -45,7 +45,7 @@ const gearOf = c => c.items.map(it => (CARD.has(it.kind) && !it.active ? hiddenC
 function publicChar(st, c) {
     const t = c.today ?? {};
     return {
-        id: c.id, name: c.name, weight: c.weight, at: c.at ?? null, onRoad: c.onRoad ?? null, hidden: !!c.hidden, dead: !!c.dead, gone: c.gone ?? null, fame: c.fame, notoriety: c.notoriety,
+        id: c.id, name: c.name, attention: c.attention ?? null, weight: c.weight, at: c.at ?? null, onRoad: c.onRoad ?? null, hidden: !!c.hidden, dead: !!c.dead, gone: c.gone ?? null, fame: c.fame, notoriety: c.notoriety,
         rel: c.rel ?? {}, foundHiddenEnemies: !!c.hiddenEnemies, chits: c.chits, gear: gearOf(c),
         hirelings: [...st.nats, ...st.mons].filter(o => o.hired && o.hiredBy === c.id && !o.dead).map(o => o.id),
         adv: c.adv ?? [], owner: c.owner, leader: c.leader ?? null, flying: c.flying ?? null, morph: c.morph ?? null, mist: c.mist ?? null, death: c.death ?? null, berserk: !!c.berserk,
@@ -54,7 +54,7 @@ function publicChar(st, c) {
     };
 }
 const faceOf = ch => ({ kind: ch.kind, name: ch.name, num: ch.num ?? null, id: ch.id });
-const counterOf = o => ({ id: o.id, loc: o.loc ?? { box: 'unknown' }, dead: !!o.dead, hired: !!o.hired, ...(o.hiredBy ? { hiredBy: o.hiredBy } : {}), ...(o.hired && o.hiredUntil != null ? { hiredUntil: o.hiredUntil } : {}), ...(o.side ? { side: o.side } : {}) });
+const counterOf = o => ({ id: o.id, loc: o.loc ?? { box: 'unknown' }, dead: !!o.dead, hired: !!o.hired, ...(o.hiredBy ? { hiredBy: o.hiredBy } : {}), ...(o.hired && o.hiredUntil != null ? { hiredUntil: o.hiredUntil } : {}), ...(o.hired && o.guide ? { guide: o.guide } : {}), ...(o.hired && o.tie ? { tie: { kind: o.tie.kind } } : {}), ...(o.side ? { side: o.side } : {}) });
 
 // The viewer's own sheet of the fight (`combat`): every creature on it with its stats as the rules read them now (`stat`: name, size, vulnerability, harm, times ... with the spells in force and a
 // transformed counter taken into account), and his hirelings with theirs, so a screen never asks the engine for "the side of a denizen" itself.
@@ -110,7 +110,7 @@ function journalOf(st, viewer, owner) {
     for (let j = log.length - 1; j >= 0 && out.length < JOURNAL_LINES; j--) {
         const l = log[j];
         if (l.k === 'roll' || l.k === 'info' || !mayRead(l, viewer, mine)) continue;
-        out.push({ i: j, day: l.day, t: l.t, k: l.k, ...(l.s != null ? { s: l.s } : {}), ...(l.r != null ? { r: l.r } : {}), ...(l.who ? { who: l.who } : {}), ...(l.p ? { p: l.p } : {}), ...(l.vis ? { vis: l.vis } : {}), ...(l.with ? { with: l.with } : {}) });
+        out.push({ i: j + (st.logSkipped ?? 0), day: l.day, t: l.t, k: l.k, ...(l.s != null ? { s: l.s } : {}), ...(l.r != null ? { r: l.r } : {}), ...(l.who ? { who: l.who } : {}), ...(l.p ? { p: l.p } : {}), ...(l.vis ? { vis: l.vis } : {}), ...(l.with ? { with: l.with } : {}) });
     }
     return json(out.reverse());
 }
@@ -140,7 +140,7 @@ export function makeView(state, viewer, data, version) {
             twt: Object.keys(st.twt ?? {}).length, spellBox: Object.values(st.spellBox?.sites ?? {}).reduce((n, a) => n + a.length, 0), spellsAside: (st.spellsAside ?? []).length, scholarGoods: (st.scholarGoods ?? []).length },
         characters: Object.fromEntries(st.order.map(id => [id, publicChar(st, st.chars[id])])),
         fight: publicFight(st.battle, st, data),
-        meetings: { follows: st.follows ?? {}, tradeWindow: st.tradeWindow ?? null, offers: (st.offers ?? []).map(o => ({ id: o.id, from: o.from, to: o.to })), blockCheck: st.blockCheck ?? null },
+        meetings: { follows: st.follows ?? {}, followCheck: st.followCheck ?? null, tradeWindow: st.tradeWindow ?? null, offers: (st.offers ?? []).map(o => ({ id: o.id, from: o.from, to: o.to })), blockCheck: st.blockCheck ?? null },
         missions: st.missions ?? null, score: over ? st.score ?? null : null,
     };
     const mine = me && {
@@ -151,7 +151,7 @@ export function makeView(state, viewer, data, version) {
         seats: st.order.filter(id => id !== viewer && st.chars[id].leader && st.chars[id].owner === me.owner),
         fight: fightOf(st, data, viewer),
         today: todayOf(st, viewer),
-        journal: journalOf(st, viewer, me.owner),
+        journal: journalOf(st, viewer, me.owner), logEnd: (st.logSkipped ?? 0) + (st.log ?? []).length,
         magic: withActor(st, viewer, () => { try { return json(spellFacts(st, data, new Set(st.order.filter(id => st.chars[id].owner === me.owner)))); } catch { return null; } }),          // (the spells in force, what a held or energized spell can do now, what a Fly would use)
         fightLog: fightLogOf(st, viewer, new Set([viewer, ...st.order.filter(id => id !== viewer && st.chars[id].leader && st.chars[id].owner === me.owner)])),
         earned: withActor(st, viewer, () => { try { return json(earned(st, data)); } catch { return null; } }),          // what he holds now toward each goal (score.js), for the fight's closing sheet

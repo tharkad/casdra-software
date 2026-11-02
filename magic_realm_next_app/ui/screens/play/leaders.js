@@ -31,7 +31,7 @@ import { switchTo } from './hotseat.js';
 import { apiOf } from '../../../engine/api.js';
 import { myId } from './state.js';
 import { playerOf } from '../../meet.js';
-import { gameOf, questionOf, charsOf, todayOf } from '../../combat/feed.js';
+import { gameOf, questionOf, charsOf, todayOf, tableModel, seatOf } from '../../combat/feed.js';
 
 const nb = s => String(s).replace(/ (\d+)$/, ' $1');
 
@@ -39,7 +39,7 @@ const nb = s => String(s).replace(/ (\d+)$/, ' $1');
 /** The Attention chit: a red numbered chit (a leader takes the first free one), or the initial of the unused character's chit he took. */
 export const attnChit = (att, cls = '') => (att ? h('i', { class: `attn ${att.kind}${cls ? ' ' + cls : ''}`, 'aria-hidden': 'true' }, att.short) : null);
 
-export const seatBits = (G, id) => (charsOf(G.st, G.data)[id]?.leader ? [attnChit(attentionOf(G.st, G.data, id))] : []);
+export const seatBits = (G, id) => (charsOf(G.st, G.data)[id]?.leader ? [attnChit(attentionOf(tableModel(G.st, G.data), G.data, id))] : []);
 
 /** The art of a hired counter, from the printed counters. */
 function counterArt(G, o) {
@@ -62,16 +62,16 @@ export function counterEl(G, o, cls = 'sm') {
 export function ownSeats(G) {
     const st = G.st;
     if (!G.shared) return st.order.slice();
-    const me = myId(G), owner = st.chars[me]?.owner;
-    return st.order.filter(id => id === me || (!!owner && st.chars[id]?.leader && st.chars[id].owner === owner));
+    const me = myId(G), owner = tableModel(st, G.data).chars[me]?.owner;
+    return st.order.filter(id => id === me || (!!owner && tableModel(st, G.data).chars[id]?.leader && tableModel(st, G.data).chars[id].owner === owner));
 }
 /** The players of a table are people: a hired leader of somebody's is not one more player in the strip (his counter is on the map and his chip in his hirer's seat bar). */
-export const tableCrew = (G, crew) => (G.shared && leaderGame(G.st) ? crew.filter(x => !charsOf(G.st, G.data)[x.id]?.leader) : crew);
+export const tableCrew = (G, crew) => (G.shared && leaderGame(tableModel(G.st, G.data)) ? crew.filter(x => !charsOf(G.st, G.data)[x.id]?.leader) : crew);
 /** At a table the server's view is the viewer's own character's; the seat on screen is a choice of this phone. After every answer: stay on the seat the player chose while it still has a question,
  *  else go to the first of his seats that is asked something (a seat of his is asked at Birdsong, at his turn), else keep the choice, else his own character. */
 export function settleSeat(G) {
     const st = G.st;
-    if (!G.shared || !leaderGame(st)) return;
+    if (!G.shared || !leaderGame(tableModel(G.st, G.data))) return;
     const own = ownSeats(G), asked = id => st.asks.some(a => a.who === id && a.pending), chosen = G.ui.seat && own.includes(G.ui.seat) ? G.ui.seat : null;
     const pick = (chosen && asked(chosen) ? chosen : null) ?? own.find(asked) ?? chosen ?? own[0];
     G.ui.seat = pick;
@@ -81,25 +81,25 @@ export function settleSeat(G) {
 // ---------------------------------------------------------------------------------------------------------------------------------- the line under the place
 /** Who is acting, when it is a seat: "Company leader · hired by Amazon", with his chit. Null for the player's own character. */
 export function seatLine(G) {
-    const st = G.st, id = st.actor, c = st.chars[id];
+    const st = G.st, id = seatOf(st, G.data), c = tableModel(st, G.data).chars[id];
     if (!c?.leader) return null;
-    const att = attentionOf(st, G.data, id);
-    return h('span', { class: 'seat-line', 'data-seat-line': id }, attnChit(att), h('span', {}, `${roleOf(st, id) === 'Hired leader' ? 'hired by' : 'in the power of'} ${seatName(st, c.leader.hirer)}`));
+    const att = attentionOf(tableModel(G.st, G.data), G.data, id);
+    return h('span', { class: 'seat-line', 'data-seat-line': id }, attnChit(att), h('span', {}, `${roleOf(tableModel(G.st, G.data), id) === 'Hired leader' ? 'hired by' : 'in the power of'} ${seatName(tableModel(G.st, G.data), c.leader.hirer)}`));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------- who goes with whom
 function assignState(G) {
     const a = G.ui.assign;
-    if (!a || a.day !== gameOf(G.st, G.data).day || a.who !== G.st.actor) G.ui.assign = { day: gameOf(G.st, G.data).day, who: G.st.actor, picked: {}, confirmed: false };
+    if (!a || a.day !== gameOf(G.st, G.data).day || a.who !== seatOf(G.st, G.data)) G.ui.assign = { day: gameOf(G.st, G.data).day, who: seatOf(G.st, G.data), picked: {}, confirmed: false };
     return G.ui.assign;
 }
 /** Does the plan still need the assignment sheet? Underlings that can be assigned today and no confirmation yet. */
 export function needsAssign(G) {
     const p = questionOf(G.st, G.data), a = G.ui.assign;
     if (p?.type !== 'plan' || !p.underlings?.some(u => !u.today)) return false;
-    return !(a && a.day === gameOf(G.st, G.data).day && a.who === G.st.actor && a.confirmed);
+    return !(a && a.day === gameOf(G.st, G.data).day && a.who === seatOf(G.st, G.data) && a.confirmed);
 }
-export const assignRows = G => { const a = assignState(G); return underlingRows(G.st, G.data, questionOf(G.st, G.data)?.underlings, G.ui.assignMemory, a.picked); };
+export const assignRows = G => { const a = assignState(G); return underlingRows(tableModel(G.st, G.data), G.data, questionOf(G.st, G.data)?.underlings, G.ui.assignMemory, a.picked); };
 /** The `assign` map the plan carries, and what was chosen is remembered for tomorrow's default. */
 export function takeAssign(G) {
     const rows = assignRows(G);
@@ -113,7 +113,7 @@ function guideChips(G, r) {
     const a = assignState(G), pick = id => { a.picked[r.id] = id; render(G); };
     return h('div', { class: 'as-opts', role: 'radiogroup', 'aria-label': `Who ${r.name} goes with` },
         ...r.guides.map(g => h('button', { type: 'button', class: `ds-chip as-opt${r.choice === g.id ? ' on' : ''}`, role: 'radio', 'aria-checked': r.choice === g.id ? 'true' : 'false', 'data-underling': r.id, 'data-guide': g.id, onclick: () => pick(g.id) },
-            g.seat ? attnChit(attentionOf(G.st, G.data, g.id), 'sm') : null, g.name)),
+            g.seat ? attnChit(attentionOf(tableModel(G.st, G.data), G.data, g.id), 'sm') : null, g.name)),
         h('button', { type: 'button', class: `ds-chip as-opt${r.choice == null ? ' on' : ''}`, role: 'radio', 'aria-checked': r.choice == null ? 'true' : 'false', 'data-underling': r.id, 'data-guide': '', onclick: () => pick(null) }, 'Stays here'));
 }
 
@@ -121,7 +121,7 @@ export function assignSheet(G) {
     const st = G.st, rows = assignRows(G), a = assignState(G), live = rows.filter(r => !r.today), whole = planWhole(G);
     const back = () => { G.ui.sheet = 'plan'; render(G); };
     const go = () => { a.confirmed = true; if (whole && G.ui.draft) startDay(G); else { G.ui.sheet = 'plan'; render(G); } };
-    const everyone = live.length > 1 ? realIds(st).find(id => live.every(r => r.guides.some(g => g.id === id))) : null;
+    const everyone = live.length > 1 ? realIds(tableModel(G.st, G.data)).find(id => live.every(r => r.guides.some(g => g.id === id))) : null;
     const cards = rows.map(r => h('div', { class: `as-card${r.today ? ' dim' : ''}`, 'data-underling-row': r.id },
         h('div', { class: 'as-head' }, counterEl(G, { id: r.id, side: r.side, hidden: r.hidden }, 'sm'),
             h('span', { class: 'main' }, h('b', {}, r.name), h('span', {}, r.atName ? `in ${nb(r.atName)}` : 'not on the map'))),
@@ -133,10 +133,10 @@ export function assignSheet(G) {
         h('p', { class: 'ds-voice as-intro' }, voiced({
             story: 'Each follower goes with one of your people all day, or stays here.',
             detail: 'Underlings are assigned to a guide in Birdsong (6.3.1). They go where the guide goes, hide only when he hides (6.3.1b, 7.4.5), and are put back on the map where he ends his turn (7.7.3b). Not assigned: they spend the day where they are.' })),
-        everyone ? h('button', { type: 'button', class: 'ds-btn sm as-all', 'data-act': 'assign-all', onclick: () => { for (const r of live) a.picked[r.id] = everyone; render(G); } }, `Everyone with ${seatName(st, everyone)}`) : null,
+        everyone ? h('button', { type: 'button', class: 'ds-btn sm as-all', 'data-act': 'assign-all', onclick: () => { for (const r of live) a.picked[r.id] = everyone; render(G); } }, `Everyone with ${seatName(tableModel(G.st, G.data), everyone)}`) : null,
         ...cards);
     const sum = assignSummary(rows);
-    return modal(G, 'Who goes with whom', body, { eyebrow: `Day ${st.day} · followers`, detent: 'tall', bare: true,
+    return modal(G, 'Who goes with whom', body, { eyebrow: `Day ${gameOf(st, G.data).day} · followers`, detent: 'tall', bare: true,
         footer: footRow({ note: sum ? nb(sum) : 'No one follows today.', secondary: btn('Back', 'quiet', { 'data-act': 'assign-back', onclick: back }), primary: primary(whole ? 'Start the day' : 'Done', { 'data-act': 'assign-ok', onclick: go }) }) });
 }
 
@@ -152,12 +152,12 @@ export function followersLine(G) {
 // ---------------------------------------------------------------------------------------------------------------------------------- leave behind
 /** At the start of a guide's phase his hirer may let a follower stay where he stands (7.7.3a, 7.11.5): a chip for each. */
 export function followerChips(G) {
-    const st = G.st, p = st.pending, id = st.actor;
+    const st = G.st, p = questionOf(st, G.data), id = seatOf(st, G.data);
     if (!gameOf(G.st, G.data).options?.hirelingRules || p?.type !== 'phase') return [];
-    const hirer = stayHirer(st, id);
-    return followersOf(st, G.data, id).map(o => {
+    const hirer = stayHirer(tableModel(G.st, G.data), id);
+    return followersOf(tableModel(G.st, G.data), G.data, id).map(o => {
         const name = nameOfCounter(G.data, o);
-        return h('button', { type: 'button', class: 'ds-chip spellact leavechip', 'data-act': 'leave-behind', 'data-id': o.id, title: `${name} stays where ${seatName(st, id)} stands now, and goes no further with him today (7.7.3a)`,
+        return h('button', { type: 'button', class: 'ds-chip spellact leavechip', 'data-act': 'leave-behind', 'data-id': o.id, title: `${name} stays where ${seatName(tableModel(G.st, G.data), id)} stands now, and goes no further with him today (7.7.3a)`,
             onclick: () => act(G, { type: 'hireling', kind: 'stay', ids: [o.id], who: hirer }) }, counterEl(G, o, 'xs'), `Leave ${name} behind`);
     });
 }
@@ -169,21 +169,21 @@ const lockWhy = {
 };
 
 export function leaderSheet(G) {
-    const st = G.st, id = st.actor, c = st.chars[id], hirer = hirerOf(st, id), hn = seatName(st, hirer), att = attentionOf(st, G.data, id), gear = beltOf(st, G.data, id), disc = discoveriesOf(st, id);
+    const st = G.st, id = seatOf(st, G.data), c = tableModel(st, G.data).chars[id], hirer = hirerOf(tableModel(G.st, G.data), id), hn = seatName(tableModel(G.st, G.data), hirer), att = attentionOf(tableModel(G.st, G.data), G.data, id), gear = beltOf(tableModel(G.st, G.data), G.data, id), disc = discoveriesOf(tableModel(G.st, G.data), id);
     const close = () => { G.ui.sheet = null; render(G); };
-    const can = st.pending?.type === 'phase' || st.pending?.type === 'phase-pick';
-    const intro = introOf(st, G.data, id);
+    const can = questionOf(st, G.data)?.type === 'phase' || questionOf(st, G.data)?.type === 'phase-pick';
+    const intro = introOf(tableModel(G.st, G.data), G.data, id);
     const rowsGear = gear.map(({ it, name, sub }) => h('div', { class: 'ds-row ls-item', 'data-item': it.uid },
         h('span', { class: 'art' }, picOf(G, name) ? h('img', { src: picOf(G, name), alt: '' }) : icon('cache')),
         h('span', { class: 'main' }, h('b', {}, name), sub ? h('span', {}, sub) : null),
         h('button', { type: 'button', class: `ds-btn sm quiet${can ? '' : ' is-dim'}`, 'data-act': 'leader-leave', 'aria-disabled': can ? null : 'true',
             onclick: () => { if (!can) { showToast(G, isStory() ? lockWhy.story : lockWhy.detail, true); return; } act(G, { type: 'tidy', item: it.uid, drop: true, who: id }); } }, 'Leave it')));
-    const followers = followersOf(st, G.data, id);
+    const followers = followersOf(tableModel(G.st, G.data), G.data, id);
     const body = h('div', { class: 'ls', 'data-leader-sheet': id },
         intro ? h('p', { class: 'ds-voice ls-intro' }, voiced(intro)) : null,
         h('div', { class: 'ls-facts' },
             h('div', { class: 'ls-fact' }, attnChit(att, 'lg'), h('span', {}, h('b', {}, att?.label ?? 'No chit'), h('small', {}, 'his Attention chit'))),
-            carryWord(st, id) ? h('div', { class: 'ls-fact' }, icon('bag'), h('span', {}, h('b', {}, carryWord(st, id)), h('small', {}, 'the most he can carry'))) : null),
+            carryWord(tableModel(G.st, G.data), id) ? h('div', { class: 'ls-fact' }, icon('bag'), h('span', {}, h('b', {}, carryWord(tableModel(G.st, G.data), id)), h('small', {}, 'the most he can carry'))) : null),
         sect('He carries', gear.length ? `${gear.length}` : ''),
         gear.length ? h('div', { class: 'ds-list' }, ...rowsGear) : h('p', { class: 'ds-meta' }, 'Nothing.'),
         gear.length ? h('p', { class: 'ds-hint-line' }, voiced(lockWhy)) : null,
@@ -196,37 +196,37 @@ export function leaderSheet(G) {
     const meet = meetWith(G, id);
     const foot = footRow({ note: meet.why, secondary: btn(`To ${hn}`, 'quiet', { 'data-act': 'to-hirer', onclick: () => { G.ui.sheet = null; switchTo(G, hirer); } }),
         primary: meet.ok ? primary(`Give or take`, { 'data-act': 'handover-open', onclick: () => { G.ui.hand = null; G.ui.sheet = 'handover'; render(G); } }) : btn('Give or take', 'primary is-dim', { 'data-act': 'handover-open', 'aria-disabled': 'true', onclick: () => showToast(G, meet.why, true) }) });
-    return modal(G, seatName(st, id), body, { close, eyebrow: roleOf(st, id) === 'Hired leader' ? `Hired by ${hn}` : `In the power of ${hn}`, detent: 'tall', bare: true, footer: foot });
+    return modal(G, seatName(tableModel(G.st, G.data), id), body, { close, eyebrow: roleOf(tableModel(G.st, G.data), id) === 'Hired leader' ? `Hired by ${hn}` : `In the power of ${hn}`, detent: 'tall', bare: true, footer: foot });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------- hirer and leader: give or take, in one step
 const WINDOW = { story: 'You can give and take at the start of a phase, when you stand together.', detail: 'Characters trade at the start of a phase of someone’s turn, or after the evening’s fights (7.2.1, 4.5.5).' };
 /** May the actor give to or take from his own leader (or hirer) now? `{ ok, other, why }`: the engine's own meetOptions says. */
-export function meetWith(G, id = G.st.actor) {
-    const st = G.st, c = st.chars[id], out = { ok: false, other: null, why: '' };
+export function meetWith(G, id = seatOf(G.st, G.data)) {
+    const st = G.st, c = tableModel(st, G.data).chars[id], out = { ok: false, other: null, why: '' };
     if (!c) return out;
-    const others = c.leader ? [c.leader.hirer] : seatIds(st).filter(s => st.chars[s].leader.hirer === id);
+    const others = c.leader ? [c.leader.hirer] : seatIds(tableModel(G.st, G.data)).filter(s => tableModel(st, G.data).chars[s].leader.hirer === id);
     let o = null; try { o = meetOptions(st, G.data, id); } catch { o = null; }
     const p = o?.partners?.find(x => others.includes(x.id));
     if (p) return { ok: true, other: p.id, why: '' };
-    const near = others.find(x => st.chars[x] && !st.chars[x].dead && st.chars[x].at && st.chars[x].at === c.at && !c.onRoad);
-    return { ok: false, other: near ?? others[0] ?? null, why: near ? (isStory() ? WINDOW.story : WINDOW.detail) : `${seatName(st, others[0] ?? id)} is not in his clearing.` };
+    const near = others.find(x => tableModel(st, G.data).chars[x] && !tableModel(st, G.data).chars[x].dead && tableModel(st, G.data).chars[x].at && tableModel(st, G.data).chars[x].at === c.at && !c.onRoad);
+    return { ok: false, other: near ?? others[0] ?? null, why: near ? (isStory() ? WINDOW.story : WINDOW.detail) : `${seatName(tableModel(G.st, G.data), others[0] ?? id)} is not in his clearing.` };
 }
 
 /** Gold stepper and ticked lists for one direction of a gift. State in `G.ui.hand`: { dir: 'give' | 'take', items: [uid], gold, disc: [key] }. */
 export function handoverSheet(G) {
-    const st = G.st, actor = st.actor, m = meetWith(G, actor);
+    const st = G.st, actor = seatOf(st, G.data), m = meetWith(G, actor);
     const close = () => { G.ui.sheet = null; G.ui.hand = null; render(G); };
     if (!m.ok) { G.ui.sheet = null; return h('div'); }
-    const hirer = st.chars[actor].leader ? st.chars[actor].leader.hirer : actor, leader = st.chars[actor].leader ? actor : m.other, other = actor === hirer ? leader : hirer;
+    const hirer = tableModel(st, G.data).chars[actor].leader ? tableModel(st, G.data).chars[actor].leader.hirer : actor, leader = tableModel(st, G.data).chars[actor].leader ? actor : m.other, other = actor === hirer ? leader : hirer;
     const d = (G.ui.hand ??= { dir: 'give', items: [], gold: 0, disc: [] });
     const from = d.dir === 'give' ? hirer : leader, to = d.dir === 'give' ? leader : hirer;
-    const fromC = st.chars[from];
+    const fromC = tableModel(st, G.data).chars[from];
     let o = null; try { o = meetOptions(st, G.data, from); } catch { o = null; }
     const mine = o?.give ?? { items: [], gold: 0, discoveries: [] };
     d.items = d.items.filter(u => mine.items.some(i => i.uid === u)); d.gold = Math.min(d.gold, mine.gold);
     const tog = (arr, v) => { const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); render(G); };
-    const nameFrom = seatName(st, from), nameTo = seatName(st, to);
+    const nameFrom = seatName(tableModel(G.st, G.data), from), nameTo = seatName(tableModel(G.st, G.data), to);
     const itemRows = mine.items.map(it => h('button', { type: 'button', class: `ds-row ho-row${d.items.includes(it.uid) ? ' sel' : ''}`, role: 'checkbox', 'aria-checked': d.items.includes(it.uid) ? 'true' : 'false', 'data-item': it.uid, onclick: () => tog(d.items, it.uid) },
         h('span', { class: 'ho-check', 'aria-hidden': 'true' }, d.items.includes(it.uid) ? icon('check') : null), h('span', { class: 'main' }, h('b', {}, it.name), it.sub ? h('span', {}, it.sub) : null)));
     const discRows = d.dir === 'take' ? mine.discoveries.map(x => { const k = `${x.kind}:${x.key ?? x.id}`; return h('button', { type: 'button', class: `ds-row ho-row${d.disc.includes(k) ? ' sel' : ''}`, role: 'checkbox', 'aria-checked': d.disc.includes(k) ? 'true' : 'false', 'data-disc': k, onclick: () => tog(d.disc, k) },
@@ -241,10 +241,10 @@ export function handoverSheet(G) {
         actMany(G, [{ type: 'meet', kind: 'offer', who: from, to, give, want: { items: [], gold: 0 } }, { type: 'meet', kind: 'answer', who: to, accept: true }], { ok: () => { G.ui.sheet = null; G.ui.hand = null; showToast(G, `${nameFrom} gave ${nameTo} ${parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0]}.`); } });
     };
     const body = h('div', { class: 'ho', 'data-handover': '' },
-        h('p', { class: 'ds-voice ho-intro' }, voiced({ story: `${seatName(st, hirer)} and ${seatName(st, leader)} stand together. A gift goes across at once, whole.`, detail: `An offer and its answer, sent together: a character trades with his own leader as with any character (7.2.1). The engine never answers an offer for the other (rulings L10).` })),
+        h('p', { class: 'ds-voice ho-intro' }, voiced({ story: `${seatName(tableModel(G.st, G.data), hirer)} and ${seatName(tableModel(G.st, G.data), leader)} stand together. A gift goes across at once, whole.`, detail: `An offer and its answer, sent together: a character trades with his own leader as with any character (7.2.1). The engine never answers an offer for the other (rulings L10).` })),
         h('div', { class: 'ds-seg ho-dir', role: 'radiogroup', 'aria-label': 'Which way' },
-            h('button', { type: 'button', class: d.dir === 'give' ? 'on' : null, role: 'radio', 'aria-checked': d.dir === 'give' ? 'true' : 'false', 'data-dir': 'give', onclick: () => { d.dir = 'give'; d.items = []; d.gold = 0; d.disc = []; render(G); } }, `${seatName(st, hirer)} gives`),
-            h('button', { type: 'button', class: d.dir === 'take' ? 'on' : null, role: 'radio', 'aria-checked': d.dir === 'take' ? 'true' : 'false', 'data-dir': 'take', onclick: () => { d.dir = 'take'; d.items = []; d.gold = 0; d.disc = []; render(G); } }, `${seatName(st, leader)} gives`)),
+            h('button', { type: 'button', class: d.dir === 'give' ? 'on' : null, role: 'radio', 'aria-checked': d.dir === 'give' ? 'true' : 'false', 'data-dir': 'give', onclick: () => { d.dir = 'give'; d.items = []; d.gold = 0; d.disc = []; render(G); } }, `${seatName(tableModel(G.st, G.data), hirer)} gives`),
+            h('button', { type: 'button', class: d.dir === 'take' ? 'on' : null, role: 'radio', 'aria-checked': d.dir === 'take' ? 'true' : 'false', 'data-dir': 'take', onclick: () => { d.dir = 'take'; d.items = []; d.gold = 0; d.disc = []; render(G); } }, `${seatName(tableModel(G.st, G.data), leader)} gives`)),
         sect(`${nameFrom} gives ${nameTo}`),
         h('div', { class: 'ds-list' }, ...(itemRows.length ? itemRows : [h('p', { class: 'ds-meta' }, `${nameFrom} has nothing to give.`)]),
             h('div', { class: `ds-row mt-gold${d.gold ? ' sel' : ''}`, 'data-gold': 'give' }, h('div', { class: 'main mt-gl' }, h('b', {}, 'Gold'), h('span', {}, `${nameFrom} has ${mine.gold}`)),
@@ -258,20 +258,20 @@ export function handoverSheet(G) {
 /** Once a day, when the chits have been drawn and no turn has begun: the order the Attention chits came out in (7.1.1), with each seat's chit. A table shows it in place of the draw of the players' chits. */
 export function maybeShowSunrise(G) {
     const st = G.st, g = gameOf(st, G.data), p = questionOf(st, G.data), rec = g.dayRec;
-    if (!leaderGame(st) || G.race || !rec || rec.day !== g.day || (rec.i ?? 0) !== 0 || g.period !== 'daylight' || (p && p.type !== 'phase')) return;
+    if (!leaderGame(tableModel(G.st, G.data)) || G.race || !rec || rec.day !== g.day || (rec.i ?? 0) !== 0 || g.period !== 'daylight' || (p && p.type !== 'phase')) return;
     if (G.ui.sunriseDay === g.day || (G.ui.sheet && G.ui.sheet !== 'sunrise')) return;
     G.ui.sunriseDay = g.day; G.ui.sheet = 'sunrise';
 }
 export function sunriseSheet(G) {
-    const st = G.st, rec = gameOf(st, G.data).dayRec, chars = charsOf(st, G.data), order = (rec?.order ?? []).filter(id => chars[id]), mine = id => chars[id]?.owner === chars[st.actor]?.owner;
+    const st = G.st, rec = gameOf(st, G.data).dayRec, chars = charsOf(st, G.data), order = (rec?.order ?? []).filter(id => chars[id]), mine = id => chars[id]?.owner === chars[seatOf(st, G.data)]?.owner;
     const close = () => { G.ui.sheet = null; render(G); };
-    const label = id => (chars[id]?.leader || mine(id) ? seatName(st, id) : playerOf(st, id));
+    const label = id => (chars[id]?.leader || mine(id) ? seatName(tableModel(G.st, G.data), id) : playerOf(tableModel(G.st, G.data), id));
     const first = order[0], fn = first ? label(first) : null;
     const rows = order.map((id, i) => {
-        const c = chars[id], att = attentionOf(st, G.data, id), who = c.leader ? `${roleOf(st, id)} \u00B7 ${att?.label ?? ''}` : mine(id) ? 'You' : `${playerOf(st, id)}\u2019s character`;
+        const c = chars[id], att = attentionOf(tableModel(G.st, G.data), G.data, id), who = c.leader ? `${roleOf(tableModel(G.st, G.data), id)} \u00B7 ${att?.label ?? ''}` : mine(id) ? 'You' : `${playerOf(tableModel(G.st, G.data), id)}\u2019s character`;
         return h('div', { class: `ds-row sr-row${i === 0 ? ' first' : ''}`, 'data-sunrise': id },
-            h('span', { class: 'sr-n', 'aria-hidden': 'true' }, String(i + 1)), c.leader ? attnChit(att, 'lg') : h('i', { class: 'attn char lg', 'aria-hidden': 'true' }, (seatName(st, id)[0] ?? '?').toUpperCase()),
-            h('span', { class: 'main' }, h('b', {}, seatName(st, id)), h('span', {}, who)));
+            h('span', { class: 'sr-n', 'aria-hidden': 'true' }, String(i + 1)), c.leader ? attnChit(att, 'lg') : h('i', { class: 'attn char lg', 'aria-hidden': 'true' }, (seatName(tableModel(G.st, G.data), id)[0] ?? '?').toUpperCase()),
+            h('span', { class: 'main' }, h('b', {}, seatName(tableModel(G.st, G.data), id)), h('span', {}, who)));
     });
     const body = h('div', { class: 'sr' },
         h('p', { class: 'ds-voice sr-line' }, voiced({ story: fn ? `The chits are drawn. ${fn} is first.` : 'The chits are drawn.', detail: `The Attention chits are mixed and drawn (7.1.1). ${fn ? `${fn} plays first; ` : ''}each seat plays his whole turn when his chit comes up.` })),
@@ -282,20 +282,20 @@ export function sunriseSheet(G) {
 // ---------------------------------------------------------------------------------------------------------------------------------- the fight nobody played
 /** The morning report's account of fights a leader had where no character stood: who, where, and the lines the game wrote (the hirelings fought as the engine sent them). */
 export function unattendedBlock(G, day) {
-    const fights = unattendedFights(G.st, day);
+    const fights = unattendedFights(tableModel(G.st, G.data), day);
     if (!fights.length) return [];
     return fights.map(f => {
         const place = f.place ? nb(f.place) : 'a clearing', fell = f.kills.length ? ` ${f.kills.length === 1 ? `The ${f.kills[0]} fell` : `${f.kills.length} fell: ${f.kills.join(', ')}`}.` : '';
         const rest = f.lines.slice(1).filter(l => l.k === 'combat').map(l => logText(l, G.st));          // (the dice of an unattended fight are noise: the lines say what came of them)
         return h('div', { class: 'ds-ask un-fight', 'data-unattended': f.id },
-            h('b', {}, voiced({ story: `${f.name} fought at ${place}, and nobody was there to play it.${fell}`, detail: `Fight at ${place}: ${f.name} stood there without ${seatName(G.st, hirerOf(G.st, f.id))} (8.1.2b). His hirelings fought; nothing was bought, paid or played.${fell}` })),
+            h('b', {}, voiced({ story: `${f.name} fought at ${place}, and nobody was there to play it.${fell}`, detail: `Fight at ${place}: ${f.name} stood there without ${seatName(tableModel(G.st, G.data), hirerOf(tableModel(G.st, G.data), f.id))} (8.1.2b). His hirelings fought; nothing was bought, paid or played.${fell}` })),
             h('details', { class: 'un-lines' }, h('summary', {}, 'What happened'), ...(rest.length ? rest : ['Nothing was said.']).map(t => h('p', { class: 'j-combat' }, t))));
     });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------- a seat on the map
 export function showSeat(G, id) {
-    if (G.ui.tag === id && id !== G.st.actor) { G.ui.tag = null; switchTo(G, id); return; }          // (a second tap on the named counter goes to that seat)
+    if (G.ui.tag === id && id !== seatOf(G.st, G.data)) { G.ui.tag = null; switchTo(G, id); return; }          // (a second tap on the named counter goes to that seat)
     G.ui.tag = G.ui.tag === id ? null : id;
     clearTimeout(G.ui.tagTimer); G.ui.tagTimer = setTimeout(() => { if (G.ui.tag) { G.ui.tag = null; if (G.root.isConnected) render(G); } }, 6000);
     const c = charsOf(G.st, G.data)[id], at = c?.at ?? c?.onRoad?.from;
@@ -306,7 +306,7 @@ export function showSeat(G, id) {
 // ---------------------------------------------------------------------------------------------------------------------------------- his turn's end
 // The end-of-turn sheet of a seat, told of him and not of "you": hidden or in plain sight, what blocked him, what arrived. (The player's own character has the longer sheet in phases.js.)
 export function seatTurnEndSheet(G) {
-    const st = G.st, t = todayOf(st, G.data).turnEnd, id = st.actor, name = seatName(st, id), mon = st.chars[id]?.leader?.kind === 'mon';
+    const st = G.st, t = todayOf(st, G.data).turnEnd, id = seatOf(st, G.data), name = seatName(tableModel(G.st, G.data), id), mon = tableModel(st, G.data).chars[id]?.leader?.kind === 'mon';
     const he = mon ? 'it' : 'he', him = mon ? 'it' : 'him', his = mon ? 'its' : 'his', place = nb(nameOfClearing(t.at));
     const uniq = list => [...new Set(list)], many = list => (list.length <= 1 ? (list[0] ?? '') : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`);
     const called = uniq(t.chits.flatMap(c => c.summons ?? [])), arrived = uniq([...(t.arrivals ?? []).map(a => a.name), ...called]), natives = (t.natives ?? []).map(n => `the ${n.group}`);
@@ -322,5 +322,5 @@ export function seatTurnEndSheet(G) {
     return modal(G, 'Turn’s end', h('div', { class: 'turnend clearing', 'data-seat-turn-end': id },
         h('div', { class: `te-status ds-ask ${t.hidden ? 'hidden' : 'seen'}` }, h('b', {}, title), h('span', {}, voiced(why))),
         ...lines.map(l => h('p', { class: 'ds-meta' }, voiced(l)))),
-    { kind: 'result', bare: true, eyebrow: `Day ${st.day} · ${place}`, cls: 'turnend-sheet', footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'turn-ok', onclick: () => act(G, { type: 'continue' }) }, 'End turn')) });
+    { kind: 'result', bare: true, eyebrow: `Day ${gameOf(st, G.data).day} · ${place}`, cls: 'turnend-sheet', footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'turn-ok', onclick: () => act(G, { type: 'continue' }) }, 'End turn')) });
 }

@@ -3,10 +3,7 @@
 // Payloads are the old sheet's: { type: 'hire', act: 'pick', group, rehire, drinks } / 'accept' / 'decline' / 'pay' / 'fight' / 'back'.
 import { WEIGHT_WORDS } from '../../../engine/catalogue.js';
 import { hireStats } from '../../../engine/combat.js';
-import { drinksCost } from '../../../engine/meeting.js';
-import { relFor } from '../../../engine/hire.js';
 import { noDrinks } from '../../../engine/missions.js';
-import { hasCurse } from '../../../engine/effects.js';
 import { nameOfClearing } from '../../../engine/catalogue.js';
 import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
@@ -17,7 +14,7 @@ import { markGroup } from '../../groups.js';
 import { boonContent } from './boon.js';
 import { ask, dimBtn, footRow, moodTag, nativeArt, say, skipBtn, twoLine } from './common.js';
 import { insultContent, offerDice } from './trade.js';
-import { ownSheet, gameOf, missionsOf, viewOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, missionsOf, viewOf, tradeOf } from '../../combat/feed.js';
 
 // The counters of a group, as the printed art on the cream tile (monsters in colour, natives as their counters).
 function counters(G, ids, monsters) {
@@ -73,9 +70,9 @@ function chooser(G, p) {
     const sel = G.ui.hireSel && p.options.some(o => keyOf(o) === G.ui.hireSel) ? G.ui.hireSel : p.options.length === 1 ? keyOf(p.options[0]) : null;
     const pickedOpt = p.options.find(o => keyOf(o) === sel) ?? null;
     const rounds = G.ui.drinksFor && G.ui.drinksFor === sel ? G.ui.drinksFor : null;
-    const ashes = hasCurse(G.st, 'Ashes');
+    const tf = tradeOf(G.st, G.data), ashes = tf.ashes;
     const cards = p.options.map(o => {
-        const key = keyOf(o), on = key === sel, dc = drinksCost(G.st, G.data, o.group), rel = o.monsters ? 0 : relFor(G.st, o.group), round = rounds === key;          // (drinks work for pacified monsters too, one gold each, H1)
+        const key = keyOf(o), on = key === sel, dc = tf.groups[o.group].drinks, rel = o.monsters ? 0 : tf.groups[o.group].rel, round = rounds === key;          // (drinks work for pacified monsters too, one gold each, H1)
         const days = o.rehire ? Math.max(0, Math.min(...o.members.map(id => (viewOf(G.st, G.data).table.natives.find(n => n.id === id)?.hiredUntil ?? gameOf(G.st, G.data).day) - gameOf(G.st, G.data).day + 1))) : null;
         const why = ownSheet(G.st, G.data).gold < dc ? `A round costs ${dc} Gold and you have ${ownSheet(G.st, G.data).gold}.` : null;
         return h('div', { class: `ds-group kit-hcard${on ? ' sel' : ''}`, 'data-hire-card': o.group },
@@ -85,7 +82,7 @@ function chooser(G, p) {
                 h('span', { class: 'ds-meta' }, `${o.rehire ? `Extend hire (${days} day${days === 1 ? '' : 's'} left). ` : ''}Wages: ${o.wage} Gold${o.members.length > 1 ? ` for all ${o.members.length}` : ''}.${G.data.groups[o.group]?.hireMode === 'individual' ? ' One at a time.' : ''} ${strengthLine(G, o.members, o.monsters)}`.trim()),
                 !o.monsters && rel < 0 ? h('span', { class: 'ds-why' }, 'They may turn you away.') : null),
             h('div', { class: 'kit-chiprow' },
-                !o.monsters && missionsOf(G.st, G.data) && noDrinks(G.st, o.group) ? h('span', { class: 'ds-why ms-foe', 'data-foe': o.group }, `The ${o.group} are foes of your campaign: Enemies, and no drinks for them.`)
+                !o.monsters && missionsOf(G.st, G.data) && tf.groups[o.group].noDrinks ? h('span', { class: 'ds-why ms-foe', 'data-foe': o.group }, `The ${o.group} are foes of your campaign: Enemies, and no drinks for them.`)
                     : ashes ? h('span', { class: 'ds-meta' }, 'Your gold is worthless under the Ashes curse.')
                     : h('button', { type: 'button', class: `ds-chip${round ? ' on' : ''}${why && !round ? ' is-dim' : ''}`, 'data-multi': '', 'data-act': 'drinks-toggle', 'aria-pressed': round ? 'true' : 'false', 'aria-disabled': why && !round ? 'true' : null,
                         onclick: () => { if (why && !round) { say(G, why); return; } G.ui.hireSel = key; G.ui.drinksFor = round ? null : key; render(G); } }, round ? icon('check') : null, `Stand a round · ${dc} Gold`)));

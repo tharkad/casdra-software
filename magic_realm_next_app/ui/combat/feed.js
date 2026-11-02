@@ -44,6 +44,8 @@ export const tableFight = (st, data, who) => viewOf(st, data, who).table.fight;
 export const questionOf = (st, data, who) => viewOf(st, data, who).pending;
 /** His own sheet of the fight (view.me.fight): the creatures on it with their stats, his hirelings, the round's tallies. Null outside a fight. */
 export const sheetOf = (st, data, who) => viewOf(st, data, who).me?.fight ?? null;
+/** The facts the Trade and Hire sheets need (legal.options of trade, trade-offer, hire, hire-offer): `stock`, `goods`, `mine`, `canPay`, `choices`, `ashes`, `groups[g] = { rel, drinks, noDrinks }`. */
+export const tradeOf = (st, data, who) => legalOf(st, data, who).options ?? { ashes: false, groups: {}, stock: [], goods: [], mine: [], canPay: true, choices: [] };
 /** His own day (view.me.today): the plan as drawn up (`planFull`, `planBase`), how far the turn has come (`turn`: `i`, `results`, `enchants` ...), how it ended (`turnEnd`), who is with him. {} for a spectator. */
 export const todayOf = (st, data, who) => viewOf(st, data, who).me?.today ?? {};
 /** The site chits he can name: the ones face up, and the face-down ones he has discovered or seen. [{ id, kind: 'site', name, num, tile, up, pile, discovered }] (a face-down chit he knows nothing of is not here). */
@@ -79,6 +81,31 @@ export function fightModel(st, data, who) {
     };
     Object.defineProperty(fm, '__st', { value: s });
     return fm;
+}
+/** The seat on screen (view.viewer.seat): the character the engine is working for, or the one the screen moved to with `api.seat`. */
+export const seatOf = (st, data) => viewOf(st, data).viewer.seat;
+/** The table as the meeting, hireling and leader screens read it: ONE object made from the view, shaped as those screens have always read the state (`chars`, `order`, `players`, `follows`, `nats`, `mons`, `log`,
+ * `tradeWindow`, `offers`, `blockCheck`, `followCheck`, `missions`, `options`, `period`, `day` ...), so no screen reaches into the engine's state (CONTRACT section 9). A seat of his own player (a hot-seat
+ * character, a hired leader) is shown in full (`items`, `discovered`, `today.plan`); another player's character as the table sees him (`items` are the gear in view). A model passed in is returned as it is. */
+export function tableModel(st, data, who) {
+    if (st?.__tm) return st;
+    const s = raw(st);
+    return memo(s, whoOf(s, who), 'table', () => {
+        const v = viewOf(s, data, who), g = v.table.game;
+        const owner = id => v.table.characters[id]?.owner, mine = new Set(Object.keys(v.table.characters).filter(id => owner(id) === v.viewer.player));
+        const chars = Object.fromEntries(Object.entries(v.table.characters).map(([id, c]) => {
+            const full = mine.has(id) ? viewOf(s, data, id).me : null;
+            return [id, { ...c, items: full ? full.items : c.gear, ...(full ? { gold: full.gold, vp: full.vp, spells: full.spells.recorded, discovered: { paths: full.discoveries.paths, sites: full.discoveries.sites } } : {}), today: { ...c.today, ...(full ? { plan: full.plan?.slots ?? null } : {}) } }];
+        }));
+        const tm = {
+            day: g.day, period: g.period, over: g.over, mode: g.mode, lastDay: g.lastDay, prowl: g.prowl, options: g.options, actor: v.viewer.seat, order: Object.keys(v.table.characters), players: g.players ?? [], dayRec: g.dayRec,
+            chars, nats: v.table.natives, mons: v.table.monsters, follows: v.table.meetings.follows, followCheck: v.table.meetings.followCheck ?? null, tradeWindow: v.table.meetings.tradeWindow,
+            offers: v.table.meetings.offers, blockCheck: v.table.meetings.blockCheck, missions: v.table.missions, asks: g.waitingFor.map(w => ({ who: w })), pending: v.pending,
+            ch: own(s, data, who), log: v.me?.journal ?? [], logSkipped: 0, logEnd: v.me?.logEnd ?? 0,
+        };
+        Object.defineProperties(tm, { __tm: { value: true }, __st: { value: s } });
+        return tm;
+    });
 }
 /** `own` under a name that no local variable in the play screens uses. */
 export const ownSheet = own;

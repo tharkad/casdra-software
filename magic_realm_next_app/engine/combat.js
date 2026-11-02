@@ -295,14 +295,14 @@ function relOf(st, group) { const r = st.ch.rel?.[group] ?? 0; return st.mission
 function missileRoll(st, what, archer) {
     const r = archer ? (() => { const d = die(st, 'combat.missile.1'); return { dice: [d], value: d }; })() : roll2(st, 'combat.missile');
     const m = MISSILE[r.value - 1];
-    noteRoll(st, what, r.dice, r.value, `${m >= 0 ? '+' : ''}${m} harm level${Math.abs(m) === 1 ? '' : 's'}`);
+    noteRoll(st, what, r.dice, r.value, `${m >= 0 ? '+' : ''}${m} harm level${Math.abs(m) === 1 ? '' : 's'}`, null, { ev: { code: 'roll.made', what: 'combat.missile.foe', result: `${m >= 0 ? '+' : ''}${m}` } });
     return m;
 }
 
 function rollBattle(st, data, group, drinks = false) {
     const c = st.combat;
     // Each Meeting roll (and any Trouble or Opportunity re-roll) is noted in the dice tray and the log by meetingOutcome.
-    const { res } = meetingOutcome(st, relOf(st, group) + (drinks ? 1 : 0), `Evening meeting with the ${group}`, data, true);
+    const { res } = meetingOutcome(st, relOf(st, group) + (drinks ? 1 : 0), `Evening meeting with the ${group}`, data, true, undefined, group);
     (c.intro ??= []).push(res === 'Block/Battle' ? `The ${group} met you with hostility and will fight.` : res === 'Insult' || res === 'Challenge' ? `The ${group} ${res === 'Insult' ? 'insulted' : 'challenged'} you: pay or fight.` : `The ${group} are here, and let you be.`);
     if (res === 'Block/Battle') return startBattling(st, data, group);
     if (res === 'Insult') c.pays.push({ group, cost: 'notoriety', amount: 5, why: 'Insult' });
@@ -1073,7 +1073,7 @@ export function meleeReposition(st, data, log, inGroup = null) {
         const here = c.dens.filter(d => !d.dead && d.box === b && mine(d) && canFlip(st, data, d));
         if (!here.length) continue;
         const t = roll2(st, 'combat.tactics');
-        noteRoll(st, `Tactics roll (${MANEUVERS[b]} box)`, t.dice, t.value, t.dice.includes(6) ? 'a 6: they switch sides' : 'no change', null, { ev: { code: 'roll.made', what: 'combat.tactics', result: t.dice.includes(6) ? 'flip' : 'no-change' } });
+        noteRoll(st, `Tactics roll (${MANEUVERS[b]} box)`, t.dice, t.value, t.dice.includes(6) ? 'a 6: they switch sides' : 'no change', null, { ev: { code: 'roll.made', what: 'combat.tactics', box: MANEUVERS[b], result: t.dice.includes(6) ? 'flip' : 'no-change' } });
         if (t.dice.includes(6)) {
             for (const d of here) d.side = d.side === 'light' ? 'dark' : 'light';
             log(`Tactics change in the ${MANEUVERS[b]} box (rolled ${t.dice.join('+')}): ${here.map(d => denSide(st, data, d).name).join(', ')} switch sides.`, tell.flipped(st, MANEUVERS[b], here.map(d => denSide(st, data, d).name).join(' and ')), { ev: { code: 'melee.tactics', box: MANEUVERS[b].toLowerCase(), dice: t.dice, flipped: here.map(d => d.uid) } });
@@ -1750,7 +1750,7 @@ function myHit(st, data, h, ctx) {
         const aim = !ctx.spell && hasAdv(st, 'aim') ? 1 : 0;
         const v = clamp6(r.value - aim + tableMod(st, data, 'missile'));
         level += MISSILE[v - 1]; shotDelta = MISSILE[v - 1];
-        noteRoll(st, 'Your missile roll', r.dice, v, `${MISSILE[v - 1] >= 0 ? '+' : ''}${MISSILE[v - 1]} harm level${Math.abs(MISSILE[v - 1]) === 1 ? '' : 's'}${aim ? ' (Aim -1)' : ''}`);
+        noteRoll(st, 'Your missile roll', r.dice, v, `${MISSILE[v - 1] >= 0 ? '+' : ''}${MISSILE[v - 1]} harm level${Math.abs(MISSILE[v - 1]) === 1 ? '' : 's'}${aim ? ' (Aim -1)' : ''}`, null, { ev: { code: 'roll.made', what: 'combat.missile', result: `${MISSILE[v - 1] >= 0 ? '+' : ''}${MISSILE[v - 1]}` } });
         note = ` (missile roll ${r.dice.join('+')}${aim ? ' -1 for Aim' : ''} -> ${MISSILE[v - 1] >= 0 ? '+' : ''}${MISSILE[v - 1]})`;
     } else if (ctx.fight && ctx.w && lvl(ctx.fight.strength) > lvl(side.harm)) { level += 1; note = ' (strong Fight chit +1)'; }
     else if (ctx.fight && !ctx.w) level += 1;
@@ -1794,7 +1794,7 @@ function ownMissile(st, data, w, spell = false) {
     const r = !spell && ((hasAdv(st, 'archer') && bow) || oneDie(st, 'missile')) ? (() => { const d1 = die(st, 'combat.missile.1'); return { dice: [d1], value: d1 }; })() : roll2(st, 'combat.missile');
     const aim = !spell && hasAdv(st, 'aim') ? 1 : 0;
     const v = clamp6(r.value - aim + tableMod(st, data, 'missile')), m = MISSILE[v - 1];
-    noteRoll(st, 'Your missile roll', r.dice, v, `${m >= 0 ? '+' : ''}${m} harm level${Math.abs(m) === 1 ? '' : 's'}${aim ? ' (Aim -1)' : ''}`);
+    noteRoll(st, 'Your missile roll', r.dice, v, `${m >= 0 ? '+' : ''}${m} harm level${Math.abs(m) === 1 ? '' : 's'}${aim ? ' (Aim -1)' : ''}`, null, { ev: { code: 'roll.made', what: 'combat.missile', result: `${m >= 0 ? '+' : ''}${m}` } });
     return { delta: m, note: ` (missile roll ${r.dice.join('+')}${aim ? ' -1 for Aim' : ''} -> ${m >= 0 ? '+' : ''}${m})` };
 }
 

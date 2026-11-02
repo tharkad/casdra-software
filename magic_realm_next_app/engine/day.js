@@ -281,7 +281,7 @@ function sunrise(st, data) {
     const table = multi(st) ? { who: null } : null;              // (a line or a roll of the whole table belongs to no one character)
     st.period = 'sunrise';
     st.prowl = die(st, 'day.prowl');
-    noteRoll(st, 'Monster roll', [st.prowl], st.prowl, `row ${st.prowl} prowls today`, null, table);
+    noteRoll(st, 'Monster roll', [st.prowl], st.prowl, `row ${st.prowl} prowls today`, null, { ...table, ev: { code: 'roll.made', what: 'day.prowl', result: `row-${st.prowl}` } });
     st.rolls.at(-1).tale = tell.wilds(st, data);                       // the story voice says what prowls, not which row
     const magic = dayColors(st.day, st.lastDay ?? 28), week = st.day % 7 === 0 ? regenerate(st, data) : null;
     say(st, `Dawn of day ${st.day}: row ${st.prowl} prowls.${magic.length ? ` The land is filled with ${magic.join(' and ')} magic until midnight.` : ''}`, 'day', tell.dawn(st, data, { magic }), { ...table, ev: { code: 'day.prowl', row: st.prowl } });
@@ -1041,7 +1041,7 @@ function doHide(st, data) {
     const r = oneDie(st, 'hide', st.ch.at, data) ? { dice: [die(st, 'hide')], value: 0 } : roll2(st, 'hide');
     if (r.value === 0) r.value = r.dice[0];
     modRoll(st, data, 'hide', r);
-    noteRoll(st, 'Hide', r.dice, r.value, (hides(r.value) ? 'You hide' : 'You are seen') + modNote(r));
+    noteRoll(st, 'Hide', r.dice, r.value, (hides(r.value) ? 'You hide' : 'You are seen') + modNote(r), null, { ev: { code: 'roll.made', what: 'move.hide', result: hides(r.value) ? 'hidden' : 'seen' } });
     emit(st, { code: 'hide.attempted', who: st.ch.id, success: hides(r.value), dice: r.dice });
     if (hides(r.value)) { st.ch.hidden = true; return `You hide (rolled ${r.dice.join('+')}).`; }
     return `You fail to hide (rolled ${r.dice.join('+')}).`;
@@ -1160,7 +1160,9 @@ function doSearch(st, data, slot) {
     modRoll(st, data, table, r);                                       // Illusion and Bad Luck add one (4.1.2)
     const SEARCH_WHAT = { peer: 'Search: Peer', locate: 'Search: Locate', loot: 'Search: Loot', ground: 'Search: Loot the ground', sitecard: 'Search: Site card' };
     const tableList = table === 'peer' ? PEER : table === 'locate' ? LOCATE : null;
-    noteRoll(st, SEARCH_WHAT[table] ?? 'Search', rawDice, r.value, (tableList ? tableList[Math.min(5, r.value - 1)] ?? '' : '') + modNote(r));
+    const listed = tableList ? tableList[Math.min(5, r.value - 1)] ?? '' : '';
+    // (the result is a code only when no modifier is added to its sentence: a roll that a spell changed is worded from its sentence, as it always was)
+    noteRoll(st, SEARCH_WHAT[table] ?? 'Search', rawDice, r.value, listed + modNote(r), null, tableList ? { ev: { code: 'roll.made', what: `search.${table}`, ...(modNote(r) ? {} : { result: String(listed).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') }) } } : null);
     if (table === 'sitecard') return lootSiteCard(st, data, r) ?? 'There is no such place here.';
     const here = st.ch.at;
     if (table === 'peer' || table === 'locate') {

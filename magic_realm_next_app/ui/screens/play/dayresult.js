@@ -3,7 +3,7 @@
 // `st.report` (what Fame, Notoriety and Gold moved over the day). Nothing here writes to the game.
 import { nameOfClearing } from '../../../engine/catalogue.js';
 import { crowd } from '../../storyvoice.js';
-import { ownSheet } from '../../combat/feed.js';
+import { ownSheet, tableModel } from '../../combat/feed.js';
 
 const strip = n => String(n).replace(/ #\d+$/, '').replace(/ \d+$/, '').trim();            // "Rogue Swordsman 6" / "Ghost #2" -> "Rogue Swordsman" / "Ghost"
 const cap = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -11,7 +11,7 @@ const cap = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 // What the day's log says happened. `day` is the day that ended.
 export function daySummary(G, day) {
     // a hired leader's turns are told apart (leaders.js: the fights he had alone are their own block of the report): the day here is the player's own
-    const st = G.st, lines = (st.log ?? []).filter(l => l.day === day && (G.shared || !l.who || !st.options?.hirelingRules || st.chars?.[l.who] && !st.chars[l.who].leader));
+    const st = G.st, lines = (st.log ?? []).filter(l => l.day === day && (G.shared || !l.who || !st.options?.hirelingRules || tableModel(st, G.data).chars?.[l.who] && !tableModel(st, G.data).chars[l.who].leader));
     const kills = [], found = [], bought = [], sold = [], curses = [], hired = [];
     let wounds = 0, died = false;
     for (const l of lines) {

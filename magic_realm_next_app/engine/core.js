@@ -147,6 +147,7 @@ export function noteRoll(st, what, dice, value, result = '', used = null, opt = 
     st.rolls ??= []; st.rollSeq = (st.rollSeq ?? 0) + 1;
     const entry = { n: st.rollSeq, day: st.day, what, dice: dice.map(Number), value, result };
     if (used && used.some((u, i) => u !== entry.dice[i])) entry.used = used;
+    if (opt?.ev && st.events) { entry.kind = opt.ev.what; if (opt.ev.result != null) entry.res = opt.ev.result; if (opt.ev.group) entry.group = opt.ev.group; if (opt.ev.box) entry.box = opt.ev.box; }          // (a game that records its events: what the roll was for, as a code; the dice tray words it from this, not from `what`)
     const w = opt && 'who' in opt ? opt.who : (st.order?.length > 1 ? st.actor : null);
     if (w) {
         entry.who = w;                                                                 // (several characters: whose roll it was, who stood by, and in which combat round)

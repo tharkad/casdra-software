@@ -10,17 +10,17 @@ import { icon } from '../../icons.js';
 import { playerOf } from '../../meet.js';
 import { newDraft, planSnapshot } from './plan.js';
 import { chipLine, partyPlan } from './partyplan.js';
-import { questionOf } from '../../combat/feed.js';
+import { questionOf, tableModel, seatOf, gameOf } from '../../combat/feed.js';
 import { apiOf } from '../../../engine/api.js';
 
 // (a party of one player; and at a shared table, a player with hired leaders: his own seats)
-export const isHotSeat = G => !G.race && (G.shared ? leaderGame(G.st) && ownSeats(G).length > 1 : (G.st?.order?.length ?? 0) > 1);
+export const isHotSeat = G => !G.race && (G.shared ? leaderGame(tableModel(G.st, G.data)) && ownSeats(G).length > 1 : (G.st?.order?.length ?? 0) > 1);
 
 // A plan half made for one character waits for him: each keeps his own draft.
 export function switchTo(G, id) {
     const st = G.st, drafts = (G.ui.drafts ??= {});
     const party = partyPlan(G), wasPlan = !!party && G.ui.sheet === 'plan';          // (a party that plans keeps its plan tray up and every plan as it stands: partyplan.js)
-    drafts[st.actor] = { draft: G.ui.draft, step: G.ui.planStep, snap: party ? planSnapshot(G) : null };
+    drafts[seatOf(st, G.data)] = { draft: G.ui.draft, step: G.ui.planStep, snap: party ? planSnapshot(G) : null };
     G.st = apiOf(G.data).seat(st, id); G.ctx.state = G.st;          // (the game seen from his seat: a new value, the one held is not written)
     const mine = drafts[id];
     G.ui.draft = mine?.draft ?? null; G.ui.planStep = mine ? mine.step : 0;          // (a plan that is whole has no open tab: null)
@@ -40,7 +40,7 @@ export function renderParty(G) {
     const waiting = new Set(st.asks.map(a => a.who)), party = partyPlan(G);          // (a party that plans: each chip says what its character has locked in; the engine's asks are not a signal then, every one is asked until Start)
     bar.classList.toggle('planning', !!party);
     bar.replaceChildren(...ownSeats(G).map(id => {
-        const c = st.chars[id], on = id === st.actor, guide = st.follows?.[id];          // (he follows a guide today: his turn is the guide's)
+        const c = tableModel(st, G.data).chars[id], on = id === seatOf(st, G.data), guide = tableModel(st, G.data).follows?.[id];          // (he follows a guide today: his turn is the guide's)
         if (party?.seats.includes(id)) {
             const cp = chipLine(G, id, party);
             return h('button', { type: 'button', class: `pchip plan${on ? ' on' : ''}${cp.dataset.plan === 'set' ? ' done' : ''}`, 'data-act': 'switch-char', 'data-char': id, 'data-plan': cp.dataset.plan, 'aria-pressed': on ? 'true' : 'false',
@@ -48,19 +48,19 @@ export function renderParty(G) {
                 h('b', {}, c.name, h('i', { class: `pmark${cp.dataset.plan === 'set' ? ' ok' : ''}`, 'aria-hidden': 'true' }, cp.dataset.plan === 'set' ? icon('check') : null)), cp);
         }
         return h('button', { type: 'button', class: `pchip${on ? ' on' : ''}${waiting.has(id) ? ' ask' : ''}${c.dead ? ' dead' : ''}${guide ? ' fol' : ''}`, 'data-act': 'switch-char', 'data-char': id, 'aria-pressed': on ? 'true' : 'false',
-            'aria-label': `${c.name}${c.leader ? `, ${roleOf(st, id).toLowerCase()}, ${attentionOf(st, G.data, id)?.label.toLowerCase() ?? ''}` : ''}${guide ? `, follows ${playerOf(st, guide)}` : ''}${waiting.has(id) ? ', waiting for you' : ''}`,
-            onclick: () => { if (id === st.actor) return; switchTo(G, id); } },
-            ...seatBits(G, id), c.name, guide ? h('i', { class: 'pfol', 'aria-hidden': 'true', title: `follows ${playerOf(st, guide)}` }, icon('right')) : null, waiting.has(id) ? h('i', { class: 'pwait', 'aria-hidden': 'true' }) : null);
+            'aria-label': `${c.name}${c.leader ? `, ${roleOf(tableModel(G.st, G.data), id).toLowerCase()}, ${attentionOf(tableModel(G.st, G.data), G.data, id)?.label.toLowerCase() ?? ''}` : ''}${guide ? `, follows ${playerOf(tableModel(G.st, G.data), guide)}` : ''}${waiting.has(id) ? ', waiting for you' : ''}`,
+            onclick: () => { if (id === seatOf(st, G.data)) return; switchTo(G, id); } },
+            ...seatBits(G, id), c.name, guide ? h('i', { class: 'pfol', 'aria-hidden': 'true', title: `follows ${playerOf(tableModel(G.st, G.data), guide)}` }, icon('right')) : null, waiting.has(id) ? h('i', { class: 'pwait', 'aria-hidden': 'true' }) : null);
     }));
-    bar.classList.toggle('seats', leaderGame(st));
+    bar.classList.toggle('seats', leaderGame(tableModel(G.st, G.data)));
     announceTurn(G);
 }
 
 // A hired leader plays whole turns of his own, one after another with the hirer's: when the turn passes to another seat in Daylight, say whose it is (the bar shows it too, quietly).
 function announceTurn(G) {
-    const st = G.st, now = st.actor, was = G.ui.lastSeat;
+    const st = G.st, now = seatOf(st, G.data), was = G.ui.lastSeat;
     G.ui.lastSeat = now;
-    if (!leaderGame(st) || was == null || was === now || st.period !== 'daylight' || st.pending?.type !== 'phase' || st.pending.i !== 0 || G.ui.sheet) return;
-    const c = st.chars[now];
-    if (c) setTimeout(() => { if (G.root.isConnected && G.st.actor === now && !G.ui.sheet) showToast(G, `${c.name}\u2019s turn.`); }, 0);          // (not inside the render that found it)
+    if (!leaderGame(tableModel(G.st, G.data)) || was == null || was === now || gameOf(st, G.data).period !== 'daylight' || questionOf(st, G.data)?.type !== 'phase' || questionOf(st, G.data).i !== 0 || G.ui.sheet) return;
+    const c = tableModel(st, G.data).chars[now];
+    if (c) setTimeout(() => { if (G.root.isConnected && seatOf(G.st, G.data) === now && !G.ui.sheet) showToast(G, `${c.name}\u2019s turn.`); }, 0);          // (not inside the render that found it)
 }

@@ -26,7 +26,7 @@ import { sheets } from './sheets.js';
 import { doneLoading } from './states.js';
 import { renderTray } from './tray.js';
 import { myId, saveUi, vpNow } from './state.js';
-import { ownSheet, fresh, gameOf, questionOf, tableFight, charsOf, missionsOf, todayOf } from '../../combat/feed.js';
+import { ownSheet, fresh, gameOf, questionOf, tableFight, charsOf, missionsOf, todayOf, tableModel, seatOf } from '../../combat/feed.js';
 
 // ---- model for the map ----
 export function mapModel(G) {
@@ -71,7 +71,7 @@ export function mapModel(G) {
         // one pill a clearing (two would crowd it into a marker): "Your hirelings x2", "Ann\u2019s hirelings x1", or "Hirelings: Ann 1, Tom 1" when several have them here
         for (const [at, owners] of here) {
             const list = [...owners].sort((a, b) => G.st.order.indexOf(a[0]) - G.st.order.indexOf(b[0]));
-            add(at, { k: 'ally', label: list.length === 1 ? `${list[0][0] === ownSheet(G.st, G.data).id ? 'Your' : `${playerNameOf(G.st, list[0][0])}\u2019s`} hirelings x${list[0][1]}` : `Hirelings: ${list.map(([o, k]) => `${o === ownSheet(G.st, G.data).id ? 'yours' : playerNameOf(G.st, o)} ${k}`).join(', ')}` });
+            add(at, { k: 'ally', label: list.length === 1 ? `${list[0][0] === ownSheet(G.st, G.data).id ? 'Your' : `${playerNameOf(tableModel(G.st, G.data), list[0][0])}\u2019s`} hirelings x${list[0][1]}` : `Hirelings: ${list.map(([o, k]) => `${o === ownSheet(G.st, G.data).id ? 'yours' : playerNameOf(tableModel(G.st, G.data), o)} ${k}`).join(', ')}` });
         }
     } else if (gameOf(G.st, G.data).options?.hirelingRules) {
         // hireling rules: each follower is where his guide left him (not all with the hero), a hired leader or controlled creature is a counter of his own on the map (a seat), and a hidden one is said so
@@ -93,7 +93,7 @@ export function mapModel(G) {
             G.ui.moveTargets = o.sure; G.ui.moveMaybe = o.maybe;
         }
     }
-    const localParty = !G.shared && !G.race && leaderGame(G.st);
+    const localParty = !G.shared && !G.race && leaderGame(tableModel(G.st, G.data));
     return {
         tiles: G.data.tiles, art: G.data.art, placements: G.st.placements, side: 'normal', showHidden: false, discovered: knownPathPairs(G.st),
         chitsByTile, tokens, hero: ownSheet(G.st, G.data).onRoad || G.st.ch.dead || ownSheet(G.st, G.data).flying ? null : ownSheet(G.st, G.data).at, heroAir: !G.st.ch.dead && ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : null, heroHidden: ownSheet(G.st, G.data).hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
@@ -129,7 +129,7 @@ export function mapModel(G) {
             clearPin(G); G.ui.sel = id; G.ui.sheet = 'clearing'; render(G);
         },
         // a shared table: one counter a player; a party with hired leaders: one counter a seat (the hirer round, a leader square, a creature a diamond; leaders.js)
-        party: G.shared ? [...partyMarkers(G.crew), ...(leaderGame(G.st) ? seatMarkers(G.st, G.data, G.st.actor).filter(m => charsOf(G.st, G.data)[m.id].leader) : [])] : localParty ? seatMarkers(G.st, G.data, G.st.actor) : undefined, tagged: G.shared || localParty ? G.ui.tag : undefined,
+        party: G.shared ? [...partyMarkers(G.crew), ...(leaderGame(tableModel(G.st, G.data)) ? seatMarkers(tableModel(G.st, G.data), G.data, seatOf(G.st, G.data)).filter(m => charsOf(G.st, G.data)[m.id].leader) : [])] : localParty ? seatMarkers(tableModel(G.st, G.data), G.data, seatOf(G.st, G.data)) : undefined, tagged: G.shared || localParty ? G.ui.tag : undefined,
         onMarker: G.shared ? id => { const p = G.crew.find(x => x.id === id); if (p) showPlayer(G, p); else showSeat(G, id); } : localParty ? id => showSeat(G, id) : undefined,
         onBackground: () => {
             if (G.ui.tag) { G.ui.tag = null; render(G); return; }
@@ -167,7 +167,7 @@ export function showPin(G, id, why, tone = '') {
 }
 
 function overlayFor(G) {
-    const st = G.st, p = st.pending, hero = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at, rings = [];
+    const st = G.st, p = questionOf(st, G.data), hero = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at, rings = [];
     let route = [];
     if (G.ui.combatMap && G.ui.aimMap) {
         const a = G.ui.aimMap, now = new Set((a.store.aim[a.spell] ?? []).map(r => String(r.id)));
@@ -224,7 +224,7 @@ function syncCamera(G, force = false) {
 // The status strip (mockup 01): menu, Day and phase (opens the calendar), Fame / Notoriety / Gold (one button: the Kit), VP (the goals).
 function renderStrip(G) {
     // A hired leader's seat is on screen: his Fame, Notoriety and the score are his hirer's at once (7.7.2b), so the strip shows the hirer's (his own gold is on his sheet)
-    const seat = G.st.ch?.leader ? G.st.chars[ownSheet(G.st, G.data).leader.hirer] : null, ch = seat ?? G.st.ch, asHirer = fn => (seat ? withActor(G.st, seat.id, fn) : fn());
+    const seat = G.st.ch?.leader ? tableModel(G.st, G.data).chars[ownSheet(G.st, G.data).leader.hirer] : null, ch = seat ?? G.st.ch, asHirer = fn => (seat ? withActor(G.st, seat.id, fn) : fn());
     const cursed = (ch.curses ?? []).length > 0, magicToday = dayColors(gameOf(G.st, G.data).day, gameOf(G.st, G.data).lastDay ?? 28);
     // Fame and Notoriety are what counts (recorded plus what the things he owns add); the recorded part is in the Kit.
     let ern = null; try { ern = asHirer(() => earned(G.st, G.data)); } catch { /* scoring not available */ }
@@ -269,20 +269,20 @@ export function render(G) {
     if (G.shared) {
         G.crew = tableCrew(G, party(G.st, G.answer, myId(G)));
         // a seat of my party on screen (hireling rules): what he may meet and follow is his own; and my own people are not partners of mine at the table's Meet button
-        const seat = leaderGame(G.st) && G.st.actor !== myId(G);
-        G.ms = meetState(G.st, G.data, seat ? G.st.actor : myId(G), seat ? null : G.answer?.table);
-        if (leaderGame(G.st)) { const own = ownSeats(G); G.ms.partners = G.ms.partners.filter(x => !own.includes(x.id)); G.ms.others = G.ms.others.filter(x => !own.includes(x.id)); }
+        const seat = leaderGame(tableModel(G.st, G.data)) && seatOf(G.st, G.data) !== myId(G);
+        G.ms = meetState(tableModel(G.st, G.data), G.data, seat ? seatOf(G.st, G.data) : myId(G), seat ? null : G.answer?.table);
+        if (leaderGame(tableModel(G.st, G.data))) { const own = ownSeats(G); G.ms.partners = G.ms.partners.filter(x => !own.includes(x.id)); G.ms.others = G.ms.others.filter(x => !own.includes(x.id)); }
     }
-    else if (!G.race && leaderGame(G.st)) G.ms = meetState(G.st, G.data, G.st.actor, null);          // (the party of one player: the plan's Follow reads who may be followed)
+    else if (!G.race && leaderGame(tableModel(G.st, G.data))) G.ms = meetState(tableModel(G.st, G.data), G.data, seatOf(G.st, G.data), null);          // (the party of one player: the plan's Follow reads who may be followed)
     else G.ms = null;
     // Follow (7.11) reads who may be followed: in a hot seat (one player, several characters) there is no table, so no meeting rows (`G.ms` stays null), but the plan still needs the Follow answer
-    G.fw = G.ms ?? (!G.race && (G.st.order?.length ?? 0) > 1 ? meetState(G.st, G.data, G.st.actor, null) : null);
+    G.fw = G.ms ?? (!G.race && (G.st.order?.length ?? 0) > 1 ? meetState(tableModel(G.st, G.data), G.data, seatOf(G.st, G.data), null) : null);
     G.ui.onSheetMove = () => setTimeout(() => { if (G.root.isConnected) syncCamera(G); }, 320);           // a decision sheet dropped to a peek (or came back): the camera follows once it has settled
     const model = mapModel(G);                           // first: it settles which clearings are ringed (G.ui.moveTargets), which the plan reads
     renderStrip(G);
     renderParty(G);
     if (G.shared) sharedCamera(G);
-    if (G.shared) { if (!leaderGame(G.st)) maybeShowDraw(G); maybeShowFightOver(G); }          // (with hired leaders the draw is told by Sunrise: it has the seats' Attention chits)
+    if (G.shared) { if (!leaderGame(tableModel(G.st, G.data))) maybeShowDraw(G); maybeShowFightOver(G); }          // (with hired leaders the draw is told by Sunrise: it has the seats' Attention chits)
     maybeShowSunrise(G);          // (hired leaders: the Attention chits are drawn, once a day)
     renderTray(G);
     // Sheets are rebuilt on every change; keep each scrolling area where it was while the same question is still on screen

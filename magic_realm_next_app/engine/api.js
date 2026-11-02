@@ -20,7 +20,7 @@ import { whereOf } from './planning.js';
 import * as HF from './hirefight.js';
 import { sha256hex } from './sha256.js';
 
-export { FILES };
+export { FILES, checkVp };          // (checkVp: a victory point spread is a legal one; a function of the spread alone)
 /** The API's own version. `schema` is the version of docs/engine-api/schema/*.json; `state` the saved-state format (party.js STATE_VERSION). */
 export const API_VERSION = { api: '0.1.0', schema: 1 };
 
@@ -52,9 +52,9 @@ function build(data, engine) {
         data,
 
         /** @returns {{ state: any, events: any[] }} */
-        newGame(options = {}) {
+        newGame(options = {}, { record = true } = {}) {
             const { out: state, events, n } = collect(() => engineNewGame(data, options));
-            return { state: recording(state, events, n), events: events.map(plain) };
+            return { state: record ? recording(state, events, n) : state, events: events.map(plain) };          // (`record: false`: a game that does not keep its events, as a table's server still plays them)
         },
         /** Seat another character in a game whose first Birdsong is still open. */
         addCharacter(state, options = {}) {
@@ -132,19 +132,26 @@ function build(data, engine) {
         },
 
         /** A saved state of ANY earlier version (JSON text) as a state of the current one. */
-        restore(text) {
-            const st = upgradeState(JSON.parse(text));
-            if (!st.events && st.chars) { st.events = []; st.eventSeq = 0; }          // (a saved game from before the events records them from here on)
-            return st;
+        restore(text, opts) {
+            return restoreOf(text, opts);
         },
         /** The fingerprint of a state: any difference between two runs of the engine shows up as a different value. */
         hash(state) {
-            return sha256hex(JSON.stringify(state)).slice(0, 16);
+            return hashOf(state);
         },
     };
     byApi.set(data, api);
     return api;
 }
+
+/** A saved state of ANY earlier version (JSON text) as a state of the current one; needs no rules data. `record: false` leaves a game that keeps no events as it is (a table's server). */
+export function restoreOf(text, { record = true } = {}) {
+    const st = upgradeState(JSON.parse(text));
+    if (record && !st.events && st.chars) { st.events = []; st.eventSeq = 0; }          // (a saved game from before the events records them from here on)
+    return st;
+}
+/** The fingerprint of a state (what `api.hash` returns), for a host that has no api at hand. */
+export const hashOf = state => sha256hex(JSON.stringify(state)).slice(0, 16);
 
 /** A viewer's own question, as `view` shows it. */
 const pendingOf = (state, viewer) => {

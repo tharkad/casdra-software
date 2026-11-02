@@ -19,6 +19,7 @@ import { committedNote, voiced } from '../commit.js';
 import { isStory } from '../voice.js';
 import { nameOfClearing } from '../../engine/catalogue.js';
 import { followReason, playerOf, joinList, offerReading, madeReading, draftReading, BLOCK_WORDS, BLOCK_COST, FOLLOW_WORDS, DAYEND_SAYS, FOLLOW_EXPLAIN, meetLines } from '../meet.js';
+import { tableModel } from '../combat/feed.js';
 
 const nb = s => String(s).replace(/ (?=\d)/g, ' ');
 const placeOf = id => { try { return nb(nameOfClearing(id)); } catch { return id; } };
@@ -55,7 +56,7 @@ function bar(summary, secondary, prim) { const f = footRow({ secondary, primary:
 export const newDraft = () => ({ to: null, gi: [], gg: 0, gd: [], wi: [], wg: 0, info: null });
 
 export function meetSheet(c) {
-    const { st, ms, ui } = c, d = (ui.meet ??= newDraft());
+    const { ms, ui } = c, st = tableModel(c.st, c.data), d = (ui.meet ??= newDraft());
     const close = () => { ui.sheet = null; ui.meet = null; ui.meetSent = false; c.render(); };
     // the offer was sent and the game has it: the sheet has done its work (the tray says who is being waited for). Until then it stays, so a refusal does not lose what was ticked.
     if (ms.made && ui.meetSent) { ui.sheet = null; ui.meet = null; ui.meetSent = false; return h('div'); }
@@ -81,8 +82,8 @@ export function meetSheet(c) {
     };
     const when = ms.window === 'dayend' ? 'The fighting is over. You may trade before Midnight.'
         : ms.certain && (!ms.holder || ms.holder === st.ch.id) ? 'You may trade at the start of a phase.'
-            : ms.certain ? `${playerOf(st, ms.holder)} is at the start of a phase: this is the moment to make an offer.`          // (the server says so: table.meetWindow)
-                : `${playerOf(st, ms.holder ?? p.id)} is playing: an offer is made at the start of one of their phases.`;
+            : ms.certain ? `${playerOf(tableModel(c.st, c.data), ms.holder)} is at the start of a phase: this is the moment to make an offer.`          // (the server says so: table.meetWindow)
+                : `${playerOf(tableModel(c.st, c.data), ms.holder ?? p.id)} is playing: an offer is made at the start of one of their phases.`;
     const body = h('div', { class: 'trade mt', 'data-meet': '' },
         ask(`${p.player} (${p.character}) is here with you at ${placeOf(st.ch.at)}.`, `${when} Nothing changes hands until ${p.player} accepts, and then everything does at once.`),
         ms.partners.length > 1 ? h('div', { class: 'ds-seg mt-pick', role: 'radiogroup', 'aria-label': 'Whom to meet' }, ...ms.partners.map(x => h('button', { type: 'button', class: x.id === d.to ? 'on' : null, role: 'radio', 'aria-checked': x.id === d.to ? 'true' : 'false', 'data-meet-with': x.id,
@@ -90,7 +91,7 @@ export function meetSheet(c) {
         sect('You give'),
         h('div', { class: 'ds-list' }, ...(mine.items.length ? mine.items.map(it => tickRow(c, { key: `give:${it.uid}`, name: `${it.name}${it.damaged ? ' (damaged)' : ''}`, sub: it.sub, selected: d.gi.includes(it.uid), onSelect: () => tog(d.gi, it.uid), picture: c.ico(it.name), info: c.itemInfo({ kind: it.kind, id: it.id, active: it.active, damaged: it.damaged }) })) : [hint('You carry nothing.')]),
             goldRow(c, { key: 'give', label: 'Gold', sub: `You have ${mine.gold}`, value: d.gg, max: mine.gold, onChange: n => { d.gg = n; } })),
-        committedNote(st, c.data),          // 6.2.4d: what a recorded extra phase needs is not on the list, and the list says so
+        committedNote(c.st, c.data),          // 6.2.4d: what a recorded extra phase needs is not on the list, and the list says so
         ...(mine.discoveries.length ? [sect('What you know here'), h('div', { class: 'ds-list' }, ...mine.discoveries.map(x => tickRow(c, { key: `disc:${discKey(x)}`, name: x.label.replace(/^the /, 'The '), sub: 'Whoever learns it can use it from now on.', selected: d.gd.includes(discKey(x)), onSelect: () => tog(d.gd, discKey(x)) })))] : []),
         sect(`You ask ${p.player} for`, 'optional'),
         hint(`You can name what ${p.player} carries in plain sight; a card turned face down cannot be named.`),
@@ -102,12 +103,12 @@ export function meetSheet(c) {
 
 // ------------------------------------------------------------------------------------------------------------------------------- my offer is open
 function waitingBody(c) {
-    const { st, ms } = c, o = ms.made, r = madeReading(st, c.data, o);
+    const { ms } = c, st = tableModel(c.st, c.data), o = ms.made, r = madeReading(st, c.data, o);
     return [ask(`Waiting for ${r.player} to answer.`, `You put ${r.line} on the table. Nothing moves until ${r.player} accepts. You cannot do anything else until then, but you can take the offer back.`)];
 }
 /** The card in the tray while my offer is open: it replaces the phase button, so it is plain that the game waits. `actions` is the Withdraw button (the tray puts it in the lead slot). */
 export function waitingCard(c) {
-    const { st, ms } = c, o = ms.made, r = madeReading(st, c.data, o);
+    const { ms } = c, st = tableModel(c.st, c.data), o = ms.made, r = madeReading(st, c.data, o);
     return {
         body: h('div', { class: 'waitcard meet-wait', role: 'status', 'data-meet-waiting': r.player },
             h('div', { class: 'ds-wait' }, h('span', { class: 'pulse', 'aria-hidden': 'true' }, ''), h('div', { class: 'wc-main' }, h('b', { class: 'wc-title' }, `Waiting for ${r.player}.`), h('div', { class: 'ds-meta wc-sub' }, `Your offer: ${r.line}. Nothing moves until ${r.player} accepts; you can take it back.`)))),
@@ -131,7 +132,7 @@ function offerSide(c, side, { key, title, who }) {
     return h('div', { class: 'ds-group mt-side', 'data-side': key }, h('span', { class: 'ds-eyebrow' }, title), h('div', { class: 'cs' }, ...(things.length ? things : [h('span', { class: 'ds-meta mt-nothing' }, who)])));
 }
 export function offerSheet(c, q) {
-    const { st, ui } = c, rd = offerReading(st, q), me = st.ch;
+    const { ui } = c, st = tableModel(c.st, c.data), rd = offerReading(st, q), me = st.ch;
     ui.meet ??= newDraft();
     const decide = accept => act(c, { kind: 'answer', id: q.id, accept });
     const youGet = q.give, youGive = q.want;
@@ -155,7 +156,7 @@ const pair = (left, right) => [left, right];
 
 /** `meet-block`: another character has just finished a phase in my clearing. Do I block him? */
 export function blockCard(c, q) {
-    const { st } = c, who = playerOf(st, q.target), me = st.ch, stage = me.today?.stage;
+    const st = tableModel(c.st, c.data), who = playerOf(st, q.target), me = st.chars[st.ch.id], stage = me.today?.stage;
     const mineLost = stage === 'planned' ? 'Your own turn has not come yet, so you lose it too.' : 'Your turn is already played, so you lose only your hiding.';
     const body = h('div', { class: 'mt-card block', 'data-meet-card': 'block', 'data-target': q.target },
         ask(`${who} (${q.targetName}) has finished a phase here, at ${placeOf(q.at)}. Do you block ${who}?`,
@@ -165,7 +166,7 @@ export function blockCard(c, q) {
 
 /** `meet-follow`: I follow a guide; he is about to start an activity. */
 export function followCard(c, q) {
-    const { st } = c, g = playerOf(st, q.guide);
+    const g = playerOf(tableModel(c.st, c.data), q.guide);
     const body = h('div', { class: 'mt-card follow', 'data-meet-card': 'follow', 'data-guide': q.guide },
         ask(`You are following ${g}, who is about to start phase ${(q.i ?? 0) + 1}.`, `Keep following and you do what ${g} does in this phase. Stop and your turn ends where you stand: the chits of your place are turned and creatures that prowl here may come to you.`));
     return { body, actions: pair(btn('Keep following', '', { 'data-act': 'follow-stay', onclick: () => act(c, { kind: 'follow-drop', drop: false }) }), primary('Stop following', { 'data-act': 'follow-stop', onclick: () => act(c, { kind: 'follow-drop', drop: true }) })) };
@@ -173,7 +174,7 @@ export function followCard(c, q) {
 
 /** `meet-join` (7.11.6f): I follow a guide who is about to Rest or Alert; I may do it with him or not. */
 export function joinCard(c, q) {
-    const { st } = c, g = playerOf(st, q.guide), verb = q.act === 'alert' ? 'alert' : 'rest';
+    const g = playerOf(tableModel(c.st, c.data), q.guide), verb = q.act === 'alert' ? 'alert' : 'rest';
     const body = h('div', { class: 'mt-card join', 'data-meet-card': 'join', 'data-guide': q.guide },
         ask(`${g} is about to ${verb}.`, `You may ${verb} with ${g} or not, as you choose. Nobody sees your answer until all of you have given it.`));
     return { body, actions: pair(btn(`Not this time`, '', { 'data-act': 'join-no', onclick: () => act(c, { kind: 'join', join: false }) }), primary(verb === 'alert' ? 'Alert too' : 'Rest too', { 'data-act': 'join-yes', onclick: () => act(c, { kind: 'join', join: true }) })) };
@@ -181,11 +182,11 @@ export function joinCard(c, q) {
 
 /** `meet-window`: after the fights, before Midnight, those who stand together may trade. */
 export function windowCard(c, q) {
-    const { st, ms, ui } = c;
-    const group = st.tradeWindow?.groups?.find(g => g.ids.includes(st.ch.id)), left = group ? group.ids.filter(id => id !== st.ch.id && !group.done.includes(id)).map(id => playerOf(st, id)) : [];
-    const traded = meetLines(st, st.ch.id).some(l => l.kind === 'done' && l.i >= (ui.windowLog ?? 0));
+    const { ms, ui } = c, st = tableModel(c.st, c.data);
+    const group = st.tradeWindow?.groups?.find(g => g.ids.includes(st.ch.id)), left = group ? group.ids.filter(id => id !== st.ch.id && !group.done.includes(id)).map(id => playerOf(tableModel(c.st, c.data), id)) : [];
+    const traded = meetLines(tableModel(c.st, c.data), st.ch.id).some(l => l.kind === 'done' && l.i >= (ui.windowLog ?? 0));
     const body = h('div', { class: 'mt-card window', 'data-meet-card': 'window' },
-        ask(`The fighting is over. ${joinList(['You', ...(q.with ?? []).map(id => playerOf(st, id))])} stand at ${placeOf(q.at)}.`, `You may trade before Midnight. ${left.length ? `Still deciding: ${joinList(left)}.` : ''}`.trim()));
+        ask(`The fighting is over. ${joinList(['You', ...(q.with ?? []).map(id => playerOf(tableModel(c.st, c.data), id))])} stand at ${placeOf(q.at)}.`, `You may trade before Midnight. ${left.length ? `Still deciding: ${joinList(left)}.` : ''}`.trim()));
     const can = ms.partners.length > 0;
     return { body, actions: pair(btn(traded ? 'Done trading' : 'Skip trading', '', { 'data-act': 'window-done', onclick: () => act(c, { kind: 'done' }) }),
         can ? primary(ms.partners.length === 1 ? `Trade with ${ms.partners[0].player}` : 'Trade', { 'data-act': 'window-trade', onclick: () => { c.ui.sheet = 'meet'; c.ui.meet = null; c.render(); } }) : primary('No one to trade with', { 'data-act': 'window-trade', disabled: true }, 'is-dim')) };
@@ -229,11 +230,11 @@ export function policyBlock(c) {
 // ------------------------------------------------------------------------------------------------------------------------------- Follow, in the plan
 /** The plan's Follow: whom (a character in my clearing), and what it means. `slot` is the draft's first slot. */
 export function followPicker(c, slot, choose, rows = null) {
-    const { st, ms } = c;
+    const { ms } = c, st = tableModel(c.st, c.data);
     // every other character, from the engine's `followWhy` (the ones who cannot be followed now are dim and say why); without it, the ones in `followable`
     const all = (rows ?? ms.followWhy ?? []).length ? (rows ?? ms.followWhy) : ms.followable.map(f => ({ ...f, ok: true }));
-    const names = all.map(f => ({ ...f, player: playerOf(st, f.id) }));
-    const goesLine = f => (f.goes && st.chars?.[f.goes] ? voiced({ story: `${st.chars[f.goes].name} is following ${playerOf(st, f.goes)} today: you would go with them.`, detail: `Already recorded to follow ${st.chars[f.goes].name}: a chain goes to its end, so you would go with ${st.chars[f.goes].name} too (7.11).` }) : null);
+    const names = all.map(f => ({ ...f, player: playerOf(tableModel(c.st, c.data), f.id) }));
+    const goesLine = f => (f.goes && st.chars?.[f.goes] ? voiced({ story: `${st.chars[f.goes].name} is following ${playerOf(tableModel(c.st, c.data), f.goes)} today: you would go with them.`, detail: `Already recorded to follow ${st.chars[f.goes].name}: a chain goes to its end, so you would go with ${st.chars[f.goes].name} too (7.11).` }) : null);
     return [
         h('p', { class: 'ds-hint-line', 'data-hint': 'follow' }, 'Follow takes your whole day: you record nothing else.'),
         h('div', { class: 'ds-choices mt-followpick', role: 'radiogroup', 'aria-label': 'Whom to follow' }, ...names.map(f => h('button', { type: 'button', class: `ds-choice${slot?.who === f.id ? ' on' : ''}${f.ok ? '' : ' dim'}`, role: 'radio', 'aria-checked': slot?.who === f.id ? 'true' : 'false', 'aria-disabled': f.ok ? null : 'true', 'data-follow': f.id,
