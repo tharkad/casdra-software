@@ -19,13 +19,13 @@ import { steedName } from '../../steeds.js';
 import { learnContent } from '../kit/spells.js';
 import { seatTurnEndSheet } from './leaders.js';
 import { render } from './shell.js';
-import { ownSheet, gameOf, todayOf, planSlots } from '../../combat/feed.js';
+import { ownSheet, gameOf, todayOf, planSlots, siteChits, legalOf } from '../../combat/feed.js';
 
 // Where a Search will be made, and what the map already shows of sites on this tile: a site in another clearing is not found from here.
 export function searchWhere(G, at) {
     if (!at) return null;
     const tile = tileOf(at), n = numOf(at);
-    const sites = G.st.chits.filter(c => c.kind === 'site' && c.tile === tile && !c.pile && c.up);
+    const sites = siteChits(G.st, G.data).filter(c => c.tile === tile && !c.pile && c.up);
     const away = sites.filter(c => c.num !== n);
     const there = away.map(c => `the ${c.name} is in clearing ${c.num}`).join(', ');
     return `You will search in ${nameOfClearing(at)}.${sites.some(c => c.num === n) ? '' : ' No site is revealed here yet.'}${there ? ` ${there.charAt(0).toUpperCase()}${there.slice(1)}: a search only finds what is in the clearing you are in, so Move there first.` : ''}`;
@@ -34,7 +34,7 @@ export function searchWhere(G, at) {
 // a table's name for the player: the site card he found is named (Loot the Crypt of the Knight)
 export function tableName(G, t) {
     if (t !== 'sitecard') return TABLE_LABEL[t] ?? t;
-    const id = G.st.ch.siteCards?.[ownSheet(G.st, G.data).at]?.[0];
+    const me = ownSheet(G.st, G.data), id = me.siteCards?.[me.at]?.[0];
     return id ? `Loot the ${G.data.treasures?.[id]?.name ?? 'site card'}` : TABLE_LABEL[t];
 }
 
@@ -138,9 +138,9 @@ function pickSheetOf(G, { title, eyebrow, situation, why, detailWhy, opts, key, 
 
 // Search: which table? What the clearing holds is on the sheet: what could come of each roll.
 export function searchSheet(G, p) {
-    const st = G.st, at = st.ch.at, opts = p.options ?? [], place = nbsp_(nameOfClearing(at)), tile = tileOf(at), n = numOf(at);
-    const sites = st.ch.onRoad ? [] : st.chits.filter(x => x.kind === 'site' && x.tile === tile && x.num === n && !x.pile && st.ch.discovered.sites.includes(x.id));
-    const ground = st.abandoned?.[at] ?? [], cards = st.ch.siteCards?.[at] ?? [];
+    const st = G.st, me = ownSheet(st, G.data), at = me.at, opts = p.options ?? [], place = nbsp_(nameOfClearing(at)), tile = tileOf(at), n = numOf(at);
+    const sites = me.onRoad ? [] : siteChits(st, G.data).filter(x => x.tile === tile && x.num === n && !x.pile && x.discovered);
+    const ground = st.abandoned?.[at] ?? [], cards = me.siteCards?.[at] ?? [];
     const defs = [];
     if (opts.includes('peer')) defs.push({ k: 'peer', table: 'peer', title: 'Peer', line: 'Hidden enemies, hidden\u00A0paths.', art: actIcon('peer', 28) });
     if (opts.includes('locate')) defs.push({ k: 'locate', table: 'locate', title: 'Locate', line: 'Secret passages, clues, sites hidden\u00A0here.', art: actIcon('search', 28) });
@@ -170,8 +170,7 @@ const CHOICE_LINE = {
     'Discover chits': 'Find the site in this clearing.',
 };
 export function choiceSheet(G, p) {
-    const st = G.st, at = st.ch.at, tile = tileOf(at), n = numOf(at);
-    const siteHere = st.chits.some(x => x.kind === 'site' && x.tile === tile && x.num === n && !x.pile && !st.ch.discovered.sites.includes(x.id));
+    const st = G.st, siteHere = (legalOf(st, G.data).answers.find(a => a.action.result === 'Discover chits')?.preview?.sites ?? 0) > 0;
     const opts = p.options.map(r => ({ k: r, title: r === 'Discover chits' ? 'Discover a site' : r, label: r === 'Discover chits' ? 'a site' : r, line: CHOICE_LINE[r] ?? '', art: actIcon(/enem/i.test(r) ? 'peer' : 'search', 28),
         quiet: r === 'Discover chits' && !siteHere, ...(r === 'Discover chits' && !siteHere ? { line: 'There is no site left to find here.' } : null) }));
     return pickSheetOf(G, { title: `${tableName(G, p.table)}: take your pick`, eyebrow: 'Search', situation: 'The signs point more than one way.', why: 'Take whichever reading helps you most.', opts, key: 'choicePick',

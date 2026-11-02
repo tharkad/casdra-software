@@ -378,7 +378,7 @@ function pickPhase(st, data, slot, { soft = false } = {}) {
     const t = st.turn, o = phaseOptions(st, data);
     if (!prophecyOn(st)) {                                         // broken before he finished his turn: instantly blocked
         t.blocked = true; st.ch.hidden = false;
-        say(st, 'Your Prophecy is broken: you are stopped and the rest of your turn is lost.', 'block');
+        say(st, 'Your Prophecy is broken: you are stopped and the rest of your turn is lost.', 'block', null, { ev: { code: 'turn.stopped', who: st.ch.id, why: 'prophecy-broken' } });
         return endDaylight(st, data);
     }
     let choice = slot && slot.act !== 'nothing' ? o.acts.find(a => a.act === slot.act) : null;
@@ -478,7 +478,7 @@ function finishPhaseEnd(st, data) {
     if (bl.length || t.forceBlock) {
         t.blocked = true;
         st.ch.hidden = false;
-        say(st, bl.length ? `Blocked by ${bl.map(m => data.monsters[m.id].name).join(', ')}! The rest of your turn is lost.` : 'You are stopped: the rest of your turn is lost.', 'block');
+        say(st, bl.length ? `Blocked by ${bl.map(m => data.monsters[m.id].name).join(', ')}! The rest of your turn is lost.` : 'You are stopped: the rest of your turn is lost.', 'block', null, { ev: bl.length ? { code: 'block.monsters', who: st.ch.id, monsters: bl.map(m => m.id), by: 'phase-end' } : { code: 'turn.stopped', who: st.ch.id, why: 'prophecy-broken' } });
         t.results[t.i] += ' (blocked)';
         return endDaylight(st, data);
     }
@@ -550,7 +550,7 @@ function endDaylight0(st, data) {
     const blockedMid = !!st.turn.blocked;
     if (bl.length && !blockedMid) {
         st.turn.blocked = true; st.ch.hidden = false;
-        say(st, `${bl.map(m => data.monsters[m.id].name).join(', ')} close in on you.`, 'block');
+        say(st, `${bl.map(m => data.monsters[m.id].name).join(', ')} close in on you.`, 'block', null, { ev: { code: 'block.monsters', who: st.ch.id, monsters: bl.map(m => m.id), by: 'turn-end' } });
     }
     // Show him what the end of his turn did, before the evening begins.
     const names = bl.map(m => data.monsters[m.id].name);

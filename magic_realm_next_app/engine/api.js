@@ -5,6 +5,7 @@
 //   api.apply(state, action)                     -> { ok: true, state, events } | { ok: false, state (unchanged), events: [], error: { code, rule?, params? } }
 //   api.check(state, viewer, action)             -> { ok, errors: [Reason], warnings: [Reason] }   a dry run: nothing changes
 //   api.view(state, viewer)  api.legal(state, viewer)  api.history(state, viewer, since)
+//   api.seat(state, id)                          -> state       the same game with `actor` (the seat the engine works for) moved to a seat of the same player; a value, nothing is written
 //   api.restore(text)  api.hash(state)  api.data  api.version
 // `viewer` is a character id (a seat) or null (a spectator). Nothing here mutates its arguments; the same state and action always give the same result (determinism, tests/api_boundary_determinism.test.mjs).
 import { indexData, FILES } from './data.js';
@@ -15,6 +16,7 @@ import { clone, collect } from './core.js';
 import { makeView } from './view.js';
 import { legalFor } from './legal.js';
 import { legalBoxPlan } from './combat.js';
+import { whereOf } from './planning.js';
 import * as HF from './hirefight.js';
 import { sha256hex } from './sha256.js';
 
@@ -78,12 +80,12 @@ function build(data, engine) {
             const out = { ok: true, errors: [], warnings: [] };
             // What-if questions of the Melee step that are not "may I do this" (a screen asks them while the player is still building his play): `action.probe` names one and the answer is in the result.
             //   probe 'boxes'     the box plan of `action.boxes` made legal (8.4.5m: no box empty while another holds two): result.fixed = { boxes } when it had to change
-            //   probe 'plan'      the Birdsong plan for `action.slots`: result.plan = { phases (how many phases and of what kind), kinds (the kind of each recorded phase and the errors), valid (validatePlan: the errors and the warnings) }
+            //   probe 'plan'      the Birdsong plan for `action.slots`: result.plan = { phases (how many phases and of what kind), kinds (the kind of each recorded phase and the errors), valid (validatePlan: the errors and the warnings), where (planning.js: `at`, `climbing`, `moves[i]` = { sure, maybe }, `leave[i]`, `refusals`) }
             //   probe 'sections'  the Melee Sections of hirelings (8.4.2e, 8.4.6d) for `action.hireTargets / hireSides / positions`: result.sections = { preview, error }
             if (action?.probe && viewer && state.chars?.[viewer]) {
                 const st = clone(state);
                 return withActor(st, viewer, () => {
-                    if (action.probe === 'plan') { const slots = action.slots ?? []; out.plan = plain({ phases: phasesFor(st, data, slots), kinds: planKinds(st, data, slots), valid: validatePlan(st, data, slots) }); return out; }
+                    if (action.probe === 'plan') { const slots = action.slots ?? []; out.plan = plain({ phases: phasesFor(st, data, slots), kinds: planKinds(st, data, slots), valid: validatePlan(st, data, slots), where: whereOf(st, data, slots) }); return out; }
                     if (!st.combat) return out;
                     if (action.probe === 'boxes') { const fixed = legalBoxPlan(st, data, action); if (JSON.stringify(fixed) !== JSON.stringify(action.boxes)) out.fixed = { boxes: plain(fixed) }; }
                     if (action.probe === 'sections') {
@@ -118,6 +120,15 @@ function build(data, engine) {
         /** The events `viewer` may read with `n` > `since` (EVENT-CODES.md "Who may read an event"); once the game is over every seat reads every event (VISIBILITY-RULINGS V11). */
         history(state, viewer = null, since = 0) {
             return historyOf(state, viewer, since);
+        },
+
+        /** The same game seen from another seat of the same player (a hot seat, a party with hired leaders): the engine's pointer at the character it is working for (`actor`) is moved to `id`.
+         * A VALUE: the state given is not changed (it is returned as it is when `id` is already the actor, or no seat of the game). A screen asks this instead of writing `state.actor`; the game itself is the same one. */
+        seat(state, id) {
+            if (!id || !state?.chars?.[id] || state.actor === id) return state;
+            const next = clone(state);
+            next.actor = id;
+            return next;
         },
 
         /** A saved state of ANY earlier version (JSON text) as a state of the current one. */

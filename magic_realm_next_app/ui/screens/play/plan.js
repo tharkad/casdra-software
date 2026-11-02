@@ -101,7 +101,7 @@ function actChips(G, i, at, over, others, baseOver) {
         : ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(ownSheet(G.st, G.data).chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(canRecordFly(G.st, G.data) || flyRefusal(G.st, G.data) ? ['fly'] : []), ...(showFollow ? ['follow'] : []), 'nothing'];
     const n = acts.length;
     return h('div', { class: `ds-acts n${n}` }, ...acts.map(a => {
-        const curse = (ownSheet(G.st, G.data).curses ?? []).find(c => CURSE_ACT[c] === a), refused = actRefusal(G.st, a) ?? (a === 'fly' && flyRefusal(G.st, G.data) ? voicedWhy(flyRefusal(G.st, G.data)) : null);          // (a transformed hero cannot play a Fly chit: the chip stays, dim, and says so)
+        const curse = (ownSheet(G.st, G.data).curses ?? []).find(c => CURSE_ACT[c] === a), refused = actRefusal(G.st, G.data, a) ?? (a === 'fly' && flyRefusal(G.st, G.data) ? voicedWhy(flyRefusal(G.st, G.data)) : null);          // (a transformed hero cannot play a Fly chit: the chip stays, dim, and says so)
         const spent = !curse && !refused && a !== 'nothing' && a !== 'follow' && over(others.map((x, j) => (j === i ? { act: a, to: s?.act === a ? s.to : undefined } : x))) > baseOver;
         const cardOnly = a === 'alert' && !readyMagicOf(G).length ? cardWhy(G) : null;          // (no Magic chit to wake either: the Alert would do nothing)
         const why = curse ? `${curse}: ${CURSE_PLAIN[curse] ?? 'it spoils this action.'}` : refused ?? (a === 'follow' ? followDim(G, i, fRows) : null) ?? (cardOnly ? `${cardOnly.story} There is nothing to ready.` : null) ?? (isSpare && a !== 'move' ? 'This phase is the pony\u2019s: it is for a Move only.' : spent ? (isSpare ? PONY_WHY : 'All your phases are taken.') : null);
@@ -354,7 +354,7 @@ function pruneOver(G, why) {
 function pick(G, i, a, at) {
     const d = G.ui.draft;
     if (roadLocked(G, i) || climbLocked(G, i)) return;
-    if (actRefusal(G.st, a) || (a === 'fly' && flyRefusal(G.st, G.data))) return;
+    if (actRefusal(G.st, G.data, a) || (a === 'fly' && flyRefusal(G.st, G.data))) return;
     if (a === 'alert' && !readyMagicOf(G).length && cardWhy(G)) return;
     G.ui.pickMove = null; G.ui.pickSearch = null; G.ui.followNote = null;
     if (a === 'move') { G.ui.pickMove = i; G.ui.pickFly = null; render(G); return; }

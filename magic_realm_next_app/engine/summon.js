@@ -1,4 +1,5 @@
 import { say } from './core.js';
+const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');          // (a name as a token for an event)
 import { tileOf, numOf, graph } from './world.js';
 import { fxTags, HERO } from './magic/fx.js';
 import { summonVisitors } from './missions.js';
@@ -78,7 +79,7 @@ export function endOfTurn(st, data) {
         }
     }
     out.flipped = flipped.map(c => c.id);
-    for (const c of flipped) say(st, chitText(c, tile), 'discover');
+    for (const c of flipped) say(st, chitText(c, tile), 'discover', null, { ev: { code: 'chit.revealed', chit: c.id, kind: c.kind, name: slug(c.name), tile, ...(c.clearing != null ? { clearing: tile + c.clearing } : {}) } });
     const report = Object.fromEntries(flipped.map(c => [c.id, { id: c.id, kind: c.kind, name: c.name, letter: c.letter ?? null, num: c.num ?? null, summons: [], dest: null }]));
     // 3. chits summon: warnings first, then sounds and sites in number order
     const rank = c => (c.kind === 'warning' ? 0 : 1) * 100 + (c.num ?? 0);
@@ -103,15 +104,16 @@ export function endOfTurn(st, data) {
             (report[c.id] ??= { id: c.id, kind: c.kind, name: c.name, letter: c.letter ?? null, num: c.num ?? null, summons: [], dest: null, already: true }).why = why;
             continue;
         }
-        const dest = c.kind === 'warning' ? here : tile + c.num;
+        const dest = c.kind === 'warning' ? here : tile + c.num, called = [];
         for (const m of monstersInBox(st, box.id)) {
+            called.push(m.id);
             out.arrivals.push({ id: m.id, name: data.monsters[m.id].name, from: null, to: dest, why: `called by ${c.name}${c.kind === 'warning' ? '' : ' ' + c.num}` });
             // a chit that was already face up from an earlier day still calls monsters; it shows in the report too
             const rep = report[c.id] ??= { id: c.id, kind: c.kind, name: c.name, letter: c.letter ?? null, num: c.num ?? null, summons: [], dest: null, already: true };
             rep.summons.push(data.monsters[m.id].name); rep.dest = dest;
             m.loc = { c: dest };
         }
-        say(st, `${c.name}${c.kind === 'warning' ? '' : ' ' + c.num} summons ${monstersInBox(st, box.id).length ? '' : ''}${boxLabel(data, box)} to ${dest === here ? 'you' : 'clearing ' + numOf(dest)}.`, 'monster');
+        say(st, `${c.name}${c.kind === 'warning' ? '' : ' ' + c.num} summons ${monstersInBox(st, box.id).length ? '' : ''}${boxLabel(data, box)} to ${dest === here ? 'you' : 'clearing ' + numOf(dest)}.`, 'monster', null, { ev: { code: 'monsters.summoned', by: c.id, monsters: called, to: dest } });
     }
     // 3b. Row 6: the visitor, mission and campaign chits of the small boxes appear where their leader or site is (7.13.5; only in a game with those chits)
     if (st.missions) out.visitors = summonVisitors(st, data, here);
@@ -125,7 +127,7 @@ export function endOfTurn(st, data) {
         if (!members.length) continue;
         for (const n of members) n.loc = { c: here };
         out.natives.push({ group: g.id, count: members.length, at: dw.kind });
-        say(st, `The ${g.id} appear at the ${dw.kind}.`, 'native');
+        say(st, `The ${g.id} appear at the ${dw.kind}.`, 'native', null, { ev: { code: 'natives.appear', group: g.id, at: slug(dw.kind) } });
     }
     out.chits = Object.values(report);
     return out;

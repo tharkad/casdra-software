@@ -15,7 +15,8 @@ export { NO_EFFORT_LIMIT, BOOTS, GLOVES } from './modifiers.js';
 export { chitLabel } from './day.js';
 export { MAX_CHARACTERS, VP_CATS } from './setup.js';
 export { MAX_SPELLS } from './runes.js';
-export { whySentence } from './magic/why.js';          // the words for a blocked spell's `whyCode` ({ code, params }): the one place they are built
+export { whySentence } from './magic/why.js';
+export { EDGE } from './planning.js';          // the destination of a Move that leaves the map          // the words for a blocked spell's `whyCode` ({ code, params }): the one place they are built
 
 import { denSide as engineDenSide, hireStats as engineHireStats, weaponSide } from './combat.js';
 

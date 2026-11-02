@@ -102,6 +102,19 @@ function todayOf(st, viewer) {
     });
 }
 
+// The story so far, as the Journal reads it: the last lines of the log (not the dice, not the notes) that he may read, with every seat of his own player counted as his own (a hot seat reads
+// the lines of all its characters). `rolls`: the dice of the game so far, newest last, each with its `n`.
+function journalOf(st, viewer, owner) {
+    const log = st.log ?? [], mine = new Set(st.order.filter(id => st.chars[id].owner === owner)), out = [];
+    for (let j = log.length - 1; j >= 0 && out.length < JOURNAL_LINES; j--) {
+        const l = log[j];
+        if (l.k === 'roll' || l.k === 'info' || !mayRead(l, viewer, mine)) continue;
+        out.push({ i: j, day: l.day, t: l.t, k: l.k, ...(l.s != null ? { s: l.s } : {}), ...(l.r != null ? { r: l.r } : {}), ...(l.who ? { who: l.who } : {}), ...(l.p ? { p: l.p } : {}), ...(l.vis ? { vis: l.vis } : {}), ...(l.with ? { with: l.with } : {}) });
+    }
+    return json(out.reverse());
+}
+const JOURNAL_LINES = 240;
+
 /** @param {any} state a game state @param {string|null} viewer a character id (a seat), or null for a spectator @param {any} data the indexed rules data @param {{ engine?: string, api: string }} version */
 export function makeView(state, viewer, data, version) {
     const st = clone(state);
@@ -137,6 +150,7 @@ export function makeView(state, viewer, data, version) {
         seats: st.order.filter(id => id !== viewer && st.chars[id].leader && st.chars[id].owner === me.owner),
         fight: fightOf(st, data, viewer),
         today: todayOf(st, viewer),
+        journal: journalOf(st, viewer, me.owner),
         fightLog: fightLogOf(st, viewer, new Set([viewer, ...st.order.filter(id => id !== viewer && st.chars[id].leader && st.chars[id].owner === me.owner)])),
         earned: withActor(st, viewer, () => { try { return json(earned(st, data)); } catch { return null; } }),          // what he holds now toward each goal (score.js), for the fight's closing sheet
     };

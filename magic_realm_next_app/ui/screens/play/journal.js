@@ -6,7 +6,6 @@ import { nameOf, summaryOf, weightOf } from '../../../engine/catalogue.js';
 import { dayColors } from '../../../engine/catalogue.js';
 import { ATTACK_SPELLS, castOptions } from '../../../engine/spells.js';
 import { nameOfClearing, tileName } from '../../../engine/catalogue.js';
-import { latestRoll } from '../../dice.js';
 import { h } from '../../dom.js';
 import { found, sect, voiceSwitch } from '../../ds.js';
 import { die, icon } from '../../icons.js';
@@ -19,16 +18,16 @@ import { CURSE_PLAIN, ico, modal, moveDetent } from './kit.js';
 import { itemParts } from './sheet_char.js';
 import { prowlers, render } from './shell.js';
 import { steedAloft } from '../../steeds.js';
-import { gameOf } from '../../combat/feed.js';
+import { gameOf, ownSheet, todayOf, journalLines, rollsOf, sheetOf } from '../../combat/feed.js';
 
 const CURSE_SHORT = { Eyemist: 'you cannot Search', Squeak: 'you cannot Hide', Wither: 'asterisk chits cannot be played', 'Ill Health': 'you cannot Rest', Ashes: 'your gold is worthless', Disgust: 'your Fame is worthless' };
 
 // What he found or took since he last acted: an item, a card, a place discovered, a curse that fell on him.
 export function journalNew(G) {
-    const st = G.st;
-    G.ui.gainSeen ??= st.gainSeq ?? 0; G.ui.findSeen ??= st.findSeq ?? 0;
-    const gains = (st.gains ?? []).filter(x => x.n > G.ui.gainSeen && st.ch.items.some(i => i.uid === x.uid)).map(x => ({ key: `g${x.uid}`, kind: 'item', item: st.ch.items.find(i => i.uid === x.uid) }));
-    const finds = (st.finds ?? []).filter(f => f.n > G.ui.findSeen).map(f => ({ key: `f${f.n}`, kind: f.kind === 'curse' ? 'curse' : f.kind === 'card' ? 'card' : 'site', f }));
+    const day = todayOf(G.st, G.data), items = ownSheet(G.st, G.data).items;
+    G.ui.gainSeen ??= day.gainSeq ?? 0; G.ui.findSeen ??= day.findSeq ?? 0;
+    const gains = (day.gains ?? []).filter(x => x.n > G.ui.gainSeen && items.some(i => i.uid === x.uid)).map(x => ({ key: `g${x.uid}`, kind: 'item', item: items.find(i => i.uid === x.uid) }));
+    const finds = (day.finds ?? []).filter(f => f.n > G.ui.findSeen).map(f => ({ key: `f${f.n}`, kind: f.kind === 'curse' ? 'curse' : f.kind === 'card' ? 'card' : 'site', f }));
     return [...gains, ...finds];
 }
 // The same, minus what the Journal has already shown him (the dot on the last-action line goes out once it was open).
@@ -42,24 +41,24 @@ const saveDetent = d => { try { localStorage.setItem(KEY, d); } catch { /* ignor
 
 // ---- the pieces ----
 function notices(G) {
-    const st = G.st, out = [...followNotes(G)];
-    for (const c of st.ch.curses ?? []) out.push(h('button', { class: 'ds-note curse', 'data-act': 'curses', onclick: () => { G.ui.sheet = 'curses'; render(G); } }, icon('skull'), `${c}: ${CURSE_SHORT[c] ?? CURSE_PLAIN[c] ?? 'a curse'}`));
-    const magic = dayColors(st.day, st.lastDay ?? 28);
+    const st = G.st, g = gameOf(st, G.data), me = ownSheet(st, G.data), out = [...followNotes(G)];
+    for (const c of me.curses ?? []) out.push(h('button', { class: 'ds-note curse', 'data-act': 'curses', onclick: () => { G.ui.sheet = 'curses'; render(G); } }, icon('skull'), `${c}: ${CURSE_SHORT[c] ?? CURSE_PLAIN[c] ?? 'a curse'}`));
+    const magic = dayColors(g.day, g.lastDay);
     if (magic.length) out.push(h('button', { class: 'ds-note', 'data-act': 'magic-day', onclick: () => { G.ui.sheet = 'calendar'; render(G); } }, ...magic.map(c => h('i', { class: `ds-dot ${c.toLowerCase()}` })), `${magic.join(' and ')} magic`));
     const fx = (st.fx ?? []).filter(f => f.state !== 'done');
     if (fx.length) out.push(h('button', { class: 'ds-note', 'data-act': 'spells', 'aria-label': `Spells in effect: ${fx.map(f => G.data.spells?.[f.spell]?.name ?? f.spell).join(', ')}`, onclick: () => { G.ui.sheet = 'spells'; render(G); } }, icon('spark'), `Spells (${fx.length})`));
-    const form = st.ch.morph ? `You are ${st.ch.morph.creature?.name ?? 'a creature'}` : st.ch.mist ? 'You are mist' : st.ch.flying ? `You are flying over ${tileName(st.ch.flying.tile)}${steedAloft(st, G.data) ? ` on the ${steedAloft(st, G.data).name}` : ''}` : null;
+    const form = me.morph ? `You are ${me.morph.creature?.name ?? 'a creature'}` : me.mist ? 'You are mist' : me.flying ? `You are flying over ${tileName(me.flying.tile)}${steedAloft(st, G.data) ? ` on the ${steedAloft(st, G.data).name}` : ''}` : null;
     if (form) out.push(h('span', { class: 'ds-note', 'data-act': 'form' }, icon('eye'), form));
-    const tonight = (st.period === 'daylight' || st.period === 'birdsong') && !st.combat && !st.ch.onRoad ? castOptions(st, G.data).filter(o => (o.useful || o.quiet) && !ATTACK_SPELLS[o.spell]) : [];
+    const tonight = (g.period === 'daylight' || g.period === 'birdsong') && !sheetOf(st, G.data) && !me.onRoad ? castOptions(st, G.data).filter(o => (o.useful || o.quiet) && !ATTACK_SPELLS[o.spell]) : [];
     if (tonight.length) out.push(h('button', { class: 'ds-note', 'data-act': 'cast-tonight', title: 'The game will stop and ask you this evening, even if nothing attacks', onclick: () => { G.ui.sheet = 'spells'; render(G); } }, icon('spark'), `Cast tonight: ${[...new Set(tonight.map(o => o.name))].join(', ')}`));
-    if (st.period === 'daylight' && st.prowl) out.push(h('button', { class: `ds-note${G.ui.jWilds ? ' on' : ''}`, 'data-act': 'prowl', 'aria-expanded': G.ui.jWilds ? 'true' : 'false', onclick: () => { G.ui.jWilds = !G.ui.jWilds; render(G); } }, icon('eye'), 'The wilds'));
+    if (g.period === 'daylight' && g.prowl) out.push(h('button', { class: `ds-note${G.ui.jWilds ? ' on' : ''}`, 'data-act': 'prowl', 'aria-expanded': G.ui.jWilds ? 'true' : 'false', onclick: () => { G.ui.jWilds = !G.ui.jWilds; render(G); } }, icon('eye'), 'The wilds'));
     return out;
 }
 
 function wildsLine(G) {
-    const st = G.st, list = prowlers(G).join(', ') || 'no one stirs';
-    return h('div', { class: 'ds-ask' }, h('b', {}, isStory() ? 'The wilds stir' : `Monster roll ${st.prowl}`), h('span', {}, list),
-        st.day % 7 === 0 ? h('span', {}, isStory() ? 'The week turns: the creatures of the wilds are called home to where they began, the slain among them.' : `Week’s end: row ${st.prowl} was called back to where it began, the slain among them.`) : null);
+    const g = gameOf(G.st, G.data), list = prowlers(G).join(', ') || 'no one stirs';
+    return h('div', { class: 'ds-ask' }, h('b', {}, isStory() ? 'The wilds stir' : `Monster roll ${g.prowl}`), h('span', {}, list),
+        g.day % 7 === 0 ? h('span', {}, isStory() ? 'The week turns: the creatures of the wilds are called home to where they began, the slain among them.' : `Week’s end: row ${g.prowl} was called back to where it began, the slain among them.`) : null);
 }
 
 // The found boxes (an item got, a curse, a site or a card found): the Journal lists what is new; the result card (result_card.js) shows what the phase just played brought.
@@ -80,7 +79,7 @@ export function foundBoxes(G, news, from = 'journal') {
 }
 
 function lastRoll(G) {
-    const r = latestRoll(G.st);
+    const r = rollsOf(G.st, G.data).at(-1) ?? null;
     if (!r) return null;
     const tale = storyRoll(r), best = r.dice.length > 1 ? Math.max(...(r.used ?? r.dice)) : null;
     const story = tale?.line ?? r.result ?? '', detail = `${r.dice.join(' + ')}${r.dice.length > 1 ? ` (${r.value} counts)` : ''}${r.result ? `: ${r.result}` : rollDetail(r) ? `: ${rollDetail(r)}` : ''}.`;
@@ -96,11 +95,11 @@ const glueNumbers = t => String(t).replace(/(\S) (#?\d+)(?=[\s.,;:!?)]|$)/g, '$1
 const FOLLOW_LINE = /\bfollow(s|ing)?\b/;          // (who follows whom is a line of the day with no story of its own: the Journal keeps it)
 // the story so far: newest first, a section per day, the phase number at the left (R and a number for a round of a fight)
 function logSections(G) {
-    const st = G.st, out = [], lines = (st.log ?? []).filter(l => !(l.k === 'roll' || l.k === 'info' || (l.k === 'day' && !l.s && !FOLLOW_LINE.test(l.t)) || (G.shared && isMeetLine(l))));
+    const g = gameOf(G.st, G.data), out = [], lines = journalLines(G.st, G.data).filter(l => !(l.k === 'roll' || l.k === 'info' || (l.k === 'day' && !l.s && !FOLLOW_LINE.test(l.t)) || (G.shared && isMeetLine(l))));
     let day = null, ul = null, lastText = null;
     for (const l of [...lines].reverse().slice(0, 150)) {
         if (l.day !== day) {
-            day = l.day; out.push(sect(l.day === st.day ? 'Today' : l.day === st.day - 1 ? 'Yesterday' : `Day ${l.day}`, l.day === st.day ? 'newest first' : '')); ul = h('ul', { class: 'ds-log' }); out.push(ul);
+            day = l.day; out.push(sect(l.day === g.day ? 'Today' : l.day === g.day - 1 ? 'Yesterday' : `Day ${l.day}`, l.day === g.day ? 'newest first' : '')); ul = h('ul', { class: 'ds-log' }); out.push(ul);
         }
         const ph = /^Phase (\d+)/.exec(l.t)?.[1] ?? (l.r != null ? `R${l.r}` : l.k === 'day' ? '—' : '·');
         const text = l.k === 'phase' && !isStory() ? l.t.replace(/^Phase \d+:\s*/, '') : (G.shared ? seatText(G, l) : logText(l.p ? { ...l, p: null } : l));          // (a hot seat: the players' version of a line says "You follows You"; the characters' own names tell it)

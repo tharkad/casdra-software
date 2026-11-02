@@ -28,6 +28,7 @@ import { modal, picOf, showToast } from './kit.js';
 import { planWhole, startDay } from './plan.js';
 import { render } from './shell.js';
 import { switchTo } from './hotseat.js';
+import { apiOf } from '../../../engine/api.js';
 import { myId } from './state.js';
 import { playerOf } from '../../meet.js';
 import { gameOf, questionOf, charsOf, todayOf } from '../../combat/feed.js';
@@ -74,7 +75,7 @@ export function settleSeat(G) {
     const own = ownSeats(G), asked = id => st.asks.some(a => a.who === id && a.pending), chosen = G.ui.seat && own.includes(G.ui.seat) ? G.ui.seat : null;
     const pick = (chosen && asked(chosen) ? chosen : null) ?? own.find(asked) ?? chosen ?? own[0];
     G.ui.seat = pick;
-    if (pick && st.chars[pick]) st.actor = pick;
+    if (pick) { G.st = apiOf(G.data).seat(st, pick); G.ctx.state = G.st; }          // (a new value: the one held is not written)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------- the line under the place

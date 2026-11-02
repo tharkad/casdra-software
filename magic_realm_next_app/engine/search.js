@@ -1,4 +1,4 @@
-import { lvl, say, tally, die, noteRoll } from './core.js';
+import { lvl, say, tally, die, noteRoll, emit } from './core.js';
 import { makeItem, defOf, nameOf, autoEquip, noteGain, noteFind, horseLevel } from './items.js';
 import { BOOTS, GLOVES } from './modifiers.js';
 import { numOf, tileOf, roadsFrom, pathKeyAt, nameOfClearing } from './world.js';
@@ -222,17 +222,18 @@ function searchResult(st, data, table, res, dice, here) {
     const tile = tileOf(here);
     const bits = [];
     const lead = `${table === 'peer' ? 'Peer' : table === 'magicsight' ? 'Magic Sight' : 'Locate'} (${dice.join('+')}): ${res}.`;
+    emit(st, { code: 'search.result', who: st.ch.id, table, result: String(res).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') });
     if (/Clues/.test(res)) {
         const ids = st.chits.filter(c => c.tile === tile && !c.up && !c.pile).map(c => c.id);
-        for (const id of ids) if (!st.ch.seen.includes(id)) st.ch.seen.push(id);
+        for (const id of ids) if (!st.ch.seen.includes(id)) { st.ch.seen.push(id); emit(st, { code: 'search.chit.seen', who: st.ch.id, chit: id }); }
         bits.push(`You learn what the ${ids.length} unrevealed chit${ids.length === 1 ? '' : 's'} here are.`);
     }
-    if (/Hidden enemies/.test(res)) { st.ch.hiddenEnemies = true; bits.push('You can now find hidden foes today.'); }
+    if (/Hidden enemies/.test(res)) { st.ch.hiddenEnemies = true; emit(st, { code: 'search.enemies.found', who: st.ch.id }); bits.push('You can now find hidden foes today.'); }
     if (/Paths/.test(res)) bits.push(discoverPaths(st, data, here, 'hidden'));
     if (/Passages/.test(res)) bits.push(discoverPaths(st, data, here, 'secret'));
     if (/Discover chits/.test(res)) {
         const ids = st.chits.filter(c => c.kind === 'site' && c.tile === tile && c.num === numOf(here) && !c.pile).map(c => c.id);
-        for (const id of ids) { if (!st.ch.discovered.sites.includes(id)) { st.ch.discovered.sites.push(id); tally(st, 'sitesDiscovered'); noteFind(st, { kind: 'site', id, name: st.chits.find(c => c.id === id)?.name, clearing: here }); } if (!st.ch.seen.includes(id)) st.ch.seen.push(id); }
+        for (const id of ids) { if (!st.ch.discovered.sites.includes(id)) { st.ch.discovered.sites.push(id); emit(st, { code: 'search.discovered', who: st.ch.id, what: 'site', id }); tally(st, 'sitesDiscovered'); noteFind(st, { kind: 'site', id, name: st.chits.find(c => c.id === id)?.name, clearing: here }); } if (!st.ch.seen.includes(id)) st.ch.seen.push(id); }
         bits.push(ids.length ? `You discover a site here: ${ids.map(id => st.chits.find(c => c.id === id).name).join(', ')}.` : 'There is no site in this clearing.');
     }
     if (res === 'Nothing') bits.push('You find nothing.');
@@ -244,7 +245,7 @@ export function discoverPaths(st, data, clearing, kind) {
     for (const r of roadsFrom(st, data, clearing)) {
         if (r.kind !== kind) continue;
         const key = pathKeyAt(st, clearing, r.to);
-        if (!st.ch.discovered.paths.includes(key)) { st.ch.discovered.paths.push(key); found.push(nameOfClearing(r.to)); }
+        if (!st.ch.discovered.paths.includes(key)) { st.ch.discovered.paths.push(key); emit(st, { code: 'search.discovered', who: st.ch.id, what: kind === 'hidden' ? 'hidden-path' : 'secret-passage', id: key }); found.push(nameOfClearing(r.to)); }
     }
     return found.length ? `You discover the ${kind === 'hidden' ? 'hidden path' : 'secret passage'} to ${found.join(', ')}.` : '';
 }
@@ -255,6 +256,8 @@ export function discoverPaths(st, data, clearing, kind) {
 const unseenChits = (st, tile) => st.chits.filter(c => c.tile === tile && !c.up && !c.pile && !st.ch.seen.includes(c.id)).length;
 const hiddenPaths = (st, data, clearing, kind) => roadsFrom(st, data, clearing).filter(r => r.kind === kind && !st.ch.discovered.paths.includes(pathKeyAt(st, clearing, r.to))).length;
 export const peerGain = (st, data, clearing) => unseenChits(st, tileOf(clearing)) + hiddenPaths(st, data, clearing, 'hidden');
+/** How many sites in the clearing he has not discovered yet (what the Locate reading "Discover chits" would show him). */
+export const siteLeft = (st, clearing) => st.chits.filter(c => c.kind === 'site' && c.tile === tileOf(clearing) && c.num === numOf(clearing) && !c.pile && !st.ch.discovered.sites.includes(c.id)).length;
 // "Choice" cannot ask a question in the middle of a combat round, so the best result is taken: the one that shows him the most he does not know yet.
 export function bestChoice(st, data, clearing) {
     const tile = tileOf(clearing);

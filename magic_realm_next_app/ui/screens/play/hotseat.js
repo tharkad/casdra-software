@@ -11,6 +11,7 @@ import { playerOf } from '../../meet.js';
 import { newDraft, planSnapshot } from './plan.js';
 import { chipLine, partyPlan } from './partyplan.js';
 import { questionOf } from '../../combat/feed.js';
+import { apiOf } from '../../../engine/api.js';
 
 // (a party of one player; and at a shared table, a player with hired leaders: his own seats)
 export const isHotSeat = G => !G.race && (G.shared ? leaderGame(G.st) && ownSeats(G).length > 1 : (G.st?.order?.length ?? 0) > 1);
@@ -20,13 +21,13 @@ export function switchTo(G, id) {
     const st = G.st, drafts = (G.ui.drafts ??= {});
     const party = partyPlan(G), wasPlan = !!party && G.ui.sheet === 'plan';          // (a party that plans keeps its plan tray up and every plan as it stands: partyplan.js)
     drafts[st.actor] = { draft: G.ui.draft, step: G.ui.planStep, snap: party ? planSnapshot(G) : null };
-    st.actor = id;
+    G.st = apiOf(G.data).seat(st, id); G.ctx.state = G.st;          // (the game seen from his seat: a new value, the one held is not written)
     const mine = drafts[id];
     G.ui.draft = mine?.draft ?? null; G.ui.planStep = mine ? mine.step : 0;          // (a plan that is whole has no open tab: null)
-    if (wasPlan && questionOf(st, G.data, id)?.type === 'plan') { G.ui.draft ??= newDraft(G); G.ui.sheet = 'plan'; if (!mine?.draft) G.ui.planStep = 0; }
+    if (wasPlan && questionOf(G.st, G.data, id)?.type === 'plan') { G.ui.draft ??= newDraft(G); G.ui.sheet = 'plan'; if (!mine?.draft) G.ui.planStep = 0; }
     else G.ui.sheet = null;
     G.ui.sel = null; G.ui.pickMove = null; G.ui.pickFly = null; G.ui.planNote = null; G.ui.peek = false;
-    G.ui.seat = id; if (!G.shared) saveGame(st);
+    G.ui.seat = id; if (!G.shared) saveGame(G.st);
     render(G);
 }
 
