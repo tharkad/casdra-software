@@ -51,6 +51,8 @@ export function siteChits(st, data, who) {
     const v = viewOf(st, data, who), known = v.me?.knows.chits ?? {}, found = new Set(v.me?.discoveries.sites ?? []);
     return v.table.chits.map(c => ({ c, f: c.up ? c.face : known[c.id] })).filter(x => x.f?.kind === 'site').map(({ c, f }) => ({ id: c.id, kind: 'site', name: f.name, num: f.num, tile: c.tile, up: c.up, pile: c.pile, discovered: found.has(c.id) }));
 }
+/** Facts about his spells now (view.me.magic): `fx` (in force), `held`, `energize`, `heldLock`, `fly`. An empty record for a spectator. */
+export const magicOf = (st, data, who) => viewOf(st, data, who).me?.magic ?? { fx: [], held: [], heldLock: null, energize: [], fly: { sources: [], holdsBroomstick: false } };
 /** The story so far (view.me.journal): the log lines he may read, no dice, no notes, oldest first. [] for a spectator. */
 export const journalLines = (st, data, who) => viewOf(st, data, who).me?.journal ?? [];
 /** The dice of the game so far, newest last (view.me.fightLog.rolls). */

@@ -1184,6 +1184,7 @@ function doSearch(st, data, slot) {
 export function apply(st0, data, action) {
     const st = clone(st0);
     if (action?.type === 'table') { tableAct(st, data, action); return st; }       // the table's own decisions (an agreed end, leaving the map): see below
+    if (action?.type === 'begin-evening') { beginEveningAction(st, data); return st; }          // a test harness's action, not a player's: see below
     const who = resolveWho(st, action);
     if (action?.by != null && ownerOf(st, who) !== action.by) refuse('turn.not-yours', 'that is not your character');
     st.actor = who;
@@ -1599,6 +1600,14 @@ meet.hooks.followerEnds = (st, data) => {
 
 // For tests and tools that set a clearing up by hand: open the evening of a state whose `dayRec` names the order of the day's turns (every character's turn played).
 export { sunsetAll as beginEvening };
+// The action `{ type: 'begin-evening' }` (a HARNESS action: the scenario runner and the oracle use it to start a scenario at Sunset; `legal` never offers it and a table's server never routes it): the day's turns count as
+// played (`dayRec` names every seat), the Birdsong plan questions that are still open are dropped, and the evening begins. Only a state that says it is a harness state (`st.harness`, which the scenario world loader sets) takes it.
+function beginEveningAction(st, data) {
+    if (!st.harness) refuse('action.harness', 'begin-evening is for test harnesses: this game is not one');
+    st.dayRec ??= { day: st.day, order: st.order.slice(), i: st.order.length, first: st.order[0] ?? null };
+    st.asks = st.asks.filter(a => a.pending?.type !== 'plan');
+    sunsetAll(st, data);
+}
 
 // The end-of-day reminder for the screens (items.js): the belongings that decide tomorrow's plan, also on the `evening-end` question as `gear`.
 export { nextDayGear, gearLockedWhy };

@@ -4,6 +4,7 @@
 // Made from tools/api/view-prototype.mjs (the throw-away that tested the schemas) with the Phase 3 additions: curses are public once laid (V10), `knows.cards` is the cards shown to him (V2), the fight.
 import { clone } from './core.js';
 import { withActor } from './party.js';
+import { spellFacts } from './magic/facts.js';
 import { denSide, hireStats } from './combat.js';
 import { fxTags, HERO } from './magic/fx.js';
 import { denOnSheet } from './hirefight.js';
@@ -53,7 +54,7 @@ function publicChar(st, c) {
     };
 }
 const faceOf = ch => ({ kind: ch.kind, name: ch.name, num: ch.num ?? null, id: ch.id });
-const counterOf = o => ({ id: o.id, loc: o.loc ?? { box: 'unknown' }, dead: !!o.dead, hired: !!o.hired, ...(o.hiredBy ? { hiredBy: o.hiredBy } : {}), ...(o.side ? { side: o.side } : {}) });
+const counterOf = o => ({ id: o.id, loc: o.loc ?? { box: 'unknown' }, dead: !!o.dead, hired: !!o.hired, ...(o.hiredBy ? { hiredBy: o.hiredBy } : {}), ...(o.hired && o.hiredUntil != null ? { hiredUntil: o.hiredUntil } : {}), ...(o.side ? { side: o.side } : {}) });
 
 // The viewer's own sheet of the fight (`combat`): every creature on it with its stats as the rules read them now (`stat`: name, size, vulnerability, harm, times ... with the spells in force and a
 // transformed counter taken into account), and his hirelings with theirs, so a screen never asks the engine for "the side of a denizen" itself.
@@ -151,6 +152,7 @@ export function makeView(state, viewer, data, version) {
         fight: fightOf(st, data, viewer),
         today: todayOf(st, viewer),
         journal: journalOf(st, viewer, me.owner),
+        magic: withActor(st, viewer, () => { try { return json(spellFacts(st, data, new Set(st.order.filter(id => st.chars[id].owner === me.owner)))); } catch { return null; } }),          // (the spells in force, what a held or energized spell can do now, what a Fly would use)
         fightLog: fightLogOf(st, viewer, new Set([viewer, ...st.order.filter(id => id !== viewer && st.chars[id].leader && st.chars[id].owner === me.owner)])),
         earned: withActor(st, viewer, () => { try { return json(earned(st, data)); } catch { return null; } }),          // what he holds now toward each goal (score.js), for the fight's closing sheet
     };

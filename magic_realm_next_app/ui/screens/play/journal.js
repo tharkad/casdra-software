@@ -18,7 +18,7 @@ import { CURSE_PLAIN, ico, modal, moveDetent } from './kit.js';
 import { itemParts } from './sheet_char.js';
 import { prowlers, render } from './shell.js';
 import { steedAloft } from '../../steeds.js';
-import { gameOf, ownSheet, todayOf, journalLines, rollsOf, sheetOf } from '../../combat/feed.js';
+import { gameOf, ownSheet, todayOf, journalLines, rollsOf, sheetOf, magicOf } from '../../combat/feed.js';
 
 const CURSE_SHORT = { Eyemist: 'you cannot Search', Squeak: 'you cannot Hide', Wither: 'asterisk chits cannot be played', 'Ill Health': 'you cannot Rest', Ashes: 'your gold is worthless', Disgust: 'your Fame is worthless' };
 
@@ -45,7 +45,7 @@ function notices(G) {
     for (const c of me.curses ?? []) out.push(h('button', { class: 'ds-note curse', 'data-act': 'curses', onclick: () => { G.ui.sheet = 'curses'; render(G); } }, icon('skull'), `${c}: ${CURSE_SHORT[c] ?? CURSE_PLAIN[c] ?? 'a curse'}`));
     const magic = dayColors(g.day, g.lastDay);
     if (magic.length) out.push(h('button', { class: 'ds-note', 'data-act': 'magic-day', onclick: () => { G.ui.sheet = 'calendar'; render(G); } }, ...magic.map(c => h('i', { class: `ds-dot ${c.toLowerCase()}` })), `${magic.join(' and ')} magic`));
-    const fx = (st.fx ?? []).filter(f => f.state !== 'done');
+    const fx = magicOf(st, G.data).fx;
     if (fx.length) out.push(h('button', { class: 'ds-note', 'data-act': 'spells', 'aria-label': `Spells in effect: ${fx.map(f => G.data.spells?.[f.spell]?.name ?? f.spell).join(', ')}`, onclick: () => { G.ui.sheet = 'spells'; render(G); } }, icon('spark'), `Spells (${fx.length})`));
     const form = me.morph ? `You are ${me.morph.creature?.name ?? 'a creature'}` : me.mist ? 'You are mist' : me.flying ? `You are flying over ${tileName(me.flying.tile)}${steedAloft(st, G.data) ? ` on the ${steedAloft(st, G.data).name}` : ''}` : null;
     if (form) out.push(h('span', { class: 'ds-note', 'data-act': 'form' }, icon('eye'), form));

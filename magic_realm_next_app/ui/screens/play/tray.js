@@ -2,8 +2,6 @@
 // ONE primary on the right). It replaces the dock, the dice bar and the drawer. While a plan is being made the plan tray stands in its body (plan.js). Shared table: the players strip and the
 // waiting or decision cards of the table take the body (they scroll, the tray never grows past its budget).
 import { nameOf } from '../../../engine/catalogue.js';
-import { energizeOptions } from '../../../engine/magic/energize.js';
-import { heldOptions } from '../../../engine/magic/phase.js';
 import { phasesFor } from '../../combat/feed.js';
 import { nameOfClearing, tileName } from '../../../engine/catalogue.js';
 import { isMountain } from '../../../engine/world.js';
@@ -37,7 +35,7 @@ import { seatText, sharedBanner, showPlayer, tableSheetDue } from './shared.js';
 import { render } from './shell.js';
 import { switchTo } from './hotseat.js';
 import { logEnd, myId, newMeetLines } from './state.js';
-import { ownSheet, questionOf, todayOf } from '../../combat/feed.js';
+import { ownSheet, questionOf, todayOf, magicOf } from '../../combat/feed.js';
 
 // A line of the log in the current voice; at a table another seat's 'You' lines are told by name (QA-103).
 const lt = (G, l) => (G.shared ? seatText(G, l) : logText(l));
@@ -103,8 +101,8 @@ function dayPips(G, cur) {
 const lowerFirst = t => t.charAt(0).toLowerCase() + t.slice(1);
 export function shortPrompt(G, slot) {
     const st = G.st, a = slot?.act ?? 'nothing';
-    const weapon = st.ch.items.find(i => i.kind === 'weapon' && i.active && !i.destroyed);
-    const pr = phasePrompt(a, { at: nb(nameOfClearing(st.ch.at ?? '')), weapon: weapon ? nameOf(G.data, weapon) : null, magic: !!slot?.magic, enchants: todayOf(st, G.data).turn?.enchants ?? 0, tile: slot?.to ? tileName(slot.to) : null, to: slot?.to ? nb(destName(slot.to)) : null });
+    const weapon = ownSheet(st, G.data).items.find(i => i.kind === 'weapon' && i.active && !i.destroyed);
+    const pr = phasePrompt(a, { at: nb(nameOfClearing(ownSheet(st, G.data).at ?? '')), weapon: weapon ? nameOf(G.data, weapon) : null, magic: !!slot?.magic, enchants: todayOf(st, G.data).turn?.enchants ?? 0, tile: slot?.to ? tileName(slot.to) : null, to: slot?.to ? nb(destName(slot.to)) : null });
     let small;
     if (a === 'search') small = slot.table ? tableName(G, slot.table) : 'choose what to look for';
     else if (a === 'move') small = slot.to === EDGE ? 'leave the map' : slot.to ? `to ${nb(nameOfClearing(slot.to))}` : null;
@@ -126,22 +124,22 @@ const WAITING = { 'turn-end': ['End of turn', ''], 'evening-end': ['Evening', 'b
 
 export function renderTray(G) {
     const p = questionOf(G.st, G.data), st = G.st;
-    const where = st.ch.onRoad ? 'On the road' : st.ch.flying ? `Over the ${tileName(st.ch.flying.tile)}` : nameOfClearing(st.ch.at);
+    const where = ownSheet(st, G.data).onRoad ? 'On the road' : ownSheet(st, G.data).flying ? `Over the ${tileName(ownSheet(st, G.data).flying.tile)}` : nameOfClearing(ownSheet(st, G.data).at);
     const planning = p?.type === 'plan' && G.ui.sheet === 'plan' && G.ui.draft;
     const banner = G.shared && !p ? sharedBanner(G) : null;
     const m = { last: null, body: [], situ: null, lead: null, primary: null, cls: [] };
-    const fallen = !!st.ch.dead;                                           // (a fallen hero is not "in plain sight": QA-18)
-    const hid = fallen ? 'fallen' : st.ch.hidden ? 'hidden' : 'in plain sight';
+    const fallen = !!ownSheet(st, G.data).dead;                                           // (a fallen hero is not "in plain sight": QA-18)
+    const hid = fallen ? 'fallen' : ownSheet(st, G.data).hidden ? 'hidden' : 'in plain sight';
     m.situ = situ(nb(where), hid, seatLine(G));          // (a hired leader's turn says whose it is)
     // what he has become (a creature, mist, a flier) is part of where he is
-    const form = st.ch.morph ? `a ${st.ch.morph.creature?.name ?? 'creature'}` : st.ch.mist ? 'mist' : st.ch.flying ? 'flying' : null;
-    if (form && !fallen) m.situ.querySelector('.tag').textContent = st.ch.flying ? (steedAloft(st, G.data) ? `on the ${steedAloft(st, G.data).name}` : 'in the air') : `${form} · ${hid}`;
+    const form = ownSheet(st, G.data).morph ? `a ${ownSheet(st, G.data).morph.creature?.name ?? 'creature'}` : ownSheet(st, G.data).mist ? 'mist' : ownSheet(st, G.data).flying ? 'flying' : null;
+    if (form && !fallen) m.situ.querySelector('.tag').textContent = ownSheet(st, G.data).flying ? (steedAloft(st, G.data) ? `on the ${steedAloft(st, G.data).name}` : 'in the air') : `${form} · ${hid}`;
     m.last = lastLine(G);
 
     // free spell actions at the start of a phase: wake a permanent spell with a colour chit, or use a Phase spell he is holding
     const freeActs = p && (p.type === 'phase' || p.type === 'plan') ? [
-        ...energizeOptions(st, G.data).map(o => h('button', { class: 'ds-chip spellact', 'data-act': 'energize', 'data-fx': o.fx, title: `Burn an enchanted chit (${o.chits.length} held) to wake it: it works until Midnight`, onclick: () => act(G, { type: 'energize', fx: o.fx, colorChit: o.chits[0] }) }, `Energize ${o.name}`)),
-        ...(p.type === 'phase' ? heldOptions(st, G.data).map(o => h('button', { class: 'ds-chip spellact', 'data-act': 'protect', 'data-fx': o.fx, title: 'It lasts through this phase (it also holds off your own helpful spells)', onclick: () => act(G, { type: 'protect', fx: o.fx }) }, `Use ${o.name}`)) : []),
+        ...magicOf(st, G.data).energize.map(o => h('button', { class: 'ds-chip spellact', 'data-act': 'energize', 'data-fx': o.fx, title: `Burn an enchanted chit (${o.chits.length} held) to wake it: it works until Midnight`, onclick: () => act(G, { type: 'energize', fx: o.fx, colorChit: o.chits[0] }) }, `Energize ${o.name}`)),
+        ...(p.type === 'phase' ? magicOf(st, G.data).held.map(o => h('button', { class: 'ds-chip spellact', 'data-act': 'protect', 'data-fx': o.fx, title: 'It lasts through this phase (it also holds off your own helpful spells)', onclick: () => act(G, { type: 'protect', fx: o.fx }) }, `Use ${o.name}`)) : []),
         // holding it but unable to use it (on a road, in the air, a creature, mist): a dim chip that says why, not a missing one (4.6.7f.2, 7.2.3a.2)
         ...(p.type === 'phase' ? (lock => (lock ? [h('button', { type: 'button', class: 'ds-chip spellact is-dim', 'data-act': 'protect-locked', 'aria-disabled': 'true', title: lock.detail, 'aria-label': `Use ${lock.names[0]}: ${lock.story}`, onclick: () => showToast(G, voicedWhy(lock), true) }, `Use ${lock.names[0]}`)] : []))(heldLockOf(st, G.data)) : []),
     ] : [];
@@ -188,13 +186,13 @@ export function renderTray(G) {
             const next = ACT_LABEL[slot?.act] ?? slot?.act ?? 'nothing';
             m.primary = btn(twoLine('Next', `phase ${p.i + 1} \u00B7 ${next}`), 'primary', { 'data-act': 'next', onclick: () => act(G, { type: 'next' }) });
         } else m.primary = phasePrimary(G, slot);
-        if (!card && slot?.act === 'search' && !st.ch.onRoad) m.body.push(h('p', { class: 'ds-hint-line', 'data-hint': 'search-where' }, searchWhere(G, st.ch.at)));
+        if (!card && slot?.act === 'search' && !ownSheet(st, G.data).onRoad) m.body.push(h('p', { class: 'ds-hint-line', 'data-hint': 'search-where' }, searchWhere(G, ownSheet(st, G.data).at)));
     } else if (p.type === 'phase-pick') {
         // Prophecy: no plan was recorded; each phase is chosen as it comes (the printed rule: he learns his day as he lives it). The chips are the plan's own (ordinary weight, one is chosen);
         // an action with no further question is done at once, Move is chosen on the map (the roads are ringed), a Search asks its table, an Alert its weapon or chit.
         const ASKS = new Set(['move', 'search', 'alert']);
         const tap = a => { if (!ASKS.has(a)) { G.ui.pickAct = null; act(G, { type: 'pick', slot: { act: a } }); return; } G.ui.pickAct = G.ui.pickAct === a ? null : a; render(G); };
-        const cardW = weaponCardOf(st, G.data), cardNone = cardW && !st.ch.chits.some(x => x.type === 'magic' && x.state === 'active') ? `${alertCardWhy(nameOf(G.data, cardW)).story} There is nothing to ready.` : null;          // (a weapon card cannot be alerted: 2.3.4d)
+        const cardW = weaponCardOf(st, G.data), cardNone = cardW && !ownSheet(st, G.data).chits.some(x => x.type === 'magic' && x.state === 'active') ? `${alertCardWhy(nameOf(G.data, cardW)).story} There is nothing to ready.` : null;          // (a weapon card cannot be alerted: 2.3.4d)
         m.body.push(h('div', { class: 'ds-acts pickacts' }, ...p.acts.map(a => { const dim = a.act === 'alert' && cardNone; return h('button', { class: `ds-act${G.ui.pickAct === a.act ? ' on' : ''}${dim ? ' dim' : ''}`, 'data-pick-act': a.act, 'aria-disabled': dim ? 'true' : null, onclick: () => (dim ? showToast(G, cardNone, true) : tap(a.act)) }, actIcon(actArt(a.act), 28), ACT_LABEL[a.act] ?? a.act); })));
         if (G.ui.pickAct === 'move') m.body.push(h('p', { class: 'ds-hint-line', 'data-hint': 'pick-move' }, 'Where to? Tap a ringed clearing on the map.'));
         const extra = (p.extrasLeft ?? []).map(x => ACT_LABEL[x] ?? x);
@@ -229,10 +227,10 @@ export function renderTray(G) {
         if (G.ms.made && (!p || p.type === 'phase' || p.type === 'phase-pick' || p.type === 'meet-window')) { const w = waitingCard(mc(G)); m.body = [w.body]; m.lead = w.actions; m.primary = null; }
         else if (!p && G.crew.find(x => x.mine)?.status === 'following') {
             // I follow someone: his turn is mine. I may stop at the start of any of his activities (the game says so if it is not the moment)
-            m.primary = btn(`Stop following ${playerNameOf(st, st.follows?.[st.ch.id] ?? '')}`.trim(), '', { 'data-act': 'stop-follow', onclick: () => act(G, { type: 'meet', kind: 'stop-follow' }) });
-        } else if (p?.type === 'phase' && st.ch.hidden && Object.values(st.follows ?? {}).includes(st.ch.id) && !G.ms.made) {
+            m.primary = btn(`Stop following ${playerNameOf(st, st.follows?.[ownSheet(st, G.data).id] ?? '')}`.trim(), '', { 'data-act': 'stop-follow', onclick: () => act(G, { type: 'meet', kind: 'stop-follow' }) });
+        } else if (p?.type === 'phase' && ownSheet(st, G.data).hidden && Object.values(st.follows ?? {}).includes(ownSheet(st, G.data).id) && !G.ms.made) {
             // a hidden guide may leave behind followers who have not found hidden enemies (7.11.6a.1); the game says if every one has
-            const g = playerNameOf(st, Object.keys(st.follows).find(f => st.follows[f] === st.ch.id));
+            const g = playerNameOf(st, Object.keys(st.follows).find(f => st.follows[f] === ownSheet(st, G.data).id));
             m.body.push(h('p', { class: 'ds-hint-line', 'data-hint': 'ditch' }, `You are hidden and ${g} follows you. You may slip away and leave ${g} behind, unless they have found hidden enemies today.`));
             m.lead = btn('Leave them behind', 'sm', { 'data-act': 'ditch', onclick: () => act(G, { type: 'meet', kind: 'ditch' }) });
         } else if (G.ms.partners.length && (!p || p.type === 'phase' || p.type === 'phase-pick')) {
@@ -301,7 +299,7 @@ function glideHeight(G, from) {
     const done = () => {
         el.removeEventListener('transitionend', onEnd); clearTimeout(G.ui.glideTimer);
         el.style.transition = ''; el.style.height = '';
-        const hero = G.st?.ch?.flying ? ownSheet(G.st, G.data).flying.tile : G.st?.ch?.onRoad ? ownSheet(G.st, G.data).onRoad.from : G.st?.ch?.at;
+        const hero = ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : ownSheet(G.st, G.data).onRoad ? ownSheet(G.st, G.data).onRoad.from : ownSheet(G.st, G.data).at;
         if (to > from && hero && !(G.ui.keepCamUntil > Date.now()) && G.map && G.root.isConnected) G.map.reveal?.([hero], { margin: 56 });
     };
     const onEnd = e => { if (e.target === el && e.propertyName === 'height') done(); };

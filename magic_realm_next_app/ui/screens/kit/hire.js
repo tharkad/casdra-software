@@ -17,7 +17,7 @@ import { markGroup } from '../../groups.js';
 import { boonContent } from './boon.js';
 import { ask, dimBtn, footRow, moodTag, nativeArt, say, skipBtn, twoLine } from './common.js';
 import { insultContent, offerDice } from './trade.js';
-import { ownSheet, gameOf, missionsOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, missionsOf, viewOf } from '../../combat/feed.js';
 
 // The counters of a group, as the printed art on the cream tile (monsters in colour, natives as their counters).
 function counters(G, ids, monsters) {
@@ -50,7 +50,7 @@ const titleOf = (G, o) => {
 
 // ---- the answer: a price (the roll, the price as the headline, who you get, the gold left) ----
 function offerContent(G, p) {
-    const until = p.rehire ? (G.st.nats.find(n => n.id === p.members[0])?.hiredUntil ?? gameOf(G.st, G.data).day) + 14 : gameOf(G.st, G.data).day + 13;
+    const until = p.rehire ? (viewOf(G.st, G.data).table.natives.find(n => n.id === p.members[0])?.hiredUntil ?? gameOf(G.st, G.data).day) + 14 : gameOf(G.st, G.data).day + 13;
     const left = ownSheet(G.st, G.data).gold - p.price;
     const body = h('div', { class: 'kit kit-offer kit-hire-offer' },
         offerDice(G, p) ?? h('p', { class: 'ds-meta' }, p.why),
@@ -76,7 +76,7 @@ function chooser(G, p) {
     const ashes = hasCurse(G.st, 'Ashes');
     const cards = p.options.map(o => {
         const key = keyOf(o), on = key === sel, dc = drinksCost(G.st, G.data, o.group), rel = o.monsters ? 0 : relFor(G.st, o.group), round = rounds === key;          // (drinks work for pacified monsters too, one gold each, H1)
-        const days = o.rehire ? Math.max(0, Math.min(...o.members.map(id => (G.st.nats.find(n => n.id === id)?.hiredUntil ?? gameOf(G.st, G.data).day) - gameOf(G.st, G.data).day + 1))) : null;
+        const days = o.rehire ? Math.max(0, Math.min(...o.members.map(id => (viewOf(G.st, G.data).table.natives.find(n => n.id === id)?.hiredUntil ?? gameOf(G.st, G.data).day) - gameOf(G.st, G.data).day + 1))) : null;
         const why = ownSheet(G.st, G.data).gold < dc ? `A round costs ${dc} Gold and you have ${ownSheet(G.st, G.data).gold}.` : null;
         return h('div', { class: `ds-group kit-hcard${on ? ' sel' : ''}`, 'data-hire-card': o.group },
             h('button', { type: 'button', class: 'kit-pick', 'data-hire-group': o.group, 'data-rehire': o.rehire ? '1' : '0', role: 'radio', 'aria-checked': on ? 'true' : 'false', onclick: () => { G.ui.hireSel = on && p.options.length > 1 ? null : key; render(G); } },

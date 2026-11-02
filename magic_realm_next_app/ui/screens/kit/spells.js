@@ -15,11 +15,11 @@ import { ask } from '../../ds.js';
 import { footRow } from './common.js';
 import { heldLockOf } from '../../spellwhy.js';
 import { voiced } from '../../commit.js';
-import { ownSheet, gameOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, magicOf } from '../../combat/feed.js';
 
 const CHIT_ART = { White: 'whitechit', Black: 'blackchit', Grey: 'graychit', Purple: 'purplechit', Gold: 'goldchit' };
 export const printedOf = (G, id) => G.data.cardtext?.spells?.[id] ?? '';
-export const spellCount = G => (G.st.ch.spells ?? []).length;
+export const spellCount = G => (ownSheet(G.st, G.data).spells ?? []).length;
 
 // The printed text without its heading ("Make Whole (I/White), one character, Instant: ..."): the heading is the card's tag already.
 function printedBody(G, sp) {
@@ -60,7 +60,7 @@ export function spellRow(G, id, blocked, { status: showStatus = true } = {}) {
 
 // The spells in force now (what the old "Spells in effect" sheet said), as rows.
 function inForce(G) {
-    const fxOn = (G.st.fx ?? []).filter(f => f.state !== 'done');
+    const fxOn = magicOf(G.st, G.data).fx;
     if (!fxOn.length) return null;
     const lock = heldLockOf(G.st, G.data);          // a held Phase spell he cannot use now says why (4.6.7f.2, 7.2.3a.2)
     return h('div', { class: 'cursesheet kit-fx' },
@@ -77,8 +77,8 @@ function inForce(G) {
 
 // spellsTab(G, { fxFirst }) -> the room's DOM
 export function spellsTab(G, o = {}) {
-    const ids = G.st.ch.spells ?? [], blocked = (() => { try { return blockedSpells(G.st, G.data); } catch { return []; } })();
-    const fx = inForce(G), ch = G.st.ch, c4 = G.data.characters[ch.id]?.stage4;
+    const ids = ownSheet(G.st, G.data).spells ?? [], blocked = (() => { try { return blockedSpells(G.st, G.data); } catch { return []; } })();
+    const fx = inForce(G), ch = ownSheet(G.st, G.data), c4 = G.data.characters[ch.id]?.stage4;
     const list = ids.length ? h('div', { class: 'ds-list' }, ids.map(id => spellRow(G, id, blocked)))
         : h('p', { class: 'kit-none' }, (c4?.spellsKnown ?? 0) ? `You know no spell yet: one of type ${(c4.spellTypes ?? []).join(' or ')}, cast in the evening.` : 'You know no spells.');
     return h('div', { class: 'kit-room kit-spells' },
@@ -141,7 +141,7 @@ export function learnContent(G, p) {
         sp ? h('div', { class: 'ds-list' }, spellRow(G, p.spell, [], { status: false })) : null,
         p.full ? h('div', { class: 'kit-forget' },
             h('div', { class: 'ds-ask warn' }, h('b', {}, `Your spellbook is full (${MAX_SPELLS}).`), h('span', {}, 'Forget one to make room:')),
-            h('div', { class: 'ds-list' }, (G.st.ch.spells ?? []).map(id => { const s2 = G.data.spells?.[id]; return h('button', { type: 'button', class: `ds-row${erase === id ? ' sel' : ''}`, 'data-erase': id, 'aria-pressed': erase === id ? 'true' : 'false', onclick: () => { G.ui.erase = erase === id ? null : id; render(G); } },
+            h('div', { class: 'ds-list' }, (ownSheet(G.st, G.data).spells ?? []).map(id => { const s2 = G.data.spells?.[id]; return h('button', { type: 'button', class: `ds-row${erase === id ? ' sel' : ''}`, 'data-erase': id, 'aria-pressed': erase === id ? 'true' : 'false', onclick: () => { G.ui.erase = erase === id ? null : id; render(G); } },
                 h('span', { class: 'art' }, s2 ? colorArt(s2, G.data) : icon('spark')), h('span', { class: 'main' }, h('b', {}, s2?.name ?? id), h('span', {}, s2 ? typeTag(s2) : '')), erase === id ? h('span', { class: 'end' }, 'forget') : null); }))) : null);
     const need = p.full && !erase;
     const foot = footRow({ note: need ? 'Choose which spell to forget.' : '',

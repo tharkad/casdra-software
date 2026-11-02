@@ -86,9 +86,9 @@ export function whyNot(G, it) {
     if (it.destroyed) return 'It is destroyed.';
     if (it.active) return null;
     if (it.kind === 'horse') {
-        const at = st.combat?.at ?? st.ch.at;
+        const at = st.combat?.at ?? ownSheet(st, data).at;
         if (at && isCave(st, data, at)) return 'A horse cannot be ridden in a cave.';
-        if (lvl(data.horses[it.id].walk.strength) < Math.max(lvl(st.ch.weight), carriedLevel(st, data, it.uid))) return 'The horse is not strong enough to carry you and your gear.';
+        if (lvl(data.horses[it.id].walk.strength) < Math.max(lvl(ownSheet(st, data).weight), carriedLevel(st, data, it.uid))) return 'The horse is not strong enough to carry you and your gear.';
     }
     if (BOOTS[it.id] && !bootsStrongEnough(st, data, it)) return 'Those boots are not strong enough to carry you and your gear.';
     return null;
@@ -101,16 +101,16 @@ export function tidyAct(G, it, extra = {}) { G.ui.keep = true; act(G, { type: 't
 // the names of what he would put down if he moved now (the engine's dropHeavy, said before the move): too heavy for what he can carry and no pack horse bears it
 export function wouldDrop(G) {
     const { st, data } = G, top = Math.max(carryCapacity(st, data), 0);
-    return st.ch.items.filter(it => !it.destroyed && it.kind !== 'horse' && !onPackHorse(st, data, it) && lvl(weightOf(data, it)) > top && lvl(weightOf(data, it)) > 0).map(it => nameOf(data, it));
+    return ownSheet(st, data).items.filter(it => !it.destroyed && it.kind !== 'horse' && !onPackHorse(st, data, it) && lvl(weightOf(data, it)) > top && lvl(weightOf(data, it)) > 0).map(it => nameOf(data, it));
 }
 function carryLimit(G) {
     const { st, data } = G, cap = carryCapacity(st, data), carried = carriedLevel(st, data), top = Math.max(cap, 0);
     const word = cap <= 0 ? 'almost nothing' : WEIGHT_WORDS[letterOf(cap)];
     let src = '';
-    if (st.ch.morph) src = `as the ${st.ch.morph.creature?.name ?? 'creature'}`;
+    if (ownSheet(st, data).morph) src = `as the ${ownSheet(st, data).morph.creature?.name ?? 'creature'}`;
     else {
-        const horse = st.ch.items.find(i => i.kind === 'horse' && i.active && !i.destroyed);
-        const move = st.ch.chits.filter(c => c.state === 'active' && c.type === 'move').sort((a, b) => lvl(b.strength) - lvl(a.strength))[0];
+        const horse = ownSheet(st, data).items.find(i => i.kind === 'horse' && i.active && !i.destroyed);
+        const move = ownSheet(st, data).chits.filter(c => c.state === 'active' && c.type === 'move').sort((a, b) => lvl(b.strength) - lvl(a.strength))[0];
         if (horse && data.horses[horse.id] && lvl(data.horses[horse.id].walk.strength) >= (move ? lvl(move.strength) : -1)) src = `your ${nameOf(data, horse)}, ${WEIGHT_WORDS[data.horses[horse.id].walk.strength].toLowerCase()} strength`;
         else if (move) src = `strongest Move chit ${move.strength}${move.time}`;
         else src = 'no Move chit is ready';
@@ -188,7 +188,7 @@ function kitRoom(G, o) {
 
 // The printed character card, one tap away (the sheet no longer opens with a portrait).
 function cardRow(G) {
-    const ch = G.st.ch, pic = G.data.art?.characters?.[ch.id];
+    const ch = ownSheet(G.st, G.data), pic = G.data.art?.characters?.[ch.id];
     if (!G.data.art?.cards?.[ch.id]) return null;
     return h('div', { class: 'ds-list kit-card' }, h('button', { type: 'button', class: 'ds-row', 'data-act': 'card', onclick: () => { G.ui.sheet = 'card'; render(G); } },
         h('span', { class: 'art' }, pic ? h('img', { src: pic, alt: '' }) : null), h('span', { class: 'main' }, h('b', {}, 'Your character card'), h('span', {}, `${displayName(ch.name)}, as printed.`)), h('span', { class: 'end' }, icon('right'))));
@@ -198,7 +198,7 @@ const sect2 = (t, r) => h('div', { class: 'ds-sect' }, h('span', { class: 'ds-ey
 // ---- the sheet ----
 // kitContent(G, { openItem(it), onTab(key), tab }) -> { title, eyebrow, body, detent }
 export function kitContent(G, o = {}) {
-    const tab = o.tab ?? kitTab(G), pick = o.onTab ?? (t => setKitTab(G, t)), ch = G.st.ch;
+    const tab = o.tab ?? kitTab(G), pick = o.onTab ?? (t => setKitTab(G, t)), ch = ownSheet(G.st, G.data);
     const ctl = { openItem: o.openItem ?? (it => { G.ui.itemUid = it.uid; G.ui.itemFrom = null; G.ui.sheet = 'item'; render(G); }) };
     const room = tab === 'co' ? companyTab(G) : tab === 'sp' ? spellsTab(G, o) : tab === 'ch' && missionsOf(G.st, G.data) ? chitsTab(G) : kitRoom(G, ctl);
     return { title: displayName(ch.name), eyebrow: `Day ${gameOf(G.st, G.data).day} · ${tab === 'co' ? 'Company' : tab === 'sp' ? 'Spells' : tab === 'ch' ? 'Chits' : 'Kit'}`, detent: 'tall',

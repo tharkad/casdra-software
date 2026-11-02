@@ -93,7 +93,7 @@ export function bugSheet(G) {
 }
 
 export function scoreSheet(G) {
-    const res = scoreGame(G.st, G.data), e = earned(G.st, G.data), need = targets(G.st), vp = G.st.ch.vp ?? {};
+    const res = scoreGame(G.st, G.data), e = earned(G.st, G.data), need = targets(G.st), vp = ownSheet(G.st, G.data).vp ?? {};
     const NAME = { great: 'Great Treasures', spells: 'Spells', fame: 'Fame', notoriety: 'Notoriety', gold: 'Gold' };
     const belong = (key) => ownSheet(G.st, G.data).items.filter(i => !i.destroyed).map(i => { const d = defOf(G.data, i); const t = i.card ? G.data.treasures[i.card] : d; return { name: nameOf(G.data, i), v: (t?.[key] ?? d?.[key] ?? 0) }; }).filter(x => x.v);
     const how = {
@@ -101,7 +101,7 @@ export function scoreSheet(G) {
         spells: SPELLS_HOW,
         fame: 'Recorded Fame plus the Fame of what you own.',
         notoriety: 'Recorded Notoriety plus the Notoriety of what you own.',
-        gold: `Recorded gold ${ownSheet(G.st, G.data).gold} minus your starting value ${G.st.ch.startValue ?? 10} (your starting gold and the price of the gear you began with). Only gold counts, not the price of things you own.`,
+        gold: `Recorded gold ${ownSheet(G.st, G.data).gold} minus your starting value ${ownSheet(G.st, G.data).startValue ?? 10} (your starting gold and the price of the gear you began with). Only gold counts, not the price of things you own.`,
     };
     const rows = res.rows ?? [];
     const sign = n => (n > 0 ? `+${n}` : String(n));
@@ -122,17 +122,17 @@ export function scoreSheet(G) {
     // where a goal's figure comes from: the recorded part, then one line per belonging that adds to it
     const parts = cat => {
         if (cat === 'fame' || cat === 'notoriety') {
-            const own = belong(cat), rec = G.st.ch[cat] ?? 0;
+            const own = belong(cat), rec = ownSheet(G.st, G.data)[cat] ?? 0;
             return [[`Recorded ${NAME[cat]} (earned so far)`, rec], ...own.map(x => [x.name, x.v]), ...(own.length ? [] : [['What you own adds nothing', 0]])];
         }
         if (cat === 'great') return ownSheet(G.st, G.data).items.filter(i => !i.destroyed && (i.card ? G.data.treasures[i.card] : defOf(G.data, i))?.great).map(i => [nameOf(G.data, i), 1]);
-        if (cat === 'gold') return [['Gold you hold', ownSheet(G.st, G.data).gold], ['Your starting value (gold and the price of your first gear)', -(G.st.ch.startValue ?? 10)]];
+        if (cat === 'gold') return [['Gold you hold', ownSheet(G.st, G.data).gold], ['Your starting value (gold and the price of your first gear)', -(ownSheet(G.st, G.data).startValue ?? 10)]];
         return [];
     };
     // what the goods would fetch if he sold the lot at their printed prices: for his information only, it never changes the score
     const saleRows = () => ownSheet(G.st, G.data).items.filter(i => !i.destroyed).map(i => [nameOf(G.data, i), priceOf(G.data, i)]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
     const saleEl = g => {
-        const list = saleRows(), sum = list.reduce((a, x) => a + x[1], 0), start = G.st.ch.startValue ?? 10;
+        const list = saleRows(), sum = list.reduce((a, x) => a + x[1], 0), start = ownSheet(G.st, G.data).startValue ?? 10;
         if (g.cat !== 'gold') return null;
         return h('details', { class: 'sr-parts sr-sale' }, h('summary', {}, `If you sold everything you own: ${ownSheet(G.st, G.data).gold + sum - start} of ${g.need}`),
             h('p', { class: 'hint' }, 'For your information only: it does not change your score. Only gold in hand counts, and trading prices vary with the roll.'),
@@ -177,7 +177,7 @@ export function setupCardSheet(G) {
         e.small ? h('span', { class: 'sc-t', title: 'Small treasures' }, ...pips(e.small, 'small'), h('small', {}, `${e.small} Small`)) : null,
         e.large ? h('span', { class: 'sc-t', title: 'Large treasures' }, ...pips(e.large, 'large'), h('small', {}, `${e.large} Large`)) : null,
         ...(e.spells ?? []).map(t => h('span', { class: 'sc-spell', title: `A spell of Type ${t}` }, t)));
-    const found = name => G.st.chits.some(ch => ch.name === name && G.st.ch.discovered.sites.includes(ch.id));
+    const found = name => G.st.chits.some(ch => ch.name === name && ownSheet(G.st, G.data).discovered.sites.includes(ch.id));
     const need = e => e.special ? e.special.replace('fatigue_asterisk', 'an asterisk of effort').replace('fatigue_t,key', 'a Tremendous chit or the Lost Keys') : null;
     const siteCard = e => {
         const gn = guardName(e.guardian), art = monsterArt(gn);

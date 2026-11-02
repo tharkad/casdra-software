@@ -18,7 +18,7 @@ import { markGroup } from '../../groups.js';
 import { boonContent } from './boon.js';
 import { isVisitorName, leaderArt, noDrinksRow, spellFoot, spellOfferContent, spellsRoom, visitorPriceTag } from './visitors.js';
 import { MOOD_WORD, actIcon, ask, dimBtn, footRow, goldEl, itemArt, moodOf, moodTag, nativeArt, plural, say, seg, skipBtn, tick, twoLine } from './common.js';
-import { ownSheet, missionsOf } from '../../combat/feed.js';
+import { ownSheet, missionsOf, viewOf } from '../../combat/feed.js';
 
 // (a Trouble or an Opportunity throws again: in Story both rolls carry the group's name, so the later one is labelled "Thrown again" rather than repeating it)
 export const offerDice = (G, p) => {
@@ -110,7 +110,7 @@ function tradeMain(G, p) {
     const fresh = !p.mode && !(p.sold?.length) && !p.drinks;
     const rel = relFor(G.st, p.group), dealt = !!p.mode || !!p.sold?.length;
     const ashes = hasCurse(G.st, 'Ashes');
-    const owed = (G.st.ch.boons ?? []).map((b, n) => ({ ...b, n })).filter(b => b.group === p.group);
+    const owed = (viewOf(G.st, G.data).me?.boons ?? []).map((b, n) => ({ ...b, n })).filter(b => b.group === p.group);
     const tabs = [{ key: 'buy', label: 'Buy' }, { key: 'sell', label: 'Sell' }, ...(cards.length ? [{ key: 'spells', label: 'Spells', n: cards.length }] : []), ...(owed.length ? [{ key: 'owed', label: 'Boons', n: owed.length }] : [])];
     let tab = G.ui.tradeTab;
     if (!tabs.some(t => t.key === tab)) tab = p.mode === 'sell' ? 'sell' : 'buy';
@@ -126,7 +126,7 @@ function tradeMain(G, p) {
     // the leader chooser: one card per leader here (the mood is on the card)
     const choices = groupChoices(p);
     const leaders = choices.length > 1 ? h('div', { class: 'kit-leaders', role: 'radiogroup' }, choices.map(c => {
-        const lead = G.st.nats.find(n => !n.dead && !n.hired && n.loc?.c === ownSheet(G.st, G.data).at && G.data.natives[n.id].group === c.group && G.data.natives[n.id].leader);
+        const lead = viewOf(G.st, G.data).table.natives.find(n => !n.dead && !n.hired && n.loc?.c === ownSheet(G.st, G.data).at && G.data.natives[n.id].group === c.group && G.data.natives[n.id].leader);
         const off = !c.canSwitch && !c.selected;
         return h('button', { type: 'button', class: `ds-group kit-leader${c.selected ? ' sel' : ''}${off ? ' dim' : ''}`, 'data-trade-group': c.group, role: 'radio', 'aria-checked': c.selected ? 'true' : 'false', 'aria-pressed': c.selected ? 'true' : 'false',
             onclick: () => { if (c.selected) return; if (off) say(G, 'You have started dealing with this leader, so the choice is made for this phase.'); else act(G, { type: 'trade', act: 'group', group: c.group }); } },
