@@ -47,6 +47,7 @@ function scoreNote(G) {
         h('span', { 'data-v': 'detail' }, `Score ${sgn(vp)} VP: the shortfall of every goal counts three times, until it is met.`));
 }
 
+// Overview and Result bring the sheet back up when it was dropped to its bar to look at the map (note 93: the page changed under the bar and nothing showed).
 // The morning review, as mockup 02 c3: first the day told in one sentence with its rows and its score (Story or Detail), then (Overview) the day step by step.
 export function reportSheet(G) {
     const day = gameOf(G.st, G.data).day - 1, sum = daySummary(G, day);
@@ -68,7 +69,7 @@ export function reportSheet(G) {
             h('p', { class: 'ds-voice lg headline', 'data-v': 'story' }, sum.story), h('p', { class: 'ds-voice lg headline', 'data-v': 'detail' }, sum.detail),
             ...rows, ...unattendedBlock(G, day), frame, scoreNote(G));          // (a leader's fight where no character stood: leaders.js)
         return modal(G, 'The day', body, { kind: 'result', detent: sum.empty && !unattendedBlock(G, day).length ? 'hug' : 'tall', eyebrow: `Day ${day} \u00B7 midnight`, head: voiceSwitch(), bare: true, cls: 'dayres-sheet',
-            footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn', 'data-act': 'report-next', onclick: () => { G.ui.reportPage = `${day}:overview`; render(G); } }, 'Overview'), goOn) });
+            footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn', 'data-act': 'report-next', onclick: () => { G.ui.mapPeek = false; G.ui.reportPage = `${day}:overview`; render(G); } }, 'Overview'), goOn) });
     }
     // the overview: the day's lines under the phase or the evening they belong to
     const prev = G.st.log.filter(l => l.day === day && l.k !== 'day' || (l.day === day && /sun sets/.test(l.t)));
@@ -84,5 +85,5 @@ export function reportSheet(G) {
         : h('p', { class: 'repstep plain' }, h('span', { class: 'ph' }, g.n), h('span', {}, g.head)));
     return modal(G, 'The day, step by step', h('div', { class: 'reportsheet ds-dayres overview' }, ...(show.length ? show.map(step) : [h('p', { class: 'ds-meta' }, 'Nothing happened.')])),
         { kind: 'result', detent: 'tall', eyebrow: `Day ${day} \u00B7 overview`, head: voiceSwitch(), bare: true, cls: 'dayres-sheet',
-            footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn', 'data-act': 'report-back', onclick: () => { G.ui.reportPage = null; render(G); } }, 'Result'), goOn) });
+            footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn', 'data-act': 'report-back', onclick: () => { G.ui.mapPeek = false; G.ui.reportPage = null; render(G); } }, 'Result'), goOn) });
 }

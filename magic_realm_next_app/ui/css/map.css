@@ -145,6 +145,23 @@ html[data-calm="on"] .mv-ov .ds-ring.legal { animation: none; }
 .mv-ov .ds-pin b { color: var(--gold-hi, #b5e39c); font-weight: 700; } .mv-ov .ds-pin.bad b { color: var(--danger, #e2685c); }
 .mv-ov [hidden] { display: none; }
 
+/* a character's pill (notes 90, 96): the green accent while he is in plain sight, dark and dashed in teal while he is hidden (the ring round his clearing is the same teal); his hex face
+   is the one of the new-game screens; the eye at the end says the same in a picture: open when he is seen, shut when he is hidden */
+.realm-svg .pill.char rect.pbody { fill: #2c7a46; stroke: #e3f6d6; stroke-width: 1.3; }
+.realm-svg .pill.char text { fill: #fff; }
+.realm-svg .pill.char .hexo, .realm-svg .bicon.face .hexo { fill: #e3f6d6; stroke: none; }
+.realm-svg .pill.char .hexi, .realm-svg .bicon.face .hexi { fill: #efe6d0; stroke: none; }
+.realm-svg .pill.char .eye path, .realm-svg .pill.char .eye line { fill: none; stroke: #fff; stroke-width: 1.15; stroke-linecap: round; stroke-linejoin: round; }
+.realm-svg .pill.char .eye.open circle { fill: #fff; stroke: none; }
+.realm-svg .pill.char.hid rect.pbody { fill: rgba(12, 14, 20, .84); stroke: #7fd1c8; stroke-width: 1.4; stroke-dasharray: 3 2.2; }
+.realm-svg .pill.char.hid text { fill: #9fe0d6; }
+.realm-svg .pill.char.hid .hexo { fill: #7fd1c8; }
+.realm-svg .pill.char.hid .hexface image, .realm-svg .pill.char.hid .hexi { opacity: .6; }
+.realm-svg .pill.char.hid .eye path, .realm-svg .pill.char.hid .eye line { stroke: #9fe0d6; }
+.realm-svg .leader.char, .realm-svg .leader-mark.char { stroke: #b5e39c; }
+.realm-svg .bseg.char rect { fill: #2c7a46; stroke: #e3f6d6; stroke-width: 1; }
+.realm-svg .bseg.char.hid rect { fill: rgba(12, 14, 20, .86); stroke: #7fd1c8; stroke-dasharray: 2 1.6; }
+.realm-svg .bseg.char.hid .hexface { opacity: .7; }
 /* a site's chip when the names have given way to chips: the gold edge of a discovered site, as on its pill */
 .realm-svg .bseg.site.disc rect { stroke: #b5e39c; stroke-width: 2.4; }
 .realm-svg.lod .leader { vector-effect: non-scaling-stroke; }

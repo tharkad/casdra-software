@@ -144,6 +144,13 @@ export const calm = () => { try { return ['1', 'on', 'true'].includes(localStora
 export function applyCalm() { const on = calm(); if (on) document.documentElement.dataset.calm = 'on'; else delete document.documentElement.dataset.calm; return on; }
 export function setCalm(on) { try { if (on) localStorage.setItem(CALM_KEY, '1'); else localStorage.removeItem(CALM_KEY); } catch { /* ignore */ } return applyCalm(); }
 
+// ---- Sections that fold (a <details>): open or closed, remembered across the whole UI ----
+// One key per kind of section ('mr-open-roads'), stored per channel like every other setting; a section nobody has touched shows `dflt`. (Note 95: the Roads section opens by default
+// and stays as the player left it, wherever a clearing's sheet is opened.)
+const OPEN_KEY = k => `mr-open-${k}`;
+export const sectionOpen = (key, dflt = true) => { try { const v = localStorage.getItem(OPEN_KEY(key)); return v === '1' ? true : v === '0' ? false : dflt; } catch { return dflt; } };
+export function setSectionOpen(key, on) { try { localStorage.setItem(OPEN_KEY(key), on ? '1' : '0'); } catch { /* storage may be unavailable */ } return on; }
+
 // ---- Text size ----
 // Every font size in the css (but the map's own, which is drawn to fit its pills) is `calc(Npx * var(--ts, 1))`; this sets --ts on <html>. Stored per channel in 'mr-text'.
 const TEXT_KEY = 'mr-text';

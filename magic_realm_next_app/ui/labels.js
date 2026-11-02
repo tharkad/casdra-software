@@ -76,11 +76,11 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
         // (a name that only fits well away from its clearing, because the tile's own ground is crowded, may hang over the edge when that brings it much nearer)
         return off.area === 0 && (best.area > 0 || off.dist + FAR / 3 < best.dist) ? { ...off, outside: 1 } : best;
     };
-    const searchIn = (g, boxes) => {
+    const searchIn = (g, boxes, maxRing = rings) => {
         const W = Math.max(...boxes.map(b => b.w)), H = boxes.reduce((s, b) => s + b.h, 0) + GAP * (boxes.length - 1);
         const sides = [...(g.prefer ?? []), ...SIDES.filter(s => !(g.prefer ?? []).includes(s))];
         let best = null;
-        for (let ring = 0; ring < rings; ring++) {
+        for (let ring = 0; ring < maxRing; ring++) {
             for (const side of sides) {
                 const [x, y] = corner(side, g.ax, g.ay, g.ar + 2 + ring * step, W, H, boxes[0].h);
                 const rects = []; let yy = y;
@@ -113,6 +113,12 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
     const order = groups.slice().sort((a, b) => (a.prio ?? 5) - (b.prio ?? 5) || b.boxes.length - a.boxes.length || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     for (const g of order) {
         let best = search(g, g.boxes), small = false;
+        // a chit's name belongs on its own tile: when its own clear spot has no room (the ring round the hero's clearing, another name), it takes the tile's next clear spot that has
+        // (g.alts: [[x, y], ...] in the world, best first) rather than hang over the tile's edge, far from its chit (note 92)
+        if (g.alts && !(best.area === 0 && !best.outside)) for (const [ax, ay] of g.alts) {
+            const r = searchIn({ ...g, ax, ay, ar: 3 }, g.boxes, 4);
+            if (r && r.area === 0 && !r.outside) { best = r; break; }
+        }
         // a stack that would be staggered at full size tries the same column in the compact pill style first (g.small: the boxes at COMPACT size); it is used only if it stands clear, owned and on the tile
         if (g.small && g.boxes.length > 1 && (best.area > 0 || best.owned === false || (best.outside ?? 0) > 0 || best.dist > g.ar + 40)) {
             const sm = search(g, g.small);

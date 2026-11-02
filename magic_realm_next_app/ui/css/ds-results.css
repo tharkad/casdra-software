@@ -124,6 +124,18 @@
 .ds-clearing .ds-row .art img { max-width: 80%; max-height: 80%; }
 .ds-clearing .ds-row.off { opacity: .6; }
 .ds-clearing .ds-row .ds-tag { flex: none; }
+/* a sign (note 94): the chit as printed, its own 62px column (it used to hang out of the 44px picture box), then what it can call on this tile, one line a Monster Roll */
+.ds-clearing .ds-row.sign { align-items: flex-start; padding: 10px 12px; }
+.ds-clearing .ds-row.sign .art2 { flex: none; width: 62px; min-width: 62px; justify-content: center; }
+.ds-clearing .ds-calls { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+.ds-clearing .ds-calls .calls-lead, .ds-clearing .calls-none { font: 400 calc(14px * var(--ts, 1))/1.3 var(--font-voice); color: var(--ink-2); }
+.ds-clearing .callrow { display: flex; flex-direction: column; gap: 3px; padding-top: 6px; border-top: 1px solid var(--line-1); }
+.ds-clearing .callrow .roll { display: flex; align-items: baseline; gap: 8px; font: 700 calc(13px * var(--ts, 1))/1.2 var(--font-ui); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.ds-clearing .callrow.today .roll { color: var(--gold-hi); }
+.ds-clearing .callrow .roll small { font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); letter-spacing: .04em; color: var(--gold-hi); }
+.ds-clearing .callrow .who { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 600 calc(15px * var(--ts, 1))/1.25 var(--font-ui); color: var(--ink); }
+.ds-clearing .callmon { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font: 600 calc(15px * var(--ts, 1))/1.25 var(--font-ui); color: var(--ink); }
+.ds-clearing .callmon img { flex: none; width: 28px; height: 28px; object-fit: contain; border-radius: 6px; background: var(--counter-face); box-shadow: inset 0 0 0 1.5px var(--counter-edge); }
 .clearing-sheet .ds-sheet-body { padding-bottom: 18px; }
 /* the choice sheets: select then commit */
 .pick-sheet .ds-opts { gap: 8px; }

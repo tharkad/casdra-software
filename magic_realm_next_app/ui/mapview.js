@@ -15,6 +15,7 @@ import { shapeEl, fan, tagText } from './party.js';
 const calmMotion = () => (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) || (typeof document !== 'undefined' && document.documentElement.dataset.calm === 'on');
 const S = 100;
 const NUM_W = 17;            // room at the start of a clearing's pill for the circle with its number
+const tokW = t => (t.k === 'char' && t.short ? NUM_W + 17 + 3 + 14 : pillWidth(t.label, { img: !!t.img }) + NUM_W + (t.k === 'char' ? 16 : 0));          // a pill's width: the name, its picture, and for a character the hex face and the eye (a party in one clearing: face and eye, no name)
 const CHIT_R = 6.5;          // radius of a counter on the map; names sit beside it, never over it
 const GROUP = { valley: '#26382f', woods: '#1f3a2a', mountain: '#3a3530', cave: '#2c2a3a' };
 const CLEARING = { woods: '#3f7a52', mountain: '#8d7a62', cave: '#5a4f7a' };
@@ -25,12 +26,13 @@ const pk = (a, b) => (a < b ? `${a}~${b}` : `${b}~${a}`);
 
 // A badge's chips: monsters, natives and companions carry a small picture (claw marks, a figure) so that what is in the clearing reads at a glance; a count follows when there is more than one.
 // A site's chip carries what the pill of a site carries: the gold edge and a tick when it is discovered, and a count when there are several.
-const ICON_KINDS = new Set(['mon', 'nat', 'ally']);
+const ICON_KINDS = new Set(['mon', 'nat', 'ally', 'char']);
 const segW = (sg, lod = false) => (ICON_KINDS.has(sg.k) ? (sg.n > 1 ? (lod ? 18 : 21) : lod ? 12 : 13) : sg.k === 'site' ? (lod ? 12 : 13) + (sg.disc ? 4 : 0) + (sg.n > 1 ? 5 : 0) : sg.k === 'visit' || sg.k === 'task' ? (lod ? 12 : 13) + (sg.n > 1 ? 5 : 0) : lod ? 12 : 13);
 const segText = sg => (sg.glyph ? sg.glyph : sg.k === 'dwelling' ? '⌂' : sg.k === 'site' ? `◆${sg.disc ? '✓' : ''}${sg.n > 1 ? sg.n : ''}` : sg.k === 'sound' ? '♪' : sg.k === 'visit' ? `✦${sg.n > 1 ? sg.n : ''}` : sg.k === 'task' ? `⚑${sg.n > 1 ? sg.n : ''}` : String(sg.n));
 /** Natural width of a badge (12 high): the clearing's number circle (unless `lod`), then a chip per kind. */
 export const badgeWidth = (segs, lod = false, hasNum = true) => (hasNum && !lod ? 14 : 0) + segs.reduce((w, sg) => w + segW(sg, lod), 0) + 3;
-function chipIcon(kind) {
+function chipIcon(kind, sg = null) {
+    if (kind === 'char') return sv('g', { class: 'bicon face', transform: 'translate(0.5 0.7)' }, faceHexEl(11, sg?.img ?? null));
     if (kind === 'mon') return sv('g', { class: 'bicon claw' }, ...[[3, 9.5, 5, 2.5], [5.6, 9.5, 7.6, 2.5], [8.2, 9.5, 10.2, 2.5]].map(([x1, y1, x2, y2]) => sv('line', { x1, y1, x2, y2 })));
     return sv('g', { class: 'bicon person' }, sv('circle', { cx: 6, cy: 3.9, r: 1.9 }), sv('path', { d: 'M2.4 10.2 Q2.4 6.3 6 6.3 Q9.6 6.3 9.6 10.2 Z' }));
 }
@@ -44,16 +46,38 @@ export function badgeEl(bd, w, { lod = false, x = 0, y = 0, scale = 1 } = {}) {
         hasNum ? sv('circle', { cx: 8, cy: 6, r: 5.5, class: 'pillnum' }) : null,
         hasNum ? sv('text', { x: 8, y: 6, dy: '.35em', 'text-anchor': 'middle', class: 'pillnumtxt' }, String(bd.num)) : null,
         ...bd.segs.map(sg => {
-            const sw = segW(sg, lod), g = sv('g', { class: `bseg ${sg.k}${sg.disc ? ' disc' : ''}`, transform: `translate(${ox} 0)` },
+            const sw = segW(sg, lod), g = sv('g', { class: `bseg ${sg.k}${sg.disc ? ' disc' : ''}${sg.hid ? ' hid' : ''}`, transform: `translate(${ox} 0)` },
                 sv('rect', { x: 0, y: 0, width: sw - 1, height: 12, rx: 3 }),
-                ICON_KINDS.has(sg.k) ? chipIcon(sg.k) : null,
+                ICON_KINDS.has(sg.k) ? chipIcon(sg.k, sg) : null,
                 ICON_KINDS.has(sg.k) ? (sg.n > 1 ? sv('text', { x: lod ? 13.2 : 15.5, y: 6, dy: '.35em', 'text-anchor': 'middle' }, String(sg.n)) : null)
                     : sv('text', { x: (sw - 1) / 2, y: 6, dy: '.35em', 'text-anchor': 'middle' }, segText(sg)));
             ox += sw; return g;
         }));
 }
+/** A character's face in a flat-top hexagon, as on the new-game screens (.pt-face in ds-front.css): a thin rim, the cream counter face, the picture inside with a small margin. `w` is its width. */
+export function faceHexEl(w, src) {
+    const H = w * 0.866025, pts = k => [[0.25, 0], [0.75, 0], [1, 0.5], [0.75, 1], [0.25, 1], [0, 0.5]].map(([a, b]) => [((a - 0.5) * k + 0.5) * w, ((b - 0.5) * k + 0.5) * H].map(v => v.toFixed(2)).join(',')).join(' ');
+    return sv('g', { class: 'hexface' }, sv('polygon', { class: 'hexo', points: pts(1) }), sv('polygon', { class: 'hexi', points: pts(0.84) }),
+        src ? sv('image', { href: src, x: (w * 0.18).toFixed(2), y: (H * 0.12).toFixed(2), width: (w * 0.64).toFixed(2), height: (H * 0.76).toFixed(2), preserveAspectRatio: 'xMidYMid meet' }) : null);
+}
+/** Seen or hidden, as an eye: open (an almond with its pupil) while he is in plain sight, shut (a lid with lashes) while he is hidden. 10 units wide, centred on y = 0. */
+export const eyeEl = hid => (hid
+    ? sv('g', { class: 'eye shut' }, sv('path', { d: 'M0 -0.5 Q5 3.6 10 -0.5' }), ...[[2.1, 1.3, 1.2, 3.2], [5, 2.3, 5, 4.5], [7.9, 1.3, 8.8, 3.2]].map(([x1, y1, x2, y2]) => sv('line', { x1, y1, x2, y2 })))
+    : sv('g', { class: 'eye open' }, sv('path', { d: 'M0 0 Q5 -4.6 10 0 Q5 4.6 0 0 Z' }), sv('circle', { cx: 5, cy: 0, r: 1.7 })));
+/** A character's pill: the number of his clearing, his face, his name, and the eye that says whether he is hidden. Green while he is in plain sight; dark, dashed and teal while he is hidden. */
+function charPill(t, box, num, clearingId) {
+    return sv('g', { transform: `translate(${box.x.toFixed(1)} ${box.y.toFixed(1)})`, class: `pill char${t.hid ? ' hid' : ''}${t.me ? ' me' : ''}`, 'data-char': t.char ?? '', 'data-sight': t.hid ? 'hidden' : 'seen', ...(clearingId ? { 'data-clearing': clearingId } : {}) },
+        sv('rect', { class: 'pbody', width: box.w, height: box.h, rx: 6 }),
+        sv('circle', { cx: 8, cy: box.h / 2, r: 6, class: 'pillnum' }),
+        sv('text', { x: 8, y: box.h / 2, dy: '.35em', 'text-anchor': 'middle', class: 'pillnumtxt' }, String(num)),
+        sv('g', { transform: `translate(${NUM_W - 1} ${(box.h - 14.7) / 2})` }, faceHexEl(17, t.img)),
+        t.short ? null : sv('text', { x: NUM_W + 19, y: box.h / 2, dy: '.35em' }, t.label),
+        sv('g', { transform: `translate(${(box.w - 13).toFixed(1)} ${box.h / 2})` }, eyeEl(t.hid)),
+        sv('title', {}, `${t.label}, ${t.hid ? 'hidden' : 'in plain sight'}`));
+}
 /** A name: the pill of one thing standing in a clearing, led by a circle with the clearing's number. `box` = { x, y, w, h } in the world. */
 export function pillEl(t, box, num, clearingId) {
+    if (t.k === 'char') return charPill(t, box, num, clearingId);
     const th = t.img ? 15 : 0;
     return sv('g', { transform: `translate(${box.x.toFixed(1)} ${box.y.toFixed(1)})`, class: `pill ${t.k}${t.disc ? ' disc' : ''}`, ...(clearingId ? { 'data-clearing': clearingId } : {}) },
         sv('rect', { width: box.w, height: box.h, rx: 6 }),
@@ -210,7 +234,7 @@ export function mountMap(host) {
 
     // ---- the layout of the names is the costly part of a draw, and the same state always lays out the same way: remember it by its inputs ----
     const layoutCache = new Map();
-    const layoutKey = (level, groups, obstacles, anchors, badgeOf) => JSON.stringify([level.id, groups.map(g0 => [g0.id, g0.ax, g0.ay, g0.ar, g0.prio, g0.prefer, g0.own, g0.kind, g0.boxes, badgeOf.get(g0.id)?.boxes]),
+    const layoutKey = (level, groups, obstacles, anchors, badgeOf) => JSON.stringify([level.id, groups.map(g0 => [g0.id, g0.ax, g0.ay, g0.ar, g0.prio, g0.prefer, g0.own, g0.kind, g0.boxes, g0.alts, badgeOf.get(g0.id)?.boxes]),
         obstacles.map(o => [Math.round(o.x * 10), Math.round(o.y * 10), o.r]), anchors.map(a => [a.id, Math.round(a.x * 10), Math.round(a.y * 10)])]);
     let level = levelFor(1), labelEls = [], lastShrink = 1, heroRing = null, stats = { draws: 0 };
 
@@ -288,7 +312,7 @@ export function mountMap(host) {
                 // known: the glyph is part of the name, as for a sound in a clearing: one pill, on the chit's own clear spot
                 const glyph = chitGlyph(c.kind);
                 const text = `${glyph} ${label}`, id = `chit:${c.id ?? p.id + i}`;
-                groups.push({ id, noLeader: true, ax: wx, ay: wy, ar: 3, prio: 3, prefer: ['center', 'below', 'above', 'right', 'left'], inside: insideTile, boxes: [{ w: pillWidth(text), h: PILL_H }] });
+                groups.push({ id, noLeader: true, ax: wx, ay: wy, ar: 3, prio: 3, prefer: ['center', 'below', 'above', 'right', 'left'], inside: insideTile, alts: slots?.map(s1 => { const [sx, sy] = rot(s1, a).map(v => v * S); return [Math.round((cx + sx) * 10) / 10, Math.round((cy + sy) * 10) / 10]; }), boxes: [{ w: pillWidth(text), h: PILL_H }] });
                 badgeOf.set(id, { segs: [{ k: c.kind === 'sound' ? 'sound' : c.kind === 'site' ? 'site' : c.kind === 'warning' ? 'warn' : 'star', glyph }], id: null, boxes: [{ w: 16, h: 12 }] });
                 makeLabel.set(id, box => chitPillEl(c.kind, text, box));
             });
@@ -322,7 +346,17 @@ export function mountMap(host) {
                 const youHere = model.hero === id && !model.party?.length, clearR = youHere ? 27 : picture ? 10.5 : 13;
                 obstacles.push({ x: cx + x, y: cy + y, r: clearR });
                 anchors.push({ id, x: cx + x, y: cy + y });
-                const toks = model.tokens?.[id] ?? [];
+                const allToks = model.tokens?.[id] ?? [], toks = allToks.filter(t => t.k !== 'char');
+                // the characters standing here: a pill each (note 90), as one stack apart from the clearing's other names (they must never be what tips a crowded clearing into a marker); it goes below the ring first.
+                // Collapsed it is one chip: a face, the count, and the eye's state (hidden only when every one of them is).
+                const chars = allToks.filter(t0 => t0.k === 'char').map((t0, _, all) => ({ ...t0, short: all.length > 1 }));
+                if (chars.length) {
+                    const gid = `char:${id}`;
+                    badgeOf.set(gid, { segs: [{ k: 'char', n: chars.length, img: chars[0].img, hid: chars.every(t0 => t0.hid) }], id, num: c.n });
+                    groups.push({ id: gid, own: id, kind: 'char', ax: cx + x, ay: cy + y, ar: clearR, prio: 0, prefer: ['below', 'above', 'right', 'left'], inside: insideTile,
+                        boxes: chars.map(t0 => ({ w: tokW(t0), h: 17 })), small: chars.map(t0 => ({ w: tokW(t0) * COMPACT, h: 17 * COMPACT })) });
+                    makeLabel.set(gid, (box, i) => pillEl(chars[i], box, c.n, id));
+                }
                 if (toks.length) {
                     const shown = toks.length > 5 ? [...toks.slice(0, 4), { k: 'more', label: `+${toks.length - 4}` }] : toks;
                     const gid = `clr:${id}`;
@@ -333,8 +367,8 @@ export function mountMap(host) {
                     const segs = KS.map(k => { const ts = toks.filter(t => t.k === k); return ts.length ? { k, n: ts.reduce((n, t) => n + count(t), 0), disc: ts.some(t => t.disc) } : null; }).filter(Boolean);
                     badgeOf.set(gid, { segs, id, num: c.n });
                     groups.push({ id: gid, own: id, kind: shown[0]?.k ?? 'site', ax: cx + x, ay: cy + y, ar: clearR, prio, prefer: ['right', 'left'], inside: insideTile,
-                        boxes: shown.map(t => ({ w: pillWidth(t.label, { img: !!t.img }) + NUM_W, h: t.img ? 17 : PILL_H })),
-                        small: shown.map(t => ({ w: (pillWidth(t.label, { img: !!t.img }) + NUM_W) * COMPACT, h: (t.img ? 17 : PILL_H) * COMPACT })) });
+                        boxes: shown.map(t => ({ w: tokW(t), h: t.img ? 17 : PILL_H })),
+                        small: shown.map(t => ({ w: tokW(t) * COMPACT, h: (t.img ? 17 : PILL_H) * COMPACT })) });
                     makeLabel.set(gid, (box, i) => pillEl(shown[i], box, c.n, id));
                 }
             });

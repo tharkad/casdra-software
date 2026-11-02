@@ -9,7 +9,8 @@ import { colorSources } from '../../../engine/spells.js';
 import { nameOfClearing, numOf, tileName, tileOf } from '../../../engine/catalogue.js';
 import { roadsFrom } from '../../../engine/world.js';
 import { h } from '../../dom.js';
-import { sect } from '../../ds.js';
+import { sect, sectionOpen, setSectionOpen } from '../../ds.js';
+import { callsOf } from '../../chitcalls.js';
 import { actIcon, icon } from '../../icons.js';
 import { playerOf as playerNameOf } from '../../meet.js';
 import { rosterRows } from '../../shared_ui.js';
@@ -168,6 +169,24 @@ const REL = { '-2': 'enemy', '-1': 'unfriendly', '0': 'neutral', '1': 'friendly'
 const MOOD = { enemy: 'Enemies of yours.', unfriendly: 'Not friendly to you.', neutral: 'Neutral to you.', friendly: 'Friendly to you.', ally: 'Allies of yours.' };
 const tile_ = (src, label = null, group = null) => markGroup(h('span', { class: 'ds-counter sm' }, src ? h('img', { src, alt: label ?? '' }) : actIcon('ban', 32)), group);
 
+// A sound chit lying in a clearing: its counter, and what it can call on this tile. The chart is printed, so naming the creatures tells nothing secret; where a row has several kinds,
+// one call brings the first of them that is waiting (the list is the order of the chart). A chit the chart has no box for on this tile calls nothing here.
+function signRow(G, c, tile) {
+    const calls = callsOf(G.data, c, tile, gameOf(G.st, G.data).prowl ?? null);
+    const toWhere = c.kind === 'sound' ? `clearing ${c.num}` : 'you';
+    const art = name => G.data.art?.monsters?.[name];
+    const list = calls.length
+        ? h('div', { class: 'ds-calls', 'data-calls': c.id },
+            h('span', { class: 'calls-lead' }, `On this tile it can call, to ${toWhere}:`),
+            ...calls.map(r => h('div', { class: `callrow${r.today ? ' today' : ''}`, 'data-roll': r.row },
+                h('b', { class: 'roll' }, `Monster Roll ${r.row}`, r.today ? h('small', {}, 'today') : null),
+                h('span', { class: 'who' }, ...r.names.map(x => h('span', { class: 'callmon' }, art(x.name) ? h('img', { src: art(x.name), alt: '' }) : null, `${x.name}${x.n > 1 ? ` ×${x.n}` : ''}`))))))
+        : h('span', { class: 'calls-none', 'data-calls': c.id }, 'Nothing on the Appearance chart answers to it on this tile.');
+    return h('div', { class: `ds-row sign ${c.kind}`, 'data-sign': c.id },
+        h('span', { class: 'art2' }, mrChit(c)),
+        h('span', { class: 'main' }, h('b', {}, c.kind === 'sound' ? `${c.name} (sound ${c.num})` : c.name), list));
+}
+
 export function clearingSheet(G) {
     const id = G.ui.sel, tile = tileOf(id), n = numOf(id);
     const cdef = G.data.tile(tile).sides.normal.clearings.find(c => c.n === n);
@@ -224,15 +243,16 @@ export function clearingSheet(G) {
     if (ground.length) get.push(h('div', { class: 'ds-site found ground' }, h('div', { class: 'head' }, h('span', { class: 'ds-counter sm' }, actIcon('cache', 32)), h('span', { class: 'main' }, h('b', {}, 'On the ground'), h('span', { class: 'ds-dim' }, `${ground.map(i => nameOf(G.data, i)).join(', ')}. Anyone here may pick it up with a Loot phase.`)))));
     put('get', 'What you could get', get, get.length ? 'found here' : '');
 
-    // signs: sounds and warnings that have turned up in this clearing
-    const signs = G.st.chits.filter(c => !c.pile && c.tile === tile && c.clearing === n && c.up && c.kind !== 'site').map(c => row(c.kind, c.kind === 'sound' ? `${c.name} (sound ${c.num})` : c.name, 'Monsters stir here.', mrChit(c)));
+    // signs: sounds and warnings that have turned up in this clearing, each with what it can call on this tile (the Appearance chart's rows for it, with the Monster Roll that brings them)
+    const signs = G.st.chits.filter(c => !c.pile && c.tile === tile && c.clearing === n && c.up && c.kind !== 'site').map(c => signRow(G, c, tile));
     put('signs', 'Signs', signs);
 
     // roads: collapsed (a long list; one tap)
     const roads = roadsFrom(G.st, G.data, id);
     const KIND = { open: 'road', tunnel: 'tunnel', hidden: 'hidden path', secret: 'secret passage' };
     const terrain = cdef.type === 'mountain' ? 'Mountain clearing: entering takes two Move phases.' : cdef.type === 'cave' ? 'Cave clearing: no sunlight phases on the day you are in one.' : null;
-    const roadsEl = h('details', { class: 'ds-roads' }, h('summary', {}, `${roads.filter(r => r.usable).length} road${roads.filter(r => r.usable).length === 1 ? '' : 's'} out of here`),
+    // (note 95: open unless the player folded it, and the choice is the same in every clearing sheet: ds.js sectionOpen)
+    const roadsEl = h('details', { class: 'ds-roads', 'data-roads': '', open: sectionOpen('roads') || null, ontoggle: e => { if (e.target.open !== sectionOpen('roads')) setSectionOpen('roads', e.target.open); } }, h('summary', {}, `${roads.filter(r => r.usable).length} road${roads.filter(r => r.usable).length === 1 ? '' : 's'} out of here`),
         terrain ? h('p', { class: 'ds-meta' }, terrain) : null,
         ...(roads.length ? roads.map(r => row(r.usable ? 'road' : 'road off', `to ${nbsp(nameOfClearing(r.to))}`, r.usable ? KIND[r.kind] : `${KIND[r.kind]} (not found yet)`)) : [row('road off', 'none', '')]));
 

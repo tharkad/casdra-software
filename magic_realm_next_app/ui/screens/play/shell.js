@@ -8,6 +8,7 @@ import { h } from '../../dom.js';
 import { lastDayOf, timed } from '../../gametext.js';
 import { meetState, playerOf as playerNameOf } from '../../meet.js';
 import { party, markers as partyMarkers } from '../../party.js';
+import { displayName } from '../../names.js';
 import { EDGE, moveOptions, planState } from '../../planlogic.js';
 import { strip } from '../../ds.js';
 import { renderParty } from './hotseat.js';
@@ -94,6 +95,19 @@ export function mapModel(G) {
         }
     }
     const localParty = !G.shared && !G.race && leaderGame(tableModel(G.st, G.data));
+    // The characters themselves are on the map like everything else (notes 90, 96): one pill each, standing in his clearing, with his hex face, his name and whether he is hidden or in plain
+    // sight. (A shared table and a party with hired leaders already have a counter for each seat: they keep those.)
+    if (!G.shared && !localParty) {
+        const me = ownSheet(G.st, G.data), actor = me.id, pic = id => art?.characters?.[id]?.replace(/\.gif$/, '.png') ?? null;
+        const list = G.race ? [me] : (tableModel(G.st, G.data).order ?? [actor]).map(id => ({ id, ...(charsOf(G.st, G.data)[id] ?? {}) }));
+        for (const c of list) {
+            const at = c.id === actor ? me.at : c.at, gone = c.id === actor ? me.onRoad || me.flying : c.onRoad || c.flying;
+            if (!at || gone || c.dead || (c.id === actor && me.dead)) continue;
+            // (his own first: the pill of the one whose turn it is leads the clearing's names)
+            const t = { k: 'char', label: displayName(c.name ?? me.name), img: pic(c.id), hid: !!(c.id === actor ? me.hidden : c.hidden), me: c.id === actor, char: c.id };
+            if (t.me) (tokens[at] ??= []).unshift(t); else add(at, t);
+        }
+    }
     return {
         tiles: G.data.tiles, art: G.data.art, placements: G.st.placements, side: 'normal', showHidden: false, discovered: knownPathPairs(G.st),
         chitsByTile, tokens, hero: ownSheet(G.st, G.data).onRoad || G.st.ch.dead || ownSheet(G.st, G.data).flying ? null : ownSheet(G.st, G.data).at, heroAir: !G.st.ch.dead && ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : null, heroHidden: ownSheet(G.st, G.data).hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
