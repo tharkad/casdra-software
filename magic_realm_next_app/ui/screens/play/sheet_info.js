@@ -2,42 +2,22 @@
 import { defOf, nameOf, priceOf } from '../../../engine/catalogue.js';
 import { CATS, FACTORS } from '../../../engine/catalogue.js';
 import { earned, progress, scoreGame, targets } from '../../../engine/score.js';
-import { COLORS, COLOR_MEANING, dayColors, isMagicDay } from '../../../engine/catalogue.js';
-import { colorSources } from '../../../engine/spells.js';
-import { nameOfClearing } from '../../../engine/catalogue.js';
 import { ask } from '../../ask.js';
 import { collect as collectReport, send as sendReport } from '../../bugreport.js';
 import { h } from '../../dom.js';
-import { SPELLS_HOW, timed } from '../../gametext.js';
+import { SPELLS_HOW } from '../../gametext.js';
 import { markable } from '../../table.js';
 import { VERSION } from '../../version.js';
 import { abandon, copyInvite } from './actions.js';
-import { colorChip, modal, mrChit, picOf } from './kit.js';
+import { modal, mrChit, picOf } from './kit.js';
+import { calendarSheet as buildCalendar } from './sheet_calendar.js';
 import { render } from './shell.js';
 import { persist } from './state.js';
 import { ownSheet, gameOf } from '../../combat/feed.js';
+import { colorSources } from '../../../engine/spells.js';
 
-export function calendarSheet(G) {
-    const last = gameOf(G.st, G.data).lastDay ?? 28, weeks = Math.ceil(last / 7);
-    const cell = d => {
-        const cols = dayColors(d, gameOf(G.st, G.data).lastDay ?? 28);
-        return h('div', { class: `calday${d === gameOf(G.st, G.data).day ? ' today' : ''}${d < gameOf(G.st, G.data).day ? ' past' : ''}${cols.length ? ' magic' : ''}` },
-            h('b', {}, String(d)), ...cols.map(c => h('i', { class: `dot ${c.toLowerCase()}`, title: c })));
-    };
-    const here = colorSources(G.st, G.data, ownSheet(G.st, G.data).at);
-    return modal(G, 'Calendar and magic', h('div', { class: 'calendar' },
-        ask(isMagicDay(gameOf(G.st, G.data).day) ? `Today the land is filled with ${dayColors(gameOf(G.st, G.data).day, gameOf(G.st, G.data).lastDay ?? 28).join(' and ')} magic.` : `Day ${gameOf(G.st, G.data).day}${timed(G.st) ? ` of ${last}` : ''}: an ordinary day for magic.`,
-            'On the seventh day of each week one colour of magic fills the whole realm, from sunrise to midnight, in every clearing. Spells of that colour can be cast anywhere that evening.'),
-        h('div', { class: 'calgrid' }, ...Array.from({ length: weeks }, (_, w) => h('div', { class: 'calweek' }, h('small', {}, `Week ${w + 1}`), ...Array.from({ length: 7 }, (_, k) => cell(w * 7 + k + 1))))),
-        h('h3', {}, 'The week\'s colours'),
-        ...Array.from({ length: weeks }, (_, w) => h('p', { class: 'calrow' }, h('b', {}, `Day ${(w + 1) * 7}`), ...dayColors((w + 1) * 7, gameOf(G.st, G.data).lastDay ?? 28).map(c => colorChip(c)))),
-        h('h3', {}, 'What each colour is'),
-        ...COLORS.map(c => h('p', { class: 'calrow' }, colorChip(c), h('span', {}, COLOR_MEANING[c]))),
-        h('h3', {}, `In your clearing (${nameOfClearing(ownSheet(G.st, G.data).at).replace(/ (\d+)$/, '\u00A0$1')})`),
-        here.length ? h('div', {}, ...here.map(x => h('p', { class: 'calrow' }, colorChip(x.color), h('span', {}, x.why)))) : h('p', { class: 'hint' }, 'No colour of magic is present here today.'),
-        h('p', { class: 'hint' }, 'Colours of magic come from the seventh day and from a Chapel (White).')),
-        { close: () => { G.ui.sheet = null; render(G); } });
-}
+// The Calendar sheet (its own file: the Days and Turn order tabs). The colours of magic in the viewer's clearing are read here and handed in.
+export const calendarSheet = G => buildCalendar(G, colorSources(G.st, G.data, ownSheet(G.st, G.data).at));
 
 export function raceSheet(G) {
     const rows = G.standings.length ? G.standings : [];

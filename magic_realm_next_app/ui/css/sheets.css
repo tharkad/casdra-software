@@ -169,3 +169,34 @@ button.chit2:disabled { cursor: default; }
 .piececard .big svg { width: min(220px, 62vw); height: auto; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .55)); }
 .piececard .facts { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font: 400 15px/1.35 var(--font-voice); color: var(--ink-2); }
 .pieceopen { cursor: pointer; }
+
+/* the calendar's colours of magic, drawn with the colour-magic art (note 84), and its Turn order tab (note 85) */
+.calendar .kit-seg { margin: 2px 0 10px; }
+.calday { min-height: 48px; }
+.calday .blasts { display: flex; justify-content: center; align-items: center; gap: 0; }
+.calday .blast { width: 24px; height: 24px; object-fit: contain; }
+.calday.two .blast { width: 17px; height: 17px; }
+.calday.magic { border-color: var(--gold-lo, #8f7cc0); }
+.mcolor.big { padding: 2px 12px 2px 4px; gap: 8px; min-height: 40px; }
+.mcolor.big img { width: 32px; height: 32px; }
+.calrow > b { min-width: 52px; }
+
+.calstages { list-style: none; margin: 4px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.calstage { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); overflow: hidden; }
+.calstage.now { border-color: var(--gold); background: var(--gold-wash, var(--panel)); box-shadow: 0 0 0 1px var(--gold) inset; }
+.calstage-head { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 6px 10px; text-align: left; color: var(--text); background: none; border: 0; font: inherit; cursor: pointer; }
+.calstage-head .n { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-weight: 700; font-size: calc(14px * var(--ts, 1)); color: var(--dim); }
+.calstage.now .n { background: var(--gold); border-color: var(--gold); color: #0b0e12; }
+.calstage-head .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.calstage-head b { font-size: calc(17px * var(--ts, 1)); display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.calstage-head .here { font-style: normal; font-weight: 700; font-size: calc(12px * var(--ts, 1)); letter-spacing: .04em; text-transform: uppercase; color: var(--gold); border: 1px solid var(--gold); border-radius: 999px; padding: 1px 8px; }
+.calstage-head .l { font-size: calc(15px * var(--ts, 1)); color: var(--ink-2, var(--dim)); }
+.calstage-head .now-line { font-size: calc(14px * var(--ts, 1)); color: var(--gold); font-weight: 600; }
+.calstage-head .chev { flex: none; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; color: var(--dim); transition: transform .15s; }
+.calstage.open .chev { transform: rotate(180deg); }
+.calstage-more { display: none; padding: 0 12px 8px 48px; }
+.calstage.open .calstage-more { display: block; }
+.calstage-more p { margin: 4px 0; font-size: calc(15px * var(--ts, 1)); line-height: 1.35; }
+.caldraw { margin: 4px 0; }
+.calparty { margin: 4px 0 8px; padding-left: 20px; font-family: var(--font-voice, inherit); }
+.calparty li { margin: 6px 0; font-size: calc(15px * var(--ts, 1)); line-height: 1.35; }
