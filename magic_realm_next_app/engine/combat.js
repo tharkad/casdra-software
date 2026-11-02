@@ -61,7 +61,7 @@ export const contested = st => { const b = st.battle; return !!b?.pvp && new Set
 // The structured twin of the line of a blow's hit determination (blow.landed / blow.missed, docs/engine-api/EVENT-CODES.md). `how` (landed) and `why` (missed) are codes: 'box' (the blow goes the way the
 // defender's maneuver faces), 'undercut' (its time is faster than his), 'tie' (Ointment of Bite), 'free' (the defender played no maneuver), 'avoided' (his maneuver avoids it), 'slow' (not fast enough to undercut),
 // 'gone' (the target is no longer there). Given as the last argument of a `log(...)`.
-const blowEv = (hit, attacker, target, weapon, dir, how, box = null, extra = null) => ({ ev: hit ? { code: 'blow.landed', attacker, target, weapon, dir, how, box } : { code: 'blow.missed', attacker, target, weapon, dir, why: how, ...extra } });
+const blowEv = (hit, attacker, target, weapon, dir, how, box = null, extra = null) => ({ ev: hit ? { code: 'blow.landed', attacker, target, weapon, dir, how, box, ...extra } : { code: 'blow.missed', attacker, target, weapon, dir, why: how, ...extra } });
 const boxName = d => (d.box != null ? MANEUVERS[d.box].toLowerCase() : null);
 // A name as a token for an event ("Heavy Troll #1" -> "heavy-troll-1"): an event holds ids and codes, never display text.
 const tokenOf = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -1177,12 +1177,12 @@ export function meleeCollect(st, data, X, peers = null) {
             const vm = rival.X.move, vdir = rival.X.p.moveDir, vtime = vm ? vm.time : null, bite = !hm && hasTreasure(st, 'ointment-of-bite');
             const noMnv = !vm || vdir == null, inLane = !noMnv && vdir === myDir;
             const fast = !noMnv && attackTime != null && vtime != null && (bite ? attackTime <= vtime : attackTime < vtime);
-            const where = noMnv ? 'no maneuver' : `${MANEUVERS[vdir]}${vm.isHorse ? ' (his horse)' : ''}`;
+            const where = noMnv ? 'no maneuver' : `${MANEUVERS[vdir]}${vm.isHorse ? ' (his horse)' : ''}`, lane = noMnv ? 'none' : `${MANEUVERS[vdir].toLowerCase()}${vm.isHorse ? '-horse' : ''}`;          // (`lane`: the maneuver he met, as a code)
             if (noMnv || inLane || fast) {
                 hits.push({ who: 'me', char: vid, time: attackTime, length: mySide.length });
                 log(noMnv ? `You: ${DIRS[myDir]} at ${vname} (${where}): hit; everything on a sheet with no maneuver is hit.` : inLane ? `You: ${DIRS[myDir]} at ${vname} (${where}): hit.` : `You: ${DIRS[myDir]} at ${vname} (${where}): hit by undercutting (your time ${attackTime} beats his ${vtime}).`, null,
-                    blowEv(true, st.ch.id, vid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), noMnv ? 'free' : inLane ? 'box' : 'undercut'));
-            } else log(`You: ${DIRS[myDir]} at ${vname} (${where}): miss (${DIRS[myDir]} hits ${MANEUVERS[myDir]}${vtime != null ? `; his time ${vtime} is not slower than your ${attackTime}` : ''}).`, null, blowEv(false, st.ch.id, vid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), 'slow'));
+                    blowEv(true, st.ch.id, vid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), noMnv ? 'free' : inLane ? 'box' : 'undercut', null, { lane }));
+            } else log(`You: ${DIRS[myDir]} at ${vname} (${where}): miss (${DIRS[myDir]} hits ${MANEUVERS[myDir]}${vtime != null ? `; his time ${vtime} is not slower than your ${attackTime}` : ''}).`, null, blowEv(false, st.ch.id, vid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), 'slow', null, { lane }));
         }
     }
     // pvp: a blow at someone else's hireling: it has no maneuver of its own, so a die gives the lane it stands in; it also hits if it undercuts the hireling's move time

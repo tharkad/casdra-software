@@ -166,6 +166,14 @@ export function parseSpoils(lines, byName, records = null, data = null) {
     }
     return out;
 }
+/** The swing at a character that a `blow.landed` / `blow.missed` event of the fight tells (it carries the `lane` he met), or null. Two quirks of the sentence reading are kept so that the screens say the same:
+ * a swing at a maneuver played with a horse, a hit that undercuts, and every miss are not read from "You: Thrust at X (Dodge (his horse)): hit" / "hit by undercutting (...)" (they do not fit SWING), so they are not read from the event either. */
+function swingOfEvent(ev, byId) {
+    if (!ev || ev.code !== 'blow.landed' || !ev.lane) return null;          // (a miss is never read: its sentence, "miss (Thrust hits Dodge; ...)", does not fit SWING either, so `missStory` has never had a swing to tell)
+    const atMember = byId.get(ev.target);
+    if (!atMember || ev.lane.endsWith('-horse') || (ev.code === 'blow.landed' && ev.how === 'undercut')) return null;
+    return { dir: ev.dir[0].toUpperCase() + ev.dir.slice(1), atMember, result: 'hit', maneuver: ev.lane === 'none' ? null : ev.lane[0].toUpperCase() + ev.lane.slice(1) };
+}
 const SWING = /^You: (Thrust|Swing|Smash) at (.+?) \((no maneuver|[^)]*?)\): (hit|miss)(?:[;(:] ?(.*))?\.?$/;
 /** The facts of a round that involve characters, from the lines the server sent the viewer (each in the voice of the one it happened to) and the table's record:
  *  swings  every attack named at someone: { by, dir, at, atMember, result, maneuver, note }
@@ -173,7 +181,7 @@ const SWING = /^You: (Thrust|Swing|Smash) at (.+?) \((no maneuver|[^)]*?)\): (hi
  *  kills   who struck whom down: { victim, killers:[member], killerNames, notoriety, fame, gold, items:[names], shared, hired, mine }
  *  pvp     whether any of it was between characters (a charge, a blow at a character, a kill) */
 export function pvpRound(view, f, report, round = report?.round, data = null) {
-    const byName = new Map(f.members.map(m => [m.character, m]));
+    const byName = new Map(f.members.map(m => [m.character, m])), byId = new Map(f.members.map(m => [m.id, m]));
     const swings = [], blows = [], spoils = [];
     for (const m of f.members) {
         const per = report?.per?.[m.id];
@@ -182,6 +190,11 @@ export function pvpRound(view, f, report, round = report?.round, data = null) {
         for (const l of per.lines) {
             const t = l.t ?? '';
             let x;
+            const sw = swingOfEvent(l.ev, byId);          // (a swing at a character, as the engine's event tells it; any other line, or a line without an event, is read from its sentence)
+            if (sw) {
+                swings.push({ by: m, dir: sw.dir, at: sw.atMember.character, atMember: sw.atMember, result: sw.result, maneuver: sw.maneuver, note: '', story: l.s ?? null, line: l });
+                cur = null; continue;
+            }
             if ((x = SWING.exec(t))) {
                 const at = x[2], atMember = byName.get(at) ?? null;
                 swings.push({ by: m, dir: x[1], at, atMember, result: x[4], maneuver: x[3] === 'no maneuver' ? null : x[3], note: x[5] ?? '', story: l.s ?? null, line: l });
