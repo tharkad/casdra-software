@@ -131,6 +131,8 @@ export const EVENT_CODES = {
     'score.made': ['9.3', 'table'],
     'char.adventure-ends': ['9.1', 'table'],
     'char.dies': ['8.5.3', 'table'],
+    'char.killed': ['8.7.2', 'fight'],
+    'char.record.read': ['8.7.2d', 'seat'],
     'char.restarted': ['9.1.2', 'table'],
     'roll.made': ['all', 'clearing'],
     'spell.cast': ['8.3.9', 'fight'],

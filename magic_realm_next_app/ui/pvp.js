@@ -8,6 +8,8 @@ import { hireStats, optionsOf } from './combat/feed.js';
 import { meetLines } from './meet.js';
 import { chitText, joinList } from './fight.js';
 
+// An item of the data by its id (an event names it by id alone): the kind is the table the id is found in.
+const itemOf = (data, id) => (data.weapons?.[id] ? { kind: 'weapon', id } : data.armor?.[id] ? { kind: 'armor', id } : data.horses?.[id] ? { kind: 'horse', id } : { kind: 'treasure', id });
 const cap = s => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const WORD = { N: 'Negligible', L: 'Light', M: 'Medium', H: 'Heavy', T: 'Tremendous' };
 export const harmWord = h => WORD[h] ?? h;
@@ -131,16 +133,26 @@ export function recordsFor(view, myId = view?.actor) {
     for (const l of view?.log ?? []) {
         if (l.vis !== 'owner' || (l.who && l.who !== myId)) continue;
         const x = RECORD.exec(l.t ?? '');
-        if (x) out.set(`${l.day}|${x[1]}`, { gold: Number(x[2]), notoriety: Number(x[3]) });
+        if (l.ev?.code === 'char.record.read') out.set(`${l.day}|${view.chars?.[l.ev.victim]?.name ?? (x ? x[1] : l.ev.victim)}`, { gold: l.ev.gold, notoriety: l.ev.notoriety });          // (the engine's event, where the line has one)
+        else if (x) out.set(`${l.day}|${x[1]}`, { gold: Number(x[2]), notoriety: Number(x[3]) });
     }
     return out;
 }
 /** The spoils lines in a set of lines: [{ victim, killer, killerName, hired, shared, notoriety, fame, gold, goldRecord, items, belongings, r }] (members come from `byName`: character name to member).
  * `gold` is what the viewer is allowed to know: the figure from his own record line when HE is the killer (`records`, recordsFor), a gold figure still printed in the line (a game made before R-23), else null.
  * In a shared kill the record is the victim's whole purse, each killer's share is not told: `gold` stays null and `goldRecord` carries the purse. */
-export function parseSpoils(lines, byName, records = null) {
-    const out = [];
+export function parseSpoils(lines, byName, records = null, data = null) {
+    const out = [], byId = new Map([...byName.values()].map(m => [m.id, m]));
     for (const l of lines) {
+        const ev = l.ev?.code === 'char.killed' && data ? l.ev : null;          // (a kill the engine told as an event: the facts are read from it, the sentence not parsed)
+        if (ev) {
+            const victim = byId.get(ev.victim), killer = byId.get(ev.killer) ?? null;
+            if (!victim || out.some(s => s.victim === victim && s.killer === killer)) continue;
+            const rec = records?.get(`${l.day}|${victim.character}`) ?? null, shared = !!ev.shared;
+            out.push({ victim, killer, killerName: killer?.character ?? ev.killer, hired: !!ev.hire, shared, notoriety: ev.notoriety, fame: ev.fame, gold: rec && !shared ? rec.gold : null, goldRecord: rec ? rec.gold : null,
+                items: ev.items.map(id => nameOf(data, itemOf(data, id))), belongings: ev.items.length > 0, r: l.r ?? null });
+            continue;
+        }
         const x = /^(.+?) killed (.+?)( \(shared\))?(?: and takes (.+))?\.$/.exec(l.t ?? '');
         if (!x) continue;
         const hired = /'s hireling$/.test(x[1]), killerName = x[1].replace(/'s hireling$/, '');
@@ -160,7 +172,7 @@ const SWING = /^You: (Thrust|Swing|Smash) at (.+?) \((no maneuver|[^)]*?)\): (hi
  *  blows   every blow that landed on a character: { from:{ member|name }, label, dir, harm, to, gear:{name,fate}|null, wound, slain, noEffect, horse }
  *  kills   who struck whom down: { victim, killers:[member], killerNames, notoriety, fame, gold, items:[names], shared, hired, mine }
  *  pvp     whether any of it was between characters (a charge, a blow at a character, a kill) */
-export function pvpRound(view, f, report, round = report?.round) {
+export function pvpRound(view, f, report, round = report?.round, data = null) {
     const byName = new Map(f.members.map(m => [m.character, m]));
     const swings = [], blows = [], spoils = [];
     for (const m of f.members) {
@@ -193,7 +205,7 @@ export function pvpRound(view, f, report, round = report?.round) {
     }
     // the spoils: "Black Knight killed Captain and takes 7 Notoriety, 10 gold, his belongings (Short Sword, Helmet)." (the killer's line, told to everyone in the fight)
     const all = [...(report?.table ?? []), ...f.members.flatMap(m => report?.per?.[m.id]?.lines ?? [])];
-    spoils.push(...parseSpoils(all, byName, recordsFor(view, view?.actor)));
+    spoils.push(...parseSpoils(all, byName, recordsFor(view, view?.actor), data));
     // the table's record is authoritative for who and what; the lines add the gold and the order
     const rec = (view?.battle?.kills ?? []).filter(k => k.round === round);
     const kills = [];

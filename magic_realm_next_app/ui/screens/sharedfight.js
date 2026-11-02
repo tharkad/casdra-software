@@ -196,7 +196,7 @@ export function revealCard({ st: fm, data, f, report, plays, round, callouts = t
     const story = isStory();
     const members = f.members;
     const rows = members.filter(m => report.per[m.id]).map(m => ({ m, facts: report.per[m.id].facts, lines: report.per[m.id].lines }));
-    const rd = report.any ? pvpRound(fm, f, report, round) : null, pv = !!rd?.pvp;
+    const rd = report.any ? pvpRound(fm, f, report, round, data) : null, pv = !!rd?.pvp;
     const sig = JSON.stringify([plays.map(p => [p.id, p.target, p.attack, p.fight, p.move, p.maneuver]), rows.map(r => [r.m.id, r.facts.kills.map(k => k.name), r.facts.gain, r.facts.wounds, r.facts.gear.map(g => g.name + g.how)]), pv ? rd.kills.map(k => [k.victim.id, k.killers.map(x => x.id), k.notoriety, k.items]) : null]);
     // a character who falls is a big moment (the owner asked for a large callout): by another character, or by a creature when the table plays with the switch on
     const creatureFalls = rd && (pv || f.pvp) ? rows.filter(r => r.facts.died && !rd.kills.some(k => k.victim === r.m)).map(r => ({ victim: r.m, killers: [], killerName: r.facts.died.by ? String(r.facts.died.by).replace(/ #\d+$/, '') : null, creature: true, notoriety: 0, gold: null, items: [], belongings: false })) : [];

@@ -589,7 +589,7 @@ function endRound(st, data) {
 // ---- the end ----
 function finish(st, data) {
     const b = st.battle;
-    say(st, `The fighting at ${b.at} is over.`, 'combat', null, { who: null });
+    say(st, `The fighting at ${b.at} is over.`, 'combat', null, { who: null, ev: { code: 'combat.over', at: b.at } });          // (the table's end of the fight: no `how`, the sheets' own ends carry one)
     for (const id of b.order) st.chars[id].today.combat = null;
     st.asks = st.asks.filter(a => !b.order.includes(a.who) || !/^combat-/.test(a.pending.type));
     hs.combatEnd(st, data, b);                                                              // (hireling rules: the counters are turned to the side their status calls for, 8.8.6)

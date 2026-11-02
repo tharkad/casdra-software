@@ -149,7 +149,7 @@ export function factsOf(lines) {
 export function roundReport(view, f, round, myId) {
     let lines = fightLines(view, myId).filter(l => l.r === round);
     // the plays are shown at the barrier: the round's account starts there (what was said before it is the lure and the dealing)
-    const cut = lines.map(l => /^The plays are shown/.test(l.t)).lastIndexOf(true);
+    const cut = lines.map(l => (l.ev ? l.ev.code === 'melee.plays.shown' : /^The plays are shown/.test(l.t))).lastIndexOf(true);          // (the event where the line has one)
     if (cut >= 0) lines = lines.slice(cut);
     const per = {};
     for (const m of f.members) {
@@ -233,8 +233,9 @@ export function fightSummary(view, myId) {
     const ids = [...new Set(lines.filter(l => l.who).map(l => l.who))];
     const per = {};
     for (const id of ids) per[id] = factsOf(lines.filter(l => l.who === id));
-    const over = [...lines].reverse().find(l => /^The fighting at (\S+) is over\./.test(l.t));
-    const at = over ? /^The fighting at (\S+) is over\./.exec(over.t)[1] : (lines.find(l => START.test(l.t)) ? /together at (\S+) as/.exec(lines.find(l => START.test(l.t)).t)?.[1] ?? null : null);
+    const ended = l => (l.ev ? l.ev.code === 'combat.over' && l.ev.how == null : /^The fighting at (\S+) is over\./.test(l.t));          // (the table's end of the fight: the event where the line has one)
+    const over = [...lines].reverse().find(ended), began = lines.find(l => (l.ev ? l.ev.code === 'combat.begins' : START.test(l.t)));
+    const at = over ? (over.ev?.at ?? /^The fighting at (\S+) is over\./.exec(over.t)[1]) : (began ? (began.ev?.at ?? /together at (\S+) as/.exec(began.t)?.[1] ?? null) : null);
     const rounds = [...new Set(lines.map(l => l.r).filter(Boolean))];
     const lastRound = rounds.length ? Math.max(...rounds) : 0;
     return { lines, per, ids, at, over: !!over, day: over?.day ?? lines.at(-1)?.day ?? view?.day, lastRound, key: `${over?.day ?? view?.day}|${at}` };

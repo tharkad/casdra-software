@@ -1896,7 +1896,8 @@ function settleKills(st, data, kills, parts, run) {
             if (k === taker && taken.length) { const goods = `his belongings (${taken.map(it => nameOfItem(st, data, it)).join(', ')})`; bits.push(goods); own.push(goods); }
             // R-23: the gold a victim carried is recorded and secret; the killer reads it off him (a line of his own, below), the others in the fight see what is public (Notoriety, belongings)
             const head = `${st.chars[k.killer].name}${k.hire ? "'s hireling" : ''} killed ${ch.name}${list.length > 1 ? ' (shared)' : ''}`;
-            said.push({ k, v, text: `${head}${bits.length ? ` and takes ${bits.join(', ')}` : ''}.`, own: gold ? `${head} and takes ${own.join(', ')}.` : null, reveal: { victim: ch.name, gold: s.gold, notoriety: s.notoriety } });
+            said.push({ k, v, text: `${head}${bits.length ? ` and takes ${bits.join(', ')}` : ''}.`, own: gold ? `${head} and takes ${own.join(', ')}.` : null, reveal: { victim: ch.name, gold: s.gold, notoriety: s.notoriety },
+                ev: { code: 'char.killed', killer: k.killer, victim: v, ...(k.hire ? { hire: true } : {}), ...(list.length > 1 ? { shared: true } : {}), notoriety: n, fame: f, items: k === taker ? taken.map(it => it.id) : [] } });
         });
         ch.today.slain = { ...(ch.today.slain ?? {}), by: st.chars[list[0].killer].name, killer: list[0].killer };
         if (b.kills) {
@@ -1910,8 +1911,8 @@ function settleKills(st, data, kills, parts, run) {
     for (const x of said) {
         const pt = parts.find(p => p.by === x.k.killer);
         if (pt) run(pt, () => {
-            say(st, x.text, 'combat'); pt.c.events.push(x.own ?? x.text); pt.c.eventful = true;
-            say(st, `You read ${x.reveal.victim}'s record: ${x.reveal.gold} gold and ${x.reveal.notoriety} Notoriety.`, 'info', null, { who: x.k.killer, vis: 'owner' });          // (R-23: a one-time reveal, for the killer alone)
+            say(st, x.text, 'combat', null, { ev: x.ev }); pt.c.events.push(x.own ?? x.text); pt.c.eventful = true;
+            say(st, `You read ${x.reveal.victim}'s record: ${x.reveal.gold} gold and ${x.reveal.notoriety} Notoriety.`, 'info', null, { who: x.k.killer, vis: 'owner', ev: { code: 'char.record.read', who: x.k.killer, victim: x.v, gold: x.reveal.gold, notoriety: x.reveal.notoriety } });          // (R-23: a one-time reveal, for the killer alone)
             delete st.log.at(-1).with;                                                                       // (his alone: who stood by is no business of the line, and would depend on the order the answers came in)
         });
     }

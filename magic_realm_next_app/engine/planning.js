@@ -1,6 +1,6 @@
 // planning.js: what a Birdsong plan may hold, as pure functions of the game and the draft slots (moved here from app/ui/planlogic.js, Phase 3 round 6: they are rules, and the screens ask them
 // through `check(..., { probe: 'plan' })`; planlogic.js still re-exports them for the tests and tools that import them from there).
-import { roadsFrom, isMountain, isCave, mapEdgeClearings } from './world.js';
+import { roadsFrom, isMountain, isCave, mapEdgeClearings, clearingType } from './world.js';
 import { planKinds } from './day.js';
 import { MORPH_REFUSED } from './magic/morph.js';
 
@@ -64,5 +64,7 @@ export function whereOf(st, data, slots) {
     for (let i = 0; i < 9; i++) { moves.push(moveOptions(st, data, slots, i)); leave.push(canLeaveAt(st, data, slots, i)); }
     const refusals = {};
     for (const a of ACTS) { const why = actRefusal(st, a); if (why) refusals[a] = why; }
-    return { at, climbing, moves, leave, refusals };
+    const types = {};          // (the kind of every clearing a Move may name: woods, cave or mountain)
+    for (const m of moves) for (const id of [...m.sure, ...m.maybe]) types[id] ??= clearingType(st, data, id);
+    return { at, climbing, moves, leave, refusals, types };
 }
