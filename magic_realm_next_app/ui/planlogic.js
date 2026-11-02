@@ -1,6 +1,6 @@
 import { nameOfClearing } from '../engine/catalogue.js';
 import { roadsFrom, isMountain, isCave, mapEdgeClearings } from '../engine/world.js';
-import { planKinds } from '../engine/day.js';
+import { planKinds } from './combat/feed.js';
 import { MORPH_REFUSED } from '../engine/magic/morph.js';
 
 // What the plan builder may offer, as pure functions of the game and the draft slots (no DOM), so tests can hold them to the rules (docs/audit/rules-eval/02).

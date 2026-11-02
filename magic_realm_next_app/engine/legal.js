@@ -117,7 +117,7 @@ function combatOf(st, data, who, p) {
 
 // ---- the questions that finish a phase: Rest, the Search tables and their results, the price of a site, Enchant, Reading Runes, a spell offered (Phase 3 slice 2, first step) ----
 // Each is a plain list of options in the question already (a Rest option is a chit, a table is a name ...): `legal` turns every option into an action template. `options` is the question's own record.
-export const PHASE_QUESTIONS = ['rest', 'search-table', 'search-choice', 'effort-cost', 'enchant-choice', 'runes-target', 'learn-spell'];
+export const PHASE_QUESTIONS = ['rest', 'search-table', 'search-choice', 'effort-cost', 'enchant-choice', 'runes-target', 'learn-spell', 'phase', 'phase-pick', 'turn-end', 'evening-end', 'phase-gear'];
 const turn = (type, fields = {}, extra = {}) => ({ action: { type, ...fields }, ...extra });
 function phaseOf(p) {
     const out = { answers: [], free: [], options: plain(p) }, os = p.options ?? [];
@@ -128,6 +128,9 @@ function phaseOf(p) {
         case 'effort-cost': out.answers = os.map((o, n) => turn('effort-cost', { n }, { preview: { chits: o.chits, cost: o.cost } })); break;
         case 'enchant-choice': out.answers = os.map(o => turn('enchant-choice', { chit: o.chit, kind: o.kind ?? 'chit' }, { preview: { tile: o.tile, color: o.color } })); break;
         case 'runes-target': out.answers = os.map(o => turn('runes-target', { target: o.key })); break;
+        case 'phase': out.answers = [turn('next', {}, { pick: { all: { bool: true } } })]; break;          // run the phase that is next in the plan; `all` goes on through the rest of the day's plan
+        case 'phase-pick': out.answers = [turn('next', {}, { pick: { all: { bool: true } } }), turn('pick', {}, { pick: { slot: { record: { act: { enum: p.acts ?? [] }, to: { free: true }, table: { enum: p.tables ?? [] } } }, all: { bool: true } } })]; break;          // Prophecy: follow the suggestion, or pick the phase
+        case 'turn-end': case 'evening-end': case 'phase-gear': out.answers = [turn('continue')]; break;
         case 'learn-spell': out.answers = [turn('learn-spell', { learn: true }, { pick: p.full ? { erase: { free: true } } : {} }), turn('learn-spell', { learn: false })]; break;
         default: break;
     }

@@ -9,12 +9,12 @@ import { logText } from '../../voice.js';
 import { act } from './actions.js';
 import { showToast } from './kit.js';
 import { render } from './shell.js';
-import { questionOf } from '../../combat/feed.js';
+import { questionOf, missionsOf } from '../../combat/feed.js';
 
 const OPEN = new Set(['phase', 'phase-pick']);            // 7.2.4: "each time a character starts a phase of his turn" (the engine takes the action at these questions only)
 
 // ---- taking a chit ----
-export function takeNow(G) { return !!G.st.missions && !G.shared && !G.race && OPEN.has(questionOf(G.st, G.data)?.type) && !G.st.ch.dead; }
+export function takeNow(G) { return !!missionsOf(G.st, G.data) && !G.shared && !G.race && OPEN.has(questionOf(G.st, G.data)?.type) && !G.st.ch.dead; }
 export function takeList(G) { return takeNow(G) ? takeable(G.st, G.data) : []; }
 
 // Take it (the engine pays the cost at once); the line it logs is told in a toast, in the voice that is on

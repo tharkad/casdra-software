@@ -1,5 +1,5 @@
 // play/plan.js: the plan tray (planTray: tabs, one line, the nine actions, Start the day; tray.js puts it in the tray) and the draft logic behind it (pick, setMove, advance, pruneOver, startDay).
-import { planKinds, phasesFor, validatePlan } from '../../../engine/day.js';
+import { planKinds, phasesFor, validatePlan } from '../../combat/feed.js';
 import { canRecordFly, flySources, flyTiles, hasCarpet } from '../../../engine/magic/fly.js';
 import { nameOfClearing, numOf, tileName } from '../../../engine/catalogue.js';
 import { isCave, isMountain } from '../../../engine/world.js';

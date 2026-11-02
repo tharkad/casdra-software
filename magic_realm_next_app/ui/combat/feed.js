@@ -103,3 +103,23 @@ export function weaponOf(st, data) {
 export const activeArmor = (st, data) => viewOf(st, data).me.items.filter(i => i.kind === 'armor' && i.active && !i.destroyed).map(item => ({ item, def: defOf(data, item) }));
 /** Is this treasure card in force for him (owned, active)? */
 export const hasTreasure = (st, data, id) => viewOf(st, data).me.items.some(i => i.kind === 'treasure' && i.active && !i.destroyed && i.id === id);
+
+// ---- the Birdsong plan: what-if questions about a draft (api.check, probe 'plan') ----
+const planMemo = new WeakMap();
+/** What the engine says of a draft plan: { phases, kinds, valid } as phasesFor, planKinds and validatePlan answer. Remembered per state and draft. */
+export function planInfo(st, data, slots, who) {
+    const s = raw(st);
+    let m = planMemo.get(s);
+    if (!m || m.key !== keyOf(s)) planMemo.set(s, m = { key: keyOf(s), by: new Map() });
+    const k = `${whoOf(s, who)}|${JSON.stringify(slots)}`;
+    if (!m.by.has(k)) m.by.set(k, apiOf(data).check(s, whoOf(s, who), { type: 'plan', slots, probe: 'plan' }).plan);
+    return m.by.get(k);
+}
+export const phasesFor = (st, data, slots, who) => planInfo(st, data, slots, who).phases;
+export const planKinds = (st, data, slots, who) => planInfo(st, data, slots, who).kinds;
+export const validatePlan = (st, data, slots, who) => planInfo(st, data, slots, who).valid;
+
+/** The public sheet of every character on the table (view.table.characters): name, position, chits, gear in view, Fame, Notoriety, whether he is a hired leader ... */
+export const charsOf = (st, data, who) => viewOf(st, data, who).table.characters;
+/** The mission, campaign and visitor chits of a game that has them (view.table.missions), else null. */
+export const missionsOf = (st, data, who) => viewOf(st, data, who).table.missions ?? null;

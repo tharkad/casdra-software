@@ -18,7 +18,7 @@ import { markGroup } from '../../groups.js';
 import { boonContent } from './boon.js';
 import { isVisitorName, leaderArt, noDrinksRow, spellFoot, spellOfferContent, spellsRoom, visitorPriceTag } from './visitors.js';
 import { MOOD_WORD, actIcon, ask, dimBtn, footRow, goldEl, itemArt, moodOf, moodTag, nativeArt, plural, say, seg, skipBtn, tick, twoLine } from './common.js';
-import { ownSheet } from '../../combat/feed.js';
+import { ownSheet, missionsOf } from '../../combat/feed.js';
 
 // (a Trouble or an Opportunity throws again: in Story both rolls carry the group's name, so the later one is labelled "Thrown again" rather than repeating it)
 export const offerDice = (G, p) => {
@@ -152,7 +152,7 @@ function tradeMain(G, p) {
             dim: p.mode === 'sell' ? 'A phase is selling or buying, not both.' : null, onSelect: () => pickBuy(g.idxs.includes(sel.buy) ? sel.buy : g.idxs[0]), info: infoOf(G, { ...g.raw, kind: g.kind, id: g.id }) }))
             : [h('p', { class: 'kit-none' }, 'Nothing for sale.')];
         // 7.2.4h: a foe of the campaign he carries is an Enemy, and he cannot buy it drinks: the button is not offered, and the sheet says why
-        const foe = !visitor && !!G.st.missions && noDrinks(G.st, p.group);
+        const foe = !visitor && !!missionsOf(G.st, G.data) && noDrinks(G.st, p.group);
         rows = [foe ? h('p', { class: 'ds-why ms-foe', 'data-foe': p.group }, `The ${p.group} are foes of your campaign: they stand as Enemies, and you cannot buy them drinks.`) : drinksRow, ...rows];
     } else if (tab === 'spells') {
         rows = spellsRoom(G, p, sel, pickSpell);

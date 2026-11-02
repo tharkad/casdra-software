@@ -2,7 +2,7 @@
 // this file only chooses defaults for the player's plan, finds the words for what happened (from the lines the engine already wrote) and says why a control is dim.
 import { lvl, WEIGHT_WORDS, NO_EFFORT_LIMIT, nameOf, bookPic, isBookPic } from '../../engine/catalogue.js';
 import { denSide, hireStats, sheetOf } from './feed.js';
-import { fightLinesOf, harmOf, stampsOf as stampsOfLine, paidOf, whyWords } from '../voice/fight.js';
+import { fightLinesOf, harmOf, stampsOf as stampsOfLine, paidOf, whyWords, roundLinesOf, roundFactsOf, hittersOf, foeResultsOf, turnedOverOf, missNoteOf } from '../voice/fight.js';
 import { withArticle, displayName, fixNames } from '../names.js';
 import { isSectionLine, sectionStory } from './sections_voice.js';          // (hirelings on Melee Sections: the Record tells their lines in Story too)
 import { standing } from '../missions.js';
@@ -245,7 +245,9 @@ export const weaponVerb = o => (o.weapon?.item.alerted ? 'Unalert weapon' : 'Ale
 
 // ---- what a round did, read from the lines the engine wrote for it (c.events; the same words roundSynopsis reads) ----
 const STRIKE_RE = /^(?:The |the )?(.+?)(?:'s) (?:thrust|swing|smash|bite|club|claw|blow|sting|attack|strike)s? (glances off|thuds against|bites into|hammers|crashes down on) /i;
-export function roundFacts(events) {
+export function roundFacts(events, fm = null, data = null) {
+    const rl = fm && roundLinesOf(fm);          // (the voice layer: the round's events where the game records them, else its strings)
+    if (rl) return roundFactsOf(fm, data, rl);
     const L = (events ?? []).map(e => String(e).trim()).filter(Boolean);
     const m = re => L.map(l => re.exec(l)).filter(Boolean);
     const landed = m(STRIKE_RE).map(x => baseName(x[1]));
@@ -260,12 +262,14 @@ export function roundFacts(events) {
     };
 }
 // The foes that hit him this round, by display name ("Wolf #2"), read from the story lines (a name with a tag keeps it)
-export const hitters = events => (events ?? []).map(e => STRIKE_RE.exec(String(e).trim())).filter(Boolean).map(x => x[1].replace(/^the /i, ''));
+export const hitters = (events, fm = null) => (fm && roundLinesOf(fm) ? hittersOf(fm, roundLinesOf(fm)).map(n => n.replace(/^the /i, '')) : (events ?? []).map(e => STRIKE_RE.exec(String(e).trim())).filter(Boolean).map(x => x[1].replace(/^the /i, '')));
 
 // What each foe's blow did, by display name ("Axe Goblin #5"): 'wounded' (the blow got through), 'held' (no effect: your armor held), 'hit' (it landed and hurt your gear but wounded no one), 'missed' (it came at you and
 // missed). Read from the story lines: a blow is the strike line, and the line that follows it says what it did (QA-13/14: every counter used to say HIT YOU).
 const MISS_RE = /^(?:The |the )?(.+?)(?:'s) (?:thrust|swing|smash|bite|club|claw|blow|sting|attack|strike)s? misses: /i;
-export function foeResults(events) {
+export function foeResults(events, fm = null) {
+    const rl = fm && roundLinesOf(fm);
+    if (rl) return foeResultsOf(fm, rl);
     const L = (events ?? []).map(e => String(e).trim()).filter(Boolean), out = new Map();
     let cur = null;
     for (const l of L) {
@@ -279,7 +283,9 @@ export function foeResults(events) {
     return out;
 }
 // The foes whose counters were turned over by a Tactics roll this round (a 6: they switch sides), by display name. The engine says it as "In the Dodge box the Axe Goblin #5 shows another side."
-export function turnedOver(events) {
+export function turnedOver(events, fm = null) {
+    const rl = fm && roundLinesOf(fm);
+    if (rl) return turnedOverOf(fm, rl);
     const out = new Set();
     for (const e of events ?? []) {
         const x = /^In the \w+ box the (.+?) shows? another side\./.exec(String(e).trim());
@@ -288,7 +294,9 @@ export function turnedOver(events) {
     return out;
 }
 // The one miss worth explaining: "the Axe Goblin #5 is in Dodge, too quick to catch (3 against your 3)" -> the number that beat you, said as what it is
-export function missNote(events) {
+export function missNote(events, fm = null) {
+    const rl = fm && roundLinesOf(fm);
+    if (rl) return missNoteOf(fm, rl);
     for (const e of events ?? []) {
         const x = /the (.+?) is in (\w+), too quick to catch \((\d+) against your (\d+)\)/.exec(String(e));
         if (x) return `The ${x[1]} was too quick: its move speed ${x[3]} (the circle on its counter) is not slower than your attack time ${x[4]}.`;

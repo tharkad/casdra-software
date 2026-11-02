@@ -26,7 +26,7 @@ import { sheets } from './sheets.js';
 import { doneLoading } from './states.js';
 import { renderTray } from './tray.js';
 import { myId, saveUi, vpNow } from './state.js';
-import { ownSheet, fresh, gameOf, questionOf, tableFight } from '../../combat/feed.js';
+import { ownSheet, fresh, gameOf, questionOf, tableFight, charsOf, missionsOf } from '../../combat/feed.js';
 
 // ---- model for the map ----
 export function mapModel(G) {
@@ -62,22 +62,22 @@ export function mapModel(G) {
     const natImg = {}; for (const n of G.st.nats) { const g = G.data.natives[n.id].group; if (!natImg[g] || G.data.natives[n.id].leader) natImg[g] = art?.natives?.[n.id] ?? natImg[g] ?? null; }
     for (const m of mons) add(m.at, { k: 'mon', label: m.n > 1 ? `${m.name} x${m.n}` : m.name, img: monImg[m.name] });
     for (const n of nats) add(n.at, { k: 'nat', label: n.n > 1 ? `${n.name} x${n.n}` : n.name, img: natImg[n.name] });
-    if (G.st.missions) for (const t of mapTokens(G.st, G.data)) add(t.at, { k: t.k, label: t.label });          // visitor, mission and campaign chits lying in a clearing (they lie face up: public)
+    if (missionsOf(G.st, G.data)) for (const t of mapTokens(G.st, G.data)) add(t.at, { k: t.k, label: t.label });          // visitor, mission and campaign chits lying in a clearing (they lie face up: public)
     const hires = G.st.nats.filter(n => n.hired && !n.dead);
     if (G.shared) {
         // a hireling is its hirer's alone (7.7): each character's are shown where that character stands, named for him
         const here = new Map();                                      // clearing -> owner -> how many
-        for (const n of hires) { const owner = n.hiredBy ?? ownSheet(G.st, G.data).id, at = G.st.chars[owner]?.at; if (!at || G.st.chars[owner]?.onRoad) continue; const m = here.get(at) ?? here.set(at, new Map()).get(at); m.set(owner, (m.get(owner) ?? 0) + 1); }
+        for (const n of hires) { const owner = n.hiredBy ?? ownSheet(G.st, G.data).id, at = charsOf(G.st, G.data)[owner]?.at; if (!at || charsOf(G.st, G.data)[owner]?.onRoad) continue; const m = here.get(at) ?? here.set(at, new Map()).get(at); m.set(owner, (m.get(owner) ?? 0) + 1); }
         // one pill a clearing (two would crowd it into a marker): "Your hirelings x2", "Ann\u2019s hirelings x1", or "Hirelings: Ann 1, Tom 1" when several have them here
         for (const [at, owners] of here) {
             const list = [...owners].sort((a, b) => G.st.order.indexOf(a[0]) - G.st.order.indexOf(b[0]));
             add(at, { k: 'ally', label: list.length === 1 ? `${list[0][0] === ownSheet(G.st, G.data).id ? 'Your' : `${playerNameOf(G.st, list[0][0])}\u2019s`} hirelings x${list[0][1]}` : `Hirelings: ${list.map(([o, k]) => `${o === ownSheet(G.st, G.data).id ? 'yours' : playerNameOf(G.st, o)} ${k}`).join(', ')}` });
         }
-    } else if (G.st.options?.hirelingRules) {
+    } else if (gameOf(G.st, G.data).options?.hirelingRules) {
         // hireling rules: each follower is where his guide left him (not all with the hero), a hired leader or controlled creature is a counter of his own on the map (a seat), and a hidden one is said so
         const by = new Map();
         for (const o of [...hires, ...G.st.mons.filter(m => m.hired && !m.dead && m.loc?.c)]) {
-            if (!o.loc?.c || G.st.chars[o.id]?.leader) continue;
+            if (!o.loc?.c || charsOf(G.st, G.data)[o.id]?.leader) continue;
             const e = by.get(o.loc.c) ?? by.set(o.loc.c, { n: 0, hid: 0 }).get(o.loc.c);
             e.n++; if (o.hidden) e.hid++;
         }
@@ -129,7 +129,7 @@ export function mapModel(G) {
             clearPin(G); G.ui.sel = id; G.ui.sheet = 'clearing'; render(G);
         },
         // a shared table: one counter a player; a party with hired leaders: one counter a seat (the hirer round, a leader square, a creature a diamond; leaders.js)
-        party: G.shared ? [...partyMarkers(G.crew), ...(leaderGame(G.st) ? seatMarkers(G.st, G.data, G.st.actor).filter(m => G.st.chars[m.id].leader) : [])] : localParty ? seatMarkers(G.st, G.data, G.st.actor) : undefined, tagged: G.shared || localParty ? G.ui.tag : undefined,
+        party: G.shared ? [...partyMarkers(G.crew), ...(leaderGame(G.st) ? seatMarkers(G.st, G.data, G.st.actor).filter(m => charsOf(G.st, G.data)[m.id].leader) : [])] : localParty ? seatMarkers(G.st, G.data, G.st.actor) : undefined, tagged: G.shared || localParty ? G.ui.tag : undefined,
         onMarker: G.shared ? id => { const p = G.crew.find(x => x.id === id); if (p) showPlayer(G, p); else showSeat(G, id); } : localParty ? id => showSeat(G, id) : undefined,
         onBackground: () => {
             if (G.ui.tag) { G.ui.tag = null; render(G); return; }
@@ -377,7 +377,7 @@ export function wireShell(G) {
     b.addEventListener('pointerdown', () => { long = false; clearTimeout(timer); timer = setTimeout(() => { long = true; (b.dataset.mode === 'fit' ? me : fitAll)(); setTimeout(() => syncMapButton(G), 500); }, 520); });
     for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => clearTimeout(timer));
     b.addEventListener('click', () => { if (long) { long = false; return; } (b.dataset.mode === 'locate' ? me : fitAll)(); setTimeout(() => syncMapButton(G), 500); });
-    G.mapBox.addEventListener('pointerdown', e => { if (!b.contains(e.target)) G.ui.peekGo?.(); }, { capture: true });
+    G.mapBox.addEventListener('pointerdown', e => { if (!b.contains(e.target) && G.layer.querySelector('.ds-sheet.decision, .ds-sheet.result')) G.ui.peekGo?.(); }, { capture: true });   // (only a waiting question or result drops to its peek bar; an information sheet stays as it is)
     for (const ev of ['pointerup', 'wheel']) G.mapBox.addEventListener(ev, () => setTimeout(() => syncMapButton(G), 520), { passive: true });
     // a tray so tall that the map is a sliver has no room for the button: it steps aside until the map has room again
     if (typeof ResizeObserver === 'function') new ResizeObserver(() => { const ch = G.mapBox.clientHeight; b.hidden = ch > 0 && ch < 76; G.bareBtn.hidden = ch > 0 && ch < 130; }).observe(G.mapBox);

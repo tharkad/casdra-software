@@ -249,28 +249,20 @@ export function mountMap(host) {
                 const M = rot([m[0], m[1]], a).map(v => v * S), C = [2 * M[0] - (A[0] + B[0]) / 2, 2 * M[1] - (A[1] + B[1]) / 2];
                 return { mid: M, d: `M${A[0].toFixed(1)} ${A[1].toFixed(1)} Q${C[0].toFixed(1)} ${C[1].toFixed(1)} ${B[0].toFixed(1)} ${B[1].toFixed(1)}` };
             };
-            // a path not found yet is marked in the middle of its road; the mark is a thing a name must never cover (a hidden path is a fact of the game)
-            const mark = (path, A, B, M) => {
-                const mx = M ? M[0] : (A[0] + B[0]) / 2, my = M ? M[1] : (A[1] + B[1]) / 2;
-                paths.append(pathMarkEl(path.kind, mx, my, Math.atan2(B[1] - A[1], B[0] - A[0]) * 180 / Math.PI));
-                obstacles.push({ x: cx + mx, y: cy + my, r: 8 });
-            };
             for (const path of def.paths) {
-                // Hidden paths and secret passages are printed on the tile: they are always drawn, but faint and marked until discovered.
+                // Hidden paths and secret passages are printed on the tile: a path not found yet is not drawn or marked (note 83); a found one is traced.
                 const known = path.kind === 'open' || path.kind === 'tunnel' || model.showHidden || model.discovered?.has(pk(p.id + path.a, p.id + path.b));
                 const A = pos[path.a], B = pos[path.b], s = PATH[path.kind];
                 if (picture) {
-                    // the picture already shows every road; mark the hidden ones we have not found, and trace the ones we have
+                    // the picture already shows every road; trace the hidden ones that have been found
                     if (path.kind === 'open' || path.kind === 'tunnel') continue;
                     const bend = bendOf(path, A, B);
                     if (known) paths.append(bend ? sv('path', { d: bend.d, fill: 'none', stroke: s.stroke, 'stroke-width': 2, 'stroke-dasharray': '1.5 4', 'stroke-linecap': 'round', opacity: 0.9, class: 'found-path' })
                         : sv('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], stroke: s.stroke, 'stroke-width': 2, 'stroke-dasharray': '1.5 4', 'stroke-linecap': 'round', opacity: 0.9, class: 'found-path' }));
-                    else mark(path, A, B, bend?.mid);
-                    continue;
+                    continue;          // (a path not found yet is not marked: with several characters, who has found what is not one fact of the table; Mike's note 83)
                 }
-                paths.append(sv('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], stroke: s.stroke, 'stroke-width': known ? s.w : 2, 'stroke-dasharray': known ? (s.dash ?? null) : '2 5',
-                    'stroke-linecap': 'round', opacity: known ? 1 : 0.55, class: known ? '' : 'undisc' }));
-                if (!known) mark(path, A, B, null);
+                if (!known) continue;
+                paths.append(sv('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], stroke: s.stroke, 'stroke-width': s.w, 'stroke-dasharray': s.dash ?? null, 'stroke-linecap': 'round', opacity: 1 }));
             }
             if (!picture) EDGES.forEach((name, le) => {
                 const n = def.edges[name];
@@ -576,7 +568,7 @@ export function mountMap(host) {
             }
             routePath.setAttribute('d', todo.join(' ')); routeDonePath.setAttribute('d', done.join(' '));
             mountRoute();
-            route.slice(1).forEach((id, i) => { const el = h('b', { class: `ds-stop${i < overlay.routeDone ? ' done' : ''}`, 'data-stop': i + 1, 'aria-hidden': 'true' }, String(i + 1)); stopEls.push({ id, el, i: i + 1 }); ov.append(el); });
+            route.slice(1).forEach((id, i) => { const el = h('b', { class: `ds-stop${i < overlay.routeDone ? ' done' : ''}`, 'data-stop': i + 1, 'aria-hidden': 'true' }); stopEls.push({ id, el, i: i + 1 }); ov.append(el); });
         }
         for (const r of rings) { const el = h('i', { class: `ds-ring ${r.kind ?? 'legal'}`, 'data-ring': r.id, 'aria-hidden': 'true' }); ringEls.push({ id: r.id, el }); ov.append(el); }
         if (model.hero && !model.party?.length) { heroEl = h('i', { class: `ds-hero${model.heroHidden ? ' hidden' : ''}`, 'data-hero': model.hero, 'aria-hidden': 'true' }); ov.append(heroEl); }
@@ -679,7 +671,7 @@ export function mapLegend({ art } = {}) {
     const badgeSegs = [{ k: 'mon', n: 3 }, { k: 'nat', n: 1 }, { k: 'dwelling', n: 1 }, { k: 'site', n: 2, disc: true }];
     const bw = badgeWidth(badgeSegs, false, true);
     const ringBox = kind => box(h('i', { class: `ds-ring ${kind}`, style: 'left:22px;top:22px' }));
-    const stopBox = n => box(h('b', { class: 'ds-stop', style: 'left:22px;top:22px' }, String(n)));
+    const stopBox = () => box(h('b', { class: 'ds-stop', style: 'left:22px;top:22px' }));
     return h('div', { class: 'mv-key' },
         section('Here on the map'),
         row(pillSw({ k: 'mon', label: 'Wolf x2', img: mons.Wolf ?? null }, 4), 'Monsters here'),
@@ -694,13 +686,11 @@ export function mapLegend({ art } = {}) {
         row(swatch(downChitEl(8, 8), 16, 16, 1.6), 'A face-down chit'),
         row(swatch(badgeEl({ segs: badgeSegs, num: 4 }, bw, {}), bw + 1, 13, 1.6), 'Several things: tap it'),
         section('Roads and you'),
-        row(swatch(pathMarkEl('hidden', 12, 10, 20), 24, 20, 1.6), 'A hidden path, not found'),
-        row(swatch(pathMarkEl('secret', 12, 10, 20), 24, 20, 1.6), 'A secret passage, not found'),
         row(box(h('i', { class: 'ds-hero', style: 'left:22px;top:22px' })), 'You, in plain sight'),
         row(box(h('i', { class: 'ds-hero hidden', style: 'left:22px;top:22px' })), 'You, hidden'),
         row(ringBox('legal'), 'You may go there'),
         row(ringBox('maybe'), 'Maybe: a path to find'),
         row(ringBox('illegal'), 'Not now'),
         row(ringBox('danger'), 'Danger there'),
-        row(stopBox(1), 'Your planned road'));
+        row(stopBox(), 'Your planned road'));
 }

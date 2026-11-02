@@ -9,7 +9,7 @@
 // `viewer` is a character id (a seat) or null (a spectator). Nothing here mutates its arguments; the same state and action always give the same result (determinism, tests/api_boundary_determinism.test.mjs).
 import { indexData, FILES } from './data.js';
 import { newGame as engineNewGame, addCharacter as engineAddCharacter, checkVp } from './setup.js';
-import { apply as engineApply, validatePlan } from './day.js';
+import { apply as engineApply, validatePlan, phasesFor, planKinds } from './day.js';
 import { upgradeState, ownerOf, withActor } from './party.js';
 import { clone, collect } from './core.js';
 import { makeView } from './view.js';
@@ -78,10 +78,12 @@ function build(data, engine) {
             const out = { ok: true, errors: [], warnings: [] };
             // What-if questions of the Melee step that are not "may I do this" (a screen asks them while the player is still building his play): `action.probe` names one and the answer is in the result.
             //   probe 'boxes'     the box plan of `action.boxes` made legal (8.4.5m: no box empty while another holds two): result.fixed = { boxes } when it had to change
+            //   probe 'plan'      the Birdsong plan for `action.slots`: result.plan = { phases (how many phases and of what kind), kinds (the kind of each recorded phase and the errors), valid (validatePlan: the errors and the warnings) }
             //   probe 'sections'  the Melee Sections of hirelings (8.4.2e, 8.4.6d) for `action.hireTargets / hireSides / positions`: result.sections = { preview, error }
             if (action?.probe && viewer && state.chars?.[viewer]) {
                 const st = clone(state);
                 return withActor(st, viewer, () => {
+                    if (action.probe === 'plan') { const slots = action.slots ?? []; out.plan = plain({ phases: phasesFor(st, data, slots), kinds: planKinds(st, data, slots), valid: validatePlan(st, data, slots) }); return out; }
                     if (!st.combat) return out;
                     if (action.probe === 'boxes') { const fixed = legalBoxPlan(st, data, action); if (JSON.stringify(fixed) !== JSON.stringify(action.boxes)) out.fixed = { boxes: plain(fixed) }; }
                     if (action.probe === 'sections') {

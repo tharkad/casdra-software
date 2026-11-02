@@ -30,7 +30,7 @@ import { render } from './shell.js';
 import { switchTo } from './hotseat.js';
 import { myId } from './state.js';
 import { playerOf } from '../../meet.js';
-import { gameOf, questionOf } from '../../combat/feed.js';
+import { gameOf, questionOf, charsOf } from '../../combat/feed.js';
 
 const nb = s => String(s).replace(/ (\d+)$/, ' $1');
 
@@ -38,7 +38,7 @@ const nb = s => String(s).replace(/ (\d+)$/, ' $1');
 /** The Attention chit: a red numbered chit (a leader takes the first free one), or the initial of the unused character's chit he took. */
 export const attnChit = (att, cls = '') => (att ? h('i', { class: `attn ${att.kind}${cls ? ' ' + cls : ''}`, 'aria-hidden': 'true' }, att.short) : null);
 
-export const seatBits = (G, id) => (G.st.chars[id]?.leader ? [attnChit(attentionOf(G.st, G.data, id))] : []);
+export const seatBits = (G, id) => (charsOf(G.st, G.data)[id]?.leader ? [attnChit(attentionOf(G.st, G.data, id))] : []);
 
 /** The art of a hired counter, from the printed counters. */
 function counterArt(G, o) {
@@ -65,7 +65,7 @@ export function ownSeats(G) {
     return st.order.filter(id => id === me || (!!owner && st.chars[id]?.leader && st.chars[id].owner === owner));
 }
 /** The players of a table are people: a hired leader of somebody's is not one more player in the strip (his counter is on the map and his chip in his hirer's seat bar). */
-export const tableCrew = (G, crew) => (G.shared && leaderGame(G.st) ? crew.filter(x => !G.st.chars[x.id]?.leader) : crew);
+export const tableCrew = (G, crew) => (G.shared && leaderGame(G.st) ? crew.filter(x => !charsOf(G.st, G.data)[x.id]?.leader) : crew);
 /** At a table the server's view is the viewer's own character's; the seat on screen is a choice of this phone. After every answer: stay on the seat the player chose while it still has a question,
  *  else go to the first of his seats that is asked something (a seat of his is asked at Birdsong, at his turn), else keep the choice, else his own character. */
 export function settleSeat(G) {
@@ -152,7 +152,7 @@ export function followersLine(G) {
 /** At the start of a guide's phase his hirer may let a follower stay where he stands (7.7.3a, 7.11.5): a chip for each. */
 export function followerChips(G) {
     const st = G.st, p = st.pending, id = st.actor;
-    if (!G.st.options?.hirelingRules || p?.type !== 'phase') return [];
+    if (!gameOf(G.st, G.data).options?.hirelingRules || p?.type !== 'phase') return [];
     const hirer = stayHirer(st, id);
     return followersOf(st, G.data, id).map(o => {
         const name = nameOfCounter(G.data, o);
@@ -297,7 +297,7 @@ export function showSeat(G, id) {
     if (G.ui.tag === id && id !== G.st.actor) { G.ui.tag = null; switchTo(G, id); return; }          // (a second tap on the named counter goes to that seat)
     G.ui.tag = G.ui.tag === id ? null : id;
     clearTimeout(G.ui.tagTimer); G.ui.tagTimer = setTimeout(() => { if (G.ui.tag) { G.ui.tag = null; if (G.root.isConnected) render(G); } }, 6000);
-    const c = G.st.chars[id], at = c?.at ?? c?.onRoad?.from;
+    const c = charsOf(G.st, G.data)[id], at = c?.at ?? c?.onRoad?.from;
     if (at && G.ui.tag) G.map.focus(at);
     render(G);
 }

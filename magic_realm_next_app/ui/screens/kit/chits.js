@@ -10,13 +10,13 @@ import { voicedWhy } from '../../spellwhy.js';
 import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
 import { say } from './common.js';
-import { ownSheet, questionOf } from '../../combat/feed.js';
+import { ownSheet, questionOf, missionsOf } from '../../combat/feed.js';
 
 const nb = s => String(s).replace(/ (\d+)$/, ' $1');
 const list = a => (a.length <= 1 ? (a[0] ?? '') : `${a.slice(0, -1).join(', ')} and ${a.at(-1)}`);
 const ABANDON_OK = new Set(['phase', 'phase-pick', 'plan', 'turn-end', 'evening-end']);          // the engine's own list (day.js 'abandon-chit')
 
-export const carriedCount = G => (G.st.missions ? (G.st.ch.missions ?? []).length : 0);
+export const carriedCount = G => (missionsOf(G.st, G.data) ? (G.st.ch.missions ?? []).length : 0);
 const foeWord = f => (/Dragon$/.test(f) ? `${f}s` : f);
 
 function daysTag(t) {
@@ -71,7 +71,7 @@ function carriedCard(G, t) {
 
 // Where each of the six chits lies, and a way to the clearing
 function whereRows(G) {
-    return G.st.missions.chits.map(c => {
+    return missionsOf(G.st, G.data).chits.map(c => {
         const info = faceInfo(G.data, c.face), here = !!c.loc?.c;
         const open = () => { G.ui.sel = c.loc.c; G.ui.sheet = 'clearing'; G.ui.peek = false; render(G); };
         const kids = [h('span', { class: 'art2' }, chitEl(G.data, c.face)),

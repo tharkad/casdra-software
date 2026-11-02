@@ -17,7 +17,7 @@ import { switchTo } from '../play/hotseat.js';
 import { flyBadge } from '../../steeds.js';
 import { standing } from '../../missions.js';
 import { steedNote, steedAskWords } from './companysteed.js';
-import { ownSheet, gameOf, questionOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, questionOf, charsOf } from '../../combat/feed.js';
 
 // Everyone who is with this character and alive: natives and monsters he hired, and creatures a spell put under his command.
 export function hirelings(G) { return hirelingsOf(G.st, ownSheet(G.st, G.data).id).filter(o => !o.dead); }
@@ -52,7 +52,7 @@ function counter(G, o, ctl) {
     const lbl = nat && def.leader ? 'Lead' : s?.harm ? `${s.harm}${s.atk ?? ''}` : '';
     const back = flipped ? otherSide(G, o) : null;
     const img = counterArt(G, o);
-    const look = G.st.options?.hirelingRules ? counterLook(o) : null;          // (hireling rules: the counter lies dark side up while he is hidden, red for a hidden Tremendous monster)
+    const look = gameOf(G.st, G.data).options?.hirelingRules ? counterLook(o) : null;          // (hireling rules: the counter lies dark side up while he is hidden, red for a hidden Tremendous monster)
     const el = h('button', { type: 'button', class: `ds-counter tall kit-counter hc${flipped ? ' flipped' : ''}`, 'data-hireling': o.id, 'data-flip': '', 'data-side': look?.side ?? null, 'data-hidden': look ? (look.hidden ? '1' : '0') : null,
         'aria-label': `${def.name}: tap to turn the counter over${look?.hidden ? `. It is ${look.word}` : ''}`, 'aria-pressed': flipped ? 'true' : 'false',
         onclick: () => { (G.ui.coFlip ??= {})[o.id] = !flipped; render(G); } },
@@ -109,9 +109,9 @@ function dismissRow(G, g, ctl) {
 
 // A hired leader (or creature in hand) who has a seat of his own: the way to his sheet, which is the seat's (leaders.js)
 function seatLinks(G, g) {
-    if (!G.st.options?.hirelingRules) return [];
-    return g.members.filter(o => G.st.chars[o.id]?.leader).map(o => h('button', { type: 'button', class: 'ds-btn sm kit-seatbtn', 'data-act': 'open-seat', 'data-seat': o.id,
-        onclick: () => { G.ui.sheet = 'char'; switchTo(G, o.id); G.ui.sheet = 'char'; render(G); } }, `${G.st.chars[o.id].name}: his sheet and turn`));
+    if (!gameOf(G.st, G.data).options?.hirelingRules) return [];
+    return g.members.filter(o => charsOf(G.st, G.data)[o.id]?.leader).map(o => h('button', { type: 'button', class: 'ds-btn sm kit-seatbtn', 'data-act': 'open-seat', 'data-seat': o.id,
+        onclick: () => { G.ui.sheet = 'char'; switchTo(G, o.id); G.ui.sheet = 'char'; render(G); } }, `${charsOf(G.st, G.data)[o.id].name}: his sheet and turn`));
 }
 
 function groupCard(G, g, ctl) {
@@ -124,7 +124,7 @@ function groupCard(G, g, ctl) {
         g.controlled ? null : h('div', { class: `ds-daypips${low ? ' low' : ''}`, 'aria-hidden': 'true' }, Array.from({ length: 14 }, (_, i) => h('i', { class: i < days ? null : 'off' }))),
         h('div', { class: 'cs' }, g.members.map(o => counter(G, o))),
         ...steedNote(G, g),
-        h('p', { class: 'ds-meta kit-orders' }, `${g.controlled ? 'Under your spell. ' : ''}${g.kind === 'mon' && g.members.length === 1 ? 'It fights' : 'They fight'} beside you without orders.${fl ? ` ${fl[0].toUpperCase()}${fl.slice(1)}.` : ''}${G.st.options?.hirelingRules && !g.members.some(o => G.st.chars[o.id]?.leader) && !g.controlled ? ' Each goes with the guide you name every morning.' : ''}${G.shared ? ` ${g.members.length === 1 && g.kind === 'mon' ? 'It is' : 'They are'} yours alone.` : ''}`),
+        h('p', { class: 'ds-meta kit-orders' }, `${g.controlled ? 'Under your spell. ' : ''}${g.kind === 'mon' && g.members.length === 1 ? 'It fights' : 'They fight'} beside you without orders.${fl ? ` ${fl[0].toUpperCase()}${fl.slice(1)}.` : ''}${gameOf(G.st, G.data).options?.hirelingRules && !g.members.some(o => charsOf(G.st, G.data)[o.id]?.leader) && !g.controlled ? ' Each goes with the guide you name every morning.' : ''}${G.shared ? ` ${g.members.length === 1 && g.kind === 'mon' ? 'It is' : 'They are'} yours alone.` : ''}`),
         ...seatLinks(G, g),
         g.controlled ? null : [h('button', { type: 'button', class: 'ds-btn sm is-dim', 'data-act': 'extend', 'aria-disabled': 'true', onclick: () => ctl.say('Extending is done in a Hire phase, beside them.') }, `Extend 14 days · wages ${wages} Gold`),
             h('div', { class: 'ds-why kit-extwhy' }, 'Extending is done in a Hire phase, beside them.'),

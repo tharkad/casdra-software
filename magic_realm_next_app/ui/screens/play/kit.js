@@ -31,6 +31,9 @@ export function pullDown(handle, target, done) {
         if (y0 == null) return;
         const v = dy / Math.max(1, e.timeStamp - t0);
         y0 = null; target.style.transition = 'transform .18s ease-out';
+        if (dy < 6 && e.timeStamp - t0 < 400 && target.classList.contains('info')) {          // a tap on the handle: the sheet steps down to its bar and back, so the map is whole whenever it is wanted
+            target.style.transition = ''; const down = target.dataset.detent !== 'peek'; moveDetent(target, down ? 'peek' : (target.dataset.full || 'hug'), { remember: false }); target.classList.toggle('peeked', down); return;
+        }
         if (dy > 90 || (v > 0.8 && dy > 50)) { target.style.transform = 'translateY(100%)'; setTimeout(done, 170); } else target.style.transform = '';
     };
     handle.addEventListener('pointerup', end); handle.addEventListener('pointercancel', end);
@@ -66,8 +69,8 @@ export function tc(G) { return { st: G.st, data: G.data, answer: G.answer, crew:
 
 // ---- the sheet system (P0b) ----
 // Every sheet of the play screen is the design system's one component (ds.js sheet(): `.ds-sheet`), in one of three kinds:
-//   information  (a close handler is given): a scrim, tap outside or the cross or a pull down puts it away; opens `hug` (content height, 78% at most) unless a detent is named
-//   decision     (no close handler): no scrim, the map is live above it; the first touch on the map drops it to `peek` (title bar + one button: a question is waiting, it is never dismissed),
+//   information  (a close handler is given): no scrim (Mike, 2026-11-02: no modals anywhere, the map and the screen stay live); the cross or a pull down puts it away; opens `hug` (content height, 78% at most) unless a detent is named
+//   decision     (no close handler): the map is live above it; the first touch on the map drops it to `peek` (title bar + one button: a question is waiting, it is never dismissed),
 //                a tap on its head or handle brings it back; the Map button in the head does the same drop
 //   result       (kind: 'result'): no scrim either (Mike's note 81: no modals, the map and the screen stay live); the first touch on the map drops it to `peek` like a decision; no way out but its own button
 // The legacy class names stay on the new elements as test hooks (`sheet2`, `sheet2-head`, `sheet-bg`, `sheet-scroll`, `sheet-grab`); their old rules are gone.
@@ -108,7 +111,7 @@ export function modal(G, title, body, { close, footer, kind, detent, eyebrow, he
     const peekFoot = decision || k === 'result' ? h('div', { class: 'ds-sheet-foot peek-foot' }, h('span', { class: 'lead ds-lead-text' }, 'The map is yours.'), btn('Back to the question', 'primary', { 'data-act': 'back-to-choice' })) : null;
     const foot = [footer ?? null, footer ? null : peekFoot].filter(Boolean);
     const mapBtn = decision || k === 'result' ? h('button', { type: 'button', class: 'ds-btn quiet sm peekmap', 'data-act': 'peek-sheet-map', 'aria-label': 'Look at the map' }, dsIcon('eye'), 'Map') : null;
-    const frag = sheet({ title, eyebrow, detent: peeked ? 'peek' : full, decision, x: !!close, scrim: k === 'info', onClose: close, head: head ?? mapBtn, body: bare ? body : h('div', { class: 'legacy' }, body), foot,
+    const frag = sheet({ title, eyebrow, detent: peeked ? 'peek' : full, decision, x: !!close, scrim: false, onClose: close, head: head ?? mapBtn, body: bare ? body : h('div', { class: 'legacy' }, body), foot,
         cls: `sheet2 ${k}${cls ? ' ' + cls : ''}${footer ? ' has-footer' : ''}${peeked ? ' peeked' : ''}`, attrs });
     if (peeked) frag.scrim?.classList.add('none');
     const el = frag.sheet; el.dataset.full = full; el.dataset.kind = k;

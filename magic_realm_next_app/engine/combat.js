@@ -61,7 +61,7 @@ export const contested = st => { const b = st.battle; return !!b?.pvp && new Set
 // The structured twin of the line of a blow's hit determination (blow.landed / blow.missed, docs/engine-api/EVENT-CODES.md). `how` (landed) and `why` (missed) are codes: 'box' (the blow goes the way the
 // defender's maneuver faces), 'undercut' (its time is faster than his), 'tie' (Ointment of Bite), 'free' (the defender played no maneuver), 'avoided' (his maneuver avoids it), 'slow' (not fast enough to undercut),
 // 'gone' (the target is no longer there). Given as the last argument of a `log(...)`.
-const blowEv = (hit, attacker, target, weapon, dir, how, box = null) => ({ ev: hit ? { code: 'blow.landed', attacker, target, weapon, dir, how, box } : { code: 'blow.missed', attacker, target, weapon, dir, why: how } });
+const blowEv = (hit, attacker, target, weapon, dir, how, box = null, extra = null) => ({ ev: hit ? { code: 'blow.landed', attacker, target, weapon, dir, how, box } : { code: 'blow.missed', attacker, target, weapon, dir, why: how, ...extra } });
 const boxName = d => (d.box != null ? MANEUVERS[d.box].toLowerCase() : null);
 // A name as a token for an event ("Heavy Troll #1" -> "heavy-troll-1"): an event holds ids and codes, never display text.
 const tokenOf = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -865,6 +865,7 @@ function beginMelee(st) {
     c.killed = [];                                  // what he killed this round, for the screen to lead with
     c.roundGain = { fame: 0, notoriety: 0, gold: 0 };   // and what the kills paid
     c.events = [];
+    if (st.events) c.evRound = c.round;          // (a game that records its events: the round `c.events` belongs to, so a screen finds the round's events by the `r` of their lines)
     return meleeLog(st);
 }
 // Who was hidden, and which creatures were on his sheet, when the Melee step began (before his spells act: ruling S9)
@@ -1163,7 +1164,7 @@ export function meleeCollect(st, data, X, peers = null) {
                 inBox ? tell.myHitBox(st, weaponName, DIRS[myDir].toLowerCase(), nm) : tie ? `The Ointment of Bite makes your ${weaponName} bite: your time ${attackTime} ties the ${nm}'s ${defSide.move}, and the blow lands.` : tell.myHitFast(st, weaponName, DIRS[myDir].toLowerCase(), nm, where, attackTime, defSide.move),
                 blowEv(true, st.ch.id, def.uid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), inBox ? 'box' : tie ? 'tie' : 'undercut', boxName(def)));
         } else log(`You: ${DIRS[myDir]} at ${nm} (${where} box): miss (${DIRS[myDir]} hits ${MANEUVERS[myDir]}${defSide.move != null ? `; its time ${defSide.move} is not slower than your ${attackTime}` : ''}).`,
-            tell.myMiss(st, weaponName, DIRS[myDir].toLowerCase(), nm, where, attackTime, defSide.move), blowEv(false, st.ch.id, def.uid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), 'slow'));
+            tell.myMiss(st, weaponName, DIRS[myDir].toLowerCase(), nm, where, attackTime, defSide.move), blowEv(false, st.ch.id, def.uid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), 'slow', null, { against: defSide.move ?? undefined, time: defSide.move != null ? attackTime : undefined }));
     }
     // pvp: a blow at another character is judged against what HE played (docs/design/multiplayer-step5.md): it hits if it undercuts his maneuver (8.4.8a), goes the way his maneuver
     // faces (the same lane), or he played no maneuver at all (8.4.8b.2, everything on his sheet hits him)
@@ -2078,10 +2079,12 @@ function pitSweep(st, data, rowName, { caster = null, pay = false, log = null } 
     return dead;
 }
 
+// The sentences the death screen tells a fall by (a blow that slays him, every chit wounded): `told` on the event says this line is one of them, so the screen finds it without reading the words.
+const TOLD = /you are slain|vital spot|Every action chit is wounded/i;
 function killMe(st, text, by = null) {
     st.ch.dead = true; tally(st, 'deathsInCombat'); if (by) tally(st, `slain.${by}`);
     st.slain = { by, text, at: st.ch.at, day: st.day, form: st.ch.morph?.creature.name ?? null, formBounty: st.ch.morph ? { fame: st.ch.morph.creature.fame, notoriety: st.ch.morph.creature.notor } : null };            // for the screen that tells him how it ended
-    say(st, text, 'combat', null, { ev: { code: 'hero.slain', who: st.ch.id, by: by ? tokenOf(by) : 'unknown' } });
+    say(st, text, 'combat', null, { ev: { code: 'hero.slain', who: st.ch.id, by: by ? tokenOf(by) : 'unknown', told: TOLD.test(text) } });
     st.combat.events.push(text);
     st.combat.eventful = true;
 }
@@ -2094,7 +2097,7 @@ function afterMelee(st, data) {
 
 // a chit that is wounded, or committed to a spell, is out of play: when every chit is, he is dead (4.2.5b)
 const nonWounded = st => st.ch.chits.filter(x => x.state !== 'wounded' && x.state !== 'committed');
-const dieOfWounds = (st, data) => { st.ch.dead = true; st.slain = { by: null, text: 'Every action chit was wounded: there was nothing left to fight with.', at: st.ch.at, day: st.day }; say(st, 'Every action chit is wounded; you die.', 'combat', null, { ev: { code: 'char.dies', who: st.ch.id, cause: 'wounds' } }); return endCombat(st, data, 'died'); };
+const dieOfWounds = (st, data) => { st.ch.dead = true; st.slain = { by: null, text: 'Every action chit was wounded: there was nothing left to fight with.', at: st.ch.at, day: st.day }; say(st, 'Every action chit is wounded; you die.', 'combat', null, { ev: { code: 'char.dies', who: st.ch.id, cause: 'wounds', told: true } }); return endCombat(st, data, 'died'); };
 
 // Wounds fall on active chits first, then on fatigued ones; with no chit left to wound he dies.
 function resolveWounds(st, data) {

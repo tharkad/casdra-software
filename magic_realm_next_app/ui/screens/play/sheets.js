@@ -1,5 +1,5 @@
 // play/sheets.js: which sheet or card is on screen: sheets() decides, from the pending question and G.ui.sheet, what the layer shows; the Journal is journal.js.
-import { phasesFor } from '../../../engine/day.js';
+import { phasesFor } from '../../combat/feed.js';
 import { questionOf, ownSheet, gameOf, tableFight } from '../../combat/feed.js';
 import { nameOf } from '../../../engine/catalogue.js';
 import { nameOfClearing, tileName } from '../../../engine/catalogue.js';

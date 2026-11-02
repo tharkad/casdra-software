@@ -4,7 +4,7 @@
 import { nameOf } from '../../../engine/catalogue.js';
 import { energizeOptions } from '../../../engine/magic/energize.js';
 import { heldOptions } from '../../../engine/magic/phase.js';
-import { phasesFor } from '../../../engine/day.js';
+import { phasesFor } from '../../combat/feed.js';
 import { nameOfClearing, tileName } from '../../../engine/catalogue.js';
 import { isMountain } from '../../../engine/world.js';
 import { EDGE, destName } from '../../planlogic.js';

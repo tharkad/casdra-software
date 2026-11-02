@@ -133,7 +133,8 @@ html[data-calm="on"] .mv-ov .ds-ring.legal { animation: none; }
 .realm-svg .ds-route { position: static; }          /* (the route is drawn in the map, under the names: mapview.js mountRoute) */
 .realm-svg .ds-route path { fill: none; stroke: var(--gold-hi, #b5e39c); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 7; }
 .realm-svg .ds-route path.mv-route-done { opacity: .35; }
-.mv-ov .ds-stop, .mv-key .ds-stop { width: 22px; height: 22px; margin: -11px 0 0 -11px; box-sizing: border-box; border-radius: 50%; background: var(--gold, #86c47a); color: var(--ink-on-gold, #0d1a0f); font: 700 13px/18px var(--font-ui, system-ui); text-align: center; border: 2px solid #0b0d13; }
+/* a stop on the planned road is a hollow ring round its clearing, with no number: nothing sits on the clearing's own number (Mike, 2026-11-02) */
+.mv-ov .ds-stop, .mv-key .ds-stop { width: 34px; height: 34px; margin: -17px 0 0 -17px; box-sizing: border-box; border-radius: 50%; background: transparent; border: 3px solid var(--gold, #86c47a); box-shadow: 0 0 0 1.5px rgba(10, 12, 17, .7), inset 0 0 0 1.5px rgba(10, 12, 17, .7); }
 .mv-ov .ds-stop.done { opacity: .45; }
 /* the pin: why a dim clearing is dim (the sentence comes from game.js) */
 .mv-ov .ds-pin { position: absolute; z-index: 2; transform: translate(-50%, calc(-100% - var(--off, 30px))); width: max-content; max-width: min(220px, calc(100% - 16px)); box-sizing: border-box; padding: 8px 12px; border-radius: var(--r-md, 12px); background: rgba(21, 25, 37, .96); border: 1px solid var(--line-gold, rgba(134, 196, 122, .48)); box-shadow: var(--shadow-2, 0 8px 28px rgba(0, 0, 0, .55)); font: 500 15px/1.25 var(--font-ui, system-ui); color: var(--text, #efe6d0); text-align: center; }
@@ -158,7 +159,7 @@ html[data-calm="on"] .mv-ov .ds-ring.legal { animation: none; }
 .mv-key-tx { font: 500 16px/1.25 var(--font-ui, system-ui); color: var(--text, #efe6d0); min-width: 0; }
 .mv-key .mv-swatch { display: block; cursor: default; touch-action: auto; overflow: visible; }
 .mv-key-box { position: relative; display: block; width: 44px; height: 44px; }
-.mv-key .ds-stop { font: 700 13px/18px var(--font-ui, system-ui); }
+
 @media (max-width: 374px) { .mv-key-sw { width: 128px; } }
 
 /* QA-14: the tile name set upright over the printed one (mapview.js upright) */

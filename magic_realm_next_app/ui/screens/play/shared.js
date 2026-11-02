@@ -23,7 +23,7 @@ import { modal, showToast, tc } from './kit.js';
 import { prowlers, render } from './shell.js';
 import { backSeen, drawSeen, markBackSeen, markDrawSeen, markOverSeen, myId, overSeen, setWelcomed, welcomed } from './state.js';
 import { playerOf } from '../../meet.js';
-import { ownSheet, gameOf, questionOf, tableFight } from '../../combat/feed.js';
+import { ownSheet, gameOf, questionOf, tableFight, charsOf } from '../../combat/feed.js';
 
 function clearTag(G) { clearTimeout(G.ui.tagTimer); G.ui.tagTimer = setTimeout(() => { if (G.ui.tag) { G.ui.tag = null; if (G.root.isConnected) render(G); } }, 6000); }
 
@@ -125,7 +125,7 @@ function tableIntroSheet(G) {
     const me = G.crew.find(p => p.mine), others = G.crew.filter(p => !p.mine);
     const gear = ownSheet(G.st, G.data).items.length ? ` with ${joinNames(ownSheet(G.st, G.data).items.map(i => nameOf(G.data, i).replace(/ (?=\S+$)/, '\u00A0')))}` : ', with no weapon or armor yet';
     const who = joinNames(others.map(p => `${p.player} (${p.character})`));
-    const pvp = !!G.st.options?.pvp;
+    const pvp = !!gameOf(G.st, G.data).options?.pvp;
     const body = h('div', { class: 'welcome table-welcome', 'data-welcome': 'table' },
         h('p', { class: 'ds-voice' }, `You wake at the ${G.st.ch.startDwelling}${gear}. ${lengthLine(G.st)}`.replace(/ (\d+)/g, '\u00A0$1')),
         h('p', { class: 'ds-voice' }, others.length ? `${who} ${others.length === 1 ? 'shares' : 'share'} this realm with you, on one map.` : 'You share this realm with the others, on one map.'),
@@ -169,13 +169,13 @@ export function sharedRestartSheet(G, p0) {
     const total = p.budget, v = (G.ui.sharedRestartVp ??= (() => { const fame = Math.min(5, Math.ceil(total * 0.6)); return { great: 0, spells: 0, fame, notoriety: Math.min(5, total - fame), gold: 0 }; })());
     const order = p0.pickOrder ?? [], at = order.indexOf(ownSheet(G.st, G.data).id), waiting = G.answer?.waitingFor ?? [];
     const ahead = at > 0 ? order.slice(0, at).filter(x => waiting.some(w => w.character === x && w.doing === 'restart')) : [];
-    const nameOf = id => G.crew.find(c => c.id === id)?.player ?? G.st.chars?.[id]?.name ?? id;
+    const nameOf = id => G.crew.find(c => c.id === id)?.player ?? charsOf(G.st, G.data)?.[id]?.name ?? id;
     const own = ownSheet(G.st, G.data).id;
     if (ahead.length && G.ui.sharedRestartChar && G.ui.sharedRestartChar !== own) G.ui.sharedRestartChar = own;
     G.ui.sharedRestartChar ??= p.characters.includes(own) ? own : p.characters[0];
     const used = Object.values(v).reduce((a, b) => a + b, 0), d = p.death ?? {};
     const rows = [['fame', 'Fame', 10], ['notoriety', 'Notoriety', 20], ['gold', 'Gold', 30], ['great', 'Great treasures', 1], ['spells', 'Spells', 2]];
-    const by = d.by ? String(d.by).replace(/ #\d+$/, '') : null, fall = tableFight(G.st, G.data)?.pvp || G.st.options?.pvp ? myFall(G.st, G.crew, ownSheet(G.st, G.data).id) : null;
+    const by = d.by ? String(d.by).replace(/ #\d+$/, '') : null, fall = tableFight(G.st, G.data)?.pvp || gameOf(G.st, G.data).options?.pvp ? myFall(G.st, G.crew, ownSheet(G.st, G.data).id) : null;
     const aheadWhy = ahead.length ? `${joinNames(ahead.map(nameOf))} choose${ahead.length === 1 ? 's' : ''} first (the die decided). You may start again as ${ownSheet(G.st, G.data).name} now.` : null;
     const dead = fall ? deathCallout({ st: G.st, f: null, k: fall, viewerId: ownSheet(G.st, G.data).id, next: 'Choose who returns, below.' })
         : h('div', { class: 'sf-death deathbox me', role: 'alert' }, h('small', {}, `Day ${d.day ?? gameOf(G.st, G.data).day - 1}${d.at ? ` · ${nameOfClearing(d.at)}` : ''}`), h('b', {}, 'You have fallen'), h('span', { class: 'dwho' }, by ? `Slain by the ${by}.` : 'Your character has died.'));

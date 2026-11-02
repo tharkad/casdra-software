@@ -1,4 +1,4 @@
-import { clone, die, roll2, int, say, lvl, shuffle, noteRoll, tally, chitWord, refuse } from './core.js';
+import { clone, die, roll2, int, say, emit, lvl, shuffle, noteRoll, tally, chitWord, refuse } from './core.js';
 import { hides, PEER, LOCATE, meetingResult } from './tables.js';
 import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, tileClearings, graph, tileName, mapEdgeClearings } from './world.js';
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
@@ -268,6 +268,7 @@ function submitPlan(st, data, slots, companions = null, choose = false) {
 // His plan is recorded. With one character the sun rises at once. With several, plans are secret and simultaneous (6.2.3): a recorded plan waits until every living character has
 // recorded one and every dead one has started again; the last to answer lets the day go on.
 function planned(st, data) {
+    emit(st, { code: 'plan.recorded', who: st.ch.id, phases: (st.plan ?? []).filter(Boolean).length });          // (that a plan is recorded and how long: the table's half; the activities are the seat's, plan.detail)
     if (!multi(st)) return sunrise(st, data);
     st.ch.today.stage = 'planned';
     if (st.order.every(id => ['planned', 'gone'].includes(st.chars[id].today.stage))) sunrise(st, data);
@@ -283,8 +284,8 @@ function sunrise(st, data) {
     noteRoll(st, 'Monster roll', [st.prowl], st.prowl, `row ${st.prowl} prowls today`, null, table);
     st.rolls.at(-1).tale = tell.wilds(st, data);                       // the story voice says what prowls, not which row
     const magic = dayColors(st.day, st.lastDay ?? 28), week = st.day % 7 === 0 ? regenerate(st, data) : null;
-    say(st, `Dawn of day ${st.day}: row ${st.prowl} prowls.${magic.length ? ` The land is filled with ${magic.join(' and ')} magic until midnight.` : ''}`, 'day', tell.dawn(st, data, { magic }), table);
-    if (week) say(st, `Regeneration: row ${st.prowl} creatures return to their homes.`, 'day', tell.weekEnd(st, data, week), table);
+    say(st, `Dawn of day ${st.day}: row ${st.prowl} prowls.${magic.length ? ` The land is filled with ${magic.join(' and ')} magic until midnight.` : ''}`, 'day', tell.dawn(st, data, { magic }), { ...table, ev: { code: 'day.prowl', row: st.prowl } });
+    if (week) say(st, `Regeneration: row ${st.prowl} creatures return to their homes.`, 'day', tell.weekEnd(st, data, week), { ...table, ev: { code: 'day.regenerate', row: st.prowl } });
     if (multi(st)) { const { gone } = meet.declareFollows(st); drawChits(st, gone); return nextTurn(st, data); }
     beginTurn(st, data);
 }
@@ -313,7 +314,7 @@ function drawChits(st, gone = []) {
     (st.draws ??= []).push({ day: st.day, order: order.slice() });
     if (st.draws.length > 60) st.draws.shift();
     const names = order.map(id => st.chars[id].name);
-    say(st, names.length ? `The chits are drawn: ${names.map((n, k) => (k === 0 ? `${n} first` : n)).join(', then ')}.` : 'Nobody has a chit to draw today.', 'day', null, { who: null });
+    say(st, names.length ? `The chits are drawn: ${names.map((n, k) => (k === 0 ? `${n} first` : n)).join(', then ')}.` : 'Nobody has a chit to draw today.', 'day', null, { who: null, ev: { code: 'day.order', order } });
 }
 
 // The next character in the drawn order takes his whole turn; when nobody is left the sun sets.
@@ -446,7 +447,7 @@ function finishPhase(st, data, text) {
 function finishPhase0(st, data, text) {
     const t = st.turn;
     t.results[t.i] = text;
-    say(st, `Phase ${t.i + 1}: ${text}`, 'phase', tell.phase(st, text));
+    say(st, `Phase ${t.i + 1}: ${text}`, 'phase', tell.phase(st, text), { ev: { code: 'phase.begins', who: st.ch.id, i: t.i + 1, act: st.plan?.[t.i]?.act ?? 'nothing' } });          // (the line tells the phase's result; its event is the phase)
     if (t.pro && !prophecyOn(st)) t.proBroken = true;              // broken, or suspended by Protection from Magic (spec question 9): blocked unless the turn is over
     expireDue(st, data, 'phase-end');
     energizePass(st, data, 'phase');
@@ -567,7 +568,7 @@ function afterTurnEnd(st, data) {
 }
 
 function sunset(st, data) {
-    say(st, 'The sun sets.', 'day', tell.sunset(st, st.ch.onRoad ? 'the road' : nameOfClearing(st.ch.at)));
+    say(st, 'The sun sets.', 'day', tell.sunset(st, st.ch.onRoad ? 'the road' : nameOfClearing(st.ch.at)), { ev: { code: 'day.sunset' } });
     evening(st, data);
 }
 
@@ -1030,6 +1031,7 @@ function lostMove(st, data, from, wanted) {
 }
 
 function arrive(st, data, to) {
+    emit(st, { code: 'move.arrived', who: st.ch.id, to });
     return `You move to ${nameOfClearing(to)}.${st.missions ? missions.onArrive(st, data, to) : ''}`;          // (7.2.4e.4: a mission chit carried into its Dwelling's clearing is delivered)
 }
 
@@ -1040,6 +1042,7 @@ function doHide(st, data) {
     if (r.value === 0) r.value = r.dice[0];
     modRoll(st, data, 'hide', r);
     noteRoll(st, 'Hide', r.dice, r.value, (hides(r.value) ? 'You hide' : 'You are seen') + modNote(r));
+    emit(st, { code: 'hide.attempted', who: st.ch.id, success: hides(r.value), dice: r.dice });
     if (hides(r.value)) { st.ch.hidden = true; return `You hide (rolled ${r.dice.join('+')}).`; }
     return `You fail to hide (rolled ${r.dice.join('+')}).`;
 }
@@ -1114,6 +1117,7 @@ export const chitLabel = c => c.type === 'magic' ? `Magic ${c.numeral ?? ''}${c.
 
 function applyRest(st, o) {
     const c = st.ch.chits.find(x => x.id === o.chit);
+    emit(st, { code: 'rest.done', who: st.ch.id, chit: o.chit, from: c.state, to: o.to, cost: o.cost, change: o.change });
     c.state = o.to;
     if (o.cost === 2) {
         const give = st.ch.chits.find(x => x.id === o.change && x.state === 'active') ?? st.ch.chits.find(x => x.state === 'active' && x.effort === 1);

@@ -113,3 +113,74 @@ export function meetingPaid(lines, group) {
     }
     return null;
 }
+
+// ---- the last round of the fight, read from its events (the engine names the round: `combat.evRound`, the `r` of its lines) ----
+const baseName = s => String(s).replace(/[  ]#\d+$/, '');
+const STRIKE_RE = /^(?:The |the )?(.+?)(?:'s) (?:thrust|swing|smash|bite|club|claw|blow|sting|attack|strike)s? (glances off|thuds against|bites into|hammers|crashes down on) /i;
+/** The lines of the round whose stories `combat.events` holds, with their events; null when the game does not record events (an old save, an online table): the caller reads the strings. */
+export function roundLinesOf(fm) {
+    const c = fm.combat;
+    if (c?.evRound == null || !fm.fightLog) return null;
+    return fm.fightLog.lines.filter(l => l.r === c.evRound);
+}
+const denName = (fm, uid) => fm.combat?.dens.find(d => d.uid === uid)?.stat?.name ?? null;
+const textOf = l => String(l.s ?? l.t).trim();
+/** Who struck him on this line (by name, with its tag): the creature on the sheet, else the one the story names. */
+const strikerOf = (fm, l) => denName(fm, l.ev.by) ?? STRIKE_RE.exec(textOf(l))?.[1]?.replace(/^the /i, '') ?? null;
+
+/** roundFacts from the round's events: { landed, wounds, destroyed, damaged, noEffect, avoided, ran } */
+export function roundFactsOf(fm, data, lines) {
+    const out = { landed: [], wounds: 0, destroyed: [], damaged: [], noEffect: false, avoided: false, ran: false };
+    const itemName = (l, re) => { const it = fm.ch?.items?.find(i => i.uid === l.ev.item); return (it && nameOf(data, it)) ?? re.exec(l.t)?.[1] ?? null; };
+    for (const l of lines) {
+        const e = l.ev;
+        if (e?.code === 'hero.struck') { const nm = strikerOf(fm, l); if (nm) out.landed.push(baseName(nm)); }
+        else if (e?.code === 'hero.hurt') out.wounds++;
+        else if (e?.code === 'hero.armor.hit') {
+            if (e.result === 'destroyed') { const n = itemName(l, /^Your (.+?) is destroyed/); if (n) out.destroyed.push(n); }
+            else if (e.result === 'damaged') { const n = itemName(l, /^Your (.+?) (?:is dented and damaged|takes the blow and is damaged)/); if (n) out.damaged.push(n); }
+            else if (e.result === 'held') out.noEffect = true;
+        } else if (e?.code === 'blow.missed' && e.why === 'avoided' && e.target === fm.ch?.id) out.avoided = true;
+        if (/You break away and flee/.test(textOf(l))) out.ran = true;
+    }
+    return out;
+}
+/** hitters: the foes that hit him this round, by display name */
+export const hittersOf = (fm, lines) => lines.filter(l => l.ev?.code === 'hero.struck').map(l => strikerOf(fm, l)).filter(Boolean);
+/** foeResults: what each foe's blow did, by display name: 'wounded', 'held', 'hit', 'missed' */
+export function foeResultsOf(fm, lines) {
+    const out = new Map();
+    let cur = null;
+    for (const l of lines) {
+        const e = l.ev;
+        if (e?.code === 'hero.struck') { cur = strikerOf(fm, l); if (cur) out.set(cur, 'hit'); }
+        else if (e?.code === 'blow.missed' && e.why === 'avoided' && e.target === fm.ch?.id) { const nm = denName(fm, e.attacker); if (nm) out.set(nm, 'missed'); cur = null; }
+        else if (!cur) continue;
+        else if (e?.code === 'hero.armor.hit' && e.result === 'held') out.set(cur, 'held');
+        else if (e?.code === 'hero.hurt') out.set(cur, 'wounded');
+    }
+    return out;
+}
+/** turnedOver: the foes whose counters a Tactics roll turned over this round */
+export function turnedOverOf(fm, lines) {
+    const out = new Set();
+    for (const l of lines) if (l.ev?.code === 'melee.tactics') for (const u of l.ev.flipped) { const nm = denName(fm, u); if (nm) out.add(nm); }
+    return out;
+}
+/** missNote: the one miss worth explaining, said as what it is */
+export function missNoteOf(fm, lines) {
+    for (const l of lines) {
+        const e = l.ev;
+        if (e?.code === 'blow.missed' && e.against != null && e.attacker === fm.ch?.id) { const nm = denName(fm, e.target); if (nm) return `The ${nm} was too quick: its move speed ${e.against} (the circle on its counter) is not slower than your attack time ${e.time}.`; }
+    }
+    return '';
+}
+
+/** The line that tells how the hero fell: the last line the engine marks `told` (a blow that slays him, every chit wounded), else the closing line of a fight he did not survive (`combat.over` how died). By event where the
+ * game records them, else by the words. */
+export function deathLineOf(log) {
+    const rev = [...log].reverse();
+    const told = l => (l.ev ? (l.ev.code === 'hero.slain' || l.ev.code === 'char.dies') && l.ev.told === true : /you are slain|vital spot|Every action chit is wounded/i.test(l.t));
+    const died = l => (l.ev ? l.ev.code === 'combat.over' && l.ev.how === 'died' : /You have died/i.test(l.t));
+    return rev.find(l => l.k === 'combat' && told(l)) ?? rev.find(l => l.k === 'combat' && died(l));
+}

@@ -20,7 +20,7 @@ import { guardIfChanged } from '../tapguard.js';
 import { article, fixNames } from '../names.js';
 import { deploySheet, deployNarration } from '../combat/deploy_ui.js';
 import * as DP from '../combat/deploy.js';
-import { meetingPaid } from '../voice/fight.js';
+import { meetingPaid, deathLineOf } from '../voice/fight.js';
 import { reviewSheet } from '../combat/sections_review.js';
 import { hireRound } from '../combat/sections_voice.js';
 import { modeOfPending, SCENE_MODES } from '../combat/modes.js';
@@ -89,7 +89,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     const resultKey = `${c.roundRollFrom ?? 0}|${hashOf(events.join('\n'))}`;
     X.resultKey = resultKey;
     const showResult = !shared && RESULT_TYPES.includes(p.type) && events.length > 0 && cb.seen !== resultKey && !((p.type === 'combat-encounter' || p.type === 'combat-deploy') && (c.round === 1 || p.spellOnly)) && !((p.type === 'combat-lure' || p.type === 'combat-charge') && (p.round ?? c.round) <= 1);
-    const facts = M.roundFacts(events);
+    const facts = M.roundFacts(events, fm, data);
     const aimedNow = p.type === 'combat-melee' && !!p.aimed;          // (the spells of this round have acted: ruling S8, the options are read again after them)
     if (p.type === 'combat-melee' && (!cb.plan || cb.planRound !== c.round || (aimedNow && cb.planAimed !== c.round))) {
         const o0 = optionsOf(fm, data), old = cb.plan && cb.planRound === c.round ? cb.plan : null;
@@ -114,7 +114,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     const bodies = c.dens.filter(d => d.kind !== 'horse');          // (the whole clearing, whoever a creature is set on: F1 "The Clearing")
     const killedNow = new Set(c.killed ?? []);
     let foes;                                       // [{ d, dead, tag, turned }]
-    const turned = mode === 'result' ? M.turnedOver(events) : new Set();   // (a Tactics roll turned these counters over before the blows)
+    const turned = mode === 'result' ? M.turnedOver(events, fm) : new Set();   // (a Tactics roll turned these counters over before the blows)
     if (mode === 'meet') {
         const grp = p.type === 'combat-choice' ? p.groups : [p.group];
         const have = new Set(c.dens.filter(d => d.kind === 'nat').map(d => d.id));
@@ -122,7 +122,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
         foes = [...nats, ...M.clearingFoes(fm)].map(d => ({ d }));
     } else if (mode === 'result' || mode === 'grid') {
         // who hit you is said once, in the verdict (QA-8): the wound or fatigue grid that follows is the next question, so the counters stand bare there and every round starts bare
-        const res = mode === 'result' ? M.foeResults(events) : new Map();
+        const res = mode === 'result' ? M.foeResults(events, fm) : new Map();
         const WORDS = { wounded: { text: 'WOUNDED YOU', short: 'WOUNDED', kind: 'bad' }, hit: { text: 'HIT YOU', short: 'HIT', kind: 'bad' }, held: { text: 'NO EFFECT', short: 'NO EFFECT', kind: 'good' }, missed: { text: 'MISSED', short: 'MISSED', kind: 'good' } };
         foes = bodies.filter(d => (!d.dead || (d.kind !== 'part' && killedNow.has(denSide(fm, data, d).name))) && d.kind !== 'part' || (!d.dead && d.kind === 'part'))
             .map(d => { const nm = denSide(fm, data, d).name, dead = d.dead; return { d, dead, tag: !dead && WORDS[res.get(nm)] ? { ...WORDS[res.get(nm)] } : null, turned: mode === 'result' && !dead && turned.has(nm) }; });
@@ -265,7 +265,7 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
     }
     if (mode === 'result') {
         // two things the plain synopsis does not say (QA-13/14): which foes turned over to their other side before the blows, and which number beat a miss
-        const turnedNames = [...M.turnedOver(events)], miss = M.missNote(events);
+        const turnedNames = [...M.turnedOver(events, fm)], miss = M.missNote(events, fm);
         const turnedLine = turnedNames.length ? `${M.cap(turnedNames.length === 1 ? turnedNames[0] : M.foesPhrase(turnedNames))} turned to ${turnedNames.length === 1 ? 'its' : 'their'} other side before the blows.` : '';
         const hr = hireRound(events);          // (a round on Melee Sections: what the hirelings did, in a breath)
         let said = roundSynopsis(events) || (hr ? '' : 'The round passed.');
@@ -282,7 +282,7 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
     }
     if (mode === 'grid') {
         if (p.type === 'combat-wounds') {
-            const by = M.hitters(events)[0];
+            const by = M.hitters(events, fm)[0];
             return [`${by ? `The ${by}'s blow got through. ` : ''}Which chit gives way? It stays out of play until you rest.`, `${plural(p.count, 'wound')}: each puts one of your action chits out of play until you rest it back.`];
         }
         return [`You spent ${p.need + 1} asterisks: the first is free. Which chit do you tire?`, p.why ?? null];
@@ -345,7 +345,7 @@ export function combatBeat({ st: engineState, data, ui, render }) {
     const hero = heroEl({ st: snap, data, ribbon: null });
     if (how === 'died') hero.querySelector('.face')?.setAttribute('style', 'filter:grayscale(1) brightness(.6)');
     const stage = h('div', { class: 'cb-stage' }, h('div', { class: 'cb-foes noslot' }, ...foeEls), lanesEl({}), hero);
-    const deathLine = [...fm.log].reverse().find(l => l.k === 'combat' && /you are slain|vital spot|Every action chit is wounded/i.test(l.t)) ?? [...fm.log].reverse().find(l => l.k === 'combat' && /You have died/i.test(l.t));          // (still read from the words: a blow that slays him is told in many sentences, and the event does not say which one this screen shows)
+    const deathLine = deathLineOf(fm.log);          // (the voice layer: the engine marks the line that tells the fall)
     const story = how === 'quiet' ? 'The blows stop. Neither side presses on.' : how === 'died' ? M.nbTag(deathLine ? logText({ ...deathLine, s: deathLine.s ?? null }) : 'You have fallen.') : `${recap.kills.length ? `${M.cap(M.foesPhrase(recap.kills))} fell.` : ''} The clearing is yours.`;
     const detail = how === 'died' ? (deathLine?.t ?? 'You have died.') : how === 'quiet' ? 'The fighting dies down.' : 'Combat is over: nothing hostile is left.';
     const place = nameOfClearing(c.at).replace(/ (\d+)$/, '\u00A0$1');
