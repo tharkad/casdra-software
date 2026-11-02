@@ -239,10 +239,12 @@
 
 /* ---- The party step of the new-game wizard (option C of docs/design/redesign/party/, approved by Mike 2026-10-27): an accordion roster. ---- */
 /* ---- a member's face, with the pawn that stands for them on the map (colour AND shape AND number: party.js SEAT_STYLES) ---- */
-.pt-who { position: relative; flex: none; width: 56px; height: 56px; }
+.pt-who { position: relative; flex: none; display: flex; align-items: center; width: 56px; height: 56px; }
 .pt-who.sm { width: 48px; height: 48px; }
-.pt-face { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: var(--counter-face); box-shadow: 0 0 0 2px var(--line-2); overflow: hidden; }
-.pt-face img { width: 90%; height: 90%; object-fit: contain; }
+/* Mike's note 82: the character's face sits in a hex, like the map's tiles (flat top), the picture fitting inside with a slight margin. The ring is the hex's own edge: an outer hex in the ring colour with the counter's cream face inset by 2.5px. */
+.pt-face { --hex: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1 / .866; background: var(--line-2); clip-path: var(--hex); }
+.pt-face::before { content: ""; position: absolute; inset: 2.5px 3px; background: var(--counter-face); clip-path: var(--hex); }
+.pt-face img { position: relative; width: 64%; height: 76%; object-fit: contain; }
 .pt-who .ds-pc { position: absolute; left: -5px; bottom: -5px; width: 24px; height: 24px; font-size: calc(13px * var(--ts, 1)); box-shadow: 0 0 0 2px var(--surface-3); }
 .pt-who.sm .ds-pc { width: 22px; height: 22px; font-size: calc(12px * var(--ts, 1)); }
 .pt-flag { position: absolute; right: -4px; top: -4px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: var(--warn); color: var(--ink-on-gold); box-shadow: 0 0 0 2px var(--surface-1); }
@@ -266,7 +268,8 @@
 /* the empty state */
 .pt-empty { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px 14px 20px; border-radius: var(--r-md); border: 1.5px dashed var(--line-2); text-align: center; }
 .pt-seats { display: flex; gap: 12px; justify-content: center; }
-.pt-seat { width: 56px; height: 56px; border-radius: 50%; border: 2px dashed var(--line-2); display: grid; place-items: center; color: var(--ink-3); font: 700 calc(18px * var(--ts, 1))/1 var(--font-ui); }
+.pt-seat { width: 56px; height: 48.5px; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); background: var(--line-2); position: relative; display: grid; place-items: center; color: var(--ink-3); font: 700 calc(18px * var(--ts, 1))/1 var(--font-ui); }
+.pt-seat { isolation: isolate; } .pt-seat::before { content: ""; position: absolute; inset: 2px 2.5px; z-index: -1; background: var(--surface-2); clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
 .pt-empty p { margin: 0; }
 
 /* C: the accordion rows */
@@ -293,7 +296,7 @@
 .pt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 6px; padding: 4px 0 8px; }
 .pt-pick { display: flex; flex-direction: column; align-items: center; gap: 5px; min-height: 84px; padding: 4px 0; border-radius: var(--r-md); font: 600 calc(12.5px * var(--ts, 1))/1.1 var(--font-ui); color: var(--ink-2); text-align: center; }
 .pt-pick .pt-who { width: 52px; height: 52px; }
-.pt-pick.on { color: var(--gold-hi); } .pt-pick.on .pt-face { box-shadow: 0 0 0 3px var(--gold), 0 0 14px rgba(181, 227, 156, .4); }
+.pt-pick.on { color: var(--gold-hi); } .pt-pick.on .pt-who { filter: drop-shadow(0 0 7px rgba(181, 227, 156, .55)); } .pt-pick.on .pt-face { background: var(--gold); }
 .pt-pick.in { color: var(--ink-3); } .pt-pick.in .pt-face { filter: grayscale(.7) brightness(.65); }
 .pt-pick small { display: block; font: 500 calc(12px * var(--ts, 1))/1 var(--font-ui); color: var(--ink-3); }
 .pt-pick .nm { overflow-wrap: anywhere; }

@@ -35,8 +35,13 @@ import { setWelcomed, vpNow, welcomed } from './state.js';
 const LOOKS = new Set(['char', 'menu', 'calendar', 'score', 'journal', 'dice', 'log', 'curses', 'spells', 'spell', 'item', 'cardinfo', 'key', 'help', 'tables', 'setupcard', 'card', 'piece', 'slot']);
 const QUESTIONS = new Set(['turn-end', 'evening-end', 'phase-gear', 'rest', 'search-table', 'search-choice', 'effort-cost', 'runes-target', 'learn-spell', 'enchant-choice', 'trade', 'trade-offer', 'hire', 'hire-offer']);
 
+// The morning's day report and the first-day welcome are not modal (Mike's note 81): the strip and the menu open their look over them, like over any question (a clearing looked at already did, through `lookAt`).
+const reportWaiting = (G, p) => !G.shared && p?.type === 'plan' && G.ui.sheet !== 'plan'
+    && ((gameOf(G.st, G.data).day > 1 && G.ui.reportedDay !== gameOf(G.st, G.data).day) || (!G.ui.welcomeDone && !welcomed() && gameOf(G.st, G.data).day === 1));
+
 export function sheets(G, lookOnly = false) {
-    if (!lookOnly && LOOKS.has(G.ui.sheet) && QUESTIONS.has(questionOf(G.st, G.data)?.type)) {
+    const q = lookOnly ? null : questionOf(G.st, G.data);
+    if (!lookOnly && LOOKS.has(G.ui.sheet) && (QUESTIONS.has(q?.type) || reportWaiting(G, q))) {
         const look = G.ui.sheet; G.ui.sheet = null;
         let under; try { under = sheets(G); } finally { G.ui.sheet = look; }
         return [...under, ...sheets(G, true)];

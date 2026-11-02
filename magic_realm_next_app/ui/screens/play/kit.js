@@ -69,7 +69,7 @@ export function tc(G) { return { st: G.st, data: G.data, answer: G.answer, crew:
 //   information  (a close handler is given): a scrim, tap outside or the cross or a pull down puts it away; opens `hug` (content height, 78% at most) unless a detent is named
 //   decision     (no close handler): no scrim, the map is live above it; the first touch on the map drops it to `peek` (title bar + one button: a question is waiting, it is never dismissed),
 //                a tap on its head or handle brings it back; the Map button in the head does the same drop
-//   result       (kind: 'result'): a scrim, no way out but its own button
+//   result       (kind: 'result'): no scrim either (Mike's note 81: no modals, the map and the screen stay live); the first touch on the map drops it to `peek` like a decision; no way out but its own button
 // The legacy class names stay on the new elements as test hooks (`sheet2`, `sheet2-head`, `sheet-bg`, `sheet-scroll`, `sheet-grab`); their old rules are gone.
 
 // Move a mounted sheet to another detent with the height animating (a `hug` sheet has no height to animate from, so it is measured first).
@@ -108,7 +108,7 @@ export function modal(G, title, body, { close, footer, kind, detent, eyebrow, he
     const peekFoot = decision || k === 'result' ? h('div', { class: 'ds-sheet-foot peek-foot' }, h('span', { class: 'lead ds-lead-text' }, 'The map is yours.'), btn('Back to the question', 'primary', { 'data-act': 'back-to-choice' })) : null;
     const foot = [footer ?? null, footer ? null : peekFoot].filter(Boolean);
     const mapBtn = decision || k === 'result' ? h('button', { type: 'button', class: 'ds-btn quiet sm peekmap', 'data-act': 'peek-sheet-map', 'aria-label': 'Look at the map' }, dsIcon('eye'), 'Map') : null;
-    const frag = sheet({ title, eyebrow, detent: peeked ? 'peek' : full, decision, x: !!close, scrim: k !== 'decision', onClose: close, head: head ?? mapBtn, body: bare ? body : h('div', { class: 'legacy' }, body), foot,
+    const frag = sheet({ title, eyebrow, detent: peeked ? 'peek' : full, decision, x: !!close, scrim: k === 'info', onClose: close, head: head ?? mapBtn, body: bare ? body : h('div', { class: 'legacy' }, body), foot,
         cls: `sheet2 ${k}${cls ? ' ' + cls : ''}${footer ? ' has-footer' : ''}${peeked ? ' peeked' : ''}`, attrs });
     if (peeked) frag.scrim?.classList.add('none');
     const el = frag.sheet; el.dataset.full = full; el.dataset.kind = k;
