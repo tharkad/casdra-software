@@ -45,6 +45,7 @@ function belongingRow(G, it) {
 // phaseGearContent(G, pending) -> { title, eyebrow, body, foot, detent } for mountSheet (a decision: the map can be looked at while it waits).
 export function phaseGearContent(G, p) {
     const st = G.st, items = (p.items ?? []).map(uid => st.ch.items.find(i => i.uid === uid)).filter(Boolean);
+    (G.ui.itemsShown ??= new Set()); for (const it of items) G.ui.itemsShown.add(it.uid);          // he has seen these here: the item card does not open them again (note 91)
     const body = items.length
         ? h('div', { class: 'kit kit-evening kit-phasegear', 'data-phasegear': 'items' },
             h('div', { class: 'kit-gearlist' }, items.map(it => belongingRow(G, it))))

@@ -6,7 +6,7 @@
 //   resultInfo(G)          the facts of the phase just played (or null): { n, slot, line, deltas, news, rolls } read from G.st and the mark.
 //   resultCardFor(G)       the card as a DOM node (or null when no phase has just been played). The shared table (P6) calls this too: it only reads G.st, G.ui.pmark and the voice.
 import { earned } from '../../../engine/score.js';
-import { nameOfClearing } from '../../../engine/catalogue.js';
+import { nameOfClearing, nameOf } from '../../../engine/catalogue.js';
 import { h } from '../../dom.js';
 import { resultCard } from '../../ds.js';
 import { lineFor, lootActLine } from '../../storyvoice.js';
@@ -118,9 +118,11 @@ export function resultCardFor(G) {
     // Getting an item shows its card at once, where it can be brought out or put away (the owner's rule: no hunting for it); once per item, and never over another sheet
     const got = box[0]?.kind === 'item' ? box[0].item : null;
     const auto = !navigator.webdriver || window.__mrAutoCard;          // (off for the older UI scripts, as tapguard.js is; tools/ui_autocard.py turns it on)
+    // ... except an item he has already seen on the New belongings screen, or bought from the merchant's own list: the card is not first sight (note 91)
+    const shown = got && (G.ui.itemsShown?.has(got.uid) || info.trades.some(l => new RegExp(`^You buy the ${nameOf(G.data, got).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} from `).test(l.t)));
     if (got && auto && G.ui.itemSeenUid !== got.uid) {
         G.ui.itemSeenUid = got.uid;
-        setTimeout(() => { if (!G.ui.sheet && questionOf(G.st, G.data)?.type !== 'over') { G.ui.itemUid = got.uid; G.ui.itemFrom = 'dock'; G.ui.sheet = 'item'; render(G); } }, 350);
+        if (!shown) setTimeout(() => { if (!G.ui.sheet && questionOf(G.st, G.data)?.type !== 'over') { G.ui.itemUid = got.uid; G.ui.itemFrom = 'dock'; G.ui.sheet = 'item'; render(G); } }, 350);
     }
     return card;
 }
