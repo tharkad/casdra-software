@@ -13,6 +13,7 @@ import { askBox, gainChip, pcEl } from '../shared_ui.js';
 import { joinList } from '../fight.js';
 import { foeCard, confirmBox, needsConfirm } from '../combat/shared.js';
 import { chargeModel, spoilsText, blowStory, missStory, inOrder, pvpHeadline } from '../pvp.js';
+import { own } from '../combat/feed.js';
 
 const nb = s => fixNames(String(s)).replace(/ (?=\d)/g, '\u00A0');          // (the spelling of a name is one thing everywhere: QA-125)
 const personOf = (f, id) => f.members.find(m => m.id === id)?.person ?? null;
@@ -22,8 +23,8 @@ export { foeCard, confirmBox, needsConfirm };
 // ---- the CHARGE step ----
 const chitFace = c => `${c.strength}${c.time}`;
 /** The charge question, as { body, foot, narr } for the scene of the shared fight (like the lure). `ui.charge` holds the choices of this round. */
-export function chargeBody({ st, data, p, ui, render, act, f }) {
-    const model = chargeModel(st, data, p, st.ch.id);
+export function chargeBody({ st: fm, data, p, ui, render, act, f }) {
+    const model = chargeModel(fm, data, p, own(fm, data).id);
     if (!ui.charge || ui.charge.round !== p.round) ui.charge = { round: p.round, target: null, chit: null, hires: {}, sure: false };
     const c = ui.charge, tgt = model.targets.find(t => t.id === c.target) ?? null;
     if (c.target && !tgt) { c.target = null; c.sure = false; }
@@ -110,7 +111,7 @@ export function chargeBody({ st, data, p, ui, render, act, f }) {
 
 // ---- the death callout ----
 /** The big callout for a character who has fallen. `k` is a kill (pvp.js); `viewerId` the viewer's character. Nothing here is quieter than the rest of the screen on purpose. */
-export function deathCallout({ st, f, k, viewerId, round = null, compact = false, bare = false, next: nextText = null }) {
+export function deathCallout({ st: fm, f, k, viewerId, round = null, compact = false, bare = false, next: nextText = null }) {
     const v = k.victim, mineV = v.id === viewerId, killers = k.killers ?? [], mineK = killers.some(x => x.id === viewerId);
     const killerP = joinList(killers.map(x => x.player)), killerBoth = joinList(killers.map(x => `${x.player}’s ${x.character}`));
     const who = mineV ? 'You have fallen.' : fixNames(`${v.player}’s ${v.character} has fallen.`);

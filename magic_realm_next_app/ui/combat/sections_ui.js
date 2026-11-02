@@ -41,18 +41,18 @@ export const SECTION_WORDS = {
 
 // the Hires step: { body: [elements], lead: element | null }
 export function sectionsStep(X, o, m) {
-    const { st, data, cb, render } = X;
-    const plan = S.planFor(st, data, o, cb), cards = S.cardsOf(st, data, plan);
+    const { st: fm, data, cb, render } = X;
+    const plan = S.planFor(fm, data, o, cb), cards = S.cardsOf(fm, data, plan);
     if (plan.open == null || !cards.some(c => c.id === plan.open)) plan.open = (cards.find(c => c.error) ?? cards.find(c => c.chooses) ?? cards[0])?.id ?? null;
     const body = h('div', { class: 'dp-scroll sx-scroll', 'data-scope': '' }, ...cards.map(card => cardEl(X, plan, card)), vhint(SECTION_WORDS.place, 'dp-note', { 'data-hint': 'sections-place' }));
     return { body: [body], lead: null };
 }
 
 function cardEl(X, plan, card) {
-    const { st, data, render } = X, open = plan.open === card.id;
+    const { st: fm, data, render } = X, open = plan.open === card.id;
     const head = h('button', { type: 'button', class: 'dp-head sx-head', 'aria-expanded': open ? 'true' : 'false', 'data-sec-head': card.id, 'aria-label': `${card.ownerName}: ${S.subOf(card)}${card.error ? ', not allowed yet' : ''}: tap to ${open ? 'close' : 'open'}`,
         onclick: () => { plan.open = open ? null : card.id; render(); } },
-        counterBox(st, data, card.ownerKey, 44), h('span', { class: 'dp-name' }, h('b', {}, S.titleOf(card)), h('small', {}, S.subOf(card))),
+        counterBox(fm, data, card.ownerKey, 44), h('span', { class: 'dp-name' }, h('b', {}, S.titleOf(card)), h('small', {}, S.subOf(card))),
         card.error ? h('span', { class: 'ds-tag bad', 'data-sec-bad': '' }, 'Check') : null, icon(open ? 'up' : 'down'));
     const kids = [];
     if (open) {
@@ -75,8 +75,8 @@ function cardEl(X, plan, card) {
 
 // one counter in a lane: a tap moves it to the next lane (when the hirer places it)
 function chipEl(X, plan, card, chip) {
-    const { st, data, render } = X;
-    const inner = [chip.role === 'horse' ? null : counterBox(st, data, chip.key, 30, 'sx-mini'), h('span', { class: 'sx-name' }, chip.name, chip.note ? h('small', {}, chip.note) : null)];
+    const { st: fm, data, render } = X;
+    const inner = [chip.role === 'horse' ? null : counterBox(fm, data, chip.key, 30, 'sx-mini'), h('span', { class: 'sx-name' }, chip.name, chip.note ? h('small', {}, chip.note) : null)];
     const lane = S.laneName(chip.zone, chip.dir), next = S.laneName(chip.zone, (chip.dir + 1) % 3);
     if (!chip.editable) return h('div', { class: 'sx-chip fixed', 'data-counter': chip.key, 'data-fixed': '', role: 'img', 'aria-label': `${chip.name}: in the ${lane}, placed by the rules` }, ...inner);
     return h('button', { type: 'button', class: 'sx-chip', 'data-counter': chip.key, 'data-zone': chip.zone, 'data-dir': chip.dir, 'aria-label': `${chip.name}: in the ${lane}; tap to move it to the ${next}`,
@@ -85,17 +85,17 @@ function chipEl(X, plan, card, chip) {
 
 // a hireling who is attacked by several: whom does he strike (8.4.2e)
 function targetPick(X, plan, card) {
-    const { st, data, render } = X;
+    const { st: fm, data, render } = X;
     return h('div', { class: 'sx-pick', 'data-pick': 'target' }, vhint(SECTION_WORDS.chooses, '', { 'data-hint': 'chooses' }),
         h('div', { class: 'cb-aim' }, ...card.attackers.map(a => h('button', { type: 'button', class: `ds-btn dp-den${card.target === a.key ? ' on' : ''}`, 'data-target': a.key, 'aria-pressed': card.target === a.key ? 'true' : 'false',
-            onclick: () => { S.setTarget(plan, card, a.key); render(); } }, counterBox(st, data, a.key, 32, 'dp-mini'), h('span', { class: 'dp-dname' }, a.name)))));
+            onclick: () => { S.setTarget(plan, card, a.key); render(); } }, counterBox(fm, data, a.key, 32, 'dp-mini'), h('span', { class: 'dp-dname' }, a.name)))));
 }
 
 // the side a defending hireling shows (8.4.5n.1): both sides drawn
 function sidePick(X, plan, card) {
-    const { st, data, render } = X, hire = (st.combat.hires ?? []).find(x => x.uid === card.ownerKey);
+    const { st: fm, data, render } = X, hire = (fm.combat.hires ?? []).find(x => x.uid === card.ownerKey);
     return h('div', { class: 'sx-pick', 'data-pick': 'side' }, vhint(SECTION_WORDS.side, '', { 'data-hint': 'side' }),
         h('div', { class: 'dp-turn' }, ...card.sides.map(side => h('button', { type: 'button', class: `dp-side${card.side === side ? ' on' : ''}`, 'data-side': side, 'aria-pressed': card.side === side ? 'true' : 'false',
             'aria-label': `${side === 'light' ? 'Light' : 'Dark'} side${card.side === side ? ', showing' : ''}`, onclick: () => { S.setSide(plan, card, side); render(); } },
-            h('span', { class: 'ds-cs-wrap', 'aria-hidden': 'true' }, counterEl(st, data, card.ownerKey, 52, side)), h('small', {}, `${side === 'light' ? 'Light' : 'Dark'} \u00B7 ${hire ? sideFacts(st, data, hire, side).text : ''}`)))));
+            h('span', { class: 'ds-cs-wrap', 'aria-hidden': 'true' }, counterEl(fm, data, card.ownerKey, 52, side)), h('small', {}, `${side === 'light' ? 'Light' : 'Dark'} \u00B7 ${hire ? sideFacts(fm, data, hire, side).text : ''}`)))));
 }

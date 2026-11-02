@@ -53,17 +53,17 @@ const sheetBox = (X, ...kids) => h('div', { class: 'cb-sheet', 'data-kind': 'dep
 const jobWords = { lure: 'Lure', send: 'Send at', out: 'Stay out' };
 
 export function deploySheet(X) {
-    const { st, data, cb, p, c, render } = X;
-    const plan = D.planFor(st, data, p, cb);
-    const hires = D.hiresOf(p), taker = D.takerNow(st, p, plan);
+    const { st: fm, data, cb, p, c, render } = X;
+    const plan = D.planFor(fm, data, p, cb);
+    const hires = D.hiresOf(p), taker = D.takerNow(fm, p, plan);
     if (cb.depOpen == null || !hires.some(x => x.uid === cb.depOpen && !x.held)) cb.depOpen = hires.find(x => !x.held)?.uid ?? hires[0]?.uid ?? null;
-    const answer = D.payload(st, p, plan), why = D.refusal(st, data, answer);
+    const answer = D.payload(fm, p, plan), why = D.refusal(fm, data, answer);
     const sends = plan.order.filter(u => plan.jobs[u]?.job === 'send' && plan.jobs[u].den && !D.hireOfUid(p, u)?.held);
 
     const open = uid => { cb.depOpen = cb.depOpen === uid ? null : uid; render(); };
     const cards = hires.map(hh => hireCard(X, plan, hh, { open, taker, sends }));
     const heroRow = p.heroHidden ? heroBlock(X, plan, taker) : null;
-    const takerRow = taker || (p.heroHidden && !plan.heroLures && D.unluredOf(st, plan).length) ? takerBlock(X, plan, taker) : null;
+    const takerRow = taker || (p.heroHidden && !plan.heroLures && D.unluredOf(fm, plan).length) ? takerBlock(X, plan, taker) : null;
     const note = !p.heroHidden ? vhint(DEPLOY_WORDS.heroSeen, 'dp-note', { 'data-hint': 'hero-seen' }) : null;
     const lured = Object.entries(plan.jobs).filter(([u, j]) => j.job === 'lure' && j.den).length;
     const foot = h('div', { class: 'ds-actions' }, h('div', { class: 'lead' }, btn('Auto', 'quiet', { 'data-act': 'deploy-auto', 'aria-label': 'Auto: the usual plan, no luring', onclick: () => X.send(D.autoPayload()) })),
@@ -77,7 +77,7 @@ export function deploySheet(X) {
 
 // ---- the hireling's card ----
 function hireCard(X, plan, hh, { open, taker, sends }) {
-    const { st, data, p, cb, render } = X;
+    const { st: fm, data, p, cb, render } = X;
     const j = plan.jobs[hh.uid] ?? { job: 'out', den: null }, isOpen = cb.depOpen === hh.uid, held = !!hh.held;
     const isTaker = taker?.uid === hh.uid, hid = D.hiddenWhy(hh), grey = D.greyWhy(hh);
     const denName = uid => nm((p.targets ?? []).concat(p.lurable ?? []).find(d => d.uid === uid)?.name ?? '?');
@@ -90,7 +90,7 @@ function hireCard(X, plan, hh, { open, taker, sends }) {
     else sub = 'Stays out';
     const dim = held;
     const head = h('button', { type: 'button', class: 'dp-head', 'aria-expanded': isOpen ? 'true' : 'false', 'aria-label': `${hh.name}: ${sub}${hid ? ', hidden' : ''}: tap to ${isOpen ? 'close' : 'open'}`, 'data-hire-head': hh.uid, onclick: () => (held ? X.say(grey.story) : open(hh.uid)) },
-        counterBox(st, data, hh.uid, 48),
+        counterBox(fm, data, hh.uid, 48),
         h('span', { class: 'dp-name' }, h('b', {}, nm(hh.name)), h('small', {}, sub)),
         hh.hidden ? h('span', { class: `ds-tag${!held && j.job !== 'out' ? ' bad' : ''}`, 'data-tag-hidden': '' }, !held && j.job !== 'out' ? 'Will be seen' : 'Hidden') : null,
         held ? icon('lock') : icon(isOpen ? 'up' : 'down'));
@@ -102,12 +102,12 @@ function hireCard(X, plan, hh, { open, taker, sends }) {
 
 // Lure / Send at / Stay out
 function jobRow(X, plan, hh, isTaker) {
-    const { st, p, render } = X, j = plan.jobs[hh.uid];
+    const { st: fm, p, render } = X, j = plan.jobs[hh.uid];
     const noLure = !(p.lurable ?? []).some(d => !Object.entries(plan.jobs).some(([u, x]) => u !== hh.uid && x.job === 'lure' && x.den === d.uid));
     const noTarget = !(p.targets ?? []).length;
     const b = (job, off = null) => h('button', { type: 'button', class: `ds-btn${j.job === job ? ' on' : ''}${off ? ' is-dim' : ''}`, 'data-job-set': job, 'aria-pressed': j.job === job ? 'true' : 'false', 'aria-disabled': off ? 'true' : null,
-        onclick: () => { if (off) { X.say(off); return; } D.setJob(st, p, plan, hh.uid, job); render(); } }, jobWords[job]);
-    const takerCan = D.takerNow(st, p, plan);
+        onclick: () => { if (off) { X.say(off); return; } D.setJob(fm, p, plan, hh.uid, job); render(); } }, jobWords[job]);
+    const takerCan = D.takerNow(fm, p, plan);
     return h('div', { class: 'cb-aim dp-jobs', role: 'group', 'aria-label': `What ${hh.name} does` },
         b('lure', noLure ? 'There is nothing left for him to lure.' : null),
         b('send', noTarget ? 'There is nothing to send him at.' : takerCan?.uid === hh.uid && j.job !== 'send' ? 'He takes the creatures nobody lured, so he is being attacked and cannot be sent (8.3.6a).' : null),
@@ -116,11 +116,11 @@ function jobRow(X, plan, hh, isTaker) {
 
 // the creatures to pick from (lure: those nobody has lured; send: any creature)
 function pickerFor(X, plan, hh, j) {
-    const { st, data, p, render } = X;
+    const { st: fm, data, p, render } = X;
     if (j.job === 'out') return null;
     const lure = j.job === 'lure', list = lure ? (p.lurable ?? []) : (p.targets ?? []);
     const byOther = uid => Object.entries(plan.jobs).find(([u, x]) => u !== hh.uid && x.job === 'lure' && x.den === uid)?.[0] ?? null;
-    const den = uid => st.combat.dens.find(d => d.uid === uid);
+    const den = uid => fm.combat.dens.find(d => d.uid === uid);
     const notes = [];
     const btns = list.map(d => {
         const taken = lure ? byOther(d.uid) : null, on = j.den === d.uid, rec = den(d.uid);
@@ -128,8 +128,8 @@ function pickerFor(X, plan, hh, j) {
         if (on && rec?.bystander) notes.push(bystanderWhy);
         if (on && rec?.pacified) notes.push(calmWhy);
         return h('button', { type: 'button', class: `ds-btn dp-den${on ? ' on' : ''}${taken ? ' is-dim' : ''}`, 'data-den': d.uid, 'aria-pressed': on ? 'true' : 'false', 'aria-disabled': taken ? 'true' : null,
-            onclick: () => { if (taken) { X.say(`${D.hireOfUid(p, taken)?.name} has lured that creature already: each creature is lured once (8.3.4d).`); return; } D.setJob(st, p, plan, hh.uid, j.job, d.uid); render(); } },
-            counterBox(st, data, d.uid, 32, 'dp-mini'), h('span', { class: 'dp-dname' }, nm(d.name), tag ? h('small', {}, tag) : null));
+            onclick: () => { if (taken) { X.say(`${D.hireOfUid(p, taken)?.name} has lured that creature already: each creature is lured once (8.3.4d).`); return; } D.setJob(fm, p, plan, hh.uid, j.job, d.uid); render(); } },
+            counterBox(fm, data, d.uid, 32, 'dp-mini'), h('span', { class: 'dp-dname' }, nm(d.name), tag ? h('small', {}, tag) : null));
     });
     return h('div', { class: 'dp-pick', 'data-pick': j.job },
         h('p', { class: 'cb-hint' }, lure ? 'Which creature does he lure?' : 'Which creature is he sent at?'),
@@ -138,13 +138,13 @@ function pickerFor(X, plan, hh, j) {
 
 // his two sides, his horse, and where he stands in the order (only for a hireling who is sent: 8.3.6a.4)
 function turnBlock(X, plan, hh, j, sends) {
-    const { st, data, render } = X;
+    const { st: fm, data, render } = X;
     const rows = [];
     // the counter, both sides shown: the one that fights is ringed
     const sideBtn = side => {
-        const f = D.sideFacts(st, data, hh, side), on = (j.side ?? hh.side) === side;
+        const f = D.sideFacts(fm, data, hh, side), on = (j.side ?? hh.side) === side;
         return h('button', { type: 'button', class: `dp-side${on ? ' on' : ''}`, 'data-side': side, 'aria-pressed': on ? 'true' : 'false', 'aria-label': `${D.SIDE_WORD[side]}, ${f.text}${on ? ', fighting' : ''}`, onclick: () => { j.side = side; render(); } },
-            h('span', { class: 'ds-cs-wrap', 'aria-hidden': 'true' }, counterEl(st, data, hh.uid, 56, side)), h('small', {}, `${side === 'light' ? 'Light' : 'Dark'} · ${f.text}`));
+            h('span', { class: 'ds-cs-wrap', 'aria-hidden': 'true' }, counterEl(fm, data, hh.uid, 56, side)), h('small', {}, `${side === 'light' ? 'Light' : 'Dark'} · ${f.text}`));
     };
     const sides = (hh.sides ?? ['light', 'dark']);
     rows.push(h('div', { class: 'dp-turn', 'data-turn': 'side' }, ...(sides.length > 1 ? sides.map(sideBtn) : [h('p', { class: 'cb-hint' }, 'He has one side only.')])));
@@ -170,24 +170,24 @@ function turnBlock(X, plan, hh, j, sends) {
 
 // the hidden hero: lure the rest himself (and be seen)
 function heroBlock(X, plan, taker) {
-    const { st, p, render } = X;
-    const can = D.heroCanLure(st, p, plan), on = !!plan.heroLures && can;
+    const { st: fm, p, render } = X;
+    const can = D.heroCanLure(fm, p, plan), on = !!plan.heroLures && can;
     return h('div', { class: `dp-hero${on ? ' on' : ''}`, 'data-hero-lure': on ? 'on' : 'off' },
         h('button', { type: 'button', class: `ds-btn${on ? ' on' : ''}${can ? '' : ' is-dim'}`, 'data-act': 'hero-lure', role: 'switch', 'aria-checked': on ? 'true' : 'false', 'aria-disabled': can ? null : 'true',
-            onclick: () => { if (!can) { X.say('There is nothing left for you to lure: your hirelings have drawn every creature.'); return; } D.setHeroLures(st, p, plan, !plan.heroLures); render(); } }, on ? 'You lure the rest: you are seen' : 'Stay hidden: you lure nothing'),
+            onclick: () => { if (!can) { X.say('There is nothing left for you to lure: your hirelings have drawn every creature.'); return; } D.setHeroLures(fm, p, plan, !plan.heroLures); render(); } }, on ? 'You lure the rest: you are seen' : 'Stay hidden: you lure nothing'),
         vhint(DEPLOY_WORDS.heroHidden, '', { 'data-hint': 'hero-hidden' }));
 }
 
 // with the hero hidden: which hireling takes whatever nobody lured
 function takerBlock(X, plan, taker) {
-    const { st, p, render } = X;
+    const { st: fm, p, render } = X;
     const pool = D.takersOf(p, plan);
     if (!pool.length) return vhint(DEPLOY_WORDS.nobody, 'dp-note', { 'data-hint': 'nobody' });
     const rows = D.hiresOf(p).map(hh => {
         const ok = pool.some(x => x.uid === hh.uid), on = taker?.uid === hh.uid;
         const why = hh.held ? D.greyWhy(hh).story : hh.hidden ? 'He is hidden: nothing can be set on him.' : null;
         return h('button', { type: 'button', class: `ds-btn${on ? ' on' : ''}${ok ? '' : ' is-dim'}`, 'data-taker': hh.uid, 'aria-pressed': on ? 'true' : 'false', 'aria-disabled': ok ? null : 'true', 'aria-label': `${hh.name}${why ? `: ${why}` : ''}`,
-            onclick: () => { if (!ok) { X.say(why ?? 'He cannot take them.'); return; } D.setTaker(st, p, plan, hh.uid); render(); } }, h('span', { class: 'dp-dname' }, nm(hh.name), why ? h('small', {}, hh.held ? 'held' : 'hidden') : null));
+            onclick: () => { if (!ok) { X.say(why ?? 'He cannot take them.'); return; } D.setTaker(fm, p, plan, hh.uid); render(); } }, h('span', { class: 'dp-dname' }, nm(hh.name), why ? h('small', {}, hh.held ? 'held' : 'hidden') : null));
     });
     return h('div', { class: 'dp-taker', 'data-taker-block': '' }, h('p', { class: 'cb-hint' }, 'Who takes the creatures nobody lured?'), h('div', { class: 'cb-aim' }, ...rows), vhint(DEPLOY_WORDS.taker, '', { 'data-hint': 'taker' }));
 }

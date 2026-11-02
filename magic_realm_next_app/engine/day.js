@@ -1,4 +1,4 @@
-import { clone, die, roll2, int, say, lvl, shuffle, noteRoll, tally, chitWord } from './core.js';
+import { clone, die, roll2, int, say, lvl, shuffle, noteRoll, tally, chitWord, refuse } from './core.js';
 import { hides, PEER, LOCATE, meetingResult } from './tables.js';
 import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, tileClearings, graph, tileName, mapEdgeClearings } from './world.js';
 import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
@@ -574,7 +574,7 @@ function sunset(st, data) {
 // Day spells end at Sunset, just before combat begins (rule 8.1.1), and a control that has run its course lets go.
 function sunsetChores(st, data) {
     expireDue(st, data, 'sunset');
-    for (const m of st.mons) if (m.hired && m.controlledUntil && st.day >= m.controlledUntil) { m.hired = false; delete m.hiredBy; m.controlledUntil = null; say(st, `Your control of the ${data.monsters[m.id].name} ends with the Sunset.`, 'combat'); }
+    for (const m of st.mons) if (m.hired && m.controlledUntil && st.day >= m.controlledUntil) { const by = m.hiredBy; m.hired = false; delete m.hiredBy; m.controlledUntil = null; say(st, `Your control of the ${data.monsters[m.id].name} ends with the Sunset.`, 'combat', null, { ev: { code: 'control.ended', who: by ?? st.actor, den: m.id } }); }
     leaders.prune(st, data);                                // (hireling rules: a monster let go closes its sheet; what it carried is left where it stands, 7.7.5e.2)
 }
 
@@ -1181,7 +1181,7 @@ export function apply(st0, data, action) {
     const st = clone(st0);
     if (action?.type === 'table') { tableAct(st, data, action); return st; }       // the table's own decisions (an agreed end, leaving the map): see below
     const who = resolveWho(st, action);
-    if (action?.by != null && ownerOf(st, who) !== action.by) throw new Error('that is not your character');
+    if (action?.by != null && ownerOf(st, who) !== action.by) refuse('turn.not-yours', 'that is not your character');
     st.actor = who;
     // a seat marked away is played by the autopilot (server/autopilot.mjs): every answer it gives is labelled in the log, in public words (a plan or a play is not told)
     if (action.auto && multi(st)) say(st, `${playerNameOf(st, who)}'s autopilot answers: ${action.type}${action.kind ? ' ' + action.kind : ''}.`, 'day', null, { who: null });
@@ -1199,10 +1199,10 @@ function step(st, data, action) {
     if (action.type === 'hireling') return hs.act(st, data, action);        // assigning underlings to guides, letting them stay behind (hirestate.js); the hirer may, with or without a question
     const p = st.pending;
     if (multi(st) && st.offers && meet.openOffer(st, st.actor) && p) throw new Error(`wait: ${st.chars[meet.openOffer(st, st.actor).to].name} has not answered your offer yet (withdraw it to go on)`);
-    if (!p) throw new Error(multi(st) ? `${st.ch.name} has nothing to answer now (it is not his turn, or the others are still to answer)` : 'nothing to do');
+    if (!p) refuse('question.none', multi(st) ? `${st.ch.name} has nothing to answer now (it is not his turn, or the others are still to answer)` : 'nothing to do');
     switch (action.type) {
         case 'plan': {
-            if (p.type !== 'plan') throw new Error('not planning');
+            if (p.type !== 'plan') refuse('question.mismatch', 'not planning');
             hs.assign(st, data, st.ch.id, action.assign);                   // (hireling rules: the underlings' guides are named with the plan; throws before anything changes)
             st.pending = null;
             submitPlan(st, data, action.slots ?? [], action.companions ?? null, !!action.choose);
@@ -1215,21 +1215,21 @@ function step(st, data, action) {
                 pickPhase(st, data, st.planFull?.[st.turn.i] ?? null, { soft: true });
                 return settle(st, data, !!action.all);
             }
-            if (p.type !== 'phase') throw new Error('not in a phase');
+            if (p.type !== 'phase') refuse('question.mismatch', 'not in a phase');
             st.pending = null;
             runPhase(st, data);
             return settle(st, data, !!action.all);
         }
         case 'pick': {
-            if (p.type !== 'phase-pick') throw new Error('you are not choosing a phase');
+            if (p.type !== 'phase-pick') refuse('question.mismatch', 'you are not choosing a phase');
             st.pending = null;
             pickPhase(st, data, action.slot ?? null);
             return settle(st, data, !!action.all);
         }
         case 'rest': {
-            if (p.type !== 'rest') throw new Error('not resting');
+            if (p.type !== 'rest') refuse('question.mismatch', 'not resting');
             const o = p.options.find(x => x.chit === action.chit && (action.change == null || x.change === action.change));
-            if (!o) throw new Error('cannot rest that chit');
+            if (!o) refuse('rest.not-offered', 'cannot rest that chit');
             st.pending = null;
             applyRest(st, o);
             say(st, `You rest (${o.text}).`, 'info');
@@ -1237,9 +1237,9 @@ function step(st, data, action) {
             return settle(st, data, st.turn?.auto);
         }
         case 'search-table': {
-            if (p.type !== 'search-table') throw new Error('no search table is being chosen');
+            if (p.type !== 'search-table') refuse('question.mismatch', 'no search table is being chosen');
             const named = SIGHT_REPLACES.has(action.table) && magicSightOn(st, data) ? 'magicsight' : action.table;       // under Magic Sight a named old table is the Magic Sight table
-            if (!p.options.includes(named)) throw new Error('you cannot search that table here');
+            if (!p.options.includes(named)) refuse('search.not-offered', 'you cannot search that table here');
             st.pending = null;
             const text = doSearch(st, data, { act: 'search', table: named });
             if (text === 'wait') return st;                          // a Choice result is waiting for its own answer
@@ -1248,7 +1248,7 @@ function step(st, data, action) {
             return settle(st, data, st.turn?.auto);
         }
         case 'effort-cost': {
-            if (p.type !== 'effort-cost') throw new Error('nothing is asking for effort');
+            if (p.type !== 'effort-cost') refuse('question.mismatch', 'nothing is asking for effort');
             const o = p.options[action.n ?? 0];
             if (!o) throw new Error('choose one of the ways to pay');
             st.pending = null;
@@ -1260,7 +1260,7 @@ function step(st, data, action) {
             return settle(st, data, st.turn?.auto);
         }
         case 'enchant-choice': {
-            if (p.type !== 'enchant-choice') throw new Error('nothing to enchant');
+            if (p.type !== 'enchant-choice') refuse('question.mismatch', 'nothing to enchant');
             const kind = action.kind ?? 'chit';
             const o = p.options.find(x => x.chit === action.chit && (x.kind ?? 'chit') === kind);
             if (!o) throw new Error('choose one of the chits offered');
@@ -1281,7 +1281,7 @@ function step(st, data, action) {
             return settle(st, data, st.turn?.auto);
         }
         case 'runes-target': {
-            if (p.type !== 'runes-target') throw new Error('nothing to read');
+            if (p.type !== 'runes-target') refuse('question.mismatch', 'nothing to read');
             if (!p.options.some(o => o.key === action.target)) throw new Error('read the runes of one of the things offered');
             st.pending = null;
             const text = p.sight ? perceive(st, data, p.roll, action.target) : readRunes(st, data, action.target);
@@ -1291,14 +1291,14 @@ function step(st, data, action) {
             return settle(st, data, st.turn?.auto);
         }
         case 'learn-spell': {
-            if (p.type !== 'learn-spell') throw new Error('no spell is being offered');
+            if (p.type !== 'learn-spell') refuse('question.mismatch', 'no spell is being offered');
             const text = learnSpell(st, data, !!action.learn, p, action.erase, action.spell ?? null);          // (throws, leaving the question open, when he must erase one and has not said which)
             st.pending = null;
             finishPhase(st, data, text);
             return settle(st, data, st.turn?.auto);
         }
         case 'search-choice': {
-            if (p.type !== 'search-choice') throw new Error('not choosing');
+            if (p.type !== 'search-choice') refuse('question.mismatch', 'not choosing');
             if (!p.options.includes(action.result)) throw new Error('not a result on that table');
             st.pending = null;
             const text = p.table === 'magicsight-take' ? takeChosen(st, data, p, action.result) : applySearchResult(st, data, p.table, action.result, p.roll);
@@ -1308,7 +1308,7 @@ function step(st, data, action) {
             return settle(st, data, st.turn?.auto);
         }
         case 'hire': {
-            if (p.type !== 'hire' && p.type !== 'hire-offer') throw new Error('not hiring');
+            if (p.type !== 'hire' && p.type !== 'hire-offer') refuse('question.mismatch', 'not hiring');
             if (action.act === 'back') return cancelDealing(st, data, p);
             st.pending = null;
             const done = hireAction(st, data, p, action);
@@ -1316,7 +1316,7 @@ function step(st, data, action) {
             return settle(st, data, st.turn?.auto);
         }
         case 'trade': {
-            if (p.type !== 'trade' && p.type !== 'trade-offer') throw new Error('not trading');
+            if (p.type !== 'trade' && p.type !== 'trade-offer') refuse('question.mismatch', 'not trading');
             if (action.act === 'back') return cancelDealing(st, data, p);
             st.pending = null;
             const done = tradeAction(st, data, p, action);
@@ -1324,9 +1324,9 @@ function step(st, data, action) {
             return settle(st, data, st.turn?.auto);
         }
         case 'combat': {
-            if (!st.combat) throw new Error('no combat');
+            if (!st.combat) refuse('question.mismatch', 'no combat');
             const kindFor = { 'combat-pay': 'pay', 'combat-drinks': 'drinks', 'combat-choice': 'choice', 'combat-encounter': 'encounter', 'combat-melee': 'melee', 'combat-shift': 'shift', 'combat-wounds': 'wounds', 'combat-fatigue': 'fatigue', 'combat-over': 'over', 'combat-lure': 'lure', 'combat-charge': 'charge', 'combat-deploy': 'deploy' };
-            if (kindFor[p.type] !== action.kind && !(p.type === 'combat-melee' && action.kind === 'aim')) throw new Error(`that is not what the fight is waiting for (${kindFor[p.type] ?? p.type})`);
+            if (kindFor[p.type] !== action.kind && !(p.type === 'combat-melee' && action.kind === 'aim')) refuse('combat.not-step', `that is not what the fight is waiting for (${kindFor[p.type] ?? p.type})`, { waitingFor: kindFor[p.type] ?? p.type });
             st.pending = null;
             if (st.combat.shared) {                                // a fight with other characters in it (battle.js): the fight takes the answer and goes on as far as it can
                 if (battle.answer(st, data, action) === 'done') nextEvening(st, data);
@@ -1339,18 +1339,18 @@ function step(st, data, action) {
         case 'continue': {
             if (p.type === 'evening-end') { st.pending = null; return midnight(st, data); }          // the evening is over: Midnight
             if (p.type === 'phase-gear') { st.pending = null; resumePhase(st, data); return st; }          // he has settled what to do with what he came by: the phase is complete (4.3.2)
-            if (p.type !== 'turn-end') throw new Error('nothing to continue');
+            if (p.type !== 'turn-end') refuse('question.mismatch', 'nothing to continue');
             st.pending = null;
             afterTurnEnd(st, data);
             return st;
         }
         case 'end-option': {
-            if (p.type !== 'end-option') throw new Error('nobody is asking whether the game ends');
+            if (p.type !== 'end-option') refuse('question.mismatch', 'nobody is asking whether the game ends');
             return endOption(st, data, action);
         }
         case 'restart': {
             if (p.type === 'restart') return restartChar(st, data, action.vp, action.character ?? null);        // (several characters: the seat starts again at this Birdsong)
-            if (p.type !== 'over') throw new Error('not at the end of a game');
+            if (p.type !== 'over') refuse('question.mismatch', 'not at the end of a game');
             return restartAfterDeath(st, data, action.vp);
         }
         case 'protect': {
@@ -1496,12 +1496,12 @@ function autoplay(st, data) {
 //   leave  a character leaves the map (R-21, 9.2.2b): his score is fixed at once, his hirelings are let go, his things leave play, his seat does not start again (no new character)
 // The server checks the vote that lets `end` be sent; the engine only does it. `leave` is a character's: it needs `who`, and `by` must own him.
 function tableAct(st, data, a) {
-    if (st.period === 'over') throw new Error('the game is over');
+    if (st.period === 'over') refuse('game.over', 'the game is over');
     if (a.kind === 'end') return endGame(st, data, a.reason ?? 'agreed');
     if (a.kind === 'note') { say(st, String(a.text ?? '').slice(0, 240), 'day', null, { who: null }); return st; }          // the table's own line (a seat marked away, a seat back): written by the server
     if (a.kind === 'leave') {
         const who = resolveWho(st, a);
-        if (a.by != null && ownerOf(st, who) !== a.by) throw new Error('that is not your character');
+        if (a.by != null && ownerOf(st, who) !== a.by) refuse('turn.not-yours', 'that is not your character');
         st.actor = who;
         leaveMap(st, data);
         settleActor(st, who);

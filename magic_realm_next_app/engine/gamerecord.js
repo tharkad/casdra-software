@@ -8,7 +8,7 @@
 
 export const RECORD_V = 1;
 
-export function newRecord({ id, version, params, startedAt = new Date().toISOString(), replayable = true }) {
+export function newRecord({ id, version, params, startedAt = null, replayable = true }) {
     return { v: RECORD_V, id, version, startedAt, params, replayable, moves: [], errors: [], days: [], meta: null, log: [] };
 }
 
@@ -76,7 +76,7 @@ export function readableLog(rec, { kinds = null } = {}) {
     return [...head, ...body, ...tail, ''].join('\n');
 }
 
-export function bundle(records, exportedAt = new Date().toISOString()) {
+export function bundle(records, exportedAt = null) {
     return JSON.stringify({ app: 'magic-realm', format: RECORD_V, exported: exportedAt, games: records }, null, 1);
 }
 

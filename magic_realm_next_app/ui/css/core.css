@@ -40,6 +40,11 @@ button:where([class^="ds-"], [class*=" ds-"]) { font: inherit; color: inherit; b
 .ds-counter .ki { width: 62%; height: 62%; }
 .ki { color: var(--counter-ink); } .ki .ki-num { font-family: var(--font-ui); }
 svg.ico.kico { padding: 6px; box-sizing: border-box; stroke-width: 1.6; }
+/* a colour illustration (ui/kindart.js) carries its own colours and its own rounded backing tile, so the theme never recolours it and it fills the counter / art tile / card band it sits in */
+.ki.ki-colour { fill: none; stroke: none; }
+.ds-counter .ki.ki-colour, .kit .ds-row .art .ki.ki-colour, .ds-dayres .line .ds-counter .ki.ki-colour { width: 100%; height: 100%; }
+svg.ico.kico.ki-colour { padding: 0; }
+.card-sym:has(.ki-colour) { background: none; } .card-sym .ki.ki-colour { width: 44px; height: 44px; }
 
 /* ---- status strip ---- */
 .ds-strip { flex: none; height: var(--strip-h); display: grid; grid-template-columns: 44px 1fr auto auto; align-items: center; gap: 0 4px; padding: 0 var(--gutter) 0 4px; background: var(--surface-1); border-bottom: 1px solid var(--line-1); position: relative; z-index: 3; }

@@ -166,14 +166,14 @@ export function castSpell(st, data, spellId, chitId, itemUid = null) {
         const it = st.ch.items.find(i => i.uid === itemUid);
         (it.usedEvening ??= {})[def.type] = st.day;                       // once per Evening for each numeral
         (c.casts ??= []).push({ spell: spellId, item: itemUid, time: 0, colour, colorChit: opt.colorChit });
-        say(st, `You cast ${opt.name} from your ${opt.from}.`, 'combat');
+        say(st, `You cast ${opt.name} from your ${opt.from}.`, 'combat', null, { ev: { code: 'encounter.cast', who: st.ch.id, spell: spellId, source: 'item' } });
     } else {
         const chit = st.ch.chits.find(x => x.id === chitId);
         chit.state = 'committed'; chit.tie = null; chit.alerted = false;
         c.played[chitId] = true;
         c.asterisks.magic = (c.asterisks.magic ?? 0) + opt.effort;
         (c.casts ??= []).push({ spell: spellId, chit: chitId, time: opt.time, colour, colorChit: opt.colorChit });
-        say(st, `You cast ${opt.name}, playing Magic ${chit.numeral}${opt.time}${'*'.repeat(opt.effort)}.`, 'combat');
+        say(st, `You cast ${opt.name}, playing Magic ${chit.numeral}${opt.time}${'*'.repeat(opt.effort)}.`, 'combat', null, { ev: { code: 'encounter.cast', who: st.ch.id, spell: spellId, chit: chitId, source: 'chit' } });
     }
     const atk = handlerOf(spellId)?.attack;
     if (atk) c.attackSpell = { spell: spellId, chit: chitId, item: itemUid, ...atk };      // used in this round's melee, or lost

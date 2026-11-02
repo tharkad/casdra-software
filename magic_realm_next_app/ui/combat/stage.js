@@ -3,8 +3,8 @@
 import { h } from '../dom.js';
 import { icon } from '../icons.js';
 import { monsterCounter, itemFace } from '../counter.js';
-import { denSide, weaponOf, activeArmor } from '../../engine/combat.js';
-import { nameOf, defOf } from '../../engine/items.js';
+import { nameOf, defOf } from '../../engine/catalogue.js';
+import { denSide, weaponOf, activeArmor, own } from './feed.js';
 import { DIRS, MNV, otherSide, picOf, chitText, WORD, isWithered, WITHER_STORY, WITHER_DETAIL } from './model.js';
 import { displayName, tieNumber } from '../names.js';
 
@@ -35,27 +35,27 @@ function holdable(btn, onHold) {
 }
 
 // What the rules say about a creature on a given side, or, if the engine cannot say (a creature that has left the game's lists, a part whose owner is gone, a kind nobody knew), at least its name: a counter is never blank.
-export function safeSide(st, data, d) {
-    try { const s = denSide(st, data, d); if (s && s.name) return d?.kind === 'hire' && d.hireKind === 'nat' && !s.group ? { ...s, group: data.natives?.[d.id]?.group } : s; } catch { /* fall through to the bare name */ }
+export function safeSide(fm, data, d) {
+    try { const s = denSide(fm, data, d); if (s && s.name) return d?.kind === 'hire' && d.hireKind === 'nat' && !s.group ? { ...s, group: data.natives?.[d.id]?.group } : s; } catch { /* fall through to the bare name */ }
     const name = d?.kind === 'mon' || d?.kind === 'hire' ? data.monsters?.[d.id]?.name : d?.kind === 'nat' ? data.natives?.[d.id]?.name : null;
     return { name: name ?? d?.name ?? String(d?.id ?? 'Unknown creature'), size: null, vuln: null, armored: false, harm: null, stars: 0, atk: null, move: null, length: 0, attack: 'none', fame: 0, notor: 0 };
 }
 // The counter of one creature on one side: the frame, the name and the picture (the main art, else the rulebook's own counter, else none) whatever the creature is, alive or slain.
-export function counterOf(st, data, d, side, flies = false) {
+export function counterOf(fm, data, d, side, flies = false) {
     let picture = null;
-    try { picture = picOf(st, data, d, side); } catch { picture = null; }
-    return monsterCounter({ s: safeSide(st, data, { ...d, side }), side, picture, flies, size: 92 });
+    try { picture = picOf(fm, data, d, side); } catch { picture = null; }
+    return monsterCounter({ s: safeSide(fm, data, { ...d, side }), side, picture, flies, size: 92 });
 }
 
 // One foe: its counter (tap to turn it over), and an optional tag (TARGET, a box, WOUNDED YOU). `view` says which side shows; `tag` is { text, kind, onclick? }.
-export function foeEl({ st, data, d, flipped = false, tag = null, dead = false, onFlip, size = 92, justFlipped = false, selected = false, turnedOver = false, onHold = null, seton = null }) {
+export function foeEl({ st: fm, data, d, flipped = false, tag = null, dead = false, onFlip, size = 92, justFlipped = false, selected = false, turnedOver = false, onHold = null, seton = null }) {
     let other = null; try { other = otherSide(data, d); } catch { other = null; }
     const showRev = !!flipped && other && other !== (d.side ?? 'light');
     const view = showRev ? { ...d, side: other } : d;
-    const s = safeSide(st, data, view);
+    const s = safeSide(fm, data, view);
     const side = showRev ? other : (d.side ?? 'light');
     const flies = d.kind === 'mon' && !!data.monsters?.[d.id]?.flies;
-    const svg = counterOf(st, data, d, side, flies);
+    const svg = counterOf(fm, data, d, side, flies);
     // The tag (TARGET, a box, WOUNDED YOU) stands in its own slot ABOVE the counter, never over its name (QA-8). `tag.dot`: a crowded stage (QA-6) shows the offer as a ghost dot with a 44px hit area instead of a word.
     const tagEl = tag ? h(tag.onclick ? 'button' : 'span', { class: `tag ${tag.kind ?? ''}${tag.dot ? ' dot' : ''}`, ...(tag.onclick ? { type: 'button', 'data-tag': d.uid, 'aria-label': tag.label ?? tag.text, onclick: e => { e.stopPropagation(); tag.onclick(); } } : {}) }, tag.dot ? null : tag.text) : null;
     const flipBtn = h('button', { type: 'button', class: 'cb-flip', 'data-flip': d.uid, 'aria-pressed': showRev ? 'true' : 'false', 'aria-label': `${s.name}${dead ? ', slain' : ''}, ${showRev ? 'other side showing, not the current side' : 'current side up'}: tap to turn the counter over, press and hold for its card`, onclick: () => onFlip?.(d, !!other), style: 'padding:0;display:block' },
@@ -143,12 +143,12 @@ export function drawThreads(root) {
 
 // The hirelings (and the creatures a spell won over) beside you, as real counters (QA-116): the picture, the name, the days left as pips, and a tap turns the counter over like a foe's.
 // `allies` = M.alliesOf(); `flipped` = { [uid]: true } for the ones turned over; `size` is the counter's size.
-export function alliesEl({ st, data, allies, flipped = {}, onFlip, size = 56 }) {
+export function alliesEl({ st: fm, data, allies, flipped = {}, onFlip, size = 56 }) {
     return h('div', { class: 'cb-allies', style: `--ally:${size}px`, role: 'group', 'aria-label': `On your side: ${allies.map(a => a.name).join(', ')}` }, ...allies.map(a => {
         const den = { uid: `ally:${a.uid}`, kind: a.kind, id: a.id, side: a.side };
         let other = null; try { other = otherSide(data, den); } catch { other = null; }
         const turned = !!flipped[a.uid] && !!other;
-        const svg = counterOf(st, data, den, turned ? other : a.side, a.kind === 'mon' && !!data.monsters?.[a.id]?.flies);
+        const svg = counterOf(fm, data, den, turned ? other : a.side, a.kind === 'mon' && !!data.monsters?.[a.id]?.flies);
         const low = a.days != null && a.days <= 3;
         return h('div', { class: `cb-ally${a.controlled ? ' ctl' : ''}`, 'data-ally': a.uid },
             h('button', { type: 'button', class: 'cb-flip', 'data-ally-flip': a.uid, 'aria-pressed': turned ? 'true' : 'false', 'aria-label': `${a.name}, on your side: tap to turn the counter over`, onclick: () => onFlip?.(a, !!other), style: 'padding:0;display:block' },
@@ -169,17 +169,17 @@ export function lanesEl({ attack = null, guard = null, boxes = {}, sec = null } 
 }
 
 // one pip per action chit, in the chits' own order (fight, move, magic), coloured by kind and shaped by state: ready, tired (faded), wounded (dashed red)
-export function pipsEl(st, prev = null) {
+export function pipsEl(fm, prev = null, data = null) {
     const order = { fight: 0, move: 1, magic: 2 };
-    const chits = [...st.ch.chits].sort((a, b) => (order[a.type] ?? 3) - (order[b.type] ?? 3));
-    const cls = x => (isWithered(st, x) ? 'tired withered' : x.state === 'fatigued' ? 'tired' : x.state === 'wounded' ? 'wounded' : x.state === 'committed' ? 'committed' : x.state === 'enchanted' ? 'enchanted' : '');
+    const chits = [...own(fm, data).chits].sort((a, b) => (order[a.type] ?? 3) - (order[b.type] ?? 3));
+    const cls = x => (isWithered(fm, x) ? 'tired withered' : x.state === 'fatigued' ? 'tired' : x.state === 'wounded' ? 'wounded' : x.state === 'committed' ? 'committed' : x.state === 'enchanted' ? 'enchanted' : '');
     return h('div', { class: 'cb-pips', role: 'img', 'aria-label': `${chits.filter(x => x.state === 'active').length} chits ready, ${chits.filter(x => x.state === 'fatigued').length} tired, ${chits.filter(x => x.state === 'wounded').length} wounded` },
         ...chits.map(x => h('i', { class: `ds-chit mini ${x.type}${cls(x) ? ` ${cls(x)}` : ''}${prev && prev[x.id] && prev[x.id] !== x.state ? ' fresh' : ''}`, 'data-pip': x.id }, ({ fight: 'F', move: 'M', magic: '✦' })[x.type] || '?')));
 }
 
 // you: the weapon on the left, the armor on the right, your face and a pip per chit between. A morphed hero is the creature's counter. Tap a piece of gear to read it (and turn it over).
-export function heroEl({ st, data, onGear, onPeekGear = null, onPeekMap = null, onCurse = null, hurtArmor = false, ribbon = null, prevChits = null, wasHidden = false }) {
-    const ch = st.ch, w = weaponOf(st, data), armor = activeArmor(st, data).map(a => a.item ?? a).filter(x => x && x.uid);
+export function heroEl({ st: fm, data, onGear, onPeekGear = null, onPeekMap = null, onCurse = null, hurtArmor = false, ribbon = null, prevChits = null, wasHidden = false }) {
+    const ch = fm.ch, w = weaponOf(fm, data), armor = activeArmor(fm, data).map(a => a.item ?? a).filter(x => x && x.uid);
     const wName = w ? nameOf(data, w.item) : null, aName = armor[0] ? nameOf(data, armor[0]) : null;
     const cr = ch.morph?.creature, lt = cr?.light ?? {};
     const face = cr
@@ -195,13 +195,13 @@ export function heroEl({ st, data, onGear, onPeekGear = null, onPeekMap = null, 
     const gcol = (kids, peekBtn) => h('div', { class: 'gcol' }, ...kids, peekBtn);
     return h('div', { class: 'cb-hero' },
         ch.morph ? gcol([], peek('peek-gear', 'Belongings', 'bag', onPeekGear)) : gear('weapon', wName, wName ? data.art?.weapons?.[wName] : null, w ? 1 : 0, false, peek('peek-gear', 'Belongings', 'bag', onPeekGear)),
-        h('div', { class: `mid${onPeekGear ? ' tappable' : ''}`, 'data-act': onPeekGear ? 'peek-hero' : null, onclick: onPeekGear ?? null }, face, h('span', { class: 'name' }, displayName(ch.name)), ribbon ? h('span', { class: 'ribbon' }, ribbon) : null, pipsEl(st, prevChits), (ch.curses ?? []).length && onCurse ? h('button', { type: 'button', class: 'cb-curse', 'data-act': 'curse-badge', 'aria-label': `Cursed: ${ch.curses.join(', ')}. Tap to read`, onclick: e => { e.stopPropagation(); onCurse(); } }, icon('skull'), ch.curses.join(', ')) : null),
+        h('div', { class: `mid${onPeekGear ? ' tappable' : ''}`, 'data-act': onPeekGear ? 'peek-hero' : null, onclick: onPeekGear ?? null }, face, h('span', { class: 'name' }, displayName(ch.name)), ribbon ? h('span', { class: 'ribbon' }, ribbon) : null, pipsEl(fm, prevChits, data), (ch.curses ?? []).length && onCurse ? h('button', { type: 'button', class: 'cb-curse', 'data-act': 'curse-badge', 'aria-label': `Cursed: ${ch.curses.join(', ')}. Tap to read`, onclick: e => { e.stopPropagation(); onCurse(); } }, icon('skull'), ch.curses.join(', ')) : null),
         ch.morph ? gcol([], peek('peek-map', 'Map', 'pin', onPeekMap)) : gear('armor', aName, aName ? data.art?.armor?.[aName] : null, armor.length, hurtGear, peek('peek-map', 'Map', 'pin', onPeekMap)));
 }
 
 // The things he carries into the fight, as counters he can turn over (alerted or not, whole or damaged): the old Belongings cards, as one small card over the stage.
-export function gearPopover({ st, data, flippedGear, onFlip, onClose }) {
-    const w = weaponOf(st, data), items = [...(w ? [w.item] : []), ...activeArmor(st, data).map(a => a.item ?? a).filter(x => x && x.uid)];
+export function gearPopover({ st: fm, data, flippedGear, onFlip, onClose }) {
+    const w = weaponOf(fm, data), items = [...(w ? [w.item] : []), ...activeArmor(fm, data).map(a => a.item ?? a).filter(x => x && x.uid)];
     const card = it => {
         const d = defOf(data, it), name = nameOf(data, it), pic = data.art?.weapons?.[name] ?? data.art?.armor?.[name] ?? null, flip = !!flippedGear[it.uid];
         let counter, cap;
@@ -222,10 +222,10 @@ export function gearPopover({ st, data, flippedGear, onFlip, onClose }) {
 export { chitText };
 
 // Note 75: the curse badge's card (the map shell shows the same skull): the Story line, then the rule
-export function cursePopover({ st, onClose }) {
-    const wither = (st.ch.curses ?? []).includes('Wither');
+export function cursePopover({ st: fm, data, onClose }) {
+    const wither = (own(fm, data).curses ?? []).includes('Wither');
     return h('div', { class: 'cb-pop curse', role: 'dialog', 'aria-label': 'Your curse', onclick: onClose },
-        h('p', { class: 'story' }, wither ? WITHER_STORY : `You bear ${st.ch.curses.join(' and ')}: see the Journal for what it takes away.`),
+        h('p', { class: 'story' }, wither ? WITHER_STORY : `You bear ${own(fm, data).curses.join(' and ')}: see the Journal for what it takes away.`),
         wither ? h('p', { class: 'detail' }, WITHER_DETAIL) : null);
 }
 

@@ -3,8 +3,8 @@
 // Only what the rules let a player know is read: another character's printed card and open gear (4.3.5: weapons, armor and horses are counters on the table), Fame, Notoriety, whether he is
 // hidden (R-1), the table's record of charges and kills (`battle.charges`, `battle.kills`), the lines of the fight that the server sends its participants, and the viewer's own record.
 // Never another character's gold, plan, cards face down, or the target of a play that has not been shown.
-import { nameOf } from '../engine/items.js';
-import { hireStats, encounterOptions } from '../engine/combat.js';
+import { nameOf } from '../engine/catalogue.js';
+import { hireStats, optionsOf } from './combat/feed.js';
 import { meetLines } from './meet.js';
 import { chitText, joinList } from './fight.js';
 
@@ -77,7 +77,7 @@ export function targetName(view, data, uid) {
     if (isHireUid(uid)) {
         const h = (view?.battle?.hires ?? []).find(x => x.uid === uid.slice(5));
         if (!h) return 'a hireling';
-        let nm = h.id; try { nm = hireStats(data, h.id, h.kind, view).name; } catch { /* the id */ }
+        let nm = h.id; try { nm = hireStats(view, data, h.id, h.kind).name; } catch { /* the id */ }
         return `${pname(view, h.owner)}’s ${nm}`;
     }
     return null;
@@ -88,7 +88,7 @@ export function targetName(view, data, uid) {
 export function chargeChits(view, data, p) {
     const me = view?.ch ?? view?.chars?.[view.actor];
     let slowest = 99, gate = null, pickedUp = false;
-    try { const o = encounterOptions(view, data); gate = o.why?.chargeGate ?? null; slowest = gate?.speed ?? 99; pickedUp = !!o.pickedUp; } catch { /* the engine will say if it must */ }
+    try { const o = optionsOf(view, data) ?? {}; gate = o.why?.chargeGate ?? null; slowest = gate?.speed ?? 99; pickedUp = !!o.pickedUp; } catch { /* the engine will say if it must */ }
     // what holds a chit back, in words: another character's charge (a creature on my sheet holds a charge back no longer, 8.3.6b.1) ("Ann\u2019s charge, which moves at 3")
     let gateText = null;
     if (gate) {

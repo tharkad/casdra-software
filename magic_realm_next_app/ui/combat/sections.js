@@ -4,17 +4,17 @@
 // says where everything would stand and whether the plan is allowed (hirefight.js preview, the same layout the Melee step uses); nothing here decides a rule.
 //
 //   plan = { key, targets: { [hireling]: attacker }, sides: { [hireling]: 'light' | 'dark' }, pos: { [counter]: 0 | 1 | 2 } }   what he chose (positions he named; the rest are where the rules put them)
-import * as HF from '../../engine/hirefight.js';
+import { checkOf } from './feed.js';
 import { counterInfo, nameOfKey } from './counters.js';
 import { DIRS, MNV, BOX, listOf, nbTag } from './model.js';
 
 export const inPlay = o => !!o?.sections?.length;
-const sheetsOf = st => st.combat.sec?.sheets ?? [];
+const sheetsOf = fm => fm.combat.sec?.sheets ?? [];
 export { DIRS, MNV, BOX };
 
 // ---- the plan ----
-export function planFor(st, data, o, cb) {
-    const c = st.combat, sheets = sheetsOf(st);
+export function planFor(fm, data, o, cb) {
+    const c = fm.combat, sheets = sheetsOf(fm);
     const key = `${c.round}|${sheets.map(s => `${s.id}:${s.owner}:${s.attackers.join('+')}:${s.held ? 1 : 0}`).join(',')}`;
     if (cb.sec?.key !== key) {
         const old = cb.sec, plan = { key, round: c.round, targets: {}, sides: {}, pos: {}, open: null };
@@ -35,15 +35,15 @@ const baseOwn = (info, key) => (info.role === 'horse' && key.endsWith(':horse') 
 
 // -> [{ id, ownerKey, ownerName, ownerKind, held, noTarget, attackers: [{ key, name, hire }], target, chooses, sides, side, error, cells: { box|square|circle: [[chip], [chip], [chip]] } }]
 // a chip: { key, name, role: 'hire' | 'den' | 'part' | 'horse', hire, side, dir, zone, editable, note }
-export function cardsOf(st, data, plan) {
-    const prev = HF.preview(st, data, { hireTargets: plan.targets, positions: plan.pos });
+export function cardsOf(fm, data, plan) {
+    const prev = checkOf(fm, data, { type: 'combat', kind: 'melee', probe: 'sections', hireTargets: plan.targets, positions: plan.pos }).sections.preview;          // (the engine's own layout of the sections for this plan)
     const byId = new Map(prev.map(r => [r.id, r]));
-    return sheetsOf(st).map(s => {
+    return sheetsOf(fm).map(s => {
         const r = byId.get(s.id) ?? { pos: { ...s.pos }, target: s.target, error: null };
-        const owner = counterInfo(st, data, s.owner), hireOwner = s.ownerKind === 'hire';
+        const owner = counterInfo(fm, data, s.owner), hireOwner = s.ownerKind === 'hire';
         const cells = { box: [[], [], []], square: [[], [], []], circle: [[], [], []] };
         for (const [key, dir] of Object.entries(r.pos)) {
-            const info = counterInfo(st, data, key), unit = baseOwn(info, key);
+            const info = counterInfo(fm, data, key), unit = baseOwn(info, key);
             const zone = unit === s.owner ? 'box' : unit === r.target ? 'square' : 'circle';
             if (zone === 'box' && s.noTarget) continue;
             const note = info.role === 'hire' ? (info.side === 'dark' ? 'dark side' : 'light side') : info.role === 'horse' && info.hire ? (info.hire.horse?.side === 'dark' ? 'galloping' : 'walking') : '';
@@ -51,7 +51,7 @@ export function cardsOf(st, data, plan) {
         }
         const sides = hireOwner && owner.hire ? sidesOf(data, owner.hire) : [];
         return { id: s.id, ownerKey: s.owner, ownerName: nbTag(owner.name), ownerKind: s.ownerKind, held: !!s.held, noTarget: !!s.noTarget,
-            attackers: s.attackers.map(u => ({ key: u, name: nbTag(nameOfKey(st, data, u)), hire: !!(st.combat.hires ?? []).find(h => h.uid === u) })), target: r.target, chooses: hireOwner && s.attackers.length > 1 && !s.held,
+            attackers: s.attackers.map(u => ({ key: u, name: nbTag(nameOfKey(fm, data, u)), hire: !!(fm.combat.hires ?? []).find(h => h.uid === u) })), target: r.target, chooses: hireOwner && s.attackers.length > 1 && !s.held,
             sides, side: plan.sides[s.owner] ?? owner.hire?.side ?? 'light', error: r.error, cells };
     });
 }
@@ -65,13 +65,13 @@ export function resetPlan(plan) { plan.pos = {}; }
 
 // ---- the answer ----
 // { hireTargets?, hireSides?, positions? } to add to the Melee answer, and the reason the plan is not allowed (null when it is). Only what is still true of today's sections is sent.
-export function extras(st, data, o, cb) {
+export function extras(fm, data, o, cb) {
     if (!inPlay(o)) return { extras: {}, error: null };
-    const plan = planFor(st, data, o, cb), cards = cardsOf(st, data, plan), out = {};
+    const plan = planFor(fm, data, o, cb), cards = cardsOf(fm, data, plan), out = {};
     const targets = {}, sides = {}, positions = {};
     for (const card of cards) {
         if (card.chooses && plan.targets[card.ownerKey] && card.attackers.some(a => a.key === plan.targets[card.ownerKey])) targets[card.ownerKey] = plan.targets[card.ownerKey];
-        const h = (st.combat.hires ?? []).find(x => x.uid === card.ownerKey);
+        const h = (fm.combat.hires ?? []).find(x => x.uid === card.ownerKey);
         if (card.ownerKind === 'hire' && h && plan.sides[card.ownerKey] && plan.sides[card.ownerKey] !== h.side && card.sides.includes(plan.sides[card.ownerKey])) sides[card.ownerKey] = plan.sides[card.ownerKey];
         for (const zone of ['box', 'square', 'circle']) for (const col of card.cells[zone]) for (const chip of col) if (chip.editable && chip.key in plan.pos) positions[chip.key] = plan.pos[chip.key];
     }
@@ -83,9 +83,9 @@ export function extras(st, data, o, cb) {
 }
 
 // ---- the Melee answer's check, the engine's own (so the screen and the rules cannot disagree) ----
-export function engineCheck(st, data, ex) {
+export function engineCheck(fm, data, ex) {
     if (!ex || !Object.keys(ex).length) return null;
-    try { HF.checkPlay(st, data, ex); return null; } catch (e) { return e.message ?? String(e); }
+    return checkOf(fm, data, { type: 'combat', kind: 'melee', probe: 'sections', ...ex }).sections?.error ?? null;
 }
 
 // ---- words ----

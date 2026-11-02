@@ -1,0 +1,31 @@
+// catalogue.js: the second module the UI and the server may import besides api.js (docs/engine-api/CONTRACT.md section 9, choice D5).
+// Everything here is a pure lookup of DATA or a CONSTANT, never a function of a game state: the names of clearings and tiles, item names, prices, weights, hex geometry, art ids, the goal factors,
+// the colours of magic. A name for an id is not a rule; putting one for every id in `view` would make the view huge, so the screens ask the catalogue. Nothing here reads st.ch, st.pending or
+// any other part of a state, and nothing here changes. The functions are the engine's own (re-exported, not copied), so a screen and a rule can never disagree about a name.
+// A function that needs a state (denSide, hireStats, the option functions ...) is NOT here: its answer is in `view` or `legal`.
+export { tileName, nameOfClearing, tileOf, numOf, sameTile, pathEnds, pathSide } from './world.js';
+export { defOf, nameOf, isWeaponCard, weightOf, priceOf, slotsOf, summaryOf, isOneUse, horseLevel } from './items.js';
+export { LEVELS, WEIGHT_WORDS, lvl, letterOf, chitWord } from './core.js';
+export { FACTORS, CATS } from './score.js';
+export { EDGES, opposite, neighbor, hexKey, worldEdge, localEdge, hexCenter, edgeDir, corners } from './hex.js';
+export { layoutSide, chitSlotsFor } from './layout.js';
+export { bookPic, isBookPic } from './artbook.js';
+export { COLORS, TYPE_COLOR, COLOR_MEANING, dayColors, nextDayWith, isMagicDay } from './spells.js';
+export { NO_EFFORT_LIMIT, BOOTS, GLOVES } from './modifiers.js';
+export { chitLabel } from './day.js';
+export { MAX_CHARACTERS, VP_CATS } from './setup.js';
+export { MAX_SPELLS } from './runes.js';
+
+import { denSide as engineDenSide, hireStats as engineHireStats, weaponSide } from './combat.js';
+
+/** A weapon's side as the rules read it: `{ harm, stars, time, length, missile }` of `{ item, def }` (a weapon item and its data), alerted or not; `extraStars` adds sharpness. A function of the item and the data only. */
+export { weaponSide };
+
+/** The stats of a creature or hireling counter from the DATA alone: name, size, vulnerability, harm, attack and move times ... of `{ kind: 'mon'|'nat'|'hire', id, side?, tag? }`.
+ * It knows nothing of spells in force or a transformed counter (those are in `view`: `den.stat` of a creature on a character's sheet); it is what a counter lying on the map shows.
+ * @param {any} data @param {{ kind: string, id: string, side?: string, tag?: string|number, hireKind?: string }} den */
+export function denStats(data, den) {
+    return engineDenSide({ chars: {}, fx: [] }, data, den);
+}
+/** What a hired native or monster fights with (the hire price list and the Melee Sections use it): see combat.js `hireStats`. */
+export const hireFacts = (data, id, kind = 'nat', side = null) => engineHireStats(data, id, kind, null, side);

@@ -182,7 +182,7 @@ export function deployAction(st, data, a) {
         d.assigned = false;
         lureEffects(st, data, d);
         (ownerSheet(c, h.uid) ?? newSheet(c, h.uid, 'hire')).attackers.push(d.uid);
-        say(st, `${nameOfHire(st, data, h)} lures the ${nameOfDen(st, data, d)} onto a Melee Section of his own.`, 'combat');
+        say(st, `${nameOfHire(st, data, h)} lures the ${nameOfDen(st, data, d)} onto a Melee Section of his own.`, 'combat', null, { ev: { code: 'lure.made', who: st.ch.id, den: [d.uid], broke: false } });
         if (h.hidden) { unhide(st, data, h); say(st, `${nameOfHire(st, data, h)} gives himself away by luring (8.3.4c.3).`, 'combat'); }
     }
     // 2. the hero lures (8.3.4b)
@@ -211,7 +211,7 @@ export function deployAction(st, data, a) {
             const h = pool.find(x => x.uid === assigns[d.uid]) ?? defaultHirelingForAssignment(pool);
             if (!h) continue;                                                       // 8.3.5b: no unhidden target, the denizen stays unassigned
             (ownerSheet(c, h.uid) ?? newSheet(c, h.uid, 'hire')).attackers.push(d.uid);
-            say(st, `The ${nameOfDen(st, data, d)} is set on ${nameOfHire(st, data, h)}.`, 'combat');
+            say(st, `The ${nameOfDen(st, data, d)} is set on ${nameOfHire(st, data, h)}.`, 'combat', null, { ev: { code: 'attention.placed', who: h.uid, target: d.uid } });
         }
     }
     // 4. deployment (8.3.6a), one hireling at a time
@@ -222,7 +222,7 @@ export function deployAction(st, data, a) {
         if (ownerSheet(c, h.uid)?.attackers.length) throw new Error('a hireling who is being attacked cannot be deployed (8.3.6a)');
         if (holderSheet(c, h.uid)) throw new Error('that hireling is already attacking');
         c.sec.deployed.push(h.uid);
-        if (dp.target == null) { say(st, `${nameOfHire(st, data, h)} stays out of the fight this round.`, 'combat'); continue; }
+        if (dp.target == null) { say(st, `${nameOfHire(st, data, h)} stays out of the fight this round.`, 'combat', null, { ev: { code: 'hire.deployed', who: st.ch.id, hireling: h.uid, section: 'none' } }); continue; }
         const t = den(dp.target);
         attach(st, data, h, t);
         if (dp.side != null || 'horse' in dp) flips[h.uid] = { ...(dp.side != null ? { side: dp.side } : {}), ...('horse' in dp ? { horse: dp.horse } : {}) };

@@ -1,10 +1,11 @@
 import { setArtPositions } from './layout.js';
 import { fillArtGaps } from './artbook.js';
 
-// Turns the raw JSON files (data/src/*.json, copied to app/data) into the lookups the engine uses.
+// Turns the raw JSON files (data/src/*.json, copied to app/data) into the lookups the engine uses. The engine never reads files or fetches (CONTRACT D12): the host hands the 16 tables in
+// (`createApi(raw)` in api.js; the browser's loader is app/ui/dataload.js, the server's is server/engine.mjs). `extra.art` / `extra.kinds` are the optional art manifests (app/art/*.json).
 const byId = (list, key = 'id') => Object.fromEntries((list ?? []).map(x => [x[key], x]));
 
-export function indexData(raw) {
+export function indexData(raw, extra = null) {
     const d = {
         tiles: raw.tiles.tiles,
         monsters: byId(raw.monsters.monsters),
@@ -29,18 +30,10 @@ export function indexData(raw) {
     d.pathmarks = raw.pathmarks?.tiles ?? {};
     d.chitslots = raw.chitslots?.tiles ?? null;
     setArtPositions(d.artpos, d.chitslots);
+    d.art = extra?.art ?? null;
+    d.kinds = extra?.kinds ?? null;      // which drawn symbol a treasure or spell without a picture gets (ui/kindicons.js)
+    if (d.art) fillArtGaps(d.art, d);      // a name the main art has no picture for gets the rulebook's icon (never replaces a picture we have)
     return d;
 }
 
 export const FILES = ['tiles', 'monsters', 'natives', 'appearance', 'setupcard', 'tables', 'treasures', 'weapons', 'armor', 'horses', 'characters', 'spells', 'cardtext', 'artpos', 'chitslots', 'pathmarks'];
-
-// Browser loader (the engine itself never fetches).
-export async function loadData(base = 'data/') {
-    const raw = {};
-    await Promise.all(FILES.map(async f => { raw[f] = await (await fetch(`${base}${f}.json`)).json(); }));
-    const d = indexData(raw);
-    try { d.art = await (await fetch(`${base}../art/manifest.json`)).json(); } catch { d.art = null; }      // the pictures are optional
-    try { d.kinds = await (await fetch(`${base}../art/kinds.json`)).json(); } catch { d.kinds = null; }      // which drawn symbol a treasure or spell without a picture gets (ui/kindicons.js)
-    if (d.art) fillArtGaps(d.art, d);      // a name the main art has no picture for gets the rulebook's icon (never replaces a picture we have)
-    return d;
-}

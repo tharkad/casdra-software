@@ -1,0 +1,95 @@
+// combat/feed.js: the combat screens' one door to the engine (docs/engine-api/CONTRACT.md section 9). The screens hold the game state as an opaque value and ask the API about it: `view` for what is on
+// the table and on the hero's own sheet, `legal` for what he may do, `check` for what-if questions, `apply` for the answer. Nothing here knows a rule; each function below only finds, in what the API
+// returned, the thing the screen asked for (the stats of a creature on the sheet, the hero's weapon, the options of the question).
+// The API is read once per state and seat and remembered while that state is the one on screen: a screen draws many times from one state. (A state is never changed in place by the screens; a new one replaces it.)
+import { apiOf } from '../../engine/api.js';
+import { denStats, hireFacts, defOf } from '../../engine/catalogue.js';
+
+const raw = st => st?.__st ?? st;          // (a fight model carries the state it was made from; the API is asked about that)
+const cache = new WeakMap();
+const keyOf = st => `${st.rng}|${st.log?.length}|${st.actor}`;          // (every engine step draws a die or writes a line; a screen that swaps seats changes the actor)
+function memo(st, who, kind, make) {
+    let e = cache.get(st);
+    const key = keyOf(st);
+    if (!e || e.key !== key) cache.set(st, e = { key, byKey: new Map() });
+    const k = `${kind}|${who}`;
+    if (!e.byKey.has(k)) e.byKey.set(k, make());
+    return e.byKey.get(k);
+}
+const whoOf = (st, who) => who ?? st.actor ?? st.order?.[0] ?? null;
+
+/** What `who` (default: the character on screen) may know: view.schema.json. */
+export const viewOf = (st, data, who) => memo(raw(st), whoOf(raw(st), who), 'view', () => apiOf(data).view(raw(st), whoOf(raw(st), who)));
+/** The question he is asked and every way to answer it: legal.schema.json. */
+export const legalOf = (st, data, who) => memo(raw(st), whoOf(raw(st), who), 'legal', () => apiOf(data).legal(raw(st), whoOf(raw(st), who)));
+/** The engine's own option record for his fight question (what the Encounter, Melee and Shift screens draw): legal(...).options. */
+export function optionsOf(st, data, who) {
+    const o = legalOf(st, data, who).options;
+    // the Melee record lists the chits strong enough for the weapon and the load (`fightOkIds`, `moveOkIds`); the screens ask "is this chit strong enough?" of each chit, so the question is rebuilt from the lists
+    if (o?.fightOkIds && !o.fightOk) Object.defineProperties(o, { fightOk: { value: ch => o.fightOkIds.includes(ch.id) }, moveOk: { value: ch => o.moveOkIds.includes(ch.id) } });
+    return o;
+}
+/** Making change (4.2.4a, 8.5.1a): the tired one-asterisk chits that may come back for the chits `ids` he tires now ([] when he has no choice to make). From the options of the Fatigue question. */
+export function makeChange(st, data, ids) {
+    const chits = heroOf(st, data)?.chits ?? [];
+    return (optionsOf(st, data)?.makeChange?.[[...new Set(ids)].sort().join('+')] ?? []).map(id => chits.find(x => x.id === id)).filter(Boolean);
+}
+/** His own sheet of the fight (view.me.fight): the creatures on it with their stats, his hirelings, the round's tallies. Null outside a fight. */
+export const sheetOf = (st, data, who) => viewOf(st, data, who).me?.fight ?? null;
+/** His own sheet in one record: his public sheet (chits, position, Fame, Notoriety, morph, mist, hidden ...) with what only he knows added (gold, every belonging in full, curses). A spectator, or a state with no such seat, gets an empty sheet. */
+export function own(st, data, who) {
+    const v = viewOf(st, data, who), c = v.table.characters[v.viewer.seat];
+    return c && v.me ? { ...c, gold: v.me.gold, items: v.me.items, curses: v.me.curses } : { chits: [], items: [], curses: [], gold: 0 };
+}
+/** The fight as the combat screens read it: ONE object made from what the API returned (`view`), shaped as the screens have always read it (`combat`, `battle`, `ch`, `chars`, `nats`, `mons`, `pending`, `log`, `rolls`, `over`, `day` ...), so that
+ * no screen reaches into the engine's state. `fightLog` is the voice layer's input (lines with their events). A raw engine state is still accepted by every helper (the tests pass one); the entry points of the screens make this model once per render. */
+export function fightModel(st, data, who) {
+    const s = raw(st);
+    cache.delete(s);          // (a render starts from a fresh view: a state changed in place since the last one - a script, a test - is read as it is now)
+    const v = viewOf(s, data, who), me = v.me, lg = me?.fightLog ?? { lines: [], tail: [], rolls: [], n: 0 };
+    const seen = new Set(), log = [...(lg.today ?? []), ...lg.lines, ...lg.tail].filter(l => !seen.has(l.i) && seen.add(l.i)).sort((a, b) => a.i - b.i);
+    const fm = {
+        day: v.table.game.day, period: v.table.game.period, over: v.table.game.over, actor: v.viewer.seat, order: v.table.game.order, players: v.table.game.players ?? [],
+        ch: own(s, data, who), chars: Object.fromEntries(Object.entries(v.table.characters).map(([id, c]) => [id, { ...c, items: c.gear }])),          // (what lies in view of another character: his `gear`)
+        nats: v.table.natives, mons: v.table.monsters, combat: me?.fight ?? null, battle: v.table.fight, pending: v.pending,
+        asks: v.table.game.waitingFor.map(w => ({ who: w })), fightLog: lg, log, rolls: lg.rolls,
+    };
+    Object.defineProperty(fm, '__st', { value: s });
+    return fm;
+}
+/** His public sheet (table.characters[id]): chits, gear in view, position, Fame, Notoriety ... */
+export const heroOf = (st, data, who) => { const v = viewOf(st, data, who); return v.table.characters[v.viewer.seat] ?? null; };
+/** The API's answer to "would this be accepted?" and the what-if probes of the Melee step (api.check). */
+export const checkOf = (st, data, action, who) => apiOf(data).check(raw(st), whoOf(raw(st), who), action);
+/** The state after an action, without playing it (a screen that wants to know what an automatic answer would do). */
+export const tryApply = (st, data, action, who) => apiOf(data).apply(raw(st), { who: whoOf(raw(st), who), ...action });
+
+// ---- what a creature, a hireling and the hero's gear are, found in what the API returned ----
+/** The stats of a creature or counter as the rules read them now (name, size, vulnerability, harm, attack and move times ...). A creature of the hero's sheet carries them (`stat`); one lying on the map is read from the data. */
+export function denSide(st, data, d) {
+    if (d.stat) return d.stat;
+    const f = sheetOf(st, data);
+    const on = f?.dens.find(x => x.uid === d.uid) ?? f?.hires.find(x => x.uid === d.uid);
+    if (on?.stat) return on.stat;
+    const o = optionsOf(st, data)?.targets?.find(x => x.uid === d.uid);
+    if (o?.stat) return o.stat;
+    const t = viewOf(st, data).table.fight;          // (a creature of a fight of several: table talk)
+    const pub = t?.dens.find(x => x.uid === d.uid) ?? t?.hires.find(x => x.uid === d.uid);
+    if (pub?.stat) return pub.stat;
+    return denStats(data, d);
+}
+/** What a hired native or monster fights with. One on the hero's sheet carries it (`stat`); otherwise it is read from the data. */
+export function hireStats(st, data, id, kind = 'nat', side = null) {
+    const h = !side && (sheetOf(st, data)?.hires.find(x => x.id === id && x.kind === kind) ?? viewOf(st, data).table.fight?.hires.find(x => x.id === id && x.kind === kind));
+    return h?.stat ?? hireFacts(data, id, kind, side);
+}
+/** The weapon he wields, { item, def }, or null (a creature wields none). */
+export function weaponOf(st, data) {
+    if (heroOf(st, data)?.morph) return null;
+    const it = viewOf(st, data).me.items.find(i => i.kind === 'weapon' && i.active);
+    return it ? { item: it, def: defOf(data, it) } : null;
+}
+/** The armor in use: [{ item, def }]. */
+export const activeArmor = (st, data) => viewOf(st, data).me.items.filter(i => i.kind === 'armor' && i.active && !i.destroyed).map(item => ({ item, def: defOf(data, item) }));
+/** Is this treasure card in force for him (owned, active)? */
+export const hasTreasure = (st, data, id) => viewOf(st, data).me.items.some(i => i.kind === 'treasure' && i.active && !i.destroyed && i.id === id);

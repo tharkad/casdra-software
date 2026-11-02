@@ -1,4 +1,4 @@
-import { lvl, letterOf, die, roll2, shuffle, say, int, noteRoll, tally, WEIGHT_WORDS, chitWord } from './core.js';
+import { lvl, letterOf, die, roll2, shuffle, say, emit, int, noteRoll, tally, WEIGHT_WORDS, chitWord, refuse } from './core.js';
 import { REPOSITION, MISSILE, clamp6, meetingResult, DIRS, MANEUVERS } from './tables.js';
 import { pit, rollPit, rollCurse, pitOnChar, hasCurse } from './effects.js';
 import { hirelings, monsterHires } from './hire.js';
@@ -57,6 +57,14 @@ export function charFoes(st, me = st.ch.id, playing = false, hiddenToo = false) 
 }
 // Do two or more different players' characters stand in this fight (is there anyone to fight but creatures)? Used to keep a creature-less fight going.
 export const contested = st => { const b = st.battle; return !!b?.pvp && new Set(b.order.filter(id => b.members[id].state === 'in').map(id => st.chars[id].owner)).size > 1; };
+
+// The structured twin of the line of a blow's hit determination (blow.landed / blow.missed, docs/engine-api/EVENT-CODES.md). `how` (landed) and `why` (missed) are codes: 'box' (the blow goes the way the
+// defender's maneuver faces), 'undercut' (its time is faster than his), 'tie' (Ointment of Bite), 'free' (the defender played no maneuver), 'avoided' (his maneuver avoids it), 'slow' (not fast enough to undercut),
+// 'gone' (the target is no longer there). Given as the last argument of a `log(...)`.
+const blowEv = (hit, attacker, target, weapon, dir, how, box = null) => ({ ev: hit ? { code: 'blow.landed', attacker, target, weapon, dir, how, box } : { code: 'blow.missed', attacker, target, weapon, dir, why: how } });
+const boxName = d => (d.box != null ? MANEUVERS[d.box].toLowerCase() : null);
+// A name as a token for an event ("Heavy Troll #1" -> "heavy-troll-1"): an event holds ids and codes, never display text.
+const tokenOf = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 // ---- who is what ----
 export function weaponOf(st, data) {
@@ -235,13 +243,13 @@ function nextMeeting(st, data) {
 // Rule 8.2.2a: before the evening Meeting roll he may pay one gold a head to make the group one level friendlier.
 export function drinksAction(st, data, buy) {
     const c = st.combat;
-    if (c.step !== 'drinks') throw new Error('nobody is offering drinks now');
+    if (c.step !== 'drinks') refuse('combat.not-step', 'nobody is offering drinks now');
     const g = c.meetQueue.shift(), cost = drinksCost(st, data, g);
     st.pending = null;
     if (buy) {
-        if (st.ch.gold < cost) throw new Error('not enough gold');
+        if (st.ch.gold < cost) refuse('gold.short', 'not enough gold');
         st.ch.gold -= cost;
-        say(st, `You buy drinks for the ${g} (${cost} gold): they warm to you.`, 'combat');
+        say(st, `You buy drinks for the ${g} (${cost} gold): they warm to you.`, 'combat', null, { ev: { code: 'combat.drinks', who: st.ch.id, group: g, cost } });
     }
     rollBattle(st, data, g, buy);
     return nextMeeting(st, data);
@@ -250,10 +258,12 @@ export function drinksAction(st, data, buy) {
 // Evening with only peaceful natives about: he decides whether to attack them (any one of them, which brings its whole group in).
 export function choiceAction(st, data, fight) {
     const c = st.combat;
-    if (c.step !== 'choice') throw new Error('there is no choice to make');
+    if (c.step !== 'choice') refuse('combat.not-step', 'there is no choice to make');
     c.choiceMade = true;
     if (!fight) {
-        say(st, 'You let the natives be.', 'combat');
+        const spared = [...new Set(nativesIn(st, data, c.at).map(n => data.natives[n.id].group))];
+        say(st, 'You let the natives be.', 'combat', null, { ev: { code: 'combat.natives.spared', who: st.ch.id, group: spared[0] ?? 'natives' } });
+        for (const g of spared.slice(1)) emit(st, { code: 'combat.natives.spared', who: st.ch.id, group: g });
         if (canCastQuietly(st, data)) return enterSpellOnly(st, data);
         c.ended = true; c.why = 'quiet'; c.step = 'done'; st.pending = null; return;
     }
@@ -309,7 +319,7 @@ function startBattling(st, data, group) {
         const den = c.dens.find(d => d.kind === 'nat' && d.id === n.id);
         if (den) den.bystander = false; else addDen(st, data, { kind: 'nat', id: n.id });
     }
-    say(st, `The ${group} will fight you.`, 'combat');
+    say(st, `The ${group} will fight you.`, 'combat', null, { ev: { code: 'combat.natives.fight', who: st.ch.id, group } });
 }
 
 // A group fights specific characters (8.2.1d): this one joins them, and the group's natives come into the fight (or stop standing by) as far as he is concerned.
@@ -323,14 +333,14 @@ function startBattlingShared(st, data, group) {
         if (!den.battlers.includes(id)) den.battlers.push(id);
         den.bystander = false;
     }
-    say(st, `The ${group} will fight ${st.ch.name}.`, 'combat');
+    say(st, `The ${group} will fight ${st.ch.name}.`, 'combat', null, { ev: { code: 'combat.natives.fight', who: st.ch.id, group } });
 }
 
 export function payOrFight(st, data, pay) {
     const c = st.combat, p = c.pays.shift();
     if (pay) {
         if (p.cost === 'notoriety') st.ch.notoriety -= p.amount; else st.ch.fame -= p.amount;
-        say(st, `You pay ${p.amount} ${p.cost} to avoid the ${p.why.toLowerCase()} from the ${p.group}.`, 'combat');
+        say(st, `You pay ${p.amount} ${p.cost} to avoid the ${p.why.toLowerCase()} from the ${p.group}.`, 'combat', null, { ev: { code: 'combat.natives.paid', who: st.ch.id, group: p.group, cost: p.cost, amount: p.amount } });
     } else startBattling(st, data, p.group);
     if (c.pays.length) { st.pending = { type: 'combat-pay', ...c.pays[0] }; return; }
     afterMeeting(st, data);
@@ -352,7 +362,7 @@ const luredPeaceful = (st, data) => st.combat.dens.filter(d => d.kind === 'nat' 
 const luredPacified = (st, data) => st.combat.dens.filter(d => d.pacified && !d.dead && !d.assigned && !d.controlled && d.kind !== 'part' && d.kind !== 'horse' && !barredFromHero(st, data, d));
 function breakCalm(st, data, den) {
     for (const { fx } of fxTags(st, { kind: den.kind, id: den.id }, 'nameBreaks')) {
-        say(st, `You lure the ${denSide(st, data, den).name}: ${data.spells[fx.spell]?.name ?? fx.spell} is broken, and it comes for you.`, 'combat');
+        say(st, `You lure the ${denSide(st, data, den).name}: ${data.spells[fx.spell]?.name ?? fx.spell} is broken, and it comes for you.`, 'combat', null, { ev: { code: 'lure.made', who: st.ch.id, den: [den.uid], broke: false } });
         breakFx(st, data, fx.id, 'it was lured');
     }
     if (den.pacified) breakPacify(st, data, den, t => say(st, t.replace('Your attack breaks', 'Luring it breaks'), 'combat'));
@@ -366,7 +376,8 @@ function assignAll(st, data) {
 function lureHidden(st, data) {
     const c = st.combat;
     st.ch.hidden = false;
-    say(st, 'You lure the creatures onto your sheet and give yourself away: you are no longer hidden.', 'combat');
+    say(st, 'You lure the creatures onto your sheet and give yourself away: you are no longer hidden.', 'combat', null,
+        { ev: { code: 'lure.made', who: st.ch.id, den: [...new Set([...assignable(st, data), ...luredPeaceful(st, data), ...luredPacified(st, data)].map(d => d.uid))], broke: true } });
     for (const d of luredPacified(st, data)) breakCalm(st, data, d);          // (R7: the spell that made them peaceful is broken; they are set on him like any other)
     for (const g of new Set(luredPeaceful(st, data).map(d => data.natives[d.id].group))) startBattling(st, data, g);          // (8.2.3a: the lured native's group starts battling him)
     assignAll(st, data);
@@ -425,7 +436,7 @@ function flyAway(st, data) {
         if (sameRef(t, HERO)) {
             // the hero himself: his horses and belongings go with him, his evening is over, and he comes down by a die when his next day begins (landHero in day.js beginDay)
             blowAway(st, f.data.tile);
-            say(st, `Hurricane Winds lifts you into the air and carries you off toward the ${tileName(f.data.tile)}.`, 'combat');
+            say(st, `Hurricane Winds lifts you into the air and carries you off toward the ${tileName(f.data.tile)}.`, 'combat', null, { ev: { code: 'encounter.flew', who: st.ch.id, to: f.data.tile } });
             expireFx(st, data, f.id, 'it flew away');
             endCombat(st, data, 'flew');
             return true;
@@ -436,7 +447,7 @@ function flyAway(st, data) {
         for (const p of c.dens.filter(d => d.partOf === den.uid)) p.dead = true;
         const o = (den.kind === 'mon' ? st.mons : st.nats).find(x => x.id === den.id);
         if (o) o.loc = { tile: f.data.tile, flying: true };
-        say(st, `Hurricane Winds lifts the ${denSide(st, data, den).name} into the air and carries it off toward the ${tileName(f.data.tile)}.`, 'combat');
+        say(st, `Hurricane Winds lifts the ${denSide(st, data, den).name} into the air and carries it off toward the ${tileName(f.data.tile)}.`, 'combat', null, { ev: { code: 'den.carried-off', den: den.uid } });
         c.eventful = true;
         expireFx(st, data, f.id, 'it flew away');
     }
@@ -460,7 +471,7 @@ function enterEncounter(st, data) {
     if (!live.length && !(pvpOn(st) && contested(st))) {          // (pvp: another player's character is someone to fight, so the round is held)
         if (canCastQuietly(st, data)) return enterSpellOnly(st, data);
         c.ended = true; c.why = 'quiet'; c.step = 'done'; st.pending = null;
-        say(st, 'Nothing here wants a fight.', 'combat');
+        say(st, 'Nothing here wants a fight.', 'combat', null, { ev: { code: 'encounter.refused', who: st.ch.id, reason: 'no-fight' } });
         return;
     }
     if (!c.choiceMade && live.length && !(pvpOn(st) && contested(st)) && live.every(d => d.bystander || barredFromHero(st, data, d))) {          // (pvp: with another player's character there he is in the fight whatever the natives do)          // (a Demon or Imp against a Pilgrim stands by, like a peaceful native)
@@ -487,7 +498,7 @@ export function chargeEncounter(st, data) {
     if (c.ended || c.step !== 'encounter' || !c.charge) return;
     const chit = activeChits(st, 'move', data).find(x => x.id === c.charge.chit);
     if (!chit) {                                                    // (cannot happen unless a spell took the chit between the charge and now)
-        say(st, 'Your charge comes to nothing: the chit is no longer ready.', 'combat');
+        say(st, 'Your charge comes to nothing: the chit is no longer ready.', 'combat', null, { ev: { code: 'encounter.refused', who: st.ch.id, reason: 'charge-chit-gone' } });
         st.battle.charges = st.battle.charges.filter(x => x.by !== st.ch.id); c.charge = null; mem(st).charge = null;
         return;
     }
@@ -597,10 +608,18 @@ export function encounterOptions(st, data) {
                     : chitsFor('move').every(x => !fastEnough(x)) ? `No ready Move chit is faster than ${gateText}: a chit played here must be strictly faster, so time ${slowest - 1} or lower.`
                         : 'No ready Move chit that is fast enough is also strong enough to carry everything you own.',
     };
+    // The same two reasons as data (CONTRACT section 5: a button that is greyed out says why with a code and numbers; the sentences above stay for the screens until the voice layer exists).
+    const speedLimit = { speed: slowest };
+    const whyCode = {
+        alert: why.alert == null ? null : card ? { code: 'weapon.card', rule: '2.3.4d' } : gripped ? { code: 'weapon.gripped' } : !chitsFor('fight').length ? { code: 'chit.none', params: { kind: 'fight' } }
+            : !chitsFor('fight').some(x => lvl(x.strength) >= wlvl) ? { code: 'chit.too-weak', params: { needs: data.weapons[w.item.id].weight } } : { code: 'chit.too-slow', rule: '8.3.7a', params: speedLimit },
+        run: why.run == null ? null : !runDestinations(st, data).length ? { code: st.ch.arrivedFrom ? 'run.came-by' : 'run.no-road', rule: '8.3.8' } : !chitsFor('move').length ? { code: 'chit.none', params: { kind: 'move' } }
+            : chitsFor('move').every(x => !fastEnough(x)) ? { code: 'chit.too-slow', rule: '8.3.7a', params: speedLimit } : { code: 'chit.too-heavy' },
+    };
     const casts = (c.spellOnly ? quietCasts(st, data, true) : castOptions(st, data, { slowest })).map(o => (c.spellOnly ? { ...o, aim: previewAim(st, data, o) } : o));       // (a quiet-evening cast has no Melee step: it is aimed on the cast screen)
     const canLure = !!st.ch.hidden && !sharedFight(st) && !c.spellOnly && !HF.inRound(st) && (assignable(st, data).length > 0 || luredPeaceful(st, data).length > 0 || luredPacified(st, data).length > 0);          // (a shared fight lures in its own step: battle.js)
     const mist = !!st.ch.mist;          // (the Encounter step of a mist hero offers only running away, 8.4.5p.1)
-    return { canStay, canLure: canLure && !mist, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), energize: energizeOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && !card && fight.length > 0 && !gripped && !mist, alertChits: fight, berserkChits: mist ? [] : berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, chargeChits: carriers.filter(x => x.time < Math.min(99, ...charged.map(t => t.time))), pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why };
+    return { canStay, canLure: canLure && !mist, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), energize: energizeOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && !card && fight.length > 0 && !gripped && !mist, alertChits: fight, berserkChits: mist ? [] : berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, chargeChits: carriers.filter(x => x.time < Math.min(99, ...charged.map(t => t.time))), pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why, whyCode };
 }
 const canRunNow = (move, st, data) => move.length > 0 && runDestinations(st, data).length > 0;
 
@@ -609,13 +628,13 @@ const isOffered = (casts, a) => casts.some(o => o.spell === a.spell && (a.item ?
 
 export function encounterAction(st, data, a) {
     const c = st.combat;
-    if (c.step !== 'encounter') throw new Error('not in the encounter step');
+    if (c.step !== 'encounter') refuse('combat.not-step', 'not in the encounter step');
     if (c.spellOnly) {
         // only a spell can be cast; anything else is a pass
         if (a.act === 'gear') { gearAction(st, data, a); st.pending = { type: 'combat-encounter', round: c.round, spellOnly: true }; return; }       // (the evening is still held for his spell)
         if (a.act !== 'cast' && a.act !== 'pass') throw new Error('nothing is fighting you: you may cast a spell, switch a belonging or do nothing');       // (a stray Run or Fly is not a way to end the evening)
         if (a.act === 'cast') {
-            if (!isOffered(quietCasts(st, data, true), a)) throw new Error('you cannot cast that spell now');       // (only what the cast screen lists: not one already cast tonight)
+            if (!isOffered(quietCasts(st, data, true), a)) refuse('cast.not-offered', 'you cannot cast that spell now');       // (only what the cast screen lists: not one already cast tonight)
             castSpell(st, data, a.spell, a.chit, a.item); applyAim(st, data, a.spellAim); resolveSpells(st, data);
             // Rule 8.1.3a: a quiet clearing still gets its rounds, one spell to a round. When another spell is worth casting, the next round is held for it
             // (not the same spell again: a second one on the same target would only be nullified).
@@ -656,7 +675,7 @@ export function encounterAction(st, data, a) {
     }
     if (a.act === 'stay') {
         if (!opt.canStay) throw new Error('you are not hidden from everything here');
-        say(st, 'You stay hidden. Nothing here can find you, and the evening passes without a blow.', 'combat');
+        say(st, 'You stay hidden. Nothing here can find you, and the evening passes without a blow.', 'combat', null, { ev: { code: 'encounter.stayed', who: st.ch.id } });
         return endCombat(st, data, 'quiet');
     }
     if (a.act === 'lure') {
@@ -672,39 +691,39 @@ export function encounterAction(st, data, a) {
         // a held Phase spell is activated like an item, in place of a chit action (so he cannot also cast this round)
         activatePhase(st, data, a.fx, 'round');
     } else if (a.act === 'alert') {
-        if (st.ch.morph) throw new Error('a creature has no weapon to ready');
-        if (opt.weapon && isWeaponCard(data, opt.weapon.item)) throw new Error('a weapon card cannot be alerted');
+        if (st.ch.morph) refuse('combat.not-offered', 'a creature has no weapon to ready');
+        if (opt.weapon && isWeaponCard(data, opt.weapon.item)) refuse('combat.not-offered', 'a weapon card cannot be alerted', null, '2.3.4d');
         if (!opt.canAlert) throw new Error(hasTreasure(st, 'gripping-dust') ? 'your Gripping Dust keeps the weapon alerted' : 'cannot flip the weapon with that chit');
         const chit = opt.alertChits.find(x => x.id === a.chit);
-        if (!opt.weapon || !chit) throw new Error('cannot flip the weapon with that chit');
+        if (!opt.weapon || !chit) refuse('combat.not-offered', 'cannot flip the weapon with that chit');
         playChit(st, chit);
         opt.weapon.item.alerted = !opt.weapon.item.alerted;
-        say(st, `You turn your ${data.weapons[opt.weapon.item.id].name} ${opt.weapon.item.alerted ? 'alerted' : 'unalerted'}.`, 'combat');
+        say(st, `You turn your ${data.weapons[opt.weapon.item.id].name} ${opt.weapon.item.alerted ? 'alerted' : 'unalerted'}.`, 'combat', null, { ev: { code: 'encounter.turned', who: st.ch.id, what: 'weapon' } });
     } else if (a.act === 'berserk') {
         const chit = opt.berserkChits.find(x => x.id === a.chit);
         if (!chit) throw new Error('that chit cannot be played now: the Berserk chit must be active and faster than every creature that attacks you, and the rage lasts the day');
         playChit(st, chit);
         st.ch.berserk = true;
-        say(st, `You play your Berserk chit and fly into a rage: your vulnerability is Tremendous until midnight.`, 'combat');
+        say(st, `You play your Berserk chit and fly into a rage: your vulnerability is Tremendous until midnight.`, 'combat', null, { ev: { code: 'encounter.berserk', who: st.ch.id } });
     } else if (a.act === 'fly') {
         const chit = opt.flyChits.find(x => x.id === a.chit) ?? (a.chit == null ? opt.flyChits[0] : null);
         if (!chit || !opt.canFly) throw new Error('you have no Fly chit you can play now');
         if (a.to != null && !opt.flyTiles.includes(a.to)) throw new Error('you can fly only to a tile next to this one');
         c.played[chit.id] = true;
         c.ran = true; c.flew = true;
-        say(st, startFlight(st, data, a.to ?? opt.flyTiles[0], chit), 'combat');
+        say(st, startFlight(st, data, a.to ?? opt.flyTiles[0], chit), 'combat', null, { ev: { code: 'encounter.flew', who: st.ch.id, to: a.to ?? opt.flyTiles[0] } });
         if (sharedFight(st)) { releaseSheet(st); mem(st).enc = 'done'; }
         return toFatigue(st, data);
     } else if (a.act === 'run') {
         const chit = opt.runChits.find(x => x.id === a.chit);
-        if (!chit) throw new Error('cannot run with that chit');
+        if (!chit) refuse('combat.not-offered', 'cannot run with that chit');
         const dests = runDestinations(st, data);
-        if (!dests.length) throw new Error('there is nowhere to run');
+        if (!dests.length) refuse('combat.not-offered', 'there is nowhere to run');
         if (a.to != null && !dests.includes(a.to)) throw new Error(st.ch.arrivedFrom ? 'you can only run back along the road you came by' : 'you can only run along a road you know');
         playChit(st, chit);
         c.ran = true;
         st.ch.runTo = a.to ?? dests[0];
-        say(st, 'You break away from the fight.', 'combat');
+        say(st, 'You break away from the fight.', 'combat', null, { ev: { code: 'combat.fled-by-road', who: st.ch.id, to: st.ch.runTo } });
         if (sharedFight(st)) { releaseSheet(st); mem(st).enc = 'done'; }
         return toFatigue(st, data);
     } else if (a.act !== 'pass') throw new Error('unknown encounter action');
@@ -733,13 +752,13 @@ function gearAction(st, data, a) {
         for (const it of list) {
             st.ch.items = st.ch.items.filter(i => i.uid !== it.uid);
             st.abandoned[c.at] = [...(st.abandoned[c.at] ?? []), { ...it, active: false, alerted: false }];
-            say(st, `You leave the ${nameOfItem(st, data, it)} behind.`, 'combat');
+            say(st, `You leave the ${nameOfItem(st, data, it)} behind.`, 'combat', null, { ev: { code: 'gear.abandoned', who: st.ch.id, item: it.uid, at: c.at } });
         }
         return;
     }
     for (const it of [...list].sort((x, y) => Number(!!y.active) - Number(!!x.active))) {
         toggleItem(st, data, it);
-        say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOfItem(st, data, it)}.`, 'combat');
+        say(st, `You ${it.active ? 'activate' : 'deactivate'} the ${nameOfItem(st, data, it)}.`, 'combat', null, { ev: { code: 'gear.activated', who: st.ch.id, item: it.uid, active: !!it.active } });
     }
 }
 
@@ -818,7 +837,7 @@ function pvpTargets(st, data, creatures) {
 
 export function meleePlay(st, data, p) {
     const c = st.combat;
-    if (c.step !== 'melee') throw new Error('not in the melee step');
+    if (c.step !== 'melee') refuse('combat.not-step', 'not in the melee step');
     const S = meleeSetup(st, data, p);
     if (S.stop === 'dead') { c.attackSpell = null; c.step = 'resolve'; return afterMelee(st, data); }
     if (S.stop === 'ended') { c.attackSpell = null; return; }
@@ -855,7 +874,7 @@ function markStart(st) {
 }
 function meleeLog(st) {
     const ev = st.combat.events;
-    return (t, story) => { ev.push(story ?? t); say(st, t, 'combat', story ?? null); };
+    return (t, story, opt) => { ev.push(story ?? t); say(st, t, 'combat', story ?? null, opt ?? null); };
 }
 
 // The Melee step in two answers (ruling S8 / R3, Mike 2026-10-26): `aim` names what each spell cast this round is aimed at and lets the spells come to life; the question stays
@@ -863,7 +882,7 @@ function meleeLog(st) {
 // `spellAim` in it, does both at once: the spells still act first and the plays are judged against what they left.
 export function meleeAim(st, data, p) {
     const c = st.combat;
-    if (c.step !== 'melee') throw new Error('not in the melee step');
+    if (c.step !== 'melee') refuse('combat.not-step', 'not in the melee step');
     if (sharedFight(st)) throw new Error('in a fight with other characters the spells are aimed with the plays');
     if (c.aimedRound === c.round) throw new Error('your spells are already aimed this round');
     const log = beginMelee(st);
@@ -919,14 +938,14 @@ export function meleeSetup(st, data, p) {
         if (fxId && st.fx?.some(f => f.id === fxId && f.state !== 'done')) { log('You name a monster you control as your target: the spell that holds it is broken (8.4.2h).'); breakFx(st, data, fxId, 'its target was named'); }
     }
     // a Peace that came to life this round takes his Attention chit back at once: the target he named and the attack he was playing are cancelled
-    if (!wishBefore && c.peaceNow && (p.target != null || p.targets?.length || p.fightChit)) { log('The Wish for Peace: nobody may target or attack anyone; the attack you were playing is cancelled.'); p = { ...p, target: null, targets: undefined, fightChit: null }; }
-    if (!peaceBefore && fxTags(st, HERO, 'noSpecify').length && (p.target != null || p.targets?.length || p.fightChit)) { log('Peace takes back your Attention chit: the attack you were playing is cancelled.'); p = { ...p, target: null, targets: undefined, fightChit: null }; }
+    if (!wishBefore && c.peaceNow && (p.target != null || p.targets?.length || p.fightChit)) { log('The Wish for Peace: nobody may target or attack anyone; the attack you were playing is cancelled.', null, { ev: { code: 'play.cancelled', who: st.ch.id, play: 'attack', why: 'wish-for-peace' } }); p = { ...p, target: null, targets: undefined, fightChit: null }; }
+    if (!peaceBefore && fxTags(st, HERO, 'noSpecify').length && (p.target != null || p.targets?.length || p.fightChit)) { log('Peace takes back your Attention chit: the attack you were playing is cancelled.', null, { ev: { code: 'play.cancelled', who: st.ch.id, play: 'attack', why: 'peace' } }); p = { ...p, target: null, targets: undefined, fightChit: null }; }
     const o2 = meleeOptions(st, data);
     // 4.6.10a: "If it forbids him from playing an action chit he has already played, his play is cancelled." A chit he named that the spell has frozen (Transform, Absorb Essence) or
     // changed away is not refused: that play is cancelled (an answer given blind, before the spell showed what it leaves). A chit that was never available is still refused.
     const gone = (id, was, now) => id != null && was.some(x => x.id === id) && !now.some(x => x.id === id);
-    if (gone(p.fightChit, o.fightChits, o2.fightChits)) { log(`Your play of the Fight chit is cancelled: the spell forbids it (4.6.10a).`); p = { ...p, fightChit: null }; }
-    if (gone(p.moveChit, [...o.moveChits, ...o.duckChits], [...o2.moveChits, ...o2.duckChits])) { log(`Your play of the Move chit is cancelled: the spell forbids it (4.6.10a).`); p = { ...p, moveChit: null }; }
+    if (gone(p.fightChit, o.fightChits, o2.fightChits)) { log(`Your play of the Fight chit is cancelled: the spell forbids it (4.6.10a).`, null, { ev: { code: 'play.cancelled', who: st.ch.id, play: 'fight', why: 'spell' } }); p = { ...p, fightChit: null }; }
+    if (gone(p.moveChit, [...o.moveChits, ...o.duckChits], [...o2.moveChits, ...o2.duckChits])) { log(`Your play of the Move chit is cancelled: the spell forbids it (4.6.10a).`, null, { ev: { code: 'play.cancelled', who: st.ch.id, play: 'move', why: 'spell' } }); p = { ...p, moveChit: null }; }
     let fight = null, move = null;
     if (p.fightChit) {
         fight = o2.fightChits.find(x => x.id === p.fightChit);
@@ -1038,13 +1057,13 @@ export function meleeReposition(st, data, log, inGroup = null) {
     const c = st.combat, mine = d => !inGroup || inGroup(d);
     const boxBefore = new Map(c.dens.map(d => [d.uid, d.box]));
     const rr = die(st, 'combat.reposition'), perm = REPOSITION[rr];
-    noteRoll(st, 'Repositioning roll', [rr], rr, rr === 4 ? 'no change' : 'the creatures shuffle between boxes');
+    noteRoll(st, 'Repositioning roll', [rr], rr, rr === 4 ? 'no change' : 'the creatures shuffle between boxes', null, { ev: { code: 'roll.made', what: 'combat.reposition', result: rr === 4 ? 'no-change' : 'shuffle' } });
     const inBox = b => c.dens.filter(d => !d.dead && d.box === b && mine(d));
     const old = [inBox(0), inBox(1), inBox(2)];
     for (let nb = 0; nb < 3; nb++) for (const d of old[perm[nb]]) d.box = nb;
     // A shuffle is told creature by creature just below, so only the journal gets the roll itself; "nothing shifts" is worth saying.
-    if (rr === 4) log(`Repositioning roll: ${rr} (no change).`, tell.hold(st));
-    else say(st, `Repositioning roll: ${rr}.`, 'combat');
+    if (rr === 4) log(`Repositioning roll: ${rr} (no change).`, tell.hold(st), { ev: { code: 'melee.reposition', who: st.ch.id, box: 'all', dice: [rr], changed: false } });
+    else say(st, `Repositioning roll: ${rr}.`, 'combat', null, { ev: { code: 'melee.reposition', who: st.ch.id, box: 'all', dice: [rr], changed: true } });
     {
         const moved = c.dens.filter(d => mine(d) && !d.dead && d.box != null && boxBefore.get(d.uid) != null && boxBefore.get(d.uid) !== d.box && d.kind !== 'horse');
         moved.forEach((d, i) => log(`  ${denSide(st, data, d).name} ${MANEUVERS[boxBefore.get(d.uid)]} → ${MANEUVERS[d.box]}.`, tell.moved(st, denSide(st, data, d).name, MANEUVERS[boxBefore.get(d.uid)], MANEUVERS[d.box], i)));
@@ -1053,10 +1072,10 @@ export function meleeReposition(st, data, log, inGroup = null) {
         const here = c.dens.filter(d => !d.dead && d.box === b && mine(d) && canFlip(st, data, d));
         if (!here.length) continue;
         const t = roll2(st, 'combat.tactics');
-        noteRoll(st, `Tactics roll (${MANEUVERS[b]} box)`, t.dice, t.value, t.dice.includes(6) ? 'a 6: they switch sides' : 'no change');
+        noteRoll(st, `Tactics roll (${MANEUVERS[b]} box)`, t.dice, t.value, t.dice.includes(6) ? 'a 6: they switch sides' : 'no change', null, { ev: { code: 'roll.made', what: 'combat.tactics', result: t.dice.includes(6) ? 'flip' : 'no-change' } });
         if (t.dice.includes(6)) {
             for (const d of here) d.side = d.side === 'light' ? 'dark' : 'light';
-            log(`Tactics change in the ${MANEUVERS[b]} box (rolled ${t.dice.join('+')}): ${here.map(d => denSide(st, data, d).name).join(', ')} switch sides.`, tell.flipped(st, MANEUVERS[b], here.map(d => denSide(st, data, d).name).join(' and ')));
+            log(`Tactics change in the ${MANEUVERS[b]} box (rolled ${t.dice.join('+')}): ${here.map(d => denSide(st, data, d).name).join(', ')} switch sides.`, tell.flipped(st, MANEUVERS[b], here.map(d => denSide(st, data, d).name).join(' and ')), { ev: { code: 'melee.tactics', box: MANEUVERS[b].toLowerCase(), dice: t.dice, flipped: here.map(d => d.uid) } });
         }
     }
 }
@@ -1077,7 +1096,7 @@ export function meleeCollect(st, data, X, peers = null) {
     const hm = st.ch.morph ?? null;
     const weaponName = hm ? hm.creature.name : w ? nameOfItem(st, data, w.item) : 'bare hands';
     const ev = c.events;
-    const log = (t, story) => { ev.push(story ?? t); say(st, t, 'combat', story ?? null); };
+    const log = (t, story, opt) => { ev.push(story ?? t); say(st, t, 'combat', story ?? null, opt ?? null); };
     const sp0 = c.attackSpell && !c.attackSpell.auto ? c.attackSpell : null;
     const target = X.target ? c.dens.find(d => d.uid === X.target) : null;
     const spTargets = (X.spTargets ?? []).map(u => c.dens.find(d => d.uid === u)).filter(Boolean), spChars = X.spChars ?? [];
@@ -1090,7 +1109,7 @@ export function meleeCollect(st, data, X, peers = null) {
     const oil = !hm && hasTreasure(st, 'oil-of-poison') ? 1 : 0;
     const morphSide = fight?.morph ? hm.creature[fight.side] : null;
     const mySide = wish ? { ...weaponSide(w), harm: wish, stars: 0, missile: false } : morphSide ? { harm: morphSide.harm ?? 'N', stars: morphSide.stars, time: morphSide.atk, length: morphSide.length, missile: false } : weaponSide(w, poison + oil);
-    if (wish) log(`Your Wish of Strength strikes with ${WEIGHT_WORDS[wish]} harm.`);
+    if (wish) log(`Your Wish of Strength strikes with ${WEIGHT_WORDS[wish]} harm.`, null, { ev: { code: 'wish.strength', who: st.ch.id, harm: wish } });
     const attackTime = fight ? (mySide.time ?? fight.time) : null;
     const hits = [];            // { who:'me'|denUid, order keys }
     // An attack spell attacks from the attack circle like a weapon, once per hit it makes, each with its own Missile Table roll.
@@ -1106,13 +1125,13 @@ export function meleeCollect(st, data, X, peers = null) {
         for (const { den: t, n } of spellHitPlan(sp0, inOrder, attention)) {
             if (t.char) {          // pvp: the spell falls on a character as a weapon would: it hits if it goes the way his maneuver faces, undercuts it, or he played none
                 const rival = peers?.[t.char], vname = st.chars[t.char].name;
-                if (!rival || rival.stop) { log(`${spName}: ${vname} is no longer there to be struck.`); continue; }
+                if (!rival || rival.stop) { log(`${spName}: ${vname} is no longer there to be struck.`, null, blowEv(false, st.ch.id, t.char, sp0.spell, null, 'gone')); continue; }
                 const vm = rival.X.move, vdir = rival.X.p.moveDir, noMnv = !vm || vdir == null, inLane = !noMnv && vdir === myDir, fast = !noMnv && side.time != null && vm.time != null && side.time < vm.time;
                 const where = noMnv ? 'no maneuver' : `${MANEUVERS[vdir]}${vm.isHorse ? ' (his horse)' : ''}`;
                 if (noMnv || inLane || fast) {
                     for (let k = 0; k < n; k++) hits.push({ who: 'me', char: t.char, time: side.time, length: side.length, side, spell: spName });
-                    log(`${spName}: ${DIRS[myDir]} at ${vname} (${where}): ${n > 1 ? `${n} hits` : 'hit'}${noMnv || inLane ? '' : ' by undercutting'}.`);
-                } else log(`${spName}: ${DIRS[myDir]} at ${vname} (${where}): miss.`);
+                    log(`${spName}: ${DIRS[myDir]} at ${vname} (${where}): ${n > 1 ? `${n} hits` : 'hit'}${noMnv || inLane ? '' : ' by undercutting'}.`, null, blowEv(true, st.ch.id, t.char, sp0.spell, DIRS[myDir].toLowerCase(), noMnv ? 'free' : inLane ? 'box' : 'undercut', noMnv ? null : MANEUVERS[vdir].toLowerCase()));
+                } else log(`${spName}: ${DIRS[myDir]} at ${vname} (${where}): miss.`, null, blowEv(false, st.ch.id, t.char, sp0.spell, DIRS[myDir].toLowerCase(), 'avoided'));
                 continue;
             }
             const horse = c.dens.find(d => d.kind === 'horse' && d.partOf === t.uid && !d.dead);
@@ -1121,11 +1140,11 @@ export function meleeCollect(st, data, X, peers = null) {
             const nm = defSide.name;
             if (inBox || fast) {
                 for (let k = 0; k < n; k++) hits.push({ who: 'me', time: side.time, length: side.length, on: def.uid, owner: t.uid, side, spell: spName });
-                log(`${spName}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): ${n > 1 ? `${n} hits` : 'hit'}${inBox ? '' : ' by undercutting'}.`);
-            } else log(`${spName}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): miss.`);
+                log(`${spName}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): ${n > 1 ? `${n} hits` : 'hit'}${inBox ? '' : ' by undercutting'}.`, null, blowEv(true, st.ch.id, def.uid, sp0.spell, DIRS[myDir].toLowerCase(), inBox ? 'box' : 'undercut', boxName(def)));
+            } else log(`${spName}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): miss.`, null, blowEv(false, st.ch.id, def.uid, sp0.spell, DIRS[myDir].toLowerCase(), 'slow'));
         }
     } else if (c.attackSpell) {
-        log(`${data.spells[c.attackSpell.spell]?.name ?? 'Your spell'} is cast at no one and fizzles.`);
+        log(`${data.spells[c.attackSpell.spell]?.name ?? 'Your spell'} is cast at no one and fizzles.`, null, { ev: { code: 'blow.fizzled', who: st.ch.id, spell: c.attackSpell.spell, why: 'no-target' } });
     }
     if (fight && target && myDir != null) {
         // the defender is its horse while the horse lives
@@ -1141,9 +1160,10 @@ export function meleeCollect(st, data, X, peers = null) {
             hits.push({ who: 'me', time: attackTime, length: mySide.length, on: def.uid, owner: target.uid, pit: morphSide?.attack === 'spell' });
             const tie = !inBox && attackTime === defSide.move;
             log(inBox ? `You: ${DIRS[myDir]} at ${nm} (${where} box): hit.` : tie ? `You: ${DIRS[myDir]} at ${nm} (${where} box): hit by your Ointment of Bite (your time ${attackTime} ties its ${defSide.move}).` : `You: ${DIRS[myDir]} at ${nm} (${where} box): hit by undercutting (your time ${attackTime} beats its ${defSide.move}).`,
-                inBox ? tell.myHitBox(st, weaponName, DIRS[myDir].toLowerCase(), nm) : tie ? `The Ointment of Bite makes your ${weaponName} bite: your time ${attackTime} ties the ${nm}'s ${defSide.move}, and the blow lands.` : tell.myHitFast(st, weaponName, DIRS[myDir].toLowerCase(), nm, where, attackTime, defSide.move));
+                inBox ? tell.myHitBox(st, weaponName, DIRS[myDir].toLowerCase(), nm) : tie ? `The Ointment of Bite makes your ${weaponName} bite: your time ${attackTime} ties the ${nm}'s ${defSide.move}, and the blow lands.` : tell.myHitFast(st, weaponName, DIRS[myDir].toLowerCase(), nm, where, attackTime, defSide.move),
+                blowEv(true, st.ch.id, def.uid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), inBox ? 'box' : tie ? 'tie' : 'undercut', boxName(def)));
         } else log(`You: ${DIRS[myDir]} at ${nm} (${where} box): miss (${DIRS[myDir]} hits ${MANEUVERS[myDir]}${defSide.move != null ? `; its time ${defSide.move} is not slower than your ${attackTime}` : ''}).`,
-            tell.myMiss(st, weaponName, DIRS[myDir].toLowerCase(), nm, where, attackTime, defSide.move));
+            tell.myMiss(st, weaponName, DIRS[myDir].toLowerCase(), nm, where, attackTime, defSide.move), blowEv(false, st.ch.id, def.uid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), 'slow'));
     }
     // pvp: a blow at another character is judged against what HE played (docs/design/multiplayer-step5.md): it hits if it undercuts his maneuver (8.4.8a), goes the way his maneuver
     // faces (the same lane), or he played no maneuver at all (8.4.8b.2, everything on his sheet hits him)
@@ -1159,8 +1179,9 @@ export function meleeCollect(st, data, X, peers = null) {
             const where = noMnv ? 'no maneuver' : `${MANEUVERS[vdir]}${vm.isHorse ? ' (his horse)' : ''}`;
             if (noMnv || inLane || fast) {
                 hits.push({ who: 'me', char: vid, time: attackTime, length: mySide.length });
-                log(noMnv ? `You: ${DIRS[myDir]} at ${vname} (${where}): hit; everything on a sheet with no maneuver is hit.` : inLane ? `You: ${DIRS[myDir]} at ${vname} (${where}): hit.` : `You: ${DIRS[myDir]} at ${vname} (${where}): hit by undercutting (your time ${attackTime} beats his ${vtime}).`);
-            } else log(`You: ${DIRS[myDir]} at ${vname} (${where}): miss (${DIRS[myDir]} hits ${MANEUVERS[myDir]}${vtime != null ? `; his time ${vtime} is not slower than your ${attackTime}` : ''}).`);
+                log(noMnv ? `You: ${DIRS[myDir]} at ${vname} (${where}): hit; everything on a sheet with no maneuver is hit.` : inLane ? `You: ${DIRS[myDir]} at ${vname} (${where}): hit.` : `You: ${DIRS[myDir]} at ${vname} (${where}): hit by undercutting (your time ${attackTime} beats his ${vtime}).`, null,
+                    blowEv(true, st.ch.id, vid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), noMnv ? 'free' : inLane ? 'box' : 'undercut'));
+            } else log(`You: ${DIRS[myDir]} at ${vname} (${where}): miss (${DIRS[myDir]} hits ${MANEUVERS[myDir]}${vtime != null ? `; his time ${vtime} is not slower than your ${attackTime}` : ''}).`, null, blowEv(false, st.ch.id, vid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), 'slow'));
         }
     }
     // pvp: a blow at someone else's hireling: it has no maneuver of its own, so a die gives the lane it stands in; it also hits if it undercuts the hireling's move time
@@ -1169,8 +1190,8 @@ export function meleeCollect(st, data, X, peers = null) {
         if (hire && !hire.dead && fight && myDir != null) {
             const hs = hireStats(data, hire.id, hire.kind, st), a = (die(st, 'combat.hire.box') - 1) % 3;
             const inLane = a === myDir, fast = attackTime != null && hs.move != null && attackTime < hs.move;
-            if (inLane || fast) { hits.push({ who: 'me', hireOn: hire.uid, time: attackTime, length: mySide.length }); log(`You: ${DIRS[myDir]} at ${hs.name} (${MANEUVERS[a]}): hit${inLane ? '' : ' by undercutting'}.`); }
-            else log(`You: ${DIRS[myDir]} at ${hs.name} (${MANEUVERS[a]}): miss.`);
+            if (inLane || fast) { hits.push({ who: 'me', hireOn: hire.uid, time: attackTime, length: mySide.length }); log(`You: ${DIRS[myDir]} at ${hs.name} (${MANEUVERS[a]}): hit${inLane ? '' : ' by undercutting'}.`, null, blowEv(true, st.ch.id, hire.uid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), inLane ? 'box' : 'undercut', MANEUVERS[a].toLowerCase())); }
+            else log(`You: ${DIRS[myDir]} at ${hs.name} (${MANEUVERS[a]}): miss.`, null, blowEv(false, st.ch.id, hire.uid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), 'avoided'));
         }
     }
     // an absorbed monster's head or club: a second attack at the same target, either side up
@@ -1181,8 +1202,8 @@ export function meleeCollect(st, data, X, peers = null) {
         const nm = defSide.name, what = `${hm.creature.name}'s ${part.name}`;
         if (inBox || fast) {
             hits.push({ who: 'me', time: ps.atk, length: ps.length, on: def.uid, owner: target.uid, side: { harm: ps.harm, stars: ps.stars, time: ps.atk, length: ps.length, missile: false }, morphName: what });
-            log(`Your ${what}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): hit${inBox ? '' : ' by undercutting'}.`);
-        } else log(`Your ${what}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): miss.`);
+            log(`Your ${what}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): hit${inBox ? '' : ' by undercutting'}.`, null, blowEv(true, st.ch.id, def.uid, tokenOf(what), DIRS[myDir].toLowerCase(), inBox ? 'box' : 'undercut', boxName(def)));
+        } else log(`Your ${what}: ${DIRS[myDir]} at ${nm} (${MANEUVERS[def.box] ?? '?'} box): miss.`, null, blowEv(false, st.ch.id, def.uid, tokenOf(what), DIRS[myDir].toLowerCase(), 'slow'));
     }
     const mnvTime = move ? move.time : null;
     for (const d of c.dens.filter(x => !x.dead && x.kind !== 'horse' && x.box != null)) {
@@ -1196,10 +1217,10 @@ export function meleeCollect(st, data, X, peers = null) {
         const under = mnvTime != null ? s.atk < mnvTime : false;
         const noMove = !move;
         const at = `${s.name}'s ${DIRS[dir].toLowerCase()}`;
-        if (noMove) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} is aimed true (you played no maneuver).`, tell.connectNoMove(st, s.name, DIRS[dir].toLowerCase())); }
-        else if (meets) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} is aimed at your ${MANEUVERS[mnvDir]}: it connects.`, tell.connectMeets(st, s.name, DIRS[dir].toLowerCase(), MANEUVERS[mnvDir])); }
-        else if (under) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} gets under your maneuver (its time ${s.atk} beats your ${mnvTime}).`, tell.connectUnder(st, s.name, DIRS[dir].toLowerCase(), s.atk, mnvTime)); }
-        else log(`${at} misses you (your ${MANEUVERS[mnvDir]} avoids it).`, tell.avoid(st, s.name, DIRS[dir].toLowerCase(), MANEUVERS[dir], MANEUVERS[mnvDir]));
+        if (noMove) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} is aimed true (you played no maneuver).`, tell.connectNoMove(st, s.name, DIRS[dir].toLowerCase()), blowEv(true, d.uid, st.ch.id, d.id, DIRS[dir].toLowerCase(), 'free')); }
+        else if (meets) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} is aimed at your ${MANEUVERS[mnvDir]}: it connects.`, tell.connectMeets(st, s.name, DIRS[dir].toLowerCase(), MANEUVERS[mnvDir]), blowEv(true, d.uid, st.ch.id, d.id, DIRS[dir].toLowerCase(), 'box', MANEUVERS[dir].toLowerCase())); }
+        else if (under) { hits.push({ who: d.uid, time: s.atk, length: s.length }); log(`${at} gets under your maneuver (its time ${s.atk} beats your ${mnvTime}).`, tell.connectUnder(st, s.name, DIRS[dir].toLowerCase(), s.atk, mnvTime), blowEv(true, d.uid, st.ch.id, d.id, DIRS[dir].toLowerCase(), 'undercut')); }
+        else log(`${at} misses you (your ${MANEUVERS[mnvDir]} avoids it).`, tell.avoid(st, s.name, DIRS[dir].toLowerCase(), MANEUVERS[dir], MANEUVERS[mnvDir]), blowEv(false, d.uid, st.ch.id, d.id, DIRS[dir].toLowerCase(), 'avoided'));
     }
     // hirelings against the creatures they were sent at (on Melee Sections: every section's blows, hirefight.js)
     if (HF.inRound(st)) hits.push(...HF.blows(st, data, log));
@@ -1209,8 +1230,8 @@ export function meleeCollect(st, data, X, peers = null) {
             if (!rival || rival.stop || st.chars[hire.targetChar].dead) { log(`${hs.name} has no one to strike: ${st.chars[hire.targetChar]?.name ?? 'its target'} is gone.`); continue; }
             const a = (die(st, 'combat.hire.box') - 1) % 3, vm = rival.X.move, vname = st.chars[hire.targetChar].name;
             const hit = hs.atk != null && hs.harm != null && (!vm || rival.X.p.moveDir == null || a === rival.X.p.moveDir || (vm.time != null && hs.atk < vm.time));
-            if (hit) { hits.push({ who: 'hire', hire: hire.uid, char: hire.targetChar, dir: a, time: hs.atk, length: hs.length }); log(`${hs.name} strikes ${DIRS[a].toLowerCase()} at ${vname}: hit.`); }
-            else log(`${hs.name} strikes ${DIRS[a].toLowerCase()} at ${vname}: miss.`);
+            if (hit) { hits.push({ who: 'hire', hire: hire.uid, char: hire.targetChar, dir: a, time: hs.atk, length: hs.length }); log(`${hs.name} strikes ${DIRS[a].toLowerCase()} at ${vname}: hit.`, null, blowEv(true, hire.uid, hire.targetChar, hire.id, DIRS[a].toLowerCase(), 'box', MANEUVERS[a].toLowerCase())); }
+            else log(`${hs.name} strikes ${DIRS[a].toLowerCase()} at ${vname}: miss.`, null, blowEv(false, hire.uid, hire.targetChar, hire.id, DIRS[a].toLowerCase(), 'avoided'));
             continue;
         }
         const d = c.dens.find(x => x.uid === hire.target && !x.dead && x.engagedBy === hire.uid);
@@ -1336,7 +1357,7 @@ export function meleeAfter(st, data, part) {
     // Tremendous monsters that hurt him turn red only now, after everything this round has landed.
     if (!st.ch.dead) for (const uid of c.toRed) {
         const d = c.dens.find(x => x.uid === uid);
-        if (d && !d.dead && !d.pickedUp) { d.side = 'red'; d.pickedUp = true; log(`${denSide(st, data, d).name} seizes you!`); c.eventful = true; }
+        if (d && !d.dead && !d.pickedUp) { d.side = 'red'; d.pickedUp = true; log(`${denSide(st, data, d).name} seizes you!`, null, { ev: { code: 'hero.seized', who: st.ch.id, by: d.uid } }); c.eventful = true; }
     }
     // ... and so do those that hurt a hireling without killing it: red side up, and they stay on that hireling (8.4.7d.3, 8.6.2)
     for (const r of c.toRedHire ?? []) {
@@ -1365,8 +1386,9 @@ export function meleeAfter(st, data, part) {
         const aTime = w.def.alerted?.attackTime;                       // some weapons print a time on the alerted side (the Morning Star's 3); others use the Fight chit's
         const timeWhat = aTime != null ? `its attack time is ${aTime}, as printed on its alerted side` : 'its attack time comes from the Fight chit you play';
         if (!delivered) log(wasAlerted ? `Your ${weaponName} found no mark, so it stays alerted.` : `Your ${weaponName} found no mark, so it is now alerted: next round ${timeWhat}.`,
-            wasAlerted ? `Your ${weaponName} found no mark and stays alerted.` : `Your ${weaponName} found no mark, and the missed swing leaves it alerted: next round ${timeWhat}.`);
-        else if (wasAlerted && !dust) log(`Your ${weaponName} struck home, so it goes back to unalerted.`, `Your ${weaponName} struck home and goes back to unalerted.`);
+            wasAlerted ? `Your ${weaponName} found no mark and stays alerted.` : `Your ${weaponName} found no mark, and the missed swing leaves it alerted: next round ${timeWhat}.`,
+            { ev: { code: 'weapon.alert.changed', who: st.ch.id, item: w.item.uid, alerted: true } });
+        else if (wasAlerted && !dust) log(`Your ${weaponName} struck home, so it goes back to unalerted.`, `Your ${weaponName} struck home and goes back to unalerted.`, { ev: { code: 'weapon.alert.changed', who: st.ch.id, item: w.item.uid, alerted: false } });
     }
     c.attackSpell = null;                                 // an attack spell not used this round is lost
     c.step = 'resolve';
@@ -1422,14 +1444,14 @@ function applyShift(st, data, X, sh, want) {
     if (want.attackDir != null && want.attackDir !== p.attackDir) {
         if (!sh.attack) throw new Error('your Battle Bracelets cannot move your attack now');
         if (!ok(want.attackDir)) throw new Error('that is not an attack circle');
-        say(st, `Your Battle Bracelets move your attack from ${DIRS[p.attackDir]} to ${DIRS[want.attackDir]}.`, 'combat');
+        say(st, `Your Battle Bracelets move your attack from ${DIRS[p.attackDir]} to ${DIRS[want.attackDir]}.`, 'combat', null, { ev: { code: 'melee.shifted', who: st.ch.id, item: 'battle-bracelets', from: DIRS[p.attackDir].toLowerCase(), to: DIRS[want.attackDir].toLowerCase() } });
         c.events.push(`Your Battle Bracelets move your attack to the ${DIRS[want.attackDir]} circle.`);
         p.attackDir = want.attackDir;
     }
     if (want.moveDir != null && want.moveDir !== p.moveDir) {
         if (!sh.move) throw new Error('your Elusive Cloak cannot move your maneuver now');
         if (!ok(want.moveDir)) throw new Error('that is not a maneuver square');
-        say(st, `Your Elusive Cloak moves your maneuver from ${MANEUVERS[p.moveDir]} to ${MANEUVERS[want.moveDir]}.`, 'combat');
+        say(st, `Your Elusive Cloak moves your maneuver from ${MANEUVERS[p.moveDir]} to ${MANEUVERS[want.moveDir]}.`, 'combat', null, { ev: { code: 'melee.shifted', who: st.ch.id, item: 'elusive-cloak', from: MANEUVERS[p.moveDir].toLowerCase(), to: MANEUVERS[want.moveDir].toLowerCase() } });
         c.events.push(`Your Elusive Cloak moves your maneuver to ${MANEUVERS[want.moveDir]}.`);
         p.moveDir = want.moveDir;
     }
@@ -1486,6 +1508,7 @@ function spellHitPlan(sp, targets, attention) {
 function roofHits(st, data, { hits, log, move, mnvDir }) {
     const c = st.combat, sp = c.attackSpell, spName = data.spells[sp.spell]?.name ?? sp.spell;
     const side = { harm: sp.harm, stars: sp.stars ?? 0, time: sp.time, length: sp.length, missile: false, dir: sp.dir };
+    const struck = [];
     const victims = c.dens.filter(x => !x.dead && x.kind !== 'part' && x.kind !== 'horse').map((d, i) => ({ d, i, w: bountyOfDen(st, data, d) })).sort((a, b) => b.w - a.w || a.i - b.i).map(x => x.d);          // (most valuable first, 8.7.2c)
     for (const d of victims) {
         // the roof falls on a native and on its horse alike: the horse does not shield its rider from a spell that attacks them both
@@ -1493,17 +1516,18 @@ function roofHits(st, data, { hits, log, move, mnvDir }) {
         for (const def of horse ? [d, horse] : [d]) {
             const ds = denSide(st, data, def), boxed = def.box != null;
             const caught = !boxed || def.box === sp.dir || (ds.move != null && side.time < ds.move);
-            if (caught) hits.push({ who: 'me', time: side.time, length: side.length, on: def.uid, owner: d.uid, side, spell: spName });
+            if (caught) { hits.push({ who: 'me', time: side.time, length: side.length, on: def.uid, owner: d.uid, side, spell: spName }); struck.push(def.uid); }
             log(`${spName}: the roof falls on the ${ds.name}${caught ? '' : ' and misses'}.`);
         }
     }
     for (const h of (c.hires ?? []).filter(x => !x.dead)) {
-        hits.push({ who: 'roofhire', hire: h.uid, time: side.time, length: side.length });
+        hits.push({ who: 'roofhire', hire: h.uid, time: side.time, length: side.length }); struck.push(h.uid);
         log(`${spName}: the roof falls on your hireling ${data.natives[h.id].name}.`);
     }
     const hitsHero = !move || mnvDir === sp.dir || side.time < move.time;
     if (hitsHero) { hits.push({ who: 'roofhero', time: side.time, length: side.length, side }); log(`${spName}: the roof falls on you.`); }
     else log(`${spName}: you get out of the way.`);
+    emit(st, { code: 'cave.roof', who: st.ch.id, hit: hitsHero ? [...struck, st.ch.id] : struck });          // (one event for the whole fall: who it struck)
 }
 
 // A hireling under the falling roof: a native of vulnerability up to Heavy dies, and either way his group rebels (8.4.2g).
@@ -1532,7 +1556,7 @@ export function rebelGroup(st, data, group, also = [], what = 'your spell did') 
         n.hired = false; delete n.hiredBy; if (!also.includes(id)) any = true;
         lost += data.natives[id].notorietyBounty ?? 0;
     }
-    if (lost) { st.ch.fame -= lost; say(st, `Treachery: you lose ${lost} Fame.`, 'combat'); }
+    if (lost) { st.ch.fame -= lost; say(st, `Treachery: you lose ${lost} Fame.`, 'combat', null, { ev: { code: 'hero.treachery', who: st.ch.id, fame: lost } }); }
     if (any || nativesIn(st, data, c.at).some(n => data.natives[n.id].group === group)) {
         say(st, `The ${group} turn on you for what ${what} to one of their own.`, 'combat');
         startBattling(st, data, group);
@@ -1743,16 +1767,16 @@ function myHit(st, data, h, ctx) {
         // another character's blow killed it in the very same instant: the points are split equally and each of them counts it as a kill (8.7.1)
         if (shared && sharedFight(st) && den.slain && den.slain.g === c.groupNo && den.slain.by !== st.ch.id) {
             const text = splitKill(st, data, den);
-            ctx.log(`You kill the ${s.name} with ${finalL} harm${note}, in the same instant as ${st.chars[den.slain.by].name}${text}.`);
+            ctx.log(`You kill the ${s.name} with ${finalL} harm${note}, in the same instant as ${st.chars[den.slain.by].name}${text}.`, null, { ev: { code: 'den.killed', by: st.ch.id, den: den.uid, harm: finalL, shared: true } });
             c.eventful = true;
             return;
         }
         const reward = slayDenizen(st, data, den, { shared, spell: ctx.spell ?? null });
-        ctx.log(`You kill the ${s.name} with ${finalL} harm${note}${reward}.`, tell.kill(st, ctx.spell ?? (ctx.w ? nameOfItem(st, data, ctx.w.item) : ctx.morphName ?? 'bare hands'), s.name, reward));
+        ctx.log(`You kill the ${s.name} with ${finalL} harm${note}${reward}.`, tell.kill(st, ctx.spell ?? (ctx.w ? nameOfItem(st, data, ctx.w.item) : ctx.morphName ?? 'bare hands'), s.name, reward), { ev: { code: 'den.killed', by: st.ch.id, den: den.uid, harm: finalL, shared } });
         c.eventful = true;
     } else {
         tally(st, 'hitsNotKilling');
-        ctx.log(`You hit the ${s.name} for ${finalL} harm${note}; it has vulnerability ${s.vuln} and survives.`, tell.tough(st, ctx.spell ?? (ctx.w ? nameOfItem(st, data, ctx.w.item) : ctx.morphName ?? 'bare hands'), s.name, finalL, s.vuln, shotDelta));
+        ctx.log(`You hit the ${s.name} for ${finalL} harm${note}; it has vulnerability ${s.vuln} and survives.`, tell.tough(st, ctx.spell ?? (ctx.w ? nameOfItem(st, data, ctx.w.item) : ctx.morphName ?? 'bare hands'), s.name, finalL, s.vuln, shotDelta), { ev: { code: 'den.survived', by: st.ch.id, den: den.uid, harm: finalL, vuln: s.vuln } });
         // a harmless hit still turns the weapon unalerted (handled by caller)
     }
 }
@@ -1785,7 +1809,7 @@ function charBlow(st, data, h, part, g, log) {
     const blow = { name: `${att.name}'s ${spell ?? part.weaponName}`, harm: side.harm, stars: side.stars ?? 0, bonus, pierce, delta, dir: part.myDir, missile: !!side.missile, archer: false, den: null };
     part.as(vid, () => {
         const vx = rival?.X, horse = vx?.move?.isHorse ? st.ch.items.find(i => i.uid === vx.move.horseUid) : null;
-        strikeHero(st, data, blow, { mnvDir: vx?.p.moveDir ?? null, move: vx?.move ?? null, shieldDir: vx?.p.shieldDir ?? null, log: rival?.log ?? ((t, story) => say(st, t, 'combat', story ?? null)), g, horse });
+        strikeHero(st, data, blow, { mnvDir: vx?.p.moveDir ?? null, move: vx?.move ?? null, shieldDir: vx?.p.shieldDir ?? null, log: rival?.log ?? ((t, story, opt) => say(st, t, 'combat', story ?? null, opt ?? null)), g, horse });
     });
     if (victim.today.slain !== was) {
         killQ.push({ killer: att.id, victim: vid });
@@ -1799,7 +1823,7 @@ function hireStrikesChar(st, data, h, part, g, log) {
     const was = victim.today.slain;
     part.as(vid, () => {
         const vx = rival?.X, horse = vx?.move?.isHorse ? st.ch.items.find(i => i.uid === vx.move.horseUid) : null;
-        strikeHero(st, data, { name: hs.name, harm: hs.harm, stars: hs.stars ?? 0, dir: h.dir, missile: !!hs.missile, archer: !!hs.archer, den: null }, { mnvDir: vx?.p.moveDir ?? null, move: vx?.move ?? null, shieldDir: vx?.p.shieldDir ?? null, log: rival?.log ?? ((t, story) => say(st, t, 'combat', story ?? null)), g, horse });
+        strikeHero(st, data, { name: hs.name, harm: hs.harm, stars: hs.stars ?? 0, dir: h.dir, missile: !!hs.missile, archer: !!hs.archer, den: null }, { mnvDir: vx?.p.moveDir ?? null, move: vx?.move ?? null, shieldDir: vx?.p.shieldDir ?? null, log: rival?.log ?? ((t, story, opt) => say(st, t, 'combat', story ?? null, opt ?? null)), g, horse });
     });
     if (victim.today.slain !== was) {
         killQ.push({ killer: st.ch.id, victim: vid, hire: hire.kind === 'mon' || data.natives[hire.id]?.leader ? 'leader' : 'underling' });
@@ -1967,18 +1991,19 @@ function strikeHero(st, data, b, ctx) {
     if (armor && !b.pierce) stars = Math.max(0, stars - 1);          // (a Penetrating Grease on the weapon ignores all armor)
     level += stars + missile + (b.bonus ?? 0);
     const L = letterOf(level);
-    ctx.log(`${b.name} strikes ${DIRS[b.dir].toLowerCase()} for ${L} harm${armor ? ` against your ${armor.def.name}` : ''}.`, tell.strike(st, b.name, DIRS[b.dir].toLowerCase(), L, armor?.def.name));
+    ctx.log(`${b.name} strikes ${DIRS[b.dir].toLowerCase()} for ${L} harm${armor ? ` against your ${armor.def.name}` : ''}.`, tell.strike(st, b.name, DIRS[b.dir].toLowerCase(), L, armor?.def.name),
+        { ev: { code: 'hero.struck', who: st.ch.id, by: den?.uid ?? tokenOf(b.name), harm: L, armor: armor?.item.uid, result: armor ? 'armored' : 'bare' } });
     let wounded = false, changed = false, greased = false;
     if (armor) {
         const tough = lvl(armor.def.toughness ?? armor.def.weight);
         if (level >= tough) {
             const card = !!armor.def.card;
-            if (!card && level === tough && !armor.item.damaged && !armor.item.destroyed) { armor.item.damaged = true; changed = true; tally(st, 'armorDamaged'); ctx.log(`Your ${armor.def.name} is damaged.`, tell.damaged(st, armor.def.name)); c.eventful = true; }
+            if (!card && level === tough && !armor.item.damaged && !armor.item.destroyed) { armor.item.damaged = true; changed = true; tally(st, 'armorDamaged'); ctx.log(`Your ${armor.def.name} is damaged.`, tell.damaged(st, armor.def.name), { ev: { code: 'hero.armor.hit', who: st.ch.id, item: armor.item.uid, result: 'damaged' } }); c.eventful = true; }
             else if (!armor.item.destroyed) {
                 armor.item.destroyed = true; armor.item.active = false; armor.item.destroyedGroup = ctx.g; changed = true; tally(st, 'armorDestroyed');
                 const gold = !armor.def.native ? (armor.def.priceDestroyed ?? 0) : 0;
                 if (gold) st.ch.gold += gold;
-                ctx.log(`Your ${armor.def.name} is destroyed${gold ? ` (worth ${gold} gold to you)` : ''}.`, tell.destroyed(st, armor.def.name, gold));
+                ctx.log(`Your ${armor.def.name} is destroyed${gold ? ` (worth ${gold} gold to you)` : ''}.`, tell.destroyed(st, armor.def.name, gold), { ev: { code: 'hero.armor.hit', who: st.ch.id, item: armor.item.uid, result: 'destroyed' } });
                 c.eventful = true;
             }
         }
@@ -1999,7 +2024,8 @@ function strikeHero(st, data, b, ctx) {
         const why = armor
             ? `${WEIGHT_WORDS[L] ?? L} harm is not enough to hurt your ${armor.def.name} (toughness ${WEIGHT_WORDS[armor.def.toughness ?? armor.def.weight] ?? armor.def.toughness}), and it is too light to hurt you through it.`
             : `${WEIGHT_WORDS[L] ?? L} harm is too light to wound you.`;
-        ctx.log(`No effect: ${why}`, tell.noEffect(st, WEIGHT_WORDS[L] ?? L, armor?.def.name, armor ? (WEIGHT_WORDS[armor.def.toughness ?? armor.def.weight] ?? armor.def.toughness) : null));
+        ctx.log(`No effect: ${why}`, tell.noEffect(st, WEIGHT_WORDS[L] ?? L, armor?.def.name, armor ? (WEIGHT_WORDS[armor.def.toughness ?? armor.def.weight] ?? armor.def.toughness) : null),
+            armor ? { ev: { code: 'hero.armor.hit', who: st.ch.id, item: armor.item.uid, result: 'held' } } : null);
     }
     // a tremendous monster that hurts him and leaves him alive will pick him up when the round ends
     if (!st.ch.dead) {
@@ -2051,7 +2077,7 @@ function pitSweep(st, data, rowName, { caster = null, pay = false, log = null } 
 function killMe(st, text, by = null) {
     st.ch.dead = true; tally(st, 'deathsInCombat'); if (by) tally(st, `slain.${by}`);
     st.slain = { by, text, at: st.ch.at, day: st.day, form: st.ch.morph?.creature.name ?? null, formBounty: st.ch.morph ? { fame: st.ch.morph.creature.fame, notoriety: st.ch.morph.creature.notor } : null };            // for the screen that tells him how it ended
-    say(st, text, 'combat');
+    say(st, text, 'combat', null, { ev: { code: 'hero.slain', who: st.ch.id, by: by ? tokenOf(by) : 'unknown' } });
     st.combat.events.push(text);
     st.combat.eventful = true;
 }
@@ -2064,7 +2090,7 @@ function afterMelee(st, data) {
 
 // a chit that is wounded, or committed to a spell, is out of play: when every chit is, he is dead (4.2.5b)
 const nonWounded = st => st.ch.chits.filter(x => x.state !== 'wounded' && x.state !== 'committed');
-const dieOfWounds = (st, data) => { st.ch.dead = true; st.slain = { by: null, text: 'Every action chit was wounded: there was nothing left to fight with.', at: st.ch.at, day: st.day }; say(st, 'Every action chit is wounded; you die.', 'combat'); return endCombat(st, data, 'died'); };
+const dieOfWounds = (st, data) => { st.ch.dead = true; st.slain = { by: null, text: 'Every action chit was wounded: there was nothing left to fight with.', at: st.ch.at, day: st.day }; say(st, 'Every action chit is wounded; you die.', 'combat', null, { ev: { code: 'char.dies', who: st.ch.id, cause: 'wounds' } }); return endCombat(st, data, 'died'); };
 
 // Wounds fall on active chits first, then on fatigued ones; with no chit left to wound he dies.
 function resolveWounds(st, data) {
@@ -2078,7 +2104,7 @@ function resolveWounds(st, data) {
         if (pool.length <= c.newWounds) {
             pool.forEach(x => { x.state = 'wounded'; });
             c.newWounds -= pool.length;
-            say(st, `You wound ${pool.length} action chit${pool.length === 1 ? '' : 's'}.`, 'combat', tell.wounded(st, pool.length));
+            say(st, `You wound ${pool.length} action chit${pool.length === 1 ? '' : 's'}.`, 'combat', tell.wounded(st, pool.length), { ev: { code: 'hero.wounded', who: st.ch.id, chits: pool.map(x => x.id) } });
             continue;
         }
         c.step = 'wounds';
@@ -2098,7 +2124,7 @@ export function chooseWounds(st, data, ids) {
     if (uniq.length !== need || uniq.some(id => !eligible.includes(id))) throw new Error(`choose ${need} chit${need === 1 ? '' : 's'} to wound`);
     for (const id of uniq) st.ch.chits.find(x => x.id === id).state = 'wounded';
     c.newWounds = 0;
-    say(st, `You wound ${uniq.length} action chit${uniq.length === 1 ? '' : 's'}.`, 'combat', tell.wounded(st, uniq.length));
+    say(st, `You wound ${uniq.length} action chit${uniq.length === 1 ? '' : 's'}.`, 'combat', tell.wounded(st, uniq.length), { ev: { code: 'hero.wounded', who: st.ch.id, chits: uniq } });
     return resolveWounds(st, data);
 }
 
@@ -2116,7 +2142,7 @@ function toFatigue(st, data) {
     const total = pool.reduce((s, x) => s + x.effort, 0);
     if (total <= need) {
         pool.forEach(x => { x.state = 'fatigued'; });
-        if (pool.length) { say(st, `You fatigue ${pool.length} chit${pool.length === 1 ? '' : 's'}.`, 'combat', tell.spent(st, pool.length)); c.eventful = true; }
+        if (pool.length) { say(st, `You fatigue ${pool.length} chit${pool.length === 1 ? '' : 's'}.`, 'combat', tell.spent(st, pool.length), { ev: { code: 'hero.fatigued', who: st.ch.id, chits: pool.map(x => x.id) } }); c.eventful = true; }
         return resolveWounds(st, data);
     }
     c.step = 'fatigue';
@@ -2142,19 +2168,20 @@ export function chooseFatigue(st, data, ids, change = null) {
     const c = st.combat, need = c.fatigueNeed;
     const pool = st.ch.chits.filter(x => x.state === 'active' && x.effort > 0 && (c.fatigueKinds.includes(effortKind(x)) || x.alt?.mf));
     const chosen = [...new Set(ids)].map(id => pool.find(x => x.id === id));
-    if (chosen.some(x => !x)) throw new Error('that chit cannot be fatigued');
+    if (chosen.some(x => !x)) refuse('combat.not-offered', 'that chit cannot be fatigued');
     const sum = chosen.reduce((s, x) => s + x.effort, 0);
     if (sum < need) throw new Error(`fatigue at least ${need} asterisk${need === 1 ? '' : 's'}`);
-    if (sum - need > 1) throw new Error('that is more than needed');
+    if (sum - need > 1) refuse('combat.not-offered', 'that is more than needed');
     // Overshoot by one: make change by returning a fatigued single-asterisk chit of the same type, his choice (the first of them when he names none).
     const options = makeChangeOptions(st, data, ids);
     if (change != null && !options.some(x => x.id === change)) throw new Error('the chit you make change with must be a tired one-asterisk chit of the same type as the one you tire');
     chosen.forEach(x => { x.state = 'fatigued'; });
+    let back = null;
     if (sum - need === 1) {
-        const back = options.find(x => x.id === change) ?? options[0];
+        back = options.find(x => x.id === change) ?? options[0];
         if (back) { back.state = 'active'; say(st, `You make change for the extra asterisk: ${chitName(back)} is ready again.`, 'combat'); }
     }
-    say(st, `You fatigue ${chosen.length} chit${chosen.length === 1 ? '' : 's'}.`, 'combat', tell.spent(st, chosen.length));
+    say(st, `You fatigue ${chosen.length} chit${chosen.length === 1 ? '' : 's'}.`, 'combat', tell.spent(st, chosen.length), { ev: { code: 'hero.fatigued', who: st.ch.id, chits: chosen.map(x => x.id), change: back?.id } });
     c.eventful = true;
     return resolveWounds(st, data);
 }
@@ -2214,7 +2241,7 @@ function endCombat(st, data, why) {
     st.ch.items = st.ch.items.filter(i => !i.destroyed);
     st.pending = null;
     const text = { won: 'Combat is over: nothing hostile is left.', quiet: 'The fighting dies down.', ran: 'You are out of the fight.', died: 'You have died.', peace: 'A hush falls: there will be no more fighting here today.', teleported: 'You are carried away from the fight.', flew: 'You are out of the fight, in the air.', mist: 'You melt away as mist: the fight is over for you.' }[why];
-    say(st, text, 'combat', why === 'quiet' ? tell.dieDown(st) : why === 'won' ? tell.won(st) : why === 'ran' ? tell.ran(st) : null);
+    say(st, text, 'combat', why === 'quiet' ? tell.dieDown(st) : why === 'won' ? tell.won(st) : why === 'ran' ? tell.ran(st) : null, { ev: { code: 'combat.over', at: c.at, how: why } });
 }
 
 // ---- hirelings ----
@@ -2294,9 +2321,9 @@ function hireStrikes(st, data, h, log) {
         // the gold bounty goes only to a hired leader's or a controlled monster's kill; an underling's or a hired monster's pays no gold (8.7.3 b)
         const controlled = hire.kind === 'mon' && st.mons.find(x => x.id === hire.id)?.tie?.kind === 'control';
         if (controlled || (hire.kind === 'nat' && data.natives[hire.id]?.leader)) st.ch.gold += ds.gold ?? 0;
-        log(`${hs.name} kills the ${ds.name} for you.`);
+        log(`${hs.name} kills the ${ds.name} for you.`, null, { ev: { code: 'hire.struck', hireling: hire.uid, target: den.uid, result: 'killed' } });
         c.eventful = true;
-    } else log(`${hs.name} hits the ${ds.name} but does not kill it.`);
+    } else log(`${hs.name} hits the ${ds.name} but does not kill it.`, null, { ev: { code: 'hire.struck', hireling: hire.uid, target: den.uid, result: 'survived' } });
 }
 
 function denStrikesHire(st, data, den, hireUid, log) {

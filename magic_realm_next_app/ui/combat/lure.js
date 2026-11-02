@@ -7,7 +7,7 @@ import { icon } from '../icons.js';
 import { btn, primary } from '../ds.js';
 import { askBox } from '../shared_ui.js';
 import { fightOf, whyNotLurable, joinList } from '../fight.js';
-import { denSide } from '../../engine/combat.js';
+import { denSide, own } from './feed.js';
 import { foesPhrase, cap } from './model.js';
 import { fixNames } from '../names.js';
 
@@ -23,29 +23,29 @@ const sheetBox = (...kids) => h('div', { class: 'cb-sheet sf-sheet sf-pick', 'da
 const footRow = (lead, prim) => h('div', { class: 'ds-actions' }, lead ? h('div', { class: 'lead' }, lead) : null, prim);
 
 /** The creatures that stand on the stage at the Lure step: the ones already on his sheet first, then the ones he may draw. (battle den objects: the same fields a counter needs) */
-export function lureDens(st, p) {
-    const dens = st.battle?.dens ?? st.combat?.dens ?? [], by = new Map(dens.map(d => [d.uid, d]));
+export function lureDens(fm, p) {
+    const dens = fm.battle?.dens ?? fm.combat?.dens ?? [], by = new Map(dens.map(d => [d.uid, d]));
     const mine = (p.mine ?? []).map(u => by.get(u)).filter(d => d && !d.dead && d.kind !== 'part' && d.kind !== 'horse');
     const may = (p.lurable ?? []).map(o => by.get(o.uid) ?? { uid: o.uid, kind: 'mon', id: '', side: 'light' });
     return { mine, may };
 }
 
 /** Whose answer is this, in this round: a fresh choice for every character and every round (a hot seat passes the phone round). */
-function selection(st, p, ui) {
-    const key = `${st.ch.id}|${p.round}|${(p.lurable ?? []).map(o => o.uid).join(',')}`;
+function selection(fm, p, ui) {
+    const key = `${fm.ch.id}|${p.round}|${(p.lurable ?? []).map(o => o.uid).join(',')}`;
     if (ui.lureFor !== key) { ui.lureFor = key; ui.lureSel = []; }
     const sel = ui.lureSel ??= [];
     for (let i = sel.length - 1; i >= 0; i--) if (!p.lurable.some(o => o.uid === sel[i])) sel.splice(i, 1);
     return sel;
 }
-export const lureChosen = (st, p, ui) => selection(st, p, ui).slice();
-export function toggleLure(st, p, ui, uid) {
-    const sel = selection(st, p, ui), i = sel.indexOf(uid);
+export const lureChosen = (fm, p, ui) => selection(fm, p, ui).slice();
+export function toggleLure(fm, p, ui, uid) {
+    const sel = selection(fm, p, ui), i = sel.indexOf(uid);
     if (i >= 0) sel.splice(i, 1); else sel.push(uid);
 }
 
 /** The creatures that circle, in a sentence ("An Ogre and two Wolves circle the clearing."). */
-export function lureNarr(st, data, f) {
+export function lureNarr(fm, data, f) {
     const all = [...f.sheets.flatMap(s => s.dens), ...f.loose, ...f.held, ...f.standingBy], seen = new Set(), names = [];
     for (const d of all) if (!seen.has(d.uid)) { seen.add(d.uid); names.push(d.name); }
     // (QA-125: "an Ogre", never "a Ogre": the article follows the first letter, whatever the phrase builder wrote)
@@ -54,9 +54,9 @@ export function lureNarr(st, data, f) {
 }
 
 /** The narrator's two lines for a hot seat or a table: [story, detail]. A hidden character is told what drawing a creature costs him, and what he may still do after. */
-export const lureWords = (st, data, p, f) => { const [story, detail] = lureTexts(st, data, p, f); return [h('span', { 'data-v': 'story' }, story), h('span', { 'data-v': 'detail' }, detail)]; };
-export function lureTexts(st, data, p, f) {
-    const circle = lureNarr(st, data, f), hidden = !!st.ch.hidden, natives = lureDens(st, p).may.some(d => d.kind === 'nat');
+export const lureWords = (fm, data, p, f) => { const [story, detail] = lureTexts(fm, data, p, f); return [h('span', { 'data-v': 'story' }, story), h('span', { 'data-v': 'detail' }, detail)]; };
+export function lureTexts(fm, data, p, f) {
+    const circle = lureNarr(fm, data, f), hidden = !!own(fm, data).hidden, natives = lureDens(fm, p).may.some(d => d.kind === 'nat');
     const story = hidden
         ? `${circle} You are hidden: draw one and you are seen.`
         : `${circle} Draw one to fight it yourself.`;
@@ -65,19 +65,19 @@ export function lureTexts(st, data, p, f) {
 }
 
 /** The sheet of the Lure question: one row for each creature he may draw (tap to choose), what cannot be drawn and why, and one primary button that says what happens. Returns { sheet, f }. */
-export function lureSheet({ st, data, p, ui, render, act, f = null }) {
-    f ??= fightOf(st, [], data, st.ch.id);
-    const sel = selection(st, p, ui);
-    const dens = st.battle?.dens ?? st.combat?.dens ?? [];
-    const hidden = !!st.ch.hidden, byId = Object.fromEntries(f.members.map(m => [m.id, m]));
+export function lureSheet({ st: fm, data, p, ui, render, act, f = null }) {
+    f ??= fightOf(fm, [], data, own(fm, data).id);
+    const sel = selection(fm, p, ui);
+    const dens = fm.battle?.dens ?? fm.combat?.dens ?? [];
+    const hidden = !!own(fm, data).hidden, byId = Object.fromEntries(f.members.map(m => [m.id, m]));
     const rows = p.lurable.map(o => {
         const d = dens.find(x => x.uid === o.uid) ?? { uid: o.uid, kind: 'mon', id: '', side: 'light' };
-        let s = null; try { s = denSide(st, data, d); } catch { /* a name only */ }
+        let s = null; try { s = denSide(fm, data, d); } catch { /* a name only */ }
         const on = sel.includes(o.uid), from = o.from ? byId[o.from] : null, pic = denPicture(data, d);
         const meaning = [from ? `Set on ${from.player}: draw it away and it comes for you, not ${from.player}.` : null, d.kind === 'nat' ? 'A native: its whole group will fight you.' : null].filter(Boolean).join(' ') || null;
         const stat = s ? [s.attack === 'none' ? 'no attack' : s.attack === 'spell' ? 'casts' : `hits ${WORD[String(s.harm)[0]] ?? s.harm}${'*'.repeat(s.stars || 0)}`, s.atk != null && s.attack !== 'none' ? `speed ${s.atk}` : null, s.vuln ? `falls to ${WORD[s.vuln] ?? s.vuln}` : null].filter(Boolean).join(' · ') : '';
         return h('button', { type: 'button', class: `ds-row sf-lure${on ? ' on sel' : ''}`, role: 'checkbox', 'aria-checked': on ? 'true' : 'false', 'data-lure': o.uid, 'data-from': o.from ?? '',
-            onclick: () => { toggleLure(st, p, ui, o.uid); render(); } },
+            onclick: () => { toggleLure(fm, p, ui, o.uid); render(); } },
             h('span', { class: 'art' }, pic ? h('img', { src: pic, alt: '' }) : null),
             h('span', { class: 'main sf-ltext' }, h('b', {}, o.name), stat ? h('span', {}, stat) : null, meaning ? h('span', { class: 'mean' }, meaning) : null),
             h('span', { class: 'sf-tick', 'aria-hidden': 'true' }, on ? icon('check') : icon('plus')));

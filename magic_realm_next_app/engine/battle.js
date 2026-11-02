@@ -101,7 +101,7 @@ export function startBattle(st, data, clearing, ids) {
         b.members[id] = { state: 'in', why: null, meet: 'todo', lure: 'todo', enc: 'todo', ready: false, done: false, melee: false };
         if (b.pvp) Object.assign(b.members[id], { charge: 'todo', charged: null, peace: null });
     }
-    say(st, `${ids.map(id => nameOf(st, id)).join(' and ')} stand together at ${clearing} as the evening falls.`, 'combat', null, { who: null });
+    say(st, `${ids.map(id => nameOf(st, id)).join(' and ')} stand together at ${clearing} as the evening falls.`, 'combat', null, { who: null, ev: { code: 'combat.begins', at: clearing, who: ids.slice() } });
     for (const id of ids) {
         withActor(st, id, () => {
             const c = st.combat = { at: clearing, round: 1, quiet: 0, step: 'start', dens: [], battling: {}, events: [], melee: false, ended: false, ran: false, pays: [], rollFrom: st.rollSeq ?? 0, shared: true };
@@ -270,7 +270,7 @@ function sweep(st, data) {
             const group = data.natives[h.id].group, foe = h.targetChar;
             if (b.battling[group]?.includes(foe) || b.members[foe]?.state !== 'in' || st.chars[foe].dead || st.chars[foe].today.combat?.ended) continue;          // (not on one who has fallen or left in the same round)
             inSheet(st, foe, () => parts.startBattling(st, data, group));
-            say(st, `${nameOf(st, id)}'s ${group}, set free by his death, turn on ${nameOf(st, foe)}.`, 'combat', null, { who: null });
+            say(st, `${nameOf(st, id)}'s ${group}, set free by his death, turn on ${nameOf(st, foe)}.`, 'combat', null, { who: null, ev: { code: 'hire.freed', hireling: h.uid, against: foe } });
         }
     }
 }
@@ -325,7 +325,7 @@ function chargeOptions(st, data, id) {
 // Nobody who was asked means harm and no creature is there: the characters part in peace (R-18: an evening of friends is skipped by agreement). The trade window of the day's end is step 4's.
 function friendly(st, data) {
     const b = st.battle;
-    say(st, 'Nobody here means harm: the evening passes in peace.', 'combat', null, { who: null });
+    say(st, 'Nobody here means harm: the evening passes in peace.', 'combat', null, { who: null, ev: { code: 'combat.peace', who: live(st.battle) } });
     for (const id of live(b)) inSheet(st, id, () => parts.endCombat(st, data, 'peace'));
 }
 // Answer `{ kind: 'charge', act: 'charge' | 'pass', target?: id, chit?: id, deploy?: { [hireUid]: characterId } }`. A charge is his Encounter action: his Move chit is played in the Encounter step
@@ -350,7 +350,7 @@ function chargeAction(st, data, a) {
         if (!ask.peace) throw new Error('there are creatures here: you cannot say that nobody means harm');
         if (Object.keys(deploy).length) throw new Error('saying that you mean no harm and sending a hireling at someone do not go together');
         m.peace = true;
-        say(st, `${st.ch.name} means no harm.`, 'combat');
+        say(st, `${st.ch.name} means no harm.`, 'combat', null, { ev: { code: 'combat.peace', who: [id] } });
         m.charge = 'done';
         return;
     }
@@ -374,7 +374,7 @@ function chargeAction(st, data, a) {
             c.charge = { on: a.target, chit: chit.id };
             b.charges.push({ by: id, on: a.target, time: chit.time });
             m.charged = a.target;
-            say(st, `${st.ch.name} charges ${nameOf(st, a.target)}.`, 'combat');
+            say(st, `${st.ch.name} charges ${nameOf(st, a.target)}.`, 'combat', null, { ev: { code: 'charge.made', who: id, on: a.target } });
             if (st.ch.hidden) { st.ch.hidden = false; say(st, `${st.ch.name} gives himself away by charging.`, 'combat'); }
             if (st.chars[a.target].hidden) { st.chars[a.target].hidden = false; say(st, `${nameOf(st, a.target)}, who was hidden, is found and revealed.`, 'combat'); }
         };
@@ -401,7 +401,7 @@ function randomAssign(st, data) {
             pool = rolled.filter(r => r.v === best).map(r => r.id);
         }
         d.sheet = pool[0];
-        say(st, `The ${name} is set on ${nameOf(st, pool[0])}.`, 'combat', null, { who: null });
+        say(st, `The ${name} is set on ${nameOf(st, pool[0])}.`, 'combat', null, { who: null, ev: { code: 'attention.placed', who: pool[0], target: d.uid } });
     }
 }
 
@@ -504,7 +504,7 @@ function resolveMelee(st, data) {
         const p = st.chars[id].today.combat.play;
         b.reveal.plays[id] = { target: p.target ?? null, fightChit: p.fightChit ?? null, attackDir: p.attackDir ?? null, moveChit: p.moveChit ?? null, moveDir: p.moveDir ?? null, shieldDir: p.shieldDir ?? null, spell: p.spellAim ? true : false };
     }
-    say(st, `The plays are shown: ${roster.map(id => nameOf(st, id)).join(', ')}.`, 'combat', null, { who: null });
+    say(st, `The plays are shown: ${roster.map(id => nameOf(st, id)).join(', ')}.`, 'combat', null, { who: null, ev: { code: 'melee.plays.shown', plays: roster.map(id => ({ who: id, ...b.reveal.plays[id], spell: b.reveal.plays[id].spell ? 'aimed' : null })) } });
     // 1. in the order of the draw: chits played, spells aimed and resolved, the target named, the creatures on his sheet placed
     for (const id of roster) {
         if (st.chars[id].dead || st.chars[id].today.combat?.ended) { S[id] = { stop: 'ended' }; continue; }

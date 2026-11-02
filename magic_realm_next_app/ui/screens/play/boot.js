@@ -1,9 +1,9 @@
 // play/boot.js: starting the game screen: loads the data, then connects (a shared table), joins (a race), or starts or resumes the solo game; mounts the map and publishes window.__mr.game.
-import { loadData } from '../../../engine/data.js';
+import { loadData } from '../../dataload.js';
 import { daySnapshot, finalize, newRecord } from '../../../engine/gamerecord.js';
 import { upgradeState } from '../../../engine/party.js';
 import { settleSeat, tableCrew } from './leaders.js';
-import { newGame } from '../../../engine/setup.js';
+import { apiOf } from '../../../engine/api.js';
 import { getRecord, putRecord } from '../../gamestore.js';
 import { mountMap } from '../../mapview.js';
 import { connect } from '../../online.js';
@@ -69,7 +69,7 @@ export function boot(G) {
                 if (prev?.session?.id && prev.period !== 'over') getRecord(prev.session.id).then(r => { if (r && !r.meta?.result) { finalize(r, prev); r.meta.result = 'abandoned'; putRecord(r); } }).catch(() => {});
                 fresh = { seed: G.ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: G.ctx.params?.character ?? 'white-knight', vp: G.ctx.params?.vp, mode: G.ctx.params?.mode, lastDay: G.ctx.params?.lastDay,
                     startDwelling: G.ctx.params?.startDwelling, startGear: G.ctx.params?.startGear, options: G.ctx.params?.options, missions: G.ctx.params?.missions, pauseVictory: true, pauseEvening: true, pauseGear: true, startSpells: G.ctx.params?.startSpells, characters: G.ctx.params?.characters };
-                G.st = newGame(G.data, fresh);
+                G.st = apiOf(G.data).newGame(fresh).state;          // (through the API: the game records its events, which the fight's voice reads)
                 G.st.session = { id: String(Date.now()), started: new Date().toISOString(), version: VERSION, params: JSON.parse(JSON.stringify(fresh)) };
                 saveGame(G.st);
             } else G.st = loadSaved();
@@ -81,7 +81,7 @@ export function boot(G) {
             restoreUi(G);                                    // (a plan that was being made when the page went away comes back as it was)
             // a game saved before records existed gets one now; its earlier moves are unknown, so it cannot be replayed
             G.st.session ??= { id: String(Date.now()), started: new Date().toISOString(), version: VERSION, params: null };
-            G.rec = (await getRecord(G.st.session.id).catch(() => null)) ?? newRecord({ id: G.st.session.id, version: G.st.session.version, params: G.st.session.params, startedAt: G.st.session.started, replayable: !!G.st.session.params });
+            G.rec = (await getRecord(G.st.session.id).catch(() => null)) ?? newRecord({ id: G.st.session.id, version: G.st.session.version, params: G.st.session.params, startedAt: G.st.session.started ?? new Date().toISOString(), replayable: !!G.st.session.params });
             if (!G.rec.days.length) G.rec.days.push(daySnapshot(G.st));
             persist(G, true);
             window.addEventListener('error', e => noteError(G, null, e.error ?? e.message, 'js'));

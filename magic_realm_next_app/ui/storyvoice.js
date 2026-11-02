@@ -9,7 +9,8 @@
 // Every choice among variants is a hash of the entry itself (day, text, roll number), never Math.random: the same line always reads the same, everywhere.
 // Rules for what is written here (docs/design/DESIGN-TASTE.md section 5): short, concrete, a living world; no percentages, no "row N", no dice digits or
 // "(2+3)", no rules text, no "You:" lines; a number appears only where it is the news (gold, days, a clearing's name).
-import { narrateRoll, tell } from '../engine/story.js';
+import { tell } from '../engine/story.js';
+import { narrateRoll } from './narrate.js';
 import { SECTION_RULES, sectionRoll } from './combat/sections_voice.js';          // (hirelings on Melee Sections: the lines of hirefight.js)
 import { seatVoice } from './seatvoice.js';
 

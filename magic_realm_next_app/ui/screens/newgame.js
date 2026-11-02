@@ -2,7 +2,7 @@ import { h } from '../dom.js';
 import { icon, art } from '../icons.js';
 import { sheet, sect } from '../ds.js';
 import { castable } from '../../engine/spells.js';
-import { loadData } from '../../engine/data.js';
+import { loadData } from '../dataload.js';
 import { newGame as startState } from '../../engine/setup.js';
 import { nameOfClearing } from '../../engine/world.js';
 import { createRace, joinRace, peekRace, serverUrl } from '../online.js';

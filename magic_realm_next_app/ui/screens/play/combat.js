@@ -12,6 +12,8 @@ import { clearingSheet } from './sheet_clearing.js';
 import { journalSheet } from './journal.js';
 import { menuSheet } from './sheet_info.js';
 import { playersSheet } from './shared.js';
+import { fightModel, own } from '../../combat/feed.js';
+import { endOfFight } from '../../voice/fight.js';
 
 // A shared fight. Returns true when it filled `out` (the caller returns it as it is), false when there is no fight screen for this seat after all.
 export function sharedFightHost(G, out) {
@@ -30,7 +32,7 @@ export function sharedFightHost(G, out) {
         else if (G.ui.sheet === 'players') out.push(playersSheet(G));
         else if (G.ui.sheet === 'dice' || G.ui.sheet === 'journal') out.push(journalSheet(G));
         else if (G.ui.sheet === 'log') out.push(journalSheet(G));
-        else if (G.ui.sheet === 'card') out.push(modal(G, G.st.ch.name, h('div', {}, G.data.art?.cards?.[G.st.ch.id] ? h('img', { class: 'cardpic', src: G.data.art.cards[G.st.ch.id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
+        else if (G.ui.sheet === 'card') out.push(modal(G, own(G.st, G.data).name, h('div', {}, G.data.art?.cards?.[own(G.st, G.data).id] ? h('img', { class: 'cardpic', src: G.data.art.cards[own(G.st, G.data).id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
         return true;
     }
     return false;
@@ -41,11 +43,11 @@ export function sharedFightHost(G, out) {
 export function fightBeat(G) {
     const b = G.ui.cbBeat;
     if (!b) return false;
-    const st = G.st;
-    if (G.shared || st.combat || st.day !== b.day) { if (!st.combat) G.ui.cbBeat = null; return false; }
-    if (st.over?.reason === 'died' && st.ch.dead !== false) { b.how = 'died'; return true; }
-    if (st.log.slice(b.logLen).some(l => l.t === 'Combat is over: nothing hostile is left.')) { b.how = 'won'; return true; }
-    if (st.log.slice(b.logLen).some(l => l.t === 'The fighting dies down.')) { b.how = 'quiet'; return true; }            // (both sides drew back: the fight ended with no kill and no result screen: note 62)
+    const fm = fightModel(G.st, G.data);
+    if (G.shared || fm.combat || fm.day !== b.day) { if (!fm.combat) G.ui.cbBeat = null; return false; }
+    if (fm.over?.reason === 'died' && fm.ch.dead !== false) { b.how = 'died'; return true; }
+    const how = endOfFight(fm, b.logLen);          // (the voice layer: 'won', or 'quiet' when both sides drew back and the fight ended with no kill and no result screen: note 62)
+    if (how) { b.how = how; return true; }
     G.ui.cbBeat = null;
     return false;
 }
@@ -61,9 +63,9 @@ export function combatHost(G, out) {
             h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'back-to-fight', onclick: () => { G.ui.combatMap = false; G.ui.aimMap = null; render(G); } }, aim && aim.max !== 1 ? 'Done' : aim ? 'Keep my choice' : 'Back to the fight')));
         return out;
     }
-    const inFight = G.st.pending?.type?.startsWith('combat');
+    const fm = fightModel(G.st, G.data), inFight = fm.pending?.type?.startsWith('combat');
     const peek = { gear: () => { G.ui.sheet = 'char'; render(G); }, map: () => { G.ui.combatMap = true; G.ui.sheet = null; render(G); }, piece: d => openPiece(G, { kind: d.kind, id: d.id, side: d.side ?? 'light', tag: d.tag ?? null }) };
-    if (inFight) { if (G.st.pending.type === 'combat-over') G.ui.cbBeat = null; out.push(combatScene({ st: G.st, data: G.data, act: act.bind(null, G), ui: G.ui, render: () => render(G), peek })); }
+    if (inFight) { if (fm.pending.type === 'combat-over') G.ui.cbBeat = null; out.push(combatScene({ st: G.st, data: G.data, act: act.bind(null, G), ui: G.ui, render: () => render(G), peek })); }
     else out.push(combatBeat({ st: G.st, data: G.data, ui: G.ui, render: () => render(G) }));
     if (G.ui.sheet === 'menu') out.push(menuSheet(G));
     else if (G.ui.sheet === 'char') out.push(charSheet(G));
@@ -71,6 +73,6 @@ export function combatHost(G, out) {
     else if (G.ui.sheet === 'cardinfo') out.push(cardInfoSheet(G));
     else if (G.ui.sheet === 'spell') out.push(spellSheet(G));
     else if (G.ui.sheet === 'piece' && G.ui.piece) out.push(pieceSheet(G));
-    else if (G.ui.sheet === 'card') out.push(modal(G, G.st.ch.name, h('div', {}, G.data.art?.cards?.[G.st.ch.id] ? h('img', { class: 'cardpic', src: G.data.art.cards[G.st.ch.id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
+    else if (G.ui.sheet === 'card') out.push(modal(G, own(G.st, G.data).name, h('div', {}, G.data.art?.cards?.[own(G.st, G.data).id] ? h('img', { class: 'cardpic', src: G.data.art.cards[own(G.st, G.data).id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } }));
     return out;
 }

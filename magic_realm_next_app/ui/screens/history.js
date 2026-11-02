@@ -2,7 +2,7 @@ import { h } from '../dom.js';
 import { icon } from '../icons.js';
 import { allRecords, getRecord, deleteRecord } from '../gamestore.js';
 import { groupByDay, readableLog, bundle, replay } from '../../engine/gamerecord.js';
-import { loadData } from '../../engine/data.js';
+import { loadData } from '../dataload.js';
 import { newGame } from '../../engine/setup.js';
 import { apply } from '../../engine/day.js';
 import { VERSION } from '../version.js';
@@ -83,7 +83,7 @@ export function historyScreen(ctx) {
         }
         root.replaceChildren(top('History', back),
             h('div', { class: 'ds-scroll ds-fade-b ds-pad' }, strip, h('div', { class: 'ds-list histlist' }, ...recs.map(row)),
-                h('button', { type: 'button', class: 'ds-btn quiet block ds-saveall', 'data-act': 'save-all', onclick: async e => { const b = e.currentTarget; const how = await deliver(bundle(await allRecords()), `magic-realm-games-${new Date().toISOString().slice(0, 10)}.json`, { download: true, type: 'application/json' }); flash(b, `${how} \u2713`, 'Save all games (.json)'); } }, 'Save all games (.json)')));
+                h('button', { type: 'button', class: 'ds-btn quiet block ds-saveall', 'data-act': 'save-all', onclick: async e => { const b = e.currentTarget; const how = await deliver(bundle(await allRecords(), new Date().toISOString()), `magic-realm-games-${new Date().toISOString().slice(0, 10)}.json`, { download: true, type: 'application/json' }); flash(b, `${how} \u2713`, 'Save all games (.json)'); } }, 'Save all games (.json)')));
     }
 
     async function showDetail(id) {
@@ -145,7 +145,7 @@ export function historyScreen(ctx) {
                     h('div', { class: 'ds-exportbtns' },
                         h('button', { type: 'button', class: 'ds-btn sm', 'data-act': 'copy-log', onclick: async e => { const b = e.currentTarget; flash(b, `${await deliver(readableLog(rec, { kinds: filter[2] }), `magic-realm-${rec.id}.txt`)} \u2713`, 'Copy or share the log'); } }, 'Copy or share the log'),
                         h('button', { type: 'button', class: 'ds-btn sm', 'data-act': 'save-log', onclick: async e => { const b = e.currentTarget; flash(b, `${await deliver(readableLog(rec), `magic-realm-${rec.id}.txt`, { download: true })} \u2713`, 'Save the log (.txt)'); } }, 'Save the log (.txt)'),
-                        h('button', { type: 'button', class: 'ds-btn sm', 'data-act': 'save-record', onclick: async e => { const b = e.currentTarget; flash(b, `${await deliver(bundle([rec]), `magic-realm-${rec.id}.json`, { download: true, type: 'application/json' })} \u2713`, 'Save the record (.json)'); } }, 'Save the record (.json)')))),
+                        h('button', { type: 'button', class: 'ds-btn sm', 'data-act': 'save-record', onclick: async e => { const b = e.currentTarget; flash(b, `${await deliver(bundle([rec], new Date().toISOString()), `magic-realm-${rec.id}.json`, { download: true, type: 'application/json' })} \u2713`, 'Save the record (.json)'); } }, 'Save the record (.json)')))),
             h('div', { class: 'ds-delgap' }),
             h('button', { type: 'button', class: 'ds-btn danger block', 'data-act': 'delete-game', onclick: () => confirmSheet({ eyebrow: 'History', title: 'Delete this record?',
                 lines: [`${o.name}, ${o.label.toLowerCase()}${num != null ? `, ${sign(num)}` : ''}.`, 'This cannot be undone.'], attrs: { 'data-confirm': 'delete', role: 'alertdialog' },

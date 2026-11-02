@@ -1,7 +1,7 @@
 // The SHARED fight of a clearing, as a phone reads it (docs/design/multiplayer-cui.md): who is in it and what each is doing, whose sheet every creature is on, what was played, and what
 // the round came to for each character. Pure functions of a redacted view (server/redact.mjs) and the table (party.js): no DOM, so tests/fight_ui.test.mjs runs them in node.
 // Only public facts are read: `view.battle` (public by design), the lines of the fight that the server sends to its participants (`vis: 'battle'`, `with`), and the viewer's own record.
-import { denSide, hireStats } from '../engine/combat.js';
+import { denSide, hireStats } from './combat/feed.js';
 
 export const DIRS = ['Thrust', 'Swing', 'Smash'], MNV = ['Charge', 'Dodge', 'Duck'];
 const FLED = new Set(['ran', 'flew', 'mist', 'teleported']);
@@ -36,7 +36,7 @@ export function fightOf(view, people, data, myId = view?.actor) {
     const alive = (b.dens ?? []).filter(d => !d.dead && (d.kind === 'mon' || d.kind === 'nat'));
     const standing = d => (d.kind === 'nat' ? !(d.battlers ?? []).length : !!(d.bystander || d.pacified));
     const denOf = d => ({ uid: d.uid, kind: d.kind, id: d.id, name: nameOfDen(d), side: d.side ?? 'light', standingBy: !d.sheet && !d.engagedBy && standing(d), tag: d.tag ?? null, engagedBy: d.engagedBy ?? null });
-    const hireName = h => { try { return hireStats(data, h.id, h.kind, view).name; } catch { return h.id; } };
+    const hireName = h => { try { return hireStats(view, data, h.id, h.kind).name; } catch { return h.id; } };
     const sheets = members.map(m => ({
         owner: m,
         dens: alive.filter(d => d.sheet === m.id).map(denOf),
@@ -183,7 +183,7 @@ export function playsOf(view, f, data, reveal = view?.battle?.reveal) {
             if (t) { target = `${t.player}\u2019s ${t.character}`; targetKind = 'char'; }
         } else if (typeof p.target === 'string' && p.target.startsWith('hire:')) {
             const hh = (view?.battle?.hires ?? []).find(x => x.uid === p.target.slice(5)), owner = hh ? f.members.find(x => x.id === hh.owner) : null;
-            let nm = hh?.id ?? 'a hireling'; if (hh) { try { nm = hireStats(data, hh.id, hh.kind, view).name; } catch { /* the id */ } }
+            let nm = hh?.id ?? 'a hireling'; if (hh) { try { nm = hireStats(view, data, hh.id, hh.kind).name; } catch { /* the id */ } }
             target = `${owner ? `${owner.player}\u2019s ` : ''}${nm}`; targetKind = 'hire';
         } else {
             d = p.target ? dens.find(x => x.uid === p.target) : null;
