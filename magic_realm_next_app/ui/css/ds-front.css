@@ -245,6 +245,7 @@
 .pt-face { --hex: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1 / .866; background: var(--line-2); clip-path: var(--hex); }
 .pt-face::before { content: ""; position: absolute; inset: 2.5px 3px; background: var(--counter-face); clip-path: var(--hex); }
 .pt-face img { position: relative; width: 64%; height: 76%; object-fit: contain; }
+.pt-face img[src*="/wizard."], .pt-face img[src*="/captain."] { transform: translateY(-9%); } .pt-face img[src*="/sorceror."] { transform: translateY(-6%); }   /* their symbols are pointed or low-set: they look low in the hex when centred (Mike, 2026-11-02) */
 .pt-who .ds-pc { position: absolute; left: -5px; bottom: -5px; width: 24px; height: 24px; font-size: calc(13px * var(--ts, 1)); box-shadow: 0 0 0 2px var(--surface-3); }
 .pt-who.sm .ds-pc { width: 22px; height: 22px; font-size: calc(12px * var(--ts, 1)); }
 .pt-flag { position: absolute; right: -4px; top: -4px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: var(--warn); color: var(--ink-on-gold); box-shadow: 0 0 0 2px var(--surface-1); }
