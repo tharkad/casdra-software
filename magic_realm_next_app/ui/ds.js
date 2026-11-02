@@ -114,7 +114,7 @@ export const frames = (v, { cls } = {}) => h('div', { class: cx('ds-frames', cls
     .map(([k, name]) => h('fieldset', { class: `ds-frame ${k}` }, h('legend', {}, name), h('div', { class: 'v' }, String(v[k])))));
 
 // ---- counters and chits ----
-// tile('monsters_c/wolf.gif', 'sm', 'label'): a picture on the cream counter tile (sm 44, default 64, lg 92). Never recolour or crop the art.
+// tile('monsters/wolf.gif', 'sm', 'label'): a picture on the cream counter tile (sm 44, default 64, lg 92). Never recolour or crop the art.
 export const tile = (img, cls = '', lbl = '') => h('span', { class: cx('ds-counter', cls) }, img ? art(img) : null, lbl ? h('span', { class: 'lbl' }, lbl) : null);
 // chit('fight', 'F4', 'FIGHT'): the chit tile (colour bar for fight / move / magic, value, a word). miniChit is the 14x20 one for pip rows.
 export const chit = (kind, v, label, cls = '') => h('button', { type: 'button', class: cx('ds-chit', kind, cls) }, h('span', {}, String(v)), h('small', {}, label || kind.toUpperCase()));

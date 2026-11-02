@@ -62,7 +62,7 @@ export function describeSlot(G, s) {
 export function turnEndSheet(G) {
     if (G.st.ch.leader) return seatTurnEndSheet(G);          // (a hired leader's turn is told of him, leaders.js)
     const t = G.st.turnEnd, story = isStory();
-    const monsterIcon = n => G.data.art?.monstersColor?.[n] ?? G.data.art?.monsters?.[n] ?? null;
+    const monsterIcon = n => G.data.art?.monsters?.[n] ?? null;
     const row = (cls, art, ...kids) => h('div', { class: `ds-row te-row ${cls}` }, art ? h('span', { class: /chit/.test(cls) ? 'chitwrap' : 'art' }, art) : null, h('span', { class: 'main' }, ...kids));
     const rows = [];
     const quietChits = t.chits.filter(c => !(c.summons?.length));

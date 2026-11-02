@@ -36,7 +36,7 @@ export const I = {
 export const icon = (name, cls = '') => sv('svg', { class: cls ? `ds-i ${cls}` : 'ds-i', viewBox: '0 0 24 24', 'aria-hidden': 'true' }, sv('path', { d: I[name] || '' }));
 // The same icon as markup text, for the places that build with innerHTML.
 export const iconHtml = (name, cls = '') => `<svg class="${cls ? `ds-i ${cls}` : 'ds-i'}" viewBox="0 0 24 24" aria-hidden="true"><path d="${I[name] || ''}"/></svg>`;
-// A picture from the original game's art folder (never recoloured, cropped or stretched): art('monsters_c/wolf.gif', 'cls', 'alt').
+// A picture from the original game's art folder (never recoloured, cropped or stretched): art('monsters/wolf.gif', 'cls', 'alt').
 export const art = (path, cls = '', alt = '') => h('img', { class: cls, src: `${ART}${path}`, alt, draggable: 'false' });
 // The 32px action art (move, hide, search, trade, hire, rest, alert, spell, ban, peer, cache, fly, follow, ...) at an integer multiple of its size.
 // 'dash' is the picture of "Nothing": a quiet grey dash, not the red prohibition sign (which reads as an error: QA-134).

@@ -18,6 +18,7 @@ import { voiced } from '../../commit.js';
 import { h } from '../../dom.js';
 import { btn, primary, sect, voiceSwitch } from '../../ds.js';
 import { icon } from '../../icons.js';
+import { markGroup } from '../../groups.js';
 import { assignMap, assignSummary, attentionOf, beltOf, carryWord, counterLook, discoveriesOf, followersOf, hirerOf, introOf, leaderGame, nameOfCounter, realIds, roleOf, seatIds, seatName, stayHirer,
     underlingRows, unattendedFights } from '../../leaders.js';
 import { isStory, logText } from '../../voice.js';
@@ -42,7 +43,7 @@ export const seatBits = (G, id) => (G.st.chars[id]?.leader ? [attnChit(attention
 function counterArt(G, o) {
     if (G.data.natives?.[o.id]) return G.data.art?.natives?.[o.id] ?? null;
     const name = G.data.monsters?.[o.id]?.name;
-    return G.data.art?.monstersColor?.[name] ?? G.data.art?.monsters?.[name] ?? null;
+    return G.data.art?.monsters?.[name] ?? null;
 }
 
 /** A hired counter drawn as a counter: dark when hidden (the dark side is up), red for a hidden Tremendous monster (7.7.1g, 7.7.5d, 8.8.6); `data-side` and `data-hidden` carry it for the styles and the tests. */
@@ -51,7 +52,7 @@ export function counterEl(G, o, cls = 'sm') {
     const el = h('span', { class: `ds-counter ${cls} hc`, 'data-side': look.side, 'data-hidden': look.hidden ? '1' : '0', title: `${name}: ${look.word}`, 'aria-label': `${name}, ${look.word}` },
         src ? h('img', { src, alt: '', draggable: 'false' }) : h('span', { class: 'kit-noart' }, name));
     if (look.hidden) el.append(h('i', { class: 'hc-eye', 'aria-hidden': 'true' }, icon('eyeoff')));
-    return el;
+    return markGroup(el, G.data.natives?.[o.id]?.group);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------- a shared table: the seats of MY party

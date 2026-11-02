@@ -100,7 +100,7 @@ export function picOf(st, data, d, side = d?.side) {
     const art = data.art; if (!art || !d) return null;
     const upgrade = (p, kind, key, id) => (isBookPic(p) ? (bookPic(art, kind, key, side, id) ?? p) : p);        // a gap-filled picture is the book's first side: show the side asked for
     const natPic = id => { const n = data.natives?.[id]; return n ? upgrade(art.natives?.[id] ?? null, 'nat', n.type, id) : null; };
-    const monPic = id => { const m = data.monsters?.[id]; return m ? upgrade(art.monstersColor?.[m.name] ?? art.monsters?.[m.name] ?? bookPic(art, 'mon', m.name, side, id), 'mon', m.name, id) : null; };
+    const monPic = id => { const m = data.monsters?.[id]; return m ? upgrade(art.monsters?.[m.name] ?? bookPic(art, 'mon', m.name, side, id), 'mon', m.name, id) : null; };
     if (d.kind === 'nat') return natPic(d.id);
     if (d.kind === 'mon') return monPic(d.id);
     if (d.kind === 'hire') return d.hireKind === 'nat' || d.hireKind === 'native' ? natPic(d.id) : monPic(d.id);
@@ -108,7 +108,7 @@ export function picOf(st, data, d, side = d?.side) {
     if (d.kind === 'character') return art.characters?.[d.id] ?? null;
     if (d.kind === 'part') {
         const owner = st.combat?.dens?.find(o => o.uid === d.partOf), m = owner ? data.monsters?.[owner.id] : null, nm = m ? `${m.name} ${m.parts?.find(x => x.id === d.id)?.name ?? ''}`.trim() : null;
-        return nm ? upgrade(art.monstersColor?.[nm] ?? art.monsters?.[nm] ?? bookPic(art, 'mon', nm, side), 'mon', nm) : null;
+        return nm ? upgrade(art.monsters?.[nm] ?? bookPic(art, 'mon', nm, side), 'mon', nm) : null;
     }
     return null;
 }

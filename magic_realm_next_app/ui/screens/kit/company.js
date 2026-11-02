@@ -9,6 +9,7 @@ import { mc } from '../play/kit.js';
 import { render } from '../play/shell.js';
 import { h } from '../../dom.js';
 import { art } from '../../icons.js';
+import { markGroup } from '../../groups.js';
 import { goldEl, moodTag, nativeArt, say } from './common.js';
 import { tieNumber } from '../../names.js';
 import { counterLook } from '../../leaders.js';
@@ -28,7 +29,7 @@ const daysLeft = (G, o) => Math.max(0, (o.hiredUntil ?? G.st.day) - G.st.day + 1
 function counterArt(G, o) {
     if (isNat(G, o)) return nativeArt(G, o.id);
     const name = G.data.monsters[o.id]?.name;
-    return G.data.art?.monstersColor?.[name] ?? G.data.art?.monsters?.[name] ?? null;
+    return G.data.art?.monsters?.[name] ?? null;
 }
 
 // What shows on a counter turned over: the other side's blow and move, as the printed counter has them.
@@ -51,11 +52,12 @@ function counter(G, o, ctl) {
     const back = flipped ? otherSide(G, o) : null;
     const img = counterArt(G, o);
     const look = G.st.options?.hirelingRules ? counterLook(o) : null;          // (hireling rules: the counter lies dark side up while he is hidden, red for a hidden Tremendous monster)
-    return h('button', { type: 'button', class: `ds-counter tall kit-counter hc${flipped ? ' flipped' : ''}`, 'data-hireling': o.id, 'data-flip': '', 'data-side': look?.side ?? null, 'data-hidden': look ? (look.hidden ? '1' : '0') : null,
+    const el = h('button', { type: 'button', class: `ds-counter tall kit-counter hc${flipped ? ' flipped' : ''}`, 'data-hireling': o.id, 'data-flip': '', 'data-side': look?.side ?? null, 'data-hidden': look ? (look.hidden ? '1' : '0') : null,
         'aria-label': `${def.name}: tap to turn the counter over${look?.hidden ? `. It is ${look.word}` : ''}`, 'aria-pressed': flipped ? 'true' : 'false',
         onclick: () => { (G.ui.coFlip ??= {})[o.id] = !flipped; render(G); } },
         flipped ? h('span', { class: 'kit-back' }, back ? [h('small', {}, back.name), h('b', {}, back.hit), h('small', {}, back.move)] : [h('small', {}, 'No other side')]) : (img ? art(img.replace(/^art\//, ''), '', def.name) : h('span', { class: 'kit-noart' }, def.name)),
         flipped ? null : h('span', { class: 'lbl' }, lbl), look?.hidden && !flipped ? h('span', { class: 'hc-tag' }, 'hidden') : null, flyBadge(G.st, nat ? 'nat' : 'mon', o.id, def.name));          // (a Fly chit on a hireling: steeds.js)
+    return nat ? markGroup(el, def.group) : el;
 }
 
 // "Spear, on ponies": what the group carries and rides, from its printed counters (omitted when the data has none).

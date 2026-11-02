@@ -32,7 +32,7 @@ function pic(G, name, kind, group = null) {
     // a native is named in the log with its number ("Rogue Swordsman 7"), the data has "Rogue Swordsman 7" or a rank name: match the name without the number, then the group's leader (QA-114)
     const bare = n => String(n).replace(/ #?\d+$/, '').trim(), nats = Object.values(G.data.natives ?? {});
     const nat = nats.find(n => n.name === name) ?? nats.find(n => bare(n.name) === bare(name)) ?? (group ? nats.find(n => n.group === group && n.leader) ?? nats.find(n => n.group === group) : null);
-    const src = kind === 'mon' ? (a.monstersColor?.[name] ?? a.monsters?.[name] ?? (nat && a.natives?.[nat.id])) : (picOf(G, name) ?? null);
+    const src = kind === 'mon' ? (a.monsters?.[name] ?? (nat && a.natives?.[nat.id])) : (picOf(G, name) ?? null);
     return h('span', { class: 'ds-counter sm' }, src ? h('img', { src, alt: '' }) : kindIcon(kindOfName(G.data, name)) ?? actIcon('cache', 32));
 }
 const sgn = n => (n > 0 ? `+${n}` : n < 0 ? `\u2212${Math.abs(n)}` : '0');

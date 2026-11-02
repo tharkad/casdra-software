@@ -13,6 +13,7 @@ import { render } from '../play/shell.js';
 import { h } from '../../dom.js';
 import { art, icon } from '../../icons.js';
 import { tieNumber } from '../../names.js';
+import { markGroup } from '../../groups.js';
 import { boonContent } from './boon.js';
 import { ask, dimBtn, footRow, moodTag, nativeArt, say, skipBtn, twoLine } from './common.js';
 import { insultContent, offerDice } from './trade.js';
@@ -20,8 +21,9 @@ import { insultContent, offerDice } from './trade.js';
 // The counters of a group, as the printed art on the cream tile (monsters in colour, natives as their counters).
 function counters(G, ids, monsters) {
     return h('div', { class: 'cs' }, ids.map(id => {
-        const src = monsters ? (G.data.art?.monstersColor?.[G.data.monsters[id]?.name] ?? G.data.art?.monsters?.[G.data.monsters[id]?.name]) : nativeArt(G, id);
-        return h('span', { class: 'ds-counter tall' }, src ? art(src.replace(/^art\//, ''), '', '') : null);
+        const src = monsters ? (G.data.art?.monsters?.[G.data.monsters[id]?.name]) : nativeArt(G, id);
+        const tile = h('span', { class: 'ds-counter tall' }, src ? art(src.replace(/^art\//, ''), '', '') : null);
+        return monsters ? tile : markGroup(tile, G.data.natives[id]?.group);
     }));
 }
 

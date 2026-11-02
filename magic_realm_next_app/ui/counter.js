@@ -1,5 +1,6 @@
 import { sv } from './dom.js';
 import { isBookPic } from '../engine/artbook.js';
+import { groupTint } from './groups.js';
 
 // A monster counter drawn the way the game's own counters read: the picture, its name, the vulnerability in a circle (grey when armored), Fame
 // and Notoriety, the attack (harm letter, attack time, stars, and the weapon length in brackets) at the bottom left, and the move time in a blue
@@ -24,6 +25,9 @@ export function monsterCounter({ s, side = 'light', picture = null, flies = fals
     const f = FACE[side] ?? FACE.light;
     const svg = sv('svg', { viewBox: '0 0 100 100', width: size, height: size, class: `counter ${side}`, role: 'img', 'aria-label': label ?? `${s.name ?? 'Unknown'}, ${side} side` });
     svg.append(sv('rect', { x: 1.5, y: 1.5, width: 97, height: 97, rx: 9, fill: f.fill, stroke: f.edge, 'stroke-width': 3 }));
+    // a native counter: its group's ring, drawn by us over the black-and-white box counter (groups.js)
+    const ring = groupTint(s.group);
+    if (ring) svg.append(sv('rect', { x: 3, y: 3, width: 94, height: 94, rx: 7.5, fill: 'none', stroke: ring, 'stroke-width': 5.5, class: 'grpring' }));
     // The rulebook's own printed counter (used only where the main art has no picture) already carries the face colour and the figures: it fills the frame, under a name strip.
     if (picture && isBookPic(picture)) {
         svg.append(sv('image', { href: picture, x: 4, y: 4, width: 92, height: 92, preserveAspectRatio: 'xMidYMid meet', class: 'bookface' }));

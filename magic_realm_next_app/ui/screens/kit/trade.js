@@ -14,6 +14,7 @@ import { icon } from '../../icons.js';
 import { act } from '../play/actions.js';
 import { itemParts } from '../play/sheet_char.js';
 import { render } from '../play/shell.js';
+import { markGroup } from '../../groups.js';
 import { boonContent } from './boon.js';
 import { isVisitorName, leaderArt, noDrinksRow, spellFoot, spellOfferContent, spellsRoom, visitorPriceTag } from './visitors.js';
 import { MOOD_WORD, actIcon, ask, dimBtn, footRow, goldEl, itemArt, moodOf, moodTag, nativeArt, plural, say, seg, skipBtn, tick, twoLine } from './common.js';
@@ -128,7 +129,7 @@ function tradeMain(G, p) {
         const off = !c.canSwitch && !c.selected;
         return h('button', { type: 'button', class: `ds-group kit-leader${c.selected ? ' sel' : ''}${off ? ' dim' : ''}`, 'data-trade-group': c.group, role: 'radio', 'aria-checked': c.selected ? 'true' : 'false', 'aria-pressed': c.selected ? 'true' : 'false',
             onclick: () => { if (c.selected) return; if (off) say(G, 'You have started dealing with this leader, so the choice is made for this phase.'); else act(G, { type: 'trade', act: 'group', group: c.group }); } },
-            h('span', { class: 'ds-counter sm' }, leaderArt(G, c.group, lead && nativeArt(G, lead.id))), h('span', { class: 'kit-leadtxt' }, h('b', {}, c.group), moodTag(relFor(G.st, c.group))));
+            markGroup(h('span', { class: 'ds-counter sm' }, leaderArt(G, c.group, lead && nativeArt(G, lead.id))), c.group), h('span', { class: 'kit-leadtxt' }, h('b', {}, c.group), moodTag(relFor(G.st, c.group))));
     })) : null;
 
     // drinks: they warm to you a step for this deal (only a deal that rolls: buying, or buying back a favour)

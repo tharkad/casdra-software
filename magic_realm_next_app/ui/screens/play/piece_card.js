@@ -43,7 +43,7 @@ export function pieceSheet(G) {
     if (!def) return modal(G, 'Piece', h('p', { class: 'hint' }, 'Nothing to show.'), back);
     const sides = sidesOf(def, sp.kind), side = sides.includes(sp.side) ? sp.side : 'light';
     const s = denSide(G.st, G.data, { kind: sp.kind, id: sp.id, side, tag: sp.tag });
-    let pic = sp.kind === 'nat' ? G.data.art?.natives?.[sp.id] : (G.data.art?.monstersColor?.[def.name] ?? G.data.art?.monsters?.[def.name]);
+    let pic = sp.kind === 'nat' ? G.data.art?.natives?.[sp.id] : (G.data.art?.monsters?.[def.name]);
     if (isBookPic(pic)) pic = bookPic(G.data.art, sp.kind === 'nat' ? 'nat' : 'mon', sp.kind === 'nat' ? def.type : def.name, side, sp.id) ?? pic;      // the rulebook's counter (no other art): the side being shown
     const counter = monsterCounter({ s, side, picture: pic ?? null, flies: !!def.flies, size: 220 });
     return modal(G, sp.tag ? s.name : def.name, h('div', { class: 'piececard', 'data-piece': sp.id },

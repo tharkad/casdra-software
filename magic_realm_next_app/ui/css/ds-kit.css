@@ -224,3 +224,5 @@ button.kit-what > div { flex: 1; }
 .kit-dismissbtn { margin-top: 8px; align-self: flex-start; }
 .kit-dismiss.asking { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .kit-dismiss.asking .ds-why { flex: 1 1 100%; margin: 0; }
+/* art switch: the box horses are tall, and a row's art tile has no height of its own for a percentage to work from: pin the horse to the tile */
+.kit .ds-row .art img[src*="art/steed/"] { height: 35px; }

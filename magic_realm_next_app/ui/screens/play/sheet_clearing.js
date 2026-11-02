@@ -17,6 +17,7 @@ import { modal, mrChit } from './kit.js';
 import { standing } from '../../missions.js';
 import { chitRows } from './chits.js';
 import { openPiece } from './piece_card.js';
+import { markGroup } from '../../groups.js';
 import { render } from './shell.js';
 import { counterLook } from '../../leaders.js';
 
@@ -163,7 +164,7 @@ function companionRows(G, id) {
 
 const REL = { '-2': 'enemy', '-1': 'unfriendly', '0': 'neutral', '1': 'friendly', '2': 'ally' };
 const MOOD = { enemy: 'Enemies of yours.', unfriendly: 'Not friendly to you.', neutral: 'Neutral to you.', friendly: 'Friendly to you.', ally: 'Allies of yours.' };
-const tile_ = (src, label = null) => h('span', { class: 'ds-counter sm' }, src ? h('img', { src, alt: label ?? '' }) : actIcon('ban', 32));
+const tile_ = (src, label = null, group = null) => markGroup(h('span', { class: 'ds-counter sm' }, src ? h('img', { src, alt: label ?? '' }) : actIcon('ban', 32)), group);
 
 export function clearingSheet(G) {
     const id = G.ui.sel, tile = tileOf(id), n = numOf(id);
@@ -195,7 +196,7 @@ export function clearingSheet(G) {
     }
     for (const [g, list] of Object.entries(byGroup)) {
         const rel = REL[String(standing(G.st, g))], lead = list.find(x => x.leader) ?? list[0];
-        living.push(h('button', { type: 'button', class: 'ds-row nat pieceopen', 'data-act': 'piece-open', 'data-piece-open': lead.id, onclick: () => openPiece(G, { kind: 'nat', id: lead.id }) }, tile_(G.data.art?.natives?.[lead.id], g),
+        living.push(h('button', { type: 'button', class: 'ds-row nat pieceopen', 'data-act': 'piece-open', 'data-piece-open': lead.id, onclick: () => openPiece(G, { kind: 'nat', id: lead.id }) }, tile_(G.data.art?.natives?.[lead.id], g, g),
             h('span', { class: 'main' }, h('b', {}, `${g}${list.length > 1 ? ` ×${list.length}` : ''}`), ...storyDetail(MOOD[rel], `${rel[0].toUpperCase()}${rel.slice(1)} to you; ${list.map(x => x.name.replace(/^\w+ /, '')).join(', ')}`)),
             h('span', { class: `ds-tag mood ${rel}` }, rel[0].toUpperCase() + rel.slice(1))));
     }
@@ -204,7 +205,7 @@ export function clearingSheet(G) {
     for (const [name, l] of Object.entries(mons)) {
         const md = G.data.monsters[l[0].id], ls = md.light;
         const blow = ls.attack === 'spell' ? `casts a Type ${ls.spell ?? ''} spell at ${ls.attackTime}` : ls.harm ? `harm ${ls.harm}${'*'.repeat(ls.stars || 0)} at ${ls.attackTime}` : `no attack on this side (${md.dark?.harm ? `harm ${md.dark.harm}${'*'.repeat(md.dark.stars || 0)} at ${md.dark.attackTime} on the other` : 'it only blocks'})`;
-        living.push(h('button', { type: 'button', class: 'ds-row mon pieceopen', 'data-act': 'piece-open', 'data-piece-open': l[0].id, onclick: () => openPiece(G, { kind: 'mon', id: l[0].id }) }, tile_(G.data.art?.monstersColor?.[name] ?? G.data.art?.monsters?.[name], name),
+        living.push(h('button', { type: 'button', class: 'ds-row mon pieceopen', 'data-act': 'piece-open', 'data-piece-open': l[0].id, onclick: () => openPiece(G, { kind: 'mon', id: l[0].id }) }, tile_(G.data.art?.monsters?.[name], name),
             h('span', { class: 'main' }, h('b', {}, `${name}${l.length > 1 ? ` ×${l.length}` : ''}`), ...storyDetail(G.st.ch.hidden ? 'It has not seen you.' : 'It will block you if you are seen.', `vuln ${md.vulnerability}${md.armored ? ' (armored)' : ''} · ${blow} · moves ${ls.moveTime}${md.flies ? ' · flies' : ''}. It will block you if you are seen.`))));
     }
     put('living', 'Living here', living);

@@ -135,7 +135,7 @@ panel('p-acts', 'Action chooser, tabs, pips', 'Nine chips (on, dim, locked), pha
     lbl('lock box, lead text'), T('ds-lockbox', icon('lock'), h('span', {}, 'Fixed: the climb to Cliff 1 takes two Moves.')), h('p', { class: 'ds-lead-text' }, lead(' set', '5 of 5')));
 
 panel('p-tokens', 'Counters, chits, dice, tokens', 'Cream counter tile (sm 44, 64, lg 92, tall, selected, dead), chit tiles, day pips, dice, map tokens.',
-    lbl('counters'), T('gal-row', tile('monsters_c/wolf.gif', 'sm'), tile('monsters_c/wolf.gif'), tile('monsters_c/wolf.gif', 'lg'), tile('monsters_c/wolf.gif', 'tall'), tile('monsters_c/wolf.gif', 'sel'), tile('monsters_c/wolf.gif', 'dead'), tile('actions/cache.gif', '', 'Small')),
+    lbl('counters'), T('gal-row', tile('monsters/wolf.gif', 'sm'), tile('monsters/wolf.gif'), tile('monsters/wolf.gif', 'lg'), tile('monsters/wolf.gif', 'tall'), tile('monsters/wolf.gif', 'sel'), tile('monsters/wolf.gif', 'dead'), tile('actions/cache.gif', '', 'Small')),
     lbl('chits'), T('gal-row', chit('fight', 'F4'), chit('move', 'M3'), chit('magic', 'V2'), chit('fight', 'F5', 'FIGHT', 'on'), chit('move', 'M2', 'MOVE', 'tired'), chit('fight', 'F6', 'FIGHT', 'wounded'), chit('magic', 'V1', 'MAGIC', 'dim')),
     lbl('mini chits'), T('gal-row', miniChit('fight'), miniChit('fight', 'tired'), miniChit('move'), miniChit('magic'), miniChit('fight', 'on')),
     lbl('dice'), T('gal-row', die(3), die(6, 'gold'), die(1)),

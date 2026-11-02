@@ -188,7 +188,7 @@ export function scoreSheet(G) {
 export function setupCardSheet(G) {
     const c = G.data.setupcard;
     const guardName = id => G.data.monsters[id]?.name ?? id;
-    const monsterArt = name => G.data.art?.monstersColor?.[name] ?? G.data.art?.monsters?.[name] ?? null;
+    const monsterArt = name => G.data.art?.monsters?.[name] ?? null;
     const pips = (n, cls) => Array.from({ length: n }, () => h('i', { class: `pip ${cls}` }));
     const treasureRow = e => h('div', { class: 'sc-treasure' },
         e.small ? h('span', { class: 'sc-t', title: 'Small treasures' }, ...pips(e.small, 'small'), h('small', {}, `${e.small} Small`)) : null,

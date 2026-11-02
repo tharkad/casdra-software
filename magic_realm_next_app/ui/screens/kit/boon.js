@@ -5,6 +5,7 @@ import { act } from '../play/actions.js';
 import { h } from '../../dom.js';
 import { art } from '../../icons.js';
 import { nativeArt, ask, dimBtn, footRow, itemArt } from './common.js';
+import { markGroup } from '../../groups.js';
 import { tieNumber } from '../../names.js';
 import { offerDice, payBlock } from './trade.js';
 import { isVisitorName, spellBoonBits } from './visitors.js';
@@ -14,7 +15,7 @@ export function boonContent(G, p, kind) {
     const trade = kind === 'trade', raw = trade ? G.st.stock[p.group]?.[p.idx] : null, sb = trade && p.spell != null ? spellBoonBits(G, p) : null;          // (a visitor's Spell card: visitors.js)
     const hero = trade
         ? h('div', { class: 'kit-hero' }, raw ? h('span', { class: 'ds-counter lg' }, itemArt(G, raw)) : sb?.art ?? null, h('div', {}, h('div', { class: 'ds-h2 kit-heroname' }, p.name), h('span', { class: 'ds-meta' }, `Worth ${p.base} Gold.`)))
-        : h('div', { class: 'kit-hero' }, h('div', { class: 'cs' }, (p.members ?? []).map(id => h('span', { class: 'ds-counter tall' }, nativeArt(G, id) ? art(nativeArt(G, id).replace(/^art\//, ''), '', '') : null))),
+        : h('div', { class: 'kit-hero' }, h('div', { class: 'cs' }, (p.members ?? []).map(id => markGroup(h('span', { class: 'ds-counter tall' }, nativeArt(G, id) ? art(nativeArt(G, id).replace(/^art\//, ''), '', '') : null), G.data.natives[id]?.group))),
             h('div', {}, h('div', { class: 'ds-h2 kit-heroname' }, p.names.length === 1 ? tieNumber(p.names[0]) : `The ${p.group}`), h('span', { class: 'ds-meta' }, `Wages ${p.wage} Gold. Hired for 14 days.`)));
     const pay = trade ? payBlock(G, p) : null;
     const payOk = trade ? pay.ok && !sb?.block : p.affordable, short = trade ? pay.short : p.price - G.st.ch.gold;

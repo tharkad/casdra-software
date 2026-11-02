@@ -174,3 +174,5 @@ html[data-calm="on"] .mv-ov .ds-ring.legal { animation: none; }
 .mapbox.bare .found-path { stroke-width: 3; animation: bare-throb 1.8s ease-in-out infinite; }
 @keyframes bare-throb { 0%, 100% { opacity: .55; filter: drop-shadow(0 0 1px rgba(241, 210, 127, .5)); } 50% { opacity: 1; filter: drop-shadow(0 0 5px rgba(241, 210, 127, .95)); } }
 @media (prefers-reduced-motion: reduce) { .mapbox.bare .sitehalo, .mapbox.bare .found-path { animation: none; opacity: 1; } }
+/* art switch: the black-and-white box counters need their cream tile on a pill (the pill-colour rule above hid it) */
+.realm-svg g.pill rect.thumbbg { fill: #efe6d0; }

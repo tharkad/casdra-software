@@ -36,7 +36,7 @@ export function counterEl(st, data, key, size = 44, sideOverride = null) {
     const side = sideOverride ?? info.side;
     if (info.hire) {
         const hh = info.hire, def = { kind: hh.kind, id: hh.id, side };
-        return monsterCounter({ s: denSide(st, data, def), side, picture: picOf(st, data, def), flies: hh.kind === 'mon' && !!data.monsters[hh.id]?.flies, size });
+        return monsterCounter({ s: { ...denSide(st, data, def), ...(hh.kind === 'nat' ? { group: data.natives?.[hh.id]?.group } : {}) }, side, picture: picOf(st, data, def), flies: hh.kind === 'mon' && !!data.monsters[hh.id]?.flies, size });
     }
     const d = info.den;
     if (!d) return null;

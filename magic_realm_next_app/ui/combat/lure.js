@@ -16,7 +16,7 @@ const WORD = { N: 'Negligible', L: 'Light', M: 'Medium', H: 'Heavy', T: 'Tremend
 /** The picture of a creature for a list row. */
 export function denPicture(data, d) {
     const a = data.art;
-    if (d.kind === 'mon') { const nm = data.monsters[d.id]?.name; return a?.monstersColor?.[nm] ?? a?.monsters?.[nm] ?? null; }
+    if (d.kind === 'mon') { const nm = data.monsters[d.id]?.name; return a?.monsters?.[nm] ?? null; }
     return a?.natives?.[d.id] ?? null;
 }
 const sheetBox = (...kids) => h('div', { class: 'cb-sheet sf-sheet sf-pick', 'data-kind': 'lure', 'data-ask-type': 'combat-lure' }, ...kids);

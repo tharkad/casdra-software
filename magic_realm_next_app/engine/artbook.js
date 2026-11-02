@@ -25,11 +25,11 @@ export function bookPic(art, kind, key, side = null, id = null) {
 export function fillArtGaps(art, data) {
     const filled = [];
     if (!art?.book) return filled;
-    art.monsters ??= {}; art.monstersColor ??= {}; art.weapons ??= {}; art.armor ??= {}; art.horses ??= {}; art.natives ??= {};
+    art.monsters ??= {}; art.weapons ??= {}; art.armor ??= {}; art.horses ??= {}; art.natives ??= {};
     const put = (section, key, path, label) => { if (path && !section[key]) { section[key] = path; filled.push(`${label}:${key}`); } };
     for (const m of Object.values(data.monsters ?? {})) {
-        if (!art.monstersColor[m.name] && !art.monsters[m.name]) put(art.monsters, m.name, bookPic(art, 'mon', m.name, 'light', m.id), 'monsters');
-        for (const p of m.parts ?? []) { const nm = `${m.name} ${p.name}`.trim(); if (!art.monstersColor[nm] && !art.monsters[nm]) put(art.monsters, nm, bookPic(art, 'mon', nm, 'light'), 'monsters'); }
+        if (!art.monsters[m.name]) put(art.monsters, m.name, bookPic(art, 'mon', m.name, 'light', m.id), 'monsters');
+        for (const p of m.parts ?? []) { const nm = `${m.name} ${p.name}`.trim(); if (!art.monsters[nm]) put(art.monsters, nm, bookPic(art, 'mon', nm, 'light'), 'monsters'); }
     }
     for (const w of Object.values(data.weapons ?? {})) put(art.weapons, w.name, bookPic(art, 'weapon', w.name), 'weapons');
     for (const a of Object.values(data.armor ?? {})) put(art.armor, a.name, bookPic(art, 'armor', a.name), 'armor');

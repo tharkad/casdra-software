@@ -36,7 +36,7 @@ function holdable(btn, onHold) {
 
 // What the rules say about a creature on a given side, or, if the engine cannot say (a creature that has left the game's lists, a part whose owner is gone, a kind nobody knew), at least its name: a counter is never blank.
 export function safeSide(st, data, d) {
-    try { const s = denSide(st, data, d); if (s && s.name) return s; } catch { /* fall through to the bare name */ }
+    try { const s = denSide(st, data, d); if (s && s.name) return d?.kind === 'hire' && d.hireKind === 'nat' && !s.group ? { ...s, group: data.natives?.[d.id]?.group } : s; } catch { /* fall through to the bare name */ }
     const name = d?.kind === 'mon' || d?.kind === 'hire' ? data.monsters?.[d.id]?.name : d?.kind === 'nat' ? data.natives?.[d.id]?.name : null;
     return { name: name ?? d?.name ?? String(d?.id ?? 'Unknown creature'), size: null, vuln: null, armored: false, harm: null, stars: 0, atk: null, move: null, length: 0, attack: 'none', fame: 0, notor: 0 };
 }
@@ -183,7 +183,7 @@ export function heroEl({ st, data, onGear, onPeekGear = null, onPeekMap = null, 
     const wName = w ? nameOf(data, w.item) : null, aName = armor[0] ? nameOf(data, armor[0]) : null;
     const cr = ch.morph?.creature, lt = cr?.light ?? {};
     const face = cr
-        ? h('span', { class: 'face morph' }, monsterCounter({ s: { name: cr.name, vuln: cr.vuln, armored: !!cr.armored, attack: lt.attack ?? 'weapon', harm: lt.harm, stars: lt.stars ?? 0, atk: lt.atk, move: lt.move, length: lt.length ?? 0, fame: cr.fame ?? 0, notor: cr.notor ?? 0 }, side: 'light', picture: data.art?.monstersColor?.[cr.name] ?? data.art?.monsters?.[cr.name] ?? null, flies: !!cr.flies, size: 72 }))
+        ? h('span', { class: 'face morph' }, monsterCounter({ s: { name: cr.name, vuln: cr.vuln, armored: !!cr.armored, attack: lt.attack ?? 'weapon', harm: lt.harm, stars: lt.stars ?? 0, atk: lt.atk, move: lt.move, length: lt.length ?? 0, fame: cr.fame ?? 0, notor: cr.notor ?? 0 }, side: 'light', picture: data.art?.monsters?.[cr.name] ?? null, flies: !!cr.flies, size: 72 }))
         : h('span', { class: `face${ch.hidden ? ' hid' : ''}` }, data.art?.characters?.[ch.id] ? pic(data.art.characters[ch.id].replace(/\.gif$/, '.png'), displayName(ch.name)) : null);
     const gear = (kind, name, src, more, hurt, peekBtn = null) => h('div', { class: 'gcol' },
         h('button', { type: 'button', class: `gear${src ? '' : ' none'}${hurt ? ' hurt' : ''}`, 'data-act': 'peek-gear-card', 'aria-label': name ? `${name}: read it` : `No ${kind}`, onclick: () => onGear?.(kind), disabled: !name || null },
