@@ -30,7 +30,7 @@ import { render } from './shell.js';
 import { switchTo } from './hotseat.js';
 import { myId } from './state.js';
 import { playerOf } from '../../meet.js';
-import { gameOf, questionOf, charsOf } from '../../combat/feed.js';
+import { gameOf, questionOf, charsOf, todayOf } from '../../combat/feed.js';
 
 const nb = s => String(s).replace(/ (\d+)$/, ' $1');
 
@@ -256,18 +256,18 @@ export function handoverSheet(G) {
 // ---------------------------------------------------------------------------------------------------------------------------------- sunrise: the Attention chits are drawn
 /** Once a day, when the chits have been drawn and no turn has begun: the order the Attention chits came out in (7.1.1), with each seat's chit. A table shows it in place of the draw of the players' chits. */
 export function maybeShowSunrise(G) {
-    const st = G.st, p = st.pending, rec = st.dayRec;
-    if (!leaderGame(st) || G.race || !rec || rec.day !== st.day || (rec.i ?? 0) !== 0 || st.period !== 'daylight' || (p && p.type !== 'phase')) return;
-    if (G.ui.sunriseDay === st.day || (G.ui.sheet && G.ui.sheet !== 'sunrise')) return;
-    G.ui.sunriseDay = st.day; G.ui.sheet = 'sunrise';
+    const st = G.st, g = gameOf(st, G.data), p = questionOf(st, G.data), rec = g.dayRec;
+    if (!leaderGame(st) || G.race || !rec || rec.day !== g.day || (rec.i ?? 0) !== 0 || g.period !== 'daylight' || (p && p.type !== 'phase')) return;
+    if (G.ui.sunriseDay === g.day || (G.ui.sheet && G.ui.sheet !== 'sunrise')) return;
+    G.ui.sunriseDay = g.day; G.ui.sheet = 'sunrise';
 }
 export function sunriseSheet(G) {
-    const st = G.st, rec = st.dayRec, order = (rec?.order ?? []).filter(id => st.chars[id]), mine = id => st.chars[id]?.owner === st.chars[st.actor]?.owner;
+    const st = G.st, rec = gameOf(st, G.data).dayRec, chars = charsOf(st, G.data), order = (rec?.order ?? []).filter(id => chars[id]), mine = id => chars[id]?.owner === chars[st.actor]?.owner;
     const close = () => { G.ui.sheet = null; render(G); };
-    const label = id => (st.chars[id]?.leader || mine(id) ? seatName(st, id) : playerOf(st, id));
+    const label = id => (chars[id]?.leader || mine(id) ? seatName(st, id) : playerOf(st, id));
     const first = order[0], fn = first ? label(first) : null;
     const rows = order.map((id, i) => {
-        const c = st.chars[id], att = attentionOf(st, G.data, id), who = c.leader ? `${roleOf(st, id)} \u00B7 ${att?.label ?? ''}` : mine(id) ? 'You' : `${playerOf(st, id)}\u2019s character`;
+        const c = chars[id], att = attentionOf(st, G.data, id), who = c.leader ? `${roleOf(st, id)} \u00B7 ${att?.label ?? ''}` : mine(id) ? 'You' : `${playerOf(st, id)}\u2019s character`;
         return h('div', { class: `ds-row sr-row${i === 0 ? ' first' : ''}`, 'data-sunrise': id },
             h('span', { class: 'sr-n', 'aria-hidden': 'true' }, String(i + 1)), c.leader ? attnChit(att, 'lg') : h('i', { class: 'attn char lg', 'aria-hidden': 'true' }, (seatName(st, id)[0] ?? '?').toUpperCase()),
             h('span', { class: 'main' }, h('b', {}, seatName(st, id)), h('span', {}, who)));
@@ -275,7 +275,7 @@ export function sunriseSheet(G) {
     const body = h('div', { class: 'sr' },
         h('p', { class: 'ds-voice sr-line' }, voiced({ story: fn ? `The chits are drawn. ${fn} is first.` : 'The chits are drawn.', detail: `The Attention chits are mixed and drawn (7.1.1). ${fn ? `${fn} plays first; ` : ''}each seat plays his whole turn when his chit comes up.` })),
         h('div', { class: 'ds-list' }, ...rows));
-    return modal(G, 'Sunrise', body, { close, eyebrow: `Day ${st.day} \u00B7 the order of the day`, bare: true, footer: footRow({ primary: primary('Begin the day', { 'data-act': 'sunrise-ok', onclick: close }) }) });
+    return modal(G, 'Sunrise', body, { close, eyebrow: `Day ${gameOf(st, G.data).day} \u00B7 the order of the day`, bare: true, footer: footRow({ primary: primary('Begin the day', { 'data-act': 'sunrise-ok', onclick: close }) }) });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------- the fight nobody played
@@ -305,7 +305,7 @@ export function showSeat(G, id) {
 // ---------------------------------------------------------------------------------------------------------------------------------- his turn's end
 // The end-of-turn sheet of a seat, told of him and not of "you": hidden or in plain sight, what blocked him, what arrived. (The player's own character has the longer sheet in phases.js.)
 export function seatTurnEndSheet(G) {
-    const st = G.st, t = st.turnEnd, id = st.actor, name = seatName(st, id), mon = st.chars[id]?.leader?.kind === 'mon';
+    const st = G.st, t = todayOf(st, G.data).turnEnd, id = st.actor, name = seatName(st, id), mon = st.chars[id]?.leader?.kind === 'mon';
     const he = mon ? 'it' : 'he', him = mon ? 'it' : 'him', his = mon ? 'its' : 'his', place = nb(nameOfClearing(t.at));
     const uniq = list => [...new Set(list)], many = list => (list.length <= 1 ? (list[0] ?? '') : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`);
     const called = uniq(t.chits.flatMap(c => c.summons ?? [])), arrived = uniq([...(t.arrivals ?? []).map(a => a.name), ...called]), natives = (t.natives ?? []).map(n => `the ${n.group}`);

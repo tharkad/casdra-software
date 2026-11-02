@@ -1,6 +1,7 @@
 import { roll2, noteRoll } from '../../core.js';
 import { tileOf } from '../../world.js';
 import { nullifyIfDuplicate } from '../util.js';
+import { no } from '../why.js';
 
 // Violent Storm (IV / Purple / Day): the caster's hex tile. He rolls on the Violent Storm Table (two dice, higher counts) once, when he casts it; the result is the
 // number of phases that a character must cancel when he ends a phase in a woods or mountain clearing of the tile that has no Inn, House, Chapel or Guardhouse
@@ -11,7 +12,7 @@ import { nullifyIfDuplicate } from '../util.js';
 // Pentangle and Protection from Magic do not stop it (it is aimed at the tile); the computer players never cast it.
 export default {
     id: 'violent-storm', dur: 'day', benevolent: false,
-    legal: st => (st.ch.at ? true : 'There is no clearing to storm.'),
+    legal: st => (st.ch.at ? true : no('storm.no-clearing')),
     useful: () => false,
     start(ctx) {
         const { st, data } = ctx, tile = tileOf(st.ch.at);

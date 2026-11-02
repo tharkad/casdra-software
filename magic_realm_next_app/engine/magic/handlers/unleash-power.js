@@ -1,6 +1,7 @@
 import { nullifyIfDuplicate } from '../util.js';
 import { dayUseful } from '../helpers.js';
 import { fxList } from '../fx.js';
+import { no } from '../why.js';
 
 // Unleash Power (VI / Purple / Day): any number of the caster's Magic chits. Each chit named becomes a "Move/Fight" chit: it can be played as a Move chit or as a Fight
 // chit (once a round, not both), carries items like a Move chit, keeps its time number and effort asterisks, and its time number defines its strength (time 2 or 3
@@ -21,7 +22,7 @@ export default {
         const o = st.ch.chits.filter(c => ready(st, c)).map(c => ({ ref: { kind: 'chit', id: c.id }, label: `Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}: Move/Fight ${strengthOfTime(c.time)}${c.time}` }));
         return o.length ? o : null;
     },
-    legal: st => (st.ch.chits.some(c => ready(st, c)) ? true : 'You have no other ready Magic chit to transform.'),
+    legal: st => (st.ch.chits.some(c => ready(st, c)) ? true : no('unleash.no-chit')),
     useful: () => false,
     quiet: st => dayUseful(st) && !fxList(st, { spell: 'unleash-power', any: true }).length,       // Move/Fight chits for tomorrow; asked only while none is on
     start(ctx) {

@@ -1,4 +1,5 @@
 import { isCave } from '../../world.js';
+import { no } from '../why.js';
 
 // Roof Collapses (IV / Purple / Attack): cast only in a cave clearing. It attacks every character, monster and native in the clearing, including the caster, like a
 // striking weapon of length 18 and Heavy harm with no stars, always in the Smash direction at time 4, whatever chit cast it.
@@ -12,7 +13,7 @@ import { isCave } from '../../world.js';
 export default {
     id: 'roof-collapses', dur: 'attack', benevolent: false,
     attack: { harm: 'H', stars: 0, length: 18, hits: 1, missile: false, auto: 'all', dir: 2, time: 4 },
-    legal: (st, data) => (isCave(st, data, st.ch.at) ? true : 'Roof Collapses can be cast only in a cave clearing.'),
+    legal: (st, data) => (isCave(st, data, st.ch.at) ? true : no('place.cave', { spell: 'Roof Collapses' })),
     useful: () => false,
     start() { /* the blows themselves are worked out in the melee */ },
     ai: { role: 'attack' },

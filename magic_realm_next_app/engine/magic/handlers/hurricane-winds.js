@@ -2,6 +2,7 @@ import { B } from '../bridge.js';
 import { isMountain, tileOf, tileName } from '../../world.js';
 import { adjacentTiles, denRef, denOf, foes, foeName, reveal } from '../util.js';
 import { HERO, sameRef } from '../fx.js';
+import { no } from '../why.js';
 
 // Hurricane Winds (IV / Purple / Fly): one character, monster or native; cast only in a mountain clearing. It creates a Fly chit (Tremendous, time 1) that the target
 // must use to fly away just before the next Encounter Step; the caster chooses which adjacent tile it lands in. A red-side-up Tremendous monster, or the target of one,
@@ -20,9 +21,9 @@ import { HERO, sameRef } from '../fx.js';
 export default {
     id: 'hurricane-winds', dur: 'fly', benevolent: false,
     legal: (st, data) => {
-        if (!isMountain(st, data, st.ch.at)) return 'Hurricane Winds can be cast only in a mountain clearing.';
-        if (!adjacentTiles(st, tileOf(st.ch.at)).length) return 'There is no adjacent tile to blow the target to.';
-        return foes(st).length ? true : 'There is no creature here to blow away.';
+        if (!isMountain(st, data, st.ch.at)) return no('place.mountain', { spell: 'Hurricane Winds' });
+        if (!adjacentTiles(st, tileOf(st.ch.at)).length) return no('hurricane.no-tile');
+        return foes(st).length ? true : no('hurricane.no-creature');
     },
     aim: (st, data) => { const o = foes(st).map(d => ({ ref: denRef(d), label: foeName(st, data, d) })); return o.length ? [...o, { ref: HERO, label: 'yourself' }] : null; },
     params: (st, data) => [{ key: 'tile', kind: 'choice', label: 'Blow it to', options: adjacentTiles(st, tileOf(st.ch.at)).map(t => ({ value: t, label: `the ${tileName(t)}` })) }],

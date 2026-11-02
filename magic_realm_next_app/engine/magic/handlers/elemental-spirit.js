@@ -1,4 +1,5 @@
 import { alterChit, unalterChit } from '../chitalt.js';
+import { no } from '../why.js';
 
 // Elemental Spirit (IV / Purple / Day): any of the caster's Type IV and Type VI Magic chits that he names change Type until Sunset tomorrow:
 // each IV becomes a VIII and each VI a V (rule 4.6.10c). Only the Type changes; time and asterisks stay (RS CharacterActionChitComponent:547-554).
@@ -13,7 +14,7 @@ export default {
     id: 'elemental-spirit', dur: 'day', benevolent: false,
     targets: { min: 1, max: 99 },
     // castable when some ready Type IV chit can cast it and there is another ready IV or VI chit to change
-    legal: st => (eligible(st, null).length > 1 && eligible(st, null).some(c => c.numeral === 'IV') ? true : 'Elemental Spirit needs a ready Type IV chit to cast it and another Type IV or VI chit to change.'),
+    legal: st => (eligible(st, null).length > 1 && eligible(st, null).some(c => c.numeral === 'IV') ? true : no('elemental.chits')),
     aim: (st, data, { cast }) => {
         const out = eligible(st, cast?.chit).map(c => ({ ref: { kind: 'chit', id: c.id }, label: `Magic ${c.numeral}${c.time}${'*'.repeat(c.effort ?? 0)} becomes ${CHANGE[c.numeral]}` }));
         return out.length ? out : null;

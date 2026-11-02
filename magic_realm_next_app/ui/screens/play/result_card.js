@@ -15,45 +15,45 @@ import { foundBoxes } from './journal.js';
 import { render } from './shell.js';
 import { ACT_LABEL } from './kit.js';
 import { tableName } from './phases.js';
-import { ownSheet, gameOf, questionOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, questionOf, todayOf, planSlots, viewOf } from '../../combat/feed.js';
 
 // ---- the mark: where things stood when the phase began ----
 // Fame and Notoriety as the strip shows them: what was recorded plus what the things he owns add (a Blasted Jewel is Fame and Notoriety the moment he holds it: QA-108).
 const earnedNow = G => { try { return earned(G.st, G.data); } catch { return null; } };
 export function markPhase(G, action) {
-    const p = G.st?.pending, c = G.st?.ch;
-    if (!p || !c) return;
+    const p = G.st ? questionOf(G.st, G.data) : null, c = G.st ? ownSheet(G.st, G.data) : null;
+    if (!p || !c?.id) return;
     const starts = (p.type === 'phase' && action.type === 'next') || (p.type === 'phase-pick' && (action.type === 'pick' || action.type === 'next'));
     if (!starts) return;
     const e = earnedNow(G);
-    G.ui.pmark = { day: gameOf(G.st, G.data).day, i: p.i, fame: c.fame, notor: c.notoriety, gold: c.gold, efame: e?.fame ?? c.fame, enotor: e?.notoriety ?? c.notoriety, gain: G.st.gainSeq ?? 0, find: G.st.findSeq ?? 0, roll: G.st.rollSeq ?? 0 };
+    G.ui.pmark = { day: gameOf(G.st, G.data).day, i: p.i, fame: c.fame, notor: c.notoriety, gold: c.gold, efame: e?.fame ?? c.fame, enotor: e?.notoriety ?? c.notoriety, gain: todayOf(G.st, G.data).gainSeq ?? 0, find: todayOf(G.st, G.data).findSeq ?? 0, roll: todayOf(G.st, G.data).rollSeq ?? 0 };
 }
 
 const mine = (G, x) => !x.who || !G.shared || x.who === ownSheet(G.st, G.data).id;
 
 // What the phase just played came to. `n` is the phase number (1-based). null while no phase has been played (or the one on screen is not finished).
 export function resultInfo(G) {
-    const st = G.st, p = st.pending;
-    if (!p || !(p.type === 'phase' || p.type === 'phase-pick') || !st.ch) return null;
+    const st = G.st, p = questionOf(st, G.data), day = gameOf(st, G.data).day, c = ownSheet(st, G.data);
+    if (!p || !(p.type === 'phase' || p.type === 'phase-pick') || !c.id) return null;
     const n = p.i;                                                                 // the phase just played is the one before the pending one
     if (!(n >= 1)) return null;
     const log = st.log ?? [];
-    const line = [...log].reverse().find(x => x.k === 'phase' && x.day === st.day && x.t.startsWith(`Phase ${n}:`));
+    const line = [...log].reverse().find(x => x.k === 'phase' && x.day === day && x.t.startsWith(`Phase ${n}:`));
     if (!line) return null;
     // a flight that ends as this phase begins: he came down first (the engine logs "You land in X." just before the phase's own line): the card leads with where (QA-107)
     let landing = null;
     { let j = log.lastIndexOf(line) - 1; while (j >= 0 && log[j].k === 'roll') j--; if (j >= 0 && log[j].k === 'phase' && /^(?:You land|Landing) in /.test(log[j].t)) landing = log[j]; }
     // the trade lines of this phase (what was sold, bought, refused) come before its own line, after the one of the phase before
     const trades = []; { const at = log.lastIndexOf(line); for (let j = at - 1; j >= 0 && log[j].k !== 'day' && !(log[j].k === 'phase' && /^Phase \d+:/.test(log[j].t)); j--) if (log[j].k === 'trade') trades.unshift(log[j]); }
-    const m = G.ui.pmark && G.ui.pmark.day === st.day && G.ui.pmark.i === n - 1 ? G.ui.pmark : null;
-    const c = st.ch, slot = st.plan?.[n - 1] ?? null;
+    const m = G.ui.pmark && G.ui.pmark.day === day && G.ui.pmark.i === n - 1 ? G.ui.pmark : null;
+    const slot = planSlots(st, G.data)[n - 1] ?? null, today = todayOf(st, G.data);
     const e = m ? earnedNow(G) : null;
     const deltas = m ? { fame: (e?.fame ?? c.fame) - (m.efame ?? m.fame), notor: (e?.notoriety ?? c.notoriety) - (m.enotor ?? m.notor), gold: c.gold - m.gold } : {};
     const news = m ? [
-        ...(st.gains ?? []).filter(x => x.n > m.gain && mine(G, x) && c.items.some(i => i.uid === x.uid)).map(x => ({ key: `g${x.uid}`, kind: 'item', item: c.items.find(i => i.uid === x.uid) })),
-        ...(st.finds ?? []).filter(f => f.n > m.find && mine(G, f)).map(f => ({ key: `f${f.n}`, kind: f.kind === 'curse' ? 'curse' : f.kind === 'card' ? 'card' : 'site', f })),
+        ...(today.gains ?? []).filter(x => x.n > m.gain && mine(G, x) && c.items.some(i => i.uid === x.uid)).map(x => ({ key: `g${x.uid}`, kind: 'item', item: c.items.find(i => i.uid === x.uid) })),
+        ...(today.finds ?? []).filter(f => f.n > m.find && mine(G, f)).map(f => ({ key: `f${f.n}`, kind: f.kind === 'curse' ? 'curse' : f.kind === 'card' ? 'card' : 'site', f })),
     ] : [];
-    const rolls = m ? (st.rolls ?? []).filter(r => r.n > m.roll && mine(G, r)) : [];
+    const rolls = m ? (viewOf(st, G.data).me?.fightLog?.rolls ?? []).filter(r => r.n > m.roll && mine(G, r)) : [];
     return { n, slot, line, landing, trades, deltas, news, rolls, marked: !!m };
 }
 

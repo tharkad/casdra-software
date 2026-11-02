@@ -1,5 +1,6 @@
 import { isCave } from '../../world.js';
 import { nullifyIfDuplicate } from '../util.js';
+import { no } from '../why.js';
 
 // Blazing Light (IV / Purple / Day): cast in a cave clearing, which is its target. Each character in that clearing during Birdsong may record one extra phase, for any
 // normal activity; he must still be in the clearing when that phase starts or the activity is cancelled.
@@ -9,7 +10,7 @@ import { nullifyIfDuplicate } from '../util.js';
 // (st.planBlazing is the clearing he planned from). The spell lasts until Sunset of the next day, so only the Birdsong of the next day benefits.
 export default {
     id: 'blazing-light', dur: 'day', benevolent: true,
-    legal: (st, data) => (isCave(st, data, st.ch.at) ? true : 'Blazing Light can be cast only in a cave clearing.'),
+    legal: (st, data) => (isCave(st, data, st.ch.at) ? true : no('place.cave', { spell: 'Blazing Light' })),
     useful: () => true,                                     // a free phase tomorrow
     start(ctx) {
         const { st } = ctx;

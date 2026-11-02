@@ -72,7 +72,8 @@ export function roll2(st, why) { const a = die(st, why), b = die(st, why); retur
 export function say(st, text, kind = 'info', story = null, opt = null) {
     const e = { day: st.day, t: text, k: kind };
     if (story) e.s = story;
-    if (opt?.ev) { emit(st, opt.ev, { ...('who' in opt ? { who: opt.who } : {}), legacy: st.log.length }); }
+    let evn = null;          // (a game that records its events: the line carries the number of its event, `evn`, so the two stay joined when the log is cut for a seat)
+    if (opt?.ev) { const ev = emit(st, opt.ev, { ...('who' in opt ? { who: opt.who } : {}), legacy: st.log.length }); if (st.events) evn = ev.n; }
     if (opt?.p) e.p = opt.p;                                                           // the same line told with the players' names (several characters, a line of the whole table)
     if (st.battle) e.r = st.battle.round;                                              // (a fight shared by several: the clearing's round, whoever is acting)
     else if (st.combat && !st.combat.ended && st.combat.round) e.r = st.combat.round;
@@ -81,6 +82,7 @@ export function say(st, text, kind = 'info', story = null, opt = null) {
         if (w) { e.who = w; Object.assign(e, witnesses(st, w, opt)); }
     }
     if (st.battle && (kind === 'combat' || kind === 'roll')) battleTag(st, e);          // a fight shared by several characters: only those in it are meant to read it
+    if (evn != null) e.evn = evn;
     st.log.push(e);
 }
 // ---- events: the same facts as structured data (CONTRACT section 6; docs/engine-api/EVENT-CODES.md) ----

@@ -117,9 +117,7 @@ function build(data, engine) {
 
         /** The events `viewer` may read with `n` > `since` (EVENT-CODES.md "Who may read an event"); once the game is over every seat reads every event (VISIBILITY-RULINGS V11). */
         history(state, viewer = null, since = 0) {
-            const mine = viewer && state.chars[viewer] ? new Set([viewer, ...state.order.filter(id => id !== viewer && state.chars[id].leader && ownerOf(state, id) === ownerOf(state, viewer))]) : new Set();
-            const over = state.period === 'over';
-            return (state.events ?? []).filter(e => e.n > since && (over || readable(e, mine, viewer !== null))).map(e => JSON.parse(JSON.stringify(e)));
+            return historyOf(state, viewer, since);
         },
 
         /** A saved state of ANY earlier version (JSON text) as a state of the current one. */
@@ -142,6 +140,13 @@ const pendingOf = (state, viewer) => {
     const q = viewer && state.chars?.[viewer] ? state.asks.find(a => a.who === viewer)?.pending ?? null : null;
     return q ? { ...JSON.parse(JSON.stringify(q)), who: viewer } : null;
 };
+
+/** The events `viewer` may read with `n` > `since`, from a state alone (no rules data is needed): what `api.history` returns, and what the server sends a seat. */
+export function historyOf(state, viewer = null, since = 0) {
+    const mine = viewer && state.chars[viewer] ? new Set([viewer, ...state.order.filter(id => id !== viewer && state.chars[id].leader && ownerOf(state, id) === ownerOf(state, viewer))]) : new Set();
+    const over = state.period === 'over';
+    return (state.events ?? []).filter(e => e.n > since && (over || readable(e, mine, viewer !== null))).map(e => JSON.parse(JSON.stringify(e)));
+}
 
 // The characters an event names (its `vis: parties` readers).
 const NAMES = ['who', 'to', 'from', 'a', 'b', 'of', 'hirer', 'guide', 'blocker', 'blocked'];

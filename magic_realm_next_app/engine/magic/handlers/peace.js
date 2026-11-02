@@ -1,5 +1,6 @@
 import { B } from '../bridge.js';
 import { foes, denRef, denOf, foeName, reveal, nullifyIfDuplicate, setPeaceful, characters, cancelCasts } from '../util.js';
+import { no } from '../why.js';
 
 // Peace (I / White / Combat): one native or monster. If its target is anyone else's target the spell is instantly broken; otherwise the creature is unassigned
 // and cannot be assigned again while the spell lives, and it cannot lure. The spell is broken when the creature is named as the target of an attack or spell.
@@ -16,7 +17,7 @@ const options = (st, data) => [...foes(st).filter(d => !d.bystander && !d.pacifi
 export default {
     id: 'peace', dur: 'combat', benevolent: false,
     aim: (st, data) => { const o = options(st, data); return o.length ? o : null; },
-    legal: (st, data) => (options(st, data).length ? true : 'There is no creature here to make peaceful.'),
+    legal: (st, data) => (options(st, data).length ? true : no('peace.none')),
     useful: st => foes(st).some(d => d.assigned && !d.bystander && !d.engagedBy),
     start(ctx) {
         const { st, data } = ctx;

@@ -96,7 +96,8 @@ const START = /stand together at |stands alone at /;
 /** The lines of the fight the viewer took part in: the last run of `vis: 'battle'` lines that name him in `with`, from the line that opens the fight ("... stand together at ...") to its end.
  * Returns [{ t, s, who, r, k }] oldest first. */
 export function fightLines(view, myId) {
-    const L = (view?.log ?? []).filter(l => mineLine(l, myId));
+    const byN = view?.events ? new Map(view.events.map(e => [e.n, e])) : null;          // (a seat of a game that records: its events, joined to the lines by `evn`)
+    const L = (view?.log ?? []).filter(l => mineLine(l, myId)).map(l => (l.ev || l.evn == null || !byN ? l : { ...l, ev: byN.get(l.evn) }));
     let from = 0;
     for (let i = L.length - 1; i >= 0; i--) if (START.test(L[i].t)) { from = i; break; }
     return L.slice(from);
@@ -125,17 +126,19 @@ export function factsOf(lines) {
     for (const l of lines) {
         const t = l.t ?? '';
         let m;
+        const e = l.ev;          // (the event of the line where the game records them: the voice layer, voice/fight.js, joins it by `evn`; else the words)
         if ((m = /^You kill the (.+?) with /.exec(t))) {
             const got = { fame: 0, notoriety: 0, gold: 0 };
-            for (const g of t.matchAll(GAIN)) got[g[2] === 'gold' ? 'gold' : g[2].toLowerCase()] += Number(g[1]);
-            const shared = /same instant as/.test(t);
+            if (e?.code === 'den.killed') { got.fame = e.fame ?? 0; got.notoriety = e.notoriety ?? 0; got.gold = e.gold ?? 0; }
+            else for (const g of t.matchAll(GAIN)) got[g[2] === 'gold' ? 'gold' : g[2].toLowerCase()] += Number(g[1]);
+            const shared = e?.code === 'den.killed' ? !!e.shared : /same instant as/.test(t);
             out.kills.push({ name: m[1], ...got, shared });
             out.gain.fame += got.fame; out.gain.notoriety += got.notoriety; out.gain.gold += got.gold;
         } else if (/^You strike down the /.test(t)) out.struck = true;
         else if ((m = /^(.+?) deals \w harm; (?:the .+? )?you are slain|^(.+?)'s shot finds a vital spot; you are slain/.exec(t))) out.died = { by: m[1] ?? m[2] };
         else if (/^You are dead\.|magic kills you/.test(t)) out.died = { by: null };
-        else if (/^You take a wound\./.test(t)) out.wounds++;
-        else if ((m = /^Your (.+?) is (destroyed|damaged)\./.exec(t))) out.gear.push({ name: m[1], how: m[2] });
+        else if (e?.code === 'hero.hurt' || (!e && /^You take a wound\./.test(t))) out.wounds++;
+        else if ((m = /^Your (.+?) is (destroyed|damaged)\./.exec(t))) out.gear.push({ name: m[1], how: e?.code === 'hero.armor.hit' ? e.result : m[2] });
         else if (/You break away and flee|break away/.test(t)) out.fled = true;
         else if (/^You: .*: hit\b/.test(t)) out.struck = true;
     }

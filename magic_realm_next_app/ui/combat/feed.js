@@ -44,10 +44,14 @@ export const tableFight = (st, data, who) => viewOf(st, data, who).table.fight;
 export const questionOf = (st, data, who) => viewOf(st, data, who).pending;
 /** His own sheet of the fight (view.me.fight): the creatures on it with their stats, his hirelings, the round's tallies. Null outside a fight. */
 export const sheetOf = (st, data, who) => viewOf(st, data, who).me?.fight ?? null;
+/** His own day (view.me.today): the plan as drawn up (`planFull`, `planBase`), how far the turn has come (`turn`: `i`, `results`, `enchants` ...), how it ended (`turnEnd`), who is with him. {} for a spectator. */
+export const todayOf = (st, data, who) => viewOf(st, data, who).me?.today ?? {};
+/** The slots of the plan he drew up for today (view.me.plan.slots), or []. */
+export const planSlots = (st, data, who) => viewOf(st, data, who).me?.plan?.slots ?? [];
 /** His own sheet in one record: his public sheet (chits, position, Fame, Notoriety, morph, mist, hidden ...) with what only he knows added (gold, every belonging in full, curses). A spectator, or a state with no such seat, gets an empty sheet. */
 export function own(st, data, who) {
     const v = viewOf(st, data, who), c = v.table.characters[v.viewer.seat];
-    return c && v.me ? { ...c, gold: v.me.gold, items: v.me.items, curses: v.me.curses } : { chits: [], items: [], curses: [], gold: 0 };
+    return c && v.me ? { ...c, gold: v.me.gold, vp: v.me.vp, items: v.me.items, curses: v.me.curses } : { chits: [], items: [], curses: [], gold: 0 };
 }
 /** The fight as the combat screens read it: ONE object made from what the API returned (`view`), shaped as the screens have always read it (`combat`, `battle`, `ch`, `chars`, `nats`, `mons`, `pending`, `log`, `rolls`, `over`, `day` ...), so that
  * no screen reaches into the engine's state. `fightLog` is the voice layer's input (lines with their events). A raw engine state is still accepted by every helper (the tests pass one); the entry points of the screens make this model once per render. */

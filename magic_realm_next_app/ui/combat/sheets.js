@@ -4,7 +4,7 @@
 import { h } from '../dom.js';
 import { icon, actIcon } from '../icons.js';
 import { btn, primary, twoLine, voiceSwitch, delta, sheet as dsSheet } from '../ds.js';
-import { nameOfClearing, tileName, isWeaponCard, nameOf } from '../../engine/catalogue.js';
+import { nameOfClearing, tileName, isWeaponCard, nameOf, whySentence } from '../../engine/catalogue.js';
 import { optionsOf, denSide, activeArmor, hasTreasure, makeChange, own } from './feed.js';
 import { commitmentOf, voiced } from '../commit.js';
 import { heldLockOf, mistWords, energizeWords, gearPairWhy, flyWords, voicedWhy } from '../spellwhy.js';
@@ -253,7 +253,7 @@ function castPick(X, o, round, back, itemsBtn) {
     }).flat().filter(Boolean);
     const aimStore = (cb.quiet ??= {});
     const aimNow = chosen && quiet && needsAim(chosen) ? aimEl(X, chosen.aim, aimStore) : null;
-    const blocked = o.blocked?.length && !o.casts.length ? hint(`${o.blocked[0].name}: ${o.blocked[0].why}`) : null;
+    const blocked = o.blocked?.length && !o.casts.length ? hint(`${o.blocked[0].name}: ${whySentence(o.blocked[0].whyCode)}`) : null;
     const cant = !chosen;
     const castGo = chosen ? primary(`Cast ${chosen.name}`, { 'data-act': 'cast-go', 'data-spell': chosen.spell, onclick: () => {
         if (quiet && needsAim(chosen)) send(P.castAimed(chosen, P.aimOf(chosen.aim, aimStore)));

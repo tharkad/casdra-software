@@ -1,6 +1,6 @@
 // combat/model.js: what the combat scene needs to know, worked out from the engine's state and options, with no DOM (so node tests can run it). The engine decides everything;
 // this file only chooses defaults for the player's plan, finds the words for what happened (from the lines the engine already wrote) and says why a control is dim.
-import { lvl, WEIGHT_WORDS, NO_EFFORT_LIMIT, nameOf, bookPic, isBookPic } from '../../engine/catalogue.js';
+import { lvl, WEIGHT_WORDS, NO_EFFORT_LIMIT, nameOf, bookPic, isBookPic, whySentence } from '../../engine/catalogue.js';
 import { denSide, hireStats, sheetOf } from './feed.js';
 import { fightLinesOf, harmOf, stampsOf as stampsOfLine, paidOf, whyWords, roundLinesOf, roundFactsOf, hittersOf, foeResultsOf, turnedOverOf, missNoteOf } from '../voice/fight.js';
 import { withArticle, displayName, fixNames } from '../names.js';
@@ -237,7 +237,7 @@ export function encounterVerbs(fm, data, o, c) {
     const gated = k => o.whyCode?.[k]?.code === 'chit.too-slow';          // (the reason's code, not its sentence)
     const alert = o.canAlert && o.weapon ? { ok: true } : { ok: false, sub: !o.weapon ? 'no weapon' : o.whyCode?.alert?.code === 'weapon.card' ? 'a card' : gated('alert') ? tooSlow : 'no chit', why: gated('alert') ? slow : (whyWords(o, 'alert', data) ?? 'You have nothing to ready.') };
     const run = o.canRun ? { ok: true } : { ok: false, sub: o.pickedUp ? 'held' : gated('run') ? tooSlow : !o.runTo.length ? 'no road' : 'no chit', why: o.pickedUp ? 'You are seized and cannot run.' : gated('run') ? slow : (whyWords(o, 'run', data) ?? 'You cannot run now.') };
-    const cast = o.casts.length ? { ok: true } : { ok: false, sub: wither && fm.ch.chits.some(x => x.type === 'magic' && isWithered(fm, x)) ? 'Your Magic chit is withered' : 'none ready', why: o.blocked?.length ? `${o.blocked[0].name}: ${o.blocked[0].why}` : 'No spell is ready tonight.' };
+    const cast = o.casts.length ? { ok: true } : { ok: false, sub: wither && fm.ch.chits.some(x => x.type === 'magic' && isWithered(fm, x)) ? 'Your Magic chit is withered' : 'none ready', why: o.blocked?.length ? `${o.blocked[0].name}: ${whySentence(o.blocked[0].whyCode)}` : 'No spell is ready tonight.' };
     return { alert, run, cast, fly: o.canFly ? { ok: true } : null };
 }
 // "Weapon ready" verbs read the weapon's state

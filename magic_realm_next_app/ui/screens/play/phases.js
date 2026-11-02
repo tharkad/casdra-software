@@ -19,7 +19,7 @@ import { steedName } from '../../steeds.js';
 import { learnContent } from '../kit/spells.js';
 import { seatTurnEndSheet } from './leaders.js';
 import { render } from './shell.js';
-import { ownSheet, gameOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, todayOf, planSlots } from '../../combat/feed.js';
 
 // Where a Search will be made, and what the map already shows of sites on this tile: a site in another clearing is not found from here.
 export function searchWhere(G, at) {
@@ -62,7 +62,7 @@ export function describeSlot(G, s) {
 // Detail keeps the rule words (the row, the Monster Roll).
 export function turnEndSheet(G) {
     if (ownSheet(G.st, G.data).leader) return seatTurnEndSheet(G);          // (a hired leader's turn is told of him, leaders.js)
-    const t = G.st.turnEnd, story = isStory();
+    const t = todayOf(G.st, G.data).turnEnd, story = isStory();
     const monsterIcon = n => G.data.art?.monsters?.[n] ?? null;
     const row = (cls, art, ...kids) => h('div', { class: `ds-row te-row ${cls}` }, art ? h('span', { class: /chit/.test(cls) ? 'chitwrap' : 'art' }, art) : null, h('span', { class: 'main' }, ...kids));
     const rows = [];
@@ -81,7 +81,7 @@ export function turnEndSheet(G) {
     if (t.blocked) rows.push(row('mon', null, story ? h('span', { class: 'one' }, blockedLine(t.blockers)) : [h('b', {}, t.blockers.length ? `Blocked by ${[...new Set(t.blockers)].join(', ')}` : 'Your turn was cut short'), h('small', {}, 'the rest of your turn was lost')]));
     if (!t.blocked && t.closedIn?.length) rows.push(row('mon', null, story ? h('span', { class: 'one' }, closedInLine(t.closedIn)) : [h('b', {}, `${[...new Set(t.closedIn)].join(', ')} ${new Set(t.closedIn).size === 1 && t.closedIn.length === 1 ? 'arrives' : 'arrive'} and ${t.closedIn.length === 1 ? 'finds' : 'find'} you`), h('small', {}, 'your turn was already over, so nothing was lost')]));
     // Blocked: the phases still to come, extra ones included, are lost with the rest of the turn.
-    const lostPhases = (t.blocked ? (G.st.plan ?? []).map((s, i) => ({ i, s })).filter(x => x.i >= (t.plan?.length ?? 0) && x.s && x.s.act !== 'nothing').map(x => ({ i: x.i, what: describeSlot(G, x.s) })) : []);
+    const lostPhases = (t.blocked ? planSlots(G.st, G.data).map((s, i) => ({ i, s })).filter(x => x.i >= (t.plan?.length ?? 0) && x.s && x.s.act !== 'nothing').map(x => ({ i: x.i, what: describeSlot(G, x.s) })) : []);
     if (lostPhases.length) rows.push(h('p', { class: 'ds-meta te-lost' }, story ? `Lost with the turn: ${lostPhases.map(l => l.what).join(', ')}.` : lostPhases.map(l => `Phase ${l.i + 1} ${l.what}: lost, because you were blocked.`).join(' ')));
     // Shared Daylight (7.12.4): monsters that arrived at someone else's turn's end closed in on him before his own chit was drawn; he has no turn today.
     const noTurnLine = t.noTurn ? [...G.st.log].reverse().find(l => l.k === 'block' && l.day === gameOf(G.st, G.data).day && l.who === ownSheet(G.st, G.data).id) : null;
@@ -195,7 +195,7 @@ export function enchantSheet(G, p) {
         ...chitOpts.map(o => { const c = st.ch.chits.find(x => x.id === o.chit); return { k: `chit:${o.chit}`, title: c ? lab({ numeral: c.numeral, time: c.time, effort: c.effort }) : 'A Magic chit', label: c ? lab({ numeral: c.numeral, time: c.time, effort: c.effort }) : 'chit', line: `It will hold ${o.color ?? 'its colour of'} magic until you play it.`, art: actIcon('spell', 28), chit: o.chit, kind: 'chit', attrs: { 'data-enchant-chit': o.chit } }; }),
         ...tileOpts.map(o => ({ k: `tile:${o.chit}`, title: `Enchant the tile: ${tileName(tile)}`, label: `the ${tileName(tile)} tile`, line: other === 'enchanted' ? `It turns to its enchanted side${cols.length ? `: ${cols.join(', ')} magic fills its clearings` : ''}.` : 'It turns back to its ordinary side.', art: actIcon('fly', 28), chit: o.chit, kind: 'tile', attrs: { 'data-enchant-tile': o.chit } })),
     ];
-    const pr = phasePrompt('enchant', { enchants: st.turn?.enchants ?? 0 });
+    const pr = phasePrompt('enchant', { enchants: todayOf(st, G.data).turn?.enchants ?? 0 });
     return pickSheetOf(G, { title: 'Enchant', eyebrow: 'Phase · Enchant', situation: pr.line, why: pr.why ?? 'Pick a Magic chit to fill, or the land beneath you.', detailWhy: 'A filled chit holds its colour of magic until you play it; a colour chit is used up when played.', opts, key: 'enchantPick',
         idle: { button: 'Choose what to enchant', lead: 'A chit or the tile.', toast: 'Pick a chit, or the tile, first.' }, verb: 'Enchant', act: o => act(G, { type: 'enchant-choice', chit: o.chit, kind: o.kind }) });
 }

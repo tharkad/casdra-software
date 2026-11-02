@@ -5,6 +5,7 @@ import { COLORS, TYPE_COLOR, colorChits, colorsAt, nextDayWith } from './colour.
 import { HANDLERS, handlerOf, spellDef } from './registry.js';
 import { addFx, breakFx, fxTags, HERO, sameRef } from './fx.js';
 import { cancelCasts } from './util.js';
+import { no, whySentence } from './why.js';
 
 // Casting (rules 4.6, 8.3.9, 8.4). A spell is cast in the Encounter step of an Evening combat round by playing a Magic chit of its numeral while its
 // colour of magic is present; it comes to life in the Melee step. The chit is `committed` from the moment it is played; it tires when the spell ends
@@ -26,12 +27,12 @@ const timeOf = (st, chit) => (chit.alerted ? 0 : chitSpeed(st, chit));
 // A Pentangle keeps every new spell off its target (it stops only spells aimed at him). A spell with no aim list whose only target is the caster (`selfOnly`)
 // is barred while he stands in one.
 const barred = (st, ref) => !!ref && (fxTags(st, ref, 'noNewSpells').length > 0 || (!!st.combat?.peaceNow && (ref.kind === 'mon' || ref.kind === 'nat')));          // (a Pentangle; or a Wish for Peace in force: no spell may name a denizen)
-// true, or why the spell cannot be cast now: the handler's own conditions, then whether any legal target is left.
+// true, or why the spell cannot be cast now (a `no(code, params)`, see why.js): the handler's own conditions, then whether any legal target is left.
 function legalOf(st, data, h, spell) {
     if (!h) return true;
     if (h.legal) { const r = h.legal(st, data, { spell }); if (r !== true) return r; }
-    if (h.selfOnly && barred(st, HERO)) return 'A Pentangle holds off every new spell aimed at you, your own included.';
-    if (h.aim) { const o = h.aim(st, data, { cast: null }); if (o && o.filter(x => !barred(st, x.ref)).length < (h.targets?.min ?? 1)) return 'Every legal target is shielded (a Pentangle, or the Wish for Peace).'; }
+    if (h.selfOnly && barred(st, HERO)) return no('caster.pentangle');
+    if (h.aim) { const o = h.aim(st, data, { cast: null }); if (o && o.filter(x => !barred(st, x.ref)).length < (h.targets?.min ?? 1)) return no('targets.shielded'); }
     return true;
 }
 
@@ -110,8 +111,10 @@ export function itemCastOptions(st, data, colors = colorsAt(st, data, st.ch.at))
     return out;
 }
 
+// A blocked spell: the sentence (`why`, the words the screens show) and the same reason as a code (`whyCode`).
+const blocked = (base, r) => ({ ...base, why: whySentence(r), whyCode: r });
 // Why a spell he knows cannot be cast now: its colour is missing (and when it will come), or every ready chit of its numeral is too slow, or none is ready.
-// [{ spell, name, color, why }]
+// [{ spell, name, color, why, whyCode }]
 export function blockedSpells(st, data, { slowest = 99 } = {}) {
     if (st.ch.dead || st.ch.onRoad || st.ch.flying || st.ch.mist || st.ch.morph) return [];        // (mist can do only Move and Hide, nothing is cast in the air, and a creature casts nothing: his Magic chits are not in play)
     const here = colorsAt(st, data, st.ch.at);
@@ -122,16 +125,15 @@ export function blockedSpells(st, data, { slowest = 99 } = {}) {
         const missing = spell.color ? !here.has(spell.color) && !colorChits(st, spell.color).length : here.size === 0 && !colorChits(st).length;
         if (missing) {
             const next = spell.color ? nextDayWith(spell.color, st.day, st.lastDay ?? 28) : null;
-            const chapel = spell.color === 'White' ? ' It is also here in the clearing of a Chapel.' : '';
-            const chit = spell.color ? ` Or enchant a Type ${Object.entries(TYPE_COLOR).find(([, col]) => col === spell.color)?.[0] ?? '?'} Magic chit in an Enchant phase to hold ${spell.color} magic yourself.` : ' Or enchant a Magic chit in an Enchant phase to hold a colour yourself.';
-            out.push({ ...base, why: `Needs ${spell.color ?? 'some'} magic.${next ? ` ${spell.color} fills the land on day ${next}.` : ''}${chapel}${chit}` });
+            const chitType = spell.color ? Object.entries(TYPE_COLOR).find(([, col]) => col === spell.color)?.[0] ?? '?' : null;
+            out.push(blocked(base, no('colour.missing', { color: spell.color ?? null, next: next ?? null, chapel: spell.color === 'White', chitType })));
             continue;
         }
-        { const why = legalOf(st, data, h, spell); if (why !== true) { out.push({ ...base, why }); continue; } }
-        if (boxesTied(st, spell.id)) { out.push({ ...base, why: 'Its spell box is tied up by the spell you cast with it, which is still in effect (8.4.3c).' }); continue; }
+        { const why = legalOf(st, data, h, spell); if (why !== true) { out.push(blocked(base, why)); continue; } }
+        if (boxesTied(st, spell.id)) { out.push(blocked(base, no('box.tied'))); continue; }
         const ready = st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active' && c.numeral === spell.type && !c.alt?.mf);
-        if (!ready.length) { out.push({ ...base, why: `You have no ready Magic ${spell.type} chit.` }); continue; }
-        if (st.combat && ready.every(c => timeOf(st, c) > slowest)) out.push({ ...base, why: `Your Magic ${spell.type} chit is too slow: a Magic chit must be no slower than the fastest creature facing you (time ${slowest}). Alert it in an Alert phase and it acts at time 0.` });
+        if (!ready.length) { out.push(blocked(base, no('chit.none', { type: spell.type }))); continue; }
+        if (st.combat && ready.every(c => timeOf(st, c) > slowest)) out.push(blocked(base, no('chit.slow', { type: spell.type, slowest })));
     }
     return out;
 }

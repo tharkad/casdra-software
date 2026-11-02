@@ -1,5 +1,6 @@
 import { breakFx, HERO } from '../fx.js';
 import { characters, fxHere, castThisRound, targetWords, spellName } from '../util.js';
+import { no } from '../why.js';
 
 // Remedy (VIII / Grey / Instant): one spell or one curse in the caster's clearing. The target must already exist (not a spell cast this round) and is
 // broken; duplicates of the spell are not affected. Unlike Dissolve Spell it also cures curses.
@@ -19,7 +20,7 @@ function targets(st, data) {
 export default {
     id: 'remedy', dur: 'instant', benevolent: true,
     aim: (st, data) => { const o = targets(st, data); return o.length ? o : null; },
-    legal: (st, data) => (targets(st, data).length ? true : 'There is no spell or curse here to break.'),
+    legal: (st, data) => (targets(st, data).length ? true : no('remedy.none')),
     // worth a prompt when a curse lies on him or a spell that someone else cast bewitches him
     useful: (st, data) => targets(st, data).some(t => (t.ref.kind === 'curse' && t.ref.on.id === 'ch') || (t.ref.kind === 'fx' && (st.fx ?? []).some(f => f.id === t.ref.id && f.caster.id !== HERO.id && f.targets.some(x => x.kind === 'char' && x.id === 'ch')))),
     start(ctx) {

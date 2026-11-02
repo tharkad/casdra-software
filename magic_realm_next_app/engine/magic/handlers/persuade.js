@@ -1,5 +1,6 @@
 import { foes, denRef, setPeaceful } from '../util.js';
 import { stoppedByHireling } from '../followers.js';
+import { no } from '../why.js';
 
 // Persuade (III / Gold / Day): one native group, or all the Giants, or all the Ogres in the caster's clearing. He pacifies them; to hire them he uses the Friendly
 // column of the Meeting Table.
@@ -20,7 +21,7 @@ const membersOf = (st, data, ref) => foes(st).filter(d => !d.pacified && (ref.ki
 export default {
     id: 'persuade', dur: 'day', benevolent: false,
     aim: (st, data) => { const o = kindsHere(st, data); return o.length ? o : null; },
-    legal: (st, data) => (kindsHere(st, data).length ? true : 'There is no native group, Giant or Ogre here to persuade.'),
+    legal: (st, data) => (kindsHere(st, data).length ? true : no('persuade.none')),
     useful: (st, data) => kindsHere(st, data).some(o => membersOf(st, data, o.ref).some(d => d.assigned)),
     start(ctx) {
         const { st, data } = ctx, ref = ctx.targets[0], members = ref ? membersOf(st, data, ref) : [];

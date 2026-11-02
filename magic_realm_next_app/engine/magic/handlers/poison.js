@@ -2,6 +2,7 @@ import { B } from '../bridge.js';
 import { nameOf } from '../../items.js';
 import { foes, denRef, foeName, nullifyIfDuplicate, reveal } from '../util.js';
 import { dayExpiry } from '../helpers.js';
+import { no } from '../why.js';
 
 // Poison (VIII / Grey / Day, as the List of Spells in the 3.1 rules has it; ruling S3, Mike 2026-10-26: Day, not the card's Combat): one weapon counter, native counter, Goblin counter, Ogre counter or Giant's club: it adds one sharpness
 // star to the harm the target counter inflicts when it hits. Not the Alchemist's Mixture or a dagger.
@@ -23,7 +24,7 @@ function options(st, data) {
 export default {
     id: 'poison', dur: 'day', benevolent: false,
     aim: (st, data) => { const o = options(st, data); return o.length ? o : null; },
-    legal: (st, data) => (options(st, data).length ? true : 'There is no weapon or creature here that Poison can be put on (not the Alchemist\'s Mixture, not a bare Fight chit).'),
+    legal: (st, data) => (options(st, data).length ? true : no('poison.none')),
     // worth it when he has a weapon to poison that is not poisoned yet and something to use it on
     useful: (st, data) => { const o = options(st, data)[0]; return !!o && o.ref.kind === 'item' && foes(st).some(d => d.assigned) && !(st.fx ?? []).some(f => f.state === 'live' && f.spell === 'poison' && f.targets.some(t => t.kind === 'item' && t.id === o.ref.id)); },
     start(ctx) {

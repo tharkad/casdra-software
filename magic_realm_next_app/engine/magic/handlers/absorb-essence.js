@@ -2,6 +2,7 @@ import { B } from '../bridge.js';
 import { fxTags, HERO, targetGone } from '../fx.js';
 import { creatureOfMonster, putOn, takeOff, holdUnderShield } from '../morph.js';
 import { reveal } from '../util.js';
+import { no } from '../why.js';
 
 // Absorb Essence (V / Black / Permanent): one monster, even a hired or controlled one. The caster is transmorphized into it: the monster leaves play into the spell for as
 // long as the spell lives (it is not killed and does not regenerate), and the caster plays its counter instead of his own chits whenever the spell is energized.
@@ -31,7 +32,7 @@ export default {
     id: 'absorb-essence', dur: 'permanent', strength: 1, transmorph: true, benevolent: false,
     targets: { min: 1, max: 1 },
     aim: (st, data) => { const o = present(st, data); return o.length ? o : null; },
-    legal: (st, data) => (present(st, data).length ? true : 'There is no monster here to absorb.'),
+    legal: (st, data) => (present(st, data).length ? true : no('absorb.none')),
     useful: () => false,
     start(ctx) {
         const { st, data } = ctx, c = st.combat, t = ctx.targets[0];

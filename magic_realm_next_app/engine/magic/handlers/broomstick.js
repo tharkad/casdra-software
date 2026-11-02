@@ -1,6 +1,7 @@
 import { HERO, fxList } from '../fx.js';
 import { dayUseful, startFx } from '../helpers.js';
 import { broomstickHirelings } from '../../steeds.js';
+import { no } from '../why.js';
 
 // Broomstick (V / Black / Fly): "one Light character". It creates a Fly chit of Light strength and time 1 that the target can use to fly (card, repaired from RealmSpeak's
 // text in tools/cardtext_fixes.json). Casting it has no immediate effect; the record is `held`, the V Magic chit stays committed, and using the Fly chit spends it and ends the spell
@@ -21,7 +22,7 @@ import { broomstickHirelings } from '../../steeds.js';
 //     cast it once and never fly, tying up a Type V chit (none of the starting hands the grind uses holds a Type V spell).
 export default {
     id: 'broomstick', dur: 'fly', benevolent: true, selfOnly: true,
-    legal: (st, data) => (st.ch.weight === 'L' || broomstickHirelings(st, data).length ? true : 'Broomstick can be cast only on a character of Light weight.'),
+    legal: (st, data) => (st.ch.weight === 'L' || broomstickHirelings(st, data).length ? true : no('broomstick.weight')),
     // the targets, when he has a Light hireling to put the chit on: himself (if he is Light) or the hireling. With none, no target is asked for.
     aim: (st, data) => { const h = broomstickHirelings(st, data); return h.length ? [...(st.ch.weight === 'L' ? [{ ref: HERO, label: 'yourself' }] : []), ...h] : null; },
     useful: st => dayUseful(st) && st.ch.weight === 'L' && !fxList(st, { spell: 'broomstick', target: HERO, any: true }).length,

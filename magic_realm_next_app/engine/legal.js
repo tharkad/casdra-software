@@ -45,7 +45,7 @@ function combatOf(st, data, who, p) {
             if (o.canStay) out.answers.push(entry({ kind: 'encounter', act: 'stay' }));
             if (o.canLure) out.answers.push(entry({ kind: 'encounter', act: 'lure' }));
             for (const c of o.casts) out.answers.push(entry({ kind: 'encounter', act: 'cast', spell: c.spell, ...(c.item ? { item: c.item } : { chit: c.chit }) }, { pick: { spellAim: { free: true } }, preview: { spell: c.spell } }));
-            for (const b of o.blocked ?? []) out.answers.push(entry({ kind: 'encounter', act: 'cast', spell: b.spell }, { disabled: { code: 'cast.not-offered', params: { spell: b.spell } } }));
+            for (const b of o.blocked ?? []) out.answers.push(entry({ kind: 'encounter', act: 'cast', spell: b.spell }, { disabled: { code: 'cast.not-offered', params: { spell: b.spell, reason: b.whyCode } } }));
             for (const h of o.held ?? []) out.answers.push(entry({ kind: 'encounter', act: 'protect', fx: h.fx ?? h.id }, { preview: { spell: h.spell } }));
             out.answers.push(entry({ kind: 'encounter', act: 'gear' }, { pick: { item: ids('items', uids(st.ch.items.filter(i => !i.destroyed))), items: { list: ids('items', uids(st.ch.items)) }, drop: { bool: true } } }));
             out.answers.push(off(entry({ kind: 'encounter', act: 'alert' }, { pick: { chit: ids('chits', chitIds(o.alertChits)) } }), o.canAlert ? null : wc.alert ?? { code: 'alert.not-offered' }));

@@ -37,7 +37,7 @@ import { seatText, sharedBanner, showPlayer, tableSheetDue } from './shared.js';
 import { render } from './shell.js';
 import { switchTo } from './hotseat.js';
 import { logEnd, myId, newMeetLines } from './state.js';
-import { ownSheet, questionOf } from '../../combat/feed.js';
+import { ownSheet, questionOf, todayOf } from '../../combat/feed.js';
 
 // A line of the log in the current voice; at a table another seat's 'You' lines are told by name (QA-103).
 const lt = (G, l) => (G.shared ? seatText(G, l) : logText(l));
@@ -104,12 +104,12 @@ const lowerFirst = t => t.charAt(0).toLowerCase() + t.slice(1);
 export function shortPrompt(G, slot) {
     const st = G.st, a = slot?.act ?? 'nothing';
     const weapon = st.ch.items.find(i => i.kind === 'weapon' && i.active && !i.destroyed);
-    const pr = phasePrompt(a, { at: nb(nameOfClearing(st.ch.at ?? '')), weapon: weapon ? nameOf(G.data, weapon) : null, magic: !!slot?.magic, enchants: st.turn?.enchants ?? 0, tile: slot?.to ? tileName(slot.to) : null, to: slot?.to ? nb(destName(slot.to)) : null });
+    const pr = phasePrompt(a, { at: nb(nameOfClearing(st.ch.at ?? '')), weapon: weapon ? nameOf(G.data, weapon) : null, magic: !!slot?.magic, enchants: todayOf(st, G.data).turn?.enchants ?? 0, tile: slot?.to ? tileName(slot.to) : null, to: slot?.to ? nb(destName(slot.to)) : null });
     let small;
     if (a === 'search') small = slot.table ? tableName(G, slot.table) : 'choose what to look for';
     else if (a === 'move') small = slot.to === EDGE ? 'leave the map' : slot.to ? `to ${nb(nameOfClearing(slot.to))}` : null;
     else if (a === 'fly') small = slot?.to ? `over the ${tileName(slot.to)}` : 'take to the air';
-    else if (a === 'enchant') small = st.turn?.enchants ? 'shape your power' : 'gather your power';
+    else if (a === 'enchant') small = todayOf(st, G.data).turn?.enchants ? 'shape your power' : 'gather your power';
     else if (a === 'follow') small = slot.who ? playerNameOf(G.st, slot.who) : null;
     else small = lowerFirst(pr.line).replace(/\.$/, '');
     return { small, why: [pr.line, pr.why].filter(Boolean).join(' ') };
@@ -200,7 +200,7 @@ export function renderTray(G) {
         const extra = (p.extrasLeft ?? []).map(x => ACT_LABEL[x] ?? x);
         m.lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `Phase ${p.i + 1}`), `: ${p.regularLeft ?? 0} left${extra.length ? `, and an extra ${extra.join(', ')}` : ''}`);
         // the suggestion is the plan he would have made (st.planFull): the button names it ("Move / to Bad Valley 2 · suggested"), and the same clearing is ringed differently on the map (QA-119)
-        const sug = st.planFull?.[st.turn?.i] ?? null;
+        const day = todayOf(st, G.data), sug = day.planFull?.[day.turn?.i] ?? null;
         if (sug && sug.act !== 'nothing') { const { small } = shortPrompt(G, sug); m.primary = primary(twoLine(ACT_LABEL[sug.act] ?? sug.act, small ? `${small} \u00B7 suggested` : 'suggested'), { 'data-act': 'next', onclick: () => act(G, { type: 'next' }) }); }
         else m.primary = primary(twoLine('Do nothing', 'let the phase pass'), { 'data-act': 'next', onclick: () => act(G, { type: 'next' }) });
     } else if (p.type === 'over') {

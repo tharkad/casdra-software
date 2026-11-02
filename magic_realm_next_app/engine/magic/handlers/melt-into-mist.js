@@ -2,6 +2,7 @@ import { B } from '../bridge.js';
 import { HERO, nullifyFx, restoreFx, sameRef, elsewhere } from '../fx.js';
 import { nullifyIfDuplicate, spellName } from '../util.js';
 import { releaseFoes } from '../mist.js';
+import { no } from '../why.js';
 
 // Melt into Mist (VI / Purple / Permanent, strength 3, "one character, native or monster"): the target is transmorphized into mist. While the spell is energized
 // (energize.js; it starts energized when cast, falls inert at Midnight unless a source other than the calendar still fills its place, wakes with its colour):
@@ -26,7 +27,7 @@ import { releaseFoes } from '../mist.js';
 // natives and monsters belong to the later "spells at others" step. The spell never prompts a quiet evening (`useful` false) and the computer players never cast it.
 export default {
     id: 'melt-into-mist', dur: 'permanent', strength: 3, benevolent: true, selfOnly: true,
-    legal: st => (st.ch.mist ? 'You are already mist.' : true),
+    legal: st => (st.ch.mist ? no('mist.already') : true),
     useful: () => false,
     quiet: st => !st.ch.mist,                                         // mist for tomorrow's travels is a legitimate quiet-evening cast
     start(ctx) {

@@ -3,6 +3,7 @@ import { knownSpells } from '../cast.js';
 import { spellDef } from '../registry.js';
 import { enchantableItems, findItem } from '../artifacts.js';
 import { nameOf } from '../../items.js';
+import { no } from '../why.js';
 // Enchant Artifact (VI / Purple / Permanent, one Artifact or Spell Book he has active): he also names one of his recorded spells. That spell and its Magic type are
 // added to the item. While the spell is energized the holder can read the runes of the added card to learn it (runes.js runesTargets, only while energized: digest 04
 // section 7.3) and can play the item to cast it (cast.js itemCastOptions: time 0, no Magic chit, awakened from the start, once per Evening for each Magic type, the item
@@ -22,7 +23,7 @@ const typeOf = (data, id) => spellDef(data, id)?.type;
 
 export default {
     id: 'enchant-artifact', dur: 'permanent', benevolent: true,
-    legal: (st, data) => (!enchantableItems(st, data).length ? 'You have no active Artifact or Spell Book to enchant.' : !spellsToRecord(st, data).length ? 'You know no other spell to record on it.' : true),
+    legal: (st, data) => (!enchantableItems(st, data).length ? no('enchant.no-item') : !spellsToRecord(st, data).length ? no('enchant.no-spell') : true),
     aim: (st, data) => {
         const o = enchantableItems(st, data).map(it => ({ ref: itemRef(it), label: `${nameOf(data, it)}${it.extra?.length ? ` (already holds ${it.extra.length} added spell${it.extra.length === 1 ? '' : 's'})` : ''}` }));
         return o.length ? o : null;

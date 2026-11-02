@@ -26,7 +26,7 @@ import { sheets } from './sheets.js';
 import { doneLoading } from './states.js';
 import { renderTray } from './tray.js';
 import { myId, saveUi, vpNow } from './state.js';
-import { ownSheet, fresh, gameOf, questionOf, tableFight, charsOf, missionsOf } from '../../combat/feed.js';
+import { ownSheet, fresh, gameOf, questionOf, tableFight, charsOf, missionsOf, todayOf } from '../../combat/feed.js';
 
 // ---- model for the map ----
 export function mapModel(G) {
@@ -190,7 +190,7 @@ function overlayFor(G) {
             for (const id of dimWhy(G, i).keys()) rings.push({ id, kind: 'illegal' });
         }
     } else if (p?.type === 'phase-pick' && G.ui.pickAct === 'move') {
-        const sug = st.planFull?.[st.turn?.i]; const sugTo = sug?.act === 'move' ? sug.to : null;          // (the suggested destination is the filled ring: the primary names it)
+        const day = todayOf(st, G.data), sug = day.planFull?.[day.turn?.i]; const sugTo = sug?.act === 'move' ? sug.to : null;          // (the suggested destination is the filled ring: the primary names it)
         for (const id of p.moves ?? []) rings.push({ id, kind: id === sugTo ? 'chosen' : 'legal' });
     } else if (p?.type === 'phase' && st.plan?.[p.i]?.act === 'move' && st.plan[p.i].to) {
         if (st.plan[p.i].to !== EDGE) { route = [hero, st.plan[p.i].to]; rings.push({ id: st.plan[p.i].to, kind: 'legal' }); }

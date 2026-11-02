@@ -1,6 +1,7 @@
 import { tileOf } from '../../world.js';
 import { breakFx, HERO, sameRef } from '../fx.js';
 import { handlerOf } from '../registry.js';
+import { no } from '../why.js';
 
 // Dissolve Spell (VI / Purple / Instant): one spell in force in the caster's clearing that already existed when it was named is broken; its duplicates are not.
 // It cannot break a curse (curses are not spells in effect in this engine) and not a spell cast this round. The chit that cast the broken spell tires (fx.js finish).
@@ -30,7 +31,7 @@ const describe = (st, data, f) => {
 export default {
     id: 'dissolve-spell', dur: 'instant', benevolent: false,
     targets: { min: 1, max: 1 },
-    legal: (st, data) => (dissolvable(st, data).length ? true : 'There is no spell in effect here to dissolve.'),
+    legal: (st, data) => (dissolvable(st, data).length ? true : no('dissolve.none')),
     aim: (st, data) => {
         const out = dissolvable(st, data).map(f => ({ ref: { kind: 'fx', id: f.id }, label: describe(st, data, f) }));
         return out.length ? out : null;

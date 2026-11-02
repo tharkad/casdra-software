@@ -1,3 +1,4 @@
+import { no } from '../why.js';
 // Ask Demon (V / Black / Instant): the caster asks one other player a question (yes, no or a number, about recorded information or game pieces, past or present),
 // and the other player must answer truthfully. It targets one Demon or Winged Demon (not the Imp) that is visible to him; the Demon fights as usual.
 //
@@ -25,7 +26,7 @@ export default {
     id: 'ask-demon', dur: 'instant', benevolent: false, listBlocked: true,
     targets: { min: 1, max: 1 },
     params: [{ key: 'to', kind: 'player' }, { key: 'text', kind: 'question' }],
-    legal: (st, data) => (!otherPlayers(st).length ? 'Ask Demon needs another player to ask.' : demons(st, data).length ? true : 'Ask Demon needs a Demon or Winged Demon in the clearing.'),
+    legal: (st, data) => (!otherPlayers(st).length ? no('ask-demon.nobody') : demons(st, data).length ? true : no('ask-demon.no-demon')),
     aim: (st, data) => {
         const out = demons(st, data).map(d => ({ ref: { kind: 'mon', id: d.id }, label: data.monsters[d.id].name }));
         return out.length ? out : null;

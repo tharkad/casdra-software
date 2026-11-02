@@ -75,8 +75,8 @@ function fightOf(st, data, who) {
 // `tail`: the last lines of the log whatever they are (the closing line of a fight carries no round); `rolls`: the dice tray.
 const mayRead = (e, viewer, mine) => !e.who || mine.has(e.who) || e.vis === 'public' || ((e.vis === 'clearing' || e.vis === 'battle' || e.r != null) && !!viewer && (e.with ?? []).includes(viewer));
 function fightLogOf(st, viewer, mine) {
-    const log = st.log ?? [], byLine = new Map((st.events ?? []).filter(e => e.legacy != null).map(e => [e.legacy, e]));
-    const row = i => { const l = log[i], ev = byLine.get(i); return { i, day: l.day, t: l.t, k: l.k, ...(l.s != null ? { s: l.s } : {}), ...(l.r != null ? { r: l.r } : {}), ...(l.who ? { who: l.who } : {}), ...(l.p ? { p: l.p } : {}), ...(l.vis ? { vis: l.vis } : {}), ...(l.with ? { with: l.with } : {}), ...(ev ? { ev } : {}) }; };
+    const log = st.log ?? [], byN = new Map((st.events ?? []).map(e => [e.n, e]));          // (a line is joined to its event by `evn`, which survives a log cut for a seat; a position would not. A line without `evn` has no event: the screens read its words)
+    const row = i => { const l = log[i], ev = l.evn != null ? byN.get(l.evn) : undefined; return { i, day: l.day, t: l.t, k: l.k, ...(l.s != null ? { s: l.s } : {}), ...(l.r != null ? { r: l.r } : {}), ...(l.who ? { who: l.who } : {}), ...(l.p ? { p: l.p } : {}), ...(l.vis ? { vis: l.vis } : {}), ...(l.with ? { with: l.with } : {}), ...(ev ? { ev } : {}) }; };
     let i = log.length - 1;
     while (i >= 0 && log[i].r == null && log[i].k === 'combat') i--;
     const run = [];
@@ -86,6 +86,20 @@ function fightLogOf(st, viewer, mine) {
     const rolls = (st.rolls ?? []).filter(r => mayRead(r, viewer, mine));
     const today = []; for (let j = log.length - 1; j >= 0 && log[j].day === st.day; j--) if (mayRead(log[j], viewer, mine)) today.unshift(row(j));          // (the day's lines: what was dealt, said and fought today)
     return json({ lines, tail, today, rolls, n: log.length });
+}
+
+// His own day, as the screens that walk it read it: the plan as he drew it up (`planFull`, `planBase`, `planFree`, `planBlazing`), how far the turn has come (`turn`: the phase `i`, `results`, `climb`,
+// `enchants` ...), how it ended (`turnEnd`: `blocked`, `blockers`, `closedIn`, `hidden`, `arrivals`, `natives`, `chits` ...), who is with him, and what the day cost him. Only his own.
+function todayOf(st, viewer) {
+    return withActor(st, viewer, () => {
+        const out = {};
+        for (const k of ['planBase', 'planKinds', 'planFull', 'planFree', 'planBlazing', 'turn', 'companions', 'mark', 'report', 'slain']) if (st[k] !== undefined) out[k] = json(st[k]);
+        if (st.turnEnd) out.turnEnd = json(st.turnEnd);
+        const own = x => !x.who || x.who === viewer;          // (several characters: a find carries the seat it was his)
+        out.gains = json((st.gains ?? []).filter(own)); out.finds = json((st.finds ?? []).filter(own));          // (what he came by, newest last: items by `uid`, sites, cards and curses found)
+        out.gainSeq = st.gainSeq ?? 0; out.findSeq = st.findSeq ?? 0; out.rollSeq = st.rollSeq ?? 0;
+        return out;
+    });
 }
 
 /** @param {any} state a game state @param {string|null} viewer a character id (a seat), or null for a spectator @param {any} data the indexed rules data @param {{ engine?: string, api: string }} version */
@@ -102,7 +116,8 @@ export function makeView(state, viewer, data, version) {
     const pending = ask ? { ...json(ask), who: viewer } : null;
     const table = {
         game: { players: st.players ?? [], day: st.day, period: st.period ?? 'birdsong', mode: st.mode ?? 'month', lastDay: st.lastDay ?? 28, options: json(st.options ?? {}), prowl: st.prowl, over: st.over ?? null,
-            turn: st.dayRec?.order && st.actor ? st.actor : null, order: st.dayRec?.order ?? st.order, waitingFor: st.asks.map(a => a.who) },
+            turn: st.dayRec?.order && st.actor ? st.actor : null, order: st.dayRec?.order ?? st.order, waitingFor: st.asks.map(a => a.who),
+            dayRec: st.dayRec ? json(st.dayRec) : null },          // (the day's draw is public: who plays when, and who follows whom)
         map: { placements: st.placements, dwellings: st.dwellings ?? [], garrisonAt: st.garrisonAt ?? {}, ghostsAt: st.ghostsAt ?? null, sitesOpen: st.sitesOpen ?? {}, discSides: st.discSides ?? null },
         chits, piles: { lostCity: (st.piles?.lostCity ?? []).length, lostCastle: (st.piles?.lostCastle ?? []).length },
         monsters: st.mons.map(counterOf), natives: st.nats.map(counterOf),
@@ -121,6 +136,7 @@ export function makeView(state, viewer, data, version) {
         plan: me.today?.plan ? { slots: me.today.plan, kinds: me.today.planKinds ?? [] } : null, policy: me.policy ?? null, curses: me.curses ?? [], boons: me.boons ?? [], killsToday: me.killsToday ?? 0, hiddenEnemies: !!me.hiddenEnemies,
         seats: st.order.filter(id => id !== viewer && st.chars[id].leader && st.chars[id].owner === me.owner),
         fight: fightOf(st, data, viewer),
+        today: todayOf(st, viewer),
         fightLog: fightLogOf(st, viewer, new Set([viewer, ...st.order.filter(id => id !== viewer && st.chars[id].leader && st.chars[id].owner === me.owner)])),
         earned: withActor(st, viewer, () => { try { return json(earned(st, data)); } catch { return null; } }),          // what he holds now toward each goal (score.js), for the fight's closing sheet
     };

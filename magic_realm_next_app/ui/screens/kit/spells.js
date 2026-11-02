@@ -1,7 +1,7 @@
 // screens/kit/spells.js (P2): the Spells room of the Kit sheet and the spell flows: a card per spell you know (a plain synopsis, a status line built from the state, the printed
 // text one tap under it), the spells in force, the printed spell card, and the learn sheet (the runes show a spell: learn it, and forget one if the spellbook is full).
 // The wording of "why not" comes from the engine (blockedSpells); nothing here decides a rule.
-import { MAX_SPELLS } from '../../../engine/catalogue.js';
+import { MAX_SPELLS, whySentence } from '../../../engine/catalogue.js';
 import { blockedSpells, castable, colorChits, colorsAt } from '../../../engine/spells.js';
 import { act } from '../play/actions.js';
 import { fxEnds } from '../play/sheet_char.js';
@@ -35,7 +35,7 @@ export const typeTag = sp => `Type ${sp.type} · ${sp.color ?? 'any colour'}`;
 function status(G, sp, blocked) {
     if (!castable(sp)) return { ok: false, text: 'It cannot be cast yet.' };
     const b = blocked.find(x => x.spell === sp.id);
-    if (b) return { ok: false, text: `Not tonight. ${b.why.split(/(?<=\.)\s/).slice(0, 2).join(' ')}` };
+    if (b) return { ok: false, text: `Not tonight. ${whySentence(b.whyCode).split(/(?<=\.)\s/).slice(0, 2).join(' ')}` };
     try {
         const here = colorsAt(G.st, G.data, ownSheet(G.st, G.data).at);
         if (sp.color) return { ok: true, text: here.has(sp.color) ? `Castable tonight: ${sp.color} magic is here.` : colorChits(G.st, sp.color).length ? `Castable tonight: your enchanted ${sp.color} chit gives the magic.` : 'Castable tonight.' };

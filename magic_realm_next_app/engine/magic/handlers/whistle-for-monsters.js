@@ -1,4 +1,5 @@
 import { tileClearings, tileOf, tileName } from '../../world.js';
+import { no } from '../why.js';
 
 // Whistle for Monsters (VIII / Purple / Instant): one face-up Sound chit anywhere on the map; it cannot be cast in a tile with fewer than six clearings or on a face-down
 // chit. A chit that is not in the caster's tile is moved to it; one that is already there he may move to any other tile that has six clearings. Afterwards the Sound chit
@@ -13,7 +14,7 @@ const sounds = st => st.chits.filter(c => c.kind === 'sound' && c.up && !c.pile)
 
 export default {
     id: 'whistle-for-monsters', dur: 'instant', benevolent: false,
-    legal: (st, data) => (!isSix(st, data, st.ch.at) ? 'Whistle for Monsters cannot be cast in a tile with fewer than six clearings.' : sounds(st).length ? true : 'No Sound chit is face up on the map.'),
+    legal: (st, data) => (!isSix(st, data, st.ch.at) ? no('whistle.small-tile', { spell: 'Whistle for Monsters' }) : sounds(st).length ? true : no('whistle.no-sound')),
     aim: st => { const o = sounds(st).map(c => ({ ref: { kind: 'chit', id: c.id }, label: `${c.name} (clearing ${c.num} of ${tileName(c.tile)})` })); return o.length ? o : null; },
     params: (st, data) => [{ key: 'tile', kind: 'choice', label: 'If the chit is in your tile already, move it to', options: sixTiles(st, data).filter(t => t !== tileOf(st.ch.at)).map(t => ({ value: t, label: tileName(t) })) }],
     useful: () => false,
