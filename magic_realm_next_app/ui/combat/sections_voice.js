@@ -12,7 +12,7 @@ export const SECTION_RULES = [
     // ---- luring and deployment (8.3.4c, 8.3.5, 8.3.6a)
     [/^(.+?) lures the (.+?) onto a Melee Section of his own\.?$/, m => [`${cap(noHash(m[1]))} draws the ${noHash(m[2])} onto himself.`, `${cap(noHash(m[1]))} calls out the ${noHash(m[2])}, and it comes for him.`]],
     [/^(.+?) gives himself away by luring/, m => `${cap(noHash(m[1]))} is seen: he has given himself away.`],
-    [/^You lure the creatures onto your sheet and give yourself away/, () => 'You draw the creatures to you, and they see you.'],
+    [/^You lure the creatures onto your sheet and give yourself away/, () => 'You lure the creatures onto you, and they see you.'],
     [/^The (.+?) is set on (.+?)\.?$/, m => [`The ${noHash(m[1])} turns on ${noHash(m[2])}.`, `The ${noHash(m[1])} goes for ${noHash(m[2])}.`]],
     [/^(.+?) stays out of the fight this round\.?$/, m => `${cap(noHash(m[1]))} holds back this round.`],
     [/^The (.+?) is attacked by (.+?): it leaves the section it was on and is the defender on one of its own\.?$/, m => `${cap(noHash(m[2]))} goes at the ${noHash(m[1])}, and it turns from what it was fighting to face him.`],

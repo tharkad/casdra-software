@@ -58,14 +58,14 @@ export const lureWords = (fm, data, p, f) => { const [story, detail] = lureTexts
 export function lureTexts(fm, data, p, f) {
     const circle = lureNarr(fm, data, f), hidden = !!own(fm, data).hidden, natives = lureDens(fm, p).may.some(d => d.kind === 'nat');
     const story = hidden
-        ? `${circle} You are hidden: draw one and you are seen.`
-        : `${circle} Draw one to fight it yourself.`;
-    const detail = `Round ${p.round}, Lure (8.3.4): you may draw any unhired creature to you, and it fights you alone; the dice deal out the rest.${hidden ? ' A hidden character who lures is unhidden at once (8.3.4b); one who draws none stays hidden.' : ''}${natives ? ' Natives you draw bring their whole group (8.2.3a).' : ''}`;
+        ? `${circle} You are hidden: lure one and you are seen.`
+        : `${circle} Lure one to fight it yourself.`;
+    const detail = `Round ${p.round}, Lure (8.3.4): you may lure any unhired creature into attacking you, and it fights you alone; the dice deal out the rest.${hidden ? ' A hidden character who lures is unhidden at once (8.3.4b); one who lures none stays hidden.' : ''}${natives ? ' Natives you draw bring their whole group (8.2.3a).' : ''}`;
     return [story, detail];
 }
 
 /** The sheet of the Lure question: one row for each creature he may draw (tap to choose), what cannot be drawn and why, and one primary button that says what happens. Returns { sheet, f }. */
-export function lureSheet({ st: fm, data, p, ui, render, act, f = null }) {
+export function lureSheet({ st: fm, data, p, ui, render, act, f = null, party = false }) {
     f ??= fightOf(fm, [], data, own(fm, data).id);
     const sel = selection(fm, p, ui);
     const dens = fm.battle?.dens ?? fm.combat?.dens ?? [];
@@ -74,7 +74,7 @@ export function lureSheet({ st: fm, data, p, ui, render, act, f = null }) {
         const d = dens.find(x => x.uid === o.uid) ?? { uid: o.uid, kind: 'mon', id: '', side: 'light' };
         let s = null; try { s = denSide(fm, data, d); } catch { /* a name only */ }
         const on = sel.includes(o.uid), from = o.from ? byId[o.from] : null, pic = denPicture(data, d);
-        const meaning = [from ? `Set on ${from.player}: draw it away and it comes for you, not ${from.player}.` : null, d.kind === 'nat' ? 'A native: its whole group will fight you.' : null].filter(Boolean).join(' ') || null;
+        const meaning = [from ? `Set on ${from.player}: lure it away and it comes for you, not ${from.player}.` : null, d.kind === 'nat' ? 'A native: its whole group will fight you.' : null].filter(Boolean).join(' ') || null;
         const stat = s ? [s.attack === 'none' ? 'no attack' : s.attack === 'spell' ? 'casts' : `hits ${WORD[String(s.harm)[0]] ?? s.harm}${'*'.repeat(s.stars || 0)}`, s.atk != null && s.attack !== 'none' ? `speed ${s.atk}` : null, s.vuln ? `falls to ${WORD[s.vuln] ?? s.vuln}` : null].filter(Boolean).join(' · ') : '';
         return h('button', { type: 'button', class: `ds-row sf-lure${on ? ' on sel' : ''}`, role: 'checkbox', 'aria-checked': on ? 'true' : 'false', 'data-lure': o.uid, 'data-from': o.from ?? '',
             onclick: () => { toggleLure(fm, p, ui, o.uid); render(); } },
@@ -87,11 +87,11 @@ export function lureSheet({ st: fm, data, p, ui, render, act, f = null }) {
     const cannot = [...f.held, ...f.standingBy, ...f.sheets.filter(s => !s.owner.mine).flatMap(s => s.dens).filter(d => !lurableIds.has(d.uid) && !mineIds.has(d.uid))].filter(d => !lurableIds.has(d.uid) && !mineIds.has(d.uid));
     const names = sel.map(u => p.lurable.find(o => o.uid === u)?.name).filter(Boolean), none = !sel.length;
     const scroll = h('div', { class: 'sf-scroll' },
-        hidden ? h('p', { class: 'ds-hint-line bad', 'data-sf-hidden-lure': '' }, 'Drawing a creature gives you away. Draw none and you stay hidden; next you may strike from hiding or stay hidden.') : null,
-        h('div', { class: 'ds-list sf-lures', role: 'group', 'aria-label': 'Creatures you may draw', 'data-sf-lures': '' }, ...rows),
+        hidden ? h('p', { class: 'ds-hint-line bad', 'data-sf-hidden-lure': '' }, party ? 'Luring gives you away. Lure none and you stay hidden.' : 'Luring gives you away. Lure none and you stay hidden; next you may strike from hiding or stay hidden.') : null,
+        h('div', { class: 'ds-list sf-lures', role: 'group', 'aria-label': 'Creatures you may lure', 'data-sf-lures': '' }, ...rows),
         cannot.length ? h('p', { class: 'cb-hint sf-cannot', 'data-sf-cannot': '' }, `Not available: ${joinList([...new Set(cannot.map(d => `the ${d.name} (${whyNotLurable(d)})`))])}.`) : null);
     const lead = none ? null : btn(hidden ? 'Stay hidden' : 'Lure none', 'quiet', { 'data-act': 'lure-none', onclick: () => { ui.lureSel = []; render(); } });
-    const go = primary(none ? (hidden ? 'Stay hidden' : 'Lure none') : `Draw ${names.length === 1 ? `the ${names[0]}` : `${names.length} creatures`}${hidden ? ' and be seen' : ''}`,
+    const go = primary(none ? (hidden ? 'Stay hidden' : 'Lure none') : `Lure ${names.length === 1 ? `the ${names[0]}` : `${names.length} creatures`}${hidden ? ' and be seen' : ''}`,
         { 'data-act': 'lure-go', 'data-count': String(sel.length), onclick: () => { const dens = sel.slice(); ui.lureSel = null; ui.lureFor = null; ui.melee = null; act({ type: 'combat', kind: 'lure', dens }); } });
-    return { sheet: sheetBox(h('div', { class: 'sf-ask' }, askBox(`Round ${p.round}: draw any creature to you?`, 'A creature you draw attacks you alone, and what it pays is yours. The dice deal out whatever nobody draws.')), scroll, footRow(lead, go)), f };
+    return { sheet: sheetBox(h('div', { class: 'sf-ask' }, askBox('Lure a creature into attacking you?', party ? '' : 'A creature you lure attacks you alone, and what it pays is yours. The dice deal out whatever nobody lures.')), scroll, footRow(lead, go)), f };
 }

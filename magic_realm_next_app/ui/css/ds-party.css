@@ -1,0 +1,93 @@
+/* css/ds-party.css: a party of several characters on one phone (notes 86 to 89, docs/design/redesign/MULTICHAR.md): the plan summary in the party bar while the party plans, and in a fight the
+   banner that says whose question it is and the row of equal tiles that stands for the party on the stage. */
+
+/* ---- planning: the party bar says what each character has locked in ---- */
+.ds-party.planning { gap: 6px; flex-wrap: wrap; overflow-x: visible; }          /* two to a row: a name is never cut to fit a third or a fourth */
+.ds-party .pchip.plan { flex: 1 1 140px; min-width: 0; height: 52px; padding: 0 10px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; text-align: left; }
+.ds-party .pchip.plan b { display: flex; align-items: center; gap: 6px; max-width: 100%; font: 700 15px/1 var(--font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-party .pchip.plan .pplan { display: block; max-width: 100%; font: 500 12.5px/1.1 var(--font-ui); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-party .pchip.plan .pplan.set { color: var(--ink-2); }
+.ds-party .pchip.plan.on .pplan { color: var(--ink-2); }
+.ds-party .pchip.plan.done:not(.on) { border-color: var(--line-gold); }
+.ds-party .pmark { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; color: var(--success); }
+.ds-party .pmark svg { width: 16px; height: 16px; }
+.ds-party .pchip.plan:not(.done) .pplan { color: var(--warn, #e0b25a); }
+.ds-party .pchip.plan.on:not(.done) .pplan { color: var(--gold-hi); }
+.ds-party .pchip.plan::after { content: ""; position: absolute; inset: -2px 0; }
+.ds-party .pchip.plan { position: relative; }
+.ds-tray [data-act=party-wait] { width: 100%; justify-content: center; text-align: center; white-space: normal; height: auto; min-height: 48px; line-height: 1.2; padding: 8px 12px; }
+
+/* ---- a fight: the banner on top of the decision sheet ---- */
+.cb-hexface { flex: none; display: block; width: var(--hw, 44px); }
+.cb-hexface .pt-face { width: 100%; }
+.cb-hexface .pt-face i { position: relative; font: 700 20px/1 var(--font-display); color: var(--ink-on-gold); font-style: normal; }
+.cb-actor { display: flex; align-items: center; gap: 12px; margin: 0 0 8px; padding: 6px 12px 6px 8px; border-radius: 14px; background: var(--surface-3, var(--surface-2)); border: 1px solid var(--line-gold); box-shadow: inset 3px 0 0 var(--gold); }
+.cb-actor .pt-face { background: var(--gold); }
+.cb-actor .who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cb-actor .who b { font: 700 calc(19px * var(--ts, 1))/1.1 var(--font-ui); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-actor .who small { font: 600 calc(13px * var(--ts, 1))/1.1 var(--font-ui); color: var(--ink-2); }
+.cb-actor .who small.hid { color: var(--gold-hi); }
+.cb-actor .step { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; text-align: right; }
+.cb-actor .step small { font: 500 calc(12px * var(--ts, 1))/1.1 var(--font-ui); color: var(--ink-3); }
+.cb-actor .step b { font: 700 calc(17px * var(--ts, 1))/1.1 var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--gold-hi); }
+.cb-sheet > .cb-actor { position: sticky; top: 0; z-index: 3; }
+@media (max-height: 700px) { .cb-actor { gap: 10px; padding: 4px 10px 4px 6px; margin-bottom: 6px; } .cb-actor .who b { font-size: calc(18px * var(--ts, 1)); } }
+
+/* ---- the party on the stage: every character a tile of the same size; the one who is asked is lit, the others quiet ---- */
+.cb-party { flex: none; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 4px 14px; margin-top: 4px; }
+.cb-ptile { position: relative; flex: none; display: flex; flex-direction: column; align-items: center; width: calc(var(--pt, 56px) + 36px); text-align: center; }
+.cb-ptile .tagslot { height: 22px; display: flex; align-items: flex-end; justify-content: center; }
+.cb-ptile .tag, .cb-ptile.cb-other .tag { position: static; height: 18px; margin: 0 0 2px; padding: 2px 8px; border: 0; border-radius: var(--r-pill); background: var(--gold); color: var(--ink-on-gold); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.cb-ptile .tag.ghost, .cb-ptile.cb-other .tag.ghost { background: transparent; color: var(--ink-3); border: 0; letter-spacing: .06em; }
+.cb-ptile .hex { display: block; }
+.cb-ptile.me .pt-face { background: var(--gold); }
+.cb-ptile.me .hex { filter: drop-shadow(0 0 9px rgba(181, 227, 156, .65)); }
+.cb-ptile .cap { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 4px; max-width: 100%; }
+.cb-ptile .cap b { font: 700 calc(12.5px * var(--ts, 1))/1.1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.cb-ptile .cap small, .cb-ptile.cb-other .cap small { display: block; font: 500 calc(12px * var(--ts, 1))/1.15 var(--font-ui); color: var(--ink-3); }
+.cb-ptile.me .cap small { color: var(--gold-hi); }
+.cb-ptile:not(.me) .hex { opacity: .6; }
+.cb-ptile:not(.me) .cap b { color: var(--ink-2); }
+.cb-ptile.out .hex { opacity: .4; filter: grayscale(1); }
+.cb-ptile.hid:not(.out) .pt-face::before { background: color-mix(in srgb, var(--counter-face) 78%, var(--surface-1)); }
+.cb[data-mode=lure] .cb-hero { margin-top: 2px; }
+/* the Lure step of a party: the decision is the creatures, so the stage keeps them, the party and the question; the belongings are not needed to answer it, and the room goes to the faces */
+.cb[data-party][data-mode=lure] .cb-hero { display: none; }
+.cb[data-party] .cb-sheet.sf-pick { max-height: calc(100% - 262px); }
+.cb[data-party] .sf-lure .art { width: 44px; height: 44px; }
+.cb[data-party] .sf-lure.ds-row { padding-top: 8px; padding-bottom: 8px; }
+.cb-ptile { width: calc(var(--pt, 56px) + 44px); }
+.cb[data-party] .sf-lure .art { width: 40px; height: 40px; margin-top: 0; }
+.cb[data-party] .sf-lure.ds-row { padding-top: 6px; padding-bottom: 6px; min-height: 0; }
+.cb[data-party] .sf-lure .main > span { font-size: calc(13px * var(--ts, 1)); line-height: 1.2; }
+.cb[data-party] .cb-void .cb-narr { padding-top: 6px; }
+.cb[data-party] .cb-ptile .tagslot { height: 20px; }
+.cb[data-party] .cb-party { margin-top: 0; }
+.cb-sheet.sf-pick .cb-actor + .sf-ask .ds-ask { padding-top: 6px; padding-bottom: 6px; }
+.cb-ptile { width: calc(var(--pt, 56px) + 56px); }
+.cb-ptile .cap b { font: 700 calc(14px * var(--ts, 1))/1.1 var(--font-ui); letter-spacing: 0; text-transform: none; }
+
+/* the room is tight under 700px tall: the role word sits on the face's top edge instead of in a row of its own; the banner is one line; the sheet's own "Round 1 · Encounter" row says what the banner says */
+.cb[data-party] .cb-ptile .tagslot { position: absolute; left: 0; right: 0; top: 0; height: 18px; pointer-events: none; z-index: 2; }
+.cb[data-party] .cb-ptile .hex { margin-top: 10px; }
+.cb[data-party] .cb-sheet > .q > b { display: none; }
+.cb[data-party] .cb-sheet > .q { justify-content: flex-end; }
+@media (max-height: 700px) {
+  .cb-actor { padding: 3px 10px 3px 6px; margin-bottom: 4px; gap: 10px; }
+  .cb-actor .who { flex-direction: row; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .cb-actor .who b { font-size: calc(18px * var(--ts, 1)); }
+  .cb-actor .step { flex-direction: row; align-items: baseline; gap: 8px; }
+  .cb-actor .step small { display: none; }
+  .cb-actor .step b { font-size: calc(16px * var(--ts, 1)); }
+  .cb-hexface { --hw: 40px !important; }
+}
+.cb-party.ends { flex-wrap: nowrap; align-items: flex-end; gap: 8px; }
+.cb-party.ends .cb-peek { flex: none; align-self: flex-end; margin: 0 0 6px; }
+.cb-party.ends .cb-ptile { width: calc(var(--pt, 56px) + 40px); }
+.cb-party.ends .cb-ptile .cap b { overflow: visible; text-overflow: clip; }
+.cb-party .cb-peek { position: relative; color: var(--ink-2); background: var(--surface-3); border: 1px solid var(--line-2); border-radius: 12px; }
+.cb-party .cb-peek::after { content: ""; position: absolute; inset: min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }          /* 44px at rest, and 44px on screen when the stage is scaled down */
+.cb-actor { padding-top: 4px; padding-bottom: 4px; margin-bottom: 6px; }
+.cb-actor .who { flex-direction: row; align-items: baseline; gap: 2px 10px; flex-wrap: wrap; }
+.cb-actor .step { flex-direction: row; align-items: baseline; gap: 8px; }
+.cb-hexface { --hw: 40px; }

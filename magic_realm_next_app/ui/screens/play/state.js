@@ -31,9 +31,10 @@ export function saveUi(G) {
     try {
         const st = G.st, d = G.ui.draft, rec = { session: st?.session?.id, day: st?.day };
         if (G.shared || G.race || !rec.session) { localStorage.removeItem(UI_KEY); return; }
-        if (st.pending?.type === 'plan' && d) Object.assign(rec, { draft: d, planStep: G.ui.planStep ?? 0, open: G.ui.sheet === 'plan' });
+        const held = G.ui.drafts && Object.values(G.ui.drafts).some(x => x?.draft);          // (a party's other plans, held back until all are legal: partyplan.js)
+        if (st.pending?.type === 'plan' && (d || held)) Object.assign(rec, { ...(d ? { draft: d, planStep: G.ui.planStep === undefined ? 0 : G.ui.planStep, open: G.ui.sheet === 'plan' } : {}), ...(held ? { drafts: G.ui.drafts } : {}) });
         if ((st.pending?.type === 'phase' || st.pending?.type === 'phase-pick') && G.ui.pmark?.day === st.day) rec.pmark = G.ui.pmark;
-        if (rec.draft || rec.pmark) localStorage.setItem(UI_KEY, JSON.stringify(rec)); else localStorage.removeItem(UI_KEY);
+        if (rec.draft || rec.drafts || rec.pmark) localStorage.setItem(UI_KEY, JSON.stringify(rec)); else localStorage.removeItem(UI_KEY);
     } catch { /* storage may be unavailable */ }
 }
 export function restoreUi(G) {
@@ -41,7 +42,10 @@ export function restoreUi(G) {
         const raw = localStorage.getItem(UI_KEY), u = raw ? JSON.parse(raw) : null, st = G.st;
         if (!u || G.shared || G.race || u.session !== st?.session?.id || u.day !== st.day) return false;
         let any = false;
-        if (st.pending?.type === 'plan' && Array.isArray(u.draft?.slots)) { G.ui.draft = u.draft; G.ui.planStep = u.planStep ?? 0; if (u.open) G.ui.sheet = 'plan'; any = true; }
+        if (st.pending?.type === 'plan') {
+            if (u.drafts && typeof u.drafts === 'object') { G.ui.drafts = u.drafts; any = true; }
+            if (Array.isArray(u.draft?.slots)) { G.ui.draft = u.draft; G.ui.planStep = u.planStep === undefined ? 0 : u.planStep; if (u.open) G.ui.sheet = 'plan'; any = true; }
+        }
         if ((st.pending?.type === 'phase' || st.pending?.type === 'phase-pick') && u.pmark?.day === st.day) { G.ui.pmark = u.pmark; any = true; }
         return any;
     } catch { return false; }

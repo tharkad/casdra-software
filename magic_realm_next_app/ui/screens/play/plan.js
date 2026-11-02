@@ -17,6 +17,7 @@ import { hasSteed } from '../../../engine/steeds.js';
 import { flyChoice, flySlot } from './steedplan.js';
 import { act } from './actions.js';
 import { followersLine, needsAssign, takeAssign } from './leaders.js';
+import { partyPlan, startParty, stillToPlan } from './partyplan.js';
 import { btn, primary } from '../../ds.js';
 import { isStory as isStoryVoice } from '../../voice.js';
 import { actIcon, icon } from '../../icons.js';
@@ -41,7 +42,7 @@ function cardAlertErrors(G, slots, kinds) {
     return bad < 0 ? [] : [`Phase ${bad + 1}: ${why.story} Wake a Magic chit, or pick something else.`];
 }
 
-function planInfo(G) {
+export function planInfo(G) {
     const slots = G.ui.draft.slots, v = planKinds(G.st, G.data, slots), ponyOn = phasesFor(G.st, G.data, slots).ponyOn;
     // The pony (ruling R1, ch7-day.md): each Move he gets from other sources may be followed by one more Move, the pony's, and the two kinds strictly alternate. How many there are depends on the
     // Moves he records (the engine picks which ones are the pony's: the second, fourth ... Move of the day), so the phases cannot be counted ahead. Once every phase has an action, one SPARE tab
@@ -232,7 +233,7 @@ export function planTray(G) {
         const edge = edgeIndex(d.slots), upTo = edge >= 0 ? edge + 1 : total;          // (a plan that leaves the map ends there)
         const names = d.slots.slice(0, Math.min(total, upTo)).map((s, i) => ({ extra: kinds[i] === 'extra', what: s ? (s.to === EDGE ? 'Leave the map' : ACT_LABEL[s.act] ?? s.act) : 'Nothing' }));
         const sum = d.slots[0]?.act === 'follow' ? describeSlot(G, d.slots[0]) : planSentence(names);
-        kids.push(h('div', { class: 'ds-plan-ask' }, h('span', { class: 'ds-dim' }, `${sum}. Ready when you are.`)), ...warningLines(G), followersLine(G));
+        kids.push(h('div', { class: 'ds-plan-ask' }, h('span', { class: 'ds-dim' }, partyPlan(G) ? `${sum}. Tap a phase to change it.` : `${sum}. Ready when you are.`)), ...warningLines(G), followersLine(G));
         lead = h('span', { class: 'ds-lead-text' }, h('b', {}, `${Math.min(total, upTo)} of ${Math.min(total, upTo)}`), ' set');
     } else {
         kids.push(askLine(G, step, step, total));
@@ -255,20 +256,41 @@ export function planTray(G) {
     // offers "Next phase" too, so choosing Alert never leaves the player at a dim Start with no way on (QA-7)
     const alertAsk = step != null && d.slots[step]?.act === 'alert' && !cardWhy(G) && G.ui.pickMove !== step && ownSheet(G.st, G.data).chits.some(x => x.type === 'magic' && x.state === 'active');
     prim = startButton(G, step != null && (roadLocked(G, step) || climbLocked(G, step) || alertAsk) && !whole ? open ?? null : false);
+    const party = partyPlan(G);
+    if (party && !prim.matches('[data-act=plan-next]')) { const wait = stillToPlan(G, party); if (wait) { prim = wait; lead = null; } }          // (the start button is lit only when everybody's plan is legal; until then one quiet line says who is still to plan)
     return { body: h('div', { class: 'ds-plan' }, ...kids), lead, primary: prim };
 }
 
 // Is every phase of the plan set (the primary is lit)?
 export function planWhole(G) { return !!G.ui.draft && firstUnset(G) == null && !planInfo(G).errors.length; }
 
+// The plan as the engine is to be given it: a phase that no longer exists (a move into a cave takes the sunlight phases away) is dropped, not refused; leaving the map ends the plan; Follow is the whole day.
+function finalSlots(slots, total, kinds) {
+    const out = slots.map((s, i) => (!s || s.act === 'nothing' || i >= total || kinds[i] === 'over' ? null : s));
+    const edge = out.findIndex(s => s?.to === EDGE); if (edge >= 0) for (let k = edge + 1; k < out.length; k++) out[k] = null;
+    if (out[0]?.act === 'follow') for (let k = 1; k < out.length; k++) out[k] = null;
+    return out;
+}
+
+// What a party's chip says of the character on screen right now (partyplan.js keeps it for the ones who are not): is his plan legal, the slots to send, and the phases he has locked in as a short line.
+export function planSnapshot(G) {
+    const d = G.ui.draft;
+    if (!d) return { whole: false, set: 0, total: null, final: null, line: null, sentence: null };
+    const info = planInfo(G), { total, kinds } = info, whole = firstUnset(G) == null && !info.errors.length;
+    const edge = edgeIndex(d.slots), upTo = Math.min(total, edge >= 0 ? edge + 1 : total);
+    const set = d.slots.slice(0, upTo).filter(Boolean).length;
+    const names = d.slots.slice(0, upTo).map((s, i) => ({ extra: kinds[i] === 'extra', what: s ? (s.to === EDGE ? 'Leave the map' : ACT_LABEL[s.act] ?? s.act) : 'Nothing' }));
+    const line = d.slots[0]?.act === 'follow' && d.slots[0].who ? describeSlot(G, d.slots[0]) : d.slots.slice(0, upTo).map(s => (s ? tabWord(s).replace(/ · /, ' ') : '–')).join(' · ');
+    return { whole, set, total: upTo, final: whole ? finalSlots(d.slots, total, kinds) : null, line, sentence: d.slots[0]?.act === 'follow' ? describeSlot(G, d.slots[0]) : planSentence(names) };
+}
+
 export function startDay(G) {
+    // several characters on one phone: every plan is a draft until all are legal, then they go to the engine together (partyplan.js)
+    if (partyPlan(G)) { startParty(G); return; }
     // hired followers: the day does not start before they are given a guide (or told to stay): the sheet of who goes with whom (leaders.js), which comes back here with its answer
     if (needsAssign(G)) { G.ui.sheet = 'assign'; render(G); return; }
     const d = G.ui.draft, { total, kinds } = planInfo(G);
-    // A phase that no longer exists (a move into a cave takes the sunlight phases away) is dropped, not refused.
-    const slots = d.slots.map((s, i) => (!s || s.act === 'nothing' || i >= total || kinds[i] === 'over' ? null : s));
-    const edge = slots.findIndex(s => s?.to === EDGE); if (edge >= 0) for (let k = edge + 1; k < slots.length; k++) slots[k] = null;
-    if (slots[0]?.act === 'follow') for (let k = 1; k < slots.length; k++) slots[k] = null;
+    const slots = finalSlots(d.slots, total, kinds);
     G.ui.draft = null; G.ui.leaveMapAsk = null; G.ui.sheet = null; G.ui.planStep = 0; G.ui.peek = false; G.ui.sel = null; G.ui.pickMove = null; G.ui.pickFly = null; G.ui.planNote = null;
     const assign = takeAssign(G);
     act(G, { type: 'plan', slots, ...(assign ? { assign } : {}) });

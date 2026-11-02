@@ -91,7 +91,7 @@ export function fitNames(root) {
 
 // The other characters standing in the clearing, and the hirelings that are theirs, drawn as counters under the foes (F1 "The Clearing": everyone who is here is on the stage). `others` = M.othersHere();
 // `targetable` = the uids the engine lets him name; `target` = the one he named. A tap on a targetable one names it; a hidden one is dimmed with a dashed ring.
-export function othersEl({ others, targetable = new Set(), target = null, onPick = null, size = 52 }) {
+export function othersEl({ others, targetable = new Set(), target = null, onPick = null, size = 52, hiresOnly = false }) {          // (hiresOnly: a party on one phone stands in its own row, combat/party.js; only the hirelings are drawn here)
     const face = (o, kind) => h('span', { class: `face${o.hidden ? ' hid' : ''}${kind === 'hire' ? ' hire' : ''}` }, o.pic ? pic(o.pic, '') : h('i', {}, (o.name ?? '?')[0]));
     const one = (o, kind, ownerId) => {
         const can = targetable.has(o.uid), sel = target === o.uid;
@@ -102,7 +102,7 @@ export function othersEl({ others, targetable = new Set(), target = null, onPick
             h('span', { class: 'cap' }, h('b', {}, o.name), h('small', {}, kind === 'hire' ? 'a hireling' : o.hidden ? 'hidden' : 'in plain sight')));
     };
     return h('div', { class: 'cb-others', role: 'group', 'aria-label': `Also here: ${others.map(o => o.name).join(', ')}` },
-        ...others.flatMap(o => [one(o, 'char', null), ...o.hires.map(x => one(x, 'hire', o.id))]));
+        ...others.flatMap(o => [hiresOnly ? null : one(o, 'char', null), ...o.hires.map(x => one(x, 'hire', o.id))]).filter(Boolean));
 }
 
 // Threads on the stage (F1): the one he named, a gold thread from him to it; a creature set on another character, a thread to that character. Drawn in the stage's own units (the layout offsets, which
@@ -112,7 +112,7 @@ export function drawThreads(root) {
     if (!inner) return;
     inner.querySelector(':scope > svg.cb-threads')?.remove();
     const where = el => { let x = 0, y = 0, n = el; while (n && n !== inner) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; } return { x: x + el.offsetWidth / 2, y, w: el.offsetWidth, h: el.offsetHeight }; };
-    const hero = inner.querySelector('.cb-hero .face');
+    const hero = inner.querySelector('.cb-hero .face, .cb-ptile.me .hex');
     const art = el => el;          // (the whole of a creature: its counter and the word under it)
     const lines = [];
     const target = inner.querySelector('.cb-foe.sel[data-foe], .cb-other.sel');
@@ -177,8 +177,11 @@ export function pipsEl(fm, prev = null, data = null) {
         ...chits.map(x => h('i', { class: `ds-chit mini ${x.type}${cls(x) ? ` ${cls(x)}` : ''}${prev && prev[x.id] && prev[x.id] !== x.state ? ' fresh' : ''}`, 'data-pip': x.id }, ({ fight: 'F', move: 'M', magic: '✦' })[x.type] || '?')));
 }
 
+/** The Belongings and the map buttons (DR-21): an icon button that opens one of them and brings the fight back. */
+export const peekBtn = (act, label, ic, on) => (on ? h('button', { type: 'button', class: 'ds-btn icon quiet cb-peek', 'data-act': act, 'aria-label': label, onclick: on }, icon(ic, 'lg')) : null);
+
 // you: the weapon on the left, the armor on the right, your face and a pip per chit between. A morphed hero is the creature's counter. Tap a piece of gear to read it (and turn it over).
-export function heroEl({ st: fm, data, onGear, onPeekGear = null, onPeekMap = null, onCurse = null, hurtArmor = false, ribbon = null, prevChits = null, wasHidden = false }) {
+export function heroEl({ st: fm, data, onGear, onPeekGear = null, onPeekMap = null, onCurse = null, hurtArmor = false, ribbon = null, prevChits = null, wasHidden = false, bare = false, slim = false }) {          // (bare: his face and name stand in the party row instead, combat/party.js)
     const ch = fm.ch, w = weaponOf(fm, data), armor = activeArmor(fm, data).map(a => a.item ?? a).filter(x => x && x.uid);
     const wName = w ? nameOf(data, w.item) : null, aName = armor[0] ? nameOf(data, armor[0]) : null;
     const cr = ch.morph?.creature, lt = cr?.light ?? {};
@@ -191,11 +194,12 @@ export function heroEl({ st: fm, data, onGear, onPeekGear = null, onPeekMap = nu
         h('span', { class: 'cap' }, name ?? (ch.morph ? '' : `no ${kind}`)), peekBtn);
     const hurtGear = armor.some(a => a.damaged);
     // DR-21: the Belongings and the map are one thumb away, bottom left and bottom right of the stage under the weapon and the armor, not in the top 100px. (data-act peek-gear / peek-map: the tests' hooks)
-    const peek = (act, label, ic, on) => (on ? h('button', { type: 'button', class: 'ds-btn icon quiet cb-peek', 'data-act': act, 'aria-label': label, onclick: on }, icon(ic, 'lg')) : null);
+    const peek0 = peekBtn;
+    const peek = (...a) => (slim ? null : peek0(...a));          // (slim: the Belongings and the map buttons stand at the ends of the party's row, combat/party.js)
     const gcol = (kids, peekBtn) => h('div', { class: 'gcol' }, ...kids, peekBtn);
     return h('div', { class: 'cb-hero' },
         ch.morph ? gcol([], peek('peek-gear', 'Belongings', 'bag', onPeekGear)) : gear('weapon', wName, wName ? data.art?.weapons?.[wName] : null, w ? 1 : 0, false, peek('peek-gear', 'Belongings', 'bag', onPeekGear)),
-        h('div', { class: `mid${onPeekGear ? ' tappable' : ''}`, 'data-act': onPeekGear ? 'peek-hero' : null, onclick: onPeekGear ?? null }, face, h('span', { class: 'name' }, displayName(ch.name)), ribbon ? h('span', { class: 'ribbon' }, ribbon) : null, pipsEl(fm, prevChits, data), (ch.curses ?? []).length && onCurse ? h('button', { type: 'button', class: 'cb-curse', 'data-act': 'curse-badge', 'aria-label': `Cursed: ${ch.curses.join(', ')}. Tap to read`, onclick: e => { e.stopPropagation(); onCurse(); } }, icon('skull'), ch.curses.join(', ')) : null),
+        h('div', { class: `mid${onPeekGear ? ' tappable' : ''}`, 'data-act': onPeekGear ? 'peek-hero' : null, onclick: onPeekGear ?? null }, bare ? null : face, bare ? null : h('span', { class: 'name' }, displayName(ch.name)), ribbon ? h('span', { class: 'ribbon' }, ribbon) : null, pipsEl(fm, prevChits, data), (ch.curses ?? []).length && onCurse ? h('button', { type: 'button', class: 'cb-curse', 'data-act': 'curse-badge', 'aria-label': `Cursed: ${ch.curses.join(', ')}. Tap to read`, onclick: e => { e.stopPropagation(); onCurse(); } }, icon('skull'), ch.curses.join(', ')) : null),
         ch.morph ? gcol([], peek('peek-map', 'Map', 'pin', onPeekMap)) : gear('armor', aName, aName ? data.art?.armor?.[aName] : null, armor.length, hurtGear, peek('peek-map', 'Map', 'pin', onPeekMap)));
 }
 

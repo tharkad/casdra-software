@@ -12,7 +12,7 @@ import { nameOfClearing } from '../../engine/catalogue.js';
 import { apiOf } from '../../engine/api.js';
 import { denSide, optionsOf, viewOf, sheetOf, checkOf, own, fightModel } from '../combat/feed.js';
 import * as M from '../combat/model.js';
-import { foeEl, foeSize, lanesEl, heroEl, alliesEl, othersEl, fitStage, gearPopover, cursePopover, fitNames } from '../combat/stage.js';
+import { foeEl, foeSize, lanesEl, heroEl, peekBtn, alliesEl, othersEl, fitStage, gearPopover, cursePopover, fitNames } from '../combat/stage.js';
 import { sheetEl, meetingSheet, encounterSheet, meleeSheet, shiftSheet, resultSheet, gridSheet, recapSheet, beatSheet, recordSheet, pitSheet, stepsFor } from '../combat/sheets.js';
 import * as P from '../combat/payload.js';
 import * as SH from '../combat/shared.js';
@@ -26,6 +26,7 @@ import { hireRound } from '../combat/sections_voice.js';
 import { modeOfPending, SCENE_MODES } from '../combat/modes.js';
 import { fightOf } from '../fight.js';
 import * as LU from '../combat/lure.js';
+import * as PT from '../combat/party.js';
 
 const RESULT_TYPES = ['combat-fatigue', 'combat-wounds', 'combat-encounter', 'combat-deploy', 'combat-lure', 'combat-charge'];          // (combat-lure / combat-charge: a fight of several characters starts its next round there, so each one sees the last round first; combat-deploy: a round on Melee Sections starts with the Deployment, so the last round's result comes before it)
 const hashOf = s => { let x = 0; for (let i = 0; i < s.length; i++) x = (Math.imul(31, x) + s.charCodeAt(i)) | 0; return x; };
@@ -67,7 +68,8 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     const key = fightKey(fm, c);
     if (ui.cb?.fightKey !== key) ui.cb = { fightKey: key, seen: null, step: 'strike', plan: null, flipped: {}, pick: null, pipState: null, gearCard: false, flippedGear: {} };
     const cb = ui.cb;
-    const X = { st: fm, data, ui, cb, render, p, c, root: null, shared, peek, fight: null };          // (`shared`: a fight of several characters, screens/sharedfight.js: the strip, no result screen of its own, the Whom step)
+    const party = shared ? null : PT.partyOf(fm, data);          // (a party on one phone: who is asked, said on the stage and over the sheet; combat/party.js)
+    const X = { st: fm, data, ui, cb, render, p, c, root: null, shared, peek, fight: null, party };          // (`shared`: a fight of several characters, screens/sharedfight.js: the strip, no result screen of its own, the Whom step)
     X.say = text => { if (!X.root) return; const t = toast(text, { host: X.root }); const sh = X.root.querySelector('.cb-sheet'); t.style.bottom = `${(sh ? sh.offsetHeight : 160) + 10}px`; };
     // every answer to the engine goes through here: the scene's own state of the question is dropped, the engine moves on
     // (ui.trace, when a script sets it to an array, collects every answer the scene sends: tools/ui_cb_fuzz.py replays them on the bare engine)
@@ -107,7 +109,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     }
     if (p.type !== 'combat-melee') { cb.plan = null; }
     const mode = p.type === 'combat-over' ? 'over' : showResult ? 'result' : p.type === 'combat-wounds' || p.type === 'combat-fatigue' ? 'grid' : ['combat-pay', 'combat-drinks', 'combat-choice'].includes(p.type) ? 'meet' : p.type === 'combat-melee' ? 'melee' : p.type === 'combat-shift' ? 'shift' : (m => (SCENE_MODES.has(m) ? m : 'unknown'))(modeOfPending(p.type));          // (a question the scene cannot draw is 'unknown': never the Encounter tiles, which the engine would refuse)
-    if (mode === 'lure') X.fight = fightOf(fm, [], data, own(fm, data).id);
+    if (mode === 'lure' || party) X.fight = fightOf(fm, [], data, own(fm, data).id);
     const recap = mode === 'over' && !shared ? M.recapOf(fm, data) : null;
 
     // ---- the stage ----
@@ -129,7 +131,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     } else if (mode === 'over') {
         foes = bodies.filter(d => d.dead && d.kind !== 'part').map(d => ({ d, dead: true }));
     } else if (mode === 'lure') {
-        // 8.3.4: the creatures he may draw stand on the stage (they are not on any sheet yet), with the ones already on his sheet
+        // 8.3.4: the creatures he may lure stand on the stage (they are not on any sheet yet), with the ones already on his sheet
         const { mine, may } = LU.lureDens(fm, p);
         X.lure = { mine: new Set(mine.map(d => d.uid)), may: new Set(may.map(d => d.uid)), sel: new Set(LU.lureChosen(fm, p, ui)) };
         const shown = new Set([...mine, ...may].map(d => d.uid)), rest = M.clearingBodies(fm).filter(d => !shown.has(d.uid));          // (the others that are here too: on another's sheet, standing by, fighting a hireling)
@@ -155,7 +157,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
         else if (!t && !dead && M.peacefulFoe(d) && (mode === 'encounter' || mode === 'melee')) t = { text: 'AT PEACE', short: 'PEACE', kind: 'ghost' };          // (a native group that is not fighting him: note 70)
         else if (!t && !dead && d.kind !== 'part' && (mode === 'encounter' || mode === 'melee') && sheetOf(fm, data)?.dens.find(x => x.uid === d.uid)?.onSheet) t = { text: 'FACING A HIRELING', short: 'HIRELING', kind: 'ghost' };          // (on a Melee Section: a hireling and it fight each other)
         if (!t && depTags?.[d.uid]) t = { text: depTags[d.uid].word, short: depTags[d.uid].short, kind: depTags[d.uid].word === 'ON YOU' ? 'bad' : 'ghost' };
-        if (mode === 'lure' && X.lure.may.has(d.uid)) { const on = X.lure.sel.has(d.uid), crowdL = X.lure.may.size >= 4; t = { text: 'LURE', kind: on ? '' : 'ghost', dot: crowdL && !on, label: on ? `Drawing the ${denSide(fm, data, d).name}: tap to leave it` : `Draw the ${denSide(fm, data, d).name} to you`, onclick: () => { LU.toggleLure(fm, p, ui, d.uid); render(); } }; }
+        if (mode === 'lure' && X.lure.may.has(d.uid)) { const on = X.lure.sel.has(d.uid), crowdL = X.lure.may.size >= 4; t = { text: 'LURE', kind: on ? '' : 'ghost', dot: crowdL && !on, label: on ? `Luring the ${denSide(fm, data, d).name}: tap to leave it` : `Lure the ${denSide(fm, data, d).name}`, onclick: () => { LU.toggleLure(fm, p, ui, d.uid); render(); } }; }
         else if (mode === 'lure' && X.lure.mine.has(d.uid)) t = { text: 'SET ON YOU', short: 'ON YOU', kind: 'ghost' };
         else if (targetable.has(d.uid) && M.peacefulFoe(d)) { const sel = m.target === d.uid; t = { text: sel ? 'PROVOKE' : 'AT PEACE', kind: sel ? 'bad' : 'ghost', dot: crowd && !sel, label: sel ? 'Tap to strike no one' : 'Not fighting you. Tap to strike them anyway: the whole group will fight you', onclick: () => { m.target = sel ? null : d.uid; m.sure = null; render(); } }; }
         else if (targetable.has(d.uid)) { const sel = m.target === d.uid; t = { text: 'TARGET', kind: sel ? '' : 'ghost', dot: crowd && !sel, label: sel ? 'Target: tap to strike no one' : 'Target this creature', onclick: () => { m.target = sel ? null : d.uid; m.sure = null; render(); } }; }
@@ -186,10 +188,12 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     const allies = M.alliesOf(fm, data);
     const allyEl = allies.length && mode !== 'deploy' ? alliesEl({ st: fm, data, allies, flipped: cb.flipped, size: typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 48 : 56, onFlip: (a, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[a.uid] = !cb.flipped[a.uid]; render(); } }) : null;
     const prevChits = cb.pipState; cb.pipState = Object.fromEntries(own(fm, data).chits.map(x => [x.id, x.state]));
-    const hero = heroEl({ st: fm, data, prevChits, onPeekGear: () => peek?.gear(), onPeekMap: () => peek?.map(), onCurse: () => { cb.curseCard = !cb.curseCard; render(); }, ribbon: own(fm, data).morph ? `You are ${article(own(fm, data).morph.creature.name)} ${own(fm, data).morph.creature.name}` : own(fm, data).berserk ? 'Berserk until midnight' : null, onGear: () => { cb.gearCard = !cb.gearCard; render(); } });
+    const slim = !!party && party.members.length <= 2;          // (two on one phone: the Belongings and the map stand at the ends of their row)
+    const hero = heroEl({ st: fm, data, bare: !!party, slim, prevChits, onPeekGear: () => peek?.gear(), onPeekMap: () => peek?.map(), onCurse: () => { cb.curseCard = !cb.curseCard; render(); }, ribbon: own(fm, data).morph ? `You are ${article(own(fm, data).morph.creature.name)} ${own(fm, data).morph.creature.name}` : own(fm, data).berserk ? 'Berserk until midnight' : null, onGear: () => { cb.gearCard = !cb.gearCard; render(); } });
     // (DR-20: the Meeting's steps have no lanes, so the stage had a void between the foes and you: the narrator stands in it, between the two, and not under you)
-    const othersNode = others.length ? othersEl({ others, targetable, target: mode === 'melee' ? m.target : null, size: typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 44 : 52, onPick: uid => { m.target = uid; m.sure = null; render(); } }) : null;
-    const makeStage = narrIn => h('div', { class: 'cb-stage' }, h('div', { class: 'cb-stagein' }, h('div', { class: `cb-foes${mode === 'melee' || mode === 'result' || mode === 'grid' || anyTag ? '' : ' noslot'}` }, ...foeEls), othersNode, lanes, allyEl, narrIn ? h('div', { class: 'cb-void' }, narrIn) : null, hero));
+    const othersNode = (party ? others.filter(o => o.hires.length) : others).length ? othersEl({ others: party ? others.filter(o => o.hires.length) : others, hiresOnly: !!party, targetable, target: mode === 'melee' ? m.target : null, size: typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 44 : 52, onPick: uid => { m.target = uid; m.sure = null; render(); } }) : null;
+    const partySize = typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 52 : 56;
+    const makeStage = narrIn => h('div', { class: 'cb-stage' }, h('div', { class: 'cb-stagein' }, h('div', { class: `cb-foes${mode === 'melee' || mode === 'result' || mode === 'grid' || anyTag ? '' : ' noslot'}` }, ...foeEls), othersNode, lanes, allyEl, narrIn ? h('div', { class: 'cb-void' }, narrIn) : null, party ? PT.partyRowEl(party, { size: partySize, lead: slim ? peekBtn('peek-gear', 'Belongings', 'bag', () => peek?.gear()) : null, tail: slim ? peekBtn('peek-map', 'Map', 'pin', () => peek?.map()) : null }) : null, hero));
 
     // ---- the narrator ----
     const [story, detail, tone] = narration(X, { mode, o, step, foes, facts, recap, events });
@@ -209,9 +213,11 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     else if (mode === 'melee') sheet = meleeSheet(X);
     else if (mode === 'deploy') sheet = deploySheet(X);
     else if (mode === 'shift') sheet = shiftSheet(X);
-    else if (mode === 'lure') sheet = LU.lureSheet({ st: fm, data, p, ui, render, act: a => X.send(a), f: X.fight }).sheet;
+    else if (mode === 'lure') sheet = LU.lureSheet({ st: fm, data, p, ui, render, act: a => X.send(a), f: X.fight, party: !!party }).sheet;
     else if (mode === 'encounter') sheet = encounterSheet(X);
     else sheet = unknownSheet(X);
+
+    if (party && sheet?.classList?.contains('cb-sheet') && mode !== 'over') sheet.prepend(mode === 'result' ? PT.actorBanner(party, { step: 'Result' }) : PT.actorBanner(party, { round: p.round ?? c.round, step: PT.STEP_NAME[p.type] ?? null }));          // (whose question this is, on top of every decision of a party)
 
     // The tap guard (QA-4): a result that follows a Roll, a wound that follows a result, the next Go on: each stands where the last primary stood, so for a moment after the question changes the primary ignores
     // a tap (the second half of a double tap must not skip what you should read). Not on "Next" (a step of the stepper), and a redraw of the same question does not start the window again.
@@ -222,10 +228,10 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     const ern = viewOf(fm, data).me?.earned ?? null;
     const sight = M.sightOf(fm);
     const stat = (cls, ic, n) => h('span', { class: `ds-stat ${cls}` }, icon(ic), String(n));
-    const root = h('section', { class: `cb ds-screen${shared ? ' sf' : ''}`, 'data-mode': mode, 'data-ask-type': p.type, 'data-step': mode === 'melee' ? step : null, 'data-sf': shared ? 'step' : null },
+    const root = h('section', { class: `cb ds-screen${shared ? ' sf' : ''}`, 'data-mode': mode, 'data-ask-type': p.type, 'data-step': mode === 'melee' ? step : null, 'data-sf': shared ? 'step' : null, 'data-party': party ? '1' : null },
         h('div', { class: 'cb-top' }, shared ? null : menuBtn(ui, render),
             h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', {}, p.spellOnly ? 'Evening · quiet' : `Evening · round ${c.round}`)),
-            h('span', { class: `cb-sight${sight.hidden ? ' hid' : ''}`, 'data-sight': sight.hidden ? 'hidden' : 'seen' }, sight.text)),
+            party ? null : h('span', { class: `cb-sight${sight.hidden ? ' hid' : ''}`, 'data-sight': sight.hidden ? 'hidden' : 'seen' }, sight.text)),          // (a party: the banner says it, with the name)
         shared ? shared.strip : null,
         shared ? null : h('div', { class: 'cb-bar' }, h('button', { type: 'button', class: 'ds-stats', 'aria-label': 'Fame, Notoriety, Gold: open your Belongings', onclick: () => peek?.gear() },
             stat('fame', 'star', ern?.fame ?? own(fm, data).fame), stat('notor', 'flame', ern?.notoriety ?? own(fm, data).notoriety), stat('gold', 'coin', own(fm, data).gold)), voiceSwitch()),

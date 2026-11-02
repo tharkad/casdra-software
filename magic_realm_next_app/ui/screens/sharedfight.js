@@ -98,7 +98,7 @@ function sealedChip(fm, data) {
 }
 const WAIT_WHY = {
     meet: 'Each character deals with the natives here in turn: drinks, a payment, or a fight. Nothing is hidden, and nothing moves until everyone has answered.',
-    lure: 'In the order of today’s draw each character may draw creatures to them; the dice deal out the rest afterwards.',
+    lure: 'In the order of today’s draw each character may lure creatures into attacking them; the dice deal out the rest afterwards.',
     charge: 'In the order of the draw each character may charge another, or send hirelings at one. A charge is made in the open; nothing else is told until the plays are shown.',
     encounter: 'In the order of the draw each character takes one Encounter action against the creatures set on them. The plays follow.',
     harm: 'Each character settles their own wounds and fatigue. Nothing is rolled; the next round starts when all are done.',

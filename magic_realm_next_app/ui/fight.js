@@ -87,7 +87,7 @@ export function whyNotLurable(d) {
     if (d.engagedBy) return 'is fighting a hireling';
     if (d.kind === 'nat' && d.standingBy) return 'is not fighting anyone';
     if (d.standingBy) return 'stands by';
-    return 'cannot be drawn away';
+    return 'cannot be lured away';
 }
 
 // ---- the lines of the fight ----
