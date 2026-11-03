@@ -49,7 +49,7 @@ export function counterOf(fm, data, d, side, flies = false) {
 }
 
 // One foe: its counter (tap to turn it over), and an optional tag (TARGET, a box, WOUNDED YOU). `view` says which side shows; `tag` is { text, kind, onclick? }.
-export function foeEl({ st: fm, data, d, flipped = false, tag = null, dead = false, onFlip, size = 92, justFlipped = false, selected = false, turnedOver = false, onHold = null, seton = null }) {
+export function foeEl({ st: fm, data, d, flipped = false, tag = null, dead = false, onFlip, size = 92, justFlipped = false, selected = false, turnedOver = false, onHold = null, seton = null, onPick = null }) {          // (onPick: a crowded stage, a tap on a counter that is not the target names it; the chosen one turns over on the next tap)
     let other = null; try { other = otherSide(data, d); } catch { other = null; }
     const showRev = !!flipped && other && other !== (d.side ?? 'light');
     const view = showRev ? { ...d, side: other, stat: undefined } : d;
@@ -59,7 +59,7 @@ export function foeEl({ st: fm, data, d, flipped = false, tag = null, dead = fal
     const svg = counterOf(fm, data, d, side, flies);
     // The tag (TARGET, a box, WOUNDED YOU) stands in its own slot ABOVE the counter, never over its name (QA-8). `tag.dot`: a crowded stage (QA-6) shows the offer as a ghost dot with a 44px hit area instead of a word.
     const tagEl = tag ? h(tag.onclick ? 'button' : 'span', { class: `tag ${tag.kind ?? ''}${tag.dot ? ' dot' : ''}`, ...(tag.onclick ? { type: 'button', 'data-tag': d.uid, 'aria-label': tag.label ?? tag.text, onclick: e => { e.stopPropagation(); tag.onclick(); } } : {}) }, tag.dot ? null : tag.text) : null;
-    const flipBtn = h('button', { type: 'button', class: 'cb-flip', 'data-flip': d.uid, 'aria-pressed': showRev ? 'true' : 'false', 'aria-label': `${s.name}${dead ? ', slain' : ''}, ${showRev ? 'other side showing, not the current side' : 'current side up'}: tap to turn the counter over, press and hold for its card`, onclick: () => onFlip?.(d, !!other), style: 'padding:0;display:block' },
+    const flipBtn = h('button', { type: 'button', class: 'cb-flip', 'data-flip': d.uid, 'aria-pressed': showRev ? 'true' : 'false', 'aria-label': `${s.name}${dead ? ', slain' : ''}, ${showRev ? 'other side showing, not the current side' : 'current side up'}: ${onPick && !selected ? 'tap to name it as your target' : onPick ? 'your target: tap to turn the counter over' : 'tap to turn the counter over'}, press and hold for its card`, onclick: () => (onPick && !selected ? onPick(d) : onFlip?.(d, !!other)), style: 'padding:0;display:block' },
             h('span', { class: 'ds-cs-wrap' }, svg), other && !dead ? h('span', { class: 'turn', 'aria-hidden': 'true' }, icon('retry')) : null,
             showRev && !dead ? h('span', { class: 'sidelbl peek', 'data-side': d.uid }, size < 76 ? 'NOT NOW' : 'NOT CURRENT SIDE') : null,
             turnedOver && !dead ? h('span', { class: 'turned', 'data-turned': d.uid }, size < 76 ? 'TURNED' : 'TURNED OVER') : null);

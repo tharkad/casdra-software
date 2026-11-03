@@ -346,3 +346,4 @@
 .cb-bar .ds-stat .w { font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); letter-spacing: .01em; color: var(--ink-2); }
 .cb-verb img.ds-px { background: var(--counter-face); border-radius: 5px; padding: 1px; box-sizing: content-box; }          /* the dark action art on a parchment plate, like the plan's chips (ui_screens: alert.gif was 1.8:1 on the tile) */
 .cb-hero .wplate.unalerted, .cb-hero .wplate.card { color: var(--ink-2); }          /* NOT ALERTED / WEAPON CARD at 4.5:1 or more (was the tertiary ink, 3.5:1) */
+.cb-foe.sel .tag::after { inset: min(0px, calc(18px - 44px / var(--z, 1))) min(0px, calc((100% - 44px / var(--z, 1)) / 2)) 0; }          /* the chosen one's TARGET word grows upward only: below it lies its own counter (a second tap there turns it over) */
