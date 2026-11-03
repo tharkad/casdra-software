@@ -41,6 +41,8 @@ function siteCardText(G, e) {
     return `${e.name}: ${e.small} Small, ${e.large} Large${e.spells?.length ? `, spells ${e.spells.join(', ')}` : ''}. Guardian: ${g} (Monster Roll ${e.row}). Chit printed with clearing ${e.chitNumber}.${special}`;
 }
 
+const listWords = x => (x.length <= 1 ? (x[0] ?? '') : `${x.slice(0, -1).join(', ')} and ${x[x.length - 1]}`);
+
 // What looting a site demands, in words (null when it demands nothing).
 function siteNeeds(G, name) {
     const asterisk = ownSheet(G.st, G.data).chits.some(x => x.state === 'active' && x.effort > 0);
@@ -51,14 +53,21 @@ function siteNeeds(G, name) {
     return null;
 }
 
+// The cards of the pile whose names are known to all: named counters (a Mouldy Skeleton's armor goes on top, face up). One entry per drawn card, null for the face-down ones.
+function knownOf(G, pile) {
+    return pile.filter(it => it.kind !== 'spell').map(it => (['weapon', 'armor', 'horse'].includes(it.kind) ? { kind: it.kind, name: nameOf(G.data, it) } : null));
+}
+
 // The pile drawn top to bottom, the way a Loot roll counts it: 1 takes the top card, 2 the second, and so on to 6. Large cards are taller; the reachable ones are lit, the deep ones dashed.
 export function pileEl(G, name, pile, sizes = null) {
     const cards = sizes ?? pile.filter(it => it.kind !== 'spell').map(it => ((G.data.treasures[it.id]?.kind ?? 'small') === 'small' ? 'small' : 'large'));
+    const known = sizes ? [] : knownOf(G, pile);                                                  // the goods a Mouldy Skeleton put on top are named counters: everyone saw them (note 114)
     const spells = (G.st.spellBox?.sites?.[name] ?? []).map(sp => G.data.spells?.[sp.id]?.type).filter(Boolean);
     if (!cards.length && !spells.length) return null;
     return h('div', { class: 'ds-pilebox', 'data-site': name },
         cards.length ? h('div', { class: 'ds-pile', 'data-site': name, role: 'img', 'aria-label': `${cards.length} cards, top first` },
-            ...cards.map((size, i) => h('span', { class: `ds-card ${size} ${i < REACH ? 'reach' : 'deep'}`, 'data-pos': String(i + 1) }, h('span', { class: 't' }, size), String(i + 1)))) : null,
+            ...cards.map((size, i) => h('span', { class: `ds-card ${size} ${i < REACH ? 'reach' : 'deep'}${known[i] ? ' known' : ''}`, 'data-pos': String(i + 1), title: known[i]?.name ?? null }, h('span', { class: 't' }, known[i] ? known[i].kind : size), String(i + 1)))) : null,
+        known.some(Boolean) ? h('p', { class: 'ds-meta ds-pile-known' }, `On top: ${known.map((k, i) => (k ? `${i + 1} ${k.name}` : null)).filter(Boolean).join(', ')}.`) : null,
         cards.length ? h('div', { class: 'ds-pile-key' }, h('span', {}, 'The pile, top first'),
             h('span', { 'data-v': 'story' }, cards.length > REACH ? 'The lit cards are within reach; the rest lie too deep.' : 'Every card is within reach.'),
             h('span', { 'data-v': 'detail' }, `A Loot roll of 1 to ${REACH} takes that card.${cards.length > REACH ? ` Cards below the ${REACH}th cannot be reached until those above are taken.` : ''}`)) : null,
@@ -74,9 +83,10 @@ export function siteBlock(G, c, { fresh = false, withPile = true, compact = fals
     const treasures = pile.filter(it => it.kind !== 'spell');
     const small = treasures.filter(it => (G.data.treasures[it.id]?.kind ?? 'small') === 'small').length, large = treasures.length - small;
     const printed = !found && e ? [...Array(e.large ?? 0).fill('large'), ...Array(e.small ?? 0).fill('small')] : null;       // the Setup Card is public: how many, never which
+    const tops = knownOf(G, pile).filter(Boolean);
     const left = !found ? `Not found yet. The Setup Card says ${e ? `${e.small} Small, ${e.large} Large` : 'nothing'}; locate it to see what it holds.`
         : !pile.length ? 'Found, and empty.'
-            : `${[small ? `${small} Small` : '', large ? `${large} Large` : ''].filter(Boolean).join(', ') || 'No treasure'}${spells ? ` and ${spells} spell${spells === 1 ? '' : 's'}` : ''} left. Great ones show when looted.`;
+            : `${tops.length ? `On top, the ${listWords(tops.map(t => t.name))}. ` : ''}${[small - tops.length ? `${small - tops.length} Small` : '', large ? `${large} Large` : ''].filter(Boolean).join(', ') || (tops.length ? 'No other treasure' : 'No treasure')}${spells ? ` and ${spells} spell${spells === 1 ? '' : 's'}` : ''} left. Great ones show when looted.`;
     const needs = found && pile.length ? siteNeeds(G, c.name) : null;
     return h('div', { class: `ds-site sitecard${found ? ' found' : ''}${fresh ? ' fresh' : ''}`, 'data-site': c.name },
         compact ? h('span', { class: 'ds-dim setupline' }, left) : h('div', { class: 'head' },
