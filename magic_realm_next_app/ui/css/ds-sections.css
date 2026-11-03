@@ -30,7 +30,8 @@
 .dp-dname { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
 .dp-dname small, .dp-hname small { font: 400 calc(12px * var(--ts, 1))/1.1 var(--font-ui); color: var(--ink-3); }
 .dp-hname { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
-.ds-btn.is-dim { opacity: .5; border-style: dashed; }
+/* (scoped to the Deployment and Sections steps: it was global, so every dim button on every screen, "Start the day" and "Play online" among them, was halved to 2.5:1 on top of its own dim ink; ui_screens contrast) */
+.cb-sheet[data-kind=deploy] .ds-btn.is-dim, .cb-sheet[data-kind=sections] .ds-btn.is-dim { opacity: .5; border-style: dashed; }
 .dp-turnblock { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line-1); padding-top: 8px; }
 .dp-turn { display: flex; gap: 10px; }
 .dp-side { flex: 1 1 0; min-width: 0; min-height: 44px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-2); }

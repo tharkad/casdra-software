@@ -358,16 +358,17 @@ function onBack(G) {
 
 // The map button's picture: the whole realm when the map is zoomed in, the crosshair when it is zoomed out.
 const FIT_K = 0.95;
+const lbl = text => Object.assign(document.createElement('span'), { className: 'lbl', textContent: text });          // (the word under an icon: every icon is named where you can see it)
 export function syncMapButton(G) {
     const b = G.mapTools, k = G.map?.camera?.().k;
     if (!b || k == null) return;
     const out = k < FIT_K;
     b.dataset.mode = out ? 'locate' : 'fit';
     b.setAttribute('aria-label', out ? 'Centre on me' : 'Show the whole realm');
-    b.replaceChildren(dsIcon(out ? 'cross' : 'fit', 'lg'));
+    b.replaceChildren(dsIcon(out ? 'cross' : 'fit', 'lg'), lbl(out ? 'Me' : 'Realm'));
     const on = !!G.ui.bare, e = G.bareBtn;
     G.mapBox.classList.toggle('bare', on);
-    if (e) { e.setAttribute('aria-pressed', String(on)); e.setAttribute('aria-label', on ? 'Show the names again' : 'Show the bare tiles'); e.classList.toggle('on', on); e.replaceChildren(dsIcon(on ? 'eyeoff' : 'eye', 'lg')); }
+    if (e) { e.setAttribute('aria-pressed', String(on)); e.setAttribute('aria-label', on ? 'Show the names again' : 'Show the bare tiles'); e.classList.toggle('on', on); e.replaceChildren(dsIcon(on ? 'eyeoff' : 'eye', 'lg'), lbl(on ? 'Names' : 'Bare')); }
 }
 
 // Monsters whose home row the Monster Roll has just called: they are the ones that can come to you at the end of the turn.

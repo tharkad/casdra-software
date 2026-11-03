@@ -151,3 +151,11 @@
 .ds-party .pwait { width: 9px; height: 9px; border-radius: 50%; background: var(--gold-hi); flex: none; }
 .ds-party .pfol { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; color: var(--ink-3); } .ds-party .pfol svg { width: 16px; height: 16px; }
 
+
+/* Every icon is named where you can see it (Mike's note 102; ui_screens "iconname"): the word sits under the picture, the aria-label keeps the long name. 12px, ink-2. */
+.ds-strip .menu, .ds-sheet-head .x, .ds-map-btn, .ds-gear { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.ds-strip .menu .lbl, .ds-sheet-head .x .lbl, .ds-map-btn .lbl, .ds-gear .lbl { font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); letter-spacing: .02em; color: var(--ink-2); pointer-events: none; }
+.ds-strip .menu { width: 52px; } .ds-strip .menu .ds-i, .ds-sheet-head .x .ds-i, .ds-map-btn .ds-i, .ds-gear .ds-i { width: 22px; height: 22px; }
+.ds-sheet-head .x { width: 48px; margin-right: -14px; }          /* (the same room the 44px cross took: the title does not wrap one word earlier) */ .ds-sheet-head .x .lbl { color: var(--ink-3); }
+.ds-map-btn { width: 52px; height: 52px; border-radius: 16px; } .ds-map-btn.ds-bare-btn { bottom: 72px; }
+.ds-btn.ds-gear { width: auto; min-width: 60px; height: 56px; padding: 0 8px; top: 4px; }          /* (two classes: .ds-btn.icon fixes the width at 44) */

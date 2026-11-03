@@ -75,7 +75,7 @@ export function onlineScreen(ctx) {
             h('button', { type: 'button', class: `ds-hrow ds-gamerow${mine ? ' turn' : ''}`, 'data-act': r.kind === 'shared' ? 'open-shared' : 'open-race', 'data-game': r.game, onclick: () => (r.kind === 'shared' ? ctx.go('sharedlobby', { game: r }) : ctx.go('game', { online: r })) },
                 face(i?.characterId), h('span', { class: 'main' }, h('b', {}, rowTitle(r, i)), h('span', {}, rowSub(r, i))),
                 mine ? h('span', { class: 'ds-tag gold' }, 'your move') : icon('right')),
-            h('button', { type: 'button', class: 'ds-btn quiet icon ds-forget', 'aria-label': 'Forget this game on this device', onclick: () => forget(r) }, icon('close')));
+            h('button', { type: 'button', class: 'ds-btn quiet icon ds-forget', 'aria-label': 'Forget this game on this device', onclick: () => forget(r) }, icon('close'), h('span', { class: 'lbl' }, 'Forget')));
     };
     const drawGames = () => { if (!gamesHost) return; const list = races(); gamesHost.replaceChildren(...(list.length ? [h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Your games'), h('small', {}, String(list.length))), h('div', { class: 'ds-list' }, list.map(gameRow))] : [])); };
     async function refreshGames() {

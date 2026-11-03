@@ -57,7 +57,7 @@ export function titleScreen(ctx) {
         if (nav.isConnected && before !== !!tableTurn(cache)) { const n = navEl(); nav.replaceWith(n); nav = n; }
     });
     return h('main', { class: 'screen ds-screen ds-title', 'data-screen': 'title' },
-        h('button', { type: 'button', class: 'ds-btn icon quiet ds-gear', 'data-act': 'settings', 'aria-label': 'Settings', onclick: () => ctx.go('settings') }, icon('gear', 'lg')),
+        h('button', { type: 'button', class: 'ds-btn icon quiet ds-gear', 'data-act': 'settings', 'aria-label': 'Settings', onclick: () => ctx.go('settings') }, icon('gear', 'lg'), h('span', { class: 'lbl' }, 'Settings')),
         h('header', { class: 'ds-title-head' },
             emblem(),
             h('h1', { class: 'ds-wordmark' }, h('span', { class: 'b' }, 'Nolava'), h('span', { class: 'a' }, 'a Magical Realm')),

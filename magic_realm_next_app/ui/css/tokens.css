@@ -50,7 +50,7 @@
     /* chit kinds */
     --chit-fight: #cf6a5e; --chit-move: #6c9bd2; --chit-magic: #968de0;
     /* moods (natives) */
-    --mood-ally: #7fd0a0; --mood-friendly: #a3d48c; --mood-neutral: #8f8872; --mood-unfriendly: #e0a85a; --mood-enemy: #e57b70;
+    --mood-ally: #7fd0a0; --mood-friendly: #a3d48c; --mood-neutral: #aaa38c; --mood-unfriendly: #e0a85a; --mood-enemy: #e57b70;
     /* the cream counter */
     --counter-face: #efe6d0; --counter-edge: #c9b98f; --counter-ink: #1d1a12;
     /* type */

@@ -52,8 +52,8 @@ function topBar(f, peek) {
     const place = nameOfClearing(f.at).replace(/ (\d+)$/, ' $1');
     return h('div', { class: 'cb-top sf-head' },
         h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', {}, `Evening · round ${f.round}`)),
-        peek ? h('button', { type: 'button', class: 'ds-btn icon quiet', 'data-act': 'peek-gear', 'aria-label': 'Belongings', onclick: peek.gear }, icon('bag', 'lg')) : null,
-        peek ? h('button', { type: 'button', class: 'ds-btn icon quiet', 'data-act': 'peek-map', 'aria-label': 'Map', onclick: peek.map }, icon('pin', 'lg')) : null);
+        peek ? h('button', { type: 'button', class: 'ds-btn icon quiet cb-peek', 'data-act': 'peek-gear', 'aria-label': 'Belongings', onclick: peek.gear }, icon('bag'), h('span', { class: 'pk' }, 'Belongings')) : null,
+        peek ? h('button', { type: 'button', class: 'ds-btn icon quiet cb-peek', 'data-act': 'peek-map', 'aria-label': 'Map', onclick: peek.map }, icon('pin'), h('span', { class: 'pk' }, 'Map')) : null);
 }
 
 // the stage of a seat that is not asked: everything that is in the clearing (F1 "The Clearing"): every creature across the top, each saying whom it is set on, the other characters and their hirelings,

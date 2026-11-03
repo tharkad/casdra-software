@@ -98,7 +98,7 @@
 .tb-qual .ds-row { min-height: 52px; }
 .sf-restart .ds-sect, .sf-end .ds-sect { margin-top: 12px; }
 .sf-restart .ds-choice b em { font-style: normal; color: var(--gold); }
-.sf-goal .ds-stepper button { width: 44px; height: 44px; font-size: calc(22px * var(--ts, 1)); } .sf-goal .ds-stepper button[disabled] { opacity: .35; }
+.sf-goal .ds-stepper button { width: 44px; height: 44px; font-size: calc(22px * var(--ts, 1)); } .sf-goal .ds-stepper button[disabled] { opacity: .55; }
 .sf-goal .ds-stepper .v { width: 36px; flex: none; font-size: calc(22px * var(--ts, 1)); }
 .sf-death { text-align: center; padding: 10px 12px; margin-bottom: 8px; border-radius: var(--r-md); border: 1.5px solid rgba(226, 104, 92, .6); background: var(--danger-wash); }
 .sf-death small { display: block; font: 600 calc(12px * var(--ts, 1))/1.2 var(--font-display); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--danger); }

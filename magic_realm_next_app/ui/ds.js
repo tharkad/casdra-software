@@ -22,7 +22,7 @@ export const twoLine = (main, small) => h('span', { class: 'col' }, main, h('sma
 export function strip({ day = 3, total = 28, phase = 'Daylight', gold = 10, fame = 0, notor = 0, vp = '−57', vpc = 'neg', cls, attrs = {} } = {}) {
     const a = attrs;
     return h('header', { class: cx('ds-strip', cls), ...(a.root ?? {}) },
-        h('button', { type: 'button', class: 'menu', 'aria-label': 'Menu', ...(a.menu ?? {}) }, icon('menu', 'lg')),
+        h('button', { type: 'button', class: 'menu', 'aria-label': 'Menu', ...(a.menu ?? {}) }, icon('menu', 'lg'), h('span', { class: 'lbl' }, 'Menu')),
         h('div', { class: 'ds-day', ...(a.day ?? {}) }, h('b', {}, `DAY ${day} `, h('small', {}, `/${total}`)), h('span', {}, phase)),
         h('button', { type: 'button', class: 'ds-stats', 'aria-label': 'Fame, Notoriety, Gold: open the Kit', ...(a.stats ?? {}) },
             h('span', { class: 'ds-stat fame' }, icon('star'), String(fame)), h('span', { class: 'ds-stat notor' }, icon('flame'), String(notor)), h('span', { class: 'ds-stat gold' }, icon('coin'), String(gold))),
@@ -59,7 +59,7 @@ export function sheet({ title = '', eyebrow = '', detent = 'half', decision = fa
     const sh = h('section', { role: 'dialog', 'aria-label': title, ...attrs, class: cx('ds-sheet', decision && 'decision', cls), 'data-detent': detent, 'data-full': detent },
         h('div', { class: 'ds-grab' }),
         h('div', { class: 'ds-sheet-head', 'data-peekhead': '' }, h('h2', {}, eyebrow ? h('small', {}, eyebrow) : null, h('b', {}, title)), head,
-            x ? h('button', { type: 'button', class: 'x', 'data-close': '', 'aria-label': 'Close', ...close }, icon('close')) : null),
+            x ? h('button', { type: 'button', class: 'x', 'data-close': '', 'aria-label': 'Close', ...close }, icon('close'), h('span', { class: 'lbl' }, 'Close')) : null),
         h('div', { class: 'ds-sheet-body' }, body),
         arr(foot).length ? h('div', { class: 'ds-sheet-foot' }, foot) : null);
     const frag = document.createDocumentFragment();

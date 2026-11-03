@@ -5,7 +5,7 @@ import { icon } from '../icons.js';
 import { monsterCounter, itemFace } from '../counter.js';
 import { nameOf, defOf, isWeaponCard, weaponSide } from '../../engine/catalogue.js';
 import { denSide, weaponOf, activeArmor, own } from './feed.js';
-import { DIRS, MNV, otherSide, picOf, chitText, WORD, isWithered, WITHER_STORY, WITHER_DETAIL } from './model.js';
+import { DIRS, MNV, otherSide, picOf, chitText, chitName, WORD, isWithered, WITHER_STORY, WITHER_DETAIL } from './model.js';
 import { displayName, tieNumber } from '../names.js';
 
 // foe counter size by how many stand on the stage: the full size (92, or 64 on a short phone) up to three, then smaller so six still fit in two rows
@@ -161,12 +161,68 @@ export function alliesEl({ st: fm, data, allies, flipped = {}, onFlip, size = 56
 
 // the lanes: the three attack circles (Thrust, Swing, Smash) on top, the three maneuver squares (Charge, Dodge, Duck) under them. Same index = same red box (rules 4.1).
 // attack = { dir, text } puts his Fight chit in that circle; guard = { dir, text } his Move chit in that square; boxes = { [lane]: [pictureSrc...] } the creatures standing in each red box.
-export function lanesEl({ attack = null, guard = null, boxes = {}, sec = null } = {}) {
+// Notes 102 and 103: a lane always keeps its name (the chit stands under it, never in its place); each row says what was played (the chit used, the weapon used, the attack time: `attack.says`, `guard.says`,
+// see playSays); and beneath the defence row stand the armor pieces, each under the lanes it covers (`armor` = armorPieces()), with `why` (the voice pair { story, detail }) saying why the player does
+// not place a lone creature in a lane.
+export function lanesEl({ attack = null, guard = null, boxes = {}, sec = null, armor = null, why = null } = {}) {
     const top = [0, 1, 2].map(i => h('div', { class: `cb-lane${attack && attack.dir === i ? ' mine' : ''}${(boxes[i] ?? []).length ? ' crowd' : ''}`, 'data-lane': `a${i}` },
-        attack && attack.dir === i && attack.text ? h('span', { class: 'cb-pill' }, attack.glove ? icon('glove') : null, attack.text) : h('span', { class: 'lbl' }, DIRS[i]),
+        h('span', { class: 'lbl' }, DIRS[i]),
+        attack && attack.dir === i && attack.text ? h('span', { class: 'cb-pill' }, attack.glove ? icon('glove') : null, attack.text) : null,
         ...(boxes[i] ?? []).slice(0, 3).map(src => h('span', { class: 'ds-counter sm', 'aria-hidden': 'true' }, src ? pic(src) : null)), (boxes[i] ?? []).length > 3 ? h('span', { class: 'cb-more' }, `+${boxes[i].length - 3}`) : null));
-    const bot = [0, 1, 2].map(i => h('div', { class: `cb-lane${guard && guard.dir === i ? ' guard' : ''}`, 'data-lane': `g${i}` }, guard && guard.dir === i && guard.text ? h('span', { class: 'cb-pill g' }, guard.text) : h('span', { class: 'lbl' }, MNV[i])));
-    return h('div', { class: 'cb-lanewrap', 'aria-hidden': 'true', 'data-sec': sec }, h('div', { class: 'cb-lanes top' }, ...top), h('div', { class: 'cb-lanes bot' }, ...bot));
+    const bot = [0, 1, 2].map(i => h('div', { class: `cb-lane${guard && guard.dir === i ? ' guard' : ''}`, 'data-lane': `g${i}` },
+        h('span', { class: 'lbl' }, MNV[i]),
+        guard && guard.dir === i && guard.text ? h('span', { class: 'cb-pill g' }, guard.text) : null));
+    const nbsp = t => String(t).replace(/ (?=\d)/g, ' ');
+    const line = (row, says, what) => (says ? h('p', { class: `cb-pl ${row === 'attack' ? 'atk' : 'grd'}`, 'data-row': row },
+        ...[says.kind, says.weapon, says.time != null ? nbsp(`${what} time ${says.time}`) : null].filter(Boolean).flatMap((t, k) => [k ? h('span', { class: 'sep', 'aria-hidden': 'true' }, '·') : null, h('span', { class: 'nbw' }, t)]).filter(Boolean)) : null);
+    return h('div', { class: 'cb-lanewrap', 'data-sec': sec },
+        h('div', { class: 'cb-lanes top', 'aria-hidden': 'true' }, ...top), line('attack', attack?.text ? attack.says : null, 'attack'),
+        h('div', { class: 'cb-lanes bot', 'aria-hidden': 'true' }, ...bot), line('guard', guard?.text ? guard.says : null, 'maneuver'),
+        armor ? armorRow(armor, why) : null);
+}
+
+/** What the armor in use covers (rules 8.4.5i, 8.4.9j): [{ uid, name, pic, dirs: [0..2] | null, shield, damaged }] in the order a blow meets them (the Ointment of Steel, then a shield or armor card, then a helmet
+ * or breastplate, then a suit). `dirs` is the attack directions it stops: the data's `protects`; a shield stops the one lane he picks (`shieldDir`; null while he has not picked: `dirs` is null). */
+export function armorPieces(fm, data, shieldDir = null) {
+    const rank = d => (d.id === 'ointment-of-steel-1' ? 0 : d.type === 'shield' || d.chooseOneDirection || d.card ? 1 : /helmet|breastplate/.test(d.type ?? '') ? 2 : 3);
+    return activeArmor(fm, data).map(({ item, def }) => {
+        const shield = (def.type ?? '').toLowerCase() === 'shield' || !!def.chooseOneDirection, name = nameOf(data, item);
+        const dirs = shield ? (shieldDir == null ? null : [shieldDir]) : ['thrust', 'swing', 'smash'].map((w, i) => ((def.protects ?? []).includes(w) ? i : null)).filter(i => i != null);
+        return { uid: item.uid, name, pic: data.art?.armor?.[name] ?? null, dirs, shield, damaged: !!item.damaged, rank: rank(def), card: !!def.card };
+    }).sort((a, b) => a.rank - b.rank || Number(a.card) - Number(b.card));
+}
+
+// the armor ovals of the melee section, beneath the defence squares: each piece stands under the lanes it covers (the same three columns), stacked where two pieces cover one lane; a lane no piece covers says so
+function armorRow(pieces, why) {
+    const rows = [], place = [];
+    for (const pc of pieces) {
+        const cols = pc.dirs ?? [0, 1, 2];
+        let r = 0; while ((rows[r] ??= new Set()) && cols.some(c => rows[r].has(c))) r++;
+        cols.forEach(c => rows[r].add(c)); place.push({ pc, r, cols });
+    }
+    const covered = new Set(place.flatMap(x => x.cols));
+    const kids = place.map(({ pc, r, cols }) => {
+        const lanes = pc.dirs ? pc.dirs.map(d => DIRS[d]).join(' · ') : 'the lane you pick';
+        const say = pc.shield && pc.dirs ? `guards ${DIRS[pc.dirs[0]]}` : pc.shield ? 'guards one lane, your pick' : `stops ${pc.dirs.map(d => DIRS[d]).join(', ').replace(/, ([^,]*)$/, ' and $1')}`;
+        return h('div', { class: `cb-apiece s${cols.length}${pc.damaged ? ' dmg' : ''}`, 'data-armor': pc.uid, 'data-lanes': pc.dirs ? pc.dirs.join(',') : '0,1,2', role: 'img', 'aria-label': `${pc.name}${pc.damaged ? ', damaged' : ''}: ${say}`, style: `grid-column:${cols[0] + 1} / span ${cols.length};grid-row:${r + 1}` },
+            pc.pic ? h('span', { class: 'th ds-counter sm', 'aria-hidden': 'true' }, pic(pc.pic)) : null,
+            h('span', { class: 't' }, h('b', {}, pc.name), h('small', {}, pc.shield && pc.dirs ? `guards ${lanes}` : lanes, pc.damaged ? ' · damaged' : '')));
+    });
+    for (const c of [0, 1, 2]) if (!covered.has(c)) kids.push(h('div', { class: 'cb-abare', 'data-lane': c, 'aria-label': `No armor against ${DIRS[c]}`, style: `grid-column:${c + 1};grid-row:1` }, h('span', {}, DIRS[c]), h('small', {}, 'no armor')));
+    return h('div', { class: 'cb-armor' }, h('div', { class: 'cb-agrid' }, ...kids),
+        why ? h('p', { class: 'cb-armor-why' }, h('span', { 'data-v': 'story' }, why.story), h('span', { 'data-v': 'detail' }, why.detail)) : null);
+}
+
+/** What a play says, in the words of the lane lines (note 102): `kind` the chit (Fight H6, Move M4), `weapon` the weapon used, `time` the attack time: the weapon's printed time for the side it lies on, else the Fight chit's
+ * (8.4.5, the engine's attackTimeOf); for a Move chit the maneuver time. A spell names itself and has no weapon. A creature he has become strikes with its own counter (no time said: the engine reads it off the counter's side). */
+export function playSays(fm, data, chit, { move = false, spell = false } = {}) {
+    if (spell) return { kind: 'Spell', weapon: null, time: null };
+    if (!chit) return null;
+    const kind = chit.card && chit.name ? chit.name : chitName(chit);
+    if (move) return { kind, weapon: null, time: chit.time ?? null };
+    const cr = fm.ch.morph?.creature, w = weaponOf(fm, data);
+    if (cr) return { kind, weapon: cr.name, time: null };
+    return { kind, weapon: w ? nameOf(data, w.item) : 'bare hands', time: (w ? weaponSide(w).time : null) ?? chit.time ?? null };
 }
 
 // one pip per action chit, in the chits' own order (fight, move, magic), coloured by kind and shaped by state: ready, tired (faded), wounded (dashed red)
@@ -189,7 +245,7 @@ export function weaponState(data, w) {
 }
 
 /** The Belongings and the map buttons (DR-21): an icon button that opens one of them and brings the fight back. */
-export const peekBtn = (act, label, ic, on) => (on ? h('button', { type: 'button', class: 'ds-btn icon quiet cb-peek', 'data-act': act, 'aria-label': label, onclick: on }, icon(ic, 'lg')) : null);
+export const peekBtn = (act, label, ic, on) => (on ? h('button', { type: 'button', class: 'ds-btn icon quiet cb-peek', 'data-act': act, 'aria-label': label, onclick: on }, icon(ic), h('span', { class: 'pk' }, label)) : null);          // (a word under the picture: note 102, always the name)
 
 // you: the weapon on the left, the armor on the right, your face and a pip per chit between. A morphed hero is the creature's counter. Tap a piece of gear to read it (and turn it over).
 export function heroEl({ st: fm, data, onGear, onPeekGear = null, onPeekMap = null, onCurse = null, hurtArmor = false, ribbon = null, prevChits = null, wasHidden = false, bare = false, slim = false }) {          // (bare: his face and name stand in the party row instead, combat/party.js)
@@ -255,9 +311,12 @@ export function fitStage(root) {
         const stage = root.querySelector('.cb-stage'), inner = stage?.querySelector('.cb-stagein');
         if (!stage || !inner || !root.isConnected) return;
         fitNames(root);
-        inner.style.zoom = ''; inner.style.removeProperty('--z');
-        const cs = getComputedStyle(stage), room = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom), need = inner.scrollHeight;
-        if (need > room + 1 && room > 80) { const z = Math.max(0.55, room / need); inner.style.zoom = String(z); inner.style.setProperty('--z', String(z)); }
+        inner.style.zoom = ''; inner.style.removeProperty('--z'); inner.removeAttribute('data-tight');
+        const cs = getComputedStyle(stage), room = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+        let need = inner.scrollHeight;
+        // a crowded stage on a short phone (note 102): below 0.6 the words would be too small to read, so the played lines give way (the chits stay in their lanes, the armor stays); data-tight says so
+        if (need > room / 0.6 && room > 80 && typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches && inner.querySelector('.cb-pl')) { inner.setAttribute('data-tight', ''); need = inner.scrollHeight; }
+        if (need > room + 1 && room > 80) { const z = Math.max(0.45, room / need); inner.style.zoom = String(z); inner.style.setProperty('--z', String(z)); }
         drawThreads(root);
     };
     requestAnimationFrame(fit);

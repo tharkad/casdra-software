@@ -12,7 +12,7 @@ import { nameOfClearing } from '../../engine/catalogue.js';
 import { apiOf } from '../../engine/api.js';
 import { denSide, optionsOf, viewOf, sheetOf, checkOf, own, fightModel } from '../combat/feed.js';
 import * as M from '../combat/model.js';
-import { foeEl, foeSize, lanesEl, heroEl, peekBtn, alliesEl, othersEl, fitStage, gearPopover, cursePopover, fitNames } from '../combat/stage.js';
+import { foeEl, foeSize, lanesEl, armorPieces, playSays, heroEl, peekBtn, alliesEl, othersEl, fitStage, gearPopover, cursePopover, fitNames } from '../combat/stage.js';
 import { sheetEl, meetingSheet, encounterSheet, meleeSheet, shiftSheet, resultSheet, gridSheet, recapSheet, beatSheet, recordSheet, pitSheet, stepsFor } from '../combat/sheets.js';
 import * as P from '../combat/payload.js';
 import * as SH from '../combat/shared.js';
@@ -74,9 +74,12 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     // every answer to the engine goes through here: the scene's own state of the question is dropped, the engine moves on
     // (ui.trace, when a script sets it to an array, collects every answer the scene sends: tools/ui_cb_fuzz.py replays them on the bare engine)
     const emit = a => { ui.trace?.push(JSON.parse(JSON.stringify(a))); act(a); };
+    // what a plan's lanes say of it (notes 102, 103): the chit used, the weapon used and the attack time; the Move chit and its maneuver time
+    const chitOf = (id, o = null) => own(fm, data).chits.find(x => x.id === id) ?? o?.fightChits?.find(x => x.id === id) ?? null;
+    const saysOf = (pl, spell, o = null) => ({ atk: spell ? playSays(fm, data, null, { spell: true }) : pl.fightChit ? playSays(fm, data, chitOf(pl.fightChit, o)) : null, grd: pl.moveChit ? playSays(fm, data, chitOf(pl.moveChit, o), { move: true }) : null });
     X.send = a => { cb.pick = null; cb.cast = null; cb.quiet = null; cb.leaveAsk = null; cb.shift = null; cb.gearSel = null; cb.gearPair = false; emit(a); };
     X.sendMelee = (o, m) => {
-        ui.lastPlan = { round: c.round, fight: key, plan: JSON.parse(JSON.stringify(m)) };
+        ui.lastPlan = { round: c.round, fight: key, plan: JSON.parse(JSON.stringify(m)), says: saysOf(m, !!o.attackSpell, o) };          // (`says`: what the lanes said of it, as it stood when it was played: the weapon is alerted or not by the blow)
         cb.plan = null; cb.step = 'strike'; cb.pick = null;
         if (!shared) ui.cbBeat = { snap: fightModel(apiOf(data).restore(JSON.stringify(engineState.__st ?? engineState)), data), day: fm.day, logLen: fm.fightLog.n, round: c.round };
         // 8.4.5m: he may not leave a box empty while he doubles up another. The Foes step lets him cycle each creature through the boxes, so a plan may come out that way: the engine would refuse it,
@@ -174,17 +177,27 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     const firstPeace = foes.findIndex(f => !f.dead && M.peacefulFoe(f.d));
     if (firstPeace >= 0 && (mode === 'encounter' || mode === 'melee')) foeEls.splice(firstPeace, 0, h('p', { class: 'cb-peace-lbl', 'data-peace': '' }, 'Not fighting you'));
     // lanes: the plays he has chosen (this round's plan while he plans it, last round's after it), and where the creatures stand
-    const chitOf = id => own(fm, data).chits.find(x => x.id === id) ?? o?.fightChits?.find(x => x.id === id) ?? null;
+    const chitHere = id => chitOf(id, o);
     let attack = null, guard = null, boxes = {};
     const planOf = mode === 'melee' ? m : ui.lastPlan?.fight === key ? ui.lastPlan.plan : null;
     if (planOf && mode !== 'meet' && mode !== 'over') {
-        if (mode === 'melee' ? (planOf.target || o?.attackSpell) : planOf.target) attack = { dir: planOf.attackDir ?? 0, text: o?.attackSpell && mode === 'melee' ? 'Spell' : planOf.fightChit ? M.chitText(chitOf(planOf.fightChit) ?? { type: 'fight', strength: '', time: '' }) : null, glove: !!planOf.fightChit?.startsWith?.('card:') };
-        guard = { dir: planOf.moveDir ?? 0, text: planOf.moveChit ? M.chitText(chitOf(planOf.moveChit) ?? { type: 'move', strength: '', time: '' }) : null };
+        if (mode === 'melee' ? (planOf.target || o?.attackSpell) : planOf.target) attack = { dir: planOf.attackDir ?? 0, text: o?.attackSpell && mode === 'melee' ? 'Spell' : planOf.fightChit ? M.chitText(chitHere(planOf.fightChit) ?? { type: 'fight', strength: '', time: '' }) : null, glove: !!planOf.fightChit?.startsWith?.('card:') };
+        guard = { dir: planOf.moveDir ?? 0, text: planOf.moveChit ? M.chitText(chitHere(planOf.moveChit) ?? { type: 'move', strength: '', time: '' }) : null };
     }
-    if (mode === 'shift') { const so = optionsOf(fm, data); cb.shift ??= {}; cb.shift.attackDir ??= so.attackDir; cb.shift.moveDir ??= so.moveDir; attack = so.hasAttack ? { dir: cb.shift.attackDir, text: planOf?.fightChit ? M.chitText(chitOf(planOf.fightChit) ?? { type: 'fight', strength: '', time: '' }) : null } : null; guard = so.hasMove ? { dir: cb.shift.moveDir, text: planOf?.moveChit ? M.chitText(chitOf(planOf.moveChit) ?? { type: 'move', strength: '', time: '' }) : null } : null; }
+    if (mode === 'shift') { const so = optionsOf(fm, data); cb.shift ??= {}; cb.shift.attackDir ??= so.attackDir; cb.shift.moveDir ??= so.moveDir; attack = so.hasAttack ? { dir: cb.shift.attackDir, text: planOf?.fightChit ? M.chitText(chitHere(planOf.fightChit) ?? { type: 'fight', strength: '', time: '' }) : null } : null; guard = so.hasMove ? { dir: cb.shift.moveDir, text: planOf?.moveChit ? M.chitText(chitHere(planOf.moveChit) ?? { type: 'move', strength: '', time: '' }) : null } : null; }
     if (mode === 'melee' && (step === 'foes' || step === 'roll') && M.placementMatters(fm, o, m)) o.boxable.forEach((d, i) => { const b = m.boxes[d.uid] ?? (i % 3); (boxes[b] ??= []).push(M.picOf(fm, data, d)); });
     if (mode === 'shift') M.foesOf(fm).forEach(d => { if (d.box != null) (boxes[d.box] ??= []).push(M.picOf(fm, data, d)); });
-    const lanes = mode === 'meet' || mode === 'deploy' || mode === 'lure' || mode === 'unknown' ? null : lanesEl({ attack, guard, boxes, sec: mode === 'shift' ? 'shift-board' : null });
+    // notes 102 and 103: the lanes say what was played (the chit, the weapon, the attack time), and the armor stands beneath the defence row under the lanes each piece covers
+    const says = mode === 'melee' ? saysOf(m, !!o.attackSpell, o) : ui.lastPlan?.fight === key ? ui.lastPlan.says : null;
+    if (attack) attack.says = says?.atk ?? null;
+    if (guard) guard.says = says?.grd ?? null;
+    const heroMorphed = !!own(fm, data).morph;
+    const armor = heroMorphed ? null : armorPieces(fm, data, planOf?.shieldDir ?? null);
+    // 8.4.5m lets him place the creatures on his Melee Section and 8.4.6a then shuffles them with one die: with three or fewer the placing changes nothing (docs/design/combat-metaphor/06-PLACEMENT-PROOF.md), so the Foes step is
+    // not asked, and the armor row says why a lone creature is not his to place (note 103: "that might be needed if I have smaller armor pieces": no, a piece is struck as often in any lane)
+    const why = armor && mode === 'melee' && M.placementCounters(fm, o, m) >= 1 && !M.placementMatters(fm, o, m)
+        ? { story: 'A die shuffles the creatures after your plays: no lane is safe.', detail: 'One die shuffles the creatures among the three boxes after your plays (8.4.6a), so placing three or fewer changes nothing; four or more, you place them.' } : null;
+    const lanes = mode === 'meet' || mode === 'deploy' || mode === 'lure' || mode === 'unknown' ? null : lanesEl({ attack, guard, boxes, sec: mode === 'shift' ? 'shift-board' : null, armor, why });
     const allies = M.alliesOf(fm, data);
     const allyEl = allies.length && mode !== 'deploy' ? alliesEl({ st: fm, data, allies, flipped: cb.flipped, size: typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 48 : 56, onFlip: (a, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[a.uid] = !cb.flipped[a.uid]; render(); } }) : null;
     const prevChits = cb.pipState; cb.pipState = Object.fromEntries(own(fm, data).chits.map(x => [x.id, x.state]));

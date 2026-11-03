@@ -33,7 +33,7 @@
 .cb-foe .tag.good { background: var(--success); color: #08140a; }
 .cb-foe .turned { display: block; width: max-content; margin: 2px auto 0; white-space: nowrap; padding: 1px 6px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--gold); border: 1px solid var(--gold-lo); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .04em; pointer-events: none; }
 .cb-legend { margin: 6px 0 0; font-size: calc(12px * var(--ts, 1)); line-height: 1.35; color: var(--ink-2); }
-.cb-foe .tag.ghost { background: var(--surface-2); color: var(--ink-3); border: 1px dashed var(--st-illegal); }     /* "TARGET" offered, not chosen */
+.cb-foe .tag.ghost { background: var(--surface-1); color: var(--ink); border: 1px dashed var(--st-illegal); }     /* "TARGET" offered, not chosen */
 /* Hit areas: 44px whatever the size of the thing and whatever the stage is scaled to (--z is the zoom fitStage puts on a crowded stage; 1 otherwise) */
 .cb-foe .tag { height: 18px; }
 .cb-foe .tag::after { content: ""; position: absolute; inset: min(0px, calc((18px - 44px / var(--z, 1)) / 2)) min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }          /* an 18px pill with a 44px hit area */
@@ -259,7 +259,7 @@
 /* note 75: Wither: a withered pip (tired, struck through) and the curse badge on the hero */
 .cb-pips .ds-chit.mini.withered { color: var(--danger); border-style: dotted; }
 .cb-pips .ds-chit.mini.withered::after { background: var(--danger); }
-.cb-hero .cb-curse { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; min-height: 44px; padding: 0 8px; color: var(--danger); background: none; border: 0; font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); }
+.cb-hero .cb-curse { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; min-height: calc(44px / var(--z, 1)); padding: 0 8px; color: var(--danger); background: none; border: 0; font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); }
 .cb-hero .cb-curse .ds-i { width: 14px; height: 14px; }
 .cb-pop.curse { flex-direction: column; text-align: left; } .cb-pop.curse p { margin: 0; font: 500 calc(13px * var(--ts, 1))/1.35 var(--font-ui); color: var(--ink-2); } .cb-pop.curse p.detail { color: var(--ink-3); }
 
@@ -290,6 +290,52 @@
 .cb-other { position: relative; flex: none; text-align: center; padding: 0; display: flex; flex-direction: column; align-items: center; }
 .cb-other .tagslot { display: flex; align-items: flex-end; justify-content: center; }
 .cb-other .tag { position: relative; height: 18px; padding: 2px 7px; margin-bottom: 2px; border: 0; border-radius: var(--r-pill); background: var(--gold); color: var(--ink-on-gold); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .08em; white-space: nowrap; z-index: 2; }
-.cb-other .tag.ghost { background: var(--surface-2); color: var(--ink-3); border: 1px dashed var(--st-illegal); }
+.cb-other .tag.ghost { background: var(--surface-1); color: var(--ink); border: 1px dashed var(--st-illegal); }
 .cb-other .tag::after { content: ""; position: absolute; inset: min(0px, calc((18px - 44px / var(--z, 1)) / 2)) min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }
 @media (max-height: 700px) { .cb-hero .gcol:has(.wplate) { gap: 1px; } .cb-hero .wplate { margin-top: 0; padding-top: 0; padding-bottom: 0; line-height: 13px; } }          /* (a short phone: the weapon's plate leaves the Belongings button its room) */
+
+/* ---- notes 102 and 103: the lane grid always says its words; each row says what was played; the armor stands beneath the defence row under the lanes it covers ---- */
+/* (the stage is scaled to fit, so everything here is tight: the chit stands beside the name where the lane is wide enough and under it where it is not; one line says each play; a piece of armor is 30px) */
+.cb-lane { padding-top: 2px; padding-bottom: 2px; row-gap: 0; column-gap: 4px; }
+.cb-lane .lbl { letter-spacing: .1em; }
+.cb-lane .cb-pill { height: 22px; padding: 0 6px; }
+.cb-lane.crowd .lbl { flex: 0 0 100%; }
+.cb-lanes.top { margin: 4px 0 0; } .cb-lanes.bot { margin: 3px 0 0; }
+.cb-lanewrap { display: block; position: relative; z-index: 1; }          /* (over the thread that runs from him to his target; the hero stands over this row) */
+.cb-hero { position: relative; z-index: 2; }
+.cb-pl { margin: 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0 5px; font: 500 calc(13px * var(--ts, 1))/16px var(--font-ui); color: var(--ink-2); text-align: center; }
+.cb-pl .sep { color: var(--ink-3); }
+.cb-pl .nbw { white-space: nowrap; }
+.cb-pl.atk { color: var(--gold-hi); }
+.cb-pl.grd { color: #b4c7ea; }
+.cb-armor { margin: 3px 0 0; }
+.cb-agrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px 6px; }
+.cb-apiece { display: flex; align-items: center; gap: 5px; min-height: 30px; padding: 1px 6px; border-radius: var(--r-sm); border: 1.5px solid var(--line-2); background: var(--surface-3); color: var(--ink); min-width: 0; }
+.cb-apiece .th.ds-counter { width: 22px; height: 22px; border-radius: 5px; }
+.cb-apiece .th img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.cb-apiece .t { display: flex; flex-direction: column; min-width: 0; line-height: 1.05; }
+.cb-apiece .t b { font: 700 calc(13px * var(--ts, 1))/1.05 var(--font-ui); overflow-wrap: anywhere; }
+.cb-apiece .t small { font: 500 calc(12px * var(--ts, 1))/1.1 var(--font-ui); color: var(--ink-2); }
+.cb-apiece:not(.s1) .t { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 6px; }          /* a piece under two or three lanes has the room for its lanes beside its name */
+.cb-apiece.dmg { border-style: dashed; border-color: var(--danger); }
+.cb-apiece.s1 .th { display: none; }          /* a piece under one lane has the width of its words only */
+.cb-abare { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 30px; padding: 1px 4px; border-radius: var(--r-sm); border: 1.5px dashed var(--st-illegal); color: var(--ink-3); text-align: center; line-height: 1.05; }
+.cb-abare span { display: none; }
+.cb-abare small { font: 500 calc(12px * var(--ts, 1))/1.1 var(--font-ui); }
+.cb-armor-why { margin: 2px 0 0; text-align: center; font: 500 calc(12px * var(--ts, 1))/15px var(--font-ui); color: var(--ink-2); text-wrap: balance; }
+@media (max-height: 700px) { html:not([data-voice-mode="detail"]) .cb-armor-why { display: none; }          /* a short phone has no room for the reason in Story: Detail has it */
+  .cb-pl { line-height: 15px; } .cb-apiece, .cb-abare { min-height: 28px; } .cb-lane { padding-top: 1px; padding-bottom: 1px; } }
+/* a short phone (note 102 gave the lanes more to say): the lane rows, the played lines and the armor pieces give back what they can, so the Belongings and the Map under the weapon and the armor are never pushed out of the stage */
+@media (max-height: 700px) { .cb .cb-lane { min-height: 26px; padding-top: 0; padding-bottom: 0; }  .cb-lanes.top { margin-top: 2px; } .cb-lanes.bot { margin-top: 2px; }
+  .cb-pl { font-size: calc(12px * var(--ts, 1)); line-height: 14px; } .cb-armor { margin-top: 2px; } .cb-agrid { gap: 2px 6px; }
+  .cb-apiece, .cb-abare { min-height: 24px; padding-top: 0; padding-bottom: 0; } .cb-apiece .t b { font-size: calc(12px * var(--ts, 1)); } .cb-apiece .th.ds-counter { width: 20px; height: 20px; } }
+
+/* the fight bar's pictures carry their words (note 102): the Belongings and the Map say so under the picture; on a short phone the hero's name and the armor's name stay (the armor column has the room: the weapon column is taller by its plate) */
+.cb-hero .cb-peek, .cb-party .cb-peek, .sf-head .cb-peek { flex-direction: column; gap: 1px; width: auto; min-width: 68px; height: 46px; padding: 2px 6px; justify-content: center; }
+.cb-peek .pk { font: 600 calc(12px * var(--ts, 1))/12px var(--font-ui); letter-spacing: 0; white-space: nowrap; color: var(--ink-2); }
+.cb-hero .cb-peek .ds-i, .cb-party .cb-peek .ds-i, .sf-head .cb-peek .ds-i { width: 20px; height: 20px; }
+.cb-hero .mid.tappable { min-height: calc(44px / var(--z, 1)); }
+@media (max-height: 700px) { .cb-hero .name { display: block; } .cb-hero .gcol:not(:has(.wplate)) .cap { display: block; width: 88px; margin: 0 -16px; line-height: 1; } }
+/* the note (microphone) button is fixed at the top right; with no margin above the fight (a short phone) the top row leaves it its corner, so it never covers the sight or the Map */
+@media (max-height: 700px) { .cb-top { padding-right: 44px; } .cb-top .cb-sight { padding: 5px 8px; letter-spacing: .06em; } .cb-top .where b { letter-spacing: .03em; } .cb-top .where span { letter-spacing: .05em; } .cb-top .cb-sight { font-size: calc(12px * var(--ts, 1)); } .cb-top { gap: 6px; } }
+.cb-stagein[data-tight] .cb-pl { display: none; }

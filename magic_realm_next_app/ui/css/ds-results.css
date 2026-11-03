@@ -122,7 +122,7 @@
 .ds-clearing .ds-roads .ds-row { margin-top: 6px; min-height: 48px; }
 .ds-clearing .ds-row.meetwith { color: inherit; }
 .ds-clearing .ds-row .art img { max-width: 80%; max-height: 80%; }
-.ds-clearing .ds-row.off { opacity: .6; }
+.ds-clearing .ds-row.off { opacity: .8; border-style: dashed; }          /* a road not found yet: dashed and a little fainter, its words still readable (60% left them at 3.9:1) */
 .ds-clearing .ds-row .ds-tag { flex: none; }
 /* a sign (note 94): the chit as printed, its own 62px column (it used to hang out of the 44px picture box), then what it can call on this tile, one line a Monster Roll */
 .ds-clearing .ds-row.sign { align-items: flex-start; padding: 10px 12px; }
@@ -157,7 +157,7 @@
 .ds-chitgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .ds-chitgrid .ds-chit { width: 100%; height: 64px; }
 .ds-chitgrid .ds-chit.pick { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(181, 227, 156, .22); }
-.ds-chitgrid .ds-chit.dim { opacity: .5; }
+.ds-chitgrid .ds-chit.dim { opacity: .72; border-style: dashed; }          /* a chit that cannot pay: dashed and fainter, its Move/Fight word still readable (50% was 2.5:1) */
 .ds-chitgrid .ds-chit.pick { opacity: 1; }
 
 /* Prophecy's picker in the tray (tray.js phase-pick): eight actions in two rows of four, icon over word, so the chips, the hint and the pips fit the tray budget without scrolling */

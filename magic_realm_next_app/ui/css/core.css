@@ -10,7 +10,9 @@
 button:where([class^="ds-"], [class*=" ds-"]) { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 :where(.ds-app, .ds-screen, .ds-strip, .ds-tray, .ds-sheet, .ds-map, .ds-foot, .ds-state, .ds-result) img,
 :where([class^="ds-"], [class*=" ds-"]) img { display: block; }
-.ds-px { image-rendering: pixelated; }           /* the 32 px action art, only at 1x/2x/3x */
+.ds-px { image-rendering: pixelated; }
+/* the 32px action art is drawn in dark ink: on the night ground it vanished (ui_screens: 1.2:1 against its plate), so an action's icon sits on a parchment plate, like a counter */
+.ds-pip img.ds-px, .ds-act img.ds-px, .ds-last img.ds-px { background: var(--counter-face); border-radius: 5px; padding: 1px; box-sizing: content-box; }           /* the 32 px action art, only at 1x/2x/3x */
 .ds-nb { white-space: nowrap; }                  /* "Curst Valley 4", "attack time 6": never break inside */
 
 /* ---- type roles ---- */

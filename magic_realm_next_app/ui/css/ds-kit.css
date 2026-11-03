@@ -8,7 +8,7 @@
 .ds-slot .k { font: 600 calc(11px * var(--ts, 1))/1 var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
 .ds-slot .ds-counter { width: 44px; height: 44px; } .ds-slot .n { font: 600 calc(13px * var(--ts, 1))/1.1 var(--font-ui); color: var(--ink); }
 .ds-slot.empty { border-style: dashed; border-color: var(--st-illegal); background: transparent; } .ds-slot.empty .ds-counter { background: transparent; box-shadow: none; color: var(--ink-3); } .ds-slot.empty .n { color: var(--ink-3); }
-.ds-slot.on { border: 2px solid var(--gold); } .ds-slot.dim { opacity: .5; }
+.ds-slot.on { border: 2px solid var(--gold); } .ds-slot.dim { opacity: .8; border-style: dashed; }          /* locked: dashed and a little fainter, still readable (50% left its labels at 2.5:1) */
 .ds-slot .lock { position: absolute; right: 4px; top: 4px; color: var(--st-locked); width: 14px; height: 14px; }
 .ds-load { padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); }
 .ds-load .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; } .ds-load .top b { font: 700 calc(17px * var(--ts, 1))/1.2 var(--font-ui); }
