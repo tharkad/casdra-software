@@ -16,7 +16,7 @@ import { ACT_LABEL, TABLE_LABEL, modal, mrChit, showToast } from './kit.js';
 import { siteBlock, siteCardRow, row as siteRow } from './sheet_clearing.js';
 import { mountSheet } from '../kit/common.js';
 import { steedName } from '../../steeds.js';
-import { learnContent } from '../kit/spells.js';
+import { learnContent, blockedNote } from '../kit/spells.js';
 import { seatTurnEndSheet } from './leaders.js';
 import { render } from './shell.js';
 import { ownSheet, gameOf, todayOf, planSlots, siteChits, legalOf, tableModel } from '../../combat/feed.js';
@@ -97,7 +97,7 @@ export function turnEndSheet(G) {
     const bl = G.shared && !t.noTurn ? meetLines(tableModel(G.st, G.data), ownSheet(G.st, G.data).id).filter(l => l.kind === 'blocked').at(-1) : null;
     const blockCardEl = bl && t.blocked ? h('div', { class: 'phase-result bad meet-result', role: 'status', 'data-meet-result': 'blocked' }, h('div', { class: 'pr-head' }, h('small', {}, 'Blocked')), h('p', { class: 'pr-line' }, voice() === 'story' ? bl.story : bl.text)) : null;
     const place = nameOfClearing(t.at).replace(/ (\d+)$/, '\u00A0$1');
-    return modal(G, 'Turn\u2019s end', h('div', { class: 'turnend clearing' }, blockCardEl, status, rows.length ? sect('At the end of your turn') : null, ...rows),
+    return modal(G, 'Turn\u2019s end', h('div', { class: 'turnend clearing' }, blockCardEl, status, rows.length ? sect('At the end of your turn') : null, ...rows, blockedNote(G)),
         { kind: 'result', bare: true, eyebrow: `Day ${gameOf(G.st, G.data).day} \u00B7 ${place}`, head: voiceSwitch(), cls: 'turnend-sheet',
             footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'turn-ok', onclick: () => act(G, { type: 'continue' }) }, 'End turn')) });
 }

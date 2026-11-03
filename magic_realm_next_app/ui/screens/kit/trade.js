@@ -1,7 +1,8 @@
 // screens/kit/trade.js (P2): the Trade sheet, select-then-commit. Rows tick (a single tap can never sell or spend); the foot says exactly what will happen, with the gold after,
 // and its button is dim until something is ticked. Sell | Buy | Boons are rooms of one sheet. The price offer (after the Meeting Table roll) leads with the price; an insult is a
 // plain question. Every engine action is the one the old sheet sent: { type: 'trade', act: 'sell' | 'buy' | 'accept' | 'decline' | 'pay' | 'fight' | 'drinks' | 'repay' | 'group' | 'back' | 'done' }.
-import { nameOfClearing } from '../../../engine/catalogue.js';
+import { defOf, nameOfClearing } from '../../../engine/catalogue.js';
+import { stockNote } from '../../stocknotes.js';
 import { rollRow, rollsByIds } from '../../dice.js';
 import { h } from '../../dom.js';
 import { committedNote } from '../../commit.js';
@@ -13,7 +14,7 @@ import { markGroup } from '../../groups.js';
 import { boonContent } from './boon.js';
 import { isVisitorName, leaderArt, noDrinksRow, spellFoot, spellOfferContent, spellsRoom, visitorPriceTag } from './visitors.js';
 import { MOOD_WORD, actIcon, ask, dimBtn, footRow, goldEl, itemArt, moodOf, moodTag, nativeArt, plural, say, seg, skipBtn, tick, twoLine } from './common.js';
-import { ownSheet, missionsOf, viewOf, tradeOf } from '../../combat/feed.js';
+import { ownSheet, missionsOf, viewOf, tradeOf, journalLines } from '../../combat/feed.js';
 
 // (a Trouble or an Opportunity throws again: in Story both rolls carry the group's name, so the later one is labelled "Thrown again" rather than repeating it)
 export const offerDice = (G, p) => {
@@ -81,6 +82,12 @@ function offerContent(G, p) {
 }
 
 // ---- one tickable row, and the little "about it" that opens what it is below the row ----
+// Why a piece is on the list when it did not start in the box (note 105): the group's own sentence, from the journal (stocknotes.js), else the usual line.
+const noteLine = (G, group, g) => {
+    const d = defOf(G.data, { kind: g.kind, id: g.id }), owners = Object.fromEntries((G.data.setupcard?.dwellings ?? []).flatMap(dw => [[dw.name, dw.group], [dw.rsName, dw.group]]));
+    const returnsTo = d && d.native && !d.card ? owners[d.returnsTo] ?? owners[d.startBox] ?? null : null;
+    return stockNote(journalLines(G.st, G.data), group, g.name, returnsTo) ?? 'The roll sets the price.';
+};
 function tradeRow(G, sel, { key, it, name, line, price, unit = '', tag = '', count = 0, selected, dim = null, onSelect, info }) {
     const open = sel.info === key;
     return h('div', { class: 'kit-trow', 'data-row': key },
@@ -143,7 +150,7 @@ function tradeMain(G, p) {
         const seen = new Map();
         goods.forEach(g => { const raw = raws[g.idx] ?? {}, k = `${g.kind}:${g.id}:${raw.damaged ? 1 : 0}:${raw.card ?? ''}`; (seen.get(k) ?? seen.set(k, { ...g, raw, idxs: [] }).get(k)).idxs.push(g.idx); });
         const list = [...seen.values()];
-        rows = list.length ? list.map(g => tradeRow(G, sel, { key: `buy:${g.idxs[0]}`, it: { ...g.raw, kind: g.kind, id: g.id }, name: g.name, line: 'The roll sets the price.', price: g.base, unit: 'list', tag: g.raw.damaged ? 'damaged' : visitorPriceTag(G, p.group, { ...g.raw, kind: g.kind, id: g.id }, g.base), count: g.idxs.length, selected: g.idxs.includes(sel.buy),
+        rows = list.length ? list.map(g => tradeRow(G, sel, { key: `buy:${g.idxs[0]}`, it: { ...g.raw, kind: g.kind, id: g.id }, name: g.name, line: noteLine(G, p.group, g), price: g.base, unit: 'list', tag: g.raw.damaged ? 'damaged' : visitorPriceTag(G, p.group, { ...g.raw, kind: g.kind, id: g.id }, g.base), count: g.idxs.length, selected: g.idxs.includes(sel.buy),
             dim: p.mode === 'sell' ? 'A phase is selling or buying, not both.' : null, onSelect: () => pickBuy(g.idxs.includes(sel.buy) ? sel.buy : g.idxs[0]), info: infoOf(G, { ...g.raw, kind: g.kind, id: g.id }) }))
             : [h('p', { class: 'kit-none' }, 'Nothing for sale.')];
         // 7.2.4h: a foe of the campaign he carries is an Enemy, and he cannot buy it drinks: the button is not offered, and the sheet says why

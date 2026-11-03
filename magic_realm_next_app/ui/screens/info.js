@@ -90,6 +90,21 @@ export function bugSheetFront() {
     draw();
 }
 
+// The controls for how the game reads on this device: Tell it as (Story / Detail), Text size, Top margin, Calm motion, Note button. Shared by this screen and by the Menu's Settings look in a game in progress
+// (play/sheet_settings.js): these never touch a game, so they can be changed at any time. `redraw` builds the screen again after a change.
+export function readingFields(redraw) {
+    return [
+        field('Tell it as', seg([['story', 'Story'], ['detail', 'Detail']], voice(), v => { setVoice(v); redraw(); }, { label: 'Tell it as', attrOf: id => ({ 'data-voice-pick': id }) }),
+            { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'The Story is short and told in the world’s voice; Detail adds every number.') }),
+        field('Text size', seg(TEXT_SIZES, textSize(), v => { setTextSize(v); redraw(); }, { label: 'Text size', attrOf: id => ({ 'data-textsize-pick': id }) }),
+            { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'Makes the words bigger everywhere. The map keeps its own size: pinch it to zoom.') }),
+        field('Top margin', seg(TOP_GAPS, topGap(), v => { setTopGap(v); redraw(); }, { label: 'Top margin', attrOf: id => ({ 'data-topgap-pick': id }) }),
+            { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'Room under the status bar. On an iPhone the very top of the page can look faded; more margin moves the text out of it.') }),
+        switchRow({ title: 'Calm motion', line: 'No gliding or flipping. The game follows your phone’s setting unless you turn this on.', on: calm(), attrs: { 'data-option': 'calm' }, onToggle: () => { setCalm(!calm()); redraw(); } }),
+        switchRow({ title: 'Note button', line: 'A round microphone button on every screen: say what you want to happen there. It goes on a list for later.', on: noteButtonOn(), attrs: { 'data-option': 'notebtn' }, onToggle: () => { setNoteButton(!noteButtonOn()); redraw(); } })
+    ];
+}
+
 export function settingsScreen(ctx) {
     const root = h('main', { class: 'screen ds-screen ds-title flush', 'data-screen': 'settings' });
     let advanced = false;
@@ -100,14 +115,7 @@ export function settingsScreen(ctx) {
         return [bar('Settings', { onBack: () => ctx.go('title') }),
             h('div', { class: 'ds-scroll ds-fade-b ds-pad' },
                 h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Reading')),
-                field('Tell it as', seg([['story', 'Story'], ['detail', 'Detail']], voice(), v => { setVoice(v); redraw(); }, { label: 'Tell it as', attrOf: id => ({ 'data-voice-pick': id }) }),
-                    { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'The Story is short and told in the world’s voice; Detail adds every number.') }),
-                field('Text size', seg(TEXT_SIZES, textSize(), v => { setTextSize(v); redraw(); }, { label: 'Text size', attrOf: id => ({ 'data-textsize-pick': id }) }),
-                    { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'Makes the words bigger everywhere. The map keeps its own size: pinch it to zoom.') }),
-                field('Top margin', seg(TOP_GAPS, topGap(), v => { setTopGap(v); redraw(); }, { label: 'Top margin', attrOf: id => ({ 'data-topgap-pick': id }) }),
-                    { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'Room under the status bar. On an iPhone the very top of the page can look faded; more margin moves the text out of it.') }),
-                switchRow({ title: 'Calm motion', line: 'No gliding or flipping. The game follows your phone’s setting unless you turn this on.', on: calm(), attrs: { 'data-option': 'calm' }, onToggle: () => { setCalm(!calm()); redraw(); } }),
-                switchRow({ title: 'Note button', line: 'A round microphone button on every screen: say what you want to happen there. It goes on a list for later.', on: noteButtonOn(), attrs: { 'data-option': 'notebtn' }, onToggle: () => { setNoteButton(!noteButtonOn()); redraw(); } }),
+                ...readingFields(redraw),
                 row('Your notes', 'What you have said, and whether the server has it', () => openNotesList(), { 'data-act': 'notes' }),
                 h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Online')),
                 field('Your name', nameIn),

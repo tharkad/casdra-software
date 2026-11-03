@@ -8,6 +8,19 @@ export const isNo = r => !!r && typeof r === 'object' && typeof r.code === 'stri
 
 const TYPE_OF_COLOR = { Grey: 'II', White: 'V', Gold: 'III', Purple: 'IV', Black: 'VI' };          // (only a fallback: the engine passes `chitType`)
 
+// Why there is no Magic chit of the spell's numeral to play (8.3.9b.3: a spell is cast by playing one). `states` are the states of his Magic chits of that numeral that are not ready: wounded and tired chits are
+// out of play until a Rest brings them back (7.8.2), a committed chit is tied to a spell still in force, an enchanted one is a colour chit. `selfMend`: the spell mends chits (Make Whole), which tempts one to ask
+// it to mend its own: it cannot, the chit that casts it must be ready first.
+const STATE_WORDS = { wounded: 'wounded', fatigued: 'tired', committed: 'tied to a spell', enchanted: 'enchanted to a colour' };
+function chitNone(p) {
+    const states = (p.states ?? []).filter(s => STATE_WORDS[s]);
+    if (!(p.states ?? []).length) return `You have no Magic ${p.type} chit.`;
+    const lead = `Your Magic ${p.type} chit is ${states.length ? states.map(s => STATE_WORDS[s]).join(' or ') : 'not ready'}`;
+    const tail = states.includes('wounded') || states.includes('fatigued') ? ' and out of play. Rest to bring it back.'
+        : states.includes('committed') ? ', so it is not free to cast with until that spell ends.' : '.';
+    return `${lead}${tail}${p.selfMend ? ' Make Whole cannot mend the chit it is cast with.' : ''}`;
+}
+
 export const WHY_SENTENCES = {
     'caster.pentangle': () => 'A Pentangle holds off every new spell aimed at you, your own included.',
     'targets.shielded': () => 'Every legal target is shielded (a Pentangle, or the Wish for Peace).',
@@ -15,7 +28,7 @@ export const WHY_SENTENCES = {
         ? ` Or enchant a Type ${p.chitType ?? TYPE_OF_COLOR[p.color] ?? '?'} Magic chit in an Enchant phase to hold ${p.color} magic yourself.`
         : ' Or enchant a Magic chit in an Enchant phase to hold a colour yourself.'}`,
     'box.tied': () => 'Its spell box is tied up by the spell you cast with it, which is still in effect (8.4.3c).',
-    'chit.none': p => `You have no ready Magic ${p.type} chit.`,
+    'chit.none': p => chitNone(p),
     'chit.slow': p => `Your Magic ${p.type} chit is too slow: a Magic chit must be no slower than the fastest creature facing you (time ${p.slowest}). Alert it in an Alert phase and it acts at time 0.`,
     'place.cave': p => `${p.spell} can be cast only in a cave clearing.`,
     'place.mountain': p => `${p.spell} can be cast only in a mountain clearing.`,

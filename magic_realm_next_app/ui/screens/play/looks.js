@@ -11,6 +11,7 @@ import { cardInfoSheet, charSheet, cursesSheet, itemSheet, slotSheet, spellSheet
 import { journalSheet } from './journal.js';
 import { bugSheet, calendarSheet, menuSheet, scoreSheet, setupCardSheet } from './sheet_info.js';
 import { leaderSheet } from './leaders.js';
+import { settingsSheet } from './sheet_settings.js';
 import { pieceSheet } from './piece_card.js';
 import { render } from './shell.js';
 
@@ -57,6 +58,7 @@ export function lookSheet(G) {
         case 'help': return helpSheet(G);
         case 'tables': return tablesSheet(G);
         case 'setupcard': return setupCardSheet(G);
+        case 'settings': return settingsSheet(G);
         case 'bug': return bugSheet(G);
         case 'confirm-abandon': return G.race ? null : abandonSheet(G);
         default: return null;

@@ -19,6 +19,7 @@ import { drawSheet, fightOverSheet, playersSheet, sharedOverSheet, sharedRestart
 import { cardInfoSheet, cursesSheet, itemSheet, slotSheet, spellSheet, spellsSheet } from './sheet_char.js';
 import { pieceSheet } from './piece_card.js';
 import { clearingSheet } from './sheet_clearing.js';
+import { settingsSheet } from './sheet_settings.js';
 import { bugSheet, calendarSheet, menuSheet, raceSheet, scoreSheet, setupCardSheet } from './sheet_info.js';
 import { hireSheet, tradeSheet } from './sheet_trade.js';
 import { eveningContent } from '../kit/evening.js';
@@ -32,7 +33,7 @@ import { setWelcomed, vpNow, welcomed } from './state.js';
 // ---- sheets ----
 // A look at the belongings, the Journal, the menu, the calendar... while a question waits on a sheet: the question stays where it is (under the scrim) and the look opens over it;
 // closing the look gives the question back. (A fight, the draw and the other full-screen things have their own hosts and are not covered.)
-const LOOKS = new Set(['char', 'menu', 'calendar', 'score', 'journal', 'dice', 'log', 'curses', 'spells', 'spell', 'item', 'cardinfo', 'key', 'help', 'tables', 'setupcard', 'card', 'piece', 'slot']);
+const LOOKS = new Set(['char', 'menu', 'calendar', 'score', 'journal', 'dice', 'log', 'curses', 'spells', 'spell', 'item', 'cardinfo', 'key', 'help', 'tables', 'setupcard', 'settings', 'card', 'piece', 'slot']);
 const QUESTIONS = new Set(['turn-end', 'evening-end', 'phase-gear', 'rest', 'search-table', 'search-choice', 'effort-cost', 'runes-target', 'learn-spell', 'enchant-choice', 'trade', 'trade-offer', 'hire', 'hire-offer']);
 
 // The morning's day report and the first-day welcome are not modal (Mike's note 81): the strip and the menu open their look over them, like over any question (a clearing looked at already did, through `lookAt`).
@@ -107,6 +108,7 @@ export function sheets(G, lookOnly = false) {
     else if (G.ui.sheet === 'journal' || G.ui.sheet === 'dice' || G.ui.sheet === 'log') out.push(journalSheet(G));
     else if (G.ui.sheet === 'tables') out.push(tablesSheet(G));
     else if (G.ui.sheet === 'setupcard') out.push(setupCardSheet(G));
+    else if (G.ui.sheet === 'settings') out.push(settingsSheet(G));
     else if (G.ui.sheet === 'item') out.push(itemSheet(G));
     else if (G.ui.sheet === 'cardinfo') out.push(cardInfoSheet(G));
     else if (G.ui.sheet === 'curses') out.push(cursesSheet(G));

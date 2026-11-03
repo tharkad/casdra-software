@@ -1,6 +1,11 @@
 /* css/ds-gear.css: the end-of-day gear reminder (screens/kit/evening.js, the engine's 'evening-end' question), New belongings (screens/kit/phasegear.js, 'phase-gear') and the plan tray's spare pony tab (screens/play/plan.js).
    Written against tokens.css and core.css; classes kit-gear* / kit-evening / ptab.spare. Nothing here changes another package's rules. */
 .kit-evening .ds-ask { margin-bottom: 4px; }
+/* Notes 104, 106: a spell he knows that cannot be cast tonight, and why, at the evening's end and the end of his turn (kit/spells.js blockedNote). A quiet card, not a warning: nothing is wrong. */
+.kit-nocast { margin: 10px 0 2px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: var(--r-md); background: var(--surface-3); display: grid; gap: 4px; }
+.kit-nocast p { margin: 0; font: 400 calc(14px * var(--ts, 1))/1.35 var(--font-ui); color: var(--ink-2); text-wrap: pretty; }
+.kit-nocast p b { display: block; color: var(--ink); font-weight: 700; }
+.kit-nocast .ds-eyebrow { color: var(--ink-3); }
 .kit-gearlist { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .kit-gear { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 64px; padding: 8px 10px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); }
 .kit-gear.on { border-color: var(--gold); }

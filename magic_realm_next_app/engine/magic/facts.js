@@ -4,6 +4,10 @@ import { elsewhere } from './fx.js';
 import { heldOptions, rearrangeLockWhy } from './phase.js';
 import { energizeOptions } from './energize.js';
 import { flySources } from './fly.js';
+import { blockedSpells } from './cast.js';
+
+// The spells he knows that cannot be cast now, each with the reason as a code and as a sentence (`spell`, `name`, `color`, `why`, `whyCode`): what a screen shows where he looks for the cast (notes 104, 106).
+const blockedNow = (st, data) => { try { return blockedSpells(st, data).map(b => ({ spell: b.spell, name: b.name, color: b.color ?? null, why: b.why, whyCode: b.whyCode })); } catch { return []; } };
 
 export function spellFacts(st, data, mine) {
     const live = (st.fx ?? []).filter(f => f.state !== 'done' && (!f.who || mine.has(f.who)));
@@ -14,6 +18,7 @@ export function spellFacts(st, data, mine) {
         held: heldOptions(st, data),
         heldLock: held.length && !heldOptions(st, data).length ? { spells: [...new Set(held.map(f => f.spell))], cause, why: rearrangeLockWhy(st) } : null,
         energize: energizeOptions(st, data),
+        blocked: blockedNow(st, data),
         fly: { sources: flySources(st, data), holdsBroomstick: (st.fx ?? []).some(f => f.spell === 'broomstick' && (f.state === 'held' || f.state === 'live') && !elsewhere(st, f)) },
     };
 }

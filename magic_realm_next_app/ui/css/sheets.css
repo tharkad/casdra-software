@@ -139,7 +139,7 @@ button.chit2:disabled { cursor: default; }
 .sc-title b { font-size: calc(16px * var(--ts, 1)); } .sc-title em { font-style: normal; font-size: calc(12px * var(--ts, 1)); color: #8fcb80; } .sc-title small { color: var(--dim); font-size: calc(12.5px * var(--ts, 1)); }
 .sc-card .mrchit { width: 52px; height: 52px; }
 .sc-guard { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,.18); border-radius: 8px; padding: 4px 6px; }
-.sc-guard img { width: 38px; height: 38px; object-fit: contain; flex: none; }
+.sc-guard img { width: 40px; height: 40px; object-fit: contain; flex: none; }
 .sc-guard span { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
 .sc-guard b { font-size: calc(14px * var(--ts, 1)); } .sc-guard small { color: var(--dim); font-size: calc(12px * var(--ts, 1)); }
 .sc-treasure { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
@@ -158,6 +158,10 @@ button.chit2:disabled { cursor: default; }
 .sc-good { display: inline-flex; align-items: center; gap: 4px; font-size: calc(12.5px * var(--ts, 1)); padding: 2px 6px; border-radius: 8px; background: rgba(0,0,0,.2); }
 .sc-good img { width: 22px; height: 22px; object-fit: contain; background: #efe6d0; border-radius: 5px; padding: 1px; }
 .sc-spells { margin: 6px 0; } .sc-spells small { color: var(--dim); }
+/* Note 107: the original pictures are black line art on transparent, so on the dark card they vanished. Every one sits on the cream counter plate (the same plate belongings, trade and the journal use). */
+.setupcard img { background: var(--counter-face); border: 1px solid var(--counter-edge); border-radius: 8px; padding: 3px; box-sizing: border-box; }
+.setupcard .sc-good { padding: 3px 8px 3px 3px; gap: 6px; }
+.setupcard .sc-good img { border-radius: 6px; padding: 2px; }
 .sc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; }
 .sc-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-size: calc(13.5px * var(--ts, 1)); }
 

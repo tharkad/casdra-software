@@ -44,6 +44,7 @@ export function menuSheet(G) {
         h('h4', {}, 'This game'),
         row('Journal', 'What has happened, day by day', go('log')),
         row('Calendar and magic', 'The colours of magic through the month', go('calendar'), { act: 'open-calendar' }),
+        row('Settings', 'What this game was begun with, and how it reads', go('settings'), { act: 'open-settings' }),
         row('Show the whole realm', null, () => {
             G.ui.sheet = null;
             if (questionOf(G.st, G.data)?.type?.startsWith('combat')) { G.ui.combatMap = true; render(G); G.map.fit(); return; }          // (in a fight the map is the fight's own one-tap look, with "Back to the fight": notes 99, 101)

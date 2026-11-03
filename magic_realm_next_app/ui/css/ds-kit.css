@@ -226,3 +226,16 @@ button.kit-what > div { flex: 1; }
 .kit-dismiss.asking .ds-why { flex: 1 1 100%; margin: 0; }
 /* art switch: the box horses are tall, and a row's art tile has no height of its own for a percentage to work from: pin the horse to the tile */
 .kit .ds-row .art img[src*="art/steed/"] { height: 35px; }
+
+/* Note 108: the Menu's Settings look (play/sheet_settings.js). Fixed rows (the game as it was begun) are quiet, 44px tall, with a lock; the controls that can change sit under them in the title screen's own style. */
+.set-sheet .set-block + .set-block { margin-top: 18px; }
+.set-sheet .set-head small { display: inline-flex; align-items: center; gap: 5px; }
+.set-sheet .set-lock { width: 14px; height: 14px; color: var(--st-locked); flex: none; }
+.set-sheet .set-group { margin: 12px 0 6px; font: 600 calc(12px * var(--ts, 1))/1.2 var(--font-display); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--ink-3); }
+.set-sheet .set-fixed { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 52px; text-align: left; }
+.set-sheet .set-fixed .main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.set-sheet .set-fixed .main b { font: 700 calc(16px * var(--ts, 1))/1.25 var(--font-ui); color: var(--ink); }
+.set-sheet .set-fixed .main span { font: 400 calc(14px * var(--ts, 1))/1.3 var(--font-ui); color: var(--ink-2); text-wrap: pretty; }
+.set-sheet .set-fixed .end.set-val { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; }
+.set-sheet .set-val .ds-tag { font-style: normal; }
+.set-sheet .ds-fieldgap { margin-top: 10px; }

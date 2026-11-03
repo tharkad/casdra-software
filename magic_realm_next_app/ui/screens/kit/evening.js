@@ -12,6 +12,7 @@ import { ACT_LABEL } from '../play/kit.js';
 import { tidyAct } from './kit.js';
 import { ROAD_STORY, roadLockOf, voiced } from '../../commit.js';
 import { ownSheet } from '../../combat/feed.js';
+import { blockedNote } from './spells.js';
 
 const cap = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 const names = list => (list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0] ?? '');
@@ -47,20 +48,22 @@ const roadNote = G => { const road = roadLockOf(G.st); return road ? h('div', { 
 // evening(G, pending) -> { title, eyebrow, body, foot, detent } for mountSheet (a decision: the map can be looked at while it waits).
 export function eveningContent(G, p) {
     const gear = p.gear ?? [], st = G.st;
-    const missed = gear.filter(g => !g.active && g.canActivate);
+    const missed = gear.filter(g => !g.active && g.canActivate), nocast = blockedNote(G, { past: true });
     const body = gear.length
         ? h('div', { class: 'kit kit-evening', 'data-evening': 'gear' },
             h('div', { class: 'ds-ask' }, h('b', {}, 'Switch on what you will need tomorrow.'),
                 h('span', { 'data-v': 'story' }, 'An extra phase counts only if its horse or treasure is already on when you plan at dawn. Tonight is your last chance.'),
                 h('span', { 'data-v': 'detail' }, 'Rule 6.2.2c.1: an extra phase from an item can be recorded only if the item is active in Birdsong. Belongings cannot be rearranged then (7.2.2f), so the evening is the last chance.')),
             roadNote(G),
-            h('div', { class: 'kit-gearlist' }, gear.map(g => gearRow(G, g))))
+            h('div', { class: 'kit-gearlist' }, gear.map(g => gearRow(G, g))),
+            nocast)
         : h('div', { class: 'kit kit-evening quiet', 'data-evening': 'quiet' },
             h('div', { class: 'ds-ask' }, h('b', {}, 'Nothing you carry changes tomorrow.'),
                 roadLockOf(G.st) ? null : h('span', {}, 'You may still rearrange your belongings before Midnight.')),
-            roadNote(G));
+            roadNote(G),
+            nocast);
     const note = missed.length ? `Still off: ${names(missed.map(g => g.name))}.` : null;
     const belongings = h('button', { type: 'button', class: 'ds-btn sm quiet', 'data-act': 'evening-kit', onclick: () => { G.ui.sheet = 'char'; render(G); } }, 'Belongings');
     const go = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'evening-go', onclick: () => act(G, { type: 'continue' }) }, twoLine('Continue', 'to Midnight'));
-    return { title: 'Before Midnight', eyebrow: `Day ${st.day} · Evening`, body, detent: gear.length ? 'tall' : 'hug', foot: footRow({ note, bad: false, secondary: belongings, primary: go }) };
+    return { title: 'Before Midnight', eyebrow: `Day ${st.day} · Evening`, body, detent: gear.length || nocast ? 'tall' : 'hug', foot: footRow({ note, bad: false, secondary: belongings, primary: go }) };
 }

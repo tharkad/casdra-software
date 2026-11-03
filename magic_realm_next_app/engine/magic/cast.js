@@ -132,7 +132,11 @@ export function blockedSpells(st, data, { slowest = 99 } = {}) {
         { const why = legalOf(st, data, h, spell); if (why !== true) { out.push(blocked(base, why)); continue; } }
         if (boxesTied(st, spell.id)) { out.push(blocked(base, no('box.tied'))); continue; }
         const ready = st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active' && c.numeral === spell.type && !c.alt?.mf);
-        if (!ready.length) { out.push(blocked(base, no('chit.none', { type: spell.type }))); continue; }
+        if (!ready.length) {
+            const states = [...new Set(st.ch.chits.filter(c => c.type === 'magic' && c.numeral === spell.type && !c.alt?.mf).map(c => c.state))];          // (what keeps each Magic chit of this numeral from being played)
+            out.push(blocked(base, no('chit.none', { type: spell.type, states, ...(h?.selfMend ? { selfMend: true } : {}) })));
+            continue;
+        }
         if (st.combat && ready.every(c => timeOf(st, c) > slowest)) out.push(blocked(base, no('chit.slow', { type: spell.type, slowest })));
     }
     return out;

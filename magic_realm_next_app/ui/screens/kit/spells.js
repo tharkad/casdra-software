@@ -2,7 +2,7 @@
 // text one tap under it), the spells in force, the printed spell card, and the learn sheet (the runes show a spell: learn it, and forget one if the spellbook is full).
 // The wording of "why not" comes from the engine (blockedSpells); nothing here decides a rule.
 import { MAX_SPELLS, whySentence } from '../../../engine/catalogue.js';
-import { blockedSpells, castable, colorChits, colorsAt } from '../../../engine/spells.js';
+import { castable, colorChits, colorsAt } from '../../../engine/spells.js';
 import { act } from '../play/actions.js';
 import { fxEnds } from '../play/sheet_char.js';
 import { render } from '../play/shell.js';
@@ -43,6 +43,20 @@ function status(G, sp, blocked) {
     } catch { return { ok: true, text: 'Cast in the evening.' }; }
 }
 
+// Spells he knows that cannot be cast tonight, and why, as one small card: what the evening's end and the end of his turn show, where he looks for the cast (notes 104, 106). The engine says why (view.me.magic.blocked);
+// `past` is the evening's end ("could not"), else the end of his turn ("cannot"). Nothing when every spell he knows could be cast.
+const OWN_REASONS = new Set(['chit.none', 'chit.slow', 'box.tied']);
+export function blockedNote(G, { past = false } = {}) {
+    // only the ones that fail for a reason of his own (his chit, his spell box): a colour of magic that is not here is the ordinary state of most evenings and is told in the Spells list, not at every day's end
+    const list = (magicOf(G.st, G.data).blocked ?? []).filter(b => OWN_REASONS.has(b.whyCode?.code));
+    if (!list.length) return null;
+    const shown = list.slice(0, 3), more = list.length - shown.length, two = t => t.split(/(?<=\.)\s/).slice(0, 3).join(' ');
+    return h('div', { class: 'kit-nocast', 'data-spells-blocked': String(list.length) },
+        h('span', { class: 'ds-eyebrow' }, `${past ? 'Could not cast' : 'Cannot cast'} tonight`),
+        ...shown.map(b => h('p', { 'data-blocked-spell': b.spell }, h('b', {}, b.name), two(b.why))),
+        more > 0 ? h('p', { class: 'ds-meta' }, `${more} more: see your Spells.`) : null);
+}
+
 // One spell as a card: art, name and tag, the synopsis, the status, and the printed text under a tap.
 export function spellRow(G, id, blocked, { status: showStatus = true } = {}) {
     const sp = G.data.spells?.[id];
@@ -77,7 +91,7 @@ function inForce(G) {
 
 // spellsTab(G, { fxFirst }) -> the room's DOM
 export function spellsTab(G, o = {}) {
-    const ids = ownSheet(G.st, G.data).spells ?? [], blocked = (() => { try { return blockedSpells(G.st, G.data); } catch { return []; } })();
+    const ids = ownSheet(G.st, G.data).spells ?? [], blocked = magicOf(G.st, G.data).blocked ?? [];
     const fx = inForce(G), ch = ownSheet(G.st, G.data), c4 = G.data.characters[ch.id]?.stage4;
     const list = ids.length ? h('div', { class: 'ds-list' }, ids.map(id => spellRow(G, id, blocked)))
         : h('p', { class: 'kit-none' }, (c4?.spellsKnown ?? 0) ? `You know no spell yet: one of type ${(c4.spellTypes ?? []).join(' or ')}, cast in the evening.` : 'You know no spells.');
