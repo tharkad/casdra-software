@@ -33,6 +33,7 @@ import { chooseSource, canFollowFlier } from './steeds.js';
 import * as hs from './hirestate.js';
 import * as leaders from './leaders.js';
 import * as missions from './missions.js';
+import { lullAll, wakeAll, fallAsleep } from './flowers.js';
 
 // The day loop (rules digest 01 section 4): Birdsong plan, Sunrise, Daylight phases, Sunset, Evening combat, Midnight.
 // A game is a plain object; apply(state, data, action) returns the next state and never mutates its input.
@@ -298,12 +299,14 @@ function sunrise(st, data) {
     const magic = dayColors(st.day, st.lastDay ?? 28), week = st.day % 7 === 0 ? regenerate(st, data) : null;
     say(st, `Dawn of day ${st.day}: row ${st.prowl} prowls.${magic.length ? ` The land is filled with ${magic.join(' and ')} magic until midnight.` : ''}`, 'day', tell.dawn(st, data, { magic }), { ...table, ev: { code: 'day.prowl', row: st.prowl } });
     if (week) say(st, `Regeneration: row ${st.prowl} creatures return to their homes.`, 'day', tell.weekEnd(st, data, week), { ...table, ev: { code: 'day.regenerate', row: st.prowl } });
+    lullAll(st, data);                       // Daylight begins: an active Flowers of Rest puts whoever stands by it to sleep (flowers.js)
     if (multi(st)) { const { gone } = meet.declareFollows(st); drawChits(st, gone); return nextTurn(st, data); }
     beginTurn(st, data);
 }
 
 // His chit is drawn and his turn begins: he is no longer hidden (7.1.2: a character becomes unhidden when his own chit is drawn; so on day 1 everyone is, in turn).
 function beginTurn(st, data) {
+    if (st.ch.asleep) return sleptTurn(st, data);          // (Flowers of Rest: he skips his turn)
     st.ch.hidden = false;
     st.period = 'daylight';
     st.turn = { i: 0, climb: null, blocked: false, results: [], movedHere: null, auto: false, base: st.planBase ?? 4, kinds: st.planKinds ?? null };
@@ -356,6 +359,17 @@ function noTurn(st, data) {
     st.pending = { type: 'turn-end' };
 }
 
+// Put to sleep by the Flowers of Rest until Sunset: he skips his turn, cannot block or be blocked, and calls nothing to him. He is told at the end of the turn he did not have.
+function sleptTurn(st, data) {
+    st.period = multi(st) ? 'daylight' : 'turn-end';          // (with several the day stays in Daylight until the last chit has been played)
+    const here = st.ch.at;
+    st.turn = { i: 0, climb: null, blocked: false, results: [], movedHere: null, auto: false, base: st.planBase ?? 4, kinds: st.planKinds ?? null, asleep: true };
+    st.turn.end = { at: here, tile: here ? tileOf(here) : null, prowl: st.prowl, arrivals: [], flipped: [], chits: [], natives: [] };
+    st.turnEnd = { ...st.turn.end, day: st.day, blocked: false, blockers: [], closedIn: [], plan: [], hidden: !!st.ch.hidden, companions: [], asleep: true };
+    meet.releaseFollowers(st, data);
+    st.pending = { type: 'turn-end' };
+}
+
 // Monsters that came into a clearing when someone's turn ended block every unhidden character standing there (7.12.3, 7.12.3a): a character whose chit is not yet drawn loses his
 // whole turn; one who has played already was seen and nothing more. Monsters that were in a clearing already block only the one whose phase just ended (7.12.3b), and a hidden
 // character is not blocked (7.12.2b, 7.13.5).
@@ -363,7 +377,7 @@ function blockOthers(st, data, res) {
     const rec = st.dayRec;
     for (const id of rec.order.slice(rec.i + 1)) {
         const c = st.chars[id];
-        if (c.dead || c.hidden || c.onRoad || c.flying || c.mist || !c.at) continue;
+        if (c.dead || c.hidden || c.asleep || c.onRoad || c.flying || c.mist || !c.at) continue;          // (a sleeper cannot be blocked)
         const here = res.arrivals.filter(a => a.to === c.at);
         if (!here.length) continue;
         c.today.noTurn = true;
@@ -484,6 +498,8 @@ function gearPause(st) {
 function finishPhaseEnd(st, data) {
     const t = st.turn;
     stormCheck(st, data);
+    // Flowers of Rest: a chit this phase fatigued is woken at once and he falls asleep; the rest of his turn is lost, and nothing blocks a sleeper
+    if (fallAsleep(st, data, 'a chit tired during the phase')) { t.results[t.i] += ' (asleep)'; return endDaylight(st, data); }
     // End-of-phase blocking by monsters in his clearing.
     if (t.pro) { noteCave(st, data); if (t.proBroken && phaseOptions(st, data).acts.length) t.forceBlock = true; }
     const bl = blockers(st);
@@ -566,7 +582,7 @@ function endDaylight0(st, data) {
     }
     // Show him what the end of his turn did, before the evening begins.
     const names = bl.map(m => data.monsters[m.id].name);
-    st.turnEnd = { ...res, day: st.day, blocked: blockedMid, blockers: blockedMid ? names : [], closedIn: blockedMid ? [] : names, plan: st.turn.results.slice(), hidden: !!st.ch.hidden, companions: st.turn.companions ?? [] };
+    st.turnEnd = { ...res, day: st.day, blocked: blockedMid, blockers: blockedMid ? names : [], closedIn: blockedMid ? [] : names, plan: st.turn.results.slice(), hidden: !!st.ch.hidden, companions: st.turn.companions ?? [], ...(st.ch.asleep ? { asleep: true } : {}) };
     if (!multi(st)) st.period = 'turn-end';                           // (with several the day stays in Daylight until the last chit has been played)
     // He always stops here: the end of the turn is where he sees whether he is hidden or seen going into the evening.
     st.pending = { type: 'turn-end' };
@@ -576,6 +592,7 @@ function endDaylight0(st, data) {
 function afterTurnEnd(st, data) {
     if (multi(st)) return turnDone(st, data);
     st.period = 'sunset';
+    wakeAll(st, data);                       // (Flowers of Rest: the sleeper wakes at Sunset, 8.1.1)
     sunset(st, data);
 }
 
@@ -595,6 +612,7 @@ function sunsetChores(st, data) {
 // then the clearing of the first drawn among those not yet fought. A clearing with several characters is ONE fight (battle.js); a character alone in his is the one-character evening.
 function sunsetAll(st, data) {
     st.period = 'sunset';
+    wakeAll(st, data);                       // (Flowers of Rest: the sleepers wake at Sunset, 8.1.1)
     // the order of the day's turns, each guide's followers just after him, then whoever had no turn at all (a cancelled follow)
     const turns = st.dayRec.order.flatMap(id => [id, ...(st.dayRec.follow?.[id] ?? [])]);
     const order = [...turns, ...st.order.filter(id => !turns.includes(id))].filter(id => !st.chars[id].dead), units = [], at = new Map();

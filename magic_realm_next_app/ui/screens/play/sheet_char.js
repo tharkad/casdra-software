@@ -11,7 +11,7 @@ import { mountSheet } from '../kit/common.js';
 import { spellCardEl, spellContent, spellsContent } from '../kit/spells.js';
 import { CURSE_PLAIN, modal, picOf, voidBy } from './kit.js';
 import { render } from './shell.js';
-import { ownSheet, gameOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, lullOf } from '../../combat/feed.js';
 
 // The Kit sheet (P2): Kit | Company | Spells, built in screens/kit/*.js. The slot picker is a second small sheet over it.
 export function charSheet(G) { return mountSheet(G, kitContent(G), { close: () => { G.ui.sheet = null; render(G); }, cls: 'kit-sheet' }); }
@@ -109,6 +109,7 @@ export function itemParts(G, it, { size } = {}) {
         if (td?.fame) stats.push(['Fame', `${td.fame > 0 ? '+' : ''}${td.fame}`]);
         if (td?.notoriety) stats.push(['Notoriety', `${td.notoriety > 0 ? '+' : ''}${td.notoriety}`]);
         const notes = [];
+        { const lull = it.id === 'flowers-of-rest' ? lullOf(G.st, G.data) : null; if (lull) notes.push(lull.why); }          // (note 110: what the Flowers will do to him today, or why not)
         if (td?.great) notes.push('A Great Treasure: it counts toward the Great Treasures goal while you keep it.');
         if (td?.fameReward) notes.push(`Sold to the ${td.fameReward.group} it earns ${td.fameReward.points} Fame.`);
         card = cardEl({ title: td?.name ?? name, kind: td?.great ? 'great' : 'treasure', tag: `${td?.great ? 'Great treasure' : td?.kind === 'large' ? 'Large treasure' : td?.kind === 'small' ? 'Small treasure' : 'Treasure'}${td?.magic ? ` \u00B7 ${typeof td.magic === 'object' ? `Magic ${(td.magic.numerals ?? [td.magic.numeral]).filter(Boolean).join('/')}${td.magic.colour ? ` ${td.magic.colour}` : ''}` : `magic ${td.magic}`}` : ''}`, stats, text, notes, picture: pic, symbol: kindIcon(kindOfId(G.data, 'treasures', td?.id ?? key)) });

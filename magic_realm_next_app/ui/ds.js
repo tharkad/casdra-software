@@ -25,7 +25,7 @@ export function strip({ day = 3, total = 28, phase = 'Daylight', gold = 10, fame
         h('button', { type: 'button', class: 'menu', 'aria-label': 'Menu', ...(a.menu ?? {}) }, icon('menu', 'lg'), h('span', { class: 'lbl' }, 'Menu')),
         h('div', { class: 'ds-day', ...(a.day ?? {}) }, h('b', {}, `DAY ${day} `, h('small', {}, `/${total}`)), h('span', {}, phase)),
         h('button', { type: 'button', class: 'ds-stats', 'aria-label': 'Fame, Notoriety, Gold: open the Kit', ...(a.stats ?? {}) },
-            h('span', { class: 'ds-stat fame' }, icon('star'), String(fame)), h('span', { class: 'ds-stat notor' }, icon('flame'), String(notor)), h('span', { class: 'ds-stat gold' }, icon('coin'), String(gold))),
+            h('span', { class: 'ds-stat fame' }, h('span', { class: 'v' }, icon('star'), String(fame)), h('span', { class: 'w' }, 'Fame')), h('span', { class: 'ds-stat notor' }, h('span', { class: 'v' }, icon('flame'), String(notor)), h('span', { class: 'w' }, 'Notoriety')), h('span', { class: 'ds-stat gold' }, h('span', { class: 'v' }, icon('coin'), String(gold)), h('span', { class: 'w' }, 'Gold'))),
         h('div', { class: cx('ds-vp', vpc), ...(a.vp ?? {}) }, h('small', {}, 'VP'), h('b', {}, String(vp))));
 }
 
@@ -40,7 +40,7 @@ export const situ = (place, tag = '', extra = null) => h('div', { class: 'ds-sit
 // pips([['move', 'done'], ['hide', 'now'], ['search', ''], ['rest', 'locked'], [null, 'empty']]): the five phases of the day as the real action art; ONE control.
 export const pips = (list, { attrs = {}, cls } = {}) =>
     h('button', { type: 'button', 'aria-label': 'Your day: tap for the plan', ...attrs, class: cx('lead-pips', 'ds-pips', cls) },
-        list.map(([a, s]) => h('span', { class: cx('ds-pip', s) }, a ? actIcon(a, 20) : null)));
+        h('span', { class: 'row' }, list.map(([a, s]) => h('span', { class: cx('ds-pip', s) }, a ? actIcon(a, 20) : null))), h('span', { class: 'w' }, 'Your day'));
 // tray({ last, situ, lead, primary, body }): the decision layer. The primary is always bottom-right; `lead` is pips, a count, or a secondary button.
 export function tray({ last: l = null, situ: s = null, lead = null, primary: p = null, body = null, cls, attrs = {} } = {}) {
     const lead_ = arr(lead);

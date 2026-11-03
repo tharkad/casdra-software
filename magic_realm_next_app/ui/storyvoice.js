@@ -724,6 +724,7 @@ export function closedInLine(names = []) {
 // The status box at the head of the card: who you are tonight, and why. The evening is about not fighting.
 export function turnEndStory(t) {
     const e = seedFor('end', t.day, t.hidden, t.blocked, (t.blockers ?? []).join(','), (t.closedIn ?? []).join(','));
+    if (t.asleep) return { title: 'You slept through the day', why: 'The Flowers of Rest put you to sleep when Daylight began. Your tired chits woke, nothing could find you, and you wake at Sunset.' };
     if (t.noTurn) return { title: 'You have no turn today', why: 'Creatures closed in before your chit was drawn. You are seen, and that is all it cost you.' };
     if (t.blocked) return { title: 'You are in plain sight', why: t.blockers?.length ? `${blockedLine(t.blockers)} You are seen.` : 'Your turn was cut short, and you are seen.' };
     if (t.closedIn?.length) return { title: 'You are in plain sight', why: `${closedInLine(t.closedIn)} No phase was lost.` };

@@ -47,6 +47,22 @@ function scoreNote(G) {
         h('span', { 'data-v': 'detail' }, `Score ${sgn(vp)} VP: the shortfall of every goal counts three times, until it is met.`));
 }
 
+
+// The day's lines under the phase or the evening they belong to (the ledger). One list for the folded Details on the Day Result card and for the step-by-step page.
+function ledgerSteps(G, day) {
+    const prev = G.st.log.filter(l => l.day === day && l.k !== 'day' || (l.day === day && /sun sets/.test(l.t)));
+    const groups = [];
+    for (const l of prev) {
+        if (l.k === 'phase') groups.push({ head: logText(l, G.st), phase: true, n: /^Phase (\d+)/.exec(l.t)?.[1] ?? '', kids: [] });
+        else if (/sun sets/.test(l.t) || !groups.length) groups.push({ head: /sun sets/.test(l.t) ? 'The evening' : 'Morning', n: /sun sets/.test(l.t) ? 'E' : '\u2014', kids: [] });
+        else groups.at(-1).kids.push(l);
+    }
+    return groups.filter(g => g.kids.length || g.phase);
+}
+const ledgerStep = G => g => (g.kids.length
+    ? h('details', { class: 'repstep' }, h('summary', {}, h('span', { class: 'ph' }, g.n), h('span', {}, g.head)), ...roundBoxes(G, g.kids))
+    : h('p', { class: 'repstep plain' }, h('span', { class: 'ph' }, g.n), h('span', {}, g.head)));
+
 // Overview and Result bring the sheet back up when it was dropped to its bar to look at the map (note 93: the page changed under the bar and nothing showed).
 // The morning review, as mockup 02 c3: first the day told in one sentence with its rows and its score (Story or Detail), then (Overview) the day step by step.
 export function reportSheet(G) {
@@ -65,24 +81,16 @@ export function reportSheet(G) {
         const d = sum.deltas, v = k => voidBy(G.st, k === 'notor' ? 'notoriety' : k);
         const frame = sum.moved ? frames({ fame: sgn(d.fame), notor: sgn(d.notor), gold: sgn(d.gold) }) : null;
         if (frame) for (const [k, fs] of [['fame', frame.querySelector('.fame')], ['gold', frame.querySelector('.gold')]]) if (v(k)) { fs.classList.add('void'); fs.title = `Worthless: the ${v(k)} curse`; }
+        // Mike (2026-11-02): a small card. The headline and the score that moved stay on top; the ledger (every phase, every roll) is folded under Details, one tap, and the card grows only then.
+        const steps = ledgerSteps(G, day), open = G.ui.reportDetails === day && steps.length > 0, details = steps.length ? h('details', { class: 'dayres-details', open: open ? '' : null }, h('summary', {}, 'The day, step by step'), ...(open ? [h('div', { class: 'reportsheet overview' }, ...steps.map(ledgerStep(G)))] : [])) : null;          // (the ledger is built when it is first opened: a folded ledger has no boxes at all)
         const body = h('div', { class: 'reportsheet ds-dayres', 'data-quiet': sum.empty ? '1' : null },
             h('p', { class: 'ds-voice lg headline', 'data-v': 'story' }, sum.story), h('p', { class: 'ds-voice lg headline', 'data-v': 'detail' }, sum.detail),
-            ...rows, ...unattendedBlock(G, day), frame, scoreNote(G));          // (a leader's fight where no character stood: leaders.js)
-        return modal(G, 'The day', body, { kind: 'result', detent: sum.empty && !unattendedBlock(G, day).length ? 'hug' : 'tall', eyebrow: `Day ${day} \u00B7 midnight`, head: voiceSwitch(), bare: true, cls: 'dayres-sheet',
-            footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn', 'data-act': 'report-next', onclick: () => { G.ui.mapPeek = false; G.ui.reportPage = `${day}:overview`; render(G); } }, 'Overview'), goOn) });
+            ...rows, ...unattendedBlock(G, day), frame, scoreNote(G), details);          // (a leader's fight where no character stood: leaders.js)
+        return modal(G, 'The day', body, { kind: 'result', detent: 'hug', eyebrow: `Day ${day} \u00B7 midnight`, head: voiceSwitch(), bare: true, cls: 'dayres-sheet',
+            footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn', 'data-act': open ? 'report-back' : 'report-next', 'aria-expanded': String(open), disabled: details ? null : true, onclick: () => { G.ui.mapPeek = false; G.ui.reportDetails = open ? null : day; render(G); } }, open ? 'Result' : 'Details'), goOn) });
     }
-    // the overview: the day's lines under the phase or the evening they belong to
-    const prev = G.st.log.filter(l => l.day === day && l.k !== 'day' || (l.day === day && /sun sets/.test(l.t)));
-    const groups = [];
-    for (const l of prev) {
-        if (l.k === 'phase') groups.push({ head: logText(l, G.st), phase: true, n: /^Phase (\d+)/.exec(l.t)?.[1] ?? '', kids: [] });
-        else if (/sun sets/.test(l.t) || !groups.length) groups.push({ head: /sun sets/.test(l.t) ? 'The evening' : 'Morning', n: /sun sets/.test(l.t) ? 'E' : '\u2014', kids: [] });
-        else groups.at(-1).kids.push(l);
-    }
-    const show = groups.filter(g => g.kids.length || g.phase);
-    const step = g => (g.kids.length
-        ? h('details', { class: 'repstep' }, h('summary', {}, h('span', { class: 'ph' }, g.n), h('span', {}, g.head)), ...roundBoxes(G, g.kids))
-        : h('p', { class: 'repstep plain' }, h('span', { class: 'ph' }, g.n), h('span', {}, g.head)));
+    const show = ledgerSteps(G, day);
+    const step = ledgerStep(G);
     return modal(G, 'The day, step by step', h('div', { class: 'reportsheet ds-dayres overview' }, ...(show.length ? show.map(step) : [h('p', { class: 'ds-meta' }, 'Nothing happened.')])),
         { kind: 'result', detent: 'tall', eyebrow: `Day ${day} \u00B7 overview`, head: voiceSwitch(), bare: true, cls: 'dayres-sheet',
             footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn', 'data-act': 'report-back', onclick: () => { G.ui.mapPeek = false; G.ui.reportPage = null; render(G); } }, 'Result'), goOn) });

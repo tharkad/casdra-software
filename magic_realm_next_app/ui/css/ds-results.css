@@ -196,3 +196,7 @@
 .ds-end .ds-egoal.idle .top b { color: var(--ink-2); }
 .ds-dayres .dayres-score { margin: 14px 0 0; text-align: center; font: 400 calc(15px * var(--ts, 1))/1.35 var(--font-voice); color: var(--ink-2); text-wrap: balance; }
 .clearing-sheet .none-known { margin: 10px 0 4px; color: var(--ink-2); }
+
+/* The Day Result is a small card (Mike, 2026-11-02): the ledger folds under the foot's Details button; the card grows only when it is open, and then it scrolls inside itself. */
+.dayres-details > summary { display: none; }
+.dayres-details[open] { margin-top: 10px; max-height: 38vh; overflow-y: auto; border-top: 1px solid var(--line-1); padding-top: 8px; }

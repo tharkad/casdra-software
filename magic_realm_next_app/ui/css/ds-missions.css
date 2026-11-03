@@ -4,7 +4,7 @@
 .ms-chit.visitor { --ms-edge: #5aa3ad; } .ms-chit.mission { --ms-edge: var(--gold-lo); } .ms-chit.campaign { --ms-edge: #b4546f; }
 .ms-chit.sm { width: 28px; height: 28px; border-width: 2px; font-size: calc(12px * var(--ts, 1)); }
 .ms-chit.dim { opacity: .55; }
-.ms-chit.back { margin-left: -14px; opacity: .75; transform: scale(.9); }
+.ms-chit.back { margin-left: -14px; opacity: .88; transform: scale(.9); }          /* the side underneath: fainter, letters still 4.5:1 */
 .ms-chit.empty { background: transparent; border: 2px dashed var(--st-illegal); box-shadow: none; }
 .ds-row .art2 { flex: none; display: flex; align-items: center; min-width: 44px; justify-content: center; }
 .ms-kind { margin-left: 8px; } .ms-kind.visitor { color: #86c6cf; } .ms-kind.mission { color: var(--gold-hi); } .ms-kind.campaign { color: #e48aa3; }

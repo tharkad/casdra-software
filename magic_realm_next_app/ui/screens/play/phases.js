@@ -85,13 +85,14 @@ export function turnEndSheet(G) {
     if (lostPhases.length) rows.push(h('p', { class: 'ds-meta te-lost' }, story ? `Lost with the turn: ${lostPhases.map(l => l.what).join(', ')}.` : lostPhases.map(l => `Phase ${l.i + 1} ${l.what}: lost, because you were blocked.`).join(' ')));
     // Shared Daylight (7.12.4): monsters that arrived at someone else's turn's end closed in on him before his own chit was drawn; he has no turn today.
     const noTurnLine = t.noTurn ? [...G.st.log].reverse().find(l => l.k === 'block' && l.day === gameOf(G.st, G.data).day && l.who === ownSheet(G.st, G.data).id) : null;
-    const dWhy = t.noTurn ? `Creatures closed in on you before your chit was drawn, so you are seen and have no turn today. Nothing was lost but the turn.`
+    const dWhy = t.asleep ? `The Flowers of Rest (a Daylight card) put you to sleep when Daylight began: your fatigued chits were activated, you skipped your turn, and nothing could block you or be called by you. You wake at Sunset (8.1.1).`
+        : t.noTurn ? `Creatures closed in on you before your chit was drawn, so you are seen and have no turn today. Nothing was lost but the turn.`
         : t.blocked ? `${t.blockers.length ? [...new Set(t.blockers)].join(', ') + ' closed in' : 'Your turn was cut short'}, so you are seen${lostPhases.length ? ` and your remaining ${lostPhases.length === 1 ? 'phase is' : 'phases are'} lost` : ''}.`
         : t.closedIn?.length ? `${[...new Set(t.closedIn)].join(', ')} found you after your turn was over, so you are seen. No phase was lost.`
         : t.hidden ? 'Nothing here can be set on you this evening unless you strike first.' : 'Whatever shares your clearing will fight you this evening.';
     const sv = turnEndStory(t);
     const status = h('div', { class: `te-status ds-ask ${t.hidden ? 'hidden' : 'seen'}`, 'data-no-turn': t.noTurn ? '1' : null },
-        h('b', {}, story ? sv.title : t.noTurn ? 'You have no turn today' : t.hidden ? 'You are hidden' : 'You are in plain sight'), h('span', {}, story ? sv.why : dWhy),
+        h('b', {}, story ? sv.title : t.asleep ? 'You slept through the day' : t.noTurn ? 'You have no turn today' : t.hidden ? 'You are hidden' : 'You are in plain sight'), h('span', {}, story ? sv.why : dWhy),
         noTurnLine ? h('span', {}, logText(noTurnLine, G.st)) : null);
     // Blocked by other characters (7.12): told first, in a card of its own, with who did it
     const bl = G.shared && !t.noTurn ? meetLines(tableModel(G.st, G.data), ownSheet(G.st, G.data).id).filter(l => l.kind === 'blocked').at(-1) : null;

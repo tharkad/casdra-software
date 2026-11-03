@@ -9,6 +9,8 @@ export const EVENT_CODES = {
     'day.order': ['6.3.5', 'table'],
     'day.turn.begins': ['7.1.1', 'table'],
     'day.sunset': ['7.14', 'table'],
+    'flowers.sleep': ['8.1.1', 'table'],
+    'flowers.wake': ['8.1.1', 'table'],
     'day.evening.quiet': ['8.1', 'table'],
     'day.month.ends': ['9.2', 'table'],
     'monster.lands': ['6.3.3', 'table'],

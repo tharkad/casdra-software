@@ -70,6 +70,7 @@
 .curserow .skull { font-size: calc(28px * var(--ts, 1)); color: #ff8aa0; flex: none; line-height: 1; }
 
 .chip.cursed { border-color: #d0506a; text-decoration: line-through; }
+.ds-act.chip.cursed:has(.ds-act-lbl) { text-decoration: none; } .ds-act.chip.cursed .ds-act-lbl .nm { text-decoration: line-through; }          /* the action's name is struck, the curse that did it is not (note 110) */
 .curserow { display: flex; gap: 12px; align-items: flex-start; padding: 8px 10px; margin: 6px 0; border-left: 4px solid #d0506a; background: rgba(150, 40, 60, .15); border-radius: 8px; }
 .curserow p { margin: 2px 0 0; }
 

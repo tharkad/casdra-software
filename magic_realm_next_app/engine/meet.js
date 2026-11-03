@@ -50,7 +50,7 @@ const nameOfChar = (st, id) => st.chars[id]?.name ?? id;
 // A public line is told twice: in the characters' names (`t`, what the rules say) and in the players' names (`p`, what the table says: "Mike follows Ann"). Same words, other names.
 const pn = (st, id) => playerNameOf(st, id);
 const pnames = (st, ids) => ids.map(id => pn(st, id)).join(' and ');
-const here = c => !!c.at && !c.onRoad && !c.flying;
+const here = c => !!c.at && !c.onRoad && !c.flying && !c.asleep;          // (a sleeper, put to sleep by the Flowers of Rest, can neither block nor be blocked)
 
 // May a and b trade now? Returns why not, or null. At the start of a phase of the actor's turn he (and his followers) may trade with any character in his clearing, not the others with each
 // other (7.2.1); hidden ones may (7.2.1b); not while flying, in the woods or on a road (7.2.1d); a character blocked today may not trade with those about to start phases (7.12.4b). After the

@@ -5,6 +5,7 @@
 import { clone } from './core.js';
 import { withActor } from './party.js';
 import { spellFacts } from './magic/facts.js';
+import { lullFacts } from './flowers.js';
 import { earned as earnedNow, targets as targetsOf, scoreGame as scoreNow, progress as progressNow } from './score.js';
 import { denSide, hireStats } from './combat.js';
 import { fxTags, HERO } from './magic/fx.js';
@@ -154,6 +155,7 @@ export function makeView(state, viewer, data, version) {
         today: todayOf(st, viewer),
         journal: journalOf(st, viewer, me.owner), logEnd: (st.logSkipped ?? 0) + (st.log ?? []).length,
         standing: withActor(st, viewer, () => { const get = f => { try { return json(f()); } catch { return null; } }; return { score: get(() => scoreNow(st, data)), targets: get(() => targetsOf(st)), progress: get(() => progressNow(st, data)) }; }),          // (his own goals and what the game would score him now (9.3): his, and a hired leader's are his hirer's)
+        lull: withActor(st, viewer, () => json(lullFacts(st, data))),          // (an active Flowers of Rest in his clearing: what it will do to him today, or why not; null without one)
         magic: withActor(st, viewer, () => { try { return json(spellFacts(st, data, new Set(st.order.filter(id => st.chars[id].owner === me.owner)))); } catch { return null; } }),          // (the spells in force, what a held or energized spell can do now, what a Fly would use)
         fightLog: fightLogOf(st, viewer, new Set([viewer, ...st.order.filter(id => id !== viewer && st.chars[id].leader && st.chars[id].owner === me.owner)])),
         earned: withActor(st, viewer, () => { try { return json(earned(st, data)); } catch { return null; } }),          // what he holds now toward each goal (score.js), for the fight's closing sheet

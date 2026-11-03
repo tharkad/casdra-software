@@ -63,6 +63,8 @@ export function siteChits(st, data, who) {
     return v.table.chits.map(c => ({ c, f: c.up ? c.face : known[c.id] })).filter(x => x.f?.kind === 'site').map(({ c, f }) => ({ id: c.id, kind: 'site', name: f.name, num: f.num, tile: c.tile, up: c.up, pile: c.pile, discovered: found.has(c.id) }));
 }
 /** Facts about his spells now (view.me.magic): `fx` (in force), `held`, `energize`, `heldLock`, `fly`, `blocked` (the spells he knows that cannot be cast now, with why). An empty record for a spectator. */
+/** An active Flowers of Rest in his clearing: { name, tired, will, why, asleep } (what it will do to him today, or why it will not); null without one (view.me.lull). */
+export const lullOf = (st, data, who) => viewOf(st, data, who).me?.lull ?? null;
 export const magicOf = (st, data, who) => viewOf(st, data, who).me?.magic ?? { fx: [], held: [], heldLock: null, energize: [], blocked: [], fly: { sources: [], holdsBroomstick: false } };
 /** His goals and standing (view.me.standing): `score`, `targets`, `progress`, and `earned` (view.me.earned: what he holds toward each goal now). */
 export function standingOf(st, data, who) {

@@ -226,12 +226,17 @@ function revealChoices(G, hero) {
 // A sheet covers the bottom of the map: the camera glides so the clearing that matters sits in the strip above it (the clearing he is looking at, else where he stands), and glides back when it goes.
 function syncCamera(G, force = false) {
     const sh = [...G.layer.querySelectorAll('.ds-sheet')].at(-1);
-    if (!G.map || !sh) { if (G.ui.camKey) { G.ui.camKey = null; G.map?.release(); } return; }
+    if (!G.map || !sh) { G.mapBox.style.removeProperty('--cover'); G.mapBox.classList.remove('cramped'); if (G.ui.camKey) { G.ui.camKey = null; G.map?.release(); } return; }
     const inset = Math.max(0, Math.round(sh.offsetHeight - (G.layer.getBoundingClientRect().bottom - G.mapBox.getBoundingClientRect().bottom)));
+    G.mapBox.classList.toggle('cramped', G.mapBox.getBoundingClientRect().height - inset < 140);          // (two stacked buttons need 136px: 12 + 52 + 8 + 52 + 12)          // (a tall sheet leaves a sliver of map: the buttons step aside rather than sit on the handle)
+    G.mapBox.style.setProperty('--cover', `${inset + 20}px`);          // (+20: the handle's hit area reaches 18px above the sheet)          // (the map's own buttons ride up above the sheet's edge: a button under the handle cannot be tapped)
     const hero = heroSpot(G), id = G.ui.sheet === 'clearing' && G.ui.sel ? G.ui.sel : hero, key = `${id}|${inset}`;
     if (key === G.ui.camKey && !force) return;
     G.ui.camKey = key; G.map.focus(id, { insetBottom: inset });
 }
+
+// the period as a player reads it (the strip showed the engine's own word: TURN-END)
+const PERIOD_WORD = { setup: 'Birdsong', birdsong: 'Birdsong', sunrise: 'Sunrise', daylight: 'Daylight', 'turn-end': 'Day\u2019s end', sunset: 'Sunset', evening: 'Evening' };
 
 // ---- rendering ----
 // The status strip (mockup 01): menu, Day and phase (opens the calendar), Fame / Notoriety / Gold (one button: the Kit), VP (the goals).
@@ -245,7 +250,7 @@ function renderStrip(G) {
     const tot = vpNow(G, seat?.id), dead = gameOf(G.st, G.data).period === 'over' && ch.dead;
     // The score is counted from the shortfall of each goal, so on day 1 it is a negative number: the honest figure, and the one Mike wants on the chip (it said "0/N" until the first night: QA-19, reversed by note 32).
     // DR-14: the strip does not run ahead of the Day Result. While the morning report is on screen it keeps the day, the phase and the numbers it showed at midnight; the new day shows when it is closed.
-    const cur = { day: gameOf(G.st, G.data).day, total: lastDayOf(G.st), phase: gameOf(G.st, G.data).period === 'over' ? 'finished' : gameOf(G.st, G.data).period, gold: ch.gold, fame: total('fame', ch.fame), notor: total('notoriety', ch.notoriety),
+    const cur = { day: gameOf(G.st, G.data).day, total: lastDayOf(G.st), phase: gameOf(G.st, G.data).period === 'over' ? 'finished' : (PERIOD_WORD[gameOf(G.st, G.data).period] ?? gameOf(G.st, G.data).period), gold: ch.gold, fame: total('fame', ch.fame), notor: total('notoriety', ch.notoriety),
         vp: tot > 0 ? `+${tot}` : String(tot).replace('-', '\u2212'), vpc: dead ? 'bad' : tot > 0 ? 'pos' : 'neg', tot };
     const reportUp = !G.shared && questionOf(G.st, G.data)?.type === 'plan' && gameOf(G.st, G.data).day > 1 && G.ui.reportedDay !== gameOf(G.st, G.data).day && G.ui.sheet !== 'plan';
     const held = reportUp && G.ui.stripSnap && G.ui.stripSnap.day === gameOf(G.st, G.data).day - 1 ? { ...G.ui.stripSnap, phase: 'midnight' } : null;

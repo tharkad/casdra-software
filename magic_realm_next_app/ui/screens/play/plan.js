@@ -24,7 +24,7 @@ import { actIcon, icon } from '../../icons.js';
 import { ACT_LABEL, CURSE_ACT, CURSE_PLAIN, actArt, mc, showToast } from './kit.js';
 import { describeSlot, searchWhere } from './phases.js';
 import { render } from './shell.js';
-import { ownSheet, questionOf } from '../../combat/feed.js';
+import { ownSheet, questionOf, lullOf } from '../../combat/feed.js';
 
 // ---- planning: the plan tray (mockup 01 a2 to a6) ----
 // Five tabs, one line that says what to do, the nine actions as game art in a 3x3, and the action row: how many phases are left on the left, Start the day on the right (dim, with its
@@ -108,7 +108,7 @@ function actChips(G, i, at, over, others, baseOver) {
         const dim = !!why;
         const serves = L?.recordOnly.has(a) ? (isStoryVoice() ? PLAN_ONLY_NOTE.story : PLAN_ONLY_NOTE.detail) : null;          // (a leader's Alert and Rest are for those who follow him)
         return h('button', { type: 'button', class: `ds-act chip${s?.act === a ? ' on' : ''}${dim ? ' dim' : ''}${curse ? ' cursed' : ''}${serves ? ' for-followers' : ''}`, 'data-slot': i, 'data-pick': a, 'data-for-followers': serves ? '1' : null, 'aria-disabled': dim ? 'true' : null, title: why ?? serves ?? undefined,
-            onclick: () => { if (dim) { if (a === 'follow' && i === 0 && !fRows.some(r => r.ok)) { G.ui.followNote = i; render(G); return; } showToast(G, why, true); return; } pick(G, i, a, at[i]); } }, actIcon(actArt(a), 28), a === 'fly' && carpetAsleep(G) ? h('span', { class: 'ds-act-lbl' }, ACT_LABEL[a], h('small', { 'data-hint': 'carpet-asleep' }, 'Carpet, asleep')) : ACT_LABEL[a]);
+            onclick: () => { if (dim) { if (a === 'follow' && i === 0 && !fRows.some(r => r.ok)) { G.ui.followNote = i; render(G); return; } showToast(G, why, true); return; } pick(G, i, a, at[i]); } }, actIcon(actArt(a), 28), a === 'fly' && carpetAsleep(G) ? h('span', { class: 'ds-act-lbl' }, ACT_LABEL[a], h('small', { 'data-hint': 'carpet-asleep' }, 'Carpet, asleep')) : curse ? h('span', { class: 'ds-act-lbl' }, h('span', { class: 'nm' }, ACT_LABEL[a]), h('small', { 'data-hint': 'curse-dim', 'data-curse': curse }, curse)) : ACT_LABEL[a]);          // (a dim chip wears the name of the curse that spoils it: note 110)
     }));
 }
 
@@ -163,6 +163,13 @@ function planHints(G, i, at) {
     if (G.ui.planNote) out.push(line(G.ui.planNote, 'bad'));
     out.push(...followNote(G, i));
     out.push(...warningLines(G));
+    // Why a chip is dim, said where he looks, not only when he taps it (note 110): the curses that forbid an action, one line
+    { const dimmed = (ownSheet(G.st, G.data).curses ?? []).filter(c => CURSE_ACT[c]);
+      if (dimmed.length && !G.ui.pickMove) out.push(line(`Dim because of your curses: ${dimmed.map(c => `${ACT_LABEL[CURSE_ACT[c]]} (${c})`).join(', ')}. Tap one to read what it does.`, '', { 'data-hint': 'curse-dim-line' })); }
+    // The Flowers of Rest (note 110): what the card will do to him when Daylight begins, said at Birdsong where he plans
+    { const lull = lullOf(G.st, G.data);
+      if (lull?.will) out.push(line(voiced({ story: `The ${lull.name} will put you to sleep when the day begins: your ${lull.tired} tired chit${lull.tired === 1 ? '' : 's'} wake and you sleep until Sunset. Whatever you plan today is not played.`,
+          detail: `${lull.name} (a Daylight card, active): at the start of Daylight it activates your ${lull.tired} fatigued chit${lull.tired === 1 ? '' : 's'} and you fall asleep until Sunset. You skip your turn, and nothing can block you or be called by you. The plan below will not be played.` }), 'warn', { 'data-hint': 'flowers-will' })); }
     if ((ownSheet(G.st, G.data).curses ?? []).includes('Wither')) out.push(line('Wither: chits with an asterisk stay tired. Resting will not bring them back.', '', { 'data-hint': 'wither' }));
     if (s?.act === 'search' && at[i]) out.push(line(searchWhere(G, at[i]), '', { 'data-hint': 'search-where' }));
     if (G.ui.pickMove === i || s?.act === 'move') {

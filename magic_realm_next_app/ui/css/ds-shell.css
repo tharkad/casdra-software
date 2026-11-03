@@ -159,3 +159,18 @@
 .ds-sheet-head .x { width: 48px; margin-right: -14px; }          /* (the same room the 44px cross took: the title does not wrap one word earlier) */ .ds-sheet-head .x .lbl { color: var(--ink-3); }
 .ds-map-btn { width: 52px; height: 52px; border-radius: 16px; } .ds-map-btn.ds-bare-btn { bottom: 72px; }
 .ds-btn.ds-gear { width: auto; min-width: 60px; height: 56px; padding: 0 8px; top: 4px; }          /* (two classes: .ds-btn.icon fixes the width at 44) */
+
+/* The map's buttons ride up above a sheet that covers the map's lower edge (shell.js syncCamera sets --cover); ui_screens "covered": the Bare button sat under the sheet's handle. */
+.ds-map-btn { bottom: min(calc(12px + var(--cover, 0px)), calc(100% - 64px)); } .ds-map-btn.ds-bare-btn { bottom: calc(min(calc(12px + var(--cover, 0px)), calc(100% - 64px)) + 60px); }
+.mapbox.cramped .ds-map-btn { display: none; }
+
+/* Mike (2026-11-02): a small word under each of Fame, Notoriety, Gold and the day pips, visible, not only on tap. The icon and number stay on one line; the word is the second. 12px, ink-2.
+   At 360 wide the strip is menu 52 + day + three stats (about 44 + 52 + 40) + VP: it still fits (ui_screens hscroll, ui_f1). */
+.ds-strip .ds-stat { flex-direction: column; gap: 1px; position: relative; padding: 0 5px; }
+.ds-strip .ds-stat .v { display: inline-flex; align-items: center; gap: 3px; } .ds-strip .ds-stat .w { font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); letter-spacing: .01em; color: var(--ink-2); }
+.ds-strip .ds-stat .voidmark { position: absolute; right: -3px; top: 5px; }
+.ds-strip .ds-stat { font-size: calc(16px * var(--ts, 1)); }
+.ds-pips { flex-direction: column; justify-content: center; gap: 1px; height: auto; min-height: 44px; }
+.ds-pips .row { display: flex; align-items: center; gap: 3px; } .ds-pips.many .row { gap: 2px; }
+.ds-pips .w { font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); letter-spacing: .01em; color: var(--ink-2); }
+@media (max-width: 374px) { .ds-strip .ds-stat { min-width: 36px; padding: 0 2px; } }

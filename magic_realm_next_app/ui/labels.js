@@ -149,6 +149,13 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
     return out;
 }
 
+/**
+ * Whether a clearing's names must give way to one small marker. Only when they truly cannot sit by their clearing: they collide, would stand well away from it (a ring is 5 units: eighteen is
+ * some ninety), or are mostly off their own tile. A name that hangs a little over the tile's edge but is clear of everything stays a name (note 109: the Imp and the Statue, three corners of
+ * eight over the edge, became a marker nobody could read). `placed` is layoutLabels' answer for the group; `n` is how many pills the group has.
+ */
+export const needsMarker = (placed, n) => placed.overlap > 0 || placed.ring >= 18 || (placed.outside ?? 0) * 2 > 4 * n;
+
 // text width estimate for the UI font at the pill size used on the map (kept here so the layout and the drawing agree)
 export const pillWidth = (label, { img = false, size = 9 } = {}) => Math.ceil(label.length * size * 0.6 + 8 + (img ? 13 : 0));
 export const PILL_H = 15;

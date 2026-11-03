@@ -358,6 +358,6 @@ html[data-voice-mode="story"] [data-v="detail"], html[data-voice-mode="detail"] 
 /* DR-12: no last line of one word: running text breaks to even out its last line (the nbsp in the strings binds numbers, names and "in secret") */
 .ds-voice, .ds-meta, .ds-lead-text, .ds-why, .ds-ask span, .ds-hint-line, .ds-opt .main span, .ds-plan-ask { text-wrap: pretty; }
 .ds-btn.struck { text-decoration: line-through; }   /* kept on screen, but it cannot be done */
-.ds-act-lbl { display: flex; flex-direction: column; gap: 1px; } .ds-act-lbl small { font: 500 11px/1.1 var(--font-ui); color: var(--ink-3); }
+.ds-act-lbl { display: flex; flex-direction: column; gap: 1px; } .ds-act-lbl small { font: 500 12px/1.1 var(--font-ui); color: var(--ink-3); }
 /* art switch (2026-11-02): the natives are the box's black-and-white counters, so a group is told by a ring of its own colour (ui/groups.js), inside the tile's edge */
 .ds-counter.grp { outline: 3px solid var(--grp); outline-offset: -3px; }

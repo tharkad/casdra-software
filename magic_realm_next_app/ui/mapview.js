@@ -2,7 +2,7 @@ import { h, sv } from './dom.js';
 import { EDGES, hexCenter, edgeDir, corners, worldEdge } from '../engine/catalogue.js';
 import { layoutSide, chitSlotsFor } from '../engine/catalogue.js';
 import { tileName } from '../engine/catalogue.js';
-import { layoutLabels, pillWidth, PILL_H, COMPACT } from './labels.js';
+import { layoutLabels, needsMarker, pillWidth, PILL_H, COMPACT } from './labels.js';
 import { shapeEl, fan, tagText } from './party.js';
 
 // The pannable, zoomable realm map. It draws whatever model it is given; it knows nothing about the rules.
@@ -204,7 +204,14 @@ export function mountMap(host) {
             if (sheet && !restore) restore = { view: view ? { ...view } : null, inset };           // the first sheet remembers where the player was looking
             if (!sheet) restore = null;
             const kk = o.k ?? (sheet ? view?.k ?? 1 : Math.max(view?.k ?? 0, 1.5));
-            go({ k: kk, x: size[0] / 2 - p[0] * kk, y: (size[1] - toInset) / 2 - p[1] * kk }, o.animate ?? true, toInset);
+            let y = (size[1] - toInset) / 2 - p[1] * kk;
+            // the names of the clearing (an Imp and a Statue below the hero) must not end under the sheet: lift the view by what they hang below the strip, never so far that the clearing nears the top (note 109)
+            const ext = sheet ? nameExtent.get(clearingId) : null;
+            if (ext) {
+                const lowest = y + ext.y1 * kk, room = size[1] - toInset - 10;
+                if (lowest > room) y -= Math.min(lowest - room, Math.max(0, y + p[1] * kk - 70));
+            }
+            go({ k: kk, x: size[0] / 2 - p[0] * kk, y }, o.animate ?? true, toInset);
         },
         /** The sheet is gone: glide back to where the camera was before it (or, if the player has moved the map since, keep what they were looking at and just give the strip back). */
         release({ animate = true } = {}) {
@@ -231,6 +238,7 @@ export function mountMap(host) {
         hit(x, y) { return nearest(x, y); },
     };
     const posOf = new Map(), tileC = new Map();          // clearing id -> world position; tile id -> the tile's centre
+    const nameExtent = new Map();          // clearing id -> the world box its names (pills or marker) fill, so the camera can keep them clear of a sheet (note 109)
 
     // ---- the layout of the names is the costly part of a draw, and the same state always lays out the same way: remember it by its inputs ----
     const layoutCache = new Map();
@@ -240,7 +248,7 @@ export function mountMap(host) {
 
     function draw() {
         const tDraw = performance.now(); let tLayout = 0;
-        posOf.clear(); tileC.clear();
+        posOf.clear(); tileC.clear(); nameExtent.clear();
         const { tiles, placements } = model;
         level = levelFor(view?.k ?? fit().k);
         const g = sv('g', { class: 'world' });
@@ -432,7 +440,7 @@ export function mountMap(host) {
             const asBadge = g0 => ({ ...g0, boxes: badgeOf.get(g0.id).boxes.map(b => ({ w: b.w * sc, h: b.h * sc })), prefer: ['right', 'left', 'below', 'above'], prio: 1, ...(level.lod ? { inside: null } : {}) });          // (a chip that is 40px wide at the whole-realm zoom cannot stay inside a 70px tile: it may stand on the neighbours' ground)
             // only when the names truly cannot sit by their clearing: they collide, spill off their tile, or would have to stand well away from it. (A name that sits close
             // but nearer another clearing keeps its place and gets a thin line to its own.)
-            const bad = (r, g0) => r.overlap > 0 || ((r.outside ?? 0) >= 3 && g0.own !== model.hero) || r.ring >= 18;       // (a ring is 5 units: eighteen is some ninety units from the clearing; the clearing he stands in keeps its names even when they hang over the tile's edge)
+            const bad = (r, g0) => r.overlap > 0 || r.ring >= 18 || (g0.own !== model.hero && needsMarker(r, g0.boxes.length));       // (the clearing he stands in keeps its names even when they hang over the tile's edge; others become a marker only when mostly off their tile)
             let placed = null, first = null;
             if (level.lod) {
                 for (const g0 of groups) if (badgeOf.has(g0.id)) demoted.add(g0.id);
@@ -466,6 +474,11 @@ export function mountMap(host) {
         };
         for (const gr of groups) {
             const r = placed.get(gr.id);
+            if (gr.own != null) {
+                const e = nameExtent.get(gr.own) ?? { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+                for (const b of r.boxes) { e.x0 = Math.min(e.x0, b.x); e.y0 = Math.min(e.y0, b.y); e.x1 = Math.max(e.x1, b.x + b.w); e.y1 = Math.max(e.y1, b.y + b.h); }
+                nameExtent.set(gr.own, e);
+            }
             if (demoted.has(gr.id)) {
                 const bd = badgeOf.get(gr.id), bx = r.boxes[0], w0 = bd.boxes[0].w;
                 const el = badgeEl(bd, w0 - 1, { lod: level.lod, x: bx.x + 0.5 * sc, y: bx.y + 0.5 * sc, scale: sc });          // the layout box is the frame: half a unit wider than the chips

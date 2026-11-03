@@ -120,7 +120,7 @@ button.chit2:disabled { cursor: default; }
 .calweek { display: grid; grid-template-columns: 52px repeat(7, 1fr); gap: 4px; align-items: center; }
 .calweek small { color: var(--dim); }
 .calday { text-align: center; padding: 6px 0; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 40px; justify-content: center; }
-.calday.past { opacity: .5; } .calday.today { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold) inset; }
+.calday.past { opacity: .64; }          /* days gone by: fainter, numbers still 4.5:1 */ .calday.today { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold) inset; }
 .calday.magic { border-color: #8f7cc0; }
 .calday .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin: 0 1px; border: 1px solid #000; }
 .dot.white { background: #f4f1e6; } .dot.black { background: #222; border-color: #aaa; } .dot.grey { background: #9aa0a6; } .dot.purple { background: #a77bd1; } .dot.gold { background: #8fcb80; }
