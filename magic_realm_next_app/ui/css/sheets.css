@@ -150,13 +150,13 @@ button.chit2:disabled { cursor: default; }
 .pip.large { width: 13px; height: 13px; background: #8fcb80; }
 .sc-spell { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 22px; padding: 0 5px; border-radius: 8px; background: #5b4a8c; color: #fff; font-style: normal; font-weight: 700; font-size: calc(12.5px * var(--ts, 1)); }
 .sc-need { font-size: calc(12.5px * var(--ts, 1)); color: #e08a7a; }
-.sc-dw { width: 52px; height: 52px; object-fit: contain; flex: none; }
+.sc-dw { width: 52px; height: 52px; object-fit: contain; flex: none; background: #efe6d0; border-radius: 8px; padding: 2px; }
 .sc-natives { display: flex; align-items: center; gap: 8px; }
-.sc-natives img { width: 34px; height: 34px; object-fit: contain; }
+.sc-natives img { width: 34px; height: 34px; object-fit: contain; background: #efe6d0; border-radius: 7px; padding: 1px; }
 .sc-natives small { color: var(--dim); }
 .sc-goods { display: flex; flex-wrap: wrap; gap: 4px; }
 .sc-good { display: inline-flex; align-items: center; gap: 4px; font-size: calc(12.5px * var(--ts, 1)); padding: 2px 6px; border-radius: 8px; background: rgba(0,0,0,.2); }
-.sc-good img { width: 20px; height: 20px; object-fit: contain; }
+.sc-good img { width: 22px; height: 22px; object-fit: contain; background: #efe6d0; border-radius: 5px; padding: 1px; }
 .sc-spells { margin: 6px 0; } .sc-spells small { color: var(--dim); }
 .sc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; }
 .sc-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-size: calc(13.5px * var(--ts, 1)); }
