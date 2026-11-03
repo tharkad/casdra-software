@@ -188,5 +188,5 @@ export function endSheet(c, { title, onBack, close }) {
             h('p', { class: 'ds-meta' }, `Chose: ${x.goals}${x.start ? ` · began at the ${x.start}` : ''}`),
             h('p', { class: 'ds-meta' }, `Spells: ${lines(x.spells.recorded ?? [])}${(x.spells.learned ?? []).length ? ` (learned in play: ${lines(x.spells.learned)})` : ''}`)))) : null;
     const body = h('div', { class: 'oversheet sf-end', 'data-shared-over': '' }, hero, sect('The places'), places, ...details, revealBox);
-    return c.modal(title, body, { close, detent: 'tall', bare: true, footer: footRow({ primary: primary('Back to the table', { 'data-act': 'over-title', onclick: onBack }) }) });
+    return c.modal(title, body, { close, detent: 'tall', bare: true, footer: footRow({ secondary: btn('Leave for the lobby', '', { 'data-act': 'over-title', onclick: onBack }), primary: primary('Back to the table', { 'data-act': 'over-table', onclick: close }) }) });
 }
