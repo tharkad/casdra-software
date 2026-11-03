@@ -432,7 +432,7 @@ export function mountMap(host) {
             const asBadge = g0 => ({ ...g0, boxes: badgeOf.get(g0.id).boxes.map(b => ({ w: b.w * sc, h: b.h * sc })), prefer: ['right', 'left', 'below', 'above'], prio: 1, ...(level.lod ? { inside: null } : {}) });          // (a chip that is 40px wide at the whole-realm zoom cannot stay inside a 70px tile: it may stand on the neighbours' ground)
             // only when the names truly cannot sit by their clearing: they collide, spill off their tile, or would have to stand well away from it. (A name that sits close
             // but nearer another clearing keeps its place and gets a thin line to its own.)
-            const bad = r => r.overlap > 0 || (r.outside ?? 0) >= 3 || r.ring >= 18;       // (a ring is 5 units: eighteen is some ninety units from the clearing)
+            const bad = (r, g0) => r.overlap > 0 || ((r.outside ?? 0) >= 3 && g0.own !== model.hero) || r.ring >= 18;       // (a ring is 5 units: eighteen is some ninety units from the clearing; the clearing he stands in keeps its names even when they hang over the tile's edge)
             let placed = null, first = null;
             if (level.lod) {
                 for (const g0 of groups) if (badgeOf.has(g0.id)) demoted.add(g0.id);
@@ -440,7 +440,7 @@ export function mountMap(host) {
             } else for (let guard = 0; guard < 40; guard++) {
                 placed = layoutLabels(groups.map(g0 => (demoted.has(g0.id) ? asBadge(g0) : g0)), obstacles, { anchors });
                 if (guard === 0) first = Object.fromEntries(groups.filter(g0 => badgeOf.has(g0.id)).map(g0 => { const r = placed.get(g0.id); return [g0.id, { leader: r.leader, overlap: Math.round(r.overlap), outside: r.outside ?? 0, ring: r.ring, boxes: g0.boxes.length }]; }));
-                const failing = groups.filter(g0 => badgeOf.has(g0.id) && !demoted.has(g0.id) && bad(placed.get(g0.id)));
+                const failing = groups.filter(g0 => badgeOf.has(g0.id) && !demoted.has(g0.id) && bad(placed.get(g0.id), g0));
                 if (!failing.length) break;
                 failing.sort((a0, b0) => b0.boxes.length - a0.boxes.length || placed.get(b0.id).overlap - placed.get(a0.id).overlap);
                 demoted.add(failing[0].id);
