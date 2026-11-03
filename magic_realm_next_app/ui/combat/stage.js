@@ -6,6 +6,7 @@ import { monsterCounter, itemFace } from '../counter.js';
 import { nameOf, defOf, isWeaponCard, weaponSide } from '../../engine/catalogue.js';
 import { denSide, weaponOf, activeArmor, own } from './feed.js';
 import { DIRS, MNV, otherSide, picOf, chitText, chitName, WORD, isWithered, WITHER_STORY, WITHER_DETAIL } from './model.js';
+import { CURSE_STORY } from '../storyvoice.js';
 import { displayName, tieNumber } from '../names.js';
 
 // foe counter size by how many stand on the stage: the full size (92, or 64 on a short phone) up to three, then smaller so six still fit in two rows
@@ -298,10 +299,12 @@ export { chitText };
 
 // Note 75: the curse badge's card (the map shell shows the same skull): the Story line, then the rule
 export function cursePopover({ st: fm, data, onClose }) {
-    const wither = (own(fm, data).curses ?? []).includes('Wither');
-    return h('div', { class: 'cb-pop curse', role: 'dialog', 'aria-label': 'Your curse', onclick: onClose },
-        h('p', { class: 'story' }, wither ? WITHER_STORY : `You bear ${own(fm, data).curses.join(' and ')}: see the Journal for what it takes away.`),
-        wither ? h('p', { class: 'detail' }, WITHER_DETAIL) : null);
+    const curses = own(fm, data).curses ?? [];
+    // Note 115: every curse is told in its own sentence; Wither keeps its longer card and rule line
+    const told = n => n === 'Wither' ? WITHER_STORY : CURSE_STORY[n] ?? `A curse takes hold: ${n}.`;
+    return h('div', { class: 'cb-pop curse', role: 'dialog', 'aria-label': 'Your curses', onclick: onClose },
+        ...curses.map(n => h('p', { class: 'story', 'data-curse': n }, told(n))),
+        curses.includes('Wither') ? h('p', { class: 'detail' }, WITHER_DETAIL) : null);
 }
 
 // When the stage holds more than it has room for (six creatures, a tall sheet), the whole stage is scaled to fit rather than letting anything overlap. One look after the scene is in the page, and again
