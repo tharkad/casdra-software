@@ -28,7 +28,7 @@
 .cb-foes.noslot .tagslot { display: none; }
 .cb-foe .tag { position: relative; padding: 2px 7px; margin-bottom: 2px; border-radius: var(--r-pill); background: var(--gold); color: var(--ink-on-gold); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .08em; white-space: nowrap; z-index: 2; }
 .cb-foe .tag.dot { width: 14px; height: 14px; padding: 0; margin-bottom: 4px; }              /* an offer on a crowded stage (QA-6): a ghost dot, still a 44px tap */
-.cb-foe .tag.dot::after { inset: calc((14px - 44px / var(--z, 1)) / 2); }
+.cb-foe .tag.dot::after { inset: calc((14px - 44px / var(--z, 1)) / 2); }          /* (no wider than its own counter: in a crowd the next creature's counter is a hand's breadth away) */
 .cb-foe .tag.bad { background: var(--danger); color: #1a0705; }
 .cb-foe .tag.good { background: var(--success); color: #08140a; }
 .cb-foe .turned { display: block; width: max-content; margin: 2px auto 0; white-space: nowrap; padding: 1px 6px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--gold); border: 1px solid var(--gold-lo); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .04em; pointer-events: none; }
@@ -36,7 +36,7 @@
 .cb-foe .tag.ghost { background: var(--surface-1); color: var(--ink); border: 1px dashed var(--st-illegal); }     /* "TARGET" offered, not chosen */
 /* Hit areas: 44px whatever the size of the thing and whatever the stage is scaled to (--z is the zoom fitStage puts on a crowded stage; 1 otherwise) */
 .cb-foe .tag { height: 18px; }
-.cb-foe .tag::after { content: ""; position: absolute; inset: min(0px, calc((18px - 44px / var(--z, 1)) / 2)) min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }          /* an 18px pill with a 44px hit area */
+.cb-foe .tag::after { content: ""; position: absolute; inset: min(0px, calc((18px - 44px / var(--z, 1)) / 2)) min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }          /* an 18px pill with a 44px hit area */          /* an 18px pill with a 44px hit area */
 .cb-flip { position: relative; }
 .cb-flip::after { content: ""; position: absolute; inset: min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }          /* a counter smaller than 44 still takes a 44px tap */
 /* A slain counter is greyed on the picture itself, in ONE filter with its shadow: a filter on the wrapper AND a drop-shadow filter on the svg inside it (nested filters) paints nothing on iOS Safari,
@@ -339,3 +339,10 @@
 /* the note (microphone) button is fixed at the top right; with no margin above the fight (a short phone) the top row leaves it its corner, so it never covers the sight or the Map */
 @media (max-height: 700px) { .cb-top { padding-right: 44px; } .cb-top .cb-sight { padding: 5px 8px; letter-spacing: .06em; } .cb-top .where b { letter-spacing: .03em; } .cb-top .where span { letter-spacing: .05em; } .cb-top .cb-sight { font-size: calc(12px * var(--ts, 1)); } .cb-top { gap: 6px; } }
 .cb-stagein[data-tight] .cb-pl { display: none; }
+
+/* note 102: the fight bar's Fame, Notoriety and Gold carry their words, as the status strip does */
+.cb-bar .ds-stat { flex-direction: column; gap: 1px; padding: 0 5px; font-size: calc(16px * var(--ts, 1)); }
+.cb-bar .ds-stat .v { display: inline-flex; align-items: center; gap: 3px; }
+.cb-bar .ds-stat .w { font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); letter-spacing: .01em; color: var(--ink-2); }
+.cb-verb img.ds-px { background: var(--counter-face); border-radius: 5px; padding: 1px; box-sizing: content-box; }          /* the dark action art on a parchment plate, like the plan's chips (ui_screens: alert.gif was 1.8:1 on the tile) */
+.cb-hero .wplate.unalerted, .cb-hero .wplate.card { color: var(--ink-2); }          /* NOT ALERTED / WEAPON CARD at 4.5:1 or more (was the tertiary ink, 3.5:1) */

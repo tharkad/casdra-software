@@ -40,7 +40,7 @@ export const situ = (place, tag = '', extra = null) => h('div', { class: 'ds-sit
 // pips([['move', 'done'], ['hide', 'now'], ['search', ''], ['rest', 'locked'], [null, 'empty']]): the five phases of the day as the real action art; ONE control.
 export const pips = (list, { attrs = {}, cls } = {}) =>
     h('button', { type: 'button', 'aria-label': 'Your day: tap for the plan', ...attrs, class: cx('lead-pips', 'ds-pips', cls) },
-        h('span', { class: 'row' }, list.map(([a, s]) => h('span', { class: cx('ds-pip', s) }, a ? actIcon(a, 20) : null))), h('span', { class: 'w' }, 'Your day'));
+        h('span', { class: 'row' }, list.map(([a, s]) => h('span', { class: cx('ds-pip', s) }, a ? actIcon(a, 20) : null))), h('span', { class: 'w' }, 'Day plan'));          // (not "Your day": a hired leader's result must not speak of you)
 // tray({ last, situ, lead, primary, body }): the decision layer. The primary is always bottom-right; `lead` is pips, a count, or a secondary button.
 export function tray({ last: l = null, situ: s = null, lead = null, primary: p = null, body = null, cls, attrs = {} } = {}) {
     const lead_ = arr(lead);

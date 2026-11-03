@@ -240,14 +240,14 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     const place = nameOfClearing(c.at).replace(/ (\d+)$/, '\u00A0$1');
     const ern = viewOf(fm, data).me?.earned ?? null;
     const sight = M.sightOf(fm);
-    const stat = (cls, ic, n) => h('span', { class: `ds-stat ${cls}` }, icon(ic), String(n));
+    const stat = (cls, ic, n, word) => h('span', { class: `ds-stat ${cls}` }, h('span', { class: 'v' }, icon(ic), String(n)), h('span', { class: 'w' }, word));          // (a word under each, as the strip has: note 102)
     const root = h('section', { class: `cb ds-screen${shared ? ' sf' : ''}`, 'data-mode': mode, 'data-ask-type': p.type, 'data-step': mode === 'melee' ? step : null, 'data-sf': shared ? 'step' : null, 'data-party': party ? '1' : null },
         h('div', { class: 'cb-top' }, shared ? null : menuBtn(ui, render),
             h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', {}, p.spellOnly ? 'Evening · quiet' : `Evening · round ${c.round}`)),
             party ? null : h('span', { class: `cb-sight${sight.hidden ? ' hid' : ''}`, 'data-sight': sight.hidden ? 'hidden' : 'seen' }, sight.text)),          // (a party: the banner says it, with the name)
         shared ? shared.strip : null,
         shared ? null : h('div', { class: 'cb-bar' }, h('button', { type: 'button', class: 'ds-stats', 'aria-label': 'Fame, Notoriety, Gold: open your Belongings', onclick: () => peek?.gear() },
-            stat('fame', 'star', ern?.fame ?? own(fm, data).fame), stat('notor', 'flame', ern?.notoriety ?? own(fm, data).notoriety), stat('gold', 'coin', own(fm, data).gold)), voiceSwitch()),
+            stat('fame', 'star', ern?.fame ?? own(fm, data).fame, 'Fame'), stat('notor', 'flame', ern?.notoriety ?? own(fm, data).notoriety, 'Notoriety'), stat('gold', 'coin', own(fm, data).gold, 'Gold')), voiceSwitch()),
         makeStage(mode === 'meet' || mode === 'lure' || mode === 'unknown' ? narr : null), mode === 'meet' || mode === 'lure' || mode === 'unknown' ? null : narr, sheet);
     X.root = root;
     fitStage(root);

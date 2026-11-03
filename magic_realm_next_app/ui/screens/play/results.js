@@ -82,12 +82,12 @@ export function reportSheet(G) {
         const frame = sum.moved ? frames({ fame: sgn(d.fame), notor: sgn(d.notor), gold: sgn(d.gold) }) : null;
         if (frame) for (const [k, fs] of [['fame', frame.querySelector('.fame')], ['gold', frame.querySelector('.gold')]]) if (v(k)) { fs.classList.add('void'); fs.title = `Worthless: the ${v(k)} curse`; }
         // Mike (2026-11-02): a small card. The headline and the score that moved stay on top; the ledger (every phase, every roll) is folded under Details, one tap, and the card grows only then.
-        const steps = ledgerSteps(G, day), open = G.ui.reportDetails === day && steps.length > 0, details = steps.length ? h('details', { class: 'dayres-details', open: open ? '' : null }, h('summary', {}, 'The day, step by step'), ...(open ? [h('div', { class: 'reportsheet overview' }, ...steps.map(ledgerStep(G)))] : [])) : null;          // (the ledger is built when it is first opened: a folded ledger has no boxes at all)
+        const steps = ledgerSteps(G, day), open = G.ui.reportDetails === day, details = h('details', { class: 'dayres-details', open: open ? '' : null }, h('summary', {}, 'The day, step by step'), ...(open ? [h('div', { class: 'reportsheet overview' }, ...(steps.length ? steps.map(ledgerStep(G)) : [h('p', { class: 'ds-meta' }, 'Nothing happened.')]))] : []));          // (the ledger is built when it is first opened: a folded ledger has no boxes at all)
         const body = h('div', { class: 'reportsheet ds-dayres', 'data-quiet': sum.empty ? '1' : null },
             h('p', { class: 'ds-voice lg headline', 'data-v': 'story' }, sum.story), h('p', { class: 'ds-voice lg headline', 'data-v': 'detail' }, sum.detail),
             ...rows, ...unattendedBlock(G, day), frame, scoreNote(G), details);          // (a leader's fight where no character stood: leaders.js)
         return modal(G, 'The day', body, { kind: 'result', detent: 'hug', eyebrow: `Day ${day} \u00B7 midnight`, head: voiceSwitch(), bare: true, cls: 'dayres-sheet',
-            footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn', 'data-act': open ? 'report-back' : 'report-next', 'aria-expanded': String(open), disabled: details ? null : true, onclick: () => { G.ui.mapPeek = false; G.ui.reportDetails = open ? null : day; render(G); } }, open ? 'Result' : 'Details'), goOn) });
+            footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn', 'data-act': open ? 'report-back' : 'report-next', 'aria-expanded': String(open), onclick: () => { G.ui.mapPeek = false; G.ui.reportDetails = open ? null : day; render(G); } }, open ? 'Result' : 'Details'), goOn) });
     }
     const show = ledgerSteps(G, day);
     const step = ledgerStep(G);
