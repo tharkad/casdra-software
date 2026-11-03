@@ -28,7 +28,7 @@
 .cb-foes.noslot .tagslot { display: none; }
 .cb-foe .tag { position: relative; padding: 2px 7px; margin-bottom: 2px; border-radius: var(--r-pill); background: var(--gold); color: var(--ink-on-gold); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .08em; white-space: nowrap; z-index: 2; }
 .cb-foe .tag.dot { width: 14px; height: 14px; padding: 0; margin-bottom: 4px; }              /* an offer on a crowded stage (QA-6): a ghost dot, still a 44px tap */
-.cb-foe .tag.dot::after { inset: calc((14px - 44px / var(--z, 1)) / 2); }          /* (no wider than its own counter: in a crowd the next creature's counter is a hand's breadth away) */
+.cb-foe .tag.dot::after { inset: calc((14px - 44px / var(--z, 1)) / 2); }
 .cb-foe .tag.bad { background: var(--danger); color: #1a0705; }
 .cb-foe .tag.good { background: var(--success); color: #08140a; }
 .cb-foe .turned { display: block; width: max-content; margin: 2px auto 0; white-space: nowrap; padding: 1px 6px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--gold); border: 1px solid var(--gold-lo); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .04em; pointer-events: none; }
@@ -347,3 +347,40 @@
 .cb-verb img.ds-px { background: var(--counter-face); border-radius: 5px; padding: 1px; box-sizing: content-box; }          /* the dark action art on a parchment plate, like the plan's chips (ui_screens: alert.gif was 1.8:1 on the tile) */
 .cb-hero .wplate.unalerted, .cb-hero .wplate.card { color: var(--ink-2); }          /* NOT ALERTED / WEAPON CARD at 4.5:1 or more (was the tertiary ink, 3.5:1) */
 .cb-foe.sel .tag::after { inset: min(0px, calc(18px - 44px / var(--z, 1))) min(0px, calc((100% - 44px / var(--z, 1)) / 2)) 0; }          /* the chosen one's TARGET word grows upward only: below it lies its own counter (a second tap there turns it over) */
+
+/* ---- note 111: the battlefield is the point of the screen ---- */
+.cb-hero .mid .cb-party { margin: 0; gap: 0 6px; }          /* two characters: their tiles stand in the hero's own row, between the weapon and the armor */
+.cb-hero .mid .cb-ptile { width: calc(var(--pt, 56px) + 30px); }
+/* the room: less dead air over the header, a header of two slim rows, a one-line prompt, a sheet with tighter gaps; the weapon's name stands in the played line (its plate says whether it is alerted) */
+.cb-hero .gcol:has(.wplate) .cap { display: none; }
+.cb-top { padding-right: max(var(--gutter), 52px); }          /* (the note button is fixed at the top right: the row leaves it its corner on every phone) */
+@media (min-height: 701px) {
+  .cb { padding-top: max(0px, calc(var(--safe-t) - 20px)); }
+  .cb-top { height: 40px; } .cb-bar { padding-bottom: 0; } .cb-bar .ds-stat { height: 36px; } .cb-stage { padding-top: 2px; padding-bottom: 2px; }
+  .cb-narr { min-height: calc(1.22em + 8px); padding: 3px var(--gutter) 5px; }
+  .cb-sheet { padding-top: 6px; } .cb-dir { min-height: 46px; } .cb-step { height: 32px; line-height: 32px; } .cb-bar .ds-voice-sw button { height: 30px; }
+  .cb .cb-steps { margin-bottom: 6px; } .cb-dirs { margin-bottom: 6px; } .cb-chits { padding: 5px 0 1px; margin-bottom: 4px; } .cb-hint { margin-bottom: 4px; }
+  .cb-sheet[data-kind=melee] { min-height: calc(240px + var(--safe-b)); }
+  .cb-armor-why { display: none; }
+  html[data-voice-mode="detail"] .cb-armor-why { display: block; }
+}
+@media (max-height: 700px) {
+  .cb-narr { min-height: calc(1.22em + 8px); padding-top: 2px; padding-bottom: 4px; }
+  .cb-sheet[data-kind=melee] { min-height: calc(238px + var(--safe-b)); }
+}
+.cb-top .where span { letter-spacing: .07em; }
+.cb-top .where span .cb-sight { display: inline; padding: 0; border: 0; border-radius: 0; font: inherit; letter-spacing: inherit; font-style: normal; color: var(--gold-hi); white-space: nowrap; }          /* a solo hero's sight is in the header's second line, no pill beside the title */
+.cb-top .where span .cb-sight.hid { color: var(--ink-2); }
+.cb-bar .ds-stats { position: relative; }
+.cb-bar .ds-stats::after { content: ""; position: absolute; inset: -4px 0; }          /* 36px to the eye, 44px to the thumb */
+.cb[data-party][data-mode=lure] .cb-hero:has(.cb-party) { display: flex; }          /* (the Lure step: the weapon, the armor and the chits stand aside; the tiles stay) */
+.cb[data-party][data-mode=lure] .cb-hero:has(.cb-party) .gcol, .cb[data-party][data-mode=lure] .cb-hero:has(.cb-party) .cb-pips { display: none; }
+.cb-top.sf-head { height: auto; min-height: 46px; }          /* (a shared fight's top row holds the Belongings and the Map with their words) */
+.cb-pips .ds-chit.mini { font-size: 12px; color: var(--ink); text-shadow: 0 0 2px rgba(0,0,0,.6); }          /* the type letter: 12px in full ink (ui_screens: 11px at 2.3 to 3.7:1) */
+.cb-pips .ds-chit.mini.tired { color: var(--ink-2); }
+@media (max-height: 820px) { .cb .cb-foes.few .cb-peace-lbl { display: none; } }          /* a short phone: the ones at peace stand in the same row (each already wears AT PEACE), not on a row of their own */
+.cb-pl .sep { background: var(--surface-1); padding: 0 2px; border-radius: 3px; color: var(--ink-2); }
+.cb-pips .ds-chit.mini { background: var(--surface-1); color: #fff; }          /* the type letter on the dark ground: 12px, white (ui_screens) */
+.cb-pips .ds-chit.mini.tired { color: var(--ink); }
+.cb-hero .gear .more { background: var(--surface-1); color: var(--ink); border-color: var(--gold); }          /* the count badge on the armor: solid, full ink */
+.cb-foe span.tag, .cb-foe span.tag::after { pointer-events: none; }          /* a word that is not a button (AT PEACE, WOUNDED YOU) takes no tap: its 44px area would lie over the counter beside it */

@@ -16,7 +16,7 @@ export const foeSize = (n, roomy = false) => {
     // a Meeting has few creatures and no lanes (DR-20): the counters take the room, up to 128 (three still stand in one row)
     if (roomy && !short && n >= 1 && n <= 3) return Math.min(128, Math.floor((Math.min(typeof innerWidth === 'number' ? innerWidth : 393, 520) - 32 - (n - 1) * 10) / n));
     // a fight with room (a tall phone, up to three on the stage): the counters take the width the row has, up to 116
-    if (n <= 3) return short ? base : Math.max(base, Math.min(116, Math.floor((Math.min(typeof innerWidth === 'number' ? innerWidth : 393, 520) - 32 - (n - 1) * 10) / n)));
+    if (n <= 3) return short ? base : Math.max(base, Math.min(n <= 2 ? 144 : 124, Math.floor((Math.min(typeof innerWidth === 'number' ? innerWidth : 393, 520) - 32 - (n - 1) * 10) / n)));
     // four stand in one row at the width of the screen; more take two rows, smaller
     const w = Math.min(typeof innerWidth === 'number' ? innerWidth : 393, 520) - 32;
     if (n === 4) return Math.min(base, Math.floor((w - 3 * 10) / 4));
@@ -248,7 +248,7 @@ export function weaponState(data, w) {
 export const peekBtn = (act, label, ic, on) => (on ? h('button', { type: 'button', class: 'ds-btn icon quiet cb-peek', 'data-act': act, 'aria-label': label, onclick: on }, icon(ic), h('span', { class: 'pk' }, label)) : null);          // (a word under the picture: note 102, always the name)
 
 // you: the weapon on the left, the armor on the right, your face and a pip per chit between. A morphed hero is the creature's counter. Tap a piece of gear to read it (and turn it over).
-export function heroEl({ st: fm, data, onGear, onPeekGear = null, onPeekMap = null, onCurse = null, hurtArmor = false, ribbon = null, prevChits = null, wasHidden = false, bare = false, slim = false }) {          // (bare: his face and name stand in the party row instead, combat/party.js)
+export function heroEl({ st: fm, data, onGear, onPeekGear = null, onPeekMap = null, onCurse = null, hurtArmor = false, ribbon = null, prevChits = null, wasHidden = false, bare = false, slim = false, inline = null }) {          // (bare: his face and name stand in the party row instead, combat/party.js)
     const ch = fm.ch, w = weaponOf(fm, data), armor = activeArmor(fm, data).map(a => a.item ?? a).filter(x => x && x.uid);
     const wName = w ? nameOf(data, w.item) : null, aName = armor[0] ? nameOf(data, armor[0]) : null;
     const cr = ch.morph?.creature, lt = cr?.light ?? {};
@@ -270,7 +270,7 @@ export function heroEl({ st: fm, data, onGear, onPeekGear = null, onPeekMap = nu
     const gcol = (kids, peekBtn) => h('div', { class: 'gcol' }, ...kids, peekBtn);
     return h('div', { class: 'cb-hero' },
         ch.morph ? gcol([], peek('peek-gear', 'Belongings', 'bag', onPeekGear)) : gear('weapon', wName, wName ? data.art?.weapons?.[wName] : null, w ? 1 : 0, false, peek('peek-gear', 'Belongings', 'bag', onPeekGear)),
-        h('div', { class: `mid${onPeekGear ? ' tappable' : ''}`, 'data-act': onPeekGear ? 'peek-hero' : null, onclick: onPeekGear ?? null }, bare ? null : face, bare ? null : h('span', { class: 'name' }, displayName(ch.name)), ribbon ? h('span', { class: 'ribbon' }, ribbon) : null, pipsEl(fm, prevChits, data), (ch.curses ?? []).length && onCurse ? h('button', { type: 'button', class: 'cb-curse', 'data-act': 'curse-badge', 'aria-label': `Cursed: ${ch.curses.join(', ')}. Tap to read`, onclick: e => { e.stopPropagation(); onCurse(); } }, icon('skull'), ch.curses.join(', ')) : null),
+        h('div', { class: `mid${onPeekGear ? ' tappable' : ''}`, 'data-act': onPeekGear ? 'peek-hero' : null, onclick: onPeekGear ?? null }, bare ? null : face, bare ? null : h('span', { class: 'name' }, displayName(ch.name)), inline, ribbon ? h('span', { class: 'ribbon' }, ribbon) : null, pipsEl(fm, prevChits, data), (ch.curses ?? []).length && onCurse ? h('button', { type: 'button', class: 'cb-curse', 'data-act': 'curse-badge', 'aria-label': `Cursed: ${ch.curses.join(', ')}. Tap to read`, onclick: e => { e.stopPropagation(); onCurse(); } }, icon('skull'), ch.curses.join(', ')) : null),
         ch.morph ? gcol([], peek('peek-map', 'Map', 'pin', onPeekMap)) : gear('armor', aName, aName ? data.art?.armor?.[aName] : null, armor.length, hurtGear, peek('peek-map', 'Map', 'pin', onPeekMap)));
 }
 
@@ -312,11 +312,27 @@ export function fitStage(root) {
         if (!stage || !inner || !root.isConnected) return;
         fitNames(root);
         inner.style.zoom = ''; inner.style.removeProperty('--z'); inner.removeAttribute('data-tight');
+        const lw = inner.querySelector('.cb-lanewrap'); if (lw) lw.style.zoom = '';
         const cs = getComputedStyle(stage), room = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
         let need = inner.scrollHeight;
         // a crowded stage on a short phone (note 102): below 0.6 the words would be too small to read, so the played lines give way (the chits stay in their lanes, the armor stays); data-tight says so
         if (need > room / 0.6 && room > 80 && typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches && inner.querySelector('.cb-pl')) { inner.setAttribute('data-tight', ''); need = inner.scrollHeight; }
-        if (need > room + 1 && room > 80) { const z = Math.max(0.45, room / need); inner.style.zoom = String(z); inner.style.setProperty('--z', String(z)); }
+        if (need > room + 1 && room > 80) {
+            // Note 111: the words of the lanes, the played lines and the armor keep their own size on the screen (12px stays 12px): the stage is scaled by what is left after them, and they are scaled back by the same factor
+            // (on a short phone they give up an eighth: 12px words are 10.5px there)
+            const E = typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 0.88 : 1;
+            const F = lw ? lw.getBoundingClientRect().height : 0;
+            const z = Math.max(0.45, F && need > F ? Math.min(1, (room - F * E) / (need - F)) : room / need);
+            inner.style.zoom = String(z); inner.style.setProperty('--z', String(z));
+            if (lw && z < E) lw.style.zoom = String(Math.min(E, Math.max(0.5, F && (room - (need - F) * z) / F)) / z);          // (and when the stage is at its floor the lanes give what is still missing)
+        }
+        // whatever is still past the stage's bottom (a rounding, a row that did not scale as measured) takes the rest of the scale off, so nothing is ever cut off
+        for (let k = 0; k < 3 && inner.style.zoom; k++) {
+            const over = inner.getBoundingClientRect().bottom - (stage.getBoundingClientRect().bottom - parseFloat(cs.paddingBottom)), z0 = parseFloat(inner.style.zoom);
+            if (over <= 0.5 || z0 <= 0.3) break;
+            const z1 = Math.max(0.3, z0 * (1 - over / Math.max(1, inner.getBoundingClientRect().height)));
+            inner.style.zoom = String(z1); inner.style.setProperty('--z', String(z1)); if (lw && lw.style.zoom) lw.style.zoom = String(parseFloat(lw.style.zoom) * z0 / z1);
+        }
         drawThreads(root);
     };
     requestAnimationFrame(fit);

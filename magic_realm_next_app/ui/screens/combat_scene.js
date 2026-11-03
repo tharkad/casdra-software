@@ -146,7 +146,9 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     const o = mode === 'melee' ? optionsOf(fm, data) : null;
     const m = mode === 'melee' ? cb.plan : null, step = o && stepsFor(o, X).some(s => s.id === cb.step) ? cb.step : (o ? stepsFor(o, X)[0].id : 'strike');
     const depTags = mode === 'deploy' ? DP.tagsOf(fm, data, p, DP.planFor(fm, data, p, cb)) : null;          // (the Deployment: what each creature is going to face, said on its counter)
-    const size = foeSize(foes.length, mode === 'meet' || mode === 'lure');
+    let size = foeSize(foes.length, mode === 'meet' || mode === 'lure');
+    // (note 111) the ones who are not fighting him stand on a row of their own under their word: two rows of counters take the room of two, so they are drawn at the size four would be
+    if ((mode === 'encounter' || mode === 'melee') && foes.some(f => !f.dead && M.peacefulFoe(f.d)) && foes.some(f => !f.dead && !M.peacefulFoe(f.d)) && !(typeof matchMedia === 'function' && matchMedia('(max-height: 820px)').matches && foes.length <= 4)) size = Math.min(size, foeSize(4));
     const targetable = mode === 'melee' && (step === 'strike' || step === 'whom') ? new Set(o.targets.filter(d => d.kind !== 'part').map(d => d.uid)) : new Set();          // (every creature, character and hireling the engine lets him name, on the stage: the Whom step lists them too)
     const others = mode === 'over' ? [] : M.othersHere(fm, data);
     // A crowded stage cannot hold a word on every counter (QA-6): from four targets on, only the chosen foe wears TARGET and the others a ghost dot (still a 44px tap); where the counters are small, the other
@@ -162,6 +164,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
         if (!t && depTags?.[d.uid]) t = { text: depTags[d.uid].word, short: depTags[d.uid].short, kind: depTags[d.uid].word === 'ON YOU' ? 'bad' : 'ghost' };
         if (mode === 'lure' && X.lure.may.has(d.uid)) { const on = X.lure.sel.has(d.uid), crowdL = X.lure.may.size >= 4; t = { text: 'LURE', kind: on ? '' : 'ghost', dot: crowdL && !on, label: on ? `Luring the ${denSide(fm, data, d).name}: tap to leave it` : `Lure the ${denSide(fm, data, d).name}`, onclick: () => { LU.toggleLure(fm, p, ui, d.uid); render(); } }; }
         else if (mode === 'lure' && X.lure.mine.has(d.uid)) t = { text: 'SET ON YOU', short: 'ON YOU', kind: 'ghost' };
+        else if (targetable.has(d.uid) && M.peacefulFoe(d) && tapNames && m.target !== d.uid) t = { text: 'AT PEACE', kind: 'ghost', short: 'PEACE' };          // (a crowd: the word stays, no dot to hit; the counter's own tap names it)
         else if (targetable.has(d.uid) && M.peacefulFoe(d)) { const sel = m.target === d.uid; t = { text: sel ? 'PROVOKE' : 'AT PEACE', kind: sel ? 'bad' : 'ghost', dot: crowd && !sel, label: sel ? 'Tap to strike no one' : 'Not fighting you. Tap to strike them anyway: the whole group will fight you', onclick: () => { m.target = sel ? null : d.uid; m.sure = null; render(); } }; }
         else if (targetable.has(d.uid) && tapNames) { t = m.target === d.uid ? { text: 'TARGET', kind: '', label: 'Target: tap to strike no one', onclick: () => { m.target = null; m.sure = null; render(); } } : null; }          // (Mike 2026-11-03: in a crowd a tap on the counter names it, no dot above it)
         else if (targetable.has(d.uid)) { const sel = m.target === d.uid; t = { text: 'TARGET', kind: sel ? '' : 'ghost', dot: crowd && !sel, label: sel ? 'Target: tap to strike no one' : 'Target this creature', onclick: () => { m.target = sel ? null : d.uid; m.sure = null; render(); } }; }
@@ -170,7 +173,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
         if (t && short && !t.dot && t.short) t = { ...t, text: t.short };
         if (t) anyTag = true;
         const justFlipped = cb.flipNow === d.uid;
-        return foeEl({ st: fm, data, d, flipped: !!cb.flipped[d.uid], tag: t, dead: !!dead, size, justFlipped, turnedOver: !!sideChanged, onHold: peek?.piece && (d.kind === 'mon' || d.kind === 'nat') ? den => peek.piece(den) : null, onPick: tapNames && targetable.has(d.uid) && !M.peacefulFoe(d) ? () => { m.target = d.uid; m.sure = null; render(); } : null, selected: mode === 'melee' && !o.attackSpell && m.target === d.uid, seton: !dead && ['encounter', 'melee', 'lure', 'shift', 'deploy', 'meet'].includes(mode) ? M.setOn(fm, d) : null,
+        return foeEl({ st: fm, data, d, flipped: !!cb.flipped[d.uid], tag: t, dead: !!dead, size, justFlipped, turnedOver: !!sideChanged, onHold: peek?.piece && (d.kind === 'mon' || d.kind === 'nat') ? den => peek.piece(den) : null, onPick: tapNames && targetable.has(d.uid) ? () => { m.target = d.uid; m.sure = null; render(); } : null, selected: mode === 'melee' && !o.attackSpell && m.target === d.uid, seton: !dead && ['encounter', 'melee', 'lure', 'shift', 'deploy', 'meet'].includes(mode) ? M.setOn(fm, d) : null,
             onFlip: (den, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[den.uid] = !cb.flipped[den.uid]; cb.flipNow = den.uid; render(); } });
     });
     cb.flipNow = null;
@@ -202,12 +205,17 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     const allies = M.alliesOf(fm, data);
     const allyEl = allies.length && mode !== 'deploy' ? alliesEl({ st: fm, data, allies, flipped: cb.flipped, size: typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 48 : 56, onFlip: (a, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[a.uid] = !cb.flipped[a.uid]; render(); } }) : null;
     const prevChits = cb.pipState; cb.pipState = Object.fromEntries(own(fm, data).chits.map(x => [x.id, x.state]));
-    const slim = !!party && party.members.length <= 2;          // (two on one phone: the Belongings and the map stand at the ends of their row)
-    const hero = heroEl({ st: fm, data, bare: !!party, slim, prevChits, onPeekGear: () => peek?.gear(), onPeekMap: () => peek?.map(), onCurse: () => { cb.curseCard = !cb.curseCard; render(); }, ribbon: own(fm, data).morph ? `You are ${article(own(fm, data).morph.creature.name)} ${own(fm, data).morph.creature.name}` : own(fm, data).berserk ? 'Berserk until midnight' : null, onGear: () => { cb.gearCard = !cb.gearCard; render(); } });
+    const slim0 = !!party && party.members.length <= 2;
+    // (note 111) two characters on a phone wide enough for it: their tiles stand BETWEEN the weapon and the armor, in the one row that holds the hero, so the party takes no row of its own
+    const merged = slim0 && typeof innerWidth === 'number' && innerWidth >= 390;
+    const slim = slim0 && !merged;          // (two on one phone: the Belongings and the map stand at the ends of their row)
+    const partySize0 = typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 52 : 56;
+    const partyRowMerged = merged ? PT.partyRowEl(party, { size: partySize0 }) : null;
+    const hero = heroEl({ st: fm, data, bare: !!party, slim, inline: partyRowMerged, prevChits, onPeekGear: () => peek?.gear(), onPeekMap: () => peek?.map(), onCurse: () => { cb.curseCard = !cb.curseCard; render(); }, ribbon: own(fm, data).morph ? `You are ${article(own(fm, data).morph.creature.name)} ${own(fm, data).morph.creature.name}` : own(fm, data).berserk ? 'Berserk until midnight' : null, onGear: () => { cb.gearCard = !cb.gearCard; render(); } });
     // (DR-20: the Meeting's steps have no lanes, so the stage had a void between the foes and you: the narrator stands in it, between the two, and not under you)
     const othersNode = (party ? others.filter(o => o.hires.length) : others).length ? othersEl({ others: party ? others.filter(o => o.hires.length) : others, hiresOnly: !!party, targetable, target: mode === 'melee' ? m.target : null, size: typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 44 : 52, onPick: uid => { m.target = uid; m.sure = null; render(); } }) : null;
     const partySize = typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 52 : 56;
-    const makeStage = narrIn => h('div', { class: 'cb-stage' }, h('div', { class: 'cb-stagein' }, h('div', { class: `cb-foes${mode === 'melee' || mode === 'result' || mode === 'grid' || anyTag ? '' : ' noslot'}` }, ...foeEls), othersNode, lanes, allyEl, narrIn ? h('div', { class: 'cb-void' }, narrIn) : null, party ? PT.partyRowEl(party, { size: partySize, lead: slim ? peekBtn('peek-gear', 'Belongings', 'bag', () => peek?.gear()) : null, tail: slim ? peekBtn('peek-map', 'Map', 'pin', () => peek?.map()) : null }) : null, hero));
+    const makeStage = narrIn => h('div', { class: 'cb-stage' }, h('div', { class: 'cb-stagein' }, h('div', { class: `cb-foes${foes.length <= 4 ? ' few' : ''}${mode === 'melee' || mode === 'result' || mode === 'grid' || anyTag ? '' : ' noslot'}` }, ...foeEls), othersNode, lanes, allyEl, narrIn ? h('div', { class: 'cb-void' }, narrIn) : null, party && !merged ? PT.partyRowEl(party, { size: partySize, lead: slim ? peekBtn('peek-gear', 'Belongings', 'bag', () => peek?.gear()) : null, tail: slim ? peekBtn('peek-map', 'Map', 'pin', () => peek?.map()) : null }) : null, hero));
 
     // ---- the narrator ----
     const [story, detail, tone] = narration(X, { mode, o, step, foes, facts, recap, events });
@@ -231,7 +239,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     else if (mode === 'encounter') sheet = encounterSheet(X);
     else sheet = unknownSheet(X);
 
-    if (party && sheet?.classList?.contains('cb-sheet') && mode !== 'over') sheet.prepend(mode === 'result' ? PT.actorBanner(party, { step: 'Result' }) : PT.actorBanner(party, { round: p.round ?? c.round, step: PT.STEP_NAME[p.type] ?? null }));          // (whose question this is, on top of every decision of a party)
+    // (note 111: the bar that named the asked character on top of the sheet is gone: the party's tiles on the stage say NOW and CHOOSING, and the header says the round and the step)
 
     // The tap guard (QA-4): a result that follows a Roll, a wound that follows a result, the next Go on: each stands where the last primary stood, so for a moment after the question changes the primary ignores
     // a tap (the second half of a double tap must not skip what you should read). Not on "Next" (a step of the stepper), and a redraw of the same question does not start the window again.
@@ -244,8 +252,8 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     const stat = (cls, ic, n, word) => h('span', { class: `ds-stat ${cls}` }, h('span', { class: 'v' }, icon(ic), String(n)), h('span', { class: 'w' }, word));          // (a word under each, as the strip has: note 102)
     const root = h('section', { class: `cb ds-screen${shared ? ' sf' : ''}`, 'data-mode': mode, 'data-ask-type': p.type, 'data-step': mode === 'melee' ? step : null, 'data-sf': shared ? 'step' : null, 'data-party': party ? '1' : null },
         h('div', { class: 'cb-top' }, shared ? null : menuBtn(ui, render),
-            h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', {}, p.spellOnly ? 'Evening · quiet' : `Evening · round ${c.round}`)),
-            party ? null : h('span', { class: `cb-sight${sight.hidden ? ' hid' : ''}`, 'data-sight': sight.hidden ? 'hidden' : 'seen' }, sight.text)),          // (a party: the banner says it, with the name)
+            h('div', { class: 'where' }, h('b', { class: 'ds-nb' }, place), h('span', party ? { role: 'status', 'aria-live': 'polite' } : {}, p.spellOnly ? 'Evening · quiet' : `Evening · round ${c.round}${party ? ` · ${mode === 'result' ? 'Result' : PT.STEP_NAME[p.type] ?? ''}`.replace(/ · $/, '') : ''}`, party ? null : [' · ', h('em', { class: `cb-sight${sight.hidden ? ' hid' : ''}`, 'data-sight': sight.hidden ? 'hidden' : 'seen' }, sight.text)])),          // (a solo hero: his sight stands in the header's second line, no pill beside the title)
+            null),
         shared ? shared.strip : null,
         shared ? null : h('div', { class: 'cb-bar' }, h('button', { type: 'button', class: 'ds-stats', 'aria-label': 'Fame, Notoriety, Gold: open your Belongings', onclick: () => peek?.gear() },
             stat('fame', 'star', ern?.fame ?? own(fm, data).fame, 'Fame'), stat('notor', 'flame', ern?.notoriety ?? own(fm, data).notoriety, 'Notoriety'), stat('gold', 'coin', own(fm, data).gold, 'Gold')), voiceSwitch()),
