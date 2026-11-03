@@ -117,7 +117,7 @@
 .welcome .ds-voice { margin: 0 0 12px; text-wrap: balance; }
 /* QA-15 (override of core.css, F1): every handle has a 44px hit area (the 14px bar is what is drawn; the area runs 18px above it and 14px below), and never shrinks in a full sheet */
 .ds-grab { position: relative; flex: none; }
-.ds-grab::after { content: ""; position: absolute; inset: -18px 0 -14px; }
+.ds-grab::after { content: ""; position: absolute; inset: -17px 0 -14px; }          /* (45: 14 drawn, 17 above, 14 below; the head's title starts below that, so it stays clickable) */
 .ds-tray > .ds-grab::after { inset: -34px 22% 0; }          /* (the tray's handle: the line under it is another button, so the area runs up over the map's lower edge, in the middle, clear of the map button) */
 /* the Story | Detail switch: its buttons are 30 to 32px tall to look right in a head; the hit area is 44+ */
 .ds-voice-sw button::after { inset: -8px 0; }
@@ -174,3 +174,10 @@
 .ds-pips .row { display: flex; align-items: center; gap: 3px; } .ds-pips.many .row { gap: 2px; }
 .ds-pips .w { font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); letter-spacing: .01em; color: var(--ink-2); }
 @media (max-width: 374px) { .ds-strip .ds-stat { min-width: 36px; padding: 0 2px; } }
+
+/* The "nothing" phase's dash is an svg, not art: on a done pip it was 2.5:1 (ui_screens contrast); it keeps the pip's plate and reads at 3:1 */
+.ds-pip .ds-i { color: var(--ink-2); position: relative; } .ds-pip.done .ds-i { opacity: .8; }
+
+/* A sheet is at least as tall as the tray beneath it, so the tray's last line never peeks out above a short sheet and is never half under its handle (ui_screens covered ds-last). Not for a peeked decision. */
+.layer .ds-sheet:not([data-detent="peek"]):not(.peeked) { min-height: calc(var(--tray-h, 0px) + 6px); }
+.ds-pip .ds-i { color: var(--ink) !important; } .ds-pip.done .ds-i { opacity: .85; }

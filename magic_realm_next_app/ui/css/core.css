@@ -68,7 +68,7 @@ svg.ico.kico.ki-colour { padding: 0; }
 /* ---- the map region (hero) ---- */
 .ds-map { position: relative; flex: 1 1 0; min-height: 0; background: #0b0d13; overflow: hidden; touch-action: none; }
 .ds-map-bg { position: absolute; inset: 0; background-repeat: no-repeat; background-position: 50% var(--map-y, 42%); background-size: var(--map-size, 393px auto); transition: background-position var(--d-sheet) var(--ease-io); }
-.ds-map-btn { position: absolute; right: 12px; bottom: 12px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(15, 17, 23, .72); border: 1px solid var(--line-2); color: var(--ink); backdrop-filter: blur(4px); }
+.ds-map-btn { position: absolute; right: 12px; bottom: 12px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(15, 17, 23, .9); border: 1px solid var(--line-2); color: var(--ink); backdrop-filter: blur(4px); }          /* (the word under its icon must read over any tile art: 72% gave 2.8:1) */
 /* map overlays (design vocabulary: the map layer itself is drawn by mapview.js; these are the states it must express) */
 .ds-ring { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; border: 2.5px solid var(--st-legal); box-shadow: 0 0 0 4px rgba(181, 227, 156, .16); pointer-events: none; }
 .ds-ring.legal { animation: ds-pulse 2.2s var(--ease-io) infinite; }

@@ -227,9 +227,17 @@ function revealChoices(G, hero) {
 function syncCamera(G, force = false) {
     const sh = [...G.layer.querySelectorAll('.ds-sheet')].at(-1);
     if (!G.map || !sh) { G.mapBox.style.removeProperty('--cover'); G.mapBox.classList.remove('cramped'); if (G.ui.camKey) { G.ui.camKey = null; G.map?.release(); } return; }
-    const inset = Math.max(0, Math.round(sh.offsetHeight - (G.layer.getBoundingClientRect().bottom - G.mapBox.getBoundingClientRect().bottom)));
-    G.mapBox.classList.toggle('cramped', G.mapBox.getBoundingClientRect().height - inset < 140);          // (two stacked buttons need 136px: 12 + 52 + 8 + 52 + 12)          // (a tall sheet leaves a sliver of map: the buttons step aside rather than sit on the handle)
-    G.mapBox.style.setProperty('--cover', `${inset + 20}px`);          // (+20: the handle's hit area reaches 18px above the sheet)          // (the map's own buttons ride up above the sheet's edge: a button under the handle cannot be tapped)
+    const setCover = () => {
+        const sh2 = [...G.layer.querySelectorAll('.ds-sheet')].at(-1); if (!sh2 || !G.root.isConnected) return 0;
+        const inset = Math.max(0, Math.round(sh2.offsetHeight - (G.layer.getBoundingClientRect().bottom - G.mapBox.getBoundingClientRect().bottom)));
+        G.mapBox.classList.toggle('cramped', G.mapBox.getBoundingClientRect().height - inset < 140);          // (two stacked buttons need 136px: 12 + 52 + 8 + 52 + 12; a tall sheet leaves a sliver: the buttons step aside)
+        G.layer.style.setProperty('--tray-h', `${G.tray.offsetHeight}px`);          // (a sheet is never shorter than the tray under it: the tray's last line must not peek out above a short sheet)
+        G.mapBox.style.setProperty('--cover', `${inset + 24}px`);          // (the map's own buttons ride up above the sheet's edge; +24: the handle's hit area reaches 10px above it)
+        return inset;
+    };
+    const inset = setCover();
+    G.ui.coverRO?.disconnect(); if (typeof ResizeObserver !== 'undefined') { G.ui.coverRO = new ResizeObserver(() => setCover()); G.ui.coverRO.observe(sh); }          // (its height glides: follow it)
+    clearTimeout(G.ui.coverT); G.ui.coverT = setTimeout(setCover, 380);          // (a sheet still gliding up is not yet at its height: look again when it has settled)
     const hero = heroSpot(G), id = G.ui.sheet === 'clearing' && G.ui.sel ? G.ui.sel : hero, key = `${id}|${inset}`;
     if (key === G.ui.camKey && !force) return;
     G.ui.camKey = key; G.map.focus(id, { insetBottom: inset });
