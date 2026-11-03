@@ -56,10 +56,10 @@
 .cb-foe.sel .ds-cs-wrap svg { filter: drop-shadow(0 0 6px rgba(181, 227, 156, .8)); }
 .cb-foe.held::before { content: ""; position: absolute; inset: -3px; border-radius: 12px; border: 2px solid var(--danger); pointer-events: none; }
 .cb-lanes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0; }
-.cb-lane { min-height: 36px; opacity: .85; border: 1.5px dashed var(--line-2); border-radius: var(--r-sm); display: flex; flex-wrap: wrap; align-content: center; align-items: center; justify-content: center; gap: 4px; font: 600 calc(12px * var(--ts, 1))/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); position: relative; padding: 0 4px; }
-.cb-lane.mine { border-style: solid; border-color: var(--gold); color: var(--gold-hi); background: var(--gold-wash); }
+.cb-lane { min-height: 36px; background: var(--surface-1); border: 1.5px dashed var(--line-2); border-radius: var(--r-sm); display: flex; flex-wrap: wrap; align-content: center; align-items: center; justify-content: center; gap: 4px; font: 600 calc(12px * var(--ts, 1))/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); position: relative; padding: 0 4px; }
+.cb-lane.mine { border-style: solid; border-color: var(--gold); color: var(--gold-hi); background: linear-gradient(var(--gold-wash), var(--gold-wash)), var(--surface-1); }
 .cb-lane.guard { color: var(--st-locked); }
-.cb-lane.guard { border-style: solid; border-color: var(--st-locked); color: var(--st-locked); background: rgba(142, 166, 208, .08); }
+.cb-lane.guard { border-style: solid; border-color: var(--st-locked); color: var(--st-locked); background: linear-gradient(rgba(142, 166, 208, .08), rgba(142, 166, 208, .08)), var(--surface-1); }
 .cb-lane .ds-counter { width: 26px; height: 26px; border-radius: 6px; }
 .cb-lane .ds-counter.sm { width: 26px; height: 26px; }
 .cb-lane.crowd { padding-top: 2px; padding-bottom: 2px; row-gap: 1px; }          /* creatures stand in this box: the word over them, never beside them (it would run off the lane) */
