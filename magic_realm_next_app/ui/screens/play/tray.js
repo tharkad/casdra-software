@@ -181,10 +181,11 @@ export function renderTray(G) {
         m.lead = dayPips(G, p.i);
         const card = resultCardFor(G);
         if (card) {
-            // the phase just played: its result stands where the last-action line and the situation were, and the button goes on ("Next / phase 4 · Trade")
+            // the phase just played: its result stands where the last-action line and the situation were, and the button goes on ("Trade / phase 4")
             m.body.push(card); m.last = null; m.situ = null; m.cls.push('with-result');
-            const next = ACT_LABEL[slot?.act] ?? slot?.act ?? 'nothing';
-            m.primary = btn(twoLine('Next', `phase ${p.i + 1} \u00B7 ${next}`), 'primary', { 'data-act': 'next', onclick: () => act(G, { type: 'next' }) });
+            // the button names the action that comes ("Move / phase 2"), as it does at the start of any phase (QA-119 note 119)
+            const next = slot?.act && slot.act !== 'nothing' ? ACT_LABEL[slot.act] ?? slot.act : 'Do nothing', { small, why } = shortPrompt(G, slot);
+            m.primary = btn(twoLine(next, small ? `phase ${p.i + 1} \u00B7 ${small}` : `phase ${p.i + 1}`), 'primary', { 'data-act': 'next', title: why, 'aria-description': why, onclick: () => act(G, { type: 'next' }) });
         } else m.primary = phasePrimary(G, slot);
         if (!card && slot?.act === 'search' && !ownSheet(st, G.data).onRoad) m.body.push(h('p', { class: 'ds-hint-line', 'data-hint': 'search-where' }, searchWhere(G, ownSheet(st, G.data).at)));
     } else if (p.type === 'phase-pick') {
