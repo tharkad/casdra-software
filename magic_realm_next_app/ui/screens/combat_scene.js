@@ -369,7 +369,9 @@ export function combatBeat({ st: engineState, data, ui, render }) {
     const recap = M.recapOf(fm, data);
     const dead = c.dens.filter(d => d.kind !== 'horse' && d.kind !== 'part');
     const size = foeSize(dead.length);
-    const foeEls = dead.map(d => foeEl({ st: snap, data, d, size, dead: !!fm.combat === false && how === 'won' }));
+    // (the snapshot is the round BEFORE the last blow: whoever the game now says is dead is shown slain, the rest stand)
+    const slainNow = d => !!(d.kind === 'mon' ? fm.mons : fm.nats)?.find(o => o.id === d.id)?.dead;
+    const foeEls = dead.map(d => foeEl({ st: snap, data, d, size, dead: !!d.dead || slainNow(d) || (!!fm.combat === false && how === 'won') }));
     const hero = heroEl({ st: snap, data, ribbon: null });
     if (how === 'died') hero.querySelector('.face')?.setAttribute('style', 'filter:grayscale(1) brightness(.6)');
     const stage = h('div', { class: 'cb-stage' }, h('div', { class: 'cb-foes noslot' }, ...foeEls), lanesEl({}), hero);
