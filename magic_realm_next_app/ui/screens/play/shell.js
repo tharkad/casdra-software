@@ -1,5 +1,6 @@
 // play/shell.js: the render loop and the layout it fills: render() redraws the status strip, the tray, the sheet layer and the map; mapModel() is what the map is told to draw.
 import { dayColors } from '../../../engine/catalogue.js';
+import { hereColors } from './sheet_clearing.js';
 import { nameOfClearing, tileOf } from '../../../engine/catalogue.js';
 import { isCave, knownPathPairs, roadsFrom, tileClearings } from '../../../engine/world.js';
 import { flyTiles } from '../../../engine/magic/fly.js';
@@ -284,6 +285,9 @@ function renderStrip(G) {
     // the day's colours of magic and a curse, as two small marks under the phase word; the Journal says what they mean
     const ph = el.querySelector('.ds-day span');
     for (const c of magicToday) ph.append(h('i', { class: `ds-dot mdot ${c.toLowerCase()}`, title: `${c} magic` }));
+    // the magic of the clearing he stands in (a Chapel, an enchanted card such as the Dragon Essence, an enchanted tile): its own bigger dots, apart from the day's
+    let here = []; try { const me = ownSheet(G.st, G.data); here = me.at ? [...new Set(hereColors(G.st, G.data, me.at, !!me.onRoad))] : []; } catch { /* no place */ }
+    for (const c of here) ph.append(h('i', { class: `ds-dot mdot here ${c.toLowerCase()}`, 'data-here-magic': c, title: `${c} magic in this clearing` }));
     if (cursed) ph.append(h('i', { class: 'cursedmark', 'aria-label': 'cursed' }, dsIcon('skull')));
     if ((G.race || G.shared) && G.standings.some(x => x.present && x.seat !== G.mySeat)) el.querySelector('.menu').append(h('i', { class: 'pdot on corner', 'aria-label': 'Others are here' }));
     G.strip.replaceChildren(...el.childNodes);

@@ -14,6 +14,7 @@
 .ds-stat.void .ds-i { opacity: .6; } .ds-stat .voidmark { display: inline-flex; color: var(--danger); } .ds-stat .voidmark .ds-i { width: 14px; height: 14px; opacity: 1; margin-left: 1px; }
 .ds-day span { display: flex; align-items: center; gap: 5px; }
 .ds-day .mdot { width: 8px; height: 8px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .45); }
+.ds-day .mdot.here { width: 11px; height: 11px; margin-left: 3px; box-shadow: 0 0 0 1.5px #fff, 0 0 6px 1px rgba(255, 255, 255, .5); }
 .ds-day .cursedmark { display: inline-flex; color: var(--danger); } .ds-day .cursedmark .ds-i { width: 14px; height: 14px; }
 
 /* ---- the map region ---- */

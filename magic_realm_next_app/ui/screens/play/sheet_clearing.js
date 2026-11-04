@@ -197,6 +197,9 @@ function signRow(G, c, tile) {
         h('span', { class: 'main' }, h('b', {}, c.kind === 'sound' ? `${c.name} (sound ${c.num})` : c.name), list));
 }
 
+// the colours of magic the place itself carries (not the day's: the strip shows those apart)
+export const hereColors = (st, data, at, road) => colorSources(st, data, at, { road }).filter(x => !x.calendar).map(x => x.color);
+
 export function clearingSheet(G) {
     const id = G.ui.sel, tile = tileOf(id), n = numOf(id);
     const cdef = G.data.tile(tile).sides.normal.clearings.find(c => c.n === n);
