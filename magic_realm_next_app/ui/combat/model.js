@@ -206,7 +206,14 @@ export function placementCounters(fm, o, m) {
     if (t && t.kind !== 'part') { set.add(t.uid); for (const p of live) if (p.partOf === t.uid) set.add(p.uid); }
     return set.size;
 }
-export const placementMatters = (fm, o, m) => !!o.sections || placementCounters(fm, o, m) > 3;
+// A native's horse is not an attacking counter, but 8.4.5m lets him place it (any box but its rider's), and the shuffle does not undo WHICH counters share a box: beside a second creature the horse
+// either stands with it or alone, and then the horse's box (the native's maneuver, 8.4.6b) and that creature's box (its blow) are the same line or two, which changes how the round's
+// hits go together. So a horse on his sheet with two or more attacking counters keeps the step; a rider and his horse alone do not (every placement of the pair is as likely after the die).
+export const placementMatters = (fm, o, m) => !!o.sections || placementCounters(fm, o, m) > 3 || ((o.horses ?? []).length > 0 && placementCounters(fm, o, m) >= 2);
+// where a native's horse stands in the plan: the box he chose, else the box after its rider's; never its rider's own
+export const riderBoxOf = (o, m, uid) => m.boxes[uid] ?? Math.max(0, o.boxable.findIndex(d => d.uid === uid)) % 3;
+export function horseBoxOf(o, m, h) { const rb = riderBoxOf(o, m, h.partOf), hb = m.boxes[h.uid] ?? (rb + 1) % 3; return hb === rb ? (rb + 1) % 3 : hb; }
+export const nextHorseBox = (o, m, h) => { const rb = riderBoxOf(o, m, h.partOf); let b = (horseBoxOf(o, m, h) + 1) % 3; if (b === rb) b = (b + 1) % 3; return b; };
 export const effortLine = (fm, o, m) => {
     const lim = o.effortLimit ?? 2, ast = effortOf(fm, o, m);
     return { ast, lim, over: ast > lim, text: lim >= NO_EFFORT_LIMIT ? `Effort ${ast}, no limit` : `Effort ${ast} of ${lim}`, words: ast <= 1 ? 'nothing tires' : ast > lim ? `put a chit back: ${limitWord(lim)} at most` : `${ast - 1} asterisk${ast - 1 === 1 ? '' : 's'} tire` };

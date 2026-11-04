@@ -86,6 +86,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
         // so the nearest legal plan is sent and he is told.
         const play = P.melee(o, m), fixed = checkOf(fm, data, { ...play, probe: 'boxes' }).fixed;          // (the engine's own box plan, 8.4.5m)
         if (fixed) { play.boxes = fixed.boxes; X.say('A box was left empty while another held two creatures, so one moved over (every box needs a creature).'); }
+        if ((o.horses ?? []).length && M.placementMatters(fm, o, m)) { const at = { ...play.boxes }; for (const h of o.horses) { const rb = at[h.partOf] ?? M.riderBoxOf(o, m, h.partOf), want = M.horseBoxOf(o, m, h); play.boxes[h.uid] = want === rb ? (rb + 1) % 3 : want; } }          // (8.4.5m: a native's horse is placed too, in any box but its rider's)
         emit(play);
     };
 
@@ -189,7 +190,10 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
         guard = { dir: planOf.moveDir ?? 0, text: planOf.moveChit ? M.chitText(chitHere(planOf.moveChit) ?? { type: 'move', strength: '', time: '' }) : null };
     }
     if (mode === 'shift') { const so = optionsOf(fm, data); cb.shift ??= {}; cb.shift.attackDir ??= so.attackDir; cb.shift.moveDir ??= so.moveDir; attack = so.hasAttack ? { dir: cb.shift.attackDir, text: planOf?.fightChit ? M.chitText(chitHere(planOf.fightChit) ?? { type: 'fight', strength: '', time: '' }) : null } : null; guard = so.hasMove ? { dir: cb.shift.moveDir, text: planOf?.moveChit ? M.chitText(chitHere(planOf.moveChit) ?? { type: 'move', strength: '', time: '' }) : null } : null; }
-    if (mode === 'melee' && (step === 'foes' || step === 'roll') && M.placementMatters(fm, o, m)) o.boxable.forEach((d, i) => { const b = m.boxes[d.uid] ?? (i % 3); (boxes[b] ??= []).push(M.picOf(fm, data, d)); });
+    if (mode === 'melee' && (step === 'foes' || step === 'roll') && M.placementMatters(fm, o, m)) {
+        o.boxable.forEach((d, i) => { const b = m.boxes[d.uid] ?? (i % 3); (boxes[b] ??= []).push(M.picOf(fm, data, d)); });
+        for (const h of o.horses ?? []) { const den = fm.combat.dens.find(x => x.uid === h.uid); if (den) (boxes[M.horseBoxOf(o, m, h)] ??= []).push(M.picOf(fm, data, den)); }          // (a native's horse stands in a box of its own choosing, 8.4.5m)
+    }
     if (mode === 'shift') M.foesOf(fm).forEach(d => { if (d.box != null) (boxes[d.box] ??= []).push(M.picOf(fm, data, d)); });
     // notes 102 and 103: the lanes say what was played (the chit, the weapon, the attack time), and the armor stands beneath the defence row under the lanes each piece covers
     const says = mode === 'melee' ? saysOf(m, !!o.attackSpell, o) : ui.lastPlan?.fight === key ? ui.lastPlan.says : null;
@@ -200,7 +204,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     // 8.4.5m lets him place the creatures on his Melee Section and 8.4.6a then shuffles them with one die: with three or fewer the placing changes nothing (docs/design/combat-metaphor/06-PLACEMENT-PROOF.md), so the Foes step is
     // not asked, and the armor row says why a lone creature is not his to place (note 103: "that might be needed if I have smaller armor pieces": no, a piece is struck as often in any lane)
     const why = armor && mode === 'melee' && M.placementCounters(fm, o, m) >= 1 && !M.placementMatters(fm, o, m)
-        ? { story: 'A die shuffles the creatures after your plays: no lane is safe.', detail: 'One die shuffles the creatures among the three boxes after your plays (8.4.6a), so placing three or fewer changes nothing; four or more, you place them.' } : null;
+        ? { story: 'A die shuffles the creatures after your plays: no lane is safe.', detail: 'One die shuffles the creatures among the three boxes after your plays (8.4.6a), so placing three or fewer changes nothing; four or more, or a native\u2019s horse beside another creature, you place them (8.4.5m).' } : null;
     const lanes = mode === 'meet' || mode === 'deploy' || mode === 'lure' || mode === 'unknown' ? null : lanesEl({ attack, guard, boxes, sec: mode === 'shift' ? 'shift-board' : null, armor, why });
     const allies = M.alliesOf(fm, data);
     const allyEl = allies.length && mode !== 'deploy' ? alliesEl({ st: fm, data, allies, flipped: cb.flipped, size: typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches ? 48 : 56, onFlip: (a, has) => { if (!has) { X.say('This counter has no other side.'); return; } cb.flipped[a.uid] = !cb.flipped[a.uid]; render(); } }) : null;

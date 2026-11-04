@@ -816,6 +816,8 @@ export function meleeOptions(st, data) {
         effortLimit: effortLimit(st),                                               // 2 asterisks a round, 3 with the Girtle of Energy (8.4.5f.2, 8.5.1c)
         // everything that will sit in the red boxes: assigned denizens and their parts
         boxable: c.dens.filter(d => !d.dead && d.kind !== 'horse' && (d.assigned || (d.partOf && c.dens.find(o => o.uid === d.partOf)?.assigned))),
+        // the native horses that go in the red boxes with them: not attacking counters (8.4.5m), but he places them (any box but their rider's): `boxes[horse uid]`
+        horses: c.dens.filter(d => !d.dead && d.kind === 'horse' && c.dens.find(o => o.uid === d.partOf && !o.dead && o.assigned)).map(d => ({ uid: d.uid, kind: 'horse', partOf: d.partOf, id: d.id, owner: d.owner })),
     };
 }
 
@@ -1041,7 +1043,8 @@ export function meleeSetup(st, data, p) {
     for (const h of c.dens.filter(d => d.kind === 'horse' && !d.dead)) {
         const owner = c.dens.find(d => d.uid === h.partOf);
         if (!owner || owner.dead || !owner.assigned) { h.box = null; continue; }
-        h.box = (owner.box + 1 + int(st, 2, 'combat.part.box')) % 3;
+        const named = p.boxes?.[h.uid];          // (8.4.5m: he places the horse too; any box but its rider's. Unnamed: a box other than its rider's at random)
+        h.box = [0, 1, 2].includes(named) && named !== owner.box ? named : (owner.box + 1 + int(st, 2, 'combat.part.box')) % 3;
     }
     if (HF.inRound(st)) HF.setup(st, data, p, log);          // the Melee Sections of his hirelings: targets, sides, places (hirefight.js)
     const X = { p, fight, move, wish, target: target?.uid ?? null, spTargets: spTargets.map(d => d.uid) };
@@ -1622,14 +1625,18 @@ function placeRaw(st, list, wanted) {
     return used;
 }
 const boxesNeeded = list => Math.min(list.length, 3);
+const horseWithRider = 'an unhired native\'s horse cannot stand in the same box as its rider (8.4.5m)';
 const doubledUp = 'put an attacking counter in as many of the three boxes as you can: you cannot leave a box empty while you double up counters in another (8.4.5m)';
 // Would this plan be refused? The boxes of the counters are left as they were.
 function boxPlanError(st, list, wanted) {
-    if (!list.some(d => [0, 1, 2].includes(wanted[d.uid]))) return null;
+    const horses = st.combat.dens.filter(d => d.kind === 'horse' && !d.dead && list.some(r => r.uid === d.partOf));
+    if (!list.some(d => [0, 1, 2].includes(wanted[d.uid])) && !horses.some(h => [0, 1, 2].includes(wanted[h.uid]))) return null;
     const saved = list.map(d => [d, d.box]);
     const used = placeRaw(st, list, wanted);
+    let bad = used.filter(u => u > 0).length < boxesNeeded(list) ? doubledUp : null;
+    if (!bad) for (const h of horses) if ([0, 1, 2].includes(wanted[h.uid]) && wanted[h.uid] === list.find(r => r.uid === h.partOf).box) bad = horseWithRider;
     for (const [d, b] of saved) d.box = b;
-    return used.filter(u => u > 0).length < boxesNeeded(list) ? doubledUp : null;
+    return bad;
 }
 // (the plan was judged before the round's spells; a spell that then kills a counter can leave a box empty through no fault of his plan, and the engine moves a counter over)
 function placeInBoxes(st, data, list, wanted) { settleBoxes(st, list, wanted); }

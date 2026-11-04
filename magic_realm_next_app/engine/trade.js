@@ -1,4 +1,4 @@
-import { say } from './core.js';
+import { say, refuse } from './core.js';
 import { REL_NAMES } from './tables.js';
 import { defOf, nameOf, priceOf, makeItem, summaryOf, autoEquip, noteGain, extraPhaseCommitment, transferLock } from './items.js';
 import { hasCurse } from './effects.js';
@@ -40,23 +40,51 @@ export function stockOf(st, data, group) {
     return (st.stock[group] ?? []).map((it, idx) => ({ idx, kind: it.kind, id: it.id, name: nameOf(data, it), sub: summaryOf(data, it), base: priceAt(data, it, group) }));
 }
 
+// A Treasure card (or a counter that is really a Treasure card) in a seller's box lies face down: he may count the cards in a box but not see their faces (4.4.1a, 3.1.3); the weapon,
+// armor and horse counters lie face up on the Setup Card for anyone to see. The Trade sheet may show a counter at any time, a card only after the secret look of 7.6.5.
+export const isSecret = it => it.kind === 'treasure' || !!it.card;
+
+// With two or more leaders or visitors in the clearing he must NAME one before anything else (7.6.3: "he specifies one native leader or visitor"), and the naming binds for the Trade
+// activity (7.6.3a: "he can specify only one"). `named: false` marks a Trade that is still waiting for the name; a Trade with one leader has nothing to choose and carries no flag
+// (`p.group` is then the leader, and while `named` is false it is only the first of the list, a placeholder that tells the sheet nothing).
+export const isNamed = p => (p.named != null ? p.named : !((p.groups?.length ?? 0) > 1 && !p.mode && !p.sold?.length && !p.drinks));          // (a Trade saved before the flag existed, with several leaders and nothing dealt, is still waiting for the name)
 export function beginTrade(st, data) {
     const groups = leadersHere(st, data);
     if (!groups.length) return false;
-    const group = groups[0];
-    st.pending = { type: 'trade', group, groups, mode: null, sold: [] };
-    pendingExtras(st, data, st.pending);
+    st.pending = { type: 'trade', group: groups[0], groups, mode: null, sold: [], ...(groups.length > 1 ? { named: false } : {}) };
     return true;
 }
 
-// The "Trade with" chooser for the sheet: one entry per leader in the clearing. He may switch while nothing has been dealt (7.6.1: he picks the leader).
+// The "Trade with" chooser for the sheet: one entry per leader in the clearing; `canSwitch` is true only until he has named one (7.6.3a), and naming is a choice that is made.
 export function groupChoices(p) {
-    const open = !p.mode && !(p.sold?.length) && !p.drinks;
-    return (p.groups ?? []).map(group => ({ group, selected: group === p.group, canSwitch: open && (p.groups.length > 1) }));
+    const open = !isNamed(p);
+    return (p.groups ?? []).map(group => ({ group, selected: isNamed(p) && group === p.group, canSwitch: open && (p.groups.length > 1) }));
 }
 
+// What the sheet may know of the goods, by what he has done so far (4.4.1a, 7.6.3, 7.6.5, 7.6.7a):
+//   before he has named a seller: for each leader here the counters in his box (public) and how many cards face down (a count is allowed, not the faces); no stock, no goods;
+//   named, not yet looked: the seller's counters in full, every card only as a face-down card (the index stays, the identity does not);
+//   looked (7.6.5: the secret look at all of the seller's Treasure cards, and at a visitor's Spell cards, 7.6.7a): everything.
+// (A price offer shows only the one belonging he asked for.)
+const faceDown = (idx) => ({ idx, kind: 'card', id: '', hidden: true, name: 'Treasure card', sub: 'face down', base: null });
+export function lineup(st, data, p) {
+    return (p.groups ?? []).map(group => {
+        const box = st.stock[group] ?? [], counters = new Map();
+        for (const [idx, it] of box.entries()) if (!isSecret(it)) { const k = `${it.kind}:${nameOf(data, it)}:${it.damaged ? 1 : 0}`; (counters.get(k) ?? counters.set(k, { kind: it.kind, id: it.id, name: nameOf(data, it), damaged: !!it.damaged, n: 0 }).get(k)).n++; }
+        return { group, counters: [...counters.values()], cards: box.filter(isSecret).length, spellCards: isVisitorName(group) ? spellCards(st, data, group).length : 0 };
+    });
+}
+export function stockView(st, data, p) {
+    const box = st.stock?.[p.group] ?? [];
+    if (p.type === 'trade-offer') return { stock: box.map((it, i) => (i === p.idx || !isSecret(it) ? it : { kind: 'card', hidden: true })), goods: stockOf(st, data, p.group).filter(g => g.idx === p.idx || !isSecret(box[g.idx])) };
+    if (!isNamed(p)) return { stock: [], goods: [] };
+    if (p.looked) return { stock: box, goods: stockOf(st, data, p.group) };
+    return { stock: box.map((it, i) => (isSecret(it) ? { kind: 'card', hidden: true } : it)), goods: stockOf(st, data, p.group).map(g => (isSecret(box[g.idx]) ? faceDown(g.idx) : g)) };
+}
+export const heldCards = (st, p) => ({ cards: (st.stock?.[p.group] ?? []).filter(isSecret).length, spells: isVisitorName(p.group) ? (st.spellBox?.visitors?.[p.group] ?? []).length : 0 });
+
 // A visitor's Spell cards are there for him to look at (7.6.7a): `spells` is what the screen shows (id, name, type, colour, and whether he could learn it), `spellIds` their ids.
-// Written when the Trade phase begins and again whenever the leader or visitor he deals with changes.
+// Written when he looks (7.6.5, 7.6.7a): before that the cards are face down and the sheet is not told which they are.
 function pendingExtras(st, data, p) {
     delete p.spells; delete p.spellIds;
     if (!isVisitorName(p.group)) return;
@@ -78,6 +106,7 @@ const itemsWorthOf = (st, data, g = null) => st.ch.items.filter(i => !i.destroye
 export function tradeAction(st, data, p, a) {
     if (p.type === 'trade-offer') return offerAction(st, data, p, a);
     const g = p.group;
+    if (!isNamed(p) && ['sell', 'buy', 'drinks', 'repay', 'look'].includes(a.act)) refuse('trade.name-first', 'Name one native leader or visitor first (7.6.3)', null, '7.6.3');
     if (a.act === 'sell') {
         if (p.mode === 'buy') throw new Error('you cannot both buy and sell in one phase');
         if (a.spell != null) throw new Error(`Visitors never buy spells from the characters (7.6.7e).`);
@@ -114,11 +143,25 @@ export function tradeAction(st, data, p, a) {
         st.pending = p;
         return undefined;
     }
+    if (a.act === 'done' && p.looked) refuse('trade.must-roll', 'You have looked at their cards: you must name something and roll on the Meeting Table, even if you do not mean to buy it (7.6.5).', null, '7.6.5');
     if (a.act === 'done') return p.sold.length ? `You finish trading with the ${g}.` : `You decide not to trade with the ${g}.`;
     if (a.act === 'group') {
         if (p.mode || p.sold.length || p.drinks) throw new Error('you have already started dealing with one leader');
         if (!p.groups.includes(a.group)) throw new Error('no such leader here');
-        p.group = a.group; pendingExtras(st, data, p); st.pending = p; return undefined;
+        if (p.named === true && a.group !== g) refuse('trade.named', `You have named the ${g}: he can specify only one native leader or visitor (7.6.3a).`, { group: g }, '7.6.3a');
+        p.group = a.group; if (p.groups.length > 1) p.named = true; st.pending = p; return undefined;
+    }
+    if (a.act === 'look') {
+        // 7.6.5 / 7.6.7a: buying, he gets a secret look at all of the seller's Treasure cards (a visitor's Spell cards too); once he has looked he must specify something and roll.
+        if (p.mode === 'sell' || p.sold.length) refuse('trade.look-after-sale', 'you cannot both buy and sell in one phase; selling, he does not look at the buyer\'s cards (7.6.4)', null, '7.6.4');
+        if (hasCurse(st, 'Ashes')) refuse('trade.ashes', 'Your gold is worthless under the Ashes curse: nobody will sell to you.');
+        const held = heldCards(st, p);
+        if (!held.cards && !held.spells) refuse('trade.no-cards', `The ${g} hold no cards to look at.`, { group: g }, '7.6.5');
+        if (!p.looked) {
+            p.looked = true; p.mode = 'buy'; pendingExtras(st, data, p);
+        }
+        st.pending = p;
+        return undefined;
     }
     if (a.act === 'repay') {
         // 7.6.5e.1: win back the level a boon cost him by buying it as if it were an item at the boon's price. One chance only.

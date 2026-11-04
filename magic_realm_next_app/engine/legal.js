@@ -67,7 +67,7 @@ function combatOf(st, data, who, p) {
             const targets = [...o.targets, ...o.controlled];
             out.answers.push(entry({ kind: 'melee' }, {
                 pick: { target: { enum: [null, ...uids(targets)] }, fightChit: { enum: [null, ...fightOkIds] }, attackDir: DIRS3, moveChit: { enum: [null, ...moveOkIds, ...chitIds(o.duckChits)] }, moveDir: DIRS3, ...(o.shield ? { shieldDir: DIRS3 } : {}),
-                    boxes: { record: Object.fromEntries(uids(o.boxable).map(u => [u, { int: { min: 0, max: 2 } }])) }, spellAim: { free: true } },
+                    boxes: { record: Object.fromEntries(uids([...o.boxable, ...o.horses]).map(u => [u, { int: { min: 0, max: 2 } }])) }, spellAim: { free: true } },
                 preview: { effortLimit: o.effortLimit, asterisksPlayed: o.asterisksPlayed },
             }));
             if (st.combat.casts?.length && !p.aimed && !st.combat.shared) out.answers.push(entry({ kind: 'aim' }, { pick: { spellAim: { free: true } } }));

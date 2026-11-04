@@ -5,7 +5,7 @@ import { defOf, nameOfClearing } from '../../../engine/catalogue.js';
 import { stockNote } from '../../stocknotes.js';
 import { rollRow, rollsByIds } from '../../dice.js';
 import { h } from '../../dom.js';
-import { committedNote } from '../../commit.js';
+import { committedNote, voiced } from '../../commit.js';
 import { icon } from '../../icons.js';
 import { act } from '../play/actions.js';
 import { itemParts } from '../play/sheet_char.js';
@@ -102,10 +102,41 @@ function tradeRow(G, sel, { key, it, name, line, price, unit = '', tag = '', cou
 
 const infoOf = (G, it) => () => { const { card, faces, facts } = itemParts(G, it, { size: 128 }); return h('div', { class: 'kit-infobody itemsheet' }, card ?? h('div', { class: 'kit-faces' }, ...faces), ...facts.map(t => h('p', { class: 'ds-meta' }, t))); };
 
+// ---- who he trades with (7.6.3, 7.6.3a): with several leaders or visitors here he names ONE, and the naming binds the Trade activity ----
+// Before it, the sheet shows only what is in plain view: the counters in each box (they lie face up on the Setup Card) and how many cards lie face down (he may count a box, 4.4.1a), never a card's face.
+// Nothing is dealt, looked at or rolled on this page. The commit is the foot button; a tap on a row only picks the candidate.
+const counterLine = l => (l.counters.length ? l.counters.map(c => `${c.name}${c.n > 1 ? ` \u00D7${c.n}` : ''}`).join(', ') : 'No counters')
+    + `${l.cards ? ` \u00B7 ${plural(l.cards, 'Treasure card')} face down` : ''}${l.spellCards ? ` \u00B7 ${plural(l.spellCards, 'Spell card')} face down` : ''}`;
+function tradeWho(G, p, tf) {
+    const lead = group => viewOf(G.st, G.data).table.natives.find(n => !n.dead && !n.hired && n.loc?.c === ownSheet(G.st, G.data).at && G.data.natives[n.id].group === group && G.data.natives[n.id].leader);
+    const who = tf.lineup.some(l => l.group === G.ui.tradeWho) ? G.ui.tradeWho : null;
+    const rows = tf.lineup.map(l => {
+        const on = l.group === who, rel = tf.groups[l.group].rel, ld = lead(l.group);
+        return h('button', { type: 'button', class: `ds-row kit-multi kit-whom${on ? ' sel' : ''}`, 'data-trade-who': l.group, role: 'radio', 'aria-checked': on ? 'true' : 'false', onclick: () => { G.ui.tradeWho = on ? null : l.group; render(G); } },
+            h('span', { class: 'art' }, markGroup(h('span', { class: 'ds-counter sm' }, leaderArt(G, l.group, ld && nativeArt(G, ld.id))), l.group), on ? tick() : null),
+            h('span', { class: 'main' }, h('b', {}, l.group), h('span', { 'data-goods': l.group }, counterLine(l))), h('span', { class: 'end' }, moodTag(rel)));
+    });
+    const body = h('div', { class: 'kit trade trade-who' },
+        ask('Whom do you trade with?', 'Name one leader or visitor. Once you have, the choice is made for this Trade.'),
+        voiced({ story: 'Counters lie in plain view. A Treasure card stays face down until you have said you are buying and taken the secret look.',
+            detail: 'He specifies one native leader or visitor (7.6.3, 7.6.3a). Counters are face up on the Setup Card; Treasure cards are face down and he may only count them (4.4.1a); the secret look comes when he buys (7.6.5).' }, { class: 'ds-meta kit-whomintro', 'data-whom-intro': '' }),
+        h('div', { class: 'ds-list kit-rows', role: 'radiogroup', 'data-tab': 'who' }, rows));
+    const reset = () => { G.ui.tradePick = null; G.ui.tradeTab = null; G.ui.owedPick = null; G.ui.tradeWho = null; };
+    const cancel = h('button', { type: 'button', class: 'ds-btn', 'data-act': 'trade-cancel', onclick: () => { reset(); act(G, { type: 'trade', act: 'back' }); } }, 'Cancel');
+    const skip = skipBtn(() => { reset(); act(G, { type: 'trade', act: 'done' }); });
+    const primary = who ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'trade-name', onclick: () => { const g = who; reset(); act(G, { type: 'trade', act: 'group', group: g }); } }, twoLine(`Trade with the ${who}`, 'you cannot change this'))
+        : dimBtn(G, 'Choose someone', 'Tap the leader or visitor you will trade with, then confirm: nothing is looked at or dealt until you do.', { 'data-act': 'trade-name' }, 'primary');
+    const note = who ? h('span', {}, h('b', {}, `Trade with the ${who}`), h('br'), 'One leader or visitor a Trade: you cannot name another this phase.') : 'Pick one leader or visitor.';
+    return { title: 'Trade', eyebrow: nameOfClearing(ownSheet(G.st, G.data).at), body, foot: footRow({ note, aside: skip, secondary: cancel, primary }), decision: true, detent: 'tall' };
+}
+
 // ---- the Trade sheet ----
 function tradeMain(G, p) {
-    const tf = tradeOf(G.st, G.data), goods = tf.goods, mine = tf.mine, raws = tf.stock;
-    const sel = (G.ui.tradePick ??= { buy: null, sell: [], info: null, spell: null }), visitor = isVisitorName(p.group), cards = p.spells ?? [];
+    const tf = tradeOf(G.st, G.data);
+    if (tf.named === false) return tradeWho(G, p, tf);
+    // the goods as he may know them: counters always; a face-down card is only a card until he has looked (tradefacts.js, stockView)
+    const goods = tf.goods.filter(g => !g.hidden), mine = tf.mine, raws = tf.stock, looked = !!tf.looked, held = tf.held ?? { cards: 0, spells: 0 };
+    const sel = (G.ui.tradePick ??= { buy: null, sell: [], info: null, spell: null, look: false }), visitor = isVisitorName(p.group), cards = p.spells ?? [];
     sel.sell = sel.sell.filter(u => mine.some(m => m.uid === u));
     if (sel.buy != null && !goods.some(g => g.idx === sel.buy)) sel.buy = null;
     if (sel.spell != null && !cards.some(c => c.id === sel.spell && c.learnable)) sel.spell = null;
@@ -121,9 +152,11 @@ function tradeMain(G, p) {
     const chosenBuy = sel.buy != null ? goods.find(g => g.idx === sel.buy) : null;
     const oneOwed = G.ui.owedPick != null && owed.some(b => b.n === G.ui.owedPick) ? G.ui.owedPick : owed.length === 1 ? owed[0].n : null;
     const chosenSpell = sel.spell != null ? cards.find(c => c.id === sel.spell) : null;
-    const pickBuy = idx => { sel.buy = sel.buy === idx ? null : idx; if (sel.buy != null) { sel.sell = []; sel.spell = null; } render(G); };
-    const pickSell = uid => { const k = sel.sell.indexOf(uid); if (k >= 0) sel.sell.splice(k, 1); else { sel.sell.push(uid); sel.buy = null; sel.spell = null; } render(G); };
-    const pickSpell = id => { sel.spell = sel.spell === id ? null : id; if (sel.spell != null) { sel.sell = []; sel.buy = null; } render(G); };
+    const pickBuy = idx => { sel.buy = sel.buy === idx ? null : idx; if (sel.buy != null) { sel.sell = []; sel.spell = null; sel.look = false; } render(G); };
+    const pickSell = uid => { const k = sel.sell.indexOf(uid); if (k >= 0) sel.sell.splice(k, 1); else { sel.sell.push(uid); sel.buy = null; sel.spell = null; sel.look = false; } render(G); };
+    const pickSpell = id => { sel.spell = sel.spell === id ? null : id; if (sel.spell != null) { sel.sell = []; sel.buy = null; sel.look = false; } render(G); };
+    const pickLook = () => { sel.look = !sel.look; if (sel.look) { sel.sell = []; sel.buy = null; sel.spell = null; } render(G); };
+    const hiddenN = !looked ? held.cards + held.spells : 0;          // (what lies face down and unseen: the look row stands for it)
 
     // the leader chooser: one card per leader here (the mood is on the card)
     const choices = tf.choices;
@@ -131,7 +164,7 @@ function tradeMain(G, p) {
         const lead = viewOf(G.st, G.data).table.natives.find(n => !n.dead && !n.hired && n.loc?.c === ownSheet(G.st, G.data).at && G.data.natives[n.id].group === c.group && G.data.natives[n.id].leader);
         const off = !c.canSwitch && !c.selected;
         return h('button', { type: 'button', class: `ds-group kit-leader${c.selected ? ' sel' : ''}${off ? ' dim' : ''}`, 'data-trade-group': c.group, role: 'radio', 'aria-checked': c.selected ? 'true' : 'false', 'aria-pressed': c.selected ? 'true' : 'false',
-            onclick: () => { if (c.selected) return; if (off) say(G, 'You have started dealing with this leader, so the choice is made for this phase.'); else act(G, { type: 'trade', act: 'group', group: c.group }); } },
+            onclick: () => { if (c.selected) return; if (off) say(G, `You named the ${p.group}: a Trade is with one leader or visitor, so the choice is made for this phase.`); else act(G, { type: 'trade', act: 'group', group: c.group }); } },
             markGroup(h('span', { class: 'ds-counter sm' }, leaderArt(G, c.group, lead && nativeArt(G, lead.id))), c.group), h('span', { class: 'kit-leadtxt' }, h('b', {}, c.group), moodTag(tf.groups[c.group].rel)));
     })) : null;
 
@@ -152,10 +185,16 @@ function tradeMain(G, p) {
         const list = [...seen.values()];
         rows = list.length ? list.map(g => tradeRow(G, sel, { key: `buy:${g.idxs[0]}`, it: { ...g.raw, kind: g.kind, id: g.id }, name: g.name, line: noteLine(G, p.group, g), price: g.base, unit: 'list', tag: g.raw.damaged ? 'damaged' : visitorPriceTag(G, p.group, { ...g.raw, kind: g.kind, id: g.id }, g.base), count: g.idxs.length, selected: g.idxs.includes(sel.buy),
             dim: p.mode === 'sell' ? 'A phase is selling or buying, not both.' : null, onSelect: () => pickBuy(g.idxs.includes(sel.buy) ? sel.buy : g.idxs[0]), info: infoOf(G, { ...g.raw, kind: g.kind, id: g.id }) }))
-            : [h('p', { class: 'kit-none' }, 'Nothing for sale.')];
+            : [h('p', { class: 'kit-none' }, hiddenN ? 'No counters for sale.' : 'Nothing for sale.')];
         // 7.2.4h: a foe of the campaign he carries is an Enemy, and he cannot buy it drinks: the button is not offered, and the sheet says why
         const foe = !visitor && !!missionsOf(G.st, G.data) && tf.groups[p.group].noDrinks;
-        rows = [foe ? h('p', { class: 'ds-why ms-foe', 'data-foe': p.group }, `The ${p.group} are foes of your campaign: they stand as Enemies, and you cannot buy them drinks.`) : drinksRow, ...rows];
+        // the face-down cards: one row that stands for them, below the counters (the box has the counters on top, 7.6.4); tapping it picks the look, the foot commits it (7.6.5)
+        const lookWhy = ashes ? 'Your gold is worthless under the Ashes curse: nobody will sell to you.' : p.mode === 'sell' ? 'A phase is selling or buying, not both.' : null;
+        const lookRow = hiddenN ? h('button', { type: 'button', class: `ds-row kit-multi kit-lookrow${sel.look ? ' sel' : ''}${lookWhy ? ' dim' : ''}`, 'data-look-row': '', 'data-multi': '', role: 'checkbox', 'aria-checked': sel.look ? 'true' : 'false', 'aria-disabled': lookWhy ? 'true' : null, onclick: () => (lookWhy ? say(G, lookWhy) : pickLook()) },
+            h('span', { class: 'art' }, icon('eye'), sel.look ? tick() : null),
+            h('span', { class: 'main' }, h('b', {}, [held.cards ? plural(held.cards, 'Treasure card') : null, held.spells ? plural(held.spells, 'Spell card') : null].filter(Boolean).join(' and '), h('span', { class: 'ds-tag kit-tag' }, 'face down')),
+                h('span', {}, lookWhy ?? 'Their faces are secret. Take the secret look to see them, then you must ask for something and roll.'))) : null;
+        rows = [foe ? h('p', { class: 'ds-why ms-foe', 'data-foe': p.group }, `The ${p.group} are foes of your campaign: they stand as Enemies, and you cannot buy them drinks.`) : drinksRow, ...rows, ...(lookRow ? [lookRow] : [])];
     } else if (tab === 'spells') {
         rows = spellsRoom(G, p, sel, pickSpell);
     } else if (tab === 'owed') {
@@ -172,19 +211,24 @@ function tradeMain(G, p) {
 
     // the foot: what will happen, and the one button
     const go = () => {
-        if (chosenBuy) { const idx = sel.buy; G.ui.tradePick = null; act(G, { type: 'trade', act: 'buy', idx }); }
+        if (sel.look) { G.ui.tradePick = null; act(G, { type: 'trade', act: 'look' }); }
+        else if (chosenBuy) { const idx = sel.buy; G.ui.tradePick = null; act(G, { type: 'trade', act: 'buy', idx }); }
         else if (chosenSell.length) { const items = chosenSell.map(m => m.uid); G.ui.tradePick = null; act(G, { type: 'trade', act: 'sell', items }); }
     };
     const done = cls => h('button', { type: 'button', class: `ds-btn ${cls}`, 'data-act': 'trade-done', onclick: () => { G.ui.tradePick = null; G.ui.tradeTab = null; G.ui.owedPick = null; act(G, { type: 'trade', act: 'done' }); } }, 'Done');
-    const cancel = fresh ? h('button', { type: 'button', class: 'ds-btn', 'data-act': 'trade-cancel', onclick: () => { G.ui.tradePick = null; G.ui.tradeTab = null; G.ui.owedPick = null; act(G, { type: 'trade', act: 'back' }); } }, 'Cancel') : done('');
+    const named = p.named === true;          // (he named one of several: he can skip the phase, not unsay the name, 7.6.3a)
+    const cancel = fresh && named ? null : fresh ? h('button', { type: 'button', class: 'ds-btn', 'data-act': 'trade-cancel', onclick: () => { G.ui.tradePick = null; G.ui.tradeTab = null; G.ui.owedPick = null; act(G, { type: 'trade', act: 'back' }); } }, 'Cancel') : done('');
     // a planned Trade can be passed: nothing to trade, or nothing worth it. The engine's own answer for "no deal" is `done` ("You decide not to trade with the Order").
     const skip = fresh ? skipBtn(() => { G.ui.tradePick = null; G.ui.tradeTab = null; G.ui.owedPick = null; act(G, { type: 'trade', act: 'done' }); }) : null;
-    let note = null, primary = null, secondary = cancel;
+    let note = null, primary = null, secondary = looked ? null : cancel;
     if (tab === 'owed') {
         const b = owed.find(x => x.n === oneOwed);
         note = b ? h('span', {}, h('b', {}, `Win back the ${b.group}’s goodwill`), h('br'), 'One roll: it comes as a price, or it is lost.') : 'Tick the favour you want to win back.';
         primary = b && p.mode !== 'sell' ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'repay', onclick: () => act(G, { type: 'trade', act: 'repay', n: b.n }) }, twoLine('Win it back', 'roll for the price'))
             : dimBtn(G, 'Choose a favour', p.mode === 'sell' ? 'A phase is selling or buying, not both.' : 'Tick the favour you want to win back.', { 'data-act': 'repay' }, 'primary');
+    } else if (sel.look) {
+        note = h('span', {}, h('b', {}, `Look at the ${p.group}\u2019s cards`), h('br'), 'A secret look. Then you must ask for something and roll, even if you will not buy.');
+        primary = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'trade-look', onclick: go }, twoLine('Look at them', 'then you must roll'));
     } else if (chosenSpell) {
         ({ note, primary } = spellFoot(G, p, chosenSpell, ashes));
     } else if (chosenBuy) {
@@ -195,6 +239,9 @@ function tradeMain(G, p) {
         const weaponOut = chosenSell.some(m => ownSheet(G.st, G.data).items.find(i => i.uid === m.uid)?.active);
         note = h('span', {}, h('b', {}, `Selling ${chosenSell.length === 1 ? chosenSell[0].name : plural(chosenSell.length, 'thing')}`), h('br'), `Gold ${ownSheet(G.st, G.data).gold} to ${ownSheet(G.st, G.data).gold + sellSum}`, weaponOut ? ' · it is in use' : '');
         primary = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'trade-go', onclick: go }, `Sell ${plural(chosenSell.length, 'thing')} \u00B7 ${sellSum} Gold`);
+    } else if (looked) {
+        note = 'You have looked at their cards, so you must ask for something and roll, even if you do not mean to buy it.';
+        primary = dimBtn(G, 'Choose something', 'You looked, so name one thing and roll: tick it first.', { 'data-act': 'trade-go' }, 'primary');
     } else if (dealt) {
         note = p.mode === 'sell' ? `You have sold ${plural(p.sold.length, 'thing')} so far. Sell more, or press Done.` : 'You have begun dealing, so this phase can only be finished.';
         primary = done('primary'); secondary = null;

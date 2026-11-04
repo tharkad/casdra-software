@@ -351,8 +351,13 @@ export function meleeSheet(X) {
     } else if (cur === 'foes') {
         const rows = o.boxable.map((d, i) => { const b = m.boxes[d.uid] ?? (i % 3);
             return h('button', { type: 'button', class: 'cb-sum', 'data-place': d.uid, onclick: () => { m.boxes[d.uid] = (b + 1) % 3; render(); } }, h('span', { class: 'k' }, baseNameOf(fm, data, o, d.uid)), h('span', { class: 'v' }, o.boxable.length > 3 ? MNV[b] : `${BOX[b]} box`), o.boxable.length > 3 ? null : h('span', { class: 'ds-tag gold' }, 'tap to move')); });
+        // a native's horse is placed too (8.4.5m), in any box but its rider's: the row cycles it through the other two
+        for (const hz of o.horses ?? []) {
+            const hb = M.horseBoxOf(o, m, hz), rider = baseNameOf(fm, data, o, hz.partOf), nm = data.natives?.[hz.owner]?.horse?.name ?? 'Horse';
+            rows.push(h('button', { type: 'button', class: 'cb-sum', 'data-place': hz.uid, 'data-horse': hz.partOf, onclick: () => { m.boxes[hz.uid] = M.nextHorseBox(o, m, hz); render(); } }, h('span', { class: 'k' }, `${nm} (${rider})`), h('span', { class: 'v' }, `${BOX[hb]} box`), h('span', { class: 'ds-tag gold' }, 'tap to move')));
+        }
         body = [h('div', { class: `cb-fields${rows.length > 3 ? ' two' : ''}${rows.length > 6 ? ' scroll' : ''}` }, ...rows), hint('The dice may still shuffle them.')];
-        lead = btn('Auto-place', 'quiet', { 'data-act': 'auto-place', onclick: () => { o.boxable.forEach((d, i) => { m.boxes[d.uid] = i % 3; }); render(); } });
+        lead = btn('Auto-place', 'quiet', { 'data-act': 'auto-place', onclick: () => { o.boxable.forEach((d, i) => { m.boxes[d.uid] = i % 3; }); for (const hz of o.horses ?? []) delete m.boxes[hz.uid]; render(); } });
     } else {
         // roll: a review
         const rows = [];
@@ -362,9 +367,12 @@ export function meleeSheet(X) {
         rows.push(sumRow('Guard', m.moveChit ? `${MNV[m.moveDir]}, with ${chitText(M.moveList(o).find(x => x.id === m.moveChit) ?? own(fm, data).chits.find(x => x.id === m.moveChit))}` : `${MNV[m.moveDir]}, no chit`, () => go('guard')));
         if (o.shield) rows.push(sumRow('Shield', `guards ${DIRS[m.shieldDir]}`, () => go('shield')));
         if (SEC.inPlay(o)) rows.push(sumRow('Hires', m.secErr ? 'Not allowed yet: open it' : `${o.sections.length} ${o.sections.length === 1 ? 'section' : 'sections'} set`, () => go('sections')));
-        if (M.placementMatters(fm, o, m) && o.boxable.length >= 2) rows.push(sumRow('Foes', o.boxable.length > 3 ? `${o.boxable.length} creatures placed` : o.boxable.map((d, i) => `${baseNameOf(fm, data, o, d.uid)} ${MNV[m.boxes[d.uid] ?? (i % 3)]}`).join(' \u00B7 '), () => go('foes')));
+        if (M.placementMatters(fm, o, m) && o.boxable.length >= 2) rows.push(sumRow('Foes', o.boxable.length > 3 ? `${o.boxable.length} creatures placed` : [...o.boxable.map((d, i) => `${baseNameOf(fm, data, o, d.uid)} ${MNV[m.boxes[d.uid] ?? (i % 3)]}`), ...(o.horses ?? []).map(hz => `${data.natives?.[hz.owner]?.horse?.name ?? 'Horse'} ${MNV[M.horseBoxOf(o, m, hz)]}`)].join(' \u00B7 '), () => go('foes')));
         if (m.fightChit && !m.target && w && !o.attackSpell) { m.weaponSide ??= w.item.alerted ? 'alerted' : 'unalerted'; rows.push(sumRow('Weapon', `ends ${m.weaponSide === 'alerted' ? 'alerted' : 'not alerted'}`, () => { m.weaponSide = m.weaponSide === 'alerted' ? 'unalerted' : 'alerted'; render(); }, 'data-weapon-side')); }
         body = [h('div', { class: `cb-fields${rows.length >= 4 ? ' two' : ''}` }, ...rows)];
+        // note 103 ("why don't I get to place the monster in a lane"): where he looks before he rolls, the reason he is not asked (the armor row's own line is Detail-only on a phone: it gives way to the gear)
+        if (!SEC.inPlay(o) && !M.placementMatters(fm, o, m) && M.placementCounters(fm, o, m) >= 1) body.push(h('p', { class: 'cb-hint', 'data-hint': 'foes-die' }, voiced({ story: 'You do not place them: a die puts the creatures in their lanes after your plays, so no lane is the safe one.',
+            detail: 'He may place the creatures (8.4.5m), but one die then shuffles them among the three boxes after the plays (8.4.6a): with three or fewer attacking counters every placement is as likely afterwards, so none is asked for.' })));
         lead = leadText(eff.over ? h('span', { class: 'bad', style: 'color:var(--danger)' }, `${eff.text}: ${eff.words}.`) : [`${eff.text}: `, eff.words, '.']);
         prim = primary(sh ? 'Seal your play' : 'Roll the dice', { 'data-act': 'commit', disabled: eff.over || confirmPending || !!m.secErr, onclick: () => X.sendMelee(o, m) });
         if (eff.over) lead = leadText(h('span', { style: 'color:var(--danger)' }, `Put a chit back: ${M.limitWord(o.effortLimit ?? 2)} asterisks at most.`));

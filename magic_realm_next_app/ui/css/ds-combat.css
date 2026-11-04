@@ -169,7 +169,7 @@
 .cb-sum.pick { border-color: var(--gold); background: var(--gold-wash-2); }
 .cb-fields.two .cb-sum { flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding: 4px 10px; position: relative; }
 .cb-fields.two .cb-sum .k { flex: none; width: auto; max-width: calc(100% - 20px); white-space: normal; letter-spacing: .08em; line-height: 1.1; }
-.cb-sum[data-place] .k { flex: 1 1 38%; line-height: 1.15; }
+.cb-sum[data-place] .k { flex: 1 1 0; line-height: 1.15; } .cb-sum[data-place] .v { flex: 0 1 auto; }          /* (a row with its box name and the "tap to move" tag: the name takes what is left, the box name keeps its words, note 103's horse) */
 .cb-fields.scroll { max-height: 140px; overflow-y: auto; -webkit-mask-image: linear-gradient(#000 calc(100% - 14px), transparent); mask-image: linear-gradient(#000 calc(100% - 14px), transparent); padding-bottom: 10px; }          /* more than six creatures: the list scrolls inside the sheet, the sheet does not */ .cb-fields.two .cb-sum .v { font-size: calc(15px * var(--ts, 1)); line-height: 1.2; }
 .cb-fields.two .cb-sum .ds-i { position: absolute; right: 6px; top: 6px; width: 16px; height: 16px; }
 .cb-hint { font: 400 calc(14px * var(--ts, 1))/1.3 var(--font-ui); color: var(--ink-2); margin: 0 0 6px; min-height: 18px; }

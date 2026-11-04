@@ -458,8 +458,8 @@ function runPhase(st, data) {
 // Backing out of a Trade or Hire before anything was dealt: the phase has not been spent, and he is back at the prompt where he pressed the button.
 // Once he has sold, bought drinks or rolled for a deal, the phase is committed and has to be finished.
 function cancelDealing(st, data, p) {
-    const fresh = (p.type === 'trade' && !p.mode && !(p.sold?.length) && !p.drinks) || p.type === 'hire';
-    if (!fresh) throw new Error('you have already begun dealing: finish this phase');
+    const fresh = (p.type === 'trade' && !p.mode && !(p.sold?.length) && !p.drinks && p.named !== true) || p.type === 'hire';          // (named: with several leaders here he has named one, and that binds the Trade activity, 7.6.3a: he may skip the phase, not unsay the name)
+    if (!fresh) throw new Error(p.named === true && !p.mode && !p.sold?.length && !p.drinks ? 'You have named the ' + p.group + ': he can specify only one leader or visitor in a Trade activity, so skip the phase or deal with them (7.6.3a).' : 'you have already begun dealing: finish this phase');
     const t = st.turn; t.auto = false;
     st.pending = t.pro ? proPending(st, data) : { type: 'phase', i: t.i };
     return st;
