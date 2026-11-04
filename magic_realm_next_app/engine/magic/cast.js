@@ -133,8 +133,11 @@ export function blockedSpells(st, data, { slowest = 99 } = {}) {
         if (boxesTied(st, spell.id)) { out.push(blocked(base, no('box.tied'))); continue; }
         const ready = st.ch.chits.filter(c => c.type === 'magic' && c.state === 'active' && c.numeral === spell.type && !c.alt?.mf);
         if (!ready.length) {
-            const states = [...new Set(st.ch.chits.filter(c => c.type === 'magic' && c.numeral === spell.type && !c.alt?.mf).map(c => c.state))];          // (what keeps each Magic chit of this numeral from being played)
-            out.push(blocked(base, no('chit.none', { type: spell.type, states, ...(h?.selfMend ? { selfMend: true } : {}) })));
+            const mine = st.ch.chits.filter(c => c.type === 'magic' && c.numeral === spell.type && !c.alt?.mf);
+            const states = [...new Set(mine.map(c => c.state))];          // (what keeps each Magic chit of this numeral from being played)
+            // How many Rest phases bring the nearest one back (7.8.2a): a tired chit takes one; a wounded chit with no asterisks takes one; a wounded chit with asterisks is first converted to a tired one (a.3, a.4), then rested (a.1, a.2): two.
+            const need = mine.map(c => (c.state === 'fatigued' ? 1 : c.state === 'wounded' ? (c.effort > 0 ? 2 : 1) : null)).filter(n => n != null);
+            out.push(blocked(base, no('chit.none', { type: spell.type, states, ...(need.length ? { rests: Math.min(...need) } : {}), ...(h?.selfMend ? { selfMend: true } : {}) })));
             continue;
         }
         if (st.combat && ready.every(c => timeOf(st, c) > slowest)) out.push(blocked(base, no('chit.slow', { type: spell.type, slowest })));

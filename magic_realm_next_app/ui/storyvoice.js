@@ -123,7 +123,7 @@ rule(/^You (?:start|begin) the climb toward (.+?)(?: \(mountains take two Move p
 rule(/^There is no road from here to (.+?): the move is lost\.?$/, m => [`No road runs from here to ${m[1]}. The step is wasted.`, `You look for a way to ${m[1]} and find none.`]);
 rule(/^You do not know the way to (.+?): the move is lost\.?$/, m => `You do not know the way to ${m[1]}, and the time slips by.`);
 rule(/^You cannot reach that from the road/, () => 'From the road you can only go on or turn back.');
-rule(/^You are still on the road and cannot do that/, () => ['You are still out on the road: that will have to wait.', 'The road is no place for that. It will have to wait.']);
+rule(/^You are still on the road and cannot do that/, () => ['You are still out on the road, and only a Move gets you off it. This phase is lost.', 'The road is no place for that: only a Move to one of its ends gets you off it, and a climb into the mountains needs two Moves, one right after the other. This phase is lost.']);          // (notes 67 and 69: it said "that will have to wait", and it never would)
 rule(/^You cannot enter a cave in a sunlight phase/, () => 'The caves are closed to you while the sun is up.');
 rule(/^Lost: you wander in circles/, () => ['Lost, you wander in circles and get nowhere.', 'Every path looks the same. The move comes to nothing.']);
 rule(/^Your horse cannot go into the caves/, () => 'Your horse will not follow you underground. It waits outside.');
@@ -236,8 +236,8 @@ rule(/^(?:Loot|Magic Sight) \([\d+]+\) at (.+?): you take the (.+?)\.?$/, m => (
 rule(/^(?:Loot|Magic Sight) \([\d+]+\) at (.+?): (.+?)! Cursed with (\w[\w ]*?)\.(?: You find (\d+) gold\.)?(?: (.*))?$/, (m) => {
     const gold = m[4] ? ` Gold glints within: ${m[4]} pieces.` : '';
     const keep = /^You keep: (.+)\.$/.exec(m[5] ?? '');
-    const more = `${gold}${keep ? ` You keep ${keep[1]}.` : ''}`;
-    return [`The ${m[2]} comes out of the ${place(m[1])}, and a bad feeling with it: ${m[3]}.${more}`, `${m[2]}! It comes out of the ${place(m[1])} with a curse on it: ${m[3]}.${more}`];
+    const more = `${gold}${keep ? ` The treasures it held are yours now: ${keep[1]}.` : m[5] ? ` ${m[5]}` : ''}`;          // (note 73: "You keep X" read as if he chose to; the card is exchanged and its treasures are his)
+    return [`The ${m[2]} comes out of the ${place(m[1])}, and a curse with it: ${m[3]}.${more}`, `${m[2]}! It comes out of the ${place(m[1])} with a curse on it: ${m[3]}.${more}`];
 });
 rule(/^(?:Loot|Magic Sight) \([\d+]+\) at (.+?): you find the (.+?)\. You may now search it here with a Loot phase\.?$/, m => [`Under the ${place(m[1])} lies a place of its own: the ${m[2]}.`, `The ${place(m[1])} shows you the ${m[2]}. It can be searched here.`]);
 rule(/^The Vault is sealed/, () => 'The Vault is sealed. Only great strength or the Lost Keys will open it.');
@@ -281,6 +281,14 @@ export function lootActLine(entry) {
     m = /^(.+?) \([\d+]+\): You take the .+?\.?$/.exec(t);
     if (m) return `You reach into the ${place(m[1])}.`;
     return null;
+}
+
+// The headline of a result card for a card exchanged for treasures (the Remains of Thief, the Mouldy Skeleton, note 73): what came out and the curse, short, because the card also holds the Found box,
+// the Fame/Notoriety/Gold chips and the button. The treasures are named by the Found box ("from the Remains of Thief"), the Detail line and the belongings; the full telling is the Journal's.
+export function exchangeLine(entry) {
+    const m = /^(?:Loot|Magic Sight) \([\d+]+\) at (.+?): (.+?)! Cursed with (\w[\w ]*?)\.(?: You find \d+ gold\.)?(?: (.*))?$/.exec(bare(entry?.t ?? ''));
+    if (!m) return null;
+    return pickV(entry, [`The ${m[2]} comes out of the ${place(m[1])}, cursed with ${m[3]}.`, `${m[2]}! It comes out of the ${place(m[1])} with a curse: ${m[3]}.`]);
 }
 
 // ---- trade with a visitor (visitors.js: the Scholar, Shaman, Warlock and Crone are one person each, so every verb is singular; he sells Spell cards for gold, 7.6.7)

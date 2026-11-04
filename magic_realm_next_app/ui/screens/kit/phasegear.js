@@ -7,6 +7,8 @@ import { h } from '../../dom.js';
 import { icon } from '../../icons.js';
 import { ROAD_STORY, commitmentOf, roadLockOf, voiced } from '../../commit.js';
 import { nameOf } from '../../../engine/catalogue.js';
+import { itemOrigin } from '../../stocknotes.js';
+import { journalLines } from '../../combat/feed.js';
 import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
 import { footRow, itemArt, oneLine, say, twoLine } from './common.js';
@@ -18,7 +20,7 @@ const cap = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 // One new belonging: what it is, whether it is on, and what he may do about it.
 function belongingRow(G, it) {
     const road = roadLockOf(G.st);          // 8.3.8d: out on a road between clearings he can neither switch nor leave anything
-    const name = nameOf(G.data, it), why = road ? ROAD_STORY : whyNot(G, it), bound = commitmentOf(G.st, G.data, it), leaving = G.ui.leaveAsk === it.uid;
+    const name = nameOf(G.data, it), origin = itemOrigin(journalLines(G.st, G.data), name), why = road ? ROAD_STORY : whyNot(G, it), bound = commitmentOf(G.st, G.data, it), leaving = G.ui.leaveAsk === it.uid;
     const state = it.active ? ['gold', 'On'] : why ? ['bad', 'Cannot be on'] : ['', 'Off'];
     const sub = road ? voiced(road) : it.active ? 'It fits, so it is already on.' : why ?? 'Not in use. It stays in your pack.';
     const dimmed = (label, act) => h('button', { type: 'button', class: 'ds-btn sm is-dim', 'data-act': act, 'data-item': it.uid, 'aria-disabled': 'true', onclick: () => say(G, ROAD_STORY) }, label);
@@ -37,6 +39,7 @@ function belongingRow(G, it) {
         h('span', { class: 'main' },
             h('b', {}, name, h('span', { class: `ds-tag ${state[0]} kit-tag` }, state[1])),
             h('span', { class: 'gives' }, cap(oneLine(G, it))),
+            origin ? h('span', { class: 'sub from', 'data-from': origin.via }, origin.what) : null,          // where he came by it (note 73): the Remains of Thief at the Hoard, a Loot, a purchase
             h('span', { class: `sub${!it.active && why ? ' bad' : ''}` }, sub),
             bound ? h('span', { class: 'ds-why kit-lock kit-committed', 'data-committed': it.uid }, icon('lock', 'kit-lockico'), voiced(bound)) : null),
         actions);

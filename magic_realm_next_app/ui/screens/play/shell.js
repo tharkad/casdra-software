@@ -110,7 +110,7 @@ export function mapModel(G) {
     }
     return {
         tiles: G.data.tiles, art: G.data.art, placements: viewOf(G.st, G.data).table.map.placements, side: 'normal', showHidden: false, discovered: knownPathPairs(G.st),
-        chitsByTile, tokens, hero: ownSheet(G.st, G.data).onRoad || ownSheet(G.st, G.data).dead || ownSheet(G.st, G.data).flying ? null : ownSheet(G.st, G.data).at, heroAir: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : null, heroHidden: ownSheet(G.st, G.data).hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
+        chitsByTile, tokens, hero: ownSheet(G.st, G.data).onRoad || ownSheet(G.st, G.data).dead || ownSheet(G.st, G.data).flying ? null : ownSheet(G.st, G.data).at, heroAir: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : null, heroRoad: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).onRoad ? { from: ownSheet(G.st, G.data).onRoad.from, to: ownSheet(G.st, G.data).onRoad.to } : null, heroHidden: ownSheet(G.st, G.data).hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
         onTap: id => {
             // a spell aimed on the map (Talk to Wise Bird): a tap on a ringed clearing is the answer; the fight comes back with it chosen
             if (G.ui.combatMap && G.ui.aimMap) {

@@ -597,7 +597,7 @@ export function mountMap(host) {
     let ovKey = '', routeSvg = null, routeG = null, routePath = null, routeDonePath = null, heroEl = null, pinEl = null, ringEls = [], stopEls = [], lastSized = null;
     function buildOverlay(force = false) {
         // the same overlay again (every render of the screen sets the map) keeps its elements, so a pulsing ring does not start over
-        const key = JSON.stringify([overlay, model?.hero ?? null, model?.heroAir ?? null, !!model?.heroHidden, !!model?.party?.length]);
+        const key = JSON.stringify([overlay, model?.hero ?? null, model?.heroAir ?? null, model?.heroRoad ?? null, !!model?.heroHidden, !!model?.party?.length]);
         if (!force && key === ovKey) return;
         ovKey = key;
         ov.replaceChildren();
@@ -628,12 +628,23 @@ export function mountMap(host) {
             heroEl = h('i', { class: 'ds-hero air', 'data-hero': model.heroAir, 'data-air': model.heroAir, 'aria-hidden': 'true' }, sv('svg', { viewBox: '0 0 24 24', class: 'wing' }, sv('path', { d: 'M12 13c-1.6-3.6-4.4-5.2-8.5-5 .6 3.6 3.4 5.4 8.5 5zM12 13c1.6-3.6 4.4-5.2 8.5-5-.6 3.6-3.4 5.4-8.5 5z' })));
             ov.append(heroEl);
         }
+        // out on a road between two clearings (he ran away: 8.3.8d): the marker stands in the middle of the road, so he is on the map and not nowhere (note 69: "looks totally bugged")
+        else if (model.heroRoad && !model.party?.length) {
+            heroEl = h('i', { class: 'ds-hero road', 'data-hero': `${model.heroRoad.from}-${model.heroRoad.to}`, 'data-road': `${model.heroRoad.from}-${model.heroRoad.to}`, 'aria-hidden': 'true' }, sv('svg', { viewBox: '0 0 24 24', class: 'roadg' }, sv('path', { d: 'M7.5 21L10.5 3M16.5 21L13.5 3M12 5v3.2M12 10.4v3.2M12 15.8v3.2' })));
+            ov.append(heroEl);
+        }
         if (pin) { pinEl = h('div', { class: `ds-pin${pin.tone === 'bad' ? ' bad' : ''}`, role: 'status', html: pin.html }); ov.append(pinEl); }
     }
     // the route stands in the world group under the names (`.top`); a redraw of the map (a new level of detail) makes a new world, so it is put back
     function mountRoute() { const w = svg.querySelector('.world'); if (routeG && w && routeG.parentNode !== w) w.insertBefore(routeG, w.querySelector('.top')); }
     // a thing of d px, centred on its point: a size change costs layout, so it is only written when it changes
     const sizeEl = (el, d) => { if (el._d === d) return; el._d = d; el.style.width = el.style.height = `${d}px`; el.style.margin = `${-d / 2}px 0 0 ${-d / 2}px`; };
+    // the middle of a road: halfway between its two clearings, or, when they are in two tiles, the middle of the tiles' shared edge (where the road bends, as the planned route does)
+    const roadMid = r => {
+        const pa = r && posOf.get(r.from), pb = r && posOf.get(r.to); if (!pa || !pb) return null;
+        const ca = tileC.get(r.from.slice(0, 2)), cb = tileC.get(r.to.slice(0, 2));
+        return r.from.slice(0, 2) !== r.to.slice(0, 2) && ca && cb ? [(ca[0] + cb[0]) / 2, (ca[1] + cb[1]) / 2] : [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2];
+    };
     const at = (el, x, y) => { el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`; };
     function placeOverlay() {
         if (!view || !model) return;
@@ -641,7 +652,7 @@ export function mountMap(host) {
         // a ring is 44px where the map is zoomed in and shrinks with the clearings when it is zoomed far out, never below 26
         const ringD = Math.round(clamp(26, 44, 38 * k)), heroD = Math.round(clamp(24, 40, 21 * k + 11));          // (the hero's ring goes round the clearing's numbered disc, which stays readable inside it: note 98)
         for (const { id, el } of ringEls) { const p = posOf.get(id); el.hidden = !p; if (p) { sizeEl(el, ringD); at(el, sx(p), sy(p)); } }
-        if (heroEl) { const p = posOf.get(model.hero) ?? tileC.get(model.heroAir); heroEl.hidden = !p; if (p) { sizeEl(heroEl, heroEl.classList.contains('air') ? heroD + 10 : heroD); at(heroEl, sx(p), sy(p)); } }
+        if (heroEl) { const p = posOf.get(model.hero) ?? tileC.get(model.heroAir) ?? roadMid(model.heroRoad); heroEl.hidden = !p; if (p) { sizeEl(heroEl, heroEl.classList.contains('air') || heroEl.classList.contains('road') ? heroD + 10 : heroD); at(heroEl, sx(p), sy(p)); } }
         if (routeSvg) {
             // stops on a clearing that already holds the hero or an earlier stop fan out to the lower right (the names stand above and beside a clearing): "you will be back here"
             const used = new Map(); if (overlay.route[0]) used.set(overlay.route[0], 1);

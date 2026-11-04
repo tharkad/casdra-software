@@ -21,7 +21,7 @@ import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
 import { mayAttackHero } from './rules/mayAttackHero.js';
 import * as missions from './missions.js';
 import { makeItem, autoEquip, toggleItem, activeHorse, onPackHorse, isWeaponCard, extraPhaseCommitment } from './items.js';
-import { isCave, roadsFrom, tileName } from './world.js';
+import { isCave, isMountain, roadsFrom, tileName } from './world.js';
 
 // Evening combat for one character against the denizens in his clearing (rules digest 03).
 // The combat is a small state machine stored in st.combat; the UI reads st.pending and answers with actions:
@@ -619,7 +619,7 @@ export function encounterOptions(st, data) {
     const casts = (c.spellOnly ? quietCasts(st, data, true) : castOptions(st, data, { slowest })).map(o => (c.spellOnly ? { ...o, aim: previewAim(st, data, o) } : o));       // (a quiet-evening cast has no Melee step: it is aimed on the cast screen)
     const canLure = !!st.ch.hidden && !sharedFight(st) && !c.spellOnly && !HF.inRound(st) && (assignable(st, data).length > 0 || luredPeaceful(st, data).length > 0 || luredPacified(st, data).length > 0);          // (a shared fight lures in its own step: battle.js)
     const mist = !!st.ch.mist;          // (the Encounter step of a mist hero offers only running away, 8.4.5p.1)
-    return { canStay, canLure: canLure && !mist, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), energize: energizeOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && !card && fight.length > 0 && !gripped && !mist, alertChits: fight, berserkChits: mist ? [] : berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, chargeChits: carriers.filter(x => x.time < Math.min(99, ...charged.map(t => t.time))), pickedUp, weapon: w, runTo: runDestinations(st, data), morph: morphView(st), slowest, why, whyCode };
+    return { canStay, canLure: canLure && !mist, flyChits, canFly: flyChits.length > 0 && flyAwayTiles(st).length > 0, flyTiles: flyAwayTiles(st), held: heldOptions(st, data), energize: energizeOptions(st, data), casts, blocked: blockedSpells(st, data, { slowest }), canAlert: !!w && !card && fight.length > 0 && !gripped && !mist, alertChits: fight, berserkChits: mist ? [] : berserkChits(st, slowest), canRun: !pickedUp && move.length > 0 && runDestinations(st, data).length > 0, runChits: move, chargeChits: carriers.filter(x => x.time < Math.min(99, ...charged.map(t => t.time))), pickedUp, weapon: w, runTo: runDestinations(st, data), runMountain: [st.ch.at, ...runDestinations(st, data)].filter(id => isMountain(st, data, id)), runCameBy: !!st.ch.arrivedFrom, morph: morphView(st), slowest, why, whyCode };
 }
 const canRunNow = (move, st, data) => move.length > 0 && runDestinations(st, data).length > 0;
 

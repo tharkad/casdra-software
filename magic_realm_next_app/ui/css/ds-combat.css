@@ -384,3 +384,18 @@
 .cb-pips .ds-chit.mini.tired { color: var(--ink); }
 .cb-hero .gear .more { background: var(--surface-1); color: var(--ink); border-color: var(--gold); }          /* the count badge on the armor: solid, full ink */
 .cb-foe span.tag, .cb-foe span.tag::after { pointer-events: none; }          /* a word that is not a button (AT PEACE, WOUNDED YOU) takes no tap: its 44px area would lie over the counter beside it */
+
+/* Note 26 ("Ugly layout", the fight's round result, replayed in 0.10.0 next.125): two things that were out of line, measured at 393x852 and 360x640.
+   1. The weapon's "NOT ALERTED" plate and the Belongings button stood 4 to 7px from the screen's left edge, the armor's caption and the Map button 5px from the right, while everything else keeps the 16px
+      gutter: the hero row (counter, hero, counter) was wider than the screen because the 12 chit pips in the middle are one long row. The two ends of the row are held to the gutters now (the weapon's end at the
+      left one, the armor's at the right one), the pips are two pixels closer, and on a phone under 375px wide, where one row cannot fit, the pips stand in two rows of six (the name gives back the height).
+   2. The chips of a round's result (Fame, Notoriety, Gold, "1 asterisk to tire", "Unhurt") were three heights (34px, 26px, 24px) on one line: all of them are the 34px chip now. */
+.cb-hero:has(> .mid) { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); column-gap: 6px; justify-content: stretch; }
+.cb-hero:has(> .mid) > .gcol:first-child { justify-self: start; }
+.cb-hero:has(> .mid) > .gcol:last-child { justify-self: end; }
+.cb-hero:has(> .mid) .cb-pips { gap: 2px; }
+@media (max-width: 374px) {
+  .cb-hero:has(> .mid) .cb-pips { display: grid; grid-template-columns: repeat(6, 14px); justify-content: center; gap: 2px 3px; margin-top: 2px; }
+  .cb-hero:has(> .mid) .name { margin-top: 1px; }
+}
+.cb-verdict .ds-tag { height: 34px; padding: 0 12px; border-width: 1.5px; font-size: calc(15px * var(--ts, 1)); }

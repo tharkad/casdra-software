@@ -8,7 +8,7 @@
 import { nameOfClearing, nameOf } from '../../../engine/catalogue.js';
 import { h } from '../../dom.js';
 import { resultCard } from '../../ds.js';
-import { lineFor, lootActLine } from '../../storyvoice.js';
+import { exchangeLine, lineFor, lootActLine } from '../../storyvoice.js';
 import { isStory } from '../../voice.js';
 import { foundBoxes } from './journal.js';
 import { render } from './shell.js';
@@ -101,7 +101,10 @@ export function resultCardFor(G) {
     const d = info.deltas;
     // a Found box follows: the headline is the act, the box names the thing (QA-112)
     const box = [...info.news].sort((a, b) => (a.kind === 'curse') - (b.kind === 'curse')).slice(0, 1);
-    if (box.length && box[0].kind === 'item') { const act = lootActLine(info.line); if (act) story = act; }
+    // (a card exchanged for treasures, the Remains of Thief, tells the whole of it in its own line: what came out, the curse, the gold and the things he keeps: note 73)
+    const exchange = /^(?:Loot|Magic Sight) \([\d+]+\) at .+?: .+?! Cursed with /.test(plain);
+    if (exchange) story = exchangeLine(info.line) || story;
+    else if (box.length && box[0].kind === 'item') { const act = lootActLine(info.line); if (act) story = act; }
     // a site the map already shows is not "found" again (QA-121)
     const dm = /You discover a site here: ([^.]+)\./.exec(plain);
     if (dm && info.marked && !info.news.some(n => n.kind === 'site')) { const names = dm[1].split(/,\s*/).map(x => `the ${x}`); story = `${cap(listOf(names))} ${names.length === 1 ? 'is' : 'are'} still here.`; detail = detail.replace(dm[0], `${dm[1]}: already discovered.`); }

@@ -16,7 +16,8 @@ function chitNone(p) {
     const states = (p.states ?? []).filter(s => STATE_WORDS[s]);
     if (!(p.states ?? []).length) return `You have no Magic ${p.type} chit.`;
     const lead = `Your Magic ${p.type} chit is ${states.length ? states.map(s => STATE_WORDS[s]).join(' or ') : 'not ready'}`;
-    const tail = states.includes('wounded') || states.includes('fatigued') ? ' and out of play. Rest to bring it back.'
+    const back = p.rests === 2 ? ' It takes two Rests to bring it back: the first turns it tired, the second makes it ready.' : ' Rest to bring it back.';          // (7.8.2a: a wounded chit with asterisks is converted to a tired one first)
+    const tail = states.includes('wounded') || states.includes('fatigued') ? ` and out of play.${back}`
         : states.includes('committed') ? ', so it is not free to cast with until that spell ends.' : '.';
     return `${lead}${tail}${p.selfMend ? ' Make Whole cannot mend the chit it is cast with.' : ''}`;
 }

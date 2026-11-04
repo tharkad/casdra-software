@@ -11,7 +11,8 @@ import { mountSheet } from '../kit/common.js';
 import { spellCardEl, spellContent, spellsContent } from '../kit/spells.js';
 import { CURSE_PLAIN, modal, picOf, voidBy } from './kit.js';
 import { render } from './shell.js';
-import { ownSheet, gameOf, lullOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, lullOf, journalLines } from '../../combat/feed.js';
+import { itemOrigin } from '../../stocknotes.js';
 
 // The Kit sheet (P2): Kit | Company | Spells, built in screens/kit/*.js. The slot picker is a second small sheet over it.
 export function charSheet(G) { return mountSheet(G, kitContent(G), { close: () => { G.ui.sheet = null; render(G); }, cls: 'kit-sheet' }); }
@@ -120,7 +121,10 @@ export function itemParts(G, it, { size } = {}) {
         const fm = d?.fame ?? 0, nt = d?.notoriety ?? 0;
         if (fm || nt) facts.push(`Owning it adds ${[fm ? `Fame ${fm > 0 ? '+' : ''}${fm}` : '', nt ? `Notoriety ${nt > 0 ? '+' : ''}${nt}` : ''].filter(Boolean).join(' and ')} to your totals.`);
     }
-    return { name, card, faces, facts };
+    // where he came by a piece he carries (notes 73 and 105): a favour, a purchase, a Loot, a card exchanged for it; a piece on a list (no uid) or lying in a clearing is not his yet
+    const origin = it.uid != null && ownSheet(G.st, G.data).items.some(i => i.uid === it.uid) ? itemOrigin(journalLines(G.st, G.data), name) : null;
+    if (origin) facts.unshift(origin.text);
+    return { name, card, faces, facts, origin };
 }
 
 export function itemSheet(G) {

@@ -138,8 +138,16 @@ function runPick(X, o, round, back) {
     return sheetEl(X, 'encounter-pick', qRow(round, h('span', {}, 'Run for it')),
         roads.length > 1 ? h('div', { class: 'cb-aim', role: 'radiogroup', 'aria-label': 'Which road' }, ...roads.map(r => h('button', { type: 'button', class: `ds-btn${to === r ? ' on' : ''}`, 'data-road': r, 'aria-pressed': to === r ? 'true' : 'false', onclick: () => { cb.pick.to = r; render(); } }, nb(nameOfClearing(r))))) : null,
         chitPickRow(X, chits, sel, id => { cb.pick.chit = id; render(); }),
-        hint(`You leave the fight and end the day on the road toward ${nb(nameOfClearing(to))}.`),
+        hint(runWords(X, o, roads, to)),
         foot(back, primary('Run', { 'data-act': 'run-go', onclick: () => send(P.run(sel, to)) })));
+}
+// What the run costs tomorrow, said before he runs (notes 67 and 69, 8.3.8b and 8.3.8d.1): he ends the day on the road, and his turn tomorrow must begin with a Move to one end of it; a mountain
+// end takes two Move phases. The ends are the clearing he runs out of and the one the road leads to. A single road is the only one he may use (8.3.8b: the way he came in, today).
+function runWords(X, o, roads, to) {
+    const here = X.st.ch?.at, ends = [here, to].filter(Boolean), mountain = new Set(o.runMountain ?? []);
+    const cost = id => `${nb(nameOfClearing(id))} ${mountain.has(id) ? 'is a mountain and takes two Move phases' : 'takes one Move phase'}`;
+    const only = roads.length === 1 ? ` It is the only road open to you${o.runCameBy ? ': you came in by it today' : ''}.` : '';
+    return `You leave the fight and end the day on the road toward ${nb(nameOfClearing(to))}.${only} Tomorrow your first phase must be a Move to one end of that road: ${ends.map(cost).join('; ')}.`;
 }
 function flyPick(X, o, round, back) {
     const { cb, send, render } = X, chits = o.flyChits, tiles = o.flyTiles;

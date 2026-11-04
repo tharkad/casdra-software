@@ -17,6 +17,7 @@
 .kit-gear .main .gives { font: 400 calc(14px * var(--ts, 1))/1.25 var(--font-voice); color: var(--ink-2); }
 .kit-gear .main .sub { font: 400 calc(13px * var(--ts, 1))/1.25 var(--font-ui); color: var(--ink-3); }
 .kit-gear .main .sub.bad { color: var(--danger); }
+.kit-gear .main .sub.from { font-family: var(--font-voice); font-size: calc(14px * var(--ts, 1)); color: var(--ink-2); }          /* where he came by it (note 73) */
 .kit-gear .ds-btn { margin: 0; white-space: nowrap; }
 .kit-gear .ds-btn.primary { color: var(--ink-on-gold); }
 /* New belongings (screens/kit/phasegear.js): the same row, with its buttons on a line of their own under the words, so a long name and three buttons never fight for a phone's width. */

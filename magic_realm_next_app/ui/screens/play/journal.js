@@ -13,6 +13,8 @@ import { die, icon } from '../../icons.js';
 import { isMeetLine } from '../../meet.js';
 import { rollDetail, storyRoll } from '../../storyvoice.js';
 import { isStory, logText } from '../../voice.js';
+import { itemOrigin } from '../../stocknotes.js';
+import { blockedNote } from '../kit/spells.js';
 import { followNotes } from './follow.js';
 import { seatText } from './shared.js';
 import { CURSE_PLAIN, ico, modal, moveDetent } from './kit.js';
@@ -67,7 +69,8 @@ export function foundBoxes(G, news, from = 'journal') {
     return news.map(n => {
         const go = (fn) => () => { fn(); render(G); };
         if (n.kind === 'item') {
-            const nm = nameOf(G.data, n.item), el = found({ art: 'cache', eyebrow: 'You got', title: nm, line: `${summaryOf(G.data, n.item)} · ${WEIGHT_WORDS[weightOf(G.data, n.item)] ?? ''}`.replace(/ · $/, ''), attrs: { 'data-act': 'gain', 'data-item': n.item.uid }, onclick: go(() => { G.ui.itemUid = n.item.uid; G.ui.itemFrom = from; G.ui.sheet = 'item'; }) });
+            const nm = nameOf(G.data, n.item), origin = itemOrigin(journalLines(G.st, G.data), nm), el = found({ art: 'cache', eyebrow: 'You got', title: nm, line: origin?.via === 'card' ? `From the ${origin.card}` : `${summaryOf(G.data, n.item)} · ${WEIGHT_WORDS[weightOf(G.data, n.item)] ?? ''}`.replace(/ · $/, ''),          // (out of an exchanged card he is told which one, note 73; the item card has the rest)
+             attrs: { 'data-act': 'gain', 'data-item': n.item.uid }, onclick: go(() => { G.ui.itemUid = n.item.uid; G.ui.itemFrom = from; G.ui.sheet = 'item'; }) });
             const pic = ico(G, nm, 'ico'); if (pic) el.firstChild.replaceWith(pic);
             const card = itemParts(G, n.item).card;           // a treasure shows its cream card here, where he first sees it
             return card ? h('div', { class: 'found-card' }, el, card) : el;
@@ -118,6 +121,7 @@ export function journalSheet(G) {
     const nt = notices(G), news = foundBoxes(G, journalNew(G)), roll = lastRoll(G), log = logSections(G);
     const body = h('div', { class: 'journal' },
         nt.length ? h('div', { class: 'ds-notes' }, ...nt) : null,
+        (g => (g.period === 'daylight' || g.period === 'birdsong') ? blockedNote(G) : null)(gameOf(G.st, G.data)),          // a spell he knows that his own chit keeps him from casting tonight, and what to do (notes 104, 106)
         G.ui.jWilds && gameOf(G.st, G.data).prowl ? wildsLine(G) : null,
         news.length ? [sect('New'), ...news] : null,
         roll, ...(log.length ? log : [h('p', { class: 'ds-meta' }, 'Nothing has happened yet. Your story begins here.')]));

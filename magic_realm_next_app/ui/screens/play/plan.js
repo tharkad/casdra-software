@@ -342,11 +342,32 @@ export function newDraft(G) {
     return { slots };
 }
 
+// Choosing which end of the road to go to (8.3.8d.1: "if he moves to a mountain clearing he must use two Move phases to move"). The Move to it is phase 1; a mountain end is a climb of two Moves in a row,
+// so phase 2 is the same Move, fixed. The other end's second Move is let go (it used to stay behind as a Move to the end he was no longer going to: note 67, a plan that lost its day).
+export function setRoadEnd(G, d, id) {
+    const r = ownSheet(G.st, G.data).onRoad, ends = [r?.from, r?.to];
+    if (climbLocked(G, 1) || (d.slots[1]?.act === 'move' && ends.includes(d.slots[1].to))) d.slots[1] = null;          // the second half of the climb chosen before
+    d.slots[0] = { act: 'move', to: id };
+    G.ui.planNote = null; G.ui.pickMove = null;
+    if (isMountain(G.st, G.data, id)) {
+        const trial = d.slots.map((x, j) => (j === 1 ? { act: 'move', to: id } : x)), k = planKinds(G.st, G.data, trial);
+        if (k.total > 1 && ['basic', 'sunlight', 'extra'].includes(k.kinds[1])) {
+            if (d.slots[1]) G.ui.planNote = `Phase 2 is now the second Move of the climb to ${nameOfClearing(id)}: what you had there was dropped.`;
+            d.slots[1] = { act: 'move', to: id };
+        }
+    }
+    advance(G, 1);
+}
+
+// The lock box says what the Move costs before he commits to it: a mountain end takes two Move phases (both fixed), any other end one.
 function roadLockBox(G, d) {
-    const r = ownSheet(G.st, G.data).onRoad, cur = d.slots[0]?.to;
+    const r = ownSheet(G.st, G.data).onRoad, cur = d.slots[0]?.to, mt = id => isMountain(G.st, G.data, id), climb = !!cur && mt(cur);
+    const first = `Fixed: you fled along the road between ${nb(nameOfClearing(r.from))} and ${nb(nameOfClearing(r.to))}. You must Move to one end of it first.`;
+    const second = !cur ? '' : climb ? ` ${nb(nameOfClearing(cur))} is a mountain: climbing it takes two Move phases in a row, so phases 1 and 2 are both fixed.` : ` ${nb(nameOfClearing(cur))} takes one phase.`;
     return h('div', { class: 'roadlock' },
-        h('div', { class: 'ds-lockbox', role: 'note' }, icon('lock'), h('span', {}, `Fixed: you fled along the road between ${nb(nameOfClearing(r.from))} and ${nb(nameOfClearing(r.to))}. You must Move to one end of it first.`)),
-        h('div', { class: 'row2' }, ...[r.from, r.to].map(id => h('button', { type: 'button', class: `ds-btn${cur === id ? ' primary' : ''}`, 'data-road-end': id, 'aria-pressed': cur === id ? 'true' : 'false', onclick: () => { d.slots[0] = { act: 'move', to: id }; G.ui.planNote = null; G.ui.pickMove = null; advance(G, 1); render(G); } }, `${id === r.from ? 'Back to' : 'On to'} ${nb(nameOfClearing(id))}`))));
+        h('div', { class: 'ds-lockbox', role: 'note', 'data-roadlock': climb ? 'climb' : 'step' }, icon('lock'), h('span', {}, first, second)),
+        h('div', { class: 'row2' }, ...[r.from, r.to].map(id => h('button', { type: 'button', class: `ds-btn${cur === id ? ' primary' : ''}`, 'data-road-end': id, 'data-phases': mt(id) ? '2' : '1', 'aria-pressed': cur === id ? 'true' : 'false', onclick: () => { setRoadEnd(G, d, id); render(G); } },
+            `${id === r.from ? 'Back to' : 'On to'} ${nb(nameOfClearing(id))} · ${mt(id) ? 'mountain, 2 phases' : '1 phase'}`))));
 }
 
 // A move into a cave takes the sunlight phases away, and an action chosen earlier can be left with no phase to stand in: such a slot is cleared

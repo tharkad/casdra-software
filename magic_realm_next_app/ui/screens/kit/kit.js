@@ -263,7 +263,7 @@ function factsOf(G, it) {
 
 // itemContent(G, it, { back }) -> { title, body, foot }
 export function itemContent(G, it, o = {}) {
-    const { name, card, faces, facts } = itemParts(G, it, { size: 128 }), lock = gearLock(G, it), key = slotKey(G, it);
+    const { name, card, faces, facts: allFacts, origin } = itemParts(G, it, { size: 128 }), facts = origin ? allFacts.filter(t => t !== origin.text) : allFacts, lock = gearLock(G, it), key = slotKey(G, it);
     const stateTag = it.destroyed ? ['bad', 'Destroyed'] : [it.active ? 'gold' : '', it.active ? 'Active' : 'Inactive'];
     const sub = [it.kind === 'weapon' ? (isWeaponCard(G.data, it) ? 'weapon card' : it.alerted ? 'alerted' : 'not alerted') : null, it.kind === 'armor' ? (it.damaged ? 'damaged' : 'whole') : null].filter(Boolean).join(', ');
     const why = lock ?? whyNot(G, it);
@@ -273,6 +273,7 @@ export function itemContent(G, it, o = {}) {
         card ?? h('div', { class: 'kit-faces' }, ...faces),
         h('div', { class: 'kit-state' }, h('span', { class: `ds-tag ${stateTag[0]}`, 'data-state': it.active ? 'active' : 'inactive' }, stateTag[1]), sub ? h('span', { class: 'ds-meta' }, sub) : null, key ? h('span', { class: 'ds-meta' }, `${SLOTS.find(s => s[0] === key)[1]} slot`) : null),
         bound ? h('div', { class: 'ds-why kit-lock kit-committed', 'data-committed': it.uid }, icon('lock', 'kit-lockico'), voiced(bound)) : null,
+        origin ? h('p', { class: 'ds-meta kit-origin', 'data-from': origin.via }, origin.text) : null,          // where he came by it (note 73)
         card ? null : factsOf(G, it),                  // the cream card already says weight, price and Notoriety
         h('p', { class: 'ds-voice kit-story' }, storyLine(G, it)),
         h('details', { class: 'kit-detail' }, h('summary', {}, 'Detail'), ...facts.map(t => h('p', {}, t))),
