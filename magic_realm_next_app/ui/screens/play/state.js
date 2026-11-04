@@ -1,8 +1,8 @@
 // play/state.js: the game screen's ONE shared mutable object (`G`, made by newPlayState), the save slot in localStorage, and the small views and "seen" markers that read it.
 // G holds everything that used to be a local variable of gameScreen(): the engine state (G.st, a seat's view when online), the loaded data, the map, the UI state bag (G.ui),
 // the online/shared connections and the game record. Every play module takes G as its first argument; nothing else in play/ keeps UI state of its own.
-import { finalize } from '../../../engine/gamerecord.js';
-import { upgradeState } from '../../../engine/party.js';
+import { finalize } from '../../../engine/api.js';
+import { upgradeState } from '../../../engine/api.js';
 import { h } from '../../dom.js';
 import { putRecord } from '../../gamestore.js';
 import { meetLines } from '../../meet.js';

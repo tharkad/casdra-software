@@ -146,7 +146,9 @@ export function searchSheet(G, p) {
     if (opts.includes('peer')) defs.push({ k: 'peer', table: 'peer', title: 'Peer', line: 'Hidden enemies, hidden\u00A0paths.', art: actIcon('peer', 28) });
     if (opts.includes('locate')) defs.push({ k: 'locate', table: 'locate', title: 'Locate', line: 'Secret passages, clues, sites hidden\u00A0here.', art: actIcon('search', 28) });
     if (opts.includes('loot')) {
-        if (sites.length) defs.push({ k: 'loot', table: 'loot', title: sites.length === 1 ? `Loot the ${sites[0].name}` : 'Loot a site here', line: sites.length === 1 ? 'Reach into the pile. The cards you could reach are lit.' : 'Reach into a pile. The cards you could reach are lit.', art: actIcon('cache', 28), extra: sites.map(c => siteBlock(G, c, { compact: true })) });
+        if (sites.length === 1) defs.push({ k: 'loot', table: 'loot', title: `Loot the ${sites[0].name}`, line: 'Reach into the pile. The cards you could reach are lit.', art: actIcon('cache', 28), extra: [siteBlock(G, sites[0], { compact: true })] });
+        // 7.5.5b: with several sites here he names the one he loots before he rolls, so each site is its own row with its own pile under it
+        else if (sites.length) for (const c of sites) defs.push({ k: `loot:${c.id}`, table: 'loot', site: c.id, title: `Loot the ${c.name}`, label: `the ${c.name}`, line: 'Reach into this pile. The cards you could reach are lit.', art: actIcon('cache', 28), attrs: { 'data-card': `loot:${c.id}`, 'data-site-row': c.name }, extra: [siteBlock(G, c, { compact: true })] });
         else defs.push({ k: 'loot', table: 'loot', title: 'Loot', line: 'Nothing to open here yet.', why: 'Nothing here to loot. A site has to be found first: Locate is how.', art: actIcon('cache', 28), dim: true });
     }
     if (opts.includes('ground')) defs.push(ground.length ? { k: 'ground', table: 'ground', title: 'Take what lies here', line: `${ground.map(i => nameOf(G.data, i)).join(', ')}.`, art: actIcon('cache', 28) } : { k: 'ground', table: 'ground', title: 'Take what lies here', line: 'Nothing lies here.', why: 'Nothing lies here.', art: actIcon('cache', 28), dim: true });
@@ -157,7 +159,7 @@ export function searchSheet(G, p) {
     const why = names.length ? `The ${names.join(' and the ')} ${names.length === 1 ? 'lies' : 'lie'} here, found but not yet opened.` : 'Nothing here is open yet: no site has shown itself in this clearing.';
     const slot = G.ui.pmark?.i != null && G.ui.pmark.day === gameOf(st, G.data).day ? G.ui.pmark.i + 1 : null;
     return pickSheetOf(G, { title: 'Which table?', eyebrow: `${slot ? `Phase ${slot} · ` : ''}Search`, situation: `Search ${place}: one roll on one table.`, why, detailWhy: `${why} Each table finds different things.`, opts: defs, key: 'tablePick',
-        idle: { button: 'Choose a table', lead: 'One roll on one table.', toast: 'Pick one of the tables first.' }, verb: 'Search', act: o => act(G, { type: 'search-table', table: o.table }) });
+        idle: { button: 'Choose a table', lead: 'One roll on one table.', toast: 'Pick one of the tables first.' }, verb: 'Search', act: o => act(G, { type: 'search-table', table: o.table, ...(o.site ? { site: o.site } : {}) }) });
 }
 
 // A Peer or Locate that rolled a Choice: take whichever reading helps most, one line on what each would find here.

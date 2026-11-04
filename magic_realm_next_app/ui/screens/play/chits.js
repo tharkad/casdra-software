@@ -9,12 +9,12 @@ import { logText } from '../../voice.js';
 import { act } from './actions.js';
 import { showToast } from './kit.js';
 import { render } from './shell.js';
-import { questionOf, missionsOf } from '../../combat/feed.js';
+import { questionOf, missionsOf, ownSheet } from '../../combat/feed.js';
 
 const OPEN = new Set(['phase', 'phase-pick']);            // 7.2.4: "each time a character starts a phase of his turn" (the engine takes the action at these questions only)
 
 // ---- taking a chit ----
-export function takeNow(G) { return !!missionsOf(G.st, G.data) && !G.shared && !G.race && OPEN.has(questionOf(G.st, G.data)?.type) && !G.st.ch.dead; }
+export function takeNow(G) { return !!missionsOf(G.st, G.data) && !G.shared && !G.race && OPEN.has(questionOf(G.st, G.data)?.type) && !ownSheet(G.st, G.data).dead; }
 export function takeList(G) { return takeNow(G) ? takeable(G.st, G.data) : []; }
 
 // Take it (the engine pays the cost at once); the line it logs is told in a toast, in the voice that is on
@@ -37,11 +37,11 @@ export function takeChips(G) {
 
 // ---- a clearing's sheet: the chits that lie there (they lie face up, so everyone sees them) ----
 export function chitRows(G, id) {
-    const st = G.st, data = G.data;
-    if (!st.missions) return [];
-    const here = st.ch.at === id && !st.ch.onRoad, mine = new Map(takeList(G).map(t => [t.chit, t]));
+    const data = G.data, ms = missionsOf(G.st, data), me = ownSheet(G.st, data);
+    if (!ms) return [];
+    const here = me.at === id && !me.onRoad, mine = new Map(takeList(G).map(t => [t.chit, t]));
     const rows = [];
-    for (const c of st.missions.chits.filter(x => x.loc?.c === id)) {
+    for (const c of ms.chits.filter(x => x.loc?.c === id)) {
         const info = faceInfo(data, c.face), t = mine.get(c.id);
         let action = null, tail = null;
         if (t) action = h('button', { type: 'button', class: `ds-btn sm${t.ok ? '' : ' is-dim'}`, 'data-act': 'take-chit', 'data-chit': t.chit, 'aria-disabled': t.ok ? null : 'true', onclick: () => (t.ok ? doTake(G, t) : refuse(G, t)) }, 'Take');

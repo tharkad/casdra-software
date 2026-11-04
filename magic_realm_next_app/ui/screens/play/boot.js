@@ -1,7 +1,7 @@
 // play/boot.js: starting the game screen: loads the data, then connects (a shared table), joins (a race), or starts or resumes the solo game; mounts the map and publishes window.__mr.game.
 import { loadData } from '../../dataload.js';
-import { daySnapshot, finalize, newRecord } from '../../../engine/gamerecord.js';
-import { upgradeState } from '../../../engine/party.js';
+import { daySnapshot, finalize, newRecord } from '../../../engine/api.js';
+import { upgradeState } from '../../../engine/api.js';
 import { settleSeat, tableCrew } from './leaders.js';
 import { apiOf } from '../../../engine/api.js';
 import { getRecord, putRecord } from '../../gamestore.js';

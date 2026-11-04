@@ -26,7 +26,7 @@ import { sheets } from './sheets.js';
 import { doneLoading } from './states.js';
 import { renderTray } from './tray.js';
 import { myId, saveUi, vpNow } from './state.js';
-import { ownSheet, fresh, gameOf, questionOf, tableFight, charsOf, missionsOf, todayOf, tableModel, seatOf, mapChits, viewOf, standingOf } from '../../combat/feed.js';
+import { ownSheet, fresh, gameOf, questionOf, tableFight, charsOf, missionsOf, todayOf, tableModel, seatOf, mapChits, viewOf, standingOf, planSlots } from '../../combat/feed.js';
 
 // ---- model for the map ----
 export function mapModel(G) {
@@ -77,7 +77,7 @@ export function mapModel(G) {
     } else if (gameOf(G.st, G.data).options?.hirelingRules) {
         // hireling rules: each follower is where his guide left him (not all with the hero), a hired leader or controlled creature is a counter of his own on the map (a seat), and a hidden one is said so
         const by = new Map();
-        for (const o of [...hires, ...G.st.mons.filter(m => m.hired && !m.dead && m.loc?.c)]) {
+        for (const o of [...hires, ...tableModel(G.st, G.data).mons.filter(m => m.hired && !m.dead && m.loc?.c)]) {
             if (!o.loc?.c || charsOf(G.st, G.data)[o.id]?.leader) continue;
             const e = by.get(o.loc.c) ?? by.set(o.loc.c, { n: 0, hid: 0 }).get(o.loc.c);
             e.n++; if (o.hidden) e.hid++;
@@ -181,7 +181,7 @@ export function showPin(G, id, why, tone = '') {
 }
 
 function overlayFor(G) {
-    const st = G.st, p = questionOf(st, G.data), hero = st.ch.onRoad ? st.ch.onRoad.from : st.ch.at, rings = [];
+    const st = G.st, p = questionOf(st, G.data), me = ownSheet(st, G.data), hero = me.onRoad ? me.onRoad.from : me.at, rings = [];
     let route = [];
     if (G.ui.combatMap && G.ui.aimMap) {
         const a = G.ui.aimMap, now = new Set((a.store.aim[a.spell] ?? []).map(r => String(r.id)));
@@ -196,8 +196,8 @@ function overlayFor(G) {
         if (stops.length) route = [hero, ...stops];
         const fi = G.ui.pickFly ?? (d.slots[i]?.act === 'fly' && !d.slots[i].to ? i : null);
         if (fi != null && fi === i) for (const t of flyTiles(st, G.data)) { const c = tileClearings(st, G.data, t)[0]; if (c) rings.push({ id: c, kind: d.slots[i]?.to === t ? 'chosen' : 'legal' }); }
-        if (i != null && (G.ui.pickMove === i || (st.ch.onRoad && i === 0))) {
-            const monsAt = new Set(st.mons.filter(m => !m.dead && !m.hired && m.loc?.c).map(m => m.loc.c));
+        if (i != null && (G.ui.pickMove === i || (me.onRoad && i === 0))) {
+            const monsAt = new Set(tableModel(st, G.data).mons.filter(m => !m.dead && !m.hired && m.loc?.c).map(m => m.loc.c));
             const cur = d.slots[i]?.act === 'move' ? d.slots[i].to : null;
             for (const id of G.ui.moveTargets) rings.push({ id, kind: id === cur ? 'chosen' : monsAt.has(id) ? 'danger' : 'legal' });
             for (const id of G.ui.moveMaybe) rings.push({ id, kind: 'maybe' });
@@ -206,8 +206,9 @@ function overlayFor(G) {
     } else if (p?.type === 'phase-pick' && G.ui.pickAct === 'move') {
         const day = todayOf(st, G.data), sug = day.planFull?.[day.turn?.i]; const sugTo = sug?.act === 'move' ? sug.to : null;          // (the suggested destination is the filled ring: the primary names it)
         for (const id of p.moves ?? []) rings.push({ id, kind: id === sugTo ? 'chosen' : 'legal' });
-    } else if (p?.type === 'phase' && st.plan?.[p.i]?.act === 'move' && st.plan[p.i].to) {
-        if (st.plan[p.i].to !== EDGE) { route = [hero, st.plan[p.i].to]; rings.push({ id: st.plan[p.i].to, kind: 'legal' }); }
+    } else if (p?.type === 'phase' && planSlots(st, G.data)[p.i]?.act === 'move' && planSlots(st, G.data)[p.i].to) {
+        const to = planSlots(st, G.data)[p.i].to;
+        if (to !== EDGE) { route = [hero, to]; rings.push({ id: to, kind: 'legal' }); }
     }
     return { rings, route, pin: G.ui.pin ?? null };
 }
@@ -259,7 +260,7 @@ function renderStrip(G) {
     const tot = vpNow(G, seat?.id), dead = gameOf(G.st, G.data).period === 'over' && ch.dead;
     // The score is counted from the shortfall of each goal, so on day 1 it is a negative number: the honest figure, and the one Mike wants on the chip (it said "0/N" until the first night: QA-19, reversed by note 32).
     // DR-14: the strip does not run ahead of the Day Result. While the morning report is on screen it keeps the day, the phase and the numbers it showed at midnight; the new day shows when it is closed.
-    const cur = { day: gameOf(G.st, G.data).day, total: lastDayOf(G.st), phase: gameOf(G.st, G.data).period === 'over' ? 'finished' : (PERIOD_WORD[gameOf(G.st, G.data).period] ?? gameOf(G.st, G.data).period), gold: ch.gold, fame: total('fame', ch.fame), notor: total('notoriety', ch.notoriety),
+    const cur = { day: gameOf(G.st, G.data).day, total: lastDayOf(gameOf(G.st, G.data)), phase: gameOf(G.st, G.data).period === 'over' ? 'finished' : (PERIOD_WORD[gameOf(G.st, G.data).period] ?? gameOf(G.st, G.data).period), gold: ch.gold, fame: total('fame', ch.fame), notor: total('notoriety', ch.notoriety),
         vp: tot > 0 ? `+${tot}` : String(tot).replace('-', '\u2212'), vpc: dead ? 'bad' : tot > 0 ? 'pos' : 'neg', tot };
     const reportUp = !G.shared && questionOf(G.st, G.data)?.type === 'plan' && gameOf(G.st, G.data).day > 1 && G.ui.reportedDay !== gameOf(G.st, G.data).day && G.ui.sheet !== 'plan';
     const held = reportUp && G.ui.stripSnap && G.ui.stripSnap.day === gameOf(G.st, G.data).day - 1 ? { ...G.ui.stripSnap, phase: 'midnight' } : null;
@@ -272,7 +273,7 @@ function renderStrip(G) {
             stats: { 'aria-label': 'Fame, Notoriety and Gold: open your kit', onclick: () => { G.ui.sheet = G.ui.sheet === 'char' ? null : 'char'; render(G); } },
             vp: { 'data-act': 'vp', role: 'button', tabindex: '0', 'aria-label': `Victory points: ${f.tot}. Tap for your goals`, onclick: () => { G.ui.sheet = G.ui.sheet === 'score' ? null : 'score'; render(G); } },
         } });
-    if (!timed(G.st)) el.querySelector('.ds-day b small')?.remove();
+    if (!timed(gameOf(G.st, G.data))) el.querySelector('.ds-day b small')?.remove();
     // legacy hooks the tests read
     el.querySelector('.ds-day').classList.add('daybox', ...(magicToday.length ? ['magic'] : []));
     el.querySelector('.ds-stats').classList.add('stats'); el.querySelector('.ds-vp').classList.add('vpchip', ...(f.tot < 0 ? ['neg'] : []));
@@ -337,7 +338,7 @@ export function render(G) {
     if (moved) { const first = G.lastHero === null; G.lastHero = hero; G.map.focus(hero, undefined, !first); }
     revealChoices(G, hero);
     // A Move phase that is about to be played: show where he is and where he is going, so the press is a decision with the road in view.
-    { const pp = questionOf(G.st, G.data), slot = pp?.type === 'phase' ? G.st.plan?.[pp.i] : null;
+    { const pp = questionOf(G.st, G.data), slot = pp?.type === 'phase' ? planSlots(G.st, G.data)[pp.i] : null;
       if (slot?.act === 'move' && slot.to && slot.to !== EDGE) { const key = `${gameOf(G.st, G.data).day}.${pp.i}.${slot.to}`; if (G.ui.framedMove !== key) { G.ui.framedMove = key; G.map.frame([hero, slot.to]); } } }
     syncCamera(G, moved);
     syncMapButton(G);
@@ -389,7 +390,7 @@ export function syncMapButton(G) {
 
 // Monsters whose home row the Monster Roll has just called: they are the ones that can come to you at the end of the turn.
 export function prowlers(G) {
-    const alive = G.st.mons.filter(m => !m.dead && !m.hired && (G.data.monsters[m.id].homeRow === gameOf(G.st, G.data).prowl || G.data.monsters[m.id].prowlsEveryDay));
+    const alive = tableModel(G.st, G.data).mons.filter(m => !m.dead && !m.hired && (G.data.monsters[m.id].homeRow === gameOf(G.st, G.data).prowl || G.data.monsters[m.id].prowlsEveryDay));
     const by = {};
     for (const m of alive) (by[G.data.monsters[m.id].name] ??= 0), by[G.data.monsters[m.id].name]++;
     return Object.entries(by).map(([name, n]) => (n > 1 ? `${name} x${n}` : name));

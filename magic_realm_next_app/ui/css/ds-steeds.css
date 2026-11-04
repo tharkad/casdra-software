@@ -12,7 +12,7 @@
 
 /* a Fly chit on a hireling: a small round badge on the corner of its counter (the card says it in words too) */
 .st-badge { position: absolute; top: -6px; right: -6px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-3, #2a2f3a); border: 2px solid var(--gold); box-shadow: 0 1px 3px rgba(0, 0, 0, .6); pointer-events: none; }
-.st-badge .ds-px { width: 20px; height: 20px; }
+.st-badge .ds-px, .st-badge .ds-actic { width: 20px; height: 20px; }
 .st-badge.use { background: var(--gold-wash-2, #1f3a22); border-color: var(--gold-hi, #b5e39c); }
 .kit-counter { overflow: visible; }
 .st-note { margin: 0 0 6px !important; }

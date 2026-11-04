@@ -127,7 +127,7 @@ function tableIntroSheet(G) {
     const who = joinNames(others.map(p => `${p.player} (${p.character})`));
     const pvp = !!gameOf(G.st, G.data).options?.pvp;
     const body = h('div', { class: 'welcome table-welcome', 'data-welcome': 'table' },
-        h('p', { class: 'ds-voice' }, `You wake at the ${G.st.ch.startDwelling}${gear}. ${lengthLine(G.st)}`.replace(/ (\d+)/g, '\u00A0$1')),
+        h('p', { class: 'ds-voice' }, `You wake at the ${G.st.ch.startDwelling}${gear}. ${lengthLine(gameOf(G.st, G.data))}`.replace(/ (\d+)/g, '\u00A0$1')),
         h('p', { class: 'ds-voice' }, others.length ? `${who} ${others.length === 1 ? 'shares' : 'share'} this realm with you, on one map.` : 'You share this realm with the others, on one map.'),
         h('p', { class: 'ds-voice' }, `Each morning you all plan in secret. Then the chits are drawn and the day is played one turn at a time: you wait for yours and watch the others. At night you fight whatever shares your clearing${pvp ? ', and players may charge one another' : '; nobody can attack another player'}.`));
     return modal(G, `Welcome, ${me?.player ?? ownSheet(G.st, G.data).name}`, body, { kind: 'result', eyebrow: 'A shared game', footer: footRow({ primary: primary('Begin', { 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }) }) });
@@ -215,5 +215,5 @@ export function sharedRestartSheet(G, p0) {
 
 // The end of a shared game: the verdict, every place (a tie is a shared victory), each character's goals, and the realm laid bare (R-19, R-26): app/ui/screens/tableui.js.
 export function sharedOverSheet(G) {
-    return endSheet(tc(G), { title: overTitle(G.st, false), onBack: () => { G.sconn?.unwatch(); G.ctx.go('online'); }, close: () => { G.ui.sheet = null; render(G); } });
+    return endSheet(tc(G), { title: overTitle(gameOf(G.st, G.data), false), onBack: () => { G.sconn?.unwatch(); G.ctx.go('online'); }, close: () => { G.ui.sheet = null; render(G); } });
 }

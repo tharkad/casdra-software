@@ -1,6 +1,6 @@
 import { BUG_URL } from './channel.js';
 import { allRecords } from './gamestore.js';
-import { finalize } from '../engine/gamerecord.js';
+import { finalize } from '../engine/api.js';
 
 // "Report a problem": everything needed to see what happened, sent with the player's description.
 //   - the current game: its record (parameters, every action, the whole log, refused actions, day table) and its full state

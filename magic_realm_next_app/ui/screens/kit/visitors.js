@@ -5,7 +5,7 @@
 // Payloads are the engine's: { type: 'trade', act: 'buy', spell } then { type: 'trade', act: 'accept', items, erase? } (or { act: 'accept', boon: true, erase? } / { act: 'decline' }).
 import { priceOf } from '../../../engine/catalogue.js';
 import { MAX_SPELLS } from '../../../engine/catalogue.js';
-import { SPELL_PRICE } from '../../../engine/visitors.js';
+import { SPELL_PRICE } from '../../../engine/catalogue.js';
 import { voiced } from '../../commit.js';
 import { h } from '../../dom.js';
 import { ask } from '../../ds.js';

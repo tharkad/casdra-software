@@ -5,7 +5,7 @@ import { h } from '../dom.js';
 import { sheet } from '../ds.js';
 import { nb, openSheet, sum } from '../front.js';
 import { boxTitle, chartEl, chitEl, faceInfo, kindTag, nameOfFace, pairName } from '../missions.js';
-import { facesOf, pairIds } from '../../engine/missions.js';
+import { facesOf, pairIds } from '../../engine/catalogue.js';
 
 export const SIX = 6;
 export const placedCount = g => g.missions?.place?.length ?? 0;

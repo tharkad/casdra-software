@@ -55,8 +55,10 @@ export function doMagicSight(st, data) {
 // before anything is taken from it; Q&A). With two such piles he chooses. The usual conditions of the pile apply (Vault, Pool, Cairns, a card that is a site).
 function candidates(st, kinds) {
     const here = st.ch.at, out = [];
-    const site = sitesHere(st)[0], sitePile = site && st.sites?.[site.name];
-    if (Array.isArray(sitePile)) { const k = sitePile.findIndex(x => kinds.includes(x.kind)); if (k >= 0) out.push({ label: `the ${site.name}`, ground: false, idx: k }); }
+    for (const site of sitesHere(st)) {          // (every discovered site here is a candidate: with more than one he chooses which, 7.5.7d)
+        const sitePile = st.sites?.[site.name];
+        if (Array.isArray(sitePile)) { const k = sitePile.findIndex(x => kinds.includes(x.kind)); if (k >= 0) out.push({ label: `the ${site.name}`, ground: false, idx: k, siteId: site.id }); }
+    }
     const ground = st.abandoned?.[here];
     if (ground?.length) { const k = ground.findIndex(x => kinds.includes(x.kind)); if (k >= 0) out.push({ label: 'the things on the ground', ground: true, idx: k }); }
     return out;
@@ -69,7 +71,7 @@ function take(st, data, dice, kinds, noun, pick = null) {
         c = cands.find(x => x.label === pick);
         if (!c) { st.pending = { type: 'search-choice', table: 'magicsight-take', options: cands.map(x => x.label), roll: dice, kinds, noun }; return 'wait'; }
     }
-    return lootFrom(st, data, { dice, value: c.idx + 1 }, c.ground, { sight: true });
+    return lootFrom(st, data, { dice, value: c.idx + 1 }, c.ground, { sight: true, siteId: c.siteId ?? null });
 }
 // The answer to the pile question (day.js 'search-choice').
 export const takeChosen = (st, data, p, label) => take(st, data, p.roll, p.kinds, p.noun, label);

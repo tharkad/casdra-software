@@ -20,6 +20,15 @@ export function sitesHere(st) {
     return st.chits.filter(c => c.kind === 'site' && c.tile === tile && c.num === n && !c.pile && st.ch.discovered.sites.includes(c.id));
 }
 
+// 7.5.5b: with more than one discovered site in the clearing he must declare exactly which one he loots before he rolls. The site chit id to name, for a caller that cannot ask
+// (a computer player): the site with the most cards in its pile, ties by chit id. No rng is used. Undefined when there is nothing to name (zero or one site here).
+export function lootSiteToName(st) {
+    const sites = sitesHere(st);
+    if (sites.length < 2) return undefined;
+    const size = c => (st.sites?.[c.name] ?? []).length;
+    return [...sites].sort((a, b) => size(b) - size(a) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0].id;
+}
+
 const chitName = c => (c.type === 'magic' ? `Magic ${c.numeral ?? ''}${c.time}` : `${chitWord(c)} ${c.strength}${c.time}`) + '*'.repeat(c.effort ?? 0);
 
 // The ways he can pay one asterisk of effort (Cairns, Pool): tire any ready chit that has an asterisk. A chit worth two may also "make change":
@@ -80,10 +89,11 @@ function takeInto(st, data, it) {
 }
 
 // `sight`: taken through the Magic Sight table (7.5.7): the same piles and conditions, but the Cairns' toll is paid when something is actually taken (like the Pool's).
-export function lootFrom(st, data, r, groundOnly = false, { paid = false, sight = false } = {}) {
+// `siteId`: the site chit he declared (7.5.5b); without it the one site here is looted (the caller refuses an unnamed choice among several before the roll).
+export function lootFrom(st, data, r, groundOnly = false, { paid = false, sight = false, siteId = null } = {}) {
     const here = st.ch.at, what = sight ? 'Magic Sight' : 'Loot';
     const sites = groundOnly ? [] : sitesHere(st);
-    const site = sites[0];
+    const site = siteId ? sites.find(c => c.id === siteId) : sites[0];
     const pileList = site ? st.sites[site.name] : (st.abandoned[here]?.length ? st.abandoned[here] : null);
     if (!pileList) return `${what} (${r.dice.join('+')}): there is nothing here to loot. You need to discover a site first.`;
     const label = site ? site.name : 'the things on the ground';
@@ -96,7 +106,7 @@ export function lootFrom(st, data, r, groundOnly = false, { paid = false, sight 
             const opts = vaultPieces(st, data);
             if (!opts.length) return 'The Vault is sealed. You need Tremendous strength or the Lost Keys.';
             if (opts.length === 1) say(st, payEffort(st, opts[0]), 'info');
-            else { st.pending = { type: 'effort-cost', site: 'Vault', options: opts, resume: 'loot', r, ground: groundOnly, sight, opens: 'Vault' }; return 'wait'; }
+            else { st.pending = { type: 'effort-cost', site: 'Vault', siteId: site.id, options: opts, resume: 'loot', r, ground: groundOnly, sight, opens: 'Vault' }; return 'wait'; }
         }
         (st.sitesOpen ??= {}).Vault = true;
     }
@@ -108,7 +118,7 @@ export function lootFrom(st, data, r, groundOnly = false, { paid = false, sight 
         const opts = effortOptions(st);
         if (!opts.length) return 'You are too exhausted to wade into the Pool.';
         if (opts.length === 1) say(st, payEffort(st, opts[0]), 'info');
-        else { st.pending = { type: 'effort-cost', site: site.name, options: opts, resume: 'loot', r, ground: groundOnly, sight }; return 'wait'; }
+        else { st.pending = { type: 'effort-cost', site: site.name, siteId: site.id, options: opts, resume: 'loot', r, ground: groundOnly, sight }; return 'wait'; }
     }
     pileList.splice(idx, 1);
     if (site && isMulti(st)) spyOnLoot(st, data, st.ch.id, { siteId: site.id });                         // the characters who see him loot it learn the site (4.5.6b.2)

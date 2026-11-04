@@ -166,6 +166,27 @@ export function parseSpoils(lines, byName, records = null, data = null) {
     }
     return out;
 }
+// A token of an event, as the words the old sentence had: the id of an item, a spell or a weapon by the name it has in the data ("short-sword" is "Short Sword"; a token with no entry is read as words).
+const tokenOf = x => String(x).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const words = tok => String(tok).replace(/-/g, ' ').replace(/\b[a-z]/g, c => c.toUpperCase());
+function labelOfWeapon(data, tok) {
+    if (tok === 'bare-hands') return 'bare hands';
+    for (const table of [data?.weapons, data?.spells]) for (const x of Object.values(table ?? {})) if (x?.name && tokenOf(x.name) === tok) return x.name;
+    return words(tok);
+}
+const gearOf = (data, ev) => (ev.gear ? { name: nameOf(data, itemOf(data, ev.gear)), fate: null } : null);
+/** The blow a `hero.struck` event tells, or null when it names no character who struck (a creature's blow is read from the sentence unless the data can name it): { from, label, dir, harm, armored }. */
+function blowOfEvent(ev, byId, data) {
+    if (!ev || ev.code !== 'hero.struck' || !ev.dir || !data) return null;
+    if (ev.from) {
+        const member = byId.get(ev.from);
+        if (!member) return null;
+        const weapon = labelOfWeapon(data, ev.weapon);
+        return { from: { member, weapon }, label: `${member.character}'s ${weapon}`, dir: ev.dir, harm: ev.harm, gear: gearOf(data, ev) };
+    }
+    const name = ev.foe ? (data.monsters?.[ev.foe]?.name ?? data.natives?.[ev.foe]?.name ?? null) : null;
+    return name ? { from: { name, weapon: null }, label: name, dir: ev.dir, harm: ev.harm, gear: gearOf(data, ev) } : null;
+}
 /** The swing at a character that a `blow.landed` / `blow.missed` event of the fight tells (it carries the `lane` he met), or null: { dir, atMember, result, maneuver, horse }. */
 function swingOfEvent(ev, byId) {
     if (!ev || (ev.code !== 'blow.landed' && ev.code !== 'blow.missed') || !ev.lane) return null;
@@ -202,13 +223,29 @@ export function pvpRound(view, f, report, round = report?.round, data = null) {
                 swings.push({ by: m, dir: x[1], at, atMember, result: x[4], maneuver: x[3] === 'no maneuver' ? null : x[3].replace(/ \(his horse\)$/, ''), horse, note: '', story: l.s ?? null, line: l });
                 cur = null; continue;
             }
-            // a blow that falls on this character (told in his voice)
+            // a blow that falls on this character (told in his voice): the event where the line has one the data can read, else the sentence
+            const bev = blowOfEvent(l.ev, byId, data);
+            if (bev) {
+                cur = { from: bev.from, label: bev.label, dir: bev.dir, harm: bev.harm, to: m, gear: bev.gear, wound: false, slain: false, noEffect: false, horse: null, story: l.s ?? null, round: l.r, lines: [l], uid: l.ev.by, fromEvent: true };
+                blows.push(cur); continue;
+            }
             if ((x = /^(.+?) strikes (thrust|swing|smash) for (\w) harm(?: against your (.+?))?\.$/.exec(t))) {
                 const attacker = x[1], mem = [...byName.keys()].find(n => attacker.startsWith(`${n}'s `));
                 cur = { from: mem ? { member: byName.get(mem), weapon: attacker.slice(mem.length + 3) } : { name: attacker.replace(/ #\d+$/, ''), weapon: null }, label: attacker, dir: x[2], harm: x[3], to: m, gear: x[4] ? { name: x[4], fate: null } : null, wound: false, slain: false, noEffect: false, horse: null, story: l.s ?? null, round: l.r, lines: [l] };
                 blows.push(cur); continue;
             }
             if (!cur) continue;
+            const e = l.ev;
+            if (cur.fromEvent && e && (e.code === 'hero.armor.hit' || e.code === 'hero.hurt' || e.code === 'hero.horse.hit' || (e.code === 'hero.slain' && e.harm))) {          // (what followed the blow, as the events tell it)
+                cur.lines.push(l);
+                if (e.code === 'hero.armor.hit') {
+                    if (e.result === 'held') cur.noEffect = true;
+                    else if (e.gear) { const name = nameOf(data, itemOf(data, e.gear)); if (cur.gear?.name === name) cur.gear.fate = e.result; else cur.gear = { name, fate: e.result }; }
+                } else if (e.code === 'hero.hurt') cur.wound = true;
+                else if (e.code === 'hero.slain') cur.slain = true;
+                else cur.horse = { name: nameOf(data, itemOf(data, e.gear)), fate: e.result === 'dead' ? 'dead' : 'stands' };
+                continue;
+            }
             if (/^Your (.+?) is (destroyed|damaged)\.$|^You take a wound\.$|you are slain\.$|^No effect:|dead\.$|but it stands\.$/.test(t)) cur.lines.push(l);
             if ((x = /^Your (.+?) is (destroyed|damaged)\.$/.exec(t))) { if (cur.gear?.name === x[1]) cur.gear.fate = x[2]; else cur.gear = { name: x[1], fate: x[2] }; }
             else if (/^You take a wound\.$/.test(t)) cur.wound = true;
@@ -240,6 +277,12 @@ export function pvpRound(view, f, report, round = report?.round, data = null) {
 
 /** The same blows in the order the table gave them ("Order of blows ... 1. White Knight's Great Sword (time 6, length 8); 2. ..."): the blows are matched to the list by their attacker. */
 export function inOrder(blows, orderLine) {
+    if (orderLine?.ev?.code === 'melee.order') {          // (the event names who strikes, in order: char:<id> for a character's own blow, den:<uid> for a creature's)
+        const used = new Set();
+        const rank = b => { const key = b.from.member ? `char:${b.from.member.id}` : b.uid ? `den:${b.uid}` : null; const i = key ? orderLine.ev.blows.findIndex((x, j) => !used.has(j) && x === key) : -1; if (i >= 0) used.add(i); return i < 0 ? 99 : i; };
+        const ranked = blows.map((b, k) => ({ b, r: rank(b), k }));
+        if (ranked.every(x => x.r < 99)) return ranked.sort((a, b) => a.r - b.r || a.k - b.k).map(x => x.b);          // (a blow the event cannot name: the sentence below tells)
+    }
     const t = orderLine?.t ?? '';
     const items = [...t.matchAll(/(?:^|[:;] )\d+\. (.+?) \(time/g)].map(m => m[1].replace(/^the /, '').replace(/ #\d+/, ''));
     if (!items.length) return blows;

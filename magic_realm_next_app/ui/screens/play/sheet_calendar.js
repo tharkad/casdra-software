@@ -37,7 +37,7 @@ function days(G, here) {
             h('b', {}, String(d)), cols.length ? h('span', { class: 'blasts' }, ...cols.map(blast)) : null);
     };
     return h('div', { class: 'calpane', 'data-pane': 'days' },
-        ask(isMagicDay(game.day) ? `Today the land is filled with ${joinNames(dayColors(game.day, last))} magic.` : `Day ${game.day}${timed(G.st) ? ` of ${last}` : ''}: an ordinary day for magic.`,
+        ask(isMagicDay(game.day) ? `Today the land is filled with ${joinNames(dayColors(game.day, last))} magic.` : `Day ${game.day}${timed(game) ? ` of ${last}` : ''}: an ordinary day for magic.`,
             'On the seventh day of each week one colour of magic fills the whole realm, from sunrise to midnight, in every clearing. Spells of that colour can be cast anywhere that evening.'),
         h('div', { class: 'calgrid' }, ...Array.from({ length: weeks }, (_, w) => h('div', { class: 'calweek' }, h('small', {}, `Week ${w + 1}`), ...Array.from({ length: 7 }, (_, k) => cell(w * 7 + k + 1))))),
         h('h3', {}, 'The week’s colours'),

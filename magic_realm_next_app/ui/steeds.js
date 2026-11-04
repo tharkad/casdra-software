@@ -3,7 +3,7 @@
 // the rulings are in docs/rules-spec/rulings/steeds-visitors.md. Nothing here decides a rule: the engine says what is possible (steedSources, flyChitOf, a spell offer's `learnable` and `why`) and these
 // functions only word it, in both voices (Story: plain and short; Detail: the rule). The screens: screens/kit/visitors.js (Trade), screens/play/steedplan.js (the Fly plan),
 // screens/play/steeds.js (the tray in the air), the Broomstick's target chooser (broomstickAim, called from combat/sheets.js aimEl).
-import { isVisitorName } from '../engine/visitors.js';
+import { isVisitorName } from '../engine/catalogue.js';
 import { flyChitOf, steedSources } from '../engine/steeds.js';
 import { flySources, carries } from '../engine/magic/fly.js';
 import { nextDayWith } from '../engine/catalogue.js';

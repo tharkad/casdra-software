@@ -1,6 +1,6 @@
 // play/piece_card.js: the item card. A piece of the game (a monster or a native counter) shown big, with its numbers and what they mean. One reusable sheet:
 // openPiece(G, { kind, id, side }) puts it up and Back returns to whatever was open (G.ui.pieceFrom). Treasures and sites can use the same frame later.
-import { denSide } from '../../../engine/combat.js';
+import { denSide } from '../../combat/feed.js';
 import { h } from '../../dom.js';
 import { monsterCounter } from '../../counter.js';
 import { bookPic, isBookPic } from '../../../engine/catalogue.js';

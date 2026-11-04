@@ -159,8 +159,8 @@ export function roundReport(view, f, round, myId) {
     const table = lines.filter(l => !l.who && l.k === 'combat');
     return {
         round, per, table,
-        order: table.find(l => /^Order of blows/.test(l.t)) ?? null,
-        sameInstant: table.find(l => /land at the same instant/.test(l.t)) ?? null,
+        order: table.find(l => (l.ev ? l.ev.code === 'melee.order' : /^Order of blows/.test(l.t))) ?? null,          // (the event where the line has one)
+        sameInstant: table.find(l => (l.ev ? l.ev.code === 'melee.instant' : /land at the same instant/.test(l.t))) ?? null,
         any: lines.length > 0,
     };
 }

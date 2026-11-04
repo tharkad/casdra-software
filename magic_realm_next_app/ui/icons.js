@@ -1,6 +1,6 @@
 // icons.js: the design system's icons and art helpers (docs/design/redesign/DESIGN-SYSTEM.md section 5).
 // `I` holds the 24px line-icon path data copied VERBATIM from mockups/ds.js (MR.I): stroke 1.75, round caps, currentColor (the .ds-i rule in css/core.css draws them).
-// Game art comes first: art(path) is any picture under app/art, actIcon(name, size) the 32px pixel action art (art/actions/*.gif) drawn pixelated at 20/24/28/32/48/64.
+// Game art comes first: art(path) is any picture under app/art, actIcon(name, size) the original line action pictures (ACT_PATHS) on a parchment plate.
 import { h, sv } from './dom.js';
 
 export const ART = 'art/';
@@ -38,10 +38,25 @@ export const icon = (name, cls = '') => sv('svg', { class: cls ? `ds-i ${cls}` :
 export const iconHtml = (name, cls = '') => `<svg class="${cls ? `ds-i ${cls}` : 'ds-i'}" viewBox="0 0 24 24" aria-hidden="true"><path d="${I[name] || ''}"/></svg>`;
 // A picture from the original game's art folder (never recoloured, cropped or stretched): art('monsters/wolf.gif', 'cls', 'alt').
 export const art = (path, cls = '', alt = '') => h('img', { class: cls, src: `${ART}${path}`, alt, draggable: 'false' });
-// The 32px action art (move, hide, search, trade, hire, rest, alert, spell, ban, peer, cache, fly, follow, ...) at an integer multiple of its size.
-// 'dash' is the picture of "Nothing": a quiet grey dash, not the red prohibition sign (which reads as an error: QA-134).
+// The action pictures (move, hide, search, trade, hire, rest, alert, spell, ban, peer, cache, fly, follow ...): original line drawings in the design system's own style (note 117: no RealmSpeak art),
+// dark on the parchment plate the old pixel art sat on (.ds-actic, css/core.css). 'dash' is the picture of "Nothing": a quiet grey dash, not the red prohibition sign (which reads as an error: QA-134).
+export const ACT_PATHS = {
+    move: 'M8 3h6v8l4.5 2.5a1.5 1.5 0 01.8 1.3V19a1 1 0 01-1 1H7a1 1 0 01-1-1V3zM6 8h8',
+    hide: 'M12 3c-4 0-6 3-6 7v1l-2 9h16l-2-9v-1c0-4-2-7-6-7zM9.3 11.6c1.6-1 3.8-1 5.4 0',
+    search: 'M10.5 4a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM15.3 15.3L21 21',
+    trade: 'M7 7h12l-3-3M17 17H5l3 3',
+    hire: 'M9 6a3 3 0 100 6 3 3 0 000-6zM3.5 19c0-3.2 2.4-5 5.5-5s5.5 1.8 5.5 5M18 6v6M15 9h6',
+    rest: 'M3 5v14M3 15h18M21 15v4M6 12.5a1.8 1.8 0 100-3.6 1.8 1.8 0 000 3.6zM10 15v-4a1 1 0 011-1h6a4 4 0 014 4',
+    alert: 'M19.5 4.5L10 14M14.5 4.5h5v5M7.5 11.5l5 5M10 14l-5 5',
+    spell: I.spark,
+    ban: 'M12 3.5a8.5 8.5 0 100 17 8.5 8.5 0 000-17zM6 6l12 12',
+    peer: I.eye,
+    cache: 'M4 10a8 8 0 0116 0v9H4zM4 12h16M10.5 12v3h3v-3',
+    fly: 'M2 9c4-1 7 1 10 6 3-5 6-7 10-6M12 15v4',
+    follow: 'M6 6l6 6-6 6M13 6l6 6-6 6',
+};
 export const actIcon = (name, size = 32) => (name === 'dash'
     ? h('span', { class: 'ds-dash', style: `width:${size}px;height:${size}px`, 'aria-hidden': 'true' }, icon('minus'))
-    : h('img', { class: 'ds-px', width: size, height: size, src: `${ART}actions/${name}.gif`, alt: '' }));
+    : h('span', { class: 'ds-actic', 'data-act-icon': name, style: `width:${size}px;height:${size}px`, 'aria-hidden': 'true' }, sv('svg', { viewBox: '0 0 24 24' }, sv('path', { d: ACT_PATHS[name] || '' }))));
 // A die face on the cream tile (the Journal, the last-action line, the result card).
 export const die = (n, cls = '') => h('span', { class: cls ? `ds-die ${cls}` : 'ds-die' }, n);

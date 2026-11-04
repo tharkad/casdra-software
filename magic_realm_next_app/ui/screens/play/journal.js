@@ -4,7 +4,8 @@
 import { WEIGHT_WORDS } from '../../../engine/catalogue.js';
 import { nameOf, summaryOf, weightOf } from '../../../engine/catalogue.js';
 import { dayColors } from '../../../engine/catalogue.js';
-import { ATTACK_SPELLS, castOptions } from '../../../engine/spells.js';
+import { ATTACK_SPELLS } from '../../../engine/catalogue.js';
+import { castOptions } from '../../../engine/spells.js';
 import { nameOfClearing, tileName } from '../../../engine/catalogue.js';
 import { h } from '../../dom.js';
 import { found, sect, voiceSwitch } from '../../ds.js';

@@ -21,7 +21,8 @@ import * as HF from './hirefight.js';
 import { sha256hex } from './sha256.js';
 
 export { makeRng } from './rng.js';
-export { FILES, checkVp };          // (checkVp: a victory point spread is a legal one; a function of the spread alone)
+export { newRecord, finalize, daySnapshot, groupByDay, readableLog, bundle, replay } from './gamerecord.js';          // (the game record a device keeps: functions of a record and a finished state, no data needed; CONTRACT section 9)
+export { FILES, checkVp, upgradeState };          // (checkVp: a victory point spread is a legal one; a function of the spread alone)
 /** The API's own version. `schema` is the version of docs/engine-api/schema/*.json; `state` the saved-state format (party.js STATE_VERSION). */
 export const API_VERSION = { api: '0.1.0', schema: 1 };
 

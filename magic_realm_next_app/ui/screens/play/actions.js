@@ -2,8 +2,8 @@
 // answers back in; tableCall / tableNews are the shared table's agreements; refresh, abandon and copyInvite are the online helpers the menu uses.
 import { apiOf } from '../../../engine/api.js';
 import { nameOf } from '../../../engine/catalogue.js';
-import { daySnapshot, finalize } from '../../../engine/gamerecord.js';
-import { upgradeState } from '../../../engine/party.js';
+import { daySnapshot, finalize } from '../../../engine/api.js';
+import { upgradeState } from '../../../engine/api.js';
 import { putRecord } from '../../gamestore.js';
 import { inviteLink } from '../../online.js';
 import { observe, party } from '../../party.js';

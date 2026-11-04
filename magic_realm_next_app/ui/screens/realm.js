@@ -1,8 +1,8 @@
 import { h, sv } from '../dom.js';
 import { bar, foot, sum } from '../front.js';
 import { EDGES, hexCenter, edgeDir, corners, worldEdge } from '../../engine/catalogue.js';
-import { makeRng } from '../../engine/rng.js';
-import { generateRealm, tileById } from '../../engine/mapbuild.js';
+import { makeRng } from '../../engine/api.js';
+import { generateRealm, tileById } from '../../engine/catalogue.js';
 import { layoutSide } from '../../engine/catalogue.js';
 
 // Realm viewer: a generated 20-tile realm you can pan and zoom, with a sheet for the tapped clearing.

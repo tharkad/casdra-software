@@ -1,7 +1,8 @@
 // missions.js: the shared pieces of the mission, campaign and visitor chit screens (the new-game placement, Row 6 of the Appearance Chart, the map markers, the Take buttons, the Chits tab of the Kit,
 // the notices). Rules: 2.2.5, 3.4, 6.3.4b, 7.2.4, 7.13.5; the engine is app/engine/missions.js (docs/rules-spec/missions-notes.md). Nothing here changes the game: it reads `st.missions`, `ch.missions` and the
 // engine's helpers (takeable, carriedTasks, whyNot, visitorsAt) and builds DOM.
-import { boxDef, boxIds, defOf, facesOf, kindOf, otherFace, pairIds, relation } from '../engine/missions.js';
+import { boxDef, boxIds, missionDefOf as defOf, facesOf, kindOf, otherFace, pairIds } from '../engine/catalogue.js';
+import { relation } from '../engine/missions.js';
 import { h } from './dom.js';
 import { logText } from './voice.js';
 

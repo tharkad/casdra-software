@@ -1324,14 +1324,16 @@ export function deliverBlows(st, data, parts, run = (pt, f) => f(), shared = fal
     // The order the blows will fall in, and why: it is the thing a player most wants explained.
     const you = pt => (solo ? 'your' : `${st.chars[pt.by].name}'s`);
     const blowText = h => `${h.pt.blowName(h, you(h.pt))} (time ${h.time ?? '?'}${h.length ? `, length ${h.length}` : ''})`;
-    const narrate = (text, story) => { if (solo) parts[0].log(text, story); else { say(st, text, 'combat', story ?? null, { who: null }); for (const pt of parts) pt.c.events.push(story ?? text); } };
+    const narrate = (text, story, ev = null) => { if (solo) parts[0].log(text, story, ev ? { ev } : undefined); else { say(st, text, 'combat', story ?? null, ev ? { who: null, ev } : { who: null }); for (const pt of parts) pt.c.events.push(story ?? text); } };
+    // (who strikes, as tokens: char:<id> a character's own blow, hire:<id> a hireling sent by him, den:<uid> a creature, sec:/roof: the rest)
+    const blowTok = h => (h.who === 'me' ? `char:${h.pt.by}` : h.who === 'hire' ? `hire:${h.pt.by}` : h.who === 'sec' ? `sec:${tokenOf(h.via)}` : h.who === 'roofhero' || h.who === 'roofhire' ? `${h.who}:${h.pt.by}` : `den:${h.who}`);
     if (hits.length > 1) {
         const why = round === 1 ? 'in the first round the longest weapon strikes first, then the fastest' : 'after the first round the fastest strikes first, then the longest weapon';
         const whyShort = round === 1 ? 'longest weapon first, then fastest' : 'fastest first, then longest weapon';
         narrate(`Order of blows (${why}): ${hits.map((h, k) => `${k + 1}. ${blowText(h)}`).join('; ')}.`,
-            `Blows in order (${whyShort}): ${hits.map(blowText).join(', then ')}.`);
+            `Blows in order (${whyShort}): ${hits.map(blowText).join(', then ')}.`, { code: 'melee.order', round, blows: hits.map(blowTok) });
     } else if (hits.length === 1) {
-        narrate(`Only one blow can land this round: ${blowText(hits[0])}.`, `Only one blow lands: ${blowText(hits[0])}.`);
+        narrate(`Only one blow can land this round: ${blowText(hits[0])}.`, `Only one blow lands: ${blowText(hits[0])}.`, { code: 'melee.lone', round, blows: [blowTok(hits[0])] });
     }
     for (const pt of parts) pt.c.newWounds = 0;
     const c0 = parts[0].c;
@@ -1347,7 +1349,7 @@ export function deliverBlows(st, data, parts, run = (pt, f) => f(), shared = fal
         for (const pt of parts) if (!pt.dead()) alive.add(charUid(pt.by));          // (pvp: the characters who still stand)
         const dmg = [];
         const names = group.map(h => h.pt.blowName(h, you(h.pt)));
-        if (group.length > 1) narrate(`These blows land at the same instant: ${names.join(' and ')}.`, `${names.join(' and ')} land at the same instant: neither can prevent the other.`.replace(/^./, ch => ch.toUpperCase()));
+        if (group.length > 1) narrate(`These blows land at the same instant: ${names.join(' and ')}.`, `${names.join(' and ')} land at the same instant: neither can prevent the other.`.replace(/^./, ch => ch.toUpperCase()), { code: 'melee.instant', round, blows: group.map(blowTok) });
         for (const h of group) run(h.pt, () => { const f = h.pt.thunk(h, alive, h.pt.c.groupNo); if (f) dmg.push(() => run(h.pt, f)); });
         killQ.length = 0;
         dmg.forEach(f => f());
@@ -1827,7 +1829,7 @@ function charBlow(st, data, h, part, g, log) {
     else if (!hm && fight && w && lvl(fight.strength) > lvl(side.harm)) { bonus = 1; note = ' (strong Fight chit +1)'; }
     else if (!hm && fight && !w) bonus = 1;
     const was = victim.today.slain;
-    const blow = { name: `${att.name}'s ${spell ?? part.weaponName}`, harm: side.harm, stars: side.stars ?? 0, bonus, pierce, delta, dir: part.myDir, missile: !!side.missile, archer: false, den: null };
+    const blow = { from: att.id, weapon: tokenOf(spell ?? part.weaponName), name: `${att.name}'s ${spell ?? part.weaponName}`, harm: side.harm, stars: side.stars ?? 0, bonus, pierce, delta, dir: part.myDir, missile: !!side.missile, archer: false, den: null };
     part.as(vid, () => {
         const vx = rival?.X, horse = vx?.move?.isHorse ? st.ch.items.find(i => i.uid === vx.move.horseUid) : null;
         strikeHero(st, data, blow, { mnvDir: vx?.p.moveDir ?? null, move: vx?.move ?? null, shieldDir: vx?.p.shieldDir ?? null, log: rival?.log ?? ((t, story, opt) => say(st, t, 'combat', story ?? null, opt ?? null)), g, horse });
@@ -1844,7 +1846,7 @@ function hireStrikesChar(st, data, h, part, g, log) {
     const was = victim.today.slain;
     part.as(vid, () => {
         const vx = rival?.X, horse = vx?.move?.isHorse ? st.ch.items.find(i => i.uid === vx.move.horseUid) : null;
-        strikeHero(st, data, { name: hs.name, harm: hs.harm, stars: hs.stars ?? 0, dir: h.dir, missile: !!hs.missile, archer: !!hs.archer, den: null }, { mnvDir: vx?.p.moveDir ?? null, move: vx?.move ?? null, shieldDir: vx?.p.shieldDir ?? null, log: rival?.log ?? ((t, story, opt) => say(st, t, 'combat', story ?? null, opt ?? null)), g, horse });
+        strikeHero(st, data, { foe: hire.id, name: hs.name, harm: hs.harm, stars: hs.stars ?? 0, dir: h.dir, missile: !!hs.missile, archer: !!hs.archer, den: null }, { mnvDir: vx?.p.moveDir ?? null, move: vx?.move ?? null, shieldDir: vx?.p.shieldDir ?? null, log: rival?.log ?? ((t, story, opt) => say(st, t, 'combat', story ?? null, opt ?? null)), g, horse });
     });
     if (victim.today.slain !== was) {
         killQ.push({ killer: st.ch.id, victim: vid, hire: hire.kind === 'mon' || data.natives[hire.id]?.leader ? 'leader' : 'underling' });
@@ -1969,7 +1971,7 @@ function denHit(st, data, den, ctx) {
         else if (s.tremendous && den.kind !== 'part') c.toRed.push(den.uid);
         return;
     }
-    return strikeHero(st, data, { name: s.name, harm: s.harm, stars: s.stars ?? 0, dir, missile: s.attack === 'missile', archer: s.type === 'Archer', den }, ctx);
+    return strikeHero(st, data, { foe: den.id, name: s.name, harm: s.harm, stars: s.stars ?? 0, dir, missile: s.attack === 'missile', archer: s.type === 'Archer', den }, ctx);
 }
 
 // A blow lands on the hero: first on the horse he played as his maneuver, else on the armor in its way (a shield guarding that direction, then body armor),
@@ -1984,9 +1986,9 @@ function strikeHero(st, data, b, ctx) {
         if (b.missile) hl += b.delta ?? missileRoll(st, `${b.name}'s missile roll (at your horse)`, b.archer);          // (b.delta: a character's own roll, with his Aim and Archer advantages, already made)
         if (hl >= lvl(hd.vulnerability)) {
             ctx.horse.destroyed = true; ctx.horse.active = false; ctx.horse.destroyedGroup = ctx.g;
-            ctx.log(`${b.name} strikes your ${hd.name} dead.`);
+            ctx.log(`${b.name} strikes your ${hd.name} dead.`, null, { ev: { code: 'hero.horse.hit', who: st.ch.id, by: den?.uid ?? tokenOf(b.name), horse: ctx.horse.uid, gear: ctx.horse.id, result: 'dead' } });
             c.eventful = true;
-        } else ctx.log(`${b.name} hits your ${hd.name} but it stands.`);
+        } else ctx.log(`${b.name} hits your ${hd.name} but it stands.`, null, { ev: { code: 'hero.horse.hit', who: st.ch.id, by: den?.uid ?? tokenOf(b.name), horse: ctx.horse.uid, gear: ctx.horse.id, result: 'stands' } });
         const owner = !den ? null : den.kind === 'part' ? c.dens.find(d => d.uid === den.partOf) : den;
         if (owner && redCapable(st, data, owner) && !c.toRed.includes(owner.uid)) c.toRed.push(owner.uid);      // it has hit something of his: it turns red
         return;
@@ -2014,18 +2016,18 @@ function strikeHero(st, data, b, ctx) {
     level += stars + missile + (b.bonus ?? 0);
     const L = letterOf(level);
     ctx.log(`${b.name} strikes ${DIRS[b.dir].toLowerCase()} for ${L} harm${armor ? ` against your ${armor.def.name}` : ''}.`, tell.strike(st, b.name, DIRS[b.dir].toLowerCase(), L, armor?.def.name),
-        { ev: { code: 'hero.struck', who: st.ch.id, by: den?.uid ?? tokenOf(b.name), harm: L, armor: armor?.item.uid, result: armor ? 'armored' : 'bare' } });
+        { ev: { code: 'hero.struck', who: st.ch.id, by: den?.uid ?? tokenOf(b.name), harm: L, armor: armor?.item.uid, result: armor ? 'armored' : 'bare', dir: DIRS[b.dir].toLowerCase(), gear: armor?.def.id, ...(b.from ? { from: b.from, weapon: b.weapon } : null), ...(b.foe ? { foe: b.foe } : null) } });
     let wounded = false, changed = false, greased = false;
     if (armor) {
         const tough = lvl(armor.def.toughness ?? armor.def.weight);
         if (level >= tough) {
             const card = !!armor.def.card;
-            if (!card && level === tough && !armor.item.damaged && !armor.item.destroyed) { armor.item.damaged = true; changed = true; tally(st, 'armorDamaged'); ctx.log(`Your ${armor.def.name} is damaged.`, tell.damaged(st, armor.def.name), { ev: { code: 'hero.armor.hit', who: st.ch.id, item: armor.item.uid, result: 'damaged' } }); c.eventful = true; }
+            if (!card && level === tough && !armor.item.damaged && !armor.item.destroyed) { armor.item.damaged = true; changed = true; tally(st, 'armorDamaged'); ctx.log(`Your ${armor.def.name} is damaged.`, tell.damaged(st, armor.def.name), { ev: { code: 'hero.armor.hit', who: st.ch.id, item: armor.item.uid, gear: armor.def.id, result: 'damaged' } }); c.eventful = true; }
             else if (!armor.item.destroyed) {
                 armor.item.destroyed = true; armor.item.active = false; armor.item.destroyedGroup = ctx.g; changed = true; tally(st, 'armorDestroyed');
                 const gold = !armor.def.native ? (armor.def.priceDestroyed ?? 0) : 0;
                 if (gold) st.ch.gold += gold;
-                ctx.log(`Your ${armor.def.name} is destroyed${gold ? ` (worth ${gold} gold to you)` : ''}.`, tell.destroyed(st, armor.def.name, gold), { ev: { code: 'hero.armor.hit', who: st.ch.id, item: armor.item.uid, result: 'destroyed' } });
+                ctx.log(`Your ${armor.def.name} is destroyed${gold ? ` (worth ${gold} gold to you)` : ''}.`, tell.destroyed(st, armor.def.name, gold), { ev: { code: 'hero.armor.hit', who: st.ch.id, item: armor.item.uid, gear: armor.def.id, result: 'destroyed' } });
                 c.eventful = true;
             }
         }
@@ -2035,7 +2037,7 @@ function strikeHero(st, data, b, ctx) {
             else wounded = true;
         }
     } else if (level >= lvl(heroVuln(st))) {
-        return killMe(st, `${b.name} deals ${L} harm; you are slain.`, b.name);
+        return killMe(st, `${b.name} deals ${L} harm; you are slain.`, b.name, { harm: L });
     } else if (level >= lvl('L')) wounded = true;
     if (wounded) {
         c.newWounds = (c.newWounds ?? 0) + 1; tally(st, 'woundsTaken'); tally(st, `wounds.${b.name}`);
@@ -2047,7 +2049,7 @@ function strikeHero(st, data, b, ctx) {
             ? `${WEIGHT_WORDS[L] ?? L} harm is not enough to hurt your ${armor.def.name} (toughness ${WEIGHT_WORDS[armor.def.toughness ?? armor.def.weight] ?? armor.def.toughness}), and it is too light to hurt you through it.`
             : `${WEIGHT_WORDS[L] ?? L} harm is too light to wound you.`;
         ctx.log(`No effect: ${why}`, tell.noEffect(st, WEIGHT_WORDS[L] ?? L, armor?.def.name, armor ? (WEIGHT_WORDS[armor.def.toughness ?? armor.def.weight] ?? armor.def.toughness) : null),
-            { ev: { code: 'hero.armor.hit', who: st.ch.id, item: armor?.item.uid, result: 'held' } });
+            { ev: { code: 'hero.armor.hit', who: st.ch.id, item: armor?.item.uid, gear: armor?.def.id, result: 'held' } });
     }
     // a tremendous monster that hurts him and leaves him alive will pick him up when the round ends
     if (!st.ch.dead) {
@@ -2098,10 +2100,10 @@ function pitSweep(st, data, rowName, { caster = null, pay = false, log = null } 
 
 // The sentences the death screen tells a fall by (a blow that slays him, every chit wounded): `told` on the event says this line is one of them, so the screen finds it without reading the words.
 const TOLD = /you are slain|vital spot|Every action chit is wounded/i;
-function killMe(st, text, by = null) {
+function killMe(st, text, by = null, extra = null) {
     st.ch.dead = true; tally(st, 'deathsInCombat'); if (by) tally(st, `slain.${by}`);
     st.slain = { by, text, at: st.ch.at, day: st.day, form: st.ch.morph?.creature.name ?? null, formBounty: st.ch.morph ? { fame: st.ch.morph.creature.fame, notoriety: st.ch.morph.creature.notor } : null };            // for the screen that tells him how it ended
-    say(st, text, 'combat', null, { ev: { code: 'hero.slain', who: st.ch.id, by: by ? tokenOf(by) : 'unknown', told: TOLD.test(text) } });
+    say(st, text, 'combat', null, { ev: { code: 'hero.slain', who: st.ch.id, by: by ? tokenOf(by) : 'unknown', told: TOLD.test(text), ...extra } });
     st.combat.events.push(text);
     st.combat.eventful = true;
 }

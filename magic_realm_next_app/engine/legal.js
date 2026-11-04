@@ -11,7 +11,7 @@ import { withActor } from './party.js';
 import { encounterOptions, meleeOptions, shiftOptions, makeChangeOptions } from './combat.js';
 import { askOptions } from './hirefight.js';
 import { denSide } from './combat.js';
-import { siteLeft } from './search.js';
+import { siteLeft, sitesHere } from './search.js';
 import { tradeFacts, TRADE_QUESTIONS } from './tradefacts.js';
 
 export const COMBAT_QUESTIONS = ['combat-pay', 'combat-drinks', 'combat-choice', 'combat-encounter', 'combat-melee', 'combat-shift', 'combat-wounds', 'combat-fatigue', 'combat-over', 'combat-lure', 'combat-charge', 'combat-deploy'];
@@ -124,12 +124,20 @@ function choicePreview(state, data, who, result) {
     const st = clone(state);
     return withActor(st, who, () => ({ sites: /Discover chits/.test(result) ? siteLeft(st, st.ch.at) : 0 }));
 }
+function lootSitesOf(state, who) {
+    const st = clone(state);
+    return withActor(st, who, () => sitesHere(st)).map(c => ({ id: c.id, name: c.name }));
+}
 const turn = (type, fields = {}, extra = {}) => ({ action: { type, ...fields }, ...extra });
 function phaseOf(p, state, data, who) {
     const out = { answers: [], free: [], options: plain(p) }, os = p.options ?? [];
     switch (p.type) {
         case 'rest': out.answers = os.map(o => turn('rest', { chit: o.chit, ...(o.change != null ? { change: o.change } : {}) }, { preview: { chit: o.chit, from: o.from, to: o.to, cost: o.cost } })); break;
-        case 'search-table': out.answers = os.map(t => turn('search-table', { table: t })); break;
+        case 'search-table': {          // 7.5.5b: with two or more discovered sites in the clearing the Loot table is one answer per site (he names the site before the roll); with one it needs no name
+            const sites = os.includes('loot') ? lootSitesOf(state, who) : [];
+            out.answers = os.flatMap(t => t === 'loot' && sites.length > 1 ? sites.map(c => turn('search-table', { table: 'loot', site: c.id }, { preview: { site: c.id, name: c.name } })) : [turn('search-table', { table: t })]);
+            break;
+        }
         case 'search-choice': out.answers = os.map(r => turn('search-choice', { result: r }, { preview: choicePreview(state, data, who, r) })); break;          // (what a reading would show him that he does not know yet: a reading that shows nothing is greyed)
         case 'effort-cost': out.answers = os.map((o, n) => turn('effort-cost', { n }, { preview: { chits: o.chits, cost: o.cost } })); break;
         case 'enchant-choice': out.answers = os.map(o => turn('enchant-choice', { chit: o.chit, kind: o.kind ?? 'chit' }, { preview: { tile: o.tile, color: o.color } })); break;

@@ -1173,14 +1173,18 @@ function doSearch(st, data, slot) {
     }
     let table = slot.table;
     if (SIGHT_REPLACES.has(table) && magicSightOn(st, data)) table = 'magicsight';           // a plan that names an old table searches with Magic Sight instead
+    // 7.5.3, 7.5.5b: the site is named just before the roll. A plan that named only the Loot table, in a clearing with two or more discovered sites, asks which one now.
+    const sitesNow = table === 'loot' ? sitesHere(st) : [];
+    if (table === 'loot' && !slot.site && sitesNow.length > 1) { st.pending = { type: 'search-table', options: searchTables(st, data) }; return 'wait'; }
+    const lootSite = table === 'loot' ? (sitesNow.find(c => c.id === slot.site) ?? sitesNow[0]) : null;
     if (leaders.noTable(st, table)) return 'A hired leader cannot use the Reading Runes or Magic Sight tables (7.5.2).';
     if (table === 'magicsight') return magicSightOn(st, data) ? doMagicSight(st, data) : 'You are not using Magic Sight.';
     // Searching the Cairns costs an asterisk of effort for every Loot roll, found or not, paid before the roll; the player picks the chit.
-    if (table === 'loot' && !slot.paid && !st.ch.leader && sitesHere(st)[0]?.name === 'Cairns') {          // (a hired leader pays no asterisk, 7.7.2c)
+    if (table === 'loot' && !slot.paid && !st.ch.leader && lootSite?.name === 'Cairns') {          // (a hired leader pays no asterisk, 7.7.2c)
         const opts = effortOptions(st);
         if (!opts.length) return 'The Cairns demand an asterisk of effort for every roll, and you have none to give: you cannot search them.';
         if (opts.length === 1) say(st, payEffort(st, opts[0]), 'info');
-        else { st.pending = { type: 'effort-cost', site: 'Cairns', options: opts, resume: 'search', slot: { act: 'search', table: 'loot' } }; return 'wait'; }
+        else { st.pending = { type: 'effort-cost', site: 'Cairns', options: opts, resume: 'search', slot: { act: 'search', table: 'loot', site: lootSite.id } }; return 'wait'; }
     }
     if (table === 'runes') return readRunes(st, data, slot.target ?? null);
     if (table === 'peer' && peerBlocked(st, data, st.ch.at)) return 'Fog hangs over this tile: nobody can use the Peer table here.';
@@ -1207,7 +1211,7 @@ function doSearch(st, data, slot) {
         }
         return applySearchResult(st, data, table, res, r.dice);
     }
-    if (table === 'loot' || table === 'ground') return lootFrom(st, data, r, table === 'ground');
+    if (table === 'loot' || table === 'ground') return lootFrom(st, data, r, table === 'ground', { siteId: lootSite?.id ?? null });
     return 'Nothing happens.';
 }
 
@@ -1278,8 +1282,17 @@ function step(st, data, action) {
             if (p.type !== 'search-table') refuse('question.mismatch', 'no search table is being chosen');
             const named = SIGHT_REPLACES.has(action.table) && magicSightOn(st, data) ? 'magicsight' : action.table;       // under Magic Sight a named old table is the Magic Sight table
             if (!p.options.includes(named)) refuse('search.not-offered', 'you cannot search that table here');
+            // 7.5.5b: he declares exactly which site he loots before he rolls (7.5.3: he names it just before the dice). With one site here it needs no name.
+            let site = null;
+            if (named === 'loot') {
+                const here = sitesHere(st);
+                if (action.site != null) {
+                    if (!here.some(c => c.id === action.site)) refuse('search.site-not-here', 'that site is not here, or you have not discovered it', { site: action.site }, '7.5.5b.1');
+                    site = action.site;
+                } else if (here.length > 1) refuse('search.site-unnamed', 'say which site you are looting before you roll', { sites: here.map(c => c.id) }, '7.5.5b');
+            }
             st.pending = null;
-            const text = doSearch(st, data, { act: 'search', table: named });
+            const text = doSearch(st, data, { act: 'search', table: named, ...(site ? { site } : {}) });
             if (text === 'wait') return st;                          // a Choice result is waiting for its own answer
             say(st, text, 'info');
             finishPhase(st, data, text);
@@ -1292,7 +1305,7 @@ function step(st, data, action) {
             st.pending = null;
             say(st, payEffort(st, o), 'info');
             if (p.opens) (st.sitesOpen ??= {})[p.opens] = true;          // the piece that broke the Vault's door (search.js vaultPieces)
-            const text = p.resume === 'search' ? doSearch(st, data, { ...p.slot, paid: true }) : lootFrom(st, data, p.r, p.ground, { paid: true, sight: !!p.sight });
+            const text = p.resume === 'search' ? doSearch(st, data, { ...p.slot, paid: true }) : lootFrom(st, data, p.r, p.ground, { paid: true, sight: !!p.sight, siteId: p.siteId ?? null });
             if (text === 'wait') return st;
             finishPhase(st, data, text);
             return settle(st, data, st.turn?.auto);

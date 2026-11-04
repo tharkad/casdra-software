@@ -88,7 +88,7 @@ export function sheets(G, lookOnly = false) {
         const gear = things.length ? ` with ${things.length > 1 ? `${things.slice(0, -1).join(', ')} and ${things.at(-1)}` : things[0]}` : ', with no weapon or armor yet';
         const n = phasesFor(G.st, G.data, []).total;
         out.push(modal(G, 'Welcome', h('div', { class: 'welcome' },
-            h('p', { class: 'ds-voice' }, `You wake at the ${G.st.ch.startDwelling}${gear}. ${lengthLine(G.st)}`.replace(/ (\d+)/g, '\u00A0$1')),
+            h('p', { class: 'ds-voice' }, `You wake at the ${G.st.ch.startDwelling}${gear}. ${lengthLine(gameOf(G.st, G.data))}`.replace(/ (\d+)/g, '\u00A0$1')),
             h('p', { class: 'ds-voice' }, `Each morning you plan ${n}\u00A0phases in secret. Then the day plays out, and at night you fight whoever shares your clearing.`)),
         { kind: 'result', bare: true, eyebrow: ownSheet(G.st, G.data).name, footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }, 'Begin')) }));
     }

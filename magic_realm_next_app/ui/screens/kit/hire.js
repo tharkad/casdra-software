@@ -2,7 +2,7 @@
 // round), then one button, "Ask the Lancers"; then the answer: the roll, the price as the headline, who you would get and for how long, and "Not at that price" as easy as the yes.
 // Payloads are the old sheet's: { type: 'hire', act: 'pick', group, rehire, drinks } / 'accept' / 'decline' / 'pay' / 'fight' / 'back'.
 import { WEIGHT_WORDS } from '../../../engine/catalogue.js';
-import { hireStats } from '../../../engine/combat.js';
+import { hireStats } from '../../combat/feed.js';
 import { noDrinks } from '../../../engine/missions.js';
 import { nameOfClearing } from '../../../engine/catalogue.js';
 import { act } from '../play/actions.js';
@@ -29,7 +29,7 @@ function counters(G, ids, monsters) {
 function strengthLine(G, ids, monsters) {
     const blows = [], weights = [];
     for (const id of ids) {
-        let s = null; try { s = hireStats(G.data, id, monsters ? 'mon' : 'nat', G.st); } catch { /* a name only */ }
+        let s = null; try { s = hireStats(G.st, G.data, id, monsters ? 'mon' : 'nat'); } catch { /* a name only */ }
         if (s?.harm) blows.push(`${s.harm}${s.atk ?? ''}${'*'.repeat(s.stars ?? 0)}`);
         const w = monsters ? null : G.data.natives[id]?.weight;
         if (w && WEIGHT_WORDS[w]) weights.push(WEIGHT_WORDS[w]);

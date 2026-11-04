@@ -1,7 +1,7 @@
 import { h } from '../dom.js';
 import { icon } from '../icons.js';
 import { allRecords, getRecord, deleteRecord } from '../gamestore.js';
-import { groupByDay, readableLog, bundle, replay } from '../../engine/gamerecord.js';
+import { groupByDay, readableLog, bundle, replay } from '../../engine/api.js';
 import { loadData } from '../dataload.js';
 import { newGame } from '../../engine/setup.js';
 import { apply } from '../../engine/day.js';

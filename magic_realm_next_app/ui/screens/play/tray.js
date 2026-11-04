@@ -35,7 +35,7 @@ import { seatText, sharedBanner, showPlayer, tableSheetDue } from './shared.js';
 import { render } from './shell.js';
 import { switchTo } from './hotseat.js';
 import { logEnd, myId, newMeetLines } from './state.js';
-import { ownSheet, questionOf, todayOf, magicOf } from '../../combat/feed.js';
+import { ownSheet, questionOf, todayOf, magicOf, planSlots } from '../../combat/feed.js';
 
 // A line of the log in the current voice; at a table another seat's 'You' lines are told by name (QA-103).
 const lt = (G, l) => (G.shared ? seatText(G, l) : logText(l));
@@ -65,7 +65,7 @@ function lastParts(G) {
         return { b: tale?.title ?? r?.what ?? 'The dice', t: tale?.line ?? lt(G, l), dice: r?.dice ?? [], wilds: r?.what === 'Monster roll' };
     }
     if (l.k === 'phase') {
-        const n = Number(/^Phase (\d+)/.exec(l.t)?.[1]), slot = st.plan?.[n - 1], rl = n ? phaseResultLine(G, n) : null;
+        const n = Number(/^Phase (\d+)/.exec(l.t)?.[1]), slot = planSlots(st, G.data)[n - 1], rl = n ? phaseResultLine(G, n) : null;
         let j = i - 1; while (j >= 0 && (log[j].k === 'info' || log[j].k === 'trade')) j--;          // (a refusal's own line sits between the phase and its dice: QA-10)
         const r = j >= 0 && log[j].k === 'roll' ? rollFor(log[j]) : null;
         return { b: slot ? (slot.act === 'search' && slot.table ? tableName(G, slot.table).split(':')[0] : ACT_LABEL[slot.act] ?? 'Phase') : 'Phase', t: rl?.text ?? lt(G, l), dice: r?.dice ?? [], phase: n || null };
@@ -87,7 +87,7 @@ function lastLine(G) {
 
 // ---- the day's phases as pips (the real action art): done, now, to come, empty, locked (the second half of a climb) ----
 function dayPips(G, cur) {
-    const plan = G.st.plan ?? [];
+    const plan = planSlots(G.st, G.data);
     const list = plan.map((s, i) => {
         const prev = plan[i - 1], locked = s?.act === 'move' && prev?.act === 'move' && prev.to === s.to && isMountain(G.st, G.data, s.to);
         const state = i < cur ? 'done' : i === cur ? 'now' : !s ? 'empty' : '';
@@ -177,15 +177,15 @@ export function renderTray(G) {
             m.primary = primary('Plan your day', { 'data-act': 'plan', onclick: openPlan });
         }
     } else if (p.type === 'phase') {
-        const slot = st.plan[p.i];
+        const slot = planSlots(st, G.data)[p.i];
         m.lead = dayPips(G, p.i);
         const card = resultCardFor(G);
         if (card) {
             // the phase just played: its result stands where the last-action line and the situation were, and the button goes on ("Trade / phase 4")
             m.body.push(card); m.last = null; m.situ = null; m.cls.push('with-result');
-            // the button names the action that comes ("Move / phase 2"), as it does at the start of any phase (QA-119 note 119)
-            const next = slot?.act && slot.act !== 'nothing' ? ACT_LABEL[slot.act] ?? slot.act : 'Do nothing', { small, why } = shortPrompt(G, slot);
-            m.primary = btn(twoLine(next, small ? `phase ${p.i + 1} \u00B7 ${small}` : `phase ${p.i + 1}`), 'primary', { 'data-act': 'next', title: why, 'aria-description': why, onclick: () => act(G, { type: 'next' }) });
+            // the button names the action that comes ("Move / phase 2"); the longer prompt is its tooltip, since "phase 3 · choose what to look for" is wider than a 360px button (and a hired leader's result must not say "your")
+            const next = slot?.act && slot.act !== 'nothing' ? ACT_LABEL[slot.act] ?? slot.act : 'Do nothing', { why } = shortPrompt(G, slot);
+            m.primary = btn(twoLine(next, `phase ${p.i + 1}`), 'primary', { 'data-act': 'next', title: why, 'aria-description': why, onclick: () => act(G, { type: 'next' }) });
         } else m.primary = phasePrimary(G, slot);
         if (!card && slot?.act === 'search' && !ownSheet(st, G.data).onRoad) m.body.push(h('p', { class: 'ds-hint-line', 'data-hint': 'search-where' }, searchWhere(G, ownSheet(st, G.data).at)));
     } else if (p.type === 'phase-pick') {

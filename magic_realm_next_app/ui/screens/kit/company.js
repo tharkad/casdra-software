@@ -1,7 +1,7 @@
 // screens/kit/company.js (P2): the Company room of the Kit sheet: who is with you. One card per hired group (natives, hired monsters, creatures under your control), shown as the
 // printed counters (tap one to turn it over), the days left as pips (14, amber at 3 or fewer), the Extend chip (lit only in a Hire phase, where the engine offers it), where you
 // stand with each group, and what you owe. There is no dismiss action in the engine, so none is offered; hirelings fight beside you without orders (the engine deploys them).
-import { hireStats } from '../../../engine/combat.js';
+import { hireStats } from '../../combat/feed.js';
 import { SIDE_WORD, nextSide, sideFigures } from '../../sides.js';
 import { hirelingsOf } from '../../../engine/party.js';
 import { policyBlock } from '../meetui.js';
@@ -47,7 +47,7 @@ function otherSide(G, o, sideNow = null) {
 
 function counter(G, o, ctl) {
     const nat = isNat(G, o), def = nat ? G.data.natives[o.id] : G.data.monsters[o.id], flipped = !!G.ui.coFlip?.[o.id];
-    let s = null; try { s = hireStats(G.data, o.id, nat ? 'nat' : 'mon', G.st); } catch { /* a name only */ }
+    let s = null; try { s = hireStats(G.st, G.data, o.id, nat ? 'nat' : 'mon'); } catch { /* a name only */ }
     const lbl = nat && def.leader ? 'Lead' : s?.harm ? `${s.harm}${s.atk ?? ''}` : '';
     const img = counterArt(G, o);
     const look = gameOf(G.st, G.data).options?.hirelingRules ? counterLook(o) : null;

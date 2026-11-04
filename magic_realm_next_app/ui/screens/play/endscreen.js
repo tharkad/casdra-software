@@ -131,7 +131,7 @@ export function overScreen(G) {
         const det = `Final score ${sgn(s.total)}: ${rows.filter(r => r.need > 0 || r.pts).map(r => `${NAME[r.cat]} ${sgn(r.pts)}`).join(', ')}.`;
         hero = h('div', { class: 'end-hero' },
             h('div', { class: `end-mark ds-stamp ${won ? 'win' : 'lose'}` }, icon(won ? 'trophy' : 'flag')),
-            h('div', { class: 'ds-eyebrow', style: `color:${won ? 'var(--gold)' : 'var(--ink-2)'}` }, `Day ${o.day ?? g.day}${o.reason === 'finished' && mode === 'month' ? ` \u00B7 the ${lastDayOf(st) === 28 ? 'month' : 'game'} ends` : ''}`),
+            h('div', { class: 'ds-eyebrow', style: `color:${won ? 'var(--gold)' : 'var(--ink-2)'}` }, `Day ${o.day ?? g.day}${o.reason === 'finished' && mode === 'month' ? ` \u00B7 the ${lastDayOf(g) === 28 ? 'month' : 'game'} ends` : ''}`),
             h('h1', { class: 'ds-h1' }, title),
             h('p', { class: 'ds-voice lg', 'data-v': 'story' }, won ? `The Realm is kept. ${sent}` : sent), h('p', { class: 'ds-voice lg', 'data-v': 'detail' }, det),
             deed ? h('p', { class: 'ds-meta end-deed' }, h('span', { 'data-v': 'story' }, deed.story), h('span', { 'data-v': 'detail' }, deed.detail)) : null,
