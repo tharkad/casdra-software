@@ -1,0 +1,59 @@
+/* css/ds-fit.css: the size classes (fit.js sets html[data-fit] = phone | tall | wide and --z, how much bigger than a phone the chrome is drawn). Loaded LAST: it overrides the
+   phone column of base.css and the sheet geometry of core.css for windows that are not a phone, and does nothing at all on a phone.
+   The map is never zoomed (it is a camera, and its gestures measure the screen); the strip, the rail, the tray and the sheets are, with CSS `zoom`, so type, rows and buttons grow as one. */
+
+/* ---- every screen but the play screen: the phone column, drawn --zc times larger (--z in a wide window; in a tall one it leaves 48px a side for the note microphone) and centred (title, new game, settings, history ...) ---- */
+@supports (zoom: 1) {
+    html:not([data-fit="phone"]) #app:not(:has(> .game.ds-screen)) { zoom: var(--zc, var(--z)); }
+}
+html:not([data-fit="phone"]) { --topgap: 0px; }                              /* (the extra room under a phone's status bar is for the phone) */
+
+/* ---- the play screen, any window that is not a phone: the whole window ---- */
+html:not([data-fit="phone"]) #app:has(> .game.ds-screen) { width: 100%; box-shadow: none; }
+.ds-rail { display: none; }
+@supports (zoom: 1) {
+    html:not([data-fit="phone"]) .game.ds-screen :is(.ds-strip, .ds-tray, .layer, .ds-rail, .ds-party) { zoom: var(--z); }
+}
+
+/* ---- tall: the column, filling the width, a sheet no wider than a reading column ---- */
+html[data-fit="tall"] .ds-sheet { left: 50%; right: auto; width: min(100%, 640px); transform: translateX(-50%); }
+html[data-fit="tall"] .ds-tray { width: 100%; }
+
+/* ---- wide: the map on the left, the rail on the right ---- */
+html[data-fit="wide"] .game.ds-screen { display: grid; grid-template-columns: minmax(0, 1fr) calc(var(--rail-w) * var(--z)); grid-template-rows: auto auto minmax(0, 1fr) auto; }          /* strip | the party's characters (rail side; no row when there is no party) | the rail | the tray */
+html[data-fit="wide"] .game .ds-strip { grid-column: 1 / -1; grid-row: 1; }
+html[data-fit="wide"] .game .mapbox { grid-column: 1; grid-row: 2 / 5; min-height: 0; min-width: 0; }
+html[data-fit="wide"] .game .ds-rail { display: flex; flex-direction: column; grid-column: 2; grid-row: 3; min-height: 0; background: var(--surface-2); border-left: 1px solid var(--line-1); }
+html[data-fit="wide"] .game .ds-tray { grid-column: 2; grid-row: 4; margin: 0; border-radius: 0; border-left: 1px solid var(--line-1); box-shadow: none; }
+html[data-fit="wide"] .game .layer { position: relative; inset: auto; grid-column: 2; grid-row: 3 / 5; min-height: 0; }
+.ds-rail-head { flex: none; display: flex; align-items: baseline; gap: 10px; padding: 12px var(--gutter) 8px; border-bottom: 1px solid var(--line-1); }
+.ds-rail-head h2 { margin: 0; font: 600 calc(14px * var(--ts, 1))/1.2 var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); flex: 1; }
+.ds-rail-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px var(--gutter) 16px; }
+/* a sheet in the rail is the rail: it fills it, square, with a hairline on its left in place of the handle's rounded top */
+html[data-fit="wide"] .layer .ds-sheet, html[data-fit="wide"] .layer .ds-sheet[data-detent] { --sheet-h: 100%; height: 100%; max-height: none; min-height: 0; border-radius: 0; border-top: 0; border-left: 1px solid var(--line-gold); box-shadow: -10px 0 36px rgba(0, 0, 0, .35); }
+html[data-fit="wide"] .ds-sheet .ds-grab { display: none; }
+html[data-fit="wide"] .game .ds-map-btn { --cover: 0px; }
+
+/* the bug-note microphone stands in the window's corner; in a wide window that is on the strip's VP: it moves down to the foot of the map's left edge */
+/* tall: the tray stands 14 over the map's foot; the map's buttons ride above it (the tray's overlap is zoomed with it) */
+html[data-fit="tall"] .ds-tray { margin-top: calc(-14px / var(--z)); }
+
+/* ---- wide: a fight takes the map's side of the window (the strip stays above it, the rail with the story stays beside it); its own column is centred and no wider than a reading stage ---- */
+html[data-fit="wide"] .cb { inset: var(--strip-h) var(--rail-w) 0 0; width: auto; margin: 0; padding-top: 0; align-items: center; }
+html[data-fit="wide"] .cb > :not(.cb-popbk) { width: 100%; max-width: 760px; }
+html[data-fit="wide"] .cb-back { left: 0; right: var(--rail-w); width: auto; margin: 0; }
+/* the bug-note sheet: the same column, drawn at --z */
+@supports (zoom: 1) { html:not([data-fit="phone"]) .nt-sheet { zoom: var(--z); } }          /* (the sheet, not its fixed layer: a zoomed fixed box comes out the wrong size, and the sheet fell below the screen) */
+/* the bug-note microphone: at the right end of the strip, which leaves it room (it stood in the window's corner, which on a phone is outside the column) */
+html:not([data-fit="phone"]) .nt-btn { top: calc(var(--safe-t) + (var(--strip-h) * var(--z) - 32px) / 2); right: 8px; left: auto; bottom: auto; }
+html:not([data-fit="phone"]) .game .ds-strip { padding-right: calc(var(--gutter) + 34px); }
+/* the end of the game (and any full-window card) covers the whole window, not only its column: nothing of the strip or the rail shows beside it */
+html:not([data-fit="phone"]) .ds-end::before { content: ""; position: fixed; inset: 0; z-index: -1; background: var(--surface-1); }
+
+/* the end card in a wide window stands in the middle of the map's side: the rail keeps its sheets (the goals of the next character) beside it, never over its text */
+html[data-fit="wide"] .ds-end { inset: 0 var(--rail-w) 0 0; }
+/* the map's own buttons grow with the chrome in a wide window (they sit in the map's corner, which is unzoomed; their offsets are zoomed with them) */
+@supports (zoom: 1) { html[data-fit="wide"] .game .mapbox .ds-map-btn { zoom: var(--z); } }
+
+/* note 126: the character selector stands at the top of the control column, never under the map: the party bar (hot seat, a hired party) is the rail's first row in a wide window */
+html[data-fit="wide"] .game .ds-party { grid-column: 2; grid-row: 2; min-width: 0; background: var(--surface-2); border-left: 1px solid var(--line-1); border-bottom: 1px solid var(--line-1); }

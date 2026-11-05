@@ -1,0 +1,14 @@
+/* The 2026-10-26 rulings in the redesign UI: the Vault's pieces (phases.js effortSheet), a plan's warnings and the Leave the map step (plan.js), and the state in which Peace holds (combat sheets). */
+.row-btn { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; width: 100%; min-height: 48px; padding: 8px 14px; text-align: left; white-space: normal; }
+.row-btn small { font: 400 calc(13px * var(--ts, 1))/1.25 var(--font-ui); color: var(--ink-3); }
+[data-vault-pieces] { display: grid; gap: 8px; margin-top: 10px; }
+/* a plan's warning: the plan is accepted (ruling S6), the phase will be cancelled when it is tried; amber, not red, and nothing is blocked */
+.ds-plan .ds-hint-line.warn { color: var(--ink-2); border-left: 3px solid var(--gold); padding-left: 8px; }
+.ds-plan .ds-leave { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.ds-plan .ds-leave .row2 { display: flex; gap: 8px; }
+.ds-plan .ds-leave .row2 .ds-btn { flex: 1 1 0; min-width: 0; }
+/* Peace holds (the fight with a Peace or Wish for Peace in force) */
+.ds-peace { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--gold); border-radius: 10px; background: color-mix(in srgb, var(--gold) 12%, transparent); }
+.ds-peace b { font: 700 calc(15px * var(--ts, 1))/1.25 var(--font-ui); }
+.ds-peace span { font: 400 calc(14px * var(--ts, 1))/1.3 var(--font-ui); color: var(--ink-2); }
+.kit-hcard .hd .kit-tags { display: inline-flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }

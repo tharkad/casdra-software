@@ -1,0 +1,2105 @@
+{
+ "meta": {
+  "sources": [
+   "RealmSpeak MagicRealmData.xml (magic_realm/utility/components/resources/data)",
+   "digest 05_characters_natives_monsters_victory.md sections 4.1, 4.2, 4.6 (cross-check)"
+  ],
+  "notes": "Base-game natives only. light = unalerted/Daylight side, dark = alerted side. harm null = no attack on that side (archers light side). weight is derived (= vulnerability except Knights, who are H per digest 05 4.1); weapon names derive from the native type via digest 05 4.1 (RealmSpeak stores only lengths). goldBounty = wage (digest 05 4.1). Horse light = trot side, dark = gallop side; horse.vulnerability is the animal's own vulnerability and horse.*.strength is the letter printed on that side (the move/carry strength). Group prices keyed by rank (HQ, 1..n). optionalCommerce is a RealmSpeak optional-rule flag, not base rules.",
+  "counts": {
+   "groups": 9,
+   "natives": 42
+  }
+ },
+ "groups": [
+  {
+   "id": "Bashkars",
+   "letter": "B",
+   "dwellings": [
+    "Large Campfire",
+    "Small Campfire"
+   ],
+   "garrison": null,
+   "homeRow": 5,
+   "hireMode": "group",
+   "prices": {
+    "1": 2,
+    "2": 2,
+    "3": 2,
+    "4": 2,
+    "5": 2,
+    "HQ": 2
+   },
+   "groupPrice": 12
+  },
+  {
+   "id": "Company",
+   "letter": "C",
+   "dwellings": [
+    "Inn",
+    "Large Campfire"
+   ],
+   "garrison": null,
+   "homeRow": 1,
+   "hireMode": "group",
+   "prices": {
+    "1": 2,
+    "2": 2,
+    "3": 2,
+    "4": 2,
+    "5": 4,
+    "6": 2,
+    "HQ": 2
+   },
+   "groupPrice": 16
+  },
+  {
+   "id": "Guard",
+   "letter": "G",
+   "dwellings": [],
+   "garrison": "Guard house",
+   "homeRow": 6,
+   "hireMode": "group",
+   "prices": {
+    "1": 4,
+    "2": 4,
+    "HQ": 4
+   },
+   "groupPrice": 12
+  },
+  {
+   "id": "Lancers",
+   "letter": "L",
+   "dwellings": [
+    "Chapel",
+    "Large Campfire",
+    "Small Campfire"
+   ],
+   "garrison": null,
+   "homeRow": 4,
+   "hireMode": "group",
+   "prices": {
+    "1": 2,
+    "2": 2,
+    "3": 2,
+    "HQ": 2
+   },
+   "groupPrice": 8
+  },
+  {
+   "id": "Order",
+   "letter": "O",
+   "dwellings": [],
+   "garrison": "Chapel",
+   "homeRow": 6,
+   "hireMode": "individual",
+   "prices": {
+    "1": 8,
+    "2": 8,
+    "3": 8,
+    "HQ": 8
+   },
+   "groupPrice": 32
+  },
+  {
+   "id": "Patrol",
+   "letter": "P",
+   "dwellings": [
+    "Inn",
+    "Chapel",
+    "House",
+    "Guard house"
+   ],
+   "garrison": null,
+   "homeRow": 3,
+   "hireMode": "group",
+   "prices": {
+    "1": 2,
+    "2": 2,
+    "HQ": 2
+   },
+   "groupPrice": 6
+  },
+  {
+   "id": "Rogues",
+   "letter": "R",
+   "dwellings": [],
+   "garrison": "Inn",
+   "homeRow": 5,
+   "hireMode": "individual",
+   "prices": {
+    "1": 4,
+    "2": 4,
+    "3": 2,
+    "4": 2,
+    "5": 1,
+    "6": 1,
+    "7": 1,
+    "HQ": 1
+   },
+   "groupPrice": 16
+  },
+  {
+   "id": "Soldiers",
+   "letter": "S",
+   "dwellings": [],
+   "garrison": "House",
+   "homeRow": 3,
+   "hireMode": "group",
+   "prices": {
+    "1": 2,
+    "2": 2,
+    "3": 2,
+    "HQ": 4
+   },
+   "groupPrice": 10
+  },
+  {
+   "id": "Woodfolk",
+   "letter": "W",
+   "dwellings": [
+    "House",
+    "Small Campfire"
+   ],
+   "garrison": null,
+   "homeRow": 2,
+   "hireMode": "group",
+   "prices": {
+    "1": 2,
+    "2": 2,
+    "HQ": 2
+   },
+   "groupPrice": 6
+  }
+ ],
+ "natives": [
+  {
+   "id": "B1",
+   "group": "Bashkars",
+   "name": "Bashkar Raider 1",
+   "type": "Raider",
+   "leader": false,
+   "rank": "1",
+   "weight": "L",
+   "vulnerability": "L",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 3
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 3
+   },
+   "horse": {
+    "name": "Pony",
+    "kind": "pony",
+    "armored": false,
+    "moveBonus": "double",
+    "light": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 5
+    },
+    "dark": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 3
+    }
+   },
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Bashkar 1"
+  },
+  {
+   "id": "B2",
+   "group": "Bashkars",
+   "name": "Bashkar Raider 2",
+   "type": "Raider",
+   "leader": false,
+   "rank": "2",
+   "weight": "L",
+   "vulnerability": "L",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 2
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 3
+   },
+   "horse": {
+    "name": "Pony",
+    "kind": "pony",
+    "armored": false,
+    "moveBonus": "double",
+    "light": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 5
+    },
+    "dark": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 4
+    }
+   },
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Bashkar 2"
+  },
+  {
+   "id": "B3",
+   "group": "Bashkars",
+   "name": "Bashkar Raider 3",
+   "type": "Raider",
+   "leader": false,
+   "rank": "3",
+   "weight": "L",
+   "vulnerability": "L",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 2
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 4
+   },
+   "horse": {
+    "name": "Pony",
+    "kind": "pony",
+    "armored": false,
+    "moveBonus": "double",
+    "light": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 4
+    },
+    "dark": {
+     "vulnerability": "M",
+     "strength": "L",
+     "moveTime": 3
+    }
+   },
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Bashkar 3"
+  },
+  {
+   "id": "B4",
+   "group": "Bashkars",
+   "name": "Bashkar Raider 4",
+   "type": "Raider",
+   "leader": false,
+   "rank": "4",
+   "weight": "L",
+   "vulnerability": "L",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 2
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 2,
+    "moveTime": 4
+   },
+   "horse": {
+    "name": "Pony",
+    "kind": "pony",
+    "armored": false,
+    "moveBonus": "double",
+    "light": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 5
+    },
+    "dark": {
+     "vulnerability": "M",
+     "strength": "L",
+     "moveTime": 3
+    }
+   },
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Bashkar 4"
+  },
+  {
+   "id": "B5",
+   "group": "Bashkars",
+   "name": "Bashkar Raider 5",
+   "type": "Raider",
+   "leader": false,
+   "rank": "5",
+   "weight": "L",
+   "vulnerability": "L",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 2,
+    "moveTime": 4
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 2,
+    "moveTime": 4
+   },
+   "horse": {
+    "name": "Pony",
+    "kind": "pony",
+    "armored": false,
+    "moveBonus": "double",
+    "light": {
+     "vulnerability": "M",
+     "strength": "L",
+     "moveTime": 5
+    },
+    "dark": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 2
+    }
+   },
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Bashkar 5"
+  },
+  {
+   "id": "BHQ",
+   "group": "Bashkars",
+   "name": "Bashkar leader",
+   "type": "Raider",
+   "leader": true,
+   "rank": "HQ",
+   "weight": "L",
+   "vulnerability": "L",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 2
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 3
+   },
+   "horse": {
+    "name": "Pony",
+    "kind": "pony",
+    "armored": false,
+    "moveBonus": "double",
+    "light": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 4
+    },
+    "dark": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 3
+    }
+   },
+   "garrison": false,
+   "optionalCommerce": "N",
+   "rsName": "Bashkar HQ"
+  },
+  {
+   "id": "C1",
+   "group": "Company",
+   "name": "Company Short Swordsman 1",
+   "type": "Short Swordsman",
+   "leader": false,
+   "rank": "1",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 3,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 4
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 3
+   },
+   "horse": null,
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Company 1"
+  },
+  {
+   "id": "C2",
+   "group": "Company",
+   "name": "Company Pikeman 2",
+   "type": "Pikeman",
+   "leader": false,
+   "rank": "2",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 3,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Spear",
+    "length": 10,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6,
+    "moveTime": 4
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 5
+   },
+   "horse": null,
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Company 2"
+  },
+  {
+   "id": "C3",
+   "group": "Company",
+   "name": "Company Pikeman 3",
+   "type": "Pikeman",
+   "leader": false,
+   "rank": "3",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 3,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Spear",
+    "length": 10,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6,
+    "moveTime": 4
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 5
+   },
+   "horse": null,
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Company 3"
+  },
+  {
+   "id": "C4",
+   "group": "Company",
+   "name": "Company Pikeman 4",
+   "type": "Pikeman",
+   "leader": false,
+   "rank": "4",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 3,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Spear",
+    "length": 10,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6,
+    "moveTime": 4
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 5
+   },
+   "horse": null,
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Company 4"
+  },
+  {
+   "id": "C5",
+   "group": "Company",
+   "name": "Company Great Swordsman 5",
+   "type": "Great Swordsman",
+   "leader": false,
+   "rank": "5",
+   "weight": "H",
+   "vulnerability": "H",
+   "armored": true,
+   "wage": 4,
+   "fameBounty": 0,
+   "notorietyBounty": 6,
+   "goldBounty": 4,
+   "weapon": {
+    "name": "Great Sword",
+    "length": 8,
+    "missile": false
+   },
+   "light": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 6
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5
+   },
+   "horse": null,
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Company 5"
+  },
+  {
+   "id": "C6",
+   "group": "Company",
+   "name": "Company Crossbowman 6",
+   "type": "Crossbowman",
+   "leader": false,
+   "rank": "6",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Crossbow",
+    "length": 12,
+    "missile": true
+   },
+   "light": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 6,
+    "moveTime": 5
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 1,
+    "moveTime": 4
+   },
+   "horse": null,
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Company 6"
+  },
+  {
+   "id": "CHQ",
+   "group": "Company",
+   "name": "Company leader",
+   "type": "Short Swordsman",
+   "leader": true,
+   "rank": "HQ",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 3,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 5
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 3
+   },
+   "horse": null,
+   "garrison": false,
+   "optionalCommerce": "N",
+   "rsName": "Company HQ"
+  },
+  {
+   "id": "G1",
+   "group": "Guard",
+   "name": "Guard Great Swordsman 1",
+   "type": "Great Swordsman",
+   "leader": false,
+   "rank": "1",
+   "weight": "H",
+   "vulnerability": "H",
+   "armored": true,
+   "wage": 4,
+   "fameBounty": 0,
+   "notorietyBounty": 6,
+   "goldBounty": 4,
+   "weapon": {
+    "name": "Great Sword",
+    "length": 8,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 6
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Guard 1"
+  },
+  {
+   "id": "G2",
+   "group": "Guard",
+   "name": "Guard Great Swordsman 2",
+   "type": "Great Swordsman",
+   "leader": false,
+   "rank": "2",
+   "weight": "H",
+   "vulnerability": "H",
+   "armored": true,
+   "wage": 4,
+   "fameBounty": 0,
+   "notorietyBounty": 6,
+   "goldBounty": 4,
+   "weapon": {
+    "name": "Great Sword",
+    "length": 8,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 6
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Guard 2"
+  },
+  {
+   "id": "GHQ",
+   "group": "Guard",
+   "name": "Guard leader",
+   "type": "Great Swordsman",
+   "leader": true,
+   "rank": "HQ",
+   "weight": "H",
+   "vulnerability": "H",
+   "armored": true,
+   "wage": 4,
+   "fameBounty": 0,
+   "notorietyBounty": 6,
+   "goldBounty": 4,
+   "weapon": {
+    "name": "Great Sword",
+    "length": 8,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 6
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": "F",
+   "rsName": "Guard HQ"
+  },
+  {
+   "id": "L1",
+   "group": "Lancers",
+   "name": "Lancer Lancer 1",
+   "type": "Lancer",
+   "leader": false,
+   "rank": "1",
+   "weight": "L",
+   "vulnerability": "L",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Spear",
+    "length": 10,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6,
+    "moveTime": 2
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 4
+   },
+   "horse": {
+    "name": "Pony",
+    "kind": "pony",
+    "armored": false,
+    "moveBonus": "double",
+    "light": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 5
+    },
+    "dark": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 3
+    }
+   },
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Lancer 1"
+  },
+  {
+   "id": "L2",
+   "group": "Lancers",
+   "name": "Lancer Lancer 2",
+   "type": "Lancer",
+   "leader": false,
+   "rank": "2",
+   "weight": "L",
+   "vulnerability": "L",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Spear",
+    "length": 10,
+    "missile": false
+   },
+   "light": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 3
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 4
+   },
+   "horse": {
+    "name": "Pony",
+    "kind": "pony",
+    "armored": false,
+    "moveBonus": "double",
+    "light": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 5
+    },
+    "dark": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 4
+    }
+   },
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Lancer 2"
+  },
+  {
+   "id": "L3",
+   "group": "Lancers",
+   "name": "Lancer Lancer 3",
+   "type": "Lancer",
+   "leader": false,
+   "rank": "3",
+   "weight": "L",
+   "vulnerability": "L",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Spear",
+    "length": 10,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 5
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 4
+   },
+   "horse": {
+    "name": "Pony",
+    "kind": "pony",
+    "armored": false,
+    "moveBonus": "double",
+    "light": {
+     "vulnerability": "M",
+     "strength": "L",
+     "moveTime": 4
+    },
+    "dark": {
+     "vulnerability": "M",
+     "strength": "L",
+     "moveTime": 2
+    }
+   },
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Lancer 3"
+  },
+  {
+   "id": "LHQ",
+   "group": "Lancers",
+   "name": "Lancer leader",
+   "type": "Lancer",
+   "leader": true,
+   "rank": "HQ",
+   "weight": "L",
+   "vulnerability": "L",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Spear",
+    "length": 10,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 3
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 4
+   },
+   "horse": {
+    "name": "Pony",
+    "kind": "pony",
+    "armored": false,
+    "moveBonus": "double",
+    "light": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 4
+    },
+    "dark": {
+     "vulnerability": "M",
+     "strength": "M",
+     "moveTime": 3
+    }
+   },
+   "garrison": false,
+   "optionalCommerce": "F,N",
+   "rsName": "Lancer HQ"
+  },
+  {
+   "id": "O1",
+   "group": "Order",
+   "name": "Order Knight 1",
+   "type": "Knight",
+   "leader": false,
+   "rank": "1",
+   "weight": "H",
+   "vulnerability": "T",
+   "armored": true,
+   "wage": 8,
+   "fameBounty": 0,
+   "notorietyBounty": 12,
+   "goldBounty": 8,
+   "weapon": {
+    "name": "Broadsword",
+    "length": 7,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 6
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5
+   },
+   "horse": {
+    "name": "Warhorse",
+    "kind": "warhorse",
+    "armored": true,
+    "moveBonus": null,
+    "light": {
+     "vulnerability": "T",
+     "strength": "H",
+     "moveTime": 6
+    },
+    "dark": {
+     "vulnerability": "T",
+     "strength": "H",
+     "moveTime": 4
+    }
+   },
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Order 1"
+  },
+  {
+   "id": "O2",
+   "group": "Order",
+   "name": "Order Knight 2",
+   "type": "Knight",
+   "leader": false,
+   "rank": "2",
+   "weight": "H",
+   "vulnerability": "T",
+   "armored": true,
+   "wage": 8,
+   "fameBounty": 0,
+   "notorietyBounty": 12,
+   "goldBounty": 8,
+   "weapon": {
+    "name": "Broadsword",
+    "length": 7,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 6
+   },
+   "horse": {
+    "name": "Warhorse",
+    "kind": "warhorse",
+    "armored": true,
+    "moveBonus": null,
+    "light": {
+     "vulnerability": "T",
+     "strength": "T",
+     "moveTime": 7
+    },
+    "dark": {
+     "vulnerability": "T",
+     "strength": "T",
+     "moveTime": 5
+    }
+   },
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Order 2"
+  },
+  {
+   "id": "O3",
+   "group": "Order",
+   "name": "Order Knight 3",
+   "type": "Knight",
+   "leader": false,
+   "rank": "3",
+   "weight": "H",
+   "vulnerability": "T",
+   "armored": true,
+   "wage": 8,
+   "fameBounty": 0,
+   "notorietyBounty": 12,
+   "goldBounty": 8,
+   "weapon": {
+    "name": "Broadsword",
+    "length": 7,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 6
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 6
+   },
+   "horse": {
+    "name": "Warhorse",
+    "kind": "warhorse",
+    "armored": true,
+    "moveBonus": null,
+    "light": {
+     "vulnerability": "T",
+     "strength": "T",
+     "moveTime": 7
+    },
+    "dark": {
+     "vulnerability": "T",
+     "strength": "H",
+     "moveTime": 4
+    }
+   },
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Order 3"
+  },
+  {
+   "id": "OHQ",
+   "group": "Order",
+   "name": "Order leader",
+   "type": "Knight",
+   "leader": true,
+   "rank": "HQ",
+   "weight": "H",
+   "vulnerability": "T",
+   "armored": true,
+   "wage": 8,
+   "fameBounty": 0,
+   "notorietyBounty": 12,
+   "goldBounty": 8,
+   "weapon": {
+    "name": "Broadsword",
+    "length": 7,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6,
+    "moveTime": 4
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 6
+   },
+   "horse": {
+    "name": "Warhorse",
+    "kind": "warhorse",
+    "armored": true,
+    "moveBonus": null,
+    "light": {
+     "vulnerability": "T",
+     "strength": "T",
+     "moveTime": 5
+    },
+    "dark": {
+     "vulnerability": "T",
+     "strength": "T",
+     "moveTime": 3
+    }
+   },
+   "garrison": true,
+   "optionalCommerce": "F",
+   "rsName": "Order HQ"
+  },
+  {
+   "id": "P1",
+   "group": "Patrol",
+   "name": "Patrol Short Swordsman 1",
+   "type": "Short Swordsman",
+   "leader": false,
+   "rank": "1",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 3,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 3
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 4
+   },
+   "horse": {
+    "name": "Workhorse",
+    "kind": "workhorse",
+    "armored": false,
+    "moveBonus": "extra",
+    "light": {
+     "vulnerability": "H",
+     "strength": "H",
+     "moveTime": 7
+    },
+    "dark": {
+     "vulnerability": "H",
+     "strength": "H",
+     "moveTime": 6
+    }
+   },
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Patrol 1"
+  },
+  {
+   "id": "P2",
+   "group": "Patrol",
+   "name": "Patrol Short Swordsman 2",
+   "type": "Short Swordsman",
+   "leader": false,
+   "rank": "2",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 3,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 3
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 3
+   },
+   "horse": {
+    "name": "Workhorse",
+    "kind": "workhorse",
+    "armored": false,
+    "moveBonus": "extra",
+    "light": {
+     "vulnerability": "H",
+     "strength": "M",
+     "moveTime": 6
+    },
+    "dark": {
+     "vulnerability": "H",
+     "strength": "H",
+     "moveTime": 6
+    }
+   },
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Patrol 2"
+  },
+  {
+   "id": "PHQ",
+   "group": "Patrol",
+   "name": "Patrol leader",
+   "type": "Short Swordsman",
+   "leader": true,
+   "rank": "HQ",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 3,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 3
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 2,
+    "moveTime": 5
+   },
+   "horse": {
+    "name": "Workhorse",
+    "kind": "workhorse",
+    "armored": false,
+    "moveBonus": "extra",
+    "light": {
+     "vulnerability": "H",
+     "strength": "H",
+     "moveTime": 7
+    },
+    "dark": {
+     "vulnerability": "H",
+     "strength": "M",
+     "moveTime": 5
+    }
+   },
+   "garrison": false,
+   "optionalCommerce": "F,N",
+   "rsName": "Patrol HQ"
+  },
+  {
+   "id": "R1",
+   "group": "Rogues",
+   "name": "Rogue Great Axeman 1",
+   "type": "Great Axeman",
+   "leader": false,
+   "rank": "1",
+   "weight": "H",
+   "vulnerability": "H",
+   "armored": false,
+   "wage": 4,
+   "fameBounty": 0,
+   "notorietyBounty": 6,
+   "goldBounty": 4,
+   "weapon": {
+    "name": "Great Axe",
+    "length": 5,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 4
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 5
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Rogue 1"
+  },
+  {
+   "id": "R2",
+   "group": "Rogues",
+   "name": "Rogue Great Axeman 2",
+   "type": "Great Axeman",
+   "leader": false,
+   "rank": "2",
+   "weight": "H",
+   "vulnerability": "H",
+   "armored": false,
+   "wage": 4,
+   "fameBounty": 0,
+   "notorietyBounty": 6,
+   "goldBounty": 4,
+   "weapon": {
+    "name": "Great Axe",
+    "length": 5,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 4
+   },
+   "dark": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 5
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Rogue 2"
+  },
+  {
+   "id": "R3",
+   "group": "Rogues",
+   "name": "Rogue Short Swordsman 3",
+   "type": "Short Swordsman",
+   "leader": false,
+   "rank": "3",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 3,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 3
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 4
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Rogue 3"
+  },
+  {
+   "id": "R4",
+   "group": "Rogues",
+   "name": "Rogue Archer 4",
+   "type": "Archer",
+   "leader": false,
+   "rank": "4",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Light Bow",
+    "length": 14,
+    "missile": true
+   },
+   "light": {
+    "harm": null,
+    "stars": null,
+    "attackTime": null,
+    "moveTime": 2
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 2,
+    "attackTime": 1,
+    "moveTime": 4
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Rogue 4"
+  },
+  {
+   "id": "R5",
+   "group": "Rogues",
+   "name": "Rogue Assassin 5",
+   "type": "Assassin",
+   "leader": false,
+   "rank": "5",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "wage": 1,
+   "fameBounty": 0,
+   "notorietyBounty": 2,
+   "goldBounty": 1,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 4
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 2
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Rogue 5"
+  },
+  {
+   "id": "R6",
+   "group": "Rogues",
+   "name": "Rogue Swordsman 6",
+   "type": "Swordsman",
+   "leader": false,
+   "rank": "6",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "wage": 1,
+   "fameBounty": 0,
+   "notorietyBounty": 2,
+   "goldBounty": 1,
+   "weapon": {
+    "name": "Thrusting Sword",
+    "length": 4,
+    "missile": false
+   },
+   "light": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 5
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 4
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Rogue 6"
+  },
+  {
+   "id": "R7",
+   "group": "Rogues",
+   "name": "Rogue Swordsman 7",
+   "type": "Swordsman",
+   "leader": false,
+   "rank": "7",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "wage": 1,
+   "fameBounty": 0,
+   "notorietyBounty": 2,
+   "goldBounty": 1,
+   "weapon": {
+    "name": "Thrusting Sword",
+    "length": 4,
+    "missile": false
+   },
+   "light": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 5
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 4
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Rogue 7"
+  },
+  {
+   "id": "RHQ",
+   "group": "Rogues",
+   "name": "Rogue leader",
+   "type": "Assassin",
+   "leader": true,
+   "rank": "HQ",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "wage": 1,
+   "fameBounty": 0,
+   "notorietyBounty": 2,
+   "goldBounty": 1,
+   "weapon": {
+    "name": "Short Sword",
+    "length": 3,
+    "missile": false
+   },
+   "light": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 3,
+    "moveTime": 4
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 2
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": "N",
+   "rsName": "Rogue HQ"
+  },
+  {
+   "id": "S1",
+   "group": "Soldiers",
+   "name": "Soldier Pikeman 1",
+   "type": "Pikeman",
+   "leader": false,
+   "rank": "1",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 3,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Spear",
+    "length": 10,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6,
+    "moveTime": 4
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 5
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Soldier 1"
+  },
+  {
+   "id": "S2",
+   "group": "Soldiers",
+   "name": "Soldier Pikeman 2",
+   "type": "Pikeman",
+   "leader": false,
+   "rank": "2",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 3,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Spear",
+    "length": 10,
+    "missile": false
+   },
+   "light": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6,
+    "moveTime": 4
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 5
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Soldier 2"
+  },
+  {
+   "id": "S3",
+   "group": "Soldiers",
+   "name": "Soldier Crossbowman 3",
+   "type": "Crossbowman",
+   "leader": false,
+   "rank": "3",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": true,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Crossbow",
+    "length": 12,
+    "missile": true
+   },
+   "light": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 6,
+    "moveTime": 5
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 1,
+    "moveTime": 4
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": null,
+   "rsName": "Soldier 3"
+  },
+  {
+   "id": "SHQ",
+   "group": "Soldiers",
+   "name": "Soldier leader",
+   "type": "Great Swordsman",
+   "leader": true,
+   "rank": "HQ",
+   "weight": "H",
+   "vulnerability": "H",
+   "armored": true,
+   "wage": 4,
+   "fameBounty": 0,
+   "notorietyBounty": 6,
+   "goldBounty": 4,
+   "weapon": {
+    "name": "Great Sword",
+    "length": 8,
+    "missile": false
+   },
+   "light": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 4,
+    "moveTime": 6
+   },
+   "dark": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 5,
+    "moveTime": 5
+   },
+   "horse": null,
+   "garrison": true,
+   "optionalCommerce": "F,N",
+   "rsName": "Soldier HQ"
+  },
+  {
+   "id": "W1",
+   "group": "Woodfolk",
+   "name": "Woodfolk Archer 1",
+   "type": "Archer",
+   "leader": false,
+   "rank": "1",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Light Bow",
+    "length": 14,
+    "missile": true
+   },
+   "light": {
+    "harm": null,
+    "stars": null,
+    "attackTime": null,
+    "moveTime": 2
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 2,
+    "attackTime": 1,
+    "moveTime": 4
+   },
+   "horse": null,
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Woodsfolk 1"
+  },
+  {
+   "id": "W2",
+   "group": "Woodfolk",
+   "name": "Woodfolk Archer 2",
+   "type": "Archer",
+   "leader": false,
+   "rank": "2",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Light Bow",
+    "length": 14,
+    "missile": true
+   },
+   "light": {
+    "harm": null,
+    "stars": null,
+    "attackTime": null,
+    "moveTime": 2
+   },
+   "dark": {
+    "harm": "L",
+    "stars": 2,
+    "attackTime": 1,
+    "moveTime": 4
+   },
+   "horse": null,
+   "garrison": false,
+   "optionalCommerce": null,
+   "rsName": "Woodsfolk 2"
+  },
+  {
+   "id": "WHQ",
+   "group": "Woodfolk",
+   "name": "Woodfolk leader",
+   "type": "Archer",
+   "leader": true,
+   "rank": "HQ",
+   "weight": "M",
+   "vulnerability": "M",
+   "armored": false,
+   "wage": 2,
+   "fameBounty": 0,
+   "notorietyBounty": 4,
+   "goldBounty": 2,
+   "weapon": {
+    "name": "Medium Bow",
+    "length": 16,
+    "missile": true
+   },
+   "light": {
+    "harm": null,
+    "stars": null,
+    "attackTime": null,
+    "moveTime": 2
+   },
+   "dark": {
+    "harm": "M",
+    "stars": 2,
+    "attackTime": 1,
+    "moveTime": 4
+   },
+   "horse": null,
+   "garrison": false,
+   "optionalCommerce": "F,N",
+   "rsName": "Woodsfolk HQ"
+  }
+ ],
+ "visitors": [
+  {
+   "id": "scholar",
+   "name": "Scholar",
+   "pair": "scholar_pillage",
+   "row": 6,
+   "contents": []
+  },
+  {
+   "id": "shaman",
+   "name": "Shaman",
+   "pair": "shaman_escort",
+   "row": 6,
+   "contents": []
+  },
+  {
+   "id": "warlock",
+   "name": "Warlock",
+   "pair": "warlock_foodale",
+   "row": 6,
+   "contents": []
+  },
+  {
+   "id": "crone",
+   "name": "Crone",
+   "pair": "crone_raid",
+   "row": 6,
+   "contents": []
+  }
+ ],
+ "missions": [
+  {
+   "id": "escort_party",
+   "name": "Escort Party",
+   "pair": "shaman_escort",
+   "timeLimit": 14,
+   "notorietyCost": 5,
+   "fameCost": 0,
+   "partners": [],
+   "foes": []
+  },
+  {
+   "id": "food_ale",
+   "name": "Food/Ale",
+   "pair": "warlock_foodale",
+   "timeLimit": 14,
+   "notorietyCost": 5,
+   "fameCost": 0,
+   "partners": [],
+   "foes": []
+  }
+ ],
+ "campaigns": [
+  {
+   "id": "pillage",
+   "name": "Pillage",
+   "pair": "scholar_pillage",
+   "timeLimit": 14,
+   "notorietyCost": 10,
+   "fameCost": 0,
+   "partners": [
+    "Bashkars"
+   ],
+   "foes": [
+    "Patrol",
+    "Soldiers"
+   ]
+  },
+  {
+   "id": "raid",
+   "name": "Raid",
+   "pair": "crone_raid",
+   "timeLimit": 14,
+   "notorietyCost": 0,
+   "fameCost": 8,
+   "partners": [
+    "Lancers",
+    "Woodfolk"
+   ],
+   "foes": [
+    "Bashkars",
+    "Rogues"
+   ]
+  },
+  {
+   "id": "conquer",
+   "name": "Conquer",
+   "pair": "conquer_war",
+   "timeLimit": 28,
+   "notorietyCost": 40,
+   "fameCost": 0,
+   "partners": [
+    "Soldiers",
+    "Guard",
+    "Patrol",
+    "Company"
+   ],
+   "foes": [
+    "Lancers",
+    "Woodfolk",
+    "Bashkars",
+    "Rogues"
+   ]
+  },
+  {
+   "id": "war",
+   "name": "War",
+   "pair": "conquer_war",
+   "timeLimit": 28,
+   "notorietyCost": 15,
+   "fameCost": 10,
+   "partners": [
+    "Soldiers",
+    "Guard",
+    "Patrol"
+   ],
+   "foes": [
+    "Company",
+    "Bashkars",
+    "Rogues"
+   ]
+  },
+  {
+   "id": "revolt",
+   "name": "Revolt",
+   "pair": "revolt_quest",
+   "timeLimit": 28,
+   "notorietyCost": 35,
+   "fameCost": 0,
+   "partners": [
+    "Lancers",
+    "Woodfolk",
+    "Bashkars",
+    "Rogues"
+   ],
+   "foes": [
+    "Soldiers",
+    "Guard",
+    "Patrol",
+    "Company"
+   ]
+  },
+  {
+   "id": "quest",
+   "name": "Quest",
+   "pair": "revolt_quest",
+   "timeLimit": 28,
+   "notorietyCost": 20,
+   "fameCost": 0,
+   "partners": [
+    "Order"
+   ],
+   "foes": [
+    "Dragon",
+    "Flying Dragon"
+   ],
+   "expansionFoes": [
+    "Wyrm",
+    "Firedrake"
+   ]
+  }
+ ]
+}

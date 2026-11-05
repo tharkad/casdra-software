@@ -1,0 +1,19 @@
+/* css/ds-map.css: owned by P5 (map polish). Empty on purpose: the foundation (P0a) only reserves the file and the link in app/index.html (after core.css, so it wins the cascade).
+   Put the P5 package's NEW css here, lifted from the map overlay classes already in core.css (.ds-ring, .ds-hero, .ds-route, .ds-stop, .ds-pin, .ds-token); mapview.js draws them. NOTE: the legacy map rules stay in css/map.css (the refactor slice); this file is for the NEW map-only rules. Core already carries the overlay vocabulary.
+   Do not edit another package's ds-*.css; if a core component needs a change, add a package-local override here with a comment. */
+
+/* G1 (fix wave 2) */
+/* QA-107: a hero in the air stands over the middle of the tile, a dark disc with gold wings: he is at no clearing until he lands */
+.mv-ov .ds-hero.air, .mv-ov .ds-hero.road { display: grid; place-items: center; border-style: solid; background: rgba(13, 15, 21, .86); }
+.mv-ov .ds-hero.air::after, .mv-ov .ds-hero.road::after { display: none; }
+.mv-ov .ds-hero.road .roadg { width: 74%; height: 74%; fill: none; stroke: var(--gold-hi, #b5e39c); stroke-width: 2.4; stroke-linecap: round; }          /* note 69: out on a road between clearings: a little road, in the middle of it */
+.mv-ov .ds-hero.air .wing { width: 82%; height: 82%; fill: var(--gold-hi, #b5e39c); stroke: none; }
+/* DR-19: a hidden hero is a hollow gold ring with a dark edge outside it, so it holds its own on busy green art (the dashed dark disc was the quietest thing on the map) */
+.mv-ov .ds-hero.hidden, .mv-key .ds-hero.hidden { border-style: solid; border-color: rgba(181, 227, 156, .92); background: rgba(13, 15, 21, .35);
+    box-shadow: 0 0 0 1px rgba(8, 10, 14, .85), 0 0 0 3px rgba(181, 227, 156, .6), 0 0 0 4.5px rgba(8, 10, 14, .7), 0 0 14px rgba(181, 227, 156, .45); }
+
+/* Note 98: the hero marks his clearing with a RING, never a dot: the dot (and the dark fill) lay over the clearing's numbered disc, so he could not read which number he stood in. The ring is hollow; the disc and its number
+   show through it, and a hidden hero's ring is dashed (a plain solid one: in plain sight). A dark edge outside keeps it readable on busy art. mapview.js sizes it to the numbered disc at the zoom shown. */
+.mv-ov .ds-hero:not(.air):not(.road) { background: transparent; border: 3px solid var(--gold-hi, #b5e39c); box-shadow: 0 0 0 1.5px rgba(8, 10, 14, .85), 0 0 12px rgba(181, 227, 156, .55); }
+.mv-ov .ds-hero:not(.air):not(.road)::after { display: none; }
+.mv-ov .ds-hero.hidden:not(.air):not(.road) { background: transparent; border-style: dashed; border-color: rgba(127, 209, 200, .95); box-shadow: 0 0 0 1.5px rgba(8, 10, 14, .85), 0 0 10px rgba(127, 209, 200, .45); }

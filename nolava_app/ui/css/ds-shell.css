@@ -1,0 +1,190 @@
+/* css/ds-shell.css (P0b): the play shell: the strip, the map region, the tray, the sheet frame around the old sheet contents, the Journal. Linked after the ds-*.css files.
+   Everything here is either a rule the core components do not have (they are the design's, in core.css), or an override of one, marked "override:". */
+
+/* ---- the screen: the tray stands on the bottom of the phone, under the home indicator (its own padding keeps the buttons clear of it) ---- */
+#app:has(> .game.ds-screen) { padding-bottom: 0; }
+.game.ds-screen { padding: 0; position: relative; animation: none; }
+.game .layer { z-index: 10; }
+.game { font-variant-numeric: lining-nums tabular-nums; }
+
+/* ---- the strip ---- */
+.ds-strip .menu { position: relative; }
+.ds-strip .pdot.corner { top: 8px; right: 6px; }
+.ds-stat.void { color: var(--ink-3); }                       /* QA-120: a number a curse has made worthless is grey with a skull beside it (a strike through it read as a stray mark) */
+.ds-stat.void .ds-i { opacity: .6; } .ds-stat .voidmark { display: inline-flex; color: var(--danger); } .ds-stat .voidmark .ds-i { width: 14px; height: 14px; opacity: 1; margin-left: 1px; }
+.ds-day span { display: flex; align-items: center; gap: 5px; }
+.ds-day .mdot { width: 8px; height: 8px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .45); }
+.ds-day .mdot.here { width: 11px; height: 11px; margin-left: 3px; box-shadow: 0 0 0 1.5px #fff, 0 0 6px 1px rgba(255, 255, 255, .5); }
+.ds-day .cursedmark { display: inline-flex; color: var(--danger); } .ds-day .cursedmark .ds-i { width: 14px; height: 14px; }
+
+/* ---- the map region ---- */
+.ds-map-btn { z-index: 3; }
+.ds-map-btn .ds-i { width: 24px; height: 24px; }
+
+/* ---- the tray ---- */
+.ds-tray { --tray-max: 335px; }
+.ds-last { position: relative; }
+.ds-newdot { position: absolute; right: calc(var(--gutter) + 2px); top: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--gold-hi); box-shadow: 0 0 0 2px var(--surface-2); }
+.ds-tray .tray-body { display: flex; flex-direction: column; gap: 8px; padding: 2px var(--gutter) 4px; overflow-y: auto; overscroll-behavior: contain; max-height: calc(var(--tray-max) - 156px - var(--safe-b));
+    -webkit-mask-image: linear-gradient(#000 calc(100% - 14px), transparent); mask-image: linear-gradient(#000 calc(100% - 14px), transparent); }
+.ds-tray.shared .tray-body { max-height: calc(var(--tray-max) - 156px - 52px - var(--safe-b)); }
+.ds-tray.planning .tray-body, .ds-tray.planning.shared .tray-body { padding: 0; overflow: visible; -webkit-mask-image: none; mask-image: none; max-height: none; }
+.ds-tray .pstrip { margin: 0; background: none; }
+.ds-hint-line { margin: 0; font: 400 calc(14px * var(--ts, 1))/1.3 var(--font-ui); color: var(--ink-2); }
+.ds-hint-line.bad { color: var(--danger); }
+.ds-tray .ds-actions .ds-btn.primary .col small { color: inherit; }
+.ds-pips.many .ds-pip { width: 22px; height: 30px; } .ds-pips.many .ds-pip img { width: 16px; height: 16px; } .ds-pips.many { gap: 2px; }
+.ds-pip.locked.now::before { border-color: var(--st-locked); background: rgba(142, 166, 208, .12); }
+.ds-tray .pickacts { margin: 0; }
+.ds-tray .spellacts { display: flex; flex-wrap: wrap; gap: 8px; }
+.ds-tray .ds-chip.spellact { min-height: 44px; }
+.ds-tray.idle .ds-situ { opacity: .8; }
+/* override: while a decision sheet is up the tray stands hidden under it (it keeps its height, so the map does not jump) */
+.game:has(.layer > .ds-sheet.decision) .ds-tray { opacity: 0; pointer-events: none; }
+
+/* ---- the plan tray ---- */
+.ds-tray.planning .ds-actions { padding-top: 6px; padding-bottom: 8px; min-height: calc(var(--tap-main) + 14px); }
+.ds-plan > * + * { margin-top: 4px; }
+.ds-plan .ds-acts.n8 .ds-act:last-child { grid-column: span 2; }
+.ds-plan .ds-acts.n10 { grid-template-columns: repeat(5, 1fr); } .ds-plan .ds-acts.n11 { grid-template-columns: repeat(4, 1fr); }
+.ds-plan .ds-acts.n10 .ds-act, .ds-plan .ds-acts.n11 .ds-act { flex-direction: column; justify-content: center; gap: 2px; min-height: 58px; padding: 0 2px; font-size: calc(14px * var(--ts, 1)); text-align: center; }
+.ds-plan .ds-act[aria-disabled] { cursor: pointer; }
+.ds-plan .ds-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ds-plan .ds-tabs.many { gap: 3px; } .ds-plan .ds-tabs.many .ds-tab small img { display: block; }
+.ds-plan .ds-tab .ds-i { width: 16px; height: 16px; }
+.ds-plan .ds-tab { padding: 0 2px; min-width: 0; } .ds-plan .ds-tab small { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: clip; }
+.ds-plan .roadlock { display: flex; flex-direction: column; gap: 6px; } .ds-plan .roadlock .row2 { display: grid; grid-template-columns: 1fr; gap: 6px; } .ds-plan .roadlock .ds-btn { min-height: 44px; font-size: calc(16px * var(--ts, 1)); }
+
+/* ---- the sheet frame around the old sheet contents (the shim: what `.sheet2` used to give them; P2/P4 retire it screen by screen) ---- */
+.ds-sheet-body > .legacy { display: flex; flex-direction: column; gap: 10px; }
+.ds-sheet .legacy h3 { margin: 6px 0 0; font: 600 calc(14px * var(--ts, 1))/1.2 var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+.ds-sheet .legacy p { margin: 4px 0; font: 400 calc(17px * var(--ts, 1))/1.35 var(--font-voice); }
+.ds-sheet .legacy .ds-btn.block { margin-top: 8px; }                      /* (DR-5: the last legacy .btn buttons of the play sheets are ds-btn now) */
+.ds-sheet .legacy .row2 { margin-top: 8px; }
+.ds-sheet .peekmap { margin-right: -6px; color: var(--gold); } .ds-sheet .peekmap .ds-i { width: 18px; height: 18px; }
+.ds-sheet .peek-foot { display: none; }
+.ds-sheet[data-detent="peek"] .peek-foot { display: flex; }
+.ds-sheet[data-detent="peek"] .ds-sheet-head h2, .ds-sheet[data-detent="peek"] .ds-grab { cursor: pointer; }
+.ds-sheet.has-footer .ds-sheet-foot { padding: 0; border-top: 0; background: none; }
+.ds-sheet.has-footer .ds-sheet-foot > * { width: 100%; margin: 0; padding: 10px var(--gutter) 12px; border-top: 1px solid var(--line-1); background: none; position: static; }   /* the old footer bars (trade-bar, sf-bar, meet bars): the sheet's own padding clears the home indicator */
+.ds-sheet[data-detent="hug"] .ds-sheet-body { min-height: 0; }
+.ds-sheet-body { -webkit-mask-image: linear-gradient(#000 calc(100% - 18px), transparent); mask-image: linear-gradient(#000 calc(100% - 18px), transparent); padding-bottom: 22px; }
+.ds-sheet.decision, .ds-sheet.result { z-index: 8; }
+.combat-back { z-index: 9; }
+
+/* ---- the Journal ---- */
+.journal-sheet .ds-sheet-body { padding-top: 0; }
+.journal .ds-notes { margin: 6px 0 4px; }
+.journal .ds-note { cursor: pointer; } .journal .ds-note.on { border-color: var(--gold); }
+.journal .ds-found .ki { width: 32px; height: 32px; flex: none; background: none; padding: 0; margin: 0; }
+.journal .ds-found .ds-px, .journal .ds-found .ds-actic, .journal .ds-found img { width: 32px; height: 32px; flex: none; object-fit: contain; }
+.journal .ds-found.curse { border-color: var(--danger); background: var(--danger-wash); } .journal .ds-found.curse .eyebrow { color: var(--danger); }
+.ds-log { display: flex; flex-direction: column; margin: 0; padding: 0; }
+.ds-log li { list-style: none; padding: 9px 0; border-top: 1px solid var(--line-1); display: flex; gap: 10px; font: 400 calc(17px * var(--ts, 1))/1.35 var(--font-voice); }
+.ds-log li .ph { flex: none; width: 24px; font: 700 calc(13px * var(--ts, 1))/calc(22px * var(--ts, 1)) var(--font-ui); color: var(--ink-3); text-align: center; }
+.ds-log li.j-combat span:last-child { color: #f0c0a0; } .ds-log li.j-block span:last-child { color: #ff9c8a; } .ds-log li.j-trade span:last-child { color: var(--gold); }
+.journal .ds-sheet-head .ds-voice-sw { margin-right: 4px; }
+
+/* ---- toast ---- */
+.ds-toast { bottom: 140px; pointer-events: none; }          /* a toast never swallows the tap on the button under it */
+
+/* ---- short phones ---- */
+@media (max-height: 700px) { .ds-tray .tray-body { max-height: calc(var(--tray-max) - 148px); } .ds-tray.shared .tray-body { max-height: calc(var(--tray-max) - 148px - 52px); } }
+
+/* override: a decision sheet that hugs its content never grows past `half` (46%, 52% on a short phone): the map above it stays at least 43% / 41% of the screen and the rest scrolls */
+.ds-sheet.decision[data-detent="hug"] { max-height: 46%; }
+@media (max-height: 700px) { .ds-sheet.decision[data-detent="hug"] { max-height: 52%; } }
+.journal .ds-note { position: relative; } .journal .ds-note::after { content: ""; position: absolute; inset: -4px 0; }   /* 36px chip, 44px hit area */
+
+/* ---- loading and error (mockup 08 j3, j4) ---- */
+.ds-state-host { position: absolute; inset: 0; display: grid; place-items: center; }
+.ds-state-host .ds-state { margin: 0; }
+.tray-skel { padding: 6px var(--gutter) calc(18px + var(--safe-b)); display: flex; flex-direction: column; gap: 12px; }
+.ds-error-details { max-width: 280px; word-break: break-word; user-select: text; }
+.ds-tray.error .ds-actions .lead, .ds-tray.error .ds-actions { gap: 12px; }
+
+.ds-map-btn[hidden] { display: none; }
+.ds-plan .ds-sub-scroll { max-height: 150px; overflow-y: auto; overscroll-behavior: contain; }
+
+/* override: the Kit is a reading sheet that must show its eight slots and the first pack row on a 360x640 phone: its tall is 84%, not 78% (P2's acceptance) */
+.ds-sheet.kit-sheet[data-detent="tall"] { --sheet-h: 84%; }
+/* override: core hides every scrim after a decision sheet; a look (Kit, menu, Journal) opened over a waiting question has its own scrim, which must show */
+.ds-sheet.decision ~ .ds-scrim:not(.none) { display: block; }
+
+/* ---- F1: fixes from the QA-1 playtest (docs/design/redesign/QA-1.md) ---- */
+/* QA-19: on the first day the chip says "0/5" in the quiet colour: nothing has been earned yet, the number is not a penalty */
+.ds-vp.idle b { color: var(--ink-3); font-size: calc(16px * var(--ts, 1)); }
+/* QA-9: the welcome sheet is two lines of the game's voice, never an orphan */
+.welcome .ds-voice { margin: 0 0 12px; text-wrap: balance; }
+/* QA-15 (override of core.css, F1): every handle has a 44px hit area (the 14px bar is what is drawn; the area runs 18px above it and 14px below), and never shrinks in a full sheet */
+.ds-grab { position: relative; flex: none; }
+.ds-grab::after { content: ""; position: absolute; inset: -17px 0 -14px; }          /* (45: 14 drawn, 17 above, 14 below; the head's title starts below that, so it stays clickable) */
+.ds-tray > .ds-grab::after { inset: -34px 22% 0; }          /* (the tray's handle: the line under it is another button, so the area runs up over the map's lower edge, in the middle, clear of the map button) */
+/* the Story | Detail switch: its buttons are 30 to 32px tall to look right in a head; the hit area is 44+ */
+.ds-voice-sw button::after { inset: -8px 0; }
+/* the plan's Back / Clear: 36px to look right in the line, 44px to touch */
+.ds-plan-ask .ds-btn::after { inset: -8px -4px; }
+/* the summaries that open what lies behind a score or a day: a 44px row with the same triangle the Kit uses */
+:is(.sr-math, .sr-parts, .sr-idle, .repstep, .end-idle, .ds-more, .ds-roads) > summary { min-height: 44px; display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
+:is(.sr-math, .sr-parts, .sr-idle, .repstep, .end-idle, .ds-more, .ds-roads) > summary::-webkit-details-marker { display: none; }
+:is(.sr-math, .sr-parts, .sr-idle, .repstep, .end-idle, .ds-more, .ds-roads) > summary::before { content: ""; flex: none; width: 0; height: 0; border-left: 6px solid currentColor; border-top: 5px solid transparent; border-bottom: 5px solid transparent; transition: transform var(--d-fast); }
+:is(.sr-math, .sr-parts, .sr-idle, .repstep, .end-idle, .ds-more, .ds-roads)[open] > summary::before { transform: rotate(90deg); }
+
+/* DR-22: the Wilds line of a new day is read on up to three lines (label and text running on), not cut off after one: it is the beat that says what is prowling. Every later phase has the one-line rule;
+   a longer line is clamped and the Journal (tap) tells it whole. */
+.ds-last.two { height: auto; min-height: 44px; align-items: flex-start; padding-top: 8px; padding-bottom: 6px; }
+.ds-last.two .txt { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.25; display: block; }
+.ds-last.two .txt b { display: inline; margin-right: 8px; }
+.ds-last.two .txt .clamp { display: inline; }
+.ds-last.two .txt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.ds-last.two > .ds-i { margin-top: 2px; }
+/* DR-9: the empty tab's dash is the secondary ink (the tertiary one measured 4.4:1 on the selected tab) */
+.ds-plan .ds-tab:not(.set) small, .ds-plan .ds-tab:not(.set).on small { color: var(--ink-2); }
+/* DR-12: the prose of every sheet (information, results, the end screens) breaks to even out its last line */
+.ds-sheet p, .ds-sheet .ds-row .main span, .ds-sheet .ds-ask span, .ds-end p, .ds-egoal .egn { text-wrap: pretty; }
+
+/* hot seat: the characters of one player, under the status strip (hotseat.js) */
+.ds-party { flex: none; display: flex; gap: 6px; padding: 4px var(--gutter); background: var(--surface-1); border-bottom: 1px solid var(--line-1); overflow-x: auto; }
+.ds-party[hidden] { display: none; }
+.ds-party .pchip { flex: 1 0 auto; min-width: 44px; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface-2, var(--surface-1)); color: var(--ink-2); font: 600 15px/1 var(--font-ui); display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
+.ds-party .pchip.on { background: var(--surface-4); color: var(--gold-hi); box-shadow: inset 0 0 0 1px var(--gold-lo); }
+.ds-party .pchip.dead { opacity: .55; text-decoration: line-through; }
+.ds-party .pwait { width: 9px; height: 9px; border-radius: 50%; background: var(--gold-hi); flex: none; }
+.ds-party .pfol { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; color: var(--ink-3); } .ds-party .pfol svg { width: 16px; height: 16px; }
+
+
+/* Every icon is named where you can see it (Mike's note 102; ui_screens "iconname"): the word sits under the picture, the aria-label keeps the long name. 12px, ink-2. */
+.ds-strip .menu, .ds-sheet-head .x, .ds-map-btn, .ds-gear { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.ds-strip .menu .lbl, .ds-sheet-head .x .lbl, .ds-map-btn .lbl, .ds-gear .lbl { font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); letter-spacing: .02em; color: var(--ink-2); pointer-events: none; }
+.ds-strip .menu { width: 52px; } .ds-strip .menu .ds-i, .ds-sheet-head .x .ds-i, .ds-map-btn .ds-i, .ds-gear .ds-i { width: 22px; height: 22px; }
+.ds-sheet-head .x { width: 48px; margin-right: -14px; }          /* (the same room the 44px cross took: the title does not wrap one word earlier) */ .ds-sheet-head .x .lbl { color: var(--ink-3); }
+.ds-map-btn { width: 44px; height: 44px; border-radius: 14px; } .ds-map-btn.ds-bare-btn { bottom: 64px; }
+.ds-btn.ds-gear { width: auto; min-width: 60px; height: 56px; padding: 0 8px; top: 4px; }          /* (two classes: .ds-btn.icon fixes the width at 44) */
+
+/* The map's buttons ride up above a sheet that covers the map's lower edge (shell.js syncCamera sets --cover); ui_screens "covered": the Bare button sat under the sheet's handle. */
+.ds-map-btn { bottom: min(calc(12px + var(--cover, 0px)), calc(100% - 64px)); } .ds-map-btn.ds-bare-btn { bottom: calc(min(calc(12px + var(--cover, 0px)), calc(100% - 64px)) + 52px); }
+.mapbox.cramped .ds-map-btn { display: none; }
+
+/* Mike (2026-11-02): a small word under each of Fame, Notoriety, Gold and the day pips, visible, not only on tap. The icon and number stay on one line; the word is the second. 12px, ink-2.
+   At 360 wide the strip is menu 52 + day + three stats (about 44 + 52 + 40) + VP: it still fits (ui_screens hscroll, ui_f1). */
+.ds-strip .ds-stat { flex-direction: column; gap: 1px; position: relative; padding: 0 5px; }
+.ds-strip .ds-stat .v { display: inline-flex; align-items: center; gap: 3px; } .ds-strip .ds-stat .w { font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); letter-spacing: .01em; color: var(--ink-2); }
+.ds-strip .ds-stat .voidmark { position: absolute; right: -3px; top: 5px; }
+.ds-strip .ds-stat { font-size: calc(16px * var(--ts, 1)); }
+.ds-pips { flex-direction: column; justify-content: center; gap: 1px; height: auto; min-height: 44px; }
+.ds-pips .row { display: flex; align-items: center; gap: 3px; } .ds-pips.many .row { gap: 2px; }
+.ds-pips .w { font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); letter-spacing: .01em; color: var(--ink-2); }
+@media (max-width: 374px) { .ds-strip .ds-stat { min-width: 36px; padding: 0 2px; } }
+
+/* The "nothing" phase's dash is an svg, not art: on a done pip it was 2.5:1 (ui_screens contrast); it keeps the pip's plate and reads at 3:1 */
+.ds-pip .ds-i { color: var(--ink-2); position: relative; } .ds-pip.done .ds-i { opacity: .8; }
+
+/* A sheet is at least as tall as the tray beneath it, so the tray's last line never peeks out above a short sheet and is never half under its handle (ui_screens covered ds-last). Not for a peeked decision. */
+.layer .ds-sheet:not([data-detent="peek"]):not(.peeked) { min-height: calc(var(--tray-h, 0px) + 6px); }
+.ds-pip .ds-i { color: var(--ink) !important; } .ds-pip.done .ds-i { opacity: .85; }
+
+/* the flip button: above the bare-tiles one, 52px a step (note: Mike 2026-11-05) */
+.ds-map-btn.ds-flip-btn { bottom: calc(min(calc(12px + var(--cover, 0px)), calc(100% - 64px)) + 104px); }
+.ds-flip-btn.on { border-color: var(--gold); color: var(--gold-hi, #b5e39c); }
+.ds-flipnote { position: absolute; left: 12px; right: 68px; top: 10px; z-index: 3; padding: 6px 12px; border-radius: 12px; background: rgba(15, 17, 23, .9); border: 1px solid var(--gold); color: var(--ink); font: 600 calc(13px * var(--ts, 1))/1.25 var(--font-ui); pointer-events: none; }
+.ds-flipnote[hidden] { display: none; }

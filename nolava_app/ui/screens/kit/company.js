@@ -1,0 +1,150 @@
+// screens/kit/company.js (P2): the Company room of the Kit sheet: who is with you. One card per hired group (natives, hired monsters, creatures under your control), shown as the
+// printed counters (tap one to turn it over), the days left as pips (14, amber at 3 or fewer), the Extend chip (lit only in a Hire phase, where the engine offers it), where you
+// stand with each group, and what you owe. There is no dismiss action in the engine, so none is offered; hirelings fight beside you without orders (the engine deploys them).
+import { hireStats } from '../../combat/feed.js';
+import { SIDE_WORD, nextSide, sideFigures } from '../../sides.js';
+import { hirelingsOf } from '../../../engine/party.js';
+import { policyBlock } from '../meetui.js';
+import { act } from '../play/actions.js';
+import { mc } from '../play/kit.js';
+import { render } from '../play/shell.js';
+import { h } from '../../dom.js';
+import { art } from '../../icons.js';
+import { markGroup } from '../../groups.js';
+import { goldEl, moodTag, nativeArt, say } from './common.js';
+import { tieNumber } from '../../names.js';
+import { counterLook } from '../../leaders.js';
+import { switchTo } from '../play/hotseat.js';
+import { flyBadge } from '../../steeds.js';
+import { standing } from '../../missions.js';
+import { steedNote, steedAskWords } from './companysteed.js';
+import { ownSheet, gameOf, questionOf, charsOf } from '../../combat/feed.js';
+
+// Everyone who is with this character and alive: natives and monsters he hired, and creatures a spell put under his command.
+export function hirelings(G) { return hirelingsOf(G.st, ownSheet(G.st, G.data).id).filter(o => !o.dead); }
+export const hireCount = G => hirelings(G).length;
+
+const isNat = (G, o) => G.st.nats.includes(o);
+const daysLeft = (G, o) => Math.max(0, (o.hiredUntil ?? gameOf(G.st, G.data).day) - gameOf(G.st, G.data).day + 1);          // hired on day D it runs to midnight of D+13: 14 days counting today
+
+// The art of a hireling's counter: a native's counter, or a monster's colour counter.
+function counterArt(G, o) {
+    if (isNat(G, o)) return nativeArt(G, o.id);
+    const name = G.data.monsters[o.id]?.name;
+    return G.data.art?.monsters?.[name] ?? null;
+}
+
+// What shows on a counter turned over: the blow and move printed on its other side (light, dark and, for a Tremendous monster, red), read from the data for that side, with the side's name and which side is up now (note 97).
+function otherSide(G, o, sideNow = null) {
+    try {
+        const nat = isNat(G, o), kind = nat ? 'nat' : 'mon', def = nat ? G.data.natives[o.id] : G.data.monsters[o.id];
+        const now = [sideNow, o.side].find(x => x && (x === 'light' || def[x])) ?? 'light', side = nextSide(def, kind, now);
+        if (side === now) return null;
+        const f = sideFigures(G.data, kind, o.id, side);
+        return { name: SIDE_WORD[side], side, now: SIDE_WORD[now].toLowerCase(), hit: f.attack === 'none' ? 'no blow' : `${f.harm}${f.atk ?? ''}`, move: f.move != null ? `move ${f.move}` : '' };
+    } catch { return null; }
+}
+
+function counter(G, o, ctl) {
+    const nat = isNat(G, o), def = nat ? G.data.natives[o.id] : G.data.monsters[o.id], flipped = !!G.ui.coFlip?.[o.id];
+    let s = null; try { s = hireStats(G.st, G.data, o.id, nat ? 'nat' : 'mon'); } catch { /* a name only */ }
+    const lbl = nat && def.leader ? 'Lead' : s?.harm ? `${s.harm}${s.atk ?? ''}` : '';
+    const img = counterArt(G, o);
+    const look = gameOf(G.st, G.data).options?.hirelingRules ? counterLook(o) : null;
+    const back = flipped ? otherSide(G, o, look?.side) : null;          // (hireling rules: the counter lies dark side up while he is hidden, red for a hidden Tremendous monster)
+    const el = h('button', { type: 'button', class: `ds-counter tall kit-counter hc${flipped ? ' flipped' : ''}`, 'data-hireling': o.id, 'data-flip': '', 'data-side': look?.side ?? null, 'data-hidden': look ? (look.hidden ? '1' : '0') : null,
+        'aria-label': `${def.name}: ${back ? `${back.name.toLowerCase()} showing, the other side; the ${back.now} is up now. Tap to turn it back` : 'tap to turn the counter over'}${look?.hidden ? `. It is ${look.word}` : ''}`, 'aria-pressed': flipped ? 'true' : 'false',
+        onclick: () => { (G.ui.coFlip ??= {})[o.id] = !flipped; render(G); } },
+        flipped ? h('span', { class: 'kit-back' }, back ? [h('small', { 'data-side': back.side }, back.name), h('b', {}, back.hit), h('small', {}, back.move)] : [h('small', {}, 'No other side')]) : (img ? art(img.replace(/^art\//, ''), '', def.name) : h('span', { class: 'kit-noart' }, def.name)),
+        flipped ? null : h('span', { class: 'lbl' }, lbl), look?.hidden && !flipped ? h('span', { class: 'hc-tag' }, 'hidden') : null, flyBadge(G.st, nat ? 'nat' : 'mon', o.id, def.name));          // (a Fly chit on a hireling: steeds.js)
+    return nat ? markGroup(el, def.group) : el;
+}
+
+// "Spear, on ponies": what the group carries and rides, from its printed counters (omitted when the data has none).
+function flavor(G, members) {
+    const nats = members.filter(o => isNat(G, o)).map(o => G.data.natives[o.id]);
+    if (!nats.length) return '';
+    const pl = w => (/y$/.test(w) ? `${w.slice(0, -1)}ies` : `${w}s`);
+    const weapons = [...new Set(nats.map(n => n.weapon?.name).filter(Boolean))], horses = [...new Set(nats.map(n => n.horse?.kind ?? n.horse?.name?.toLowerCase()).filter(Boolean))];
+    const one = nats.length === 1, w = weapons.length === 1 ? (one ? weapons[0] : pl(weapons[0])) : '', hz = horses.length === 1 ? (one ? `on a ${horses[0]}` : `on ${pl(horses[0])}`) : '';
+    return [w, hz].filter(Boolean).join(', ');
+}
+
+// The cards, in the order they are shown: each native group (Order and Rogues are hired one at a time, so one card each), hired monsters by kind, then creatures under control.
+function groups(G) {
+    const out = [], list = hirelings(G);
+    const nats = list.filter(o => isNat(G, o)), mons = list.filter(o => !isNat(G, o));
+    const byGroup = new Map();
+    for (const o of nats) { const d = G.data.natives[o.id], solo = G.data.groups[d.group]?.hireMode === 'individual', k = solo ? o.id : d.group; (byGroup.get(k) ?? byGroup.set(k, { key: k, kind: 'nat', group: d.group, solo, members: [] }).get(k)).members.push(o); }
+    out.push(...byGroup.values());
+    const byKind = new Map();
+    for (const o of mons) { const d = G.data.monsters[o.id], k = `${d.name}:${o.controlledUntil ? 'c' : 'h'}`; (byKind.get(k) ?? byKind.set(k, { key: k, kind: 'mon', group: d.name, controlled: !!o.controlledUntil && o.hiredUntil == null, members: [] }).get(k)).members.push(o); }
+    out.push(...byKind.values());
+    return out;
+}
+
+function titleOf(G, g) {
+    const n = g.members.length;
+    if (g.kind === 'mon') return n > 1 ? `${g.group} ×${n}` : g.group;
+    if (g.solo) return tieNumber(G.data.natives[g.members[0].id].name);
+    const lead = g.members.filter(o => G.data.natives[o.id].leader).length, rest = n - lead;
+    if (!rest) return `${g.group} leader`;
+    return h('span', {}, `${g.group} ×${rest}`, lead ? h('span', { class: 'ds-dim kit-lead' }, ' and their leader') : null);
+}
+
+// Let a hireling go (action 'dismiss', between phases only). Two taps: the first asks, the second does it, so a stray tap never costs a hireling.
+const CAN_DISMISS = new Set(['plan', 'phase', 'phase-pick']);
+function dismissRow(G, g, ctl) {
+    const key = `${g.kind}:${g.key}`, can = CAN_DISMISS.has(questionOf(G.st, G.data)?.type), asking = G.ui.dismissAsk === key && can;
+    const who = g.members.length > 1 ? 'them' : g.kind === 'mon' ? 'it' : 'him';
+    const go = () => { G.ui.dismissAsk = null; for (const o of g.members) act(G, { type: 'dismiss', kind: g.kind === 'mon' ? 'monster' : 'native', id: o.id }); };
+    if (asking) return h('div', { class: 'kit-dismiss asking', 'data-dismiss-ask': '' },
+        h('span', { class: 'ds-why' }, steedAskWords(G, g) ?? `Send ${who} away for good?`),
+        h('button', { type: 'button', class: 'ds-btn sm quiet', 'data-act': 'dismiss-keep', onclick: () => { G.ui.dismissAsk = null; render(G); } }, 'Keep'),
+        h('button', { type: 'button', class: 'ds-btn sm', 'data-act': 'dismiss-go', onclick: go }, 'Let go'));
+    return h('button', { type: 'button', class: `ds-btn sm quiet kit-dismissbtn${can ? '' : ' is-dim'}`, 'data-act': 'dismiss', 'aria-disabled': can ? null : 'true',
+        onclick: () => { if (!can) { ctl.say('You can let someone go between phases, not in the middle of one.'); return; } G.ui.dismissAsk = key; render(G); } }, `Let ${who} go`);
+}
+
+// A hired leader (or creature in hand) who has a seat of his own: the way to his sheet, which is the seat's (leaders.js)
+function seatLinks(G, g) {
+    if (!gameOf(G.st, G.data).options?.hirelingRules) return [];
+    return g.members.filter(o => charsOf(G.st, G.data)[o.id]?.leader).map(o => h('button', { type: 'button', class: 'ds-btn sm kit-seatbtn', 'data-act': 'open-seat', 'data-seat': o.id,
+        onclick: () => { G.ui.sheet = 'char'; switchTo(G, o.id); G.ui.sheet = 'char'; render(G); } }, `${charsOf(G.st, G.data)[o.id].name}: his sheet and turn`));
+}
+
+function groupCard(G, g, ctl) {
+    const days = g.controlled ? null : Math.min(...g.members.map(o => daysLeft(G, o))), low = days != null && days <= 3;
+    const wages = g.members.reduce((n, o) => n + (isNat(G, o) ? G.data.natives[o.id].wage : (G.data.monsters[o.id].notoriety || 1)), 0);
+    const fl = flavor(G, g.members);
+    return h('div', { class: 'ds-group kit-group', 'data-group': g.group },
+        h('div', { class: 'hd' }, h('b', {}, titleOf(G, g)),
+            g.controlled ? h('span', { class: 'ds-tag' }, 'until Sunset') : h('span', { class: `ds-tag ${low ? 'warn' : 'good'}`, 'data-days': String(days) }, `${days} day${days === 1 ? '' : 's'} left`)),
+        g.controlled ? null : h('div', { class: `ds-daypips${low ? ' low' : ''}`, 'aria-hidden': 'true' }, Array.from({ length: 14 }, (_, i) => h('i', { class: i < days ? null : 'off' }))),
+        h('div', { class: 'cs' }, g.members.map(o => counter(G, o))),
+        ...steedNote(G, g),
+        h('p', { class: 'ds-meta kit-orders' }, `${g.controlled ? 'Under your spell. ' : ''}${g.kind === 'mon' && g.members.length === 1 ? 'It fights' : 'They fight'} beside you without orders.${fl ? ` ${fl[0].toUpperCase()}${fl.slice(1)}.` : ''}${gameOf(G.st, G.data).options?.hirelingRules && !g.members.some(o => charsOf(G.st, G.data)[o.id]?.leader) && !g.controlled ? ' Each goes with the guide you name every morning.' : ''}${G.shared ? ` ${g.members.length === 1 && g.kind === 'mon' ? 'It is' : 'They are'} yours alone.` : ''}`),
+        ...seatLinks(G, g),
+        g.controlled ? null : [h('button', { type: 'button', class: 'ds-btn sm is-dim', 'data-act': 'extend', 'aria-disabled': 'true', onclick: () => ctl.say('Extending is done in a Hire phase, beside them.') }, `Extend 14 days · wages ${wages} Gold`),
+            h('div', { class: 'ds-why kit-extwhy' }, 'Extending is done in a Hire phase, beside them.'),
+            dismissRow(G, g, ctl)]);
+}
+
+// the native groups that are foes of the campaign he carries (they stand as Enemies even when his own level with them is not recorded)
+const foeGroups = G => (G.st.ch.missions ?? []).filter(e => e.kind === 'campaign').flatMap(e => e.foes).filter(g => G.data.groups[g]);
+
+// companyTab(G) -> the room's DOM
+export function companyTab(G) {
+    const { ch } = G.st, cards = groups(G), owed = ch.boons ?? [];
+    const ctl = { say: t => say(G, t) };
+    return h('div', { class: 'kit-room kit-company' },
+        h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'In your pay'), cards.length ? h('small', {}, 'tap a counter to turn it') : null),
+        cards.length ? h('div', { class: 'kit-groups' }, cards.map(g => groupCard(G, g, ctl))) : h('p', { class: 'kit-none' }, 'Nobody is in your pay. Natives here will hire out in a Hire phase.'),
+        h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Where you stand')),
+        h('div', { class: 'kit-moods' }, [...new Set([...Object.keys(ch.rel ?? {}), ...foeGroups(G)])].map(g => moodTag(standing(G.st, g), g))),
+        h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'You owe')),
+        owed.length ? h('div', { class: 'ds-list' }, owed.map(b => h('div', { class: 'ds-row kit-owe', 'data-owe': b.group }, h('span', { class: 'main' }, h('b', {}, `The ${b.group}’s ${b.what}`), h('span', {}, 'Buy their goodwill back in a Trade phase beside them: one roll, then it is lost for good.')), h('span', { class: 'end' }, goldEl(G, b.price)))))
+            : h('p', { class: 'ds-text kit-none' }, 'Nothing. No favours to repay.'),
+        ...(G.shared && G.ms ? policyBlock(mc(G)) : []));
+}
+

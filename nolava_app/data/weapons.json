@@ -1,0 +1,732 @@
+{
+ "meta": {
+  "sources": [
+   "RealmSpeak MagicRealmData.xml (magic_realm/utility/components/resources/data)",
+   "digest 03_combat.md section 4.4/6.3",
+   "prototype /Users/tharkad/casdra/magic-realm-server/mr-*.json"
+  ],
+  "notes": "One entry per physical counter (plus Alchemist's Mixture, a weapon card). harm \"N\" where the side prints no letter (RealmSpeak default, e.g. unalerted Spear); attackTime null means use the Fight chit time. native = counter starts in a native group box on the Setup Card (startBox says which); magic = treasure counter from a TWT box. Weapon lengths match the digest 03 list.",
+  "counts": {
+   "counters": 29,
+   "types": 18
+  }
+ },
+ "weapons": [
+  {
+   "id": "bane-sword-1",
+   "name": "Bane Sword",
+   "weight": "T",
+   "length": 8,
+   "price": 20,
+   "fame": 6,
+   "notoriety": 3,
+   "unalerted": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 8
+   },
+   "alerted": {
+    "harm": "T",
+    "stars": 1,
+    "attackTime": 2
+   },
+   "missile": false,
+   "native": false,
+   "magic": true,
+   "card": false,
+   "startBox": "Crypt of the Knight"
+  },
+  {
+   "id": "truesteel-sword-1",
+   "name": "Truesteel Sword",
+   "weight": "M",
+   "length": 7,
+   "price": 25,
+   "fame": 6,
+   "notoriety": 3,
+   "unalerted": {
+    "harm": "M",
+    "stars": 2,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "M",
+    "stars": 2,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": false,
+   "magic": true,
+   "card": false,
+   "startBox": "Enchanted Meadow"
+  },
+  {
+   "id": "devil-sword-1",
+   "name": "Devil Sword",
+   "weight": "H",
+   "length": 7,
+   "price": 20,
+   "fame": 0,
+   "notoriety": 15,
+   "unalerted": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 4
+   },
+   "alerted": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 3
+   },
+   "missile": false,
+   "native": false,
+   "magic": true,
+   "card": false,
+   "startBox": "Toadstool Circle"
+  },
+  {
+   "id": "living-sword-1",
+   "name": "Living Sword",
+   "weight": "L",
+   "length": 4,
+   "price": 25,
+   "fame": 3,
+   "notoriety": 9,
+   "unalerted": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 3
+   },
+   "alerted": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 2
+   },
+   "missile": false,
+   "native": false,
+   "magic": true,
+   "card": false,
+   "startBox": "Remains of Thief"
+  },
+  {
+   "id": "medium-bow-1",
+   "name": "Medium Bow",
+   "weight": "M",
+   "length": 16,
+   "price": 8,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "M",
+    "stars": 2,
+    "attackTime": 1
+   },
+   "missile": true,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Woodfolk Dwelling"
+  },
+  {
+   "id": "light-bow-1",
+   "name": "Light Bow",
+   "weight": "L",
+   "length": 14,
+   "price": 6,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "L",
+    "stars": 2,
+    "attackTime": 1
+   },
+   "missile": true,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Woodfolk Dwelling"
+  },
+  {
+   "id": "light-bow-2",
+   "name": "Light Bow",
+   "weight": "L",
+   "length": 14,
+   "price": 6,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "L",
+    "stars": 2,
+    "attackTime": 1
+   },
+   "missile": true,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Woodfolk Dwelling"
+  },
+  {
+   "id": "crossbow-1",
+   "name": "Crossbow",
+   "weight": "H",
+   "length": 12,
+   "price": 10,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 1
+   },
+   "missile": true,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Chapel"
+  },
+  {
+   "id": "staff-1",
+   "name": "Staff",
+   "weight": "L",
+   "length": 9,
+   "price": 1,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "House"
+  },
+  {
+   "id": "staff-2",
+   "name": "Staff",
+   "weight": "L",
+   "length": 9,
+   "price": 1,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "L",
+    "stars": 0,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "House"
+  },
+  {
+   "id": "great-sword-1",
+   "name": "Great Sword",
+   "weight": "H",
+   "length": 8,
+   "price": 10,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 6
+   },
+   "alerted": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Chapel"
+  },
+  {
+   "id": "broadsword-1",
+   "name": "Broadsword",
+   "weight": "M",
+   "length": 7,
+   "price": 8,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 5
+   },
+   "alerted": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Guard"
+  },
+  {
+   "id": "morning-star-1",
+   "name": "Morning Star",
+   "weight": "H",
+   "length": 6,
+   "price": 8,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 6
+   },
+   "alerted": {
+    "harm": "H",
+    "stars": 0,
+    "attackTime": 3
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Chapel"
+  },
+  {
+   "id": "great-axe-1",
+   "name": "Great Axe",
+   "weight": "H",
+   "length": 5,
+   "price": 8,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 4
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Chapel"
+  },
+  {
+   "id": "great-axe-2",
+   "name": "Great Axe",
+   "weight": "H",
+   "length": 5,
+   "price": 8,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "H",
+    "stars": 1,
+    "attackTime": 4
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Chapel"
+  },
+  {
+   "id": "thrusting-sword-1",
+   "name": "Thrusting Sword",
+   "weight": "L",
+   "length": 4,
+   "price": 6,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4
+   },
+   "alerted": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "House"
+  },
+  {
+   "id": "thrusting-sword-2",
+   "name": "Thrusting Sword",
+   "weight": "L",
+   "length": 4,
+   "price": 6,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": 4
+   },
+   "alerted": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "House"
+  },
+  {
+   "id": "short-sword-1",
+   "name": "Short Sword",
+   "weight": "L",
+   "length": 3,
+   "price": 4,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "House"
+  },
+  {
+   "id": "short-sword-2",
+   "name": "Short Sword",
+   "weight": "L",
+   "length": 3,
+   "price": 4,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "House"
+  },
+  {
+   "id": "short-sword-3",
+   "name": "Short Sword",
+   "weight": "L",
+   "length": 3,
+   "price": 4,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "L",
+    "stars": 1,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "House"
+  },
+  {
+   "id": "axe-1",
+   "name": "Axe",
+   "weight": "M",
+   "length": 2,
+   "price": 4,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 5
+   },
+   "alerted": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Guard"
+  },
+  {
+   "id": "axe-2",
+   "name": "Axe",
+   "weight": "M",
+   "length": 2,
+   "price": 4,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": 5
+   },
+   "alerted": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Guard"
+  },
+  {
+   "id": "mace-1",
+   "name": "Mace",
+   "weight": "M",
+   "length": 1,
+   "price": 6,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 3
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Guard"
+  },
+  {
+   "id": "mace-2",
+   "name": "Mace",
+   "weight": "M",
+   "length": 1,
+   "price": 6,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "M",
+    "stars": 0,
+    "attackTime": 3
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Guard"
+  },
+  {
+   "id": "spear-1",
+   "name": "Spear",
+   "weight": "M",
+   "length": 10,
+   "price": 6,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "N",
+    "stars": 0,
+    "attackTime": 6
+   },
+   "alerted": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Lancer Dwelling"
+  },
+  {
+   "id": "spear-2",
+   "name": "Spear",
+   "weight": "M",
+   "length": 10,
+   "price": 6,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "N",
+    "stars": 0,
+    "attackTime": 6
+   },
+   "alerted": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Lancer Dwelling"
+  },
+  {
+   "id": "spear-3",
+   "name": "Spear",
+   "weight": "M",
+   "length": 10,
+   "price": 6,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "N",
+    "stars": 0,
+    "attackTime": 6
+   },
+   "alerted": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Lancer Dwelling"
+  },
+  {
+   "id": "spear-4",
+   "name": "Spear",
+   "weight": "M",
+   "length": 10,
+   "price": 6,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "N",
+    "stars": 0,
+    "attackTime": 6
+   },
+   "alerted": {
+    "harm": "M",
+    "stars": 1,
+    "attackTime": null
+   },
+   "missile": false,
+   "native": true,
+   "magic": false,
+   "card": false,
+   "startBox": "Lancer Dwelling"
+  },
+  {
+   "id": "alchemists-mixture-1",
+   "name": "Alchemist's Mixture",
+   "weight": "N",
+   "length": 11,
+   "price": 4,
+   "fame": 0,
+   "notoriety": 0,
+   "unalerted": {
+    "harm": "M",
+    "stars": 3,
+    "attackTime": null
+   },
+   "alerted": {
+    "harm": "M",
+    "stars": 3,
+    "attackTime": null
+   },
+   "missile": true,
+   "native": false,
+   "magic": false,
+   "card": true,
+   "startBox": null
+  }
+ ],
+ "types": {
+  "Bane Sword": 1,
+  "Truesteel Sword": 1,
+  "Devil Sword": 1,
+  "Living Sword": 1,
+  "Medium Bow": 1,
+  "Light Bow": 2,
+  "Crossbow": 1,
+  "Staff": 2,
+  "Great Sword": 1,
+  "Broadsword": 1,
+  "Morning Star": 1,
+  "Great Axe": 2,
+  "Thrusting Sword": 2,
+  "Short Sword": 3,
+  "Axe": 2,
+  "Mace": 2,
+  "Spear": 4,
+  "Alchemist's Mixture": 1
+ }
+}

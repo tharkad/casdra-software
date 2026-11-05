@@ -55,6 +55,33 @@ def _mr_reports_db():
     return conn
 # MR-BUG-API v2 end
 
+# NOLAVA-API v1 begin
+NOLAVA_TABLE_SQL = """
+    CREATE TABLE IF NOT EXISTS nolava_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT DEFAULT (datetime('now')),
+        description TEXT NOT NULL,
+        version TEXT, seed TEXT, character TEXT, day INTEGER, result TEXT,
+        user_agent TEXT, ip TEXT,
+        encoding TEXT DEFAULT 'gzip',
+        payload BLOB,
+        status TEXT DEFAULT 'open',
+        notes TEXT DEFAULT ''
+    )
+"""
+
+
+def _nolava_db():
+    base = _mr_reports_dir()
+    os.makedirs(base, exist_ok=True)
+    conn = sqlite3.connect(os.path.join(base, "nolava_reports.db"))
+    conn.row_factory = sqlite3.Row
+    conn.execute(NOLAVA_TABLE_SQL)
+    return conn
+# NOLAVA-API v1 end
+
+NOLAVA_MAX_REPORTS = 3000
+
 def _check_admin(handler):
     """Check if request has valid admin secret. Returns True if authorized."""
     from urllib.parse import parse_qs, urlparse
@@ -3706,6 +3733,10 @@ def build_web_home_page():
             <a class="app-card" href="/noble-fraction/" style="margin-top:12px">
                 <h2>Noble Fraction</h2>
                 <p>Run a cryogenic gas plant and corner the market in xenon — solo vs a rival, built for phones</p>
+            </a>
+            <a class="app-card" href="/nolava/" style="margin-top:12px">
+                <h2>Nolava</h2>
+                <p>A Magical Realm: a fantasy adventure board game for a phone, a tablet or a big screen — playtest build</p>
             </a>
         </div>
     </div>
@@ -7939,6 +7970,7 @@ class Handler(BaseHTTPRequestHandler):
                             or path.startswith("/dicevault") or path.startswith("/cant-stop")
                             or path.startswith("/noble-fraction")
                             or path.startswith("/magic-realm")
+                            or path.startswith("/nolava")
                             or path.startswith("/manifest") or path.startswith("/apple-touch")
                             or path.startswith("/favicon") or path.startswith("/static")):
             self.send_response(404)
@@ -8052,6 +8084,81 @@ class Handler(BaseHTTPRequestHandler):
             # Magic Realm on a phone: plain ES modules, JSON data, bundled fonts. Mirror of the magic-realm repo's app/ (tools/deploy.py).
             rel_path = "index.html" if path == "/magic-realm-next/" else unquote(path[len("/magic-realm-next/"):])
             asset_root = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "magic_realm_next_app"))
+            resolved = os.path.realpath(os.path.join(asset_root, rel_path))
+            if os.path.commonpath([resolved, asset_root]) != asset_root:
+                self.send_error(404)
+                return
+            ext = os.path.splitext(resolved)[1].lower()
+            content_type = {
+                ".html": "text/html; charset=utf-8",
+                ".js": "text/javascript",
+                ".css": "text/css",
+                ".json": "application/json",
+                ".woff2": "font/woff2",
+                ".png": "image/png",
+                ".svg": "image/svg+xml",
+                ".txt": "text/plain; charset=utf-8",
+            }.get(ext, "application/octet-stream")
+            try:
+                with open(resolved, "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-cache" if ext in (".html", ".js", ".css", ".json") else "public, max-age=86400")
+                self.end_headers()
+                self.wfile.write(data)
+            except FileNotFoundError:
+                self.send_error(404)
+
+        # NOLAVA-API v1 begin
+        elif path == "/nolava/api/reports" or path.startswith("/nolava/api/reports/"):
+            # Notes and problem reports sent from the Nolava playtest build. Needs the admin token (?token= or X-Admin-Token).
+            if not _check_admin(self) or (WEB_MODE and ADMIN_SECRET == "casdra-admin-local"):
+                self.send_json({"error": "Not authorized"}, 403)
+                return
+            conn = _nolava_db()
+            if path == "/nolava/api/reports/status":
+                n = conn.execute("SELECT COUNT(*) FROM nolava_reports").fetchone()[0]
+                conn.close()
+                self.send_json({"reports": n, "persistent": _mr_reports_persistent(), "dir": _mr_reports_dir(), "web_mode": bool(WEB_MODE)})
+            elif path == "/nolava/api/reports":
+                rows = conn.execute("SELECT id, created_at, version, seed, character, day, result, status, substr(description, 1, 200) AS description, length(payload) AS bytes "
+                                    "FROM nolava_reports ORDER BY id DESC LIMIT 500").fetchall()
+                conn.close()
+                self.send_json([dict(r) for r in rows])
+            else:
+                try:
+                    rid = int(path.rsplit("/", 1)[1])
+                except ValueError:
+                    conn.close()
+                    self.send_json({"error": "bad id"}, 400)
+                    return
+                row = conn.execute("SELECT * FROM nolava_reports WHERE id=?", (rid,)).fetchone()
+                conn.close()
+                if not row:
+                    self.send_json({"error": "not found"}, 404)
+                    return
+                import gzip as _gzip
+                out = dict(row)
+                try:
+                    out["payload"] = json.loads(_gzip.decompress(out["payload"]).decode("utf-8"))
+                except Exception:  # noqa: BLE001
+                    out["payload"] = None
+                self.send_json(out)
+        # NOLAVA-API v1 end
+
+        elif path == "/nolava":
+            # Trailing-slash redirect: relative module imports in index.html must resolve under /nolava/.
+            self.send_response(301)
+            self.send_header("Location", "/nolava/")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        elif path == "/nolava/" or path.startswith("/nolava/"):
+            # Magic Realm on a phone: plain ES modules, JSON data, bundled fonts. Mirror of the magic-realm repo's app/ (tools/deploy.py).
+            rel_path = "index.html" if path == "/nolava/" else unquote(path[len("/nolava/"):])
+            asset_root = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "nolava_app"))
             resolved = os.path.realpath(os.path.join(asset_root, rel_path))
             if os.path.commonpath([resolved, asset_root]) != asset_root:
                 self.send_error(404)
@@ -8576,7 +8683,7 @@ class Handler(BaseHTTPRequestHandler):
             self.path = "/song-burst" + self.path[len("/chartburst"):]
 
         # In web mode, block internal POST routes (allow song-burst + dice)
-        if WEB_MODE and not (self.path.startswith("/song-burst") or self.path.startswith("/dice") or self.path.startswith("/magic-realm/bug-report")):
+        if WEB_MODE and not (self.path.startswith("/song-burst") or self.path.startswith("/dice") or self.path.startswith("/magic-realm/bug-report") or self.path.startswith("/nolava/bug-report")):
             self.send_response(404)
             self.end_headers()
             return
@@ -9232,6 +9339,51 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
             self.send_json({"ok": True, "id": rid})
         # MR-BUG-API v2 end
+
+        # NOLAVA-API v1 begin
+        elif path == "/nolava/bug-report":
+            # Nolava (playtest build) note or "Report a problem": a description plus the game's record and state, kept for later analysis.
+            if not _rate_check(self.client_address[0], 'nolava_report', 10):
+                self.send_json({"ok": False, "error": "Too many reports. Try again in a minute."}, 429)
+                return
+            try:
+                data = json.loads(body) if body.startswith("{") else {}
+            except (json.JSONDecodeError, ValueError):
+                data = {}
+            description = (data.get("description") or "").strip()[:4000]
+            if not description:
+                self.send_json({"ok": False, "error": "Please say what went wrong."}, 400)
+                return
+            import base64 as _b64
+            import gzip as _gzip
+            try:
+                if data.get("encoding") == "gzip-base64":
+                    blob = _b64.b64decode(data.get("payload") or "")
+                    _gzip.decompress(blob)                        # must be a valid gzip stream
+                else:
+                    blob = _gzip.compress((data.get("payload") or "").encode("utf-8"))
+            except Exception:  # noqa: BLE001
+                self.send_json({"ok": False, "error": "The report data could not be read."}, 400)
+                return
+            if len(blob) > 900_000:
+                self.send_json({"ok": False, "error": "The report is too large."}, 413)
+                return
+            summary = data.get("summary") or {}
+            conn = _nolava_db()
+            if conn.execute("SELECT COUNT(*) FROM nolava_reports").fetchone()[0] >= NOLAVA_MAX_REPORTS:
+                conn.close()
+                self.send_json({"ok": False, "error": "The report box is full. Please try again later."}, 503)
+                return
+            cur = conn.execute(
+                "INSERT INTO nolava_reports (description, version, seed, character, day, result, user_agent, ip, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (description, str(summary.get("version") or "")[:20], str(summary.get("seed") or "")[:20], str(summary.get("character") or "")[:40],
+                 int(summary["day"]) if str(summary.get("day", "")).isdigit() else None, str(summary.get("result") or "")[:20],
+                 (self.headers.get("User-Agent") or "")[:300], self.client_address[0], blob))
+            conn.commit()
+            rid = cur.lastrowid
+            conn.close()
+            self.send_json({"ok": True, "id": rid})
+        # NOLAVA-API v1 end
 
         elif path == "/dice/bug":
             if not _rate_check(self.client_address[0], 'bug_report', 5):

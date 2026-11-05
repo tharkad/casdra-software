@@ -1,0 +1,550 @@
+// combat/sheets.js: the one-question sheets of the combat scene, one builder per thing the engine can be waiting for: the Meeting's questions, the Encounter's verbs and what each opens,
+// the Melee stepper (Strike, Guard, Foes, Roll), the round's result, the wound and fatigue grids, the end of the fight and the Record. A sheet asks one question, has exactly one primary
+// button (bottom right) and says why when something is dim. Nothing here decides a rule: legality comes from the engine's own options and reasons (model.js words them).
+import { h } from '../dom.js';
+import { icon, actIcon } from '../icons.js';
+import { btn, primary, twoLine, voiceSwitch, delta, sheet as dsSheet } from '../ds.js';
+import { nameOfClearing, tileName, isWeaponCard, nameOf, whySentence } from '../../engine/catalogue.js';
+import { optionsOf, denSide, activeArmor, hasTreasure, makeChange, own } from './feed.js';
+import { commitmentOf, voiced } from '../commit.js';
+import { heldLockOf, mistWords, energizeWords, gearPairWhy, flyWords, voicedWhy } from '../spellwhy.js';
+import * as P from './payload.js';
+import { broomstickAim } from './steedaim.js';
+import * as M from './model.js';
+import { needsConfirm, needsWhom, whomBody } from './shared.js';          // (P6: the shared fight's extra step and its confirms)
+import { targetName as pvpTargetName } from '../pvp.js';
+import { DIRS, MNV, BOX, chitText, chitKindWord, chitName, nb, listOf, baseName } from './model.js';
+import * as SEC from './sections.js';
+import { sectionsStep } from './sections_ui.js';
+import { reviewButton } from './sections_review.js';          // (hirelings on Melee Sections: the Hires step)
+
+const hint = (text, cls = '') => h('p', { class: `cb-hint${cls ? ` ${cls}` : ''}` }, text);
+const qRow = (b, right = null) => h('div', { class: 'q' }, h('b', {}, b), right);
+const foot = (lead, prim) => h('div', { class: 'ds-actions' }, lead ? h('div', { class: 'lead' }, lead) : null, prim);
+const leadText = (...kids) => h('span', { class: 'ds-lead-text' }, ...kids);
+const effortLead = eff => leadText(eff.over ? h('span', { style: 'color:var(--danger)' }, eff.text) : ['Effort ', h('b', {}, eff.lim >= 99 ? `${eff.ast}, no limit` : `${eff.ast} of ${eff.lim}`)]);
+// Peace holds: nobody may attack (a Wish for Peace, or a Peace spell on him). Said once, at the top of the Encounter and Melee sheets.
+const peaceBanner = X => { const pc = M.peaceOf(X.st, X.data); return pc ? h('div', { class: 'ds-peace', 'data-peace': pc.kind, role: 'note' }, h('b', {}, 'Peace holds: nobody may attack.'), voiced(pc, { class: 'peace-text' })) : null; };
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+// the sheet itself (the body of the scene's lower third)
+export const sheetEl = (X, kind, ...kids) => h('div', { class: 'cb-sheet', 'data-kind': kind, 'data-ask-type': X.p?.type ?? '' }, ...kids);
+
+// a chit as a tile: its value and a kind word. `on`: chosen; `why`: when set it is dim and a tap says why.
+export function chitTile(X, ch, { on = false, why = null, onclick, attrs = {} }) {
+    return h('button', { type: 'button', class: `ds-chit ${ch.type}${on ? ' sel' : ''}${why ? ' dim' : ''}${ch.state === 'fatigued' ? ' tired' : ''}${ch.state === 'wounded' ? ' wounded' : ''}`, 'data-chit': ch.id, 'aria-pressed': on ? 'true' : 'false', 'aria-disabled': why ? 'true' : null,
+        'aria-label': `${ch.card && !ch.isHorse ? `${X.data?.treasures?.[ch.name]?.name ?? ch.name}: ` : ''}${chitName(ch)}${why ? `: ${why}` : ''}`, ...attrs, onclick: () => (why ? X.say(why) : onclick()) }, h('span', {}, chitText(ch)), h('small', {}, chitKindWord(ch)));
+}
+
+// ================= the Meeting: pay, drinks, choice =================
+export function meetingSheet(X) {
+    const { st: fm, data, p, send } = X;
+    if (p.type === 'combat-drinks') {
+        const can = own(fm, data).gold >= p.cost;
+        return sheetEl(X, 'meeting', qRow('Meeting', h('span', {}, 'one question')),
+            hint(can ? `Buy them drinks for ${p.cost} Gold: one step friendlier before the Meeting roll.` : `Drinks cost ${p.cost} Gold and you have ${own(fm, data).gold}.`),
+            foot(btn('No thanks', '', { 'data-act': 'no-drinks', onclick: () => send(P.drinks(false)) }),
+                primary(twoLine('Buy drinks', `${p.cost} Gold · you have ${own(fm, data).gold}`), { 'data-act': 'drinks', 'data-buy': '', disabled: !can, onclick: () => send(P.drinks(true)) })));
+    }
+    if (p.type === 'combat-pay') {
+        const cost = p.cost === 'fame' ? 'Fame' : 'Notoriety', have = own(fm, data)[p.cost === 'fame' ? 'fame' : 'notoriety'], can = have >= p.amount;
+        const payBtn = isPrimary => (isPrimary ? primary : btn)(twoLine(`Pay ${p.amount} ${cost}`, can ? `you have ${have}` : `you have ${have} \u00B7 leaves ${String(have - p.amount).replace('-', '\u2212')}`), { 'data-act': 'pay', onclick: () => send(P.pay(true)) });
+        const fight = isPrimary => (isPrimary ? primary : btn)('Fight', { 'data-act': 'pay-fight', onclick: () => send(P.pay(false)) });
+        return sheetEl(X, 'meeting', qRow('Meeting', h('span', {}, 'one question')),
+            hint(`Pay ${p.amount} ${cost} and they let you be, or stand and fight.`),
+            can ? foot(fight(false), payBtn(true)) : foot(payBtn(false), fight(true)));
+    }
+    // combat-choice: they are not looking for a fight, so letting them be is the primary (right, gold) and picking the fight is the quiet one (QA-2: a stray tap must not turn on your own allies)
+    const why = M.standingWhy(fm, p.groups);
+    return sheetEl(X, 'meeting', qRow('Meeting', h('span', {}, 'one question')),
+        hint(`${why ? `${why} ` : ''}You may attack ${p.groups.length > 1 ? 'one of them, which brings its whole group in' : 'them'}, or let them be.`),
+        foot(btn('Pick a fight', 'quiet', { 'data-act': 'attack-natives', onclick: () => send(P.choice(true)) }), primary('Let them be', { 'data-act': 'let-be', onclick: () => send(P.choice(false)) })));
+}
+
+// ================= the Encounter: three verbs and Go on =================
+export function encounterSheet(X) {
+    const { st: fm, data, cb, send, render, p, c } = X;
+    const o = optionsOf(fm, data);
+    const round = p.spellOnly ? 'Quiet evening' : `Round ${c.round} · Encounter`;
+    const items = own(fm, data).items.filter(i => !i.destroyed);
+    const mist = !!own(fm, data).mist && !p.spellOnly;          // 8.4.5p.1: a mist hero stays in the fight and may only run (Move chit) or pass: nothing else is offered, and the screen says why
+    const itemsBtn = items.length && !mist ? h('button', { type: 'button', class: 'ds-btn quiet sm', 'data-act': 'gear-open', onclick: () => { cb.pick = { kind: 'gear' }; render(); } }, p.spellOnly ? 'Items' : 'Switch an item', icon('right')) : null;
+    const back = btn('Back', 'quiet', { 'data-act': 'pick-back', onclick: () => { cb.pick = null; cb.quiet = null; render(); } });
+    const pick = cb.pick;
+    if (pick?.kind === 'alert' && o.canAlert) return alertPick(X, o, round, back);
+    if (pick?.kind === 'berserk' && o.berserkChits?.length) return berserkPick(X, o, round, back);
+    if (pick?.kind === 'run' && o.canRun) return runPick(X, o, round, back);
+    if (pick?.kind === 'fly' && o.canFly) return flyPick(X, o, round, back);
+    if (pick?.kind === 'gear' && items.length && !mist) return gearPick(X, o, round, back);
+    if (!mist && (pick?.kind === 'cast' || p.spellOnly)) return castPick(X, o, round, back, itemsBtn);
+    cb.pick = null;
+    const v = M.encounterVerbs(fm, data, o, c);
+    const tile = (icoName, label, state, on, attrs = {}) => h('button', { type: 'button', class: `cb-verb${state.ok ? '' : ' dim'}`, 'aria-disabled': state.ok ? null : 'true', ...(state.ok ? {} : { 'data-why': attrs['data-verb'], 'data-reason': state.why }), ...attrs,
+        onclick: () => (state.ok ? on() : X.say(state.why)) }, actIcon(icoName, 32), label, state.ok ? (state.sub ? h('small', {}, state.sub) : null) : h('small', {}, state.sub));
+    const runTile = tile('move', 'Run for it', v.run, () => { cb.pick = { kind: 'run', chit: null, to: null }; render(); }, { 'data-verb': 'run' });
+    // a Phase spell he holds (Protection from Magic): lit when he may use it, dim with the reason when he is on a road, in the air, a creature or mist (4.6.7f.2, 7.2.3a.2)
+    const lock = heldLockOf(fm, data), lockTile = lock ? tile('spell', `Use ${lock.names[0]}`, { ok: false, sub: lock.sub, get why() { return voicedWhy(lock); } }, () => {}, { 'data-verb': 'protect-locked' }) : null;
+    // Permanent spells that a colour chit of his could wake: it is not his action (8.3.9a.2), so the step goes on as it was. Not in a shared fight (the engine refuses it there).
+    const wake = X.shared || mist ? [] : (o.energize ?? []).map(en => { const w = energizeWords(fm, data, en); return { en, w, el: tile('spell', 'Energize', { ok: true, sub: en.name }, () => X.send({ type: 'energize', fx: en.fx, colorChit: en.chits[0] }), { 'data-act': 'energize', 'data-fx': en.fx, 'aria-label': `Energize ${en.name}: ${w.story}` }) }; });
+    const tiles = mist ? [runTile] : [
+        tile('alert', M.weaponVerb(o), v.alert, () => { cb.pick = { kind: 'alert', chit: null }; render(); }, { 'data-verb': 'alert' }),
+        ...(own(fm, data).chits.some(c => c.type === 'berserk') ? [tile('alert', 'Go berserk', o.berserkChits?.length ? { ok: true } : { ok: false, sub: own(fm, data).berserk ? 'already raging' : 'too slow', why: own(fm, data).berserk ? 'Your rage is already on until midnight.' : 'Your Berserk chit must be active and faster than every creature that attacks you.' }, () => { cb.pick = { kind: 'berserk', chit: null }; render(); }, { 'data-verb': 'berserk' })] : []),
+        runTile,
+        tile('spell', 'Cast a spell', v.cast, () => { cb.pick = { kind: 'cast' }; render(); }, { 'data-verb': 'cast' }),
+        ...(v.fly ? [tile('fly', 'Fly away', v.fly, () => { cb.pick = { kind: 'fly', chit: null, to: null }; render(); }, { 'data-verb': 'fly' })] : []),
+        ...(o.held ?? []).map(hd => tile('spell', `Use ${hd.name}`, { ok: true }, () => send(P.protect(hd.fx)), { 'data-act': 'protect', 'data-fx': hd.fx })),
+        ...(lockTile ? [lockTile] : []),
+        ...wake.map(x => x.el),
+    ];
+    // the reasons that are not a dim tile's own: a mist hero's (why only running is offered), and what an Energize costs (a dim tile says its own reason, in a word, and in full when tapped)
+    const why = mist ? [voiced(mistWords(), { class: 'cb-hint', 'data-hint': 'mist' })] : [];
+    const wakeNote = wake.length ? [voiced(wake.length === 1 ? wake[0].w : { story: 'Each Energize burns one colour chit to wake a spell. It does not use your action.', detail: 'Each Energize burns one colour chit to wake a Permanent spell (8.3.9a). It is not an action, so you may still act this Encounter step (8.3.9a.2).' }, { class: 'cb-hint', 'data-hint': 'energize' })] : [];
+    const hidden = o.canStay && !mist;
+    // creatures that cast rather than strike (a Demon: the Power of the Pit; an Imp: a Curse): said once, in a line, with the table one tap away
+    const casters = M.bodiesOf(fm).filter(d => denSide(fm, data, d).attack === 'spell');
+    const pitNote = casters.length ? hint(`${M.cap(M.foesPhrase(casters.map(d => denSide(fm, data, d).name)))} ${casters.length > 1 ? 'cast' : 'casts'} rather than ${casters.length > 1 ? 'strike' : 'strikes'}: your maneuver can turn it aside, armor will not.`) : null;
+    // the Record is one tap away here too (round 2 on: what the first round did), in the lead slot when it is free, else a quiet row of its own
+    const recBtn = M.recordRounds(fm).length ? btn('Record', 'quiet', { 'data-act': 'record', onclick: () => { cb.record = true; render(); } }) : null;
+    const lead0 = hidden ? btn('Strike from hiding', '', { 'data-act': 'pass', onclick: () => send(P.pass()) }) : casters.length ? btn(casters.every(d => M.isImp(data, d)) ? 'The curses' : 'What the Pit can do', 'quiet', { 'data-act': 'pit-note', onclick: () => { cb.pit = true; render(); } }) : null;
+    const lead = lead0 ?? recBtn;
+    const prim = hidden ? primary('Stay hidden', { 'data-act': 'stay-hidden', onclick: () => send(P.stay()) }) : mist ? primary('Let the round pass', { 'data-act': 'pass', onclick: () => send(P.pass()) }) : primary('Go on to the fight', { 'data-act': 'pass', onclick: () => send(P.pass()) });
+    return sheetEl(X, 'encounter', qRow(round, itemsBtn ?? h('span', {}, mist ? 'As mist' : 'Before the melee?')), peaceBanner(X), h('div', { class: 'cb-verbs' }, ...tiles), ...why, ...wakeNote, pitNote, lead0 && recBtn ? h('div', { class: 'cb-recrow' }, recBtn) : null, foot(lead, prim));
+}
+
+function chitPickRow(X, chits, selId, onPick) {
+    return h('div', { class: 'cb-chits', 'data-scope': '' }, ...chits.map(ch => chitTile(X, ch, { on: selId === ch.id, onclick: () => onPick(ch.id) })));
+}
+const cheapest = chits => [...chits].sort((a, b) => (a.effort ?? 0) - (b.effort ?? 0) || (a.time ?? 0) - (b.time ?? 0))[0];
+
+function alertPick(X, o, round, back) {
+    const { cb, send, render } = X, chits = o.alertChits;
+    const sel = cb.pick.chit && chits.some(x => x.id === cb.pick.chit) ? cb.pick.chit : cheapest(chits).id;
+    const verb = o.weapon.item.alerted ? 'Put your weapon away' : 'Ready your weapon';
+    return sheetEl(X, 'encounter-pick', qRow(round, h('span', {}, verb)), chitPickRow(X, chits, sel, id => { cb.pick.chit = id; render(); }),
+        hint('Pick the Fight chit that does it. It is your action; the melee follows.'),
+        foot(back, primary(o.weapon.item.alerted ? 'Unalert it' : 'Alert it', { 'data-act': 'alert-go', onclick: () => send(P.alert(sel)) })));
+}
+function berserkPick(X, o, round, back) {
+    const { cb, send, render } = X, chits = o.berserkChits;
+    const sel = cb.pick.chit && chits.some(x => x.id === cb.pick.chit) ? cb.pick.chit : chits[0].id;
+    return sheetEl(X, 'encounter-pick', qRow(round, h('span', {}, 'Go berserk')), chitPickRow(X, chits, sel, id => { cb.pick.chit = id; render(); }),
+        hint('Play the Berserk chit as your action. Your vulnerability is Tremendous until midnight, so blows that would have killed you only wound. Its asterisks tire like a Fight chit. The melee follows.'),
+        foot(back, primary('Go berserk', { 'data-act': 'berserk-go', onclick: () => send(P.berserk(sel)) })));
+}
+function runPick(X, o, round, back) {
+    const { cb, send, render } = X, chits = o.runChits, roads = o.runTo;
+    const sel = cb.pick.chit && chits.some(x => x.id === cb.pick.chit) ? cb.pick.chit : cheapest(chits).id;
+    const to = cb.pick.to && roads.includes(cb.pick.to) ? cb.pick.to : roads[0];
+    return sheetEl(X, 'encounter-pick', qRow(round, h('span', {}, 'Run for it')),
+        roads.length > 1 ? h('div', { class: 'cb-aim', role: 'radiogroup', 'aria-label': 'Which road' }, ...roads.map(r => h('button', { type: 'button', class: `ds-btn${to === r ? ' on' : ''}`, 'data-road': r, 'aria-pressed': to === r ? 'true' : 'false', onclick: () => { cb.pick.to = r; render(); } }, nb(nameOfClearing(r))))) : null,
+        chitPickRow(X, chits, sel, id => { cb.pick.chit = id; render(); }),
+        hint(runWords(X, o, roads, to)),
+        foot(back, primary('Run', { 'data-act': 'run-go', onclick: () => send(P.run(sel, to)) })));
+}
+// What the run costs tomorrow, said before he runs (notes 67 and 69, 8.3.8b and 8.3.8d.1): he ends the day on the road, and his turn tomorrow must begin with a Move to one end of it; a mountain
+// end takes two Move phases. The ends are the clearing he runs out of and the one the road leads to. A single road is the only one he may use (8.3.8b: the way he came in, today).
+function runWords(X, o, roads, to) {
+    const here = X.st.ch?.at, ends = [here, to].filter(Boolean), mountain = new Set(o.runMountain ?? []);
+    const cost = id => `${nb(nameOfClearing(id))} ${mountain.has(id) ? 'is a mountain and takes two Move phases' : 'takes one Move phase'}`;
+    const only = roads.length === 1 ? ` It is the only road open to you${o.runCameBy ? ': you came in by it today' : ''}.` : '';
+    return `You leave the fight and end the day on the road toward ${nb(nameOfClearing(to))}.${only} Tomorrow your first phase must be a Move to one end of that road: ${ends.map(cost).join('; ')}.`;
+}
+function flyPick(X, o, round, back) {
+    const { cb, send, render } = X, chits = o.flyChits, tiles = o.flyTiles;
+    const sel = cb.pick.chit && chits.some(x => x.id === cb.pick.chit) ? cb.pick.chit : cheapest(chits).id;
+    const to = cb.pick.to && tiles.includes(cb.pick.to) ? cb.pick.to : tiles[0];
+    return sheetEl(X, 'encounter-pick', qRow(round, h('span', {}, 'Fly away')),
+        tiles.length > 1 ? h('div', { class: 'cb-aim', role: 'radiogroup', 'aria-label': 'Which way' }, ...tiles.map(r => h('button', { type: 'button', class: `ds-btn${to === r ? ' on' : ''}`, 'data-fly': r, 'aria-pressed': to === r ? 'true' : 'false', onclick: () => { cb.pick.to = r; render(); } }, nb(tileName(r))))) : null,
+        chitPickRow(X, chits, sel, id => { cb.pick.chit = id; render(); }),
+        hint(`You are carried to ${tileName(to)} and land at the next Birdsong.`),
+        foot(back, primary('Fly', { 'data-act': 'fly-go', onclick: () => send(P.fly(sel, to)) })));
+}
+
+function gearPick(X, o, round, back) {
+    const { st: fm, data, cb, send, render, p } = X, quiet = !!p.spellOnly;
+    const live = own(fm, data).items.filter(i => !i.destroyed);
+    // 8.3.7d: in ONE Encounter action he may switch one belonging on and one off (or abandon any number). A tap on Switch on / Switch off only marks it; the primary button does what is marked.
+    // Items that are no longer on the sheet (a switch already done) fall out of the marks.
+    const pair = !!cb.gearPair && !quiet;          // opt-in: "Switch a pair" marks first and does both together; otherwise every tap acts at once
+    const sel = cb.gearSel = { on: live.find(i => i.uid === cb.gearSel?.on && !i.active)?.uid ?? null, off: live.find(i => i.uid === cb.gearSel?.off && i.active)?.uid ?? null };
+    const nameOfUid = uid => nameOf(data, live.find(i => i.uid === uid));
+    const rows = live.map(it => {
+        const nm = nameOf(data, it), state = `${it.active ? 'in use' : 'not in use'}${it.kind === 'weapon' && it.active ? (isWeaponCard(data, it) ? ', a card' : it.alerted ? ', alerted' : ', not alerted') : ''}`;
+        const bound = commitmentOf(fm, data, it), confirm = cb.leaveAsk === it.uid && !bound;          // 6.2.4d: the horse or card of a recorded extra phase is not his to leave behind yet
+        const slot = it.active ? 'off' : 'on', marked = pair && sel[slot] === it.uid, taken = pair && !!sel[slot] && !marked;          // a second one of the same kind: refused, and the screen says why (8.3.7d)
+        const refuse = gearPairWhy(slot);
+        return h('div', { class: 'cb-gearrow', 'data-gear-row': it.uid, 'data-committed': bound ? it.uid : null, 'data-marked': marked ? slot : null },
+            h('span', { class: 'nm' }, h('b', {}, nm), h('small', {}, state), bound ? h('small', { class: 'cb-committed' }, voiced(bound)) : null),
+            own(fm, data).morph ? null : h('button', { type: 'button', class: `ds-btn${marked ? ' on' : ''}${taken ? ' is-dim' : ''}`, 'data-act': 'gear-switch', 'data-item': it.uid, 'data-slot': slot, 'aria-pressed': marked ? 'true' : 'false', 'aria-disabled': taken ? 'true' : null,
+                'aria-label': `${nm}: ${it.active ? 'switch off' : 'switch on'}${marked ? ', chosen' : ''}${taken ? `: ${refuse.story}` : ''}`,
+                onclick: () => {
+                    cb.leaveAsk = null;
+                    if (taken) { X.say(voicedWhy(refuse)); return; }
+                    if (!pair) { cb.gearPair = false; send(P.gear(it.uid)); return; }          // the common case: one tap, one switch (and a quiet evening has no action to spend)
+                    cb.gearSel = { ...sel, [slot]: marked ? null : it.uid }; render();
+                } }, marked ? 'Chosen' : it.active ? 'Switch off' : 'Switch on'),
+            h('button', { type: 'button', class: `ds-btn${confirm ? ' danger' : ' quiet'}${bound ? ' is-dim' : ''}`, 'data-act': 'gear-leave', 'data-item': it.uid, 'aria-label': bound ? `Leave the ${nm} behind: ${bound.story}` : `Leave the ${nm} behind`, 'aria-disabled': bound ? 'true' : null,
+                onclick: () => { if (bound) { X.say(bound.story); return; } if (confirm) { cb.leaveAsk = null; cb.gearSel = null; cb.gearPair = false; send(P.gear(it.uid, true)); } else { cb.leaveAsk = it.uid; render(); } } }, confirm ? 'Really leave it?' : 'Leave behind'));
+    });
+    const marks = [sel.off && `${nameOfUid(sel.off)} off`, sel.on && `${nameOfUid(sel.on)} on`].filter(Boolean), uids = [sel.off, sel.on].filter(Boolean);
+    const go = pair && marks.length
+        ? primary(twoLine(uids.length > 1 ? 'Switch both' : sel.on ? 'Switch it on' : 'Switch it off', marks.join(' · ')), { 'data-act': 'gear-do', onclick: () => { cb.gearSel = null; cb.gearPair = false; send(P.gearItems(uids)); } })
+        : primary('Done', { 'data-act': 'pick-back', onclick: () => { cb.pick = null; cb.leaveAsk = null; cb.gearSel = null; render(); } });
+    const one = voiced({ story: 'This is your Encounter action: switch one thing on and one thing off, or leave things behind. The melee follows.', detail: 'This is your Encounter action: you may switch one belonging on and one off, or abandon any of them (8.3.7d). The melee follows.' });
+    return sheetEl(X, 'encounter-pick', qRow(quiet ? 'Quiet evening' : round, h('span', {}, 'Belongings')), h('div', { class: 'cb-gear' }, ...rows),
+        quiet ? hint('Nothing is fighting you, so this costs nothing and you may do it as often as you like.') : pair && marks.length ? null : h('p', { class: 'cb-hint', 'data-hint': 'gear-action' }, one),
+        foot(quiet ? null : pair ? (marks.length ? btn('Clear', 'quiet', { 'data-act': 'gear-clear', onclick: () => { cb.gearSel = null; render(); } }) : btn('One at a time', 'quiet', { 'data-act': 'gear-single', onclick: () => { cb.gearPair = false; cb.gearSel = null; render(); } }))
+            : btn('Switch a pair', 'quiet', { 'data-act': 'gear-pair', 'aria-pressed': 'false', onclick: () => { cb.gearPair = true; cb.gearSel = null; cb.leaveAsk = null; render(); } }), go));
+}
+
+// ---- what a spell is aimed at (8.4.2): its legal targets and the questions it asks; `store` keeps the choices ----
+const sameRef = (x, y) => x.kind === y.kind && String(x.id) === String(y.id);
+export function aimEl(X, a, store) {
+    const { render } = X;
+    store.aim ??= {}; store.aimParams ??= {};
+    const sel = store.aim[a.spell] ??= a.options.slice(0, a.min).map(x => x.ref);
+    if (a.spell === 'broomstick' && a.options.length > 1) return broomstickAim(X, a, store);          // (himself or a Light hireling: steedaim.js)
+    const pars = Array.isArray(a.params) ? a.params : [];
+    // A spell that takes clearings (Talk to Wise Bird: which clearing to ask about) is aimed ON THE MAP, like a Move or a Fly: the screen names the choice and a button opens the map with every legal clearing ringed
+    const onMap = a.options.length > 0 && X.peek?.map && a.options.every(o => o.ref.kind === 'clearing');
+    if (onMap) {
+        const chosen = a.options.filter(o => sel.some(r => sameRef(r, o.ref)));
+        const names = chosen.length ? chosen.map(o => o.label).join(', ') : 'None picked yet';
+        return h('div', { class: 'cb-aimwrap cb-aimmap', 'data-aim': a.spell },
+            hint(a.max === 1 ? `Whom does ${a.name} take?` : `Choose ${a.min === a.max ? a.min : `${a.min} to ${a.max}`}.`),
+            h('div', { class: 'cb-aimpick' }, h('span', { class: 'cb-aimnow', 'data-aim-now': '' }, h('small', {}, a.max === 1 ? 'Your choice' : 'Your choices'), h('b', {}, names)),
+                h('button', { type: 'button', class: 'ds-btn', 'data-act': 'aim-map', onclick: () => {
+                    X.ui.aimMap = { spell: a.spell, min: a.min, max: a.max, store, refs: Object.fromEntries(a.options.map(o => [String(o.ref.id), o.ref])), labels: Object.fromEntries(a.options.map(o => [String(o.ref.id), o.label])) };
+                    X.peek.map(); } }, 'Choose on the map')));
+    }
+    return h('div', { class: 'cb-aimwrap', 'data-aim': a.spell },
+        a.options.length ? hint(a.max === 1 ? `Whom does ${a.name} take?` : a.max === 0 ? '' : `Choose ${a.min === a.max ? a.min : `${a.min} to ${a.max}`}${a.min === 0 ? ' (none picked takes every one that qualifies)' : ''}.`) : null,
+        a.options.length ? h('div', { class: 'cb-aim' }, ...a.options.map(opt => {
+            const on = sel.some(r => sameRef(r, opt.ref));
+            return h('button', { type: 'button', class: `ds-btn${on ? ' on' : ''}`, 'data-aim-opt': `${opt.ref.kind}:${opt.ref.id}`, 'aria-pressed': on ? 'true' : 'false', onclick: () => {
+                if (a.max === 1) store.aim[a.spell] = [opt.ref]; else if (on) store.aim[a.spell] = sel.filter(r => !sameRef(r, opt.ref)); else if (sel.length < a.max) store.aim[a.spell] = [...sel, opt.ref];
+                render(); } }, opt.label); })) : null,
+        pars.length ? hint('Only if the spell asks for it. What it does not need is ignored.', 'cb-hint-sub') : null,
+        ...pars.map(q => { const cur = (store.aimParams[a.spell] ??= {})[q.key];
+            if (q.kind === 'clearing' && X.peek?.map) return h('div', { class: 'aimq' }, hint(q.label),
+                h('div', { class: 'cb-aimpick' }, h('span', { class: 'cb-aimnow', 'data-aim-now': '' }, h('small', {}, 'Your choice'), h('b', {}, cur ? nameOfClearing(cur) : 'The nearest open road')),
+                    h('button', { type: 'button', class: 'ds-btn', 'data-act': 'aim-map', 'data-param': q.key, onclick: () => { X.ui.aimMap = { spell: a.spell, param: q.key, max: 1, min: 1, store, refs: {}, labels: {} }; X.peek.map(); } }, 'Choose on the map')));
+            return h('div', { class: 'aimq' }, hint(q.label), h('div', { class: 'cb-aim' }, ...(q.options ?? []).map(op => h('button', { type: 'button', class: `ds-btn${JSON.stringify(cur) === JSON.stringify(op.value) ? ' on' : ''}`, 'data-param': `${q.key}:${typeof op.value === 'object' ? JSON.stringify(op.value) : op.value}`,
+                onclick: () => { store.aimParams[a.spell][q.key] = op.value; render(); } }, op.label)))); }));
+}
+const needsAim = x => !!x.aim && (x.aim.options.length > x.aim.min || (Array.isArray(x.aim.params) && x.aim.params.length));
+
+// ---- cast a spell: the spells ready tonight as cards (one per spell; a spell that can be cast on several chits asks which) ----
+function castPick(X, o, round, back, itemsBtn) {
+    const { st: fm, data, cb, send, render, p, c } = X, quiet = !!p.spellOnly;
+    const groups = new Map();
+    for (const x of o.casts) (groups.get(x.spell) ?? groups.set(x.spell, []).get(x.spell)).push(x);
+    const mend = id => own(fm, data).chits.filter(x => x.id !== id && (x.state === 'fatigued' || x.state === 'wounded')).length;
+    const armorN = own(fm, data).items.filter(i => i.kind === 'armor' && i.damaged && !i.destroyed).length;
+    const what = x => {
+        if (x.spell === 'make-whole') { const bits = [mend(x.chit) ? plural(mend(x.chit), 'tired or wounded chit') : '', armorN ? `${plural(armorN, 'damaged piece')} of armor` : ''].filter(Boolean); return bits.length ? `Puts right ${bits.join(' and ')}.` : 'There is nothing of yours to mend.'; }
+        if (x.spell === 'small-blessing' && quiet) return 'You roll the Wishes Table and the roll picks the wish: elsewhere, send away, a vision, peace, health or strength.';
+        return data.spells?.[x.spell]?.text ?? '';
+    };
+    const key = x => `${x.spell}|${x.chit ?? ''}|${x.item ?? ''}`;
+    // the choice: kept as a key; the first useful card in a quiet evening, none otherwise until tapped
+    let sel = cb.cast && o.casts.find(x => key(x) === cb.cast) ? cb.cast : null;
+    if (!sel && quiet) { const first = o.casts.find(x => x.useful || x.quiet); if (first) sel = key(first); }
+    if (!sel && !quiet && o.casts.length === 1) sel = key(o.casts[0]);
+    const chosen = sel ? o.casts.find(x => key(x) === sel) : null;
+    const cards = [...groups].map(([spell, opts]) => {
+        const x0 = chosen && chosen.spell === spell ? chosen : opts[0], on = !!chosen && chosen.spell === spell, sp = data.spells?.[spell];
+        const cost = x0.item ? `From your ${x0.from}, at time 0: no Magic chit is used` : `Uses Magic ${own(fm, data).chits.find(ch => ch.id === x0.chit)?.numeral ?? ''}${x0.time}${'*'.repeat(x0.effort)}: that chit will be tired${sp?.color ? ` · ${sp.color} magic` : ''}`;
+        return [h('button', { type: 'button', class: `cb-spell${on ? ' on' : ''}`, 'data-act': 'cast', 'data-spell': spell, 'aria-pressed': on ? 'true' : 'false', onclick: () => { cb.cast = key(on ? chosen : x0); cb.quiet = null; render(); } },
+            h('span', { class: `dot ${(sp?.color ?? '').toLowerCase()}`, 'aria-hidden': 'true' }), h('span', { class: 'main' }, h('b', {}, x0.name), h('span', { class: 'what' }, what(x0)), h('small', {}, cost))),
+        on && opts.length > 1 ? h('div', { class: 'cb-chits' }, ...opts.map(x => { const ch = own(fm, data).chits.find(q => q.id === x.chit); return ch ? chitTile(X, ch, { on: key(x) === sel, onclick: () => { cb.cast = key(x); render(); } }) : null; })) : null];
+    }).flat().filter(Boolean);
+    const aimStore = (cb.quiet ??= {});
+    const aimNow = chosen && quiet && needsAim(chosen) ? aimEl(X, chosen.aim, aimStore) : null;
+    const blocked = o.blocked?.length && !o.casts.length ? hint(`${o.blocked[0].name}: ${whySentence(o.blocked[0].whyCode)}`) : null;
+    const cant = !chosen;
+    const castGo = chosen ? primary(`Cast ${chosen.name}`, { 'data-act': 'cast-go', 'data-spell': chosen.spell, onclick: () => {
+        if (quiet && needsAim(chosen)) send(P.castAimed(chosen, P.aimOf(chosen.aim, aimStore)));
+        else send(P.cast(chosen)); } }) : null;
+    if (quiet) {
+        const lead = chosen ? btn(c.quietDone?.length ? 'That is enough' : 'Not tonight', '', { 'data-act': 'pass', onclick: () => send(P.pass()) }) : null;
+        const prim = castGo ?? primary(c.quietDone?.length ? 'That is enough' : 'Not tonight', { 'data-act': 'pass', onclick: () => send(P.pass()) });
+        return sheetEl(X, 'quiet', qRow('Quiet evening', itemsBtn ?? h('span', {}, 'cast a spell?')), h('div', { class: 'cb-spells' }, ...cards), aimNow, blocked, foot(lead, prim));
+    }
+    return sheetEl(X, 'encounter-pick', qRow(round, h('span', {}, 'Cast a spell')), h('div', { class: 'cb-spells' }, ...cards), blocked,
+        hint('The Magic chit is the cost: it counts toward the asterisks of the round and is tired afterwards.'),
+        foot(back, castGo ?? primary('Cast', { disabled: true, 'data-act': 'cast-go', onclick: () => X.say('Choose a spell first.') })));
+}
+
+// ================= the Melee stepper =================
+export function stepsFor(o, X = null) {
+    const s = X && needsWhom(X.st, o) ? [{ id: 'whom', l: 'Whom' }] : [];          // (a fight with others in it, shared or hot-seat: others' creatures, characters and hirelings can be named too)
+    s.push({ id: 'strike', l: 'Strike' });
+    if ((o.aims ?? []).length) s.push({ id: 'aim', l: 'Aim' });
+    s.push({ id: 'guard', l: 'Guard' });
+    if (o.shield) s.push({ id: 'shield', l: 'Shield' });
+    if ((o.morphParts ?? []).length) s.push({ id: 'parts', l: 'Parts' });
+    if (X ? M.placementMatters(X.st, o, X.cb?.plan) : o.boxable.length >= 2) s.push({ id: 'foes', l: 'Foes' });          // (three or fewer counters: no step, any plan is the same odds: 06-PLACEMENT-PROOF.md)
+    if (SEC.inPlay(o)) s.push({ id: 'sections', l: 'Hires' });          // (a round on Melee Sections: where your hirelings' counters stand)
+    s.push({ id: 'roll', l: 'Roll' });
+    return s;
+}
+const dirButtons = (names, sub, cur, onPick, attr = null, dim = false) => h('div', { class: 'cb-dirs', 'data-scope': '' }, ...names.map((n, i) => h('button', { type: 'button', class: `cb-dir${cur === i ? ' on' : ''}${dim ? ' dim' : ''}`, 'data-dir': i, ...(attr ? { [attr]: i } : {}), 'aria-pressed': cur === i ? 'true' : 'false', 'aria-disabled': dim ? 'true' : null, onclick: () => onPick(i) }, n, h('small', {}, sub(i)))));
+
+export function meleeSheet(X) {
+    const { st: fm, data, cb, send, render, c } = X;
+    const o = optionsOf(fm, data), m = cb.plan, steps = stepsFor(o, X), sh = !!X.shared;
+    const cur = steps.some(s => s.id === cb.step) ? cb.step : steps[0].id, idx = steps.findIndex(s => s.id === cur);
+    const confirmPending = !!needsConfirm(fm, data, o.targets.find(t => t.uid === m.target)) && m.sure !== m.target;
+    const go = id => { cb.step = id; render(); };
+    const stepper = h('div', { class: 'cb-steps', role: 'tablist' }, ...steps.map((s, i) => h('button', { type: 'button', role: 'tab', 'aria-selected': i === idx ? 'true' : 'false', 'data-step': s.id, class: `cb-step${i < idx ? ' done' : ''}${i === idx ? ' on' : ''}`, onclick: () => go(s.id) }, `${i + 1} ${s.l}`)));
+    const next = steps[idx + 1], prev = steps[idx - 1];
+    const nextBtn = next ? primary(`Next: ${next.l}`, { 'data-act': 'step-next', onclick: () => go(next.id) }) : null;
+    const backBtn = prev ? btn('Back', 'quiet', { 'data-act': 'step-back', onclick: () => go(prev.id) }) : null;
+    const eff = M.effortLine(fm, o, m);
+    if (SEC.inPlay(o)) { const sx = SEC.extras(fm, data, o, cb); m.secx = sx.extras; m.secErr = sx.error; } else { m.secx = null; m.secErr = null; }          // (the hirelings' plan: sent with the answer, and the engine's words when it is not allowed)
+    const w = o.weapon, wname = w ? nameOf(data, w.item) : 'bare hands';
+    const tgtName = m.target ? (pvpTargetName(fm, data, m.target) ?? baseNameOf(fm, data, o, m.target)) : null;
+    let body, lead = backBtn, prim = nextBtn;
+
+    if (cur === 'strike' && !o.targets.length && M.peaceOf(fm, data)) {          // Peace holds: nobody may be named, so there is nothing to strike
+        body = [peaceBanner(X), hint('There is nothing to strike. Go on to Guard, and play your maneuver as you like.')];
+        lead = backBtn;
+    } else if (cur === 'whom') {
+        const w = whomBody(X, o, m);
+        body = [h('div', { class: 'cb-fields sf-whom', role: 'radiogroup', 'aria-label': 'Whom you strike' }, ...w.els)];
+        lead = leadText(tgtName ? `You strike ${tgtName}.` : 'You strike no one.');
+        prim = primary(`Next: ${next.l}`, { 'data-act': 'step-next', disabled: w.blocked, onclick: () => go(next.id) });
+    } else if (cur === 'strike') {
+        const spl = o.attackSpell ? data.spells?.[o.attackSpell.spell] : null;
+        const chits = spl ? h('p', { class: 'cb-hint' }, `${spl.name}: ${o.attackSpell.hits > 1 ? `${M.numWord(o.attackSpell.hits)} hits` : 'one hit'}, harm ${o.attackSpell.harm}${'*'.repeat(o.attackSpell.stars)}, length ${o.attackSpell.length}. It takes the place of your weapon.`)
+            : o.fightChits.length ? h('div', { class: 'cb-chits', 'data-scope': '' }, ...o.fightChits.map(ch => chitTile(X, ch, { on: m.fightChit === ch.id, why: M.chitWhy(fm, data, o, m, ch, 'fight') && m.fightChit !== ch.id ? M.chitWhy(fm, data, o, m, ch, 'fight') : null,
+                onclick: () => { m.fightChit = m.fightChit === ch.id ? null : ch.id; render(); }, attrs: { 'data-sel': 'fc' } })))
+                : h('p', { class: 'cb-hint' }, c.casts?.length ? 'You cast a spell this round, so you cannot also swing a weapon.' : 'You have no Fight chit ready.');
+        body = [dirButtons(DIRS, i => `hits ${MNV[i]}`, m.attackDir, i => { m.attackDir = i; render(); }), chits];
+        // the spells of this round have already acted (the split Melee step): the chits below are read after them
+        if (X.p?.aimed) body.unshift(voiced({ story: 'Your spells have worked. The chits below show what they left.', detail: 'The spells of this round have taken effect before any chit is played (4.6.10a, 8.4.3); the options are read again after them.' }, { class: 'cb-hint', 'data-hint': 'aimed' }));
+        // a monster you control may be named, which breaks the spell that holds it (R5, 8.4.2h)
+        if ((o.controlled ?? []).length) body.push(h('div', { class: 'cb-controlled', 'data-sec': 'controlled' },
+            voiced({ story: 'These monsters obey you. Naming one as your target breaks the spell that holds it.', detail: 'A monster you control may be named as your target, which breaks the spell that holds it (8.4.2h).' }, { class: 'cb-hint' }),
+            h('div', { class: 'cb-aim' }, ...o.controlled.map(d => h('button', { type: 'button', class: `ds-btn${m.target === d.uid ? ' on' : ''}`, 'data-controlled': d.uid, 'aria-pressed': m.target === d.uid ? 'true' : 'false', onclick: () => { m.target = m.target === d.uid ? null : d.uid; render(); } }, baseNameOf(fm, data, o, d.uid))))));
+        const repeat = c.round > 1 && X.ui.lastPlan?.fight === cb.fightKey && M.repeatable(X.ui.lastPlan.plan) ? (() => { const lp = X.ui.lastPlan.plan, rp = M.repeatPlan(fm, data, o, lp), ok = M.repeatHolds(lp, rp);
+            return btn('Same as last round', ok ? 'quiet' : 'quiet is-dim struck', { 'data-act': 'same-plan', 'aria-disabled': ok ? null : 'true',
+                onclick: () => { if (!ok) { X.say('You cannot do the same as last round: a chit you played then is not ready now.'); return; } cb.plan = rp; go('roll'); } }); })() : null;
+        const hintLine = eff.over ? `${eff.text}: put a chit back.` : !m.target && m.fightChit ? 'You strike at no one: the chit only sets your weapon.'
+            : repeat ? eff.text : m.fightChit ? 'Tap the chosen chit again to play none.' : o.fightChits.length && !o.attackSpell ? 'Pick a Fight chit to strike, or go on without one.' : eff.text;
+        if (!spl && o.fightChits.length) body.push(hint(hintLine, eff.over ? 'bad' : ''));
+        lead = repeat ?? effortLead(eff);
+    } else if (cur === 'guard') {
+        const dirOf = i => { m.moveDir = i; const sel = M.moveList(o).find(x => x.id === m.moveChit); if (sel?.duck && i !== M.DUCK_SQUARE) { m.moveChit = null; X.say('The Duck chit goes only in the Duck square, so it is put back.'); } render(); };
+        const moves = M.moveList(o);
+        body = [dirButtons(MNV, i => `meets ${DIRS[i]}`, m.moveDir, dirOf),
+            moves.length ? h('div', { class: 'cb-chits', 'data-scope': '' }, ...moves.map(ch => chitTile(X, ch, { on: m.moveChit === ch.id, why: M.chitWhy(fm, data, o, m, ch, 'move') && m.moveChit !== ch.id ? M.chitWhy(fm, data, o, m, ch, 'move') : null,
+                onclick: () => { m.moveChit = m.moveChit === ch.id ? null : ch.id; if (m.moveChit && ch.duck) m.moveDir = M.DUCK_SQUARE; render(); }, attrs: { 'data-sel': 'mc' } }))) : h('p', { class: 'cb-hint' }, 'You have no Move chit ready.'),
+            hint(M.guardHint(fm, data, o, m))];
+    } else if (cur === 'shield') {
+        body = [dirButtons(DIRS, () => 'shield here', m.shieldDir, i => { m.shieldDir = i; render(); }), hint(`Your ${nameOf(data, o.shield.item ?? o.shield)} guards one direction each round.`)];
+    } else if (cur === 'aim') {
+        const aimGo = btn('Spells first', 'quiet', { 'data-act': 'aim-go', onclick: () => X.send(P.aim(o, m)) });
+        body = [h('div', { class: 'cb-aimscroll' }, ...o.aims.map(a => aimEl(X, a, m))),
+            voiced({ story: 'Spells act before any chit is played. Let them work now to see what they leave.', detail: 'Spells start working before the plays of their round (4.6.10a, 8.4.3). Casting now shows the new values before you choose chits.' }, { class: 'cb-hint', 'data-hint': 'aim-first' })];
+        lead = aimGo;
+    } else if (cur === 'parts') {
+        m.parts ??= {};
+        body = [h('div', { class: 'cb-fields' }, ...o.morphParts.map(pt => h('div', { class: 'cb-sum' }, h('span', { class: 'v' }, pt.name), h('span', { class: 'cb-aim' },
+            h('button', { type: 'button', class: `ds-btn${!m.parts[pt.id] ? ' on' : ''}`, onclick: () => { delete m.parts[pt.id]; render(); } }, 'not now'),
+            ...pt.sides.map(sd => h('button', { type: 'button', class: `ds-btn${m.parts[pt.id] === sd.side ? ' on' : ''}`, onclick: () => { m.parts[pt.id] = sd.side; render(); } }, sd.side))))))];
+    } else if (cur === 'sections') {
+        body = sectionsStep(X, o, m).body;
+    } else if (cur === 'foes') {
+        const rows = o.boxable.map((d, i) => { const b = m.boxes[d.uid] ?? (i % 3);
+            return h('button', { type: 'button', class: 'cb-sum', 'data-place': d.uid, onclick: () => { m.boxes[d.uid] = (b + 1) % 3; render(); } }, h('span', { class: 'k' }, baseNameOf(fm, data, o, d.uid)), h('span', { class: 'v' }, o.boxable.length > 3 ? MNV[b] : `${BOX[b]} box`), o.boxable.length > 3 ? null : h('span', { class: 'ds-tag gold' }, 'tap to move')); });
+        // a native's horse is placed too (8.4.5m), in any box but its rider's: the row cycles it through the other two
+        for (const hz of o.horses ?? []) {
+            const hb = M.horseBoxOf(o, m, hz), rider = baseNameOf(fm, data, o, hz.partOf), nm = data.natives?.[hz.owner]?.horse?.name ?? 'Horse';
+            rows.push(h('button', { type: 'button', class: 'cb-sum', 'data-place': hz.uid, 'data-horse': hz.partOf, onclick: () => { m.boxes[hz.uid] = M.nextHorseBox(o, m, hz); render(); } }, h('span', { class: 'k' }, `${nm} (${rider})`), h('span', { class: 'v' }, `${BOX[hb]} box`), h('span', { class: 'ds-tag gold' }, 'tap to move')));
+        }
+        body = [h('div', { class: `cb-fields${rows.length > 3 ? ' two' : ''}${rows.length > 6 ? ' scroll' : ''}` }, ...rows), hint('The dice may still shuffle them.')];
+        lead = btn('Auto-place', 'quiet', { 'data-act': 'auto-place', onclick: () => { o.boxable.forEach((d, i) => { m.boxes[d.uid] = i % 3; }); for (const hz of o.horses ?? []) delete m.boxes[hz.uid]; render(); } });
+    } else {
+        // roll: a review
+        const rows = [];
+        const strikeText = o.attackSpell ? `${data.spells?.[o.attackSpell.spell]?.name ?? 'Spell'}, ${DIRS[m.attackDir]}` : `${m.target ? `${DIRS[m.attackDir]} at ${tgtName}` : 'No one'}${m.fightChit ? `, ${chitText(own(fm, data).chits.find(x => x.id === m.fightChit) ?? o.fightChits.find(x => x.id === m.fightChit))}` : m.target ? ', no chit' : ''}`;
+        rows.push(sumRow('Strike', strikeText, () => go('strike')));
+        if ((o.aims ?? []).length) rows.push(sumRow('Aim', o.aims.map(a => `${a.name}: ${(m.aim?.[a.spell] ?? a.options.slice(0, a.min).map(x => x.ref)).map(r => a.options.find(q => sameRef(q.ref, r))?.label ?? '').filter(Boolean).join(', ') || 'as it falls'}`).join(' · '), () => go('aim')));
+        rows.push(sumRow('Guard', m.moveChit ? `${MNV[m.moveDir]}, with ${chitText(M.moveList(o).find(x => x.id === m.moveChit) ?? own(fm, data).chits.find(x => x.id === m.moveChit))}` : `${MNV[m.moveDir]}, no chit`, () => go('guard')));
+        if (o.shield) rows.push(sumRow('Shield', `guards ${DIRS[m.shieldDir]}`, () => go('shield')));
+        if (SEC.inPlay(o)) rows.push(sumRow('Hires', m.secErr ? 'Not allowed yet: open it' : `${o.sections.length} ${o.sections.length === 1 ? 'section' : 'sections'} set`, () => go('sections')));
+        if (M.placementMatters(fm, o, m) && o.boxable.length >= 2) rows.push(sumRow('Foes', o.boxable.length > 3 ? `${o.boxable.length} creatures placed` : [...o.boxable.map((d, i) => `${baseNameOf(fm, data, o, d.uid)} ${MNV[m.boxes[d.uid] ?? (i % 3)]}`), ...(o.horses ?? []).map(hz => `${data.natives?.[hz.owner]?.horse?.name ?? 'Horse'} ${MNV[M.horseBoxOf(o, m, hz)]}`)].join(' \u00B7 '), () => go('foes')));
+        if (m.fightChit && !m.target && w && !o.attackSpell) { m.weaponSide ??= w.item.alerted ? 'alerted' : 'unalerted'; rows.push(sumRow('Weapon', `ends ${m.weaponSide === 'alerted' ? 'alerted' : 'not alerted'}`, () => { m.weaponSide = m.weaponSide === 'alerted' ? 'unalerted' : 'alerted'; render(); }, 'data-weapon-side')); }
+        body = [h('div', { class: `cb-fields${rows.length >= 4 ? ' two' : ''}` }, ...rows)];
+        // note 103 ("why don't I get to place the monster in a lane"): where he looks before he rolls, the reason he is not asked (the armor row's own line is Detail-only on a phone: it gives way to the gear)
+        if (!SEC.inPlay(o) && !M.placementMatters(fm, o, m) && M.placementCounters(fm, o, m) >= 1) body.push(h('p', { class: 'cb-hint', 'data-hint': 'foes-die' }, voiced({ story: 'You do not place them: a die puts the creatures in their lanes after your plays, so no lane is the safe one.',
+            detail: 'He may place the creatures (8.4.5m), but one die then shuffles them among the three boxes after the plays (8.4.6a): with three or fewer attacking counters every placement is as likely afterwards, so none is asked for.' })));
+        lead = leadText(eff.over ? h('span', { class: 'bad', style: 'color:var(--danger)' }, `${eff.text}: ${eff.words}.`) : [`${eff.text}: `, eff.words, '.']);
+        prim = primary(sh ? 'Seal your play' : 'Roll the dice', { 'data-act': 'commit', disabled: eff.over || confirmPending || !!m.secErr, onclick: () => X.sendMelee(o, m) });
+        if (eff.over) lead = leadText(h('span', { style: 'color:var(--danger)' }, `Put a chit back: ${M.limitWord(o.effortLimit ?? 2)} asterisks at most.`));
+        else if (m.secErr) lead = leadText(h('span', { style: 'color:var(--danger)' }, 'Your hirelings are not placed yet.'));
+    }
+    const sheetNode = sheetEl(X, 'melee', stepper, ...body, foot(lead, prim));
+    if (cur === 'sections') sheetNode.classList.add('sec-step');          // (the cards scroll inside the sheet; the foot stays on screen)
+    return sheetNode;
+}
+const sumRow = (k, v, onclick, attr = null) => h('button', { type: 'button', class: 'cb-sum', ...(attr ? { [attr]: '' } : { 'data-sum': k.toLowerCase() }), onclick }, h('span', { class: 'k' }, k), h('span', { class: 'v' }, v), icon('right'));
+// the creature's name as the counter prints it ("Wolf #2")
+function baseNameOf(fm, data, o, uid) { const d = fm.combat.dens.find(x => x.uid === uid); return d ? M.nbTag(denSide(fm, data, d).name) : '?'; }
+
+// ================= Battle Bracelets / Elusive Cloak: the plays are shown, the dice have moved the creatures =================
+export function shiftSheet(X) {
+    const { st: fm, data, cb, send, render, c } = X;
+    const o = optionsOf(fm, data);
+    cb.shift ??= {}; const sh = cb.shift; sh.attackDir ??= o.attackDir; sh.moveDir ??= o.moveDir;
+    const parts = [];
+    if (hasTreasure(fm, data, 'battle-bracelets') && o.hasAttack) parts.push(h('div', { 'data-sec': 'shift-attack' }, dirButtons(DIRS, () => (o.attack ? 'move it here' : 'stays'), sh.attackDir, i => { if (o.attack) { sh.attackDir = i; render(); } else X.say(`${o.foes.map(f => `${f.name} moves at ${f.move ?? '?'}`).join(', ')}: a target that moves at 4 or less keeps your attack where it is.`); }, 'data-shift-attack', !o.attack),
+        hint(o.attack ? `${o.foes.map(f => `${f.name} moves at ${f.move}`).join(', ')}: your Bracelets move your attack to any circle.` : 'Your Bracelets cannot move your attack this round.')));
+    if (hasTreasure(fm, data, 'elusive-cloak') && o.hasMove) parts.push(h('div', { 'data-sec': 'shift-move' }, dirButtons(MNV, () => (o.move ? 'move it here' : 'stays'), sh.moveDir, i => { if (o.move) { sh.moveDir = i; render(); } else X.say(o.attackers.length ? 'An attack aimed at you comes at time 4 or less: the Cloak cannot move your maneuver.' : 'Nothing is aimed at you.'); }, 'data-shift-move', !o.move),
+        hint(o.move ? 'Every attack aimed at you comes at 5 or more: your Cloak moves your maneuver to any square.' : 'Your Cloak cannot move your maneuver this round.')));
+    return sheetEl(X, 'shift', qRow(`Round ${c.round} · Plays shown`, h('span', {}, 'Before the blows')), ...parts, foot(null, primary('Resolve the blows', { 'data-act': 'shift-go', onclick: () => { cb.shift = null; send(P.shift(o, sh)); } })));
+}
+
+// The counter legend is shown on the first result only (a per-device convenience: when storage is unavailable it shows every time)
+const LEGEND_KEY = 'mr-counter-legend-v1';
+const legendUnseen = () => { try { return !localStorage.getItem(LEGEND_KEY); } catch { return true; } };
+const legendSeen = () => { try { localStorage.setItem(LEGEND_KEY, '1'); } catch { /* no storage */ } };
+
+// ================= the round's result (result first) =================
+export function resultSheet(X, facts) {
+    const { st: fm, cb, render, p, c } = X;
+    const g = c.roundGain ?? { fame: 0, notoriety: 0, gold: 0 };
+    const chips = [];
+    for (const [k, name] of [['fame', 'fame'], ['notoriety', 'notor'], ['gold', 'gold']]) if (g[k]) chips.push(delta(name, g[k] > 0 ? `+${g[k]}` : String(g[k]).replace('-', '−'), g[k] < 0));
+    const tags = [];
+    const wounds = p.type === 'combat-wounds' ? p.count : 0;
+    if (wounds) tags.push(h('span', { class: 'ds-tag bad' }, `${plural(wounds, 'wound')} to take`));
+    if (p.type === 'combat-fatigue') tags.push(h('span', { class: 'ds-tag' }, `${plural(p.need, 'asterisk')} to tire`));
+    if (facts.destroyed.length) tags.push(h('span', { class: 'ds-tag bad' }, `${facts.destroyed.map(M.cap).join(', ')} destroyed`));
+    else if (facts.damaged.length) tags.push(h('span', { class: 'ds-tag bad' }, `${facts.damaged.map(M.cap).join(', ')} damaged`));
+    else if (facts.noEffect) tags.push(h('span', { class: 'ds-tag' }, 'Armor holds'));
+    if (!facts.landed.length && !facts.ran && (c.killed?.length || facts.avoided)) tags.push(h('span', { class: 'ds-tag good' }, 'Unhurt'));
+    const routes = { 'combat-wounds': ['Choose the wound' + (p.count > 1 ? 's' : ''), p.count === 1 ? '1 chit gives way' : `${p.count} chits give way`], 'combat-fatigue': ['Choose what tires', `${plural(p.need, 'asterisk')} to pay`] };
+    const route = routes[p.type];
+    const prim = route ? primary(twoLine(route[0], route[1]), { 'data-act': 'round-ok', onclick: () => { cb.seen = X.resultKey; render(); } }) : primary(twoLine('Go on', `Round ${c.round}`), { 'data-act': 'round-ok', onclick: () => { cb.seen = X.resultKey; render(); } });
+    // the counter legend, said once (QA-14): the numbers on a creature's counter
+    const legend = legendUnseen() ? h('p', { class: 'cb-legend', 'data-legend': '1' }, 'On a counter: the number at the bottom left is its attack time; the number in the circle is how fast it moves. A blow of yours lands only if your time is lower than the circle.') : null;
+    if (legend) prim.addEventListener('click', legendSeen);
+    const rev = reviewButton(X);          // (a round on Melee Sections: where everything ended)
+    return sheetEl(X, 'result', h('div', { class: 'cb-verdict' }, ...chips, ...tags), rev ? h('div', { class: 'cb-recrow' }, rev) : null, legend,
+        foot(btn('Record', 'quiet', { 'data-act': 'record', onclick: () => { cb.record = true; render(); } }), prim));
+}
+
+// ================= wounds and fatigue: the twelve chits, one grid =================
+export function gridSheet(X) {
+    const { st: fm, data, cb, send, render, p } = X;
+    const wounds = p.type === 'combat-wounds', need = wounds ? p.count : p.need;
+    const key = `${p.type}|${p.chits.join(',')}|${need}`;
+    if (cb.selKey !== key) { cb.selKey = key; cb.sel = wounds ? M.woundDefault(fm, p) : M.fatigueDefault(fm, p); cb.changeChit = null; }
+    const sel = cb.sel;
+    const order = { fight: 0, move: 1, magic: 2 };
+    const chits = [...own(fm, data).chits].sort((a, b) => (order[a.type] ?? 3) - (order[b.type] ?? 3));
+    const eligible = new Set(p.chits);
+    const grid = h('div', { class: 'cb-chitgrid', 'data-scope': '' }, ...chits.map(ch => {
+        const ok = eligible.has(ch.id), on = sel.includes(ch.id);
+        return chitTile(X, ch, { on, why: ok ? null : (ch.state === 'wounded' ? 'That chit is already wounded.' : ch.state === 'fatigued' ? 'That chit is already tired.' : wounds ? 'That chit cannot be wounded now.' : 'That chit has no asterisk to tire.'),
+            onclick: () => {
+                const i = sel.indexOf(ch.id);
+                if (i >= 0) sel.splice(i, 1);
+                else {
+                    sel.push(ch.id);
+                    // a new tap pushes the oldest one out: never more chits than are owed (wounds), never more asterisks than owed and one over (fatigue)
+                    const total = () => sel.reduce((n, id) => n + (own(fm, data).chits.find(x => x.id === id)?.effort ?? 0), 0);
+                    while (wounds ? sel.length > need : (sel.length > 1 && total() - need > 1)) sel.shift();
+                }
+                render();
+            }, attrs: { 'data-sel': 'w' } });
+    }));
+    let lead, prim, extra = null;
+    if (wounds) {
+        const ok = sel.length === need, one = sel.length === 1 ? own(fm, data).chits.find(x => x.id === sel[0]) : null;
+        lead = leadText(`${sel.length} of ${need} chosen`);
+        prim = primary(ok ? (need === 1 && one ? `Wound the ${chitText(one)} ${chitKindWord(one).charAt(0)}${chitKindWord(one).slice(1).toLowerCase()}` : `Wound ${need} chits`) : `Choose ${need}`, { 'data-act': 'wound-go', disabled: !ok, onclick: () => { const ids = [...sel]; cb.sel = null; cb.selKey = null; send(P.wounds(ids)); } });
+    } else {
+        const sum = sel.reduce((s, id) => s + (own(fm, data).chits.find(x => x.id === id)?.effort ?? 0), 0);
+        const changers = sum - need === 1 ? makeChange(fm, data, sel) : [];
+        if (cb.changeChit && !changers.some(x => x.id === cb.changeChit)) cb.changeChit = null;
+        if (changers.length > 1) extra = h('div', { 'data-sec': 'make-change' }, hint('You tire one asterisk too many, so a tired one-asterisk chit comes back. Which?'),
+            h('div', { class: 'cb-chits' }, ...changers.map(ch => chitTile(X, ch, { on: (cb.changeChit ?? changers[0].id) === ch.id, onclick: () => { cb.changeChit = ch.id; render(); } }))));
+        const ok = sum >= need && sum - need <= 1, one = sel.length === 1 ? own(fm, data).chits.find(x => x.id === sel[0]) : null;
+        lead = leadText(`${sum} of ${need} asterisk${need === 1 ? '' : 's'}${sum - need === 1 ? ' · you get one back' : ''}`);
+        prim = primary(ok ? (one ? `Tire the ${chitText(one)} ${chitKindWord(one).charAt(0)}${chitKindWord(one).slice(1).toLowerCase()}` : 'Tire these') : `Choose ${need === 1 ? 'a chit' : 'chits'}`, { 'data-act': 'fatigue-go', disabled: !ok, onclick: () => {
+            const ids = [...sel], change = changers.length > 1 ? (cb.changeChit ?? changers[0].id) : null; cb.sel = null; cb.selKey = null; cb.changeChit = null; send(P.fatigue(ids, change)); } });
+    }
+    return sheetEl(X, wounds ? 'wounds' : 'fatigue', grid, extra, foot(lead, prim));
+}
+
+// ================= the end of the fight =================
+export function recapSheet(X, recap) {
+    const { st: fm, data, send, p } = X;
+    const chips = [];
+    for (const [k, name] of [['fame', 'fame'], ['notoriety', 'notor'], ['gold', 'gold']]) if (recap.gain[k]) chips.push(delta(name, recap.gain[k] > 0 ? `+${recap.gain[k]}` : String(recap.gain[k]).replace('-', '−'), recap.gain[k] < 0));
+    chips.push(h('span', { class: 'ds-tag' }, plural(recap.rounds, 'round')));
+    if (recap.wounded) chips.push(h('span', { class: 'ds-tag bad' }, `${plural(recap.wounded, 'chit')} wounded`));
+    if (recap.tired) chips.push(h('span', { class: 'ds-tag' }, `${plural(recap.tired, 'chit')} tired`));
+    if (activeArmor(fm, data).length || recap.damaged || recap.destroyed) chips.push(h('span', { class: `ds-tag${recap.destroyed || recap.damaged ? ' bad' : ''}` }, recap.destroyed ? `${plural(recap.destroyed, 'piece')} of armor destroyed` : recap.damaged ? 'Armor damaged' : 'Armor whole'));
+    return sheetEl(X, 'recap', h('div', { class: 'cb-recap' }, h('div', { class: 'big' }, 'Victory'),
+        h('div', { class: 'cb-verdict', style: 'margin-top:8px' }, ...chips)),
+        foot(btn('Record', 'quiet', { 'data-act': 'record', onclick: () => { X.cb.record = true; X.render(); } }), primary('On to the night', { 'data-act': 'fight-over', onclick: () => send(P.over()) })));
+}
+export function beatSheet(X, recap, how) {
+    const by = how === 'died' && X.slain ? X.slain : null;
+    const chips = [...(by ? [h('span', { class: 'ds-tag bad' }, `Slain by the ${by}`)] : []), h('span', { class: 'ds-tag' }, plural(recap.rounds, 'round')), ...(recap.kills.length ? [h('span', { class: 'ds-tag good' }, `${plural(recap.kills.length, 'foe')} slain`)] : [])];
+    return sheetEl(X, 'beat', h('div', { class: 'cb-recap' }, h('div', { class: 'big fallen' }, how === 'died' ? 'You have fallen' : how === 'quiet' ? 'The fight is over' : 'Victory'), h('div', { class: 'cb-verdict', style: 'margin-top:8px' }, ...chips)),
+        foot(null, primary(how === 'died' ? 'Go on' : 'On to the night', { 'data-act': 'beat-ok', onclick: () => X.beatOk() })));
+}
+
+// ================= the Record: the fight blow by blow, round by round =================
+export function recordSheet(X, rounds) {
+    const { cb, render } = X;
+    // Story: the engine's story line, with the numbers in brackets left out ("(4 against your 6)"); Detail: the exact line. A line the engine told no story for (a roll, a position) is Detail only.
+    const clean = t => nb(t.replace(/ \((?:[^()]*\d[^()]*)\)/g, '').replace(/\s+([.,;])/g, '$1'));
+    // DR-28: the Record in Story speaks plainly. A sentence that only states a rule ("shows another side") is Detail's; the order of the blows is said as who strikes first.
+    const RULESY = /\bshows another side\b/;
+    const blows = /^Blows in order \((longest|fastest)[^)]*\): (.+?)(?:, then .*)?\.$/;
+    const plainStory = s => {
+        const b = blows.exec(s);
+        if (!b) return clean(s);
+        const first = clean(b[2]).replace(/^your /i, 'the ').replace(/^the /, 'The ');
+        return `${first.charAt(0).toUpperCase()}${first.slice(1)} is ${b[1]}: it strikes first.`;
+    };
+    const boxes = [...rounds].reverse().map(({ r, lines }) => {
+        let ns = 0, nd = 0;
+        return h('div', { class: 'cb-rbox' }, h('span', { class: 'lg' }, `Round ${r}`), ...lines.map(l => {
+            const isRoll = l.k === 'roll', both = !!l.s && !isRoll && !RULESY.test(l.s);
+            if (!isRoll) nd++; if (both) ns++;
+            const stamps = M.stampsOf(l), plain = M.fixNames(l.t.replace(/^\u{1F3B2}\s*/u, ''));
+            return h('div', { class: `cb-blow${isRoll ? ' roll' : ''}`, ...(both ? {} : { 'data-v': 'detail' }) },
+                both ? h('span', { class: 'n', 'data-v': 'story' }, String(ns)) : null, h('span', { class: 'n', 'data-v': 'detail' }, isRoll ? '\u2022' : String(nd)),
+                h('span', { class: 't' },
+                    both ? h('span', { 'data-v': 'story' }, plainStory(M.fixNames(l.s)), ...stamps.map(([k, t]) => [' ', h('span', { class: `cb-stamp ${k}` }, t)])) : null,
+                    h('span', { 'data-v': 'detail' }, nb(plain), ...(both ? [] : []))));
+        }));
+    });
+    const last = rounds.at(-1)?.r ?? 1, first = rounds[0]?.r ?? 1;
+    const frag = dsSheet({ eyebrow: 'Fight record', title: first === last ? `Round ${last}` : `Rounds ${first} to ${last}`, detent: 'tall', onClose: () => { cb.record = false; render(); },
+        body: [h('div', { style: 'display:flex;justify-content:flex-end;margin:0 0 8px' }, voiceSwitch()), h('div', { class: 'cb-rounds' }, ...boxes)] });
+    frag.sheet.classList.add('cb-record');
+    return frag;
+}
+
+// ================= what the creatures that cast can do (the Power of the Pit, the Imp's curses): the table in words, no odds =================
+export function pitSheet(X) {
+    const { st: fm, data, cb, render } = X;
+    const bodies = M.bodiesOf(fm).filter(d => denSide(fm, data, d).attack === 'spell');
+    const imps = bodies.some(d => M.isImp(data, d)), pit = bodies.some(d => !M.isImp(data, d));
+    const PIT_EFFECT = { 'Carried Away': 'The target is killed outright. Only the target: a native\u2019s horse is a belonging, disposed of as for any death.' };          // (ruling R6)
+    const rows = t => Object.entries(data.tables?.[t]?.rows ?? {}).map(([k, r]) => h('p', { class: 'pitrow' }, h('b', {}, `${r.name}. `), PIT_EFFECT[r.name] ?? r.effect));
+    const body = [
+        pit ? h('div', {}, h('p', {}, 'A Demon does not strike a blow. At its attack time it casts the Power of the Pit, and the dice decide what falls on whoever it is aimed at. It is aimed like any attack: your maneuver can turn it aside, but armor does not help against it. Roll two dice and the higher one counts: a low number is rare, a high one comes up often.'), ...rows('powerOfThePit'), h('p', {}, 'A hidden character is not touched by the Fiery Chasm. Staying hidden keeps a Demon from being set on you at all.')) : null,
+        imps ? h('div', {}, h('p', {}, 'An Imp does not strike a blow. At its attack time it casts a curse on whoever it is aimed at. Your maneuver can turn it aside, but armor does not help. A Pentangle or Protection from Magic keeps it off you, and a Chapel clearing lifts curses at Midnight.'), ...rows('curses')) : null,
+    ];
+    return dsSheet({ eyebrow: 'Creatures that cast', title: pit ? 'The Power of the Pit' : 'The Imp\u2019s curses', detent: 'tall', onClose: () => { cb.pit = false; render(); }, body });
+}

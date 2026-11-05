@@ -1,0 +1,683 @@
+{
+ "meta": {
+   "sources": [
+     "normal+enchanted: RealmSpeak MagicRealmData.xml, github.com/dewkid/RealmSpeak branch master (commit 8b1d9ab5d5a310b856ed88ce9059ca549ce0b08c), path magic_realm/utility/components/resources/data/MagicRealmData.xml, sha1 30bcaf3fe8875e4039fc19ad38f9da8a6567636a",
+     "topology cross-check (identical for all 20 tiles, both sides): github.com/sch4fchen/RealmSpeak fork, same path; it is a fork, so not independent evidence",
+     "normal side cross-check only: prototype /Users/tharkad/casdra/magic-realm-server/mr-tiles.json (see docs/data/tiles-diff.md)",
+     "rules cross-check: magic-realm/docs/rules/02_map_movement_hiding.md sections 2, 3, 6.3"
+   ],
+   "edgeNames": [
+     "N",
+     "NE",
+     "SE",
+     "S",
+     "SW",
+     "NW"
+   ],
+   "notes": "Topology only; no geometry. Data is RealmSpeak values; nothing was corrected by symmetry. RealmSpeak types clearings woods/mountain/caves/normal: caves -> \"cave\", normal -> \"woods\" (the \"normal\" label is used on every Valley clearing, all Ruins clearings but 6, and Borderland enchanted clearing 1; the research notes count them as woods). Path kinds: RealmSpeak normal -> open, caves -> tunnel. Enchanted colour letters R=grey, G=gold, P=purple. \"bridge\" is not present in RealmSpeak topology data; it is false except as described below. edges maps compass edge of the tile as printed (name along the S edge) to the clearing number the edge road leaves from; the prototype edge numbers 1..6 map to NE,SE,S,SW,NW,N respectively (verified in tiles-diff.md). Each side lists each road once with a<b. Bridges: RealmSpeak has no bridge attribute; bridge=true is set only for Ledges normal side 2-5 (research notes 02 section 3, from the 3E tile illustration: the 2-5 road bridges over the 4-N road). RealmSpeak xy/arc points put 2-5 and 4-N in crossing position on the Ledges enchanted side too, and several other pairs cross geometrically (Valley 1-4 vs 2-5, Borderland, High Pass): those are NOT marked and are listed as OPEN in tiles-diff.md."
+ },
+ "tiles": [
+  {"id": "BL", "name": "Borderland", "group": "cave", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": []},
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 3, "type": "woods", "magic": []},
+     {"n": 4, "type": "cave", "magic": []},
+     {"n": 5, "type": "cave", "magic": []},
+     {"n": 6, "type": "cave", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 6, "kind": "open", "bridge": false},
+     {"a": 2, "b": 3, "kind": "open", "bridge": false},
+     {"a": 3, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "open", "bridge": false},
+     {"a": 4, "b": 5, "kind": "secret", "bridge": false},
+     {"a": 4, "b": 6, "kind": "tunnel", "bridge": false}
+    ],
+    "edges": {"N": 1, "NE": 2, "SE": 4, "S": 2, "SW": 1, "NW": 5}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": ["grey"]},
+     {"n": 2, "type": "woods", "magic": ["gold"]},
+     {"n": 3, "type": "woods", "magic": ["gold"]},
+     {"n": 4, "type": "cave", "magic": ["purple"]},
+     {"n": 5, "type": "cave", "magic": ["purple"]},
+     {"n": 6, "type": "cave", "magic": ["grey", "purple"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 6, "kind": "open", "bridge": false},
+     {"a": 2, "b": 3, "kind": "open", "bridge": false},
+     {"a": 3, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "open", "bridge": false},
+     {"a": 4, "b": 5, "kind": "secret", "bridge": false},
+     {"a": 4, "b": 6, "kind": "tunnel", "bridge": false}
+    ],
+    "edges": {"N": 1, "NE": 2, "SE": 4, "S": 2, "SW": 1, "NW": 5}
+   }
+  }},
+  {"id": "AV", "name": "Awful Valley", "group": "valley", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": []},
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "woods", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 5, "NE": 4, "SE": 4, "S": null, "SW": 2, "NW": 1}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": ["grey"]},
+     {"n": 2, "type": "woods", "magic": ["grey"]},
+     {"n": 4, "type": "woods", "magic": ["grey"]},
+     {"n": 5, "type": "woods", "magic": ["grey"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 5, "NE": 4, "SE": 4, "S": null, "SW": 2, "NW": 1}
+   }
+  }},
+  {"id": "BV", "name": "Bad Valley", "group": "valley", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": []},
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "woods", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 4, "NE": 5, "SE": 1, "S": null, "SW": 2, "NW": 4}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": ["grey"]},
+     {"n": 2, "type": "woods", "magic": ["grey"]},
+     {"n": 4, "type": "woods", "magic": ["grey"]},
+     {"n": 5, "type": "woods", "magic": ["grey"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 4, "NE": 5, "SE": 1, "S": null, "SW": 2, "NW": 4}
+   }
+  }},
+  {"id": "CV", "name": "Curst Valley", "group": "valley", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": []},
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "woods", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 1, "NE": 5, "SE": 4, "S": null, "SW": 4, "NW": 2}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": ["grey"]},
+     {"n": 2, "type": "woods", "magic": ["grey"]},
+     {"n": 4, "type": "woods", "magic": ["grey"]},
+     {"n": 5, "type": "woods", "magic": ["grey"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 1, "NE": 5, "SE": 4, "S": null, "SW": 4, "NW": 2}
+   }
+  }},
+  {"id": "DV", "name": "Dark Valley", "group": "valley", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": []},
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "woods", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": 1, "SE": 5, "S": null, "SW": 4, "NW": 4}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": ["grey"]},
+     {"n": 2, "type": "woods", "magic": ["grey"]},
+     {"n": 4, "type": "woods", "magic": ["grey"]},
+     {"n": 5, "type": "woods", "magic": ["grey"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": 1, "SE": 5, "S": null, "SW": 4, "NW": 4}
+   }
+  }},
+  {"id": "EV", "name": "Evil Valley", "group": "valley", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": []},
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "woods", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 4, "NE": 4, "SE": 5, "S": null, "SW": 1, "NW": 2}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": ["grey"]},
+     {"n": 2, "type": "woods", "magic": ["grey"]},
+     {"n": 4, "type": "woods", "magic": ["grey"]},
+     {"n": 5, "type": "woods", "magic": ["grey"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 4, "NE": 4, "SE": 5, "S": null, "SW": 1, "NW": 2}
+   }
+  }},
+  {"id": "LW", "name": "Linden Woods", "group": "woods", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "woods", "magic": []}
+    ],
+    "paths": [
+     {"a": 2, "b": 4, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 5, "NE": 5, "SE": 2, "S": null, "SW": 2, "NW": 4}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 2, "type": "woods", "magic": ["gold"]},
+     {"n": 4, "type": "woods", "magic": ["gold"]},
+     {"n": 5, "type": "woods", "magic": ["gold"]}
+    ],
+    "paths": [
+     {"a": 4, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 5, "NE": 5, "SE": 2, "S": null, "SW": 2, "NW": 4}
+   }
+  }},
+  {"id": "MW", "name": "Maple Woods", "group": "woods", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "woods", "magic": []}
+    ],
+    "paths": [
+     {"a": 2, "b": 4, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": 2, "SE": 4, "S": null, "SW": 5, "NW": 5}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 2, "type": "woods", "magic": ["gold"]},
+     {"n": 4, "type": "woods", "magic": ["gold"]},
+     {"n": 5, "type": "woods", "magic": ["gold"]}
+    ],
+    "paths": [
+     {"a": 4, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": 2, "SE": 4, "S": null, "SW": 5, "NW": 5}
+   }
+  }},
+  {"id": "NW", "name": "Nut Woods", "group": "woods", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "woods", "magic": []}
+    ],
+    "paths": [
+     {"a": 2, "b": 4, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": 4, "SE": 5, "S": null, "SW": 5, "NW": 2}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 2, "type": "woods", "magic": ["gold"]},
+     {"n": 4, "type": "woods", "magic": ["gold"]},
+     {"n": 5, "type": "woods", "magic": ["gold"]}
+    ],
+    "paths": [
+     {"a": 4, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": 4, "SE": 5, "S": null, "SW": 5, "NW": 2}
+   }
+  }},
+  {"id": "OW", "name": "Oak Woods", "group": "woods", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "woods", "magic": []}
+    ],
+    "paths": [
+     {"a": 2, "b": 4, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 5, "NE": 2, "SE": 2, "S": null, "SW": 4, "NW": 5}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 2, "type": "woods", "magic": ["gold"]},
+     {"n": 4, "type": "woods", "magic": ["gold"]},
+     {"n": 5, "type": "woods", "magic": ["gold"]}
+    ],
+    "paths": [
+     {"a": 4, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 5, "NE": 2, "SE": 2, "S": null, "SW": 4, "NW": 5}
+   }
+  }},
+  {"id": "PW", "name": "Pine Woods", "group": "woods", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "woods", "magic": []}
+    ],
+    "paths": [
+     {"a": 2, "b": 4, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 4, "NE": 5, "SE": 5, "S": null, "SW": 2, "NW": 2}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 2, "type": "woods", "magic": ["gold"]},
+     {"n": 4, "type": "woods", "magic": ["gold"]},
+     {"n": 5, "type": "woods", "magic": ["gold"]}
+    ],
+    "paths": [
+     {"a": 4, "b": 5, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 4, "NE": 5, "SE": 5, "S": null, "SW": 2, "NW": 2}
+   }
+  }},
+  {"id": "CL", "name": "Cliff", "group": "mountain", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "mountain", "magic": []},
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 3, "type": "woods", "magic": []},
+     {"n": 4, "type": "mountain", "magic": []},
+     {"n": 5, "type": "woods", "magic": []},
+     {"n": 6, "type": "mountain", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 6, "kind": "open", "bridge": false},
+     {"a": 2, "b": 3, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "hidden", "bridge": false},
+     {"a": 3, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "secret", "bridge": false},
+     {"a": 4, "b": 6, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": null, "NE": 4, "SE": 5, "S": null, "SW": 2, "NW": 1}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "mountain", "magic": ["purple"]},
+     {"n": 2, "type": "woods", "magic": ["purple"]},
+     {"n": 3, "type": "woods", "magic": ["purple"]},
+     {"n": 4, "type": "mountain", "magic": ["purple"]},
+     {"n": 5, "type": "woods", "magic": ["purple"]},
+     {"n": 6, "type": "mountain", "magic": ["purple"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 6, "kind": "open", "bridge": false},
+     {"a": 2, "b": 3, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "hidden", "bridge": false},
+     {"a": 3, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "secret", "bridge": false},
+     {"a": 4, "b": 6, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": null, "NE": 4, "SE": 5, "S": null, "SW": 2, "NW": 1}
+   }
+  }},
+  {"id": "CR", "name": "Crag", "group": "mountain", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "mountain", "magic": []},
+     {"n": 2, "type": "mountain", "magic": []},
+     {"n": 3, "type": "mountain", "magic": []},
+     {"n": 4, "type": "mountain", "magic": []},
+     {"n": 5, "type": "mountain", "magic": []},
+     {"n": 6, "type": "mountain", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 1, "b": 6, "kind": "secret", "bridge": false},
+     {"a": 2, "b": 3, "kind": "hidden", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "open", "bridge": false},
+     {"a": 4, "b": 6, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": null, "SE": null, "S": null, "SW": null, "NW": null}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "mountain", "magic": ["grey", "gold", "purple"]},
+     {"n": 2, "type": "mountain", "magic": ["grey", "gold", "purple"]},
+     {"n": 3, "type": "mountain", "magic": ["grey", "gold", "purple"]},
+     {"n": 4, "type": "mountain", "magic": ["grey", "gold", "purple"]},
+     {"n": 5, "type": "mountain", "magic": ["grey", "gold", "purple"]},
+     {"n": 6, "type": "mountain", "magic": ["grey", "gold", "purple"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 3, "kind": "hidden", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "open", "bridge": false},
+     {"a": 4, "b": 5, "kind": "secret", "bridge": false},
+     {"a": 4, "b": 6, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": null, "SE": null, "S": null, "SW": null, "NW": null}
+   }
+  }},
+  {"id": "LE", "name": "Ledges", "group": "mountain", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": []},
+     {"n": 2, "type": "mountain", "magic": []},
+     {"n": 3, "type": "woods", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "mountain", "magic": []},
+     {"n": 6, "type": "woods", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 3, "kind": "hidden", "bridge": false},
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 1, "b": 6, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": true},
+     {"a": 3, "b": 6, "kind": "open", "bridge": false},
+     {"a": 4, "b": 6, "kind": "hidden", "bridge": false}
+    ],
+    "edges": {"N": 4, "NE": 2, "SE": 3, "S": null, "SW": null, "NW": 5}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": ["purple"]},
+     {"n": 2, "type": "mountain", "magic": ["purple"]},
+     {"n": 3, "type": "woods", "magic": ["purple"]},
+     {"n": 4, "type": "woods", "magic": ["purple"]},
+     {"n": 5, "type": "mountain", "magic": ["purple"]},
+     {"n": 6, "type": "woods", "magic": ["purple"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 3, "kind": "hidden", "bridge": false},
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "open", "bridge": false},
+     {"a": 4, "b": 6, "kind": "hidden", "bridge": false}
+    ],
+    "edges": {"N": 4, "NE": 2, "SE": 3, "S": null, "SW": null, "NW": 5}
+   }
+  }},
+  {"id": "MT", "name": "Mountain", "group": "mountain", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "mountain", "magic": []},
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 3, "type": "mountain", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "mountain", "magic": []},
+     {"n": 6, "type": "mountain", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 3, "kind": "open", "bridge": false},
+     {"a": 2, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "open", "bridge": false},
+     {"a": 4, "b": 6, "kind": "hidden", "bridge": false},
+     {"a": 5, "b": 6, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 4, "NE": null, "SE": 5, "S": null, "SW": 2, "NW": null}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "mountain", "magic": ["purple"]},
+     {"n": 2, "type": "woods", "magic": ["purple"]},
+     {"n": 3, "type": "mountain", "magic": ["purple"]},
+     {"n": 4, "type": "woods", "magic": ["purple"]},
+     {"n": 5, "type": "mountain", "magic": ["purple"]},
+     {"n": 6, "type": "mountain", "magic": ["purple"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 3, "kind": "open", "bridge": false},
+     {"a": 1, "b": 4, "kind": "secret", "bridge": false},
+     {"a": 2, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "hidden", "bridge": false},
+     {"a": 4, "b": 6, "kind": "open", "bridge": false},
+     {"a": 5, "b": 6, "kind": "hidden", "bridge": false}
+    ],
+    "edges": {"N": 4, "NE": null, "SE": 5, "S": null, "SW": 2, "NW": null}
+   }
+  }},
+  {"id": "DW", "name": "Deep Woods", "group": "mountain", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": []},
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 3, "type": "woods", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "woods", "magic": []},
+     {"n": 6, "type": "woods", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "hidden", "bridge": false},
+     {"a": 1, "b": 6, "kind": "open", "bridge": false},
+     {"a": 2, "b": 3, "kind": "open", "bridge": false},
+     {"a": 3, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "hidden", "bridge": false},
+     {"a": 4, "b": 5, "kind": "open", "bridge": false},
+     {"a": 4, "b": 6, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 1, "NE": 2, "SE": 2, "S": null, "SW": 5, "NW": 1}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": ["gold"]},
+     {"n": 2, "type": "woods", "magic": ["gold"]},
+     {"n": 3, "type": "woods", "magic": ["gold"]},
+     {"n": 4, "type": "woods", "magic": ["gold"]},
+     {"n": 5, "type": "woods", "magic": ["gold"]},
+     {"n": 6, "type": "woods", "magic": ["gold"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 3, "kind": "open", "bridge": false},
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 2, "b": 5, "kind": "open", "bridge": false},
+     {"a": 2, "b": 6, "kind": "open", "bridge": false},
+     {"a": 3, "b": 4, "kind": "hidden", "bridge": false},
+     {"a": 3, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "hidden", "bridge": false},
+     {"a": 4, "b": 6, "kind": "hidden", "bridge": false}
+    ],
+    "edges": {"N": 6, "NE": 6, "SE": 3, "S": null, "SW": 4, "NW": 4}
+   }
+  }},
+  {"id": "CN", "name": "Cavern", "group": "cave", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "cave", "magic": []},
+     {"n": 2, "type": "cave", "magic": []},
+     {"n": 3, "type": "cave", "magic": []},
+     {"n": 4, "type": "cave", "magic": []},
+     {"n": 5, "type": "cave", "magic": []},
+     {"n": 6, "type": "cave", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 3, "kind": "tunnel", "bridge": false},
+     {"a": 1, "b": 4, "kind": "secret", "bridge": false},
+     {"a": 2, "b": 3, "kind": "tunnel", "bridge": false},
+     {"a": 3, "b": 5, "kind": "secret", "bridge": false},
+     {"a": 3, "b": 6, "kind": "tunnel", "bridge": false},
+     {"a": 4, "b": 5, "kind": "tunnel", "bridge": false},
+     {"a": 4, "b": 6, "kind": "tunnel", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": 1, "SE": null, "S": null, "SW": null, "NW": 5}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "cave", "magic": ["purple"]},
+     {"n": 2, "type": "cave", "magic": ["purple"]},
+     {"n": 3, "type": "cave", "magic": ["purple"]},
+     {"n": 4, "type": "cave", "magic": ["purple"]},
+     {"n": 5, "type": "cave", "magic": ["purple"]},
+     {"n": 6, "type": "cave", "magic": ["purple"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 2, "kind": "secret", "bridge": false},
+     {"a": 1, "b": 4, "kind": "tunnel", "bridge": false},
+     {"a": 2, "b": 6, "kind": "tunnel", "bridge": false},
+     {"a": 3, "b": 5, "kind": "tunnel", "bridge": false},
+     {"a": 3, "b": 6, "kind": "tunnel", "bridge": false},
+     {"a": 4, "b": 5, "kind": "secret", "bridge": false},
+     {"a": 4, "b": 6, "kind": "tunnel", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": 1, "SE": null, "S": null, "SW": null, "NW": 5}
+   }
+  }},
+  {"id": "CA", "name": "Caves", "group": "cave", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "cave", "magic": []},
+     {"n": 2, "type": "cave", "magic": []},
+     {"n": 3, "type": "cave", "magic": []},
+     {"n": 4, "type": "cave", "magic": []},
+     {"n": 5, "type": "cave", "magic": []},
+     {"n": 6, "type": "cave", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 6, "kind": "tunnel", "bridge": false},
+     {"a": 2, "b": 3, "kind": "secret", "bridge": false},
+     {"a": 2, "b": 4, "kind": "tunnel", "bridge": false},
+     {"a": 3, "b": 5, "kind": "tunnel", "bridge": false},
+     {"a": 4, "b": 6, "kind": "tunnel", "bridge": false}
+    ],
+    "edges": {"N": null, "NE": null, "SE": 1, "S": null, "SW": 2, "NW": 5}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "cave", "magic": ["purple"]},
+     {"n": 2, "type": "cave", "magic": ["purple"]},
+     {"n": 3, "type": "cave", "magic": ["purple"]},
+     {"n": 4, "type": "cave", "magic": ["purple"]},
+     {"n": 5, "type": "cave", "magic": ["purple"]},
+     {"n": 6, "type": "cave", "magic": ["purple"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "tunnel", "bridge": false},
+     {"a": 1, "b": 6, "kind": "secret", "bridge": false},
+     {"a": 2, "b": 3, "kind": "tunnel", "bridge": false},
+     {"a": 3, "b": 4, "kind": "tunnel", "bridge": false},
+     {"a": 5, "b": 6, "kind": "tunnel", "bridge": false}
+    ],
+    "edges": {"N": null, "NE": null, "SE": 1, "S": null, "SW": 2, "NW": 5}
+   }
+  }},
+  {"id": "HP", "name": "High Pass", "group": "cave", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "mountain", "magic": []},
+     {"n": 2, "type": "mountain", "magic": []},
+     {"n": 3, "type": "cave", "magic": []},
+     {"n": 4, "type": "mountain", "magic": []},
+     {"n": 5, "type": "mountain", "magic": []},
+     {"n": 6, "type": "cave", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 1, "b": 5, "kind": "open", "bridge": false},
+     {"a": 2, "b": 4, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "tunnel", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": 3, "SE": null, "S": 5, "SW": null, "NW": 6}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "mountain", "magic": ["purple"]},
+     {"n": 2, "type": "mountain", "magic": ["purple"]},
+     {"n": 3, "type": "cave", "magic": ["purple"]},
+     {"n": 4, "type": "mountain", "magic": ["purple"]},
+     {"n": 5, "type": "mountain", "magic": ["purple"]},
+     {"n": 6, "type": "cave", "magic": ["purple"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 1, "b": 5, "kind": "open", "bridge": false},
+     {"a": 2, "b": 4, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "tunnel", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": 3, "SE": null, "S": 5, "SW": null, "NW": 6}
+   }
+  }},
+  {"id": "RU", "name": "Ruins", "group": "cave", "sides": {
+   "normal": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": []},
+     {"n": 2, "type": "woods", "magic": []},
+     {"n": 3, "type": "woods", "magic": []},
+     {"n": 4, "type": "woods", "magic": []},
+     {"n": 5, "type": "woods", "magic": []},
+     {"n": 6, "type": "cave", "magic": []}
+    ],
+    "paths": [
+     {"a": 1, "b": 2, "kind": "open", "bridge": false},
+     {"a": 1, "b": 4, "kind": "open", "bridge": false},
+     {"a": 1, "b": 5, "kind": "hidden", "bridge": false},
+     {"a": 3, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "open", "bridge": false},
+     {"a": 4, "b": 6, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": 2, "SE": 3, "S": null, "SW": 5, "NW": 1}
+   },
+   "enchanted": {
+    "clearings": [
+     {"n": 1, "type": "woods", "magic": ["grey"]},
+     {"n": 2, "type": "woods", "magic": ["grey"]},
+     {"n": 3, "type": "woods", "magic": ["grey"]},
+     {"n": 4, "type": "woods", "magic": ["grey"]},
+     {"n": 5, "type": "woods", "magic": ["grey"]},
+     {"n": 6, "type": "cave", "magic": ["grey"]}
+    ],
+    "paths": [
+     {"a": 1, "b": 2, "kind": "hidden", "bridge": false},
+     {"a": 1, "b": 4, "kind": "hidden", "bridge": false},
+     {"a": 1, "b": 5, "kind": "open", "bridge": false},
+     {"a": 2, "b": 6, "kind": "hidden", "bridge": false},
+     {"a": 3, "b": 5, "kind": "open", "bridge": false},
+     {"a": 3, "b": 6, "kind": "secret", "bridge": false},
+     {"a": 4, "b": 6, "kind": "open", "bridge": false}
+    ],
+    "edges": {"N": 2, "NE": 6, "SE": 3, "S": null, "SW": 5, "NW": 1}
+   }
+  }}
+ ]
+}

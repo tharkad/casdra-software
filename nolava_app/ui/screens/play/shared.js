@@ -1,0 +1,219 @@
+// play/shared.js: the shared-realm host: the things a seat at a shared table sees that a solo game does not: the draw of the chits, the end of a fight I was in, the banner that stands
+// in for the phase buttons when it is not my move, the players sheet, the soft camera, the restart question after a death, and the end of the game.
+import { nameOf } from '../../../engine/catalogue.js';
+import { nameOfClearing } from '../../../engine/catalogue.js';
+import { lengthLine } from '../../gametext.js';
+import { h } from '../../dom.js';
+import { fightSummary } from '../../fight.js';
+import { overTitle } from '../../gametext.js';
+import { drawInfo, joinNames, publicLines, situation, tableText, turnOrderLine } from '../../party.js';
+import { myFall } from '../../pvp.js';
+import { askBox, drawCard, playersBody, waitBanner } from '../../shared_ui.js';
+import { primary, sect as dsSect } from '../../ds.js';
+import { cardSrc, portraitSrc } from '../../front.js';
+import { displayName } from '../../names.js';
+import { CHARACTERS } from '../newgame.js';
+import { footRow } from '../kit/common.js';
+import { logText, voice } from '../../voice.js';
+import { deathCallout } from '../pvpui.js';
+import { overCard } from '../sharedfight.js';
+import { autopilotRecord, awaySheet, endSheet, pendingVote, seatNote, tableActions, voteSheet, welcomeSheet } from '../tableui.js';
+import { act, copyInvite } from './actions.js';
+import { modal, showToast, tc } from './kit.js';
+import { prowlers, render } from './shell.js';
+import { backSeen, drawSeen, markBackSeen, markDrawSeen, markOverSeen, myId, overSeen, setWelcomed, welcomed } from './state.js';
+import { playerOf } from '../../meet.js';
+import { ownSheet, gameOf, questionOf, tableFight, charsOf, tableModel } from '../../combat/feed.js';
+
+function clearTag(G) { clearTimeout(G.ui.tagTimer); G.ui.tagTimer = setTimeout(() => { if (G.ui.tag) { G.ui.tag = null; if (G.root.isConnected) render(G); } }, 6000); }
+
+export function showPlayer(G, p) {
+    G.ui.tag = G.ui.tag === p.id ? null : p.id; clearTag(G);
+    const at = p.at ?? p.onRoad?.from;
+    if (at && G.ui.tag) (p.mine ? G.map.focus(at) : G.map.pan(at));
+    render(G);
+}
+
+export function maybeShowFightOver(G) {
+    if (tableFight(G.st, G.data) || G.ui.sheet || questionOf(G.st, G.data)?.type === 'restart') return;
+    const me = myId(G), sum = fightSummary(G.st, me);
+    if (!sum.over || !sum.lines.length || sum.day < gameOf(G.st, G.data).day - 1 || overSeen(G, sum.key) || G.ui.fightOverKey === sum.key) return;
+    G.ui.fightOverKey = sum.key; G.ui.sheet = 'fightover';
+}
+
+function closeFightOver(G) { markOverSeen(G, G.ui.fightOverKey ?? fightSummary(G.st, myId(G)).key); G.ui.sheet = G.ui.sheet === 'fightover' ? null : G.ui.sheet; render(G); }
+
+// The end of a fight I was in: what each character took away, result first (a result sheet: its one way out is the button).
+export function fightOverSheet(G) {
+    if (!fightSummary(G.st, myId(G)).lines.length) { G.ui.sheet = null; return h('div'); }          // (a seat that started again as another character has no fight behind him)
+    const body = overCard({ st: G.st, data: G.data, people: G.crew, myId: myId(G) });
+    return modal(G, 'The fight is over', body, { kind: 'result', detent: 'tall', eyebrow: (at => (at ? `Evening · ${nameOfClearing(at)}` : 'Evening'))(fightSummary(G.st, myId(G)).at), bare: true, footer: footRow({ primary: primary('On through the night', { 'data-act': 'fight-over-ok', onclick: () => closeFightOver(G) }) }) });
+}
+
+export function maybeShowDraw(G) {
+    if (G.ui.sheet && G.ui.sheet !== 'draw') return;
+    if (tableFight(G.st, G.data) || gameOf(G.st, G.data).period === 'evening' || gameOf(G.st, G.data).period === 'sunset') return;                 // (the chits were drawn at dawn: not now, in the middle of a fight)
+    const d = drawInfo(G.st);
+    if (!d || d.day !== gameOf(G.st, G.data).day || drawSeen(G, d.day) || G.ui.draw?.day === d.day && G.ui.sheet !== 'draw') return;
+    const p = questionOf(G.st, G.data);
+    if (p && !['phase', 'phase-pick', 'turn-end', 'plan'].includes(p.type)) return;
+    if (G.ui.sheet === 'draw') return;
+    const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.calm === 'on';
+    G.ui.sheet = 'draw'; G.ui.draw = { day: d.day, step: reduce ? d.order.length : 0, fresh: !reduce };
+    if (!reduce) {
+        clearInterval(G.ui.drawTimer);
+        G.ui.drawTimer = setInterval(() => {
+            if (!G.root.isConnected || !G.ui.draw) { clearInterval(G.ui.drawTimer); return; }
+            G.ui.draw.step++; if (G.ui.draw.step >= d.order.length) clearInterval(G.ui.drawTimer);
+            render(G);
+        }, 850);
+    }
+}
+
+function endDraw(G) { clearInterval(G.ui.drawTimer); if (G.ui.draw) markDrawSeen(G, G.ui.draw.day); G.ui.sheet = G.ui.sheet === 'draw' ? null : G.ui.sheet; G.ui.draw = G.ui.draw ? { ...G.ui.draw, closed: true } : null; render(G); }
+
+// The draw of the chits: an event shown once a day. Result first (the dawn, in the story voice), then one tile for each player, turning over one by one; Skip turns them all.
+export function drawSheet(G) {
+    const d = drawInfo(G.st), dd = G.ui.draw;
+    if (!d) { G.ui.sheet = null; return h('div'); }
+    const dawn = G.st.log.find(l => l.day === gameOf(G.st, G.data).day && /^Dawn of day/.test(l.t));
+    const dawnText = dawn ? (voice() === 'story' ? (dawn.s ?? null) : dawn.t) : null;
+    const prowling = gameOf(G.st, G.data).prowl && !(voice() === 'story' && dawnText) ? (voice() === 'story' ? `The wilds stir: ${prowlers(G).join(', ') || 'no one'}.` : `Monster Roll ${gameOf(G.st, G.data).prowl}: ${prowlers(G).join(', ') || 'none left'}.`) : null;
+    const finished = dd.step >= d.order.length;
+    const c = drawCard({ view: G.st, draw: d, people: G.crew, step: dd.step, finished, fresh: dd.fresh, dawn: dawnText, prowling,
+        onSkip: () => { clearInterval(G.ui.drawTimer); G.ui.draw.step = d.order.length; G.ui.draw.fresh = false; render(G); }, onDone: () => endDraw(G) });
+    const [skip, go] = c.foot.length > 1 ? c.foot : [null, c.foot[0]];
+    return modal(G, c.title, c.body, { kind: 'result', detent: 'tall', eyebrow: c.eyebrow, bare: true, footer: footRow({ secondary: skip, primary: go }) });
+}
+
+// The card that stands in for the phase buttons when it is not my move: what is going on, why I cannot act, and what is happening in plain sight (the lines in the voice the player chose).
+export function sharedBanner(G) {
+    const sit = situation(G.st, G.answer, myId(G));
+    if (sit.kind === 'mine' || sit.kind === 'you-away') return null;          // (marked away: the card in the tray says it, with the button)
+    const pretty = t => String(t).replace(/\b([A-Z]{2,3}\d)\b/g, m => { try { return nameOfClearing(m); } catch { return m; } });          // (a clearing's code, in the words of the map)
+    const lines = [...publicLines(G.st, myId(G), 4).filter(l => sit.kind !== 'following' || !/ follows /.test(l.t)).map(l => ({ t: pretty(tableText(logText(l), l, G.st, myId(G))), id: l.who ?? null })), ...G.feed.slice(-3)].filter((l, i, a) => !i || (l.s ?? l.t) !== (a[i - 1].s ?? a[i - 1].t)).filter(l => (l.s ?? l.t) !== sit.title).slice(-3);          // (a line that says again what the card's title says is dropped)
+    return waitBanner(sit, { feed: lines, orderLine: turnOrderLine(G.st) });
+}
+
+/** One log line in the voice the player chose, told from this seat's side: "You are wounded" for mine, "Ann is wounded" for another's (QA-103, QA-126). For the tray's last-action line and the Journal at a table. */
+export const seatText = (G, l) => tableText(logText(l, G.st), l, G.st, myId(G));
+
+export function playersSheet(G) {
+    const c = tc(G);
+    return modal(G, 'The table', playersBody(G.crew, { view: G.st, answer: G.answer, orderLine: turnOrderLine(G.st), copyInvite: G.shared.invite ? () => copyInvite(G) : null, rowExtra: p => seatNote(c, p),
+        foot: tableActions(c, { onQuit: () => { G.ui.sheet = 'quit-confirm'; render(G); }, onLeave: () => { G.ui.sheet = 'leave-confirm'; render(G); } }) }), { close: () => { G.ui.sheet = null; render(G); }, detent: 'half', bare: true });
+}
+
+// What the table asks of me, as a sheet: marked away ("I am back"), welcome back (what the autopilot did), a vote I have not answered. Only when nothing else is open and I am not in a fight or
+// in the middle of a question that has a sheet of its own (that question comes first); otherwise it waits, and the tray says only how a vote stands.
+export function tableSheetDue(G) {
+    if (!G.shared || !G.answer) return null;
+    const st = G.st, p = questionOf(st, G.data);
+    // the welcome of a table (QA-131), once, at the first plan of day 1: the same moment as the solo welcome, which it stands in for at a table
+    if (!G.ui.welcomeDone && !welcomed() && gameOf(st, G.data).day === 1 && p?.type === 'plan' && !st.battle?.members?.[st.ch.id]) return { kind: 'intro' };
+    if (G.ui.sheet) return null;
+    if (st.battle?.members?.[st.ch.id] || gameOf(st, G.data).period === 'over') return null;
+    if (p && !['plan', 'phase', 'phase-pick'].includes(p.type)) return null;
+    if (G.answer.you?.away) return { kind: 'away' };
+    const rec = autopilotRecord(st, playerOf(tableModel(G.st, G.data), st.ch.id)), back = rec.back >= 0 && rec.key && !backSeen(G, rec.key) ? rec : null;
+    if (back) return { kind: 'welcome', rec: back };
+    const a = pendingVote(G.answer, G.mySeat);
+    return a ? { kind: 'vote', a } : null;
+}
+// "Welcome" at a table: who is here, that plans are secret and then the chits are drawn, and that you wait for your turn (the solo welcome says "you fight whoever shares your clearing", which is not the story here).
+function tableIntroSheet(G) {
+    const me = G.crew.find(p => p.mine), others = G.crew.filter(p => !p.mine);
+    const gear = ownSheet(G.st, G.data).items.length ? ` with ${joinNames(ownSheet(G.st, G.data).items.map(i => nameOf(G.data, i).replace(/ (?=\S+$)/, '\u00A0')))}` : ', with no weapon or armor yet';
+    const who = joinNames(others.map(p => `${p.player} (${p.character})`));
+    const pvp = !!gameOf(G.st, G.data).options?.pvp;
+    const body = h('div', { class: 'welcome table-welcome', 'data-welcome': 'table' },
+        h('p', { class: 'ds-voice' }, `You wake at the ${G.st.ch.startDwelling}${gear}. ${lengthLine(gameOf(G.st, G.data))}`.replace(/ (\d+)/g, '\u00A0$1')),
+        h('p', { class: 'ds-voice' }, others.length ? `${who} ${others.length === 1 ? 'shares' : 'share'} this realm with you, on one map.` : 'You share this realm with the others, on one map.'),
+        h('p', { class: 'ds-voice' }, `Each morning you all plan in secret. Then the chits are drawn and the day is played one turn at a time: you wait for yours and watch the others. At night you fight whatever shares your clearing${pvp ? ', and players may charge one another' : '; nobody can attack another player'}.`));
+    return modal(G, `Welcome, ${me?.player ?? ownSheet(G.st, G.data).name}`, body, { kind: 'result', eyebrow: 'A shared game', footer: footRow({ primary: primary('Begin', { 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }) }) });
+}
+export function tableSheet(G) {
+    const due = tableSheetDue(G);
+    if (!due) return null;
+    if (due.kind === 'intro') return tableIntroSheet(G);
+    const c = tc(G);
+    return due.kind === 'away' ? awaySheet(c) : due.kind === 'welcome' ? welcomeSheet(c, due.rec, () => { markBackSeen(G, due.rec.key); render(G); }) : voteSheet(c, due.a);
+}
+
+// The camera: it follows the player whose turn it is, softly, but never while I have a decision to make, a sheet open or my finger on the map; and it comes back to me when my turn begins.
+export function sharedCamera(G) {
+    if (!G.shared || !G.map) return;
+    const mine = !!questionOf(G.st, G.data) && questionOf(G.st, G.data).type !== 'over';
+    if (mine) {
+        if (!G.hadAsk && gameOf(G.st, G.data).period === 'daylight') { const at = ownSheet(G.st, G.data).onRoad ? ownSheet(G.st, G.data).onRoad.from : ownSheet(G.st, G.data).at; if (at && !G.map.visible(at)) G.map.pan(at); }
+        G.hadAsk = true; return;
+    }
+    G.hadAsk = false;
+    if (G.ui.sheet || G.ui.sel || Date.now() - (G.ui.touched ?? 0) < 6000) return;
+    // a fight is on: the map shows where (once per fight)
+    if (tableFight(G.st, G.data)?.at) { const key = `fight|${gameOf(G.st, G.data).day}|${tableFight(G.st, G.data).at}`; if (G.ui.followKey !== key) { G.ui.followKey = key; G.map.pan(tableFight(G.st, G.data).at); } return; }
+    const who = G.crew.find(p => p.status === 'playing' && !p.mine);
+    const at = who?.at ?? who?.onRoad?.from;
+    if (!at) return;
+    const key = `${gameOf(G.st, G.data).day}|${who.id}|${at}`;
+    if (G.ui.followKey === key) return;
+    G.ui.followKey = key; G.map.pan(at);
+}
+
+// A fallen character comes back at the next Birdsong: new goals for the weeks left, and (if he likes) another character that nobody at the table is using.
+// When several seats start again the same morning the die decides who may choose a DIFFERENT character first (9.1.2b): a seat behind someone still choosing may only start again as the same
+// character for now (the others are dim and say why), until the ones ahead have answered. (Found by P3: with three fallen, a later seat picked another character and the engine refused.)
+export function sharedRestartSheet(G, p0) {
+    // a seat that restarted a moment ago may have taken one of the characters the question listed: only the ones nobody holds now (my own fallen one is mine to take again)
+    const p = { ...p0, characters: p0.characters.filter(id => id === ownSheet(G.st, G.data).id || !G.st.order.includes(id)) };
+    const total = p.budget, v = (G.ui.sharedRestartVp ??= (() => { const fame = Math.min(5, Math.ceil(total * 0.6)); return { great: 0, spells: 0, fame, notoriety: Math.min(5, total - fame), gold: 0 }; })());
+    const order = p0.pickOrder ?? [], at = order.indexOf(ownSheet(G.st, G.data).id), waiting = G.answer?.waitingFor ?? [];
+    const ahead = at > 0 ? order.slice(0, at).filter(x => waiting.some(w => w.character === x && w.doing === 'restart')) : [];
+    const nameOf = id => G.crew.find(c => c.id === id)?.player ?? charsOf(G.st, G.data)?.[id]?.name ?? id;
+    const own = ownSheet(G.st, G.data).id;
+    if (ahead.length && G.ui.sharedRestartChar && G.ui.sharedRestartChar !== own) G.ui.sharedRestartChar = own;
+    G.ui.sharedRestartChar ??= p.characters.includes(own) ? own : p.characters[0];
+    const used = Object.values(v).reduce((a, b) => a + b, 0), d = p.death ?? {};
+    const rows = [['fame', 'Fame', 10], ['notoriety', 'Notoriety', 20], ['gold', 'Gold', 30], ['great', 'Great treasures', 1], ['spells', 'Spells', 2]];
+    const by = d.by ? String(d.by).replace(/ #\d+$/, '') : null, fall = tableFight(G.st, G.data)?.pvp || gameOf(G.st, G.data).options?.pvp ? myFall(G.st, G.crew, ownSheet(G.st, G.data).id) : null;
+    const aheadWhy = ahead.length ? `${joinNames(ahead.map(nameOf))} choose${ahead.length === 1 ? 's' : ''} first (the die decided). You may start again as ${ownSheet(G.st, G.data).name} now.` : null;
+    const dead = fall ? deathCallout({ st: G.st, f: null, k: fall, viewerId: ownSheet(G.st, G.data).id, next: 'Choose who returns, below.' })
+        : h('div', { class: 'sf-death deathbox me', role: 'alert' }, h('small', {}, `Day ${d.day ?? gameOf(G.st, G.data).day - 1}${d.at ? ` · ${nameOfClearing(d.at)}` : ''}`), h('b', {}, 'You have fallen'), h('span', { class: 'dwho' }, by ? `Slain by the ${by}.` : 'Your character has died.'));
+    // who returns: the wizard's portrait strip and the card of the one picked (QA-133); a character that an earlier seat chooses first is greyed, and says why when tapped
+    const picks = p.characters.map(id => CHARACTERS.find(c => c.id === id) ?? { id, name: G.data.characters[id]?.name ?? id, weight: null, strongest: null, perks: [], starts: [] });
+    const who = picks.find(c => c.id === G.ui.sharedRestartChar) ?? picks[0];
+    const portrait = c => {
+        const dim = !!aheadWhy && c.id !== own, on = G.ui.sharedRestartChar === c.id;
+        return h('button', { type: 'button', class: `ds-portrait${on ? ' on' : ''}${dim ? ' taken' : ''}`, role: 'radio', 'aria-checked': on ? 'true' : 'false', 'aria-disabled': dim ? 'true' : null, 'data-restart-char': c.id,
+            onclick: () => { if (dim) { showToast(G, aheadWhy); return; } G.ui.sharedRestartChar = c.id; G.ui.sharedRestartFlip = false; render(G); } },
+            h('i', {}, h('img', { src: portraitSrc(c.id), alt: '' })), displayName(c.name), dim ? h('span', { class: 'ds-sr' }, 'not yet: someone chooses first') : null);
+    };
+    const card = h('div', { class: 'ds-who restart-who', 'data-who': who.id },
+        h('button', { type: 'button', class: `ds-card-art${G.ui.sharedRestartFlip ? ' back' : ''}`, style: `background-image:url(${cardSrc(who.id)})`, 'data-flip': '', 'aria-label': G.ui.sharedRestartFlip ? 'Turn the card back over' : 'Turn the card over to read its back',
+            onclick: () => { G.ui.sharedRestartFlip = !G.ui.sharedRestartFlip; render(G); } }),
+        h('div', { class: 'ds-who-main' }, h('h2', { class: 'ds-h2 ds-who-name' }, displayName(who.name)),
+            h('div', { class: 'ds-who-tags' }, who.weight ? h('span', { class: 'ds-tag gold' }, who.weight) : null, who.id === own ? h('span', { class: 'ds-tag' }, 'the same again') : null),
+            who.strongest ? h('p', { class: 'ds-meta' }, `Strongest Move chit ${who.strongest}`) : null,
+            who.perks?.length ? h('dl', { class: 'ds-kv' }, who.perks.flatMap(([t, x]) => [h('dt', {}, t), h('dd', {}, x)])) : null));
+    const body = h('div', { class: 'restsheet sf-restart', 'data-restart': '' }, dead,
+        askBox('Choose who comes back, and set new goals.', `Your new character arrives at the Inn with fresh chits and gear, and ${total} victory points to spend. The others wait to begin day ${gameOf(G.st, G.data).day}.`),
+        order.length > 1 ? h('p', { class: 'ds-meta', 'data-pick-order': '' }, `The die decided who chooses first: ${joinNames(order.map(x => (x === own ? 'you' : nameOf(x))))}.`) : null,
+        h('div', { class: 'ds-portraits', role: 'radiogroup', 'aria-label': 'Who returns' }, ...picks.map(portrait)),
+        card,
+        aheadWhy ? h('p', { class: 'ds-hint-line', 'data-hint': 'restart-order' }, aheadWhy) : null,
+        dsSect('New goals', `${used} of ${total} points`),
+        h('div', { class: 'ds-list' }, ...rows.map(([k, label, f]) => h('div', { class: 'ds-row sf-goal' },
+            h('span', { class: 'main' }, h('b', {}, label), h('span', {}, v[k] ? `goal: ${v[k] * f}` : 'no goal')),
+            h('div', { class: 'ds-stepper' },
+                h('button', { type: 'button', 'aria-label': `Less ${label}`, disabled: v[k] <= 0, onclick: () => { v[k]--; render(G); } }, '−'),
+                h('div', { class: 'v' }, String(v[k])),
+                h('button', { type: 'button', 'aria-label': `More ${label}`, disabled: used >= total || v[k] >= 5, onclick: () => { v[k]++; render(G); } }, '+'))))));
+    const foot = footRow({ note: used === total ? 'All points spent.' : `${total - used} left to spend.`,
+        primary: primary('Return', { 'data-act': 'restart-go', disabled: used !== total, onclick: () => { const vp = { ...v }, character = G.ui.sharedRestartChar; G.ui.sharedRestartVp = null; G.ui.sharedRestartChar = null; act(G, { type: 'restart', vp, character }); } }) });
+    return modal(G, 'Who returns', body, { kind: 'result', detent: 'tall', bare: true, footer: foot });
+}
+
+// The end of a shared game: the verdict, every place (a tie is a shared victory), each character's goals, and the realm laid bare (R-19, R-26): app/ui/screens/tableui.js.
+export function sharedOverSheet(G) {
+    return endSheet(tc(G), { title: overTitle(gameOf(G.st, G.data), false), onBack: () => { G.sconn?.unwatch(); G.ctx.go('online'); }, close: () => { G.ui.sheet = null; render(G); } });
+}

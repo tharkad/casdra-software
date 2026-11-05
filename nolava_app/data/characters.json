@@ -1,0 +1,3198 @@
+{
+ "meta": {
+  "sources": [
+   "RealmSpeak MagicRealmData.xml (magic_realm/utility/components/resources/data)",
+   "digest 05_characters_natives_monsters_victory.md sections 2.1-2.5",
+   "prototype /Users/tharkad/casdra/magic-realm-server/mr-*.json (White Knight, Woods Girl)"
+  ],
+  "notes": "chits: 12 per character, stage = development level 1-4 of the chit, strength null for Magic chits. stage4 = the normal-game start. startGold is the recorded gold (10); startValue = 10 + gold prices of starting weapons/armor (digest 05 2.1). spellTypes = the Roman numerals of the character's Magic chits. relationships use -2..+2 and keys of native groups or visitors; unlisted groups are Neutral. advantages are own-words paraphrases (digest 05 2.2 order). optionalChits holds the Wizard optional-rule chit. Wizard stage 2/3 chit placement differs between RealmSpeak and the digest; RealmSpeak placement kept.",
+  "counts": {
+   "characters": 16
+  }
+ },
+ "characters": [
+  {
+   "id": "woods-girl",
+   "name": "Woods Girl",
+   "weight": "L",
+   "startDwellings": [
+    "Inn",
+    "House"
+   ],
+   "startGold": 10,
+   "startValue": 16,
+   "stage4": {
+    "weapons": [
+     "Light Bow"
+    ],
+    "armor": [],
+    "spellsKnown": 1,
+    "spellTypes": [
+     "VII"
+    ]
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Maid",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Sprite",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 1
+    },
+    {
+     "n": 3,
+     "name": "Huntress",
+     "weapons": [
+      "Light Bow"
+     ],
+     "armor": [],
+     "spellsKnown": 1
+    },
+    {
+     "n": 4,
+     "name": "Woods Girl",
+     "weapons": [
+      "Light Bow"
+     ],
+     "armor": [],
+     "spellsKnown": 1
+    }
+   ],
+   "relationships": {
+    "Bashkars": -2,
+    "Soldiers": -1,
+    "Woodfolk": 2,
+    "Lancers": 1,
+    "Warlock": -1
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "tracking",
+     "text": "In Woods-labelled tiles roll one die on Search, Hide and Meeting tables."
+    },
+    {
+     "n": 2,
+     "key": "archer",
+     "text": "Roll one die on the Missile Table."
+    }
+   ],
+   "optionalAdvantages": [
+    {
+     "n": "O1",
+     "key": "expert-woodcraft",
+     "text": "Tracking works in all woods clearings except Ruins and Valley tiles."
+    }
+   ],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Woodsgirl Move L3*"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "L",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Woodsgirl Move L4"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "L",
+     "time": 2,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Woodsgirl Move L2**"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "L",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Woodsgirl Fight L4"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "L",
+     "time": 2,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Woodsgirl Move L2**"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 6,
+     "effort": 2,
+     "magicNumeral": "VII",
+     "rsName": "Woodsgirl Magic VII6**"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Woodsgirl Fight L3*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "M",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Woodsgirl Fight M5"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "L",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Woodsgirl Fight L4"
+    },
+    {
+     "stage": 4,
+     "type": "move",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Woodsgirl Move L3*"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Woodsgirl Fight M4*"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Woodsgirl Fight L3*"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Erosia",
+    "meaning": "Love and Earth"
+   }
+  },
+  {
+   "id": "witch-king",
+   "name": "Witch King",
+   "weight": "L",
+   "startDwellings": [
+    "Inn",
+    "Ghosts"
+   ],
+   "startGold": 10,
+   "startValue": 10,
+   "stage4": {
+    "weapons": [],
+    "armor": [],
+    "spellsKnown": 4,
+    "spellTypes": [
+     "IV",
+     "V",
+     "VI"
+    ]
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Wraith",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 1
+    },
+    {
+     "n": 2,
+     "name": "Wight",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 2
+    },
+    {
+     "n": 3,
+     "name": "Evil Spirit",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 3
+    },
+    {
+     "n": 4,
+     "name": "Witch King",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 4
+    }
+   ],
+   "relationships": {
+    "Bashkars": 2,
+    "Company": 1,
+    "Lancers": -1,
+    "Scholar": -1,
+    "Order": -2
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "disembodied",
+     "text": "Must search with Magic Sight; carries only Negligible weight until he owns magic items."
+    },
+    {
+     "n": 2,
+     "key": "aura-of-power",
+     "text": "One extra spell (Enchant) phase each day."
+    }
+   ],
+   "optionalAdvantages": [],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "IV",
+     "rsName": "Witch King Magic IV4*"
+    },
+    {
+     "stage": 1,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "V",
+     "rsName": "Witch King Magic V4*"
+    },
+    {
+     "stage": 1,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "VI",
+     "rsName": "Witch King Magic VI4*"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "IV",
+     "rsName": "Witch King Magic IV4*"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "V",
+     "rsName": "Witch King Magic V3*"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "VI",
+     "rsName": "Witch King Magic VI3*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "IV",
+     "rsName": "Witch King Magic IV3*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "V",
+     "rsName": "Witch King Magic V3*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "VI",
+     "rsName": "Witch King Magic VI3*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "IV",
+     "rsName": "Witch King Magic IV3*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 2,
+     "effort": 1,
+     "magicNumeral": "V",
+     "rsName": "Witch King Magic V2*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 2,
+     "effort": 1,
+     "magicNumeral": "VI",
+     "rsName": "Witch King Magic VI2*"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Chaotic Intellect",
+    "meaning": null
+   }
+  },
+  {
+   "id": "berserker",
+   "name": "Berserker",
+   "weight": "H",
+   "startDwellings": [
+    "Inn"
+   ],
+   "startGold": 10,
+   "startValue": 23,
+   "stage4": {
+    "weapons": [
+     "Great Axe"
+    ],
+    "armor": [
+     "Helmet"
+    ],
+    "spellsKnown": 0,
+    "spellTypes": []
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Youth",
+     "weapons": [
+      "Axe"
+     ],
+     "armor": [
+      "Helmet"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Raider",
+     "weapons": [
+      "Axe"
+     ],
+     "armor": [
+      "Helmet",
+      "Shield"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 3,
+     "name": "Viking",
+     "weapons": [
+      "Axe"
+     ],
+     "armor": [
+      "Helmet",
+      "Breastplate",
+      "Shield"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 4,
+     "name": "Berserker",
+     "weapons": [
+      "Great Axe"
+     ],
+     "armor": [
+      "Helmet"
+     ],
+     "spellsKnown": 0
+    }
+   ],
+   "relationships": {
+    "Rogues": 1,
+    "Lancers": 1,
+    "Shaman": 1,
+    "Patrol": -1,
+    "Guard": -1
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "robust",
+     "text": "One extra Rest phase each day."
+    },
+    {
+     "n": 2,
+     "key": "berserk",
+     "text": "Playing the Berserk chit raises vulnerability to Tremendous for the day."
+    }
+   ],
+   "optionalAdvantages": [],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "H",
+     "time": 6,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Berserker Move H6"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "H",
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Berserker Move H5*"
+    },
+    {
+     "stage": 1,
+     "type": "fight",
+     "strength": "H",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Berserker Fight H4*"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "T",
+     "time": 6,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Berserker Move T6*"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "H",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Berserker Move H4**"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "H",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Berserker Fight H5"
+    },
+    {
+     "stage": 3,
+     "type": "move",
+     "strength": "H",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Berserker Move H4**"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "T",
+     "time": 6,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Berserker Fight T6*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "T",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Berserker Fight T4**"
+    },
+    {
+     "stage": 4,
+     "type": "berserk",
+     "strength": "T",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Berserker Berserk T4**"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "T",
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Berserker Fight T5*"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "T",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Berserker Fight T4**"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Letophoro",
+    "meaning": "Death and Destruction"
+   }
+  },
+  {
+   "id": "white-knight",
+   "name": "White Knight",
+   "weight": "H",
+   "startDwellings": [
+    "Inn",
+    "Chapel"
+   ],
+   "startGold": 10,
+   "startValue": 37,
+   "stage4": {
+    "weapons": [
+     "Great Sword"
+    ],
+    "armor": [
+     "Suit of Armor"
+    ],
+    "spellsKnown": 1,
+    "spellTypes": [
+     "I"
+    ]
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Squire",
+     "weapons": [
+      "Broadsword"
+     ],
+     "armor": [
+      "Helmet",
+      "Breastplate",
+      "Shield"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Knight-Errant",
+     "weapons": [
+      "Broadsword"
+     ],
+     "armor": [
+      "Suit of Armor",
+      "Shield"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 3,
+     "name": "Crusader",
+     "weapons": [
+      "Broadsword"
+     ],
+     "armor": [
+      "Suit of Armor",
+      "Shield"
+     ],
+     "spellsKnown": 1
+    },
+    {
+     "n": 4,
+     "name": "White Knight",
+     "weapons": [
+      "Great Sword"
+     ],
+     "armor": [
+      "Suit of Armor"
+     ],
+     "spellsKnown": 1
+    }
+   ],
+   "relationships": {
+    "Order": 2,
+    "Lancers": 1,
+    "Bashkars": -1,
+    "Crone": -1,
+    "Company": -2
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "health",
+     "text": "One extra Rest phase each day."
+    },
+    {
+     "n": 2,
+     "key": "honor",
+     "text": "Subtract one from every Meeting Table die."
+    }
+   ],
+   "optionalAdvantages": [],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "H",
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "White Knight Move H5*"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "H",
+     "time": 6,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "White Knight Move H6"
+    },
+    {
+     "stage": 1,
+     "type": "fight",
+     "strength": "H",
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "White Knight Fight H5*"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "H",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "White Knight Move H4**"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "H",
+     "time": 6,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "White Knight Fight H6"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "H",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "White Knight Fight H4**"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "H",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "White Knight Fight H4**"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "H",
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "White Knight Fight H5*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 5,
+     "effort": 2,
+     "magicNumeral": "I",
+     "rsName": "White Knight Magic I5**"
+    },
+    {
+     "stage": 4,
+     "type": "move",
+     "strength": "T",
+     "time": 6,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "White Knight Move T6*"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "T",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "White Knight Fight T4**"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "T",
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "White Knight Fight T5*"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Cross Pommee",
+    "meaning": "Potent Cross"
+   }
+  },
+  {
+   "id": "druid",
+   "name": "Druid",
+   "weight": "L",
+   "startDwellings": [
+    "Inn"
+   ],
+   "startGold": 10,
+   "startValue": 10,
+   "stage4": {
+    "weapons": [],
+    "armor": [],
+    "spellsKnown": 2,
+    "spellTypes": [
+     "II",
+     "VIII"
+    ]
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Herbalist",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Animalist",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 3,
+     "name": "Soothsayer",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 1
+    },
+    {
+     "n": 4,
+     "name": "Druid",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 2
+    }
+   ],
+   "relationships": {
+    "Bashkars": 2,
+    "Lancers": 1,
+    "Order": -1,
+    "Shaman": -1,
+    "Woodfolk": -2
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "concealment",
+     "text": "Roll one die instead of two when hiding."
+    },
+    {
+     "n": 2,
+     "key": "peace-with-nature",
+     "text": "At the end of his own turn, warning and sound chits in his tile do not summon."
+    }
+   ],
+   "optionalAdvantages": [
+    {
+     "n": "O1",
+     "key": "earth-absorbs",
+     "text": "Curses have no effect."
+    },
+    {
+     "n": "O2",
+     "key": "lull",
+     "text": "Site chits do not summon monsters."
+    }
+   ],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Druid Move L3*"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "L",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Druid Move L4"
+    },
+    {
+     "stage": 1,
+     "type": "fight",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Druid Fight L3*"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "L",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Druid Fight L4"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "L",
+     "time": 2,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Druid Move L2**"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "L",
+     "time": 2,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Druid Fight L2**"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "II",
+     "rsName": "Druid Magic II3*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "VIII",
+     "rsName": "Druid Magic VIII4*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "VIII",
+     "rsName": "Druid Magic VIII3*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 2,
+     "effort": 2,
+     "magicNumeral": "II",
+     "rsName": "Druid Magic II2**"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "II",
+     "rsName": "Druid Magic II3*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 2,
+     "effort": 2,
+     "magicNumeral": "VIII",
+     "rsName": "Druid Magic VIII2**"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "wood",
+    "meaning": null
+   }
+  },
+  {
+   "id": "pilgrim",
+   "name": "Pilgrim",
+   "weight": "M",
+   "startDwellings": [
+    "Inn",
+    "Chapel"
+   ],
+   "startGold": 10,
+   "startValue": 11,
+   "stage4": {
+    "weapons": [
+     "Staff"
+    ],
+    "armor": [],
+    "spellsKnown": 1,
+    "spellTypes": [
+     "I",
+     "VII"
+    ]
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Acolyte",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Guardian",
+     "weapons": [
+      "Staff"
+     ],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 3,
+     "name": "Missionary",
+     "weapons": [
+      "Staff"
+     ],
+     "armor": [],
+     "spellsKnown": 1
+    },
+    {
+     "n": 4,
+     "name": "Pilgrim",
+     "weapons": [
+      "Staff"
+     ],
+     "armor": [],
+     "spellsKnown": 1
+    }
+   ],
+   "relationships": {
+    "Order": 2,
+    "Bashkars": -1,
+    "Company": -1,
+    "Crone": -1
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "heavenly-protection",
+     "text": "Demons and the Imp cannot attack him or be assigned to him; he can still attack them."
+    },
+    {
+     "n": 2,
+     "key": "learning",
+     "text": "Roll one die when Reading Runes."
+    }
+   ],
+   "optionalAdvantages": [],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Pilgrim Move M4*"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "M",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Pilgrim Move M5"
+    },
+    {
+     "stage": 1,
+     "type": "fight",
+     "strength": "M",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Pilgrim Fight M3*"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "H",
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Pilgrim Move H5*"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "M",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Pilgrim Fight M4"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "M",
+     "time": 2,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Pilgrim Fight M2**"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 6,
+     "effort": 1,
+     "magicNumeral": "I",
+     "rsName": "Pilgrim Magic I6*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "VII",
+     "rsName": "Pilgrim Magic VII3*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "M",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Pilgrim Fight M3*"
+    },
+    {
+     "stage": 4,
+     "type": "move",
+     "strength": "H",
+     "time": 6,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Pilgrim Move H6"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "H",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Pilgrim Fight H4*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "I",
+     "rsName": "Pilgrim Magic I4*"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Crozier",
+    "meaning": "Shepherd's staff"
+   }
+  },
+  {
+   "id": "witch",
+   "name": "Witch",
+   "weight": "L",
+   "startDwellings": [
+    "Inn"
+   ],
+   "startGold": 10,
+   "startValue": 10,
+   "stage4": {
+    "weapons": [],
+    "armor": [],
+    "spellsKnown": 3,
+    "spellTypes": [
+     "II",
+     "V",
+     "VIII"
+    ]
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Old Woman",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Medium",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 1
+    },
+    {
+     "n": 3,
+     "name": "Hag",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 2
+    },
+    {
+     "n": 4,
+     "name": "Witch",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 3
+    }
+   ],
+   "relationships": {
+    "Company": 2,
+    "Bashkars": 1,
+    "Order": -1,
+    "Lancers": -1,
+    "Soldiers": -1,
+    "Shaman": -1
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "knowledge",
+     "text": "Subtract one from Reading Runes rolls."
+    },
+    {
+     "n": 2,
+     "key": "familiar",
+     "text": "Has an invisible companion that moves, follows and peers separately."
+    }
+   ],
+   "optionalAdvantages": [],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "L",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Witch Move L4"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Witch Move L3*"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Witch Move M4*"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "VIII",
+     "rsName": "Witch Magic VIII4*"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 6,
+     "effort": 1,
+     "magicNumeral": "V",
+     "rsName": "Witch Magic V6*"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "II",
+     "rsName": "Witch Magic II3*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": "V",
+     "rsName": "Witch Magic V5*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "II",
+     "rsName": "Witch Magic II3*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Witch Fight L3*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "V",
+     "rsName": "Witch Magic V4*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 2,
+     "effort": 1,
+     "magicNumeral": "II",
+     "rsName": "Witch Magic II2*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 2,
+     "effort": 1,
+     "magicNumeral": "VIII",
+     "rsName": "Witch Magic VIII2*"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Vitriole",
+    "meaning": "Poison"
+   }
+  },
+  {
+   "id": "dwarf",
+   "name": "Dwarf",
+   "weight": "H",
+   "startDwellings": [
+    "Inn",
+    "Guard house"
+   ],
+   "startGold": 10,
+   "startValue": 23,
+   "stage4": {
+    "weapons": [
+     "Great Axe"
+    ],
+    "armor": [
+     "Helmet"
+    ],
+    "spellsKnown": 0,
+    "spellTypes": []
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Youngster",
+     "weapons": [
+      "Axe"
+     ],
+     "armor": [
+      "Helmet"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Smith",
+     "weapons": [
+      "Axe"
+     ],
+     "armor": [
+      "Helmet"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 3,
+     "name": "Warrior",
+     "weapons": [
+      "Great Axe"
+     ],
+     "armor": [
+      "Helmet"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 4,
+     "name": "Dwarf",
+     "weapons": [
+      "Great Axe"
+     ],
+     "armor": [
+      "Helmet"
+     ],
+     "spellsKnown": 0
+    }
+   ],
+   "relationships": {
+    "Company": 1,
+    "Guard": 1,
+    "Scholar": 1,
+    "Woodfolk": -1,
+    "Bashkars": -1
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "short-legs",
+     "text": "Cannot use sunlight phases; Rest counts double; Duck chit serves as a Move chit only for ducking."
+    },
+    {
+     "n": 2,
+     "key": "cave-knowledge",
+     "text": "In cave clearings roll one die on Search, Hide and Meeting tables."
+    }
+   ],
+   "optionalAdvantages": [],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "duck",
+     "strength": "T",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Dwarf Duck T3*"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "H",
+     "time": 6,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Dwarf Move H6"
+    },
+    {
+     "stage": 1,
+     "type": "fight",
+     "strength": "H",
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Dwarf Fight H5*"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "T",
+     "time": 6,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Dwarf Move T6*"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "H",
+     "time": 6,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Dwarf Fight H6"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "H",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Dwarf Fight H4**"
+    },
+    {
+     "stage": 3,
+     "type": "move",
+     "strength": "H",
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Dwarf Move H5*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "T",
+     "time": 6,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Dwarf Fight T6*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "H",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Dwarf Fight H4**"
+    },
+    {
+     "stage": 4,
+     "type": "move",
+     "strength": "T",
+     "time": 5,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Dwarf Move T5**"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "T",
+     "time": 5,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Dwarf Fight T5**"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "T",
+     "time": 5,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Dwarf Fight T5**"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Opposition",
+    "meaning": null
+   }
+  },
+  {
+   "id": "elf",
+   "name": "Elf",
+   "weight": "L",
+   "startDwellings": [
+    "Inn"
+   ],
+   "startGold": 10,
+   "startValue": 16,
+   "stage4": {
+    "weapons": [
+     "Light Bow"
+    ],
+    "armor": [],
+    "spellsKnown": 2,
+    "spellTypes": [
+     "III",
+     "VII"
+    ]
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Stripling",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 1
+    },
+    {
+     "n": 2,
+     "name": "Faerie",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 2
+    },
+    {
+     "n": 3,
+     "name": "Hunter",
+     "weapons": [
+      "Light Bow"
+     ],
+     "armor": [],
+     "spellsKnown": 2
+    },
+    {
+     "n": 4,
+     "name": "Elf",
+     "weapons": [
+      "Light Bow"
+     ],
+     "armor": [],
+     "spellsKnown": 2
+    }
+   ],
+   "relationships": {
+    "Woodfolk": 2,
+    "Bashkars": 1,
+    "Order": -1,
+    "Scholar": -1,
+    "Lancers": -2
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "elusiveness",
+     "text": "One extra Hide phase each day."
+    },
+    {
+     "n": 2,
+     "key": "archer",
+     "text": "Roll one die on the Missile Table."
+    }
+   ],
+   "optionalAdvantages": [
+    {
+     "n": "O1",
+     "key": "light-or-great-elf",
+     "text": "Choose Light Elf (no Medium chits) or Great Elf (no Move L2* chit)."
+    }
+   ],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "III",
+     "rsName": "Elf Magic III3*"
+    },
+    {
+     "stage": 1,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "III",
+     "rsName": "Elf Magic III4*"
+    },
+    {
+     "stage": 1,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "VII",
+     "rsName": "Elf Magic VII4*"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "VII",
+     "rsName": "Elf Magic VII3*"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "III",
+     "rsName": "Elf Magic III3*"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 2,
+     "effort": 1,
+     "magicNumeral": "III",
+     "rsName": "Elf Magic III2*"
+    },
+    {
+     "stage": 3,
+     "type": "move",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Elf Move L3*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Elf Fight L3*"
+    },
+    {
+     "stage": 3,
+     "type": "move",
+     "strength": "L",
+     "time": 2,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Elf Move L2*"
+    },
+    {
+     "stage": 4,
+     "type": "move",
+     "strength": "M",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Elf Move M4"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "M",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Elf Fight M3*"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "M",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Elf Fight M4"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Sextile",
+    "meaning": "Half-human"
+   }
+  },
+  {
+   "id": "sorceror",
+   "name": "Sorceror",
+   "weight": "M",
+   "startDwellings": [
+    "Inn"
+   ],
+   "startGold": 10,
+   "startValue": 10,
+   "stage4": {
+    "weapons": [],
+    "armor": [],
+    "spellsKnown": 3,
+    "spellTypes": [
+     "IV",
+     "VI"
+    ]
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Apprentice",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Alchemist",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 1
+    },
+    {
+     "n": 3,
+     "name": "Conjuror",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 2
+    },
+    {
+     "n": 4,
+     "name": "Sorceror",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 3
+    }
+   ],
+   "relationships": {
+    "Lancers": 2,
+    "Company": 1,
+    "Bashkars": 1,
+    "Order": -1,
+    "Soldiers": -1,
+    "Warlock": -1,
+    "Guard": -2
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "lore",
+     "text": "Roll one die when Reading Runes."
+    },
+    {
+     "n": 2,
+     "key": "aura-of-power",
+     "text": "One extra spell (Enchant) phase each day."
+    }
+   ],
+   "optionalAdvantages": [],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "M",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Sorceror Move M5"
+    },
+    {
+     "stage": 1,
+     "type": "fight",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Sorceror Fight L3*"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Sorceror Move M4*"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "IV",
+     "rsName": "Sorceror Magic IV4*"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "IV",
+     "rsName": "Sorceror Magic IV4*"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "IV",
+     "rsName": "Sorceror Magic IV4*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": "VI",
+     "rsName": "Sorceror Magic VI5*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 6,
+     "effort": 1,
+     "magicNumeral": "VI",
+     "rsName": "Sorceror Magic VI6*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "VI",
+     "rsName": "Sorceror Magic VI4*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "IV",
+     "rsName": "Sorceror Magic IV3*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "IV",
+     "rsName": "Sorceror Magic IV3*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": "IV",
+     "rsName": "Sorceror Magic IV5*"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Controlled Intellect",
+    "meaning": null
+   }
+  },
+  {
+   "id": "black-knight",
+   "name": "Black Knight",
+   "weight": "M",
+   "startDwellings": [
+    "Inn"
+   ],
+   "startGold": 10,
+   "startValue": 40,
+   "stage4": {
+    "weapons": [
+     "Mace"
+    ],
+    "armor": [
+     "Suit of Armor",
+     "Shield"
+    ],
+    "spellsKnown": 0,
+    "spellTypes": []
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Spearman",
+     "weapons": [
+      "Spear"
+     ],
+     "armor": [
+      "Helmet",
+      "Breastplate"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Mercenary",
+     "weapons": [
+      "Crossbow"
+     ],
+     "armor": [
+      "Helmet",
+      "Breastplate"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 3,
+     "name": "Heavy Footman",
+     "weapons": [
+      "Mace"
+     ],
+     "armor": [
+      "Helmet",
+      "Breastplate",
+      "Shield"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 4,
+     "name": "Black Knight",
+     "weapons": [
+      "Mace"
+     ],
+     "armor": [
+      "Suit of Armor",
+      "Shield"
+     ],
+     "spellsKnown": 0
+    }
+   ],
+   "relationships": {
+    "Company": 2,
+    "Soldiers": 1,
+    "Crone": 1,
+    "Lancers": -1,
+    "Guard": -2
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "aim",
+     "text": "Subtract one from every Missile Table roll."
+    },
+    {
+     "n": 2,
+     "key": "fear",
+     "text": "Roll one die instead of two on the Meeting Table."
+    }
+   ],
+   "optionalAdvantages": [],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "M",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Black Knight Move M5"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "H",
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Black Knight Move H5*"
+    },
+    {
+     "stage": 1,
+     "type": "fight",
+     "strength": "H",
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Black Knight Fight H5*"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "H",
+     "time": 6,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Black Knight Move H6"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Black Knight Move M4*"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "H",
+     "time": 6,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Black Knight Fight H6"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Black Knight Fight M4*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Black Knight Fight M4*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "M",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Black Knight Fight M5"
+    },
+    {
+     "stage": 4,
+     "type": "move",
+     "strength": "H",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Black Knight Move H4**"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "H",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Black Knight Fight H4**"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "M",
+     "time": 3,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Black Knight Fight M3**"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Mars",
+    "meaning": "God of War"
+   }
+  },
+  {
+   "id": "magician",
+   "name": "Magician",
+   "weight": "L",
+   "startDwellings": [
+    "Inn"
+   ],
+   "startGold": 10,
+   "startValue": 10,
+   "stage4": {
+    "weapons": [],
+    "armor": [],
+    "spellsKnown": 3,
+    "spellTypes": [
+     "II",
+     "III",
+     "IV",
+     "V",
+     "VI",
+     "VII",
+     "VIII"
+    ]
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Student",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Trickster",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 1
+    },
+    {
+     "n": 3,
+     "name": "Illusionist",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 2
+    },
+    {
+     "n": 4,
+     "name": "Magician",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 3
+    }
+   ],
+   "relationships": {
+    "Company": 1,
+    "Rogues": 1,
+    "Patrol": -1,
+    "Soldiers": -1,
+    "Crone": -1
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "magical-paraphernalia",
+     "text": "One extra Alert phase each day."
+    },
+    {
+     "n": 2,
+     "key": "knowledge",
+     "text": "Subtract one from Reading Runes rolls."
+    }
+   ],
+   "optionalAdvantages": [
+    {
+     "n": "O1",
+     "key": "charms",
+     "text": "At Midnight prepared Magic chits become unprepared rather than fatigued."
+    }
+   ],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "fight",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Magician Fight L3*"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "L",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Magician Move L4"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Magician Move L3*"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "L",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Magician Fight L4"
+    },
+    {
+     "stage": 2,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "II",
+     "rsName": "Magician Magic II3*"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Magician Move M4*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "VIII",
+     "rsName": "Magician Magic VIII4*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "III",
+     "rsName": "Magician Magic III3*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": "VII",
+     "rsName": "Magician Magic VII4**"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": "V",
+     "rsName": "Magician Magic V4**"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "VI",
+     "rsName": "Magician Magic VI4*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "IV",
+     "rsName": "Magician Magic IV3*"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Ginner",
+    "meaning": "Divine and Demonic"
+   }
+  },
+  {
+   "id": "wizard",
+   "name": "Wizard",
+   "weight": "M",
+   "startDwellings": [
+    "Inn",
+    "House",
+    "Guard house"
+   ],
+   "startGold": 10,
+   "startValue": 11,
+   "stage4": {
+    "weapons": [
+     "Staff"
+    ],
+    "armor": [],
+    "spellsKnown": 2,
+    "spellTypes": [
+     "II",
+     "III",
+     "IV"
+    ]
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Apprentice",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Scholar",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 3,
+     "name": "Wise One",
+     "weapons": [
+      "Staff"
+     ],
+     "armor": [],
+     "spellsKnown": 1
+    },
+    {
+     "n": 4,
+     "name": "Wizard",
+     "weapons": [
+      "Staff"
+     ],
+     "armor": [],
+     "spellsKnown": 2
+    }
+   ],
+   "relationships": {
+    "Woodfolk": 1,
+    "Patrol": 1,
+    "Soldiers": 1,
+    "Guard": 1,
+    "Company": -1,
+    "Bashkars": -1,
+    "Warlock": -1,
+    "Lancers": -2
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "lore",
+     "text": "Roll one die when Reading Runes."
+    },
+    {
+     "n": 2,
+     "key": "experience",
+     "text": "Uses hidden paths and secret passages without discovering them."
+    }
+   ],
+   "optionalAdvantages": [
+    {
+     "n": "O1",
+     "key": "elvish-studies",
+     "text": "His second-stage Move M5 chit counts as Magic III 2*."
+    },
+    {
+     "n": "O2",
+     "key": "long-practice",
+     "text": "May enchant in every spell phase without the usual preparation."
+    }
+   ],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "M",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Wizard Move M5"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Wizard Move M4*"
+    },
+    {
+     "stage": 1,
+     "type": "fight",
+     "strength": "M",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Wizard Fight M3*"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "L",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Wizard Fight L4"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "M",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Wizard Move M5",
+     "optional": "remove"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "M",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Wizard Fight M5"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "II",
+     "rsName": "Wizard Magic II4*"
+    },
+    {
+     "stage": 3,
+     "type": "magic",
+     "strength": null,
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": "IV",
+     "rsName": "Wizard Magic IV4*"
+    },
+    {
+     "stage": 3,
+     "type": "move",
+     "strength": "M",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Wizard Move M5"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "II",
+     "rsName": "Wizard Magic II3*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "III",
+     "rsName": "Wizard Magic III3*"
+    },
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": "IV",
+     "rsName": "Wizard Magic IV3*"
+    }
+   ],
+   "optionalChits": [
+    {
+     "stage": 4,
+     "type": "magic",
+     "strength": null,
+     "time": 2,
+     "effort": 1,
+     "magicNumeral": "III",
+     "rsName": "Wizard Magic III3*",
+     "optional": "add"
+    }
+   ],
+   "attention": {
+    "name": "Celestial Power",
+    "meaning": null
+   }
+  },
+  {
+   "id": "captain",
+   "name": "Captain",
+   "weight": "M",
+   "startDwellings": [
+    "Inn",
+    "House",
+    "Guard house"
+   ],
+   "startGold": 10,
+   "startValue": 35,
+   "stage4": {
+    "weapons": [
+     "Short Sword"
+    ],
+    "armor": [
+     "Helmet",
+     "Breastplate",
+     "Shield"
+    ],
+    "spellsKnown": 0,
+    "spellTypes": []
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Spearman",
+     "weapons": [
+      "Spear"
+     ],
+     "armor": [
+      "Shield"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Soldier",
+     "weapons": [
+      "Short Sword"
+     ],
+     "armor": [
+      "Helmet",
+      "Breastplate",
+      "Shield"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 3,
+     "name": "Lieutenant",
+     "weapons": [
+      "Short Sword"
+     ],
+     "armor": [
+      "Helmet",
+      "Breastplate",
+      "Shield"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 4,
+     "name": "Captain",
+     "weapons": [
+      "Short Sword"
+     ],
+     "armor": [
+      "Helmet",
+      "Breastplate",
+      "Shield"
+     ],
+     "spellsKnown": 0
+    }
+   ],
+   "relationships": {
+    "Patrol": 1,
+    "Soldiers": 1,
+    "Guard": 1,
+    "Scholar": 1,
+    "Woodfolk": -1,
+    "Bashkars": -2
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "aim",
+     "text": "Subtract one from every Missile Table roll."
+    },
+    {
+     "n": 2,
+     "key": "reputation",
+     "text": "One extra phase per day, only when starting it at a dwelling."
+    }
+   ],
+   "optionalAdvantages": [
+    {
+     "n": "O1",
+     "key": "leadership",
+     "text": "Roll one die on Hire."
+    }
+   ],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Captain Move M4*"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "M",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Captain Move M5"
+    },
+    {
+     "stage": 1,
+     "type": "fight",
+     "strength": "H",
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Captain Fight H5*"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "M",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Captain Fight M5"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "M",
+     "time": 3,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Captain Fight M3**"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "M",
+     "time": 3,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Captain Move M3**"
+    },
+    {
+     "stage": 3,
+     "type": "move",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Captain Move M4*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "H",
+     "time": 5,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Captain Fight H5*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Captain Fight M4*"
+    },
+    {
+     "stage": 4,
+     "type": "move",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Captain Move M4*"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "H",
+     "time": 6,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Captain Fight H6"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Captain Fight M4*"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Chevron",
+    "meaning": "Military Leadership"
+   }
+  },
+  {
+   "id": "amazon",
+   "name": "Amazon",
+   "weight": "M",
+   "startDwellings": [
+    "Inn"
+   ],
+   "startGold": 10,
+   "startValue": 35,
+   "stage4": {
+    "weapons": [
+     "Short Sword"
+    ],
+    "armor": [
+     "Helmet",
+     "Breastplate",
+     "Shield"
+    ],
+    "spellsKnown": 0,
+    "spellTypes": []
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Scout",
+     "weapons": [
+      "Light Bow"
+     ],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Warrior",
+     "weapons": [
+      "Spear"
+     ],
+     "armor": [
+      "Helmet",
+      "Breastplate",
+      "Shield"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 3,
+     "name": "Champion",
+     "weapons": [
+      "Spear"
+     ],
+     "armor": [
+      "Helmet",
+      "Breastplate",
+      "Shield"
+     ],
+     "spellsKnown": 0
+    },
+    {
+     "n": 4,
+     "name": "Amazon",
+     "weapons": [
+      "Short Sword"
+     ],
+     "armor": [
+      "Helmet",
+      "Breastplate",
+      "Shield"
+     ],
+     "spellsKnown": 0
+    }
+   ],
+   "relationships": {
+    "Lancers": 1,
+    "Patrol": 1,
+    "Shaman": 1,
+    "Company": -1,
+    "Bashkars": -1
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "aim",
+     "text": "Subtract one from every Missile Table roll."
+    },
+    {
+     "n": 2,
+     "key": "stamina",
+     "text": "One extra Move phase each day, even when riding."
+    }
+   ],
+   "optionalAdvantages": [],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "M",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Amazon Move M4"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "M",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Amazon Move M3*"
+    },
+    {
+     "stage": 1,
+     "type": "fight",
+     "strength": "L",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Amazon Fight L4"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "M",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Amazon Move M4"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "M",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Amazon Fight M5"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Amazon Fight M4*"
+    },
+    {
+     "stage": 3,
+     "type": "move",
+     "strength": "M",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Amazon Move M3*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "M",
+     "time": 3,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Amazon Fight M3**"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "H",
+     "time": 4,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Amazon Fight H4**"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Amazon Fight M4*"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "M",
+     "time": 3,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Amazon Fight M3**"
+    },
+    {
+     "stage": 4,
+     "type": "move",
+     "strength": "M",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Amazon Move M3*"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Sword and Shield",
+    "meaning": null
+   }
+  },
+  {
+   "id": "swordsman",
+   "name": "Swordsman",
+   "weight": "L",
+   "startDwellings": [
+    "Inn"
+   ],
+   "startGold": 10,
+   "startValue": 16,
+   "stage4": {
+    "weapons": [
+     "Thrusting Sword"
+    ],
+    "armor": [],
+    "spellsKnown": 0,
+    "spellTypes": []
+   },
+   "stages": [
+    {
+     "n": 1,
+     "name": "Wanderer",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 2,
+     "name": "Thief",
+     "weapons": [],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 3,
+     "name": "Adventurer",
+     "weapons": [
+      "Thrusting Sword"
+     ],
+     "armor": [],
+     "spellsKnown": 0
+    },
+    {
+     "n": 4,
+     "name": "Swordsman",
+     "weapons": [
+      "Thrusting Sword"
+     ],
+     "armor": [],
+     "spellsKnown": 0
+    }
+   ],
+   "relationships": {
+    "Rogues": 1,
+    "Company": 1,
+    "Warlock": 1,
+    "Patrol": -2
+   },
+   "advantages": [
+    {
+     "n": 1,
+     "key": "barter",
+     "text": "Roll one die on the Meeting Table, during Trade only."
+    },
+    {
+     "n": 2,
+     "key": "clever",
+     "text": "Chooses when to take his single Daylight turn."
+    }
+   ],
+   "optionalAdvantages": [],
+   "chits": [
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "L",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Swordsman Move L4"
+    },
+    {
+     "stage": 1,
+     "type": "move",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Swordsman Move L3*"
+    },
+    {
+     "stage": 1,
+     "type": "fight",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Swordsman Fight L3*"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "L",
+     "time": 3,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Swordsman Move L3*"
+    },
+    {
+     "stage": 2,
+     "type": "fight",
+     "strength": "L",
+     "time": 2,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Swordsman Fight L2**"
+    },
+    {
+     "stage": 2,
+     "type": "move",
+     "strength": "L",
+     "time": 2,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Swordsman Move L2**"
+    },
+    {
+     "stage": 3,
+     "type": "move",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Swordsman Move M4*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "M",
+     "time": 4,
+     "effort": 1,
+     "magicNumeral": null,
+     "rsName": "Swordsman Fight M4*"
+    },
+    {
+     "stage": 3,
+     "type": "fight",
+     "strength": "M",
+     "time": 3,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Swordsman Fight M3**"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "L",
+     "time": 4,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Swordsman Fight L4"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "M",
+     "time": 5,
+     "effort": 0,
+     "magicNumeral": null,
+     "rsName": "Swordsman Fight M5"
+    },
+    {
+     "stage": 4,
+     "type": "fight",
+     "strength": "L",
+     "time": 2,
+     "effort": 2,
+     "magicNumeral": null,
+     "rsName": "Swordsman Fight L2**"
+    }
+   ],
+   "optionalChits": [],
+   "attention": {
+    "name": "Wolf's Hook",
+    "meaning": null
+   }
+  }
+ ]
+}

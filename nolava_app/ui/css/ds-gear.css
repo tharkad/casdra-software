@@ -1,0 +1,37 @@
+/* css/ds-gear.css: the end-of-day gear reminder (screens/kit/evening.js, the engine's 'evening-end' question), New belongings (screens/kit/phasegear.js, 'phase-gear') and the plan tray's spare pony tab (screens/play/plan.js).
+   Written against tokens.css and core.css; classes kit-gear* / kit-evening / ptab.spare. Nothing here changes another package's rules. */
+.kit-evening .ds-ask { margin-bottom: 4px; }
+/* Notes 104, 106: a spell he knows that cannot be cast tonight, and why, at the evening's end and the end of his turn (kit/spells.js blockedNote). A quiet card, not a warning: nothing is wrong. */
+.kit-nocast { margin: 10px 0 2px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: var(--r-md); background: var(--surface-3); display: grid; gap: 4px; }
+.kit-nocast p { margin: 0; font: 400 calc(14px * var(--ts, 1))/1.35 var(--font-ui); color: var(--ink-2); text-wrap: pretty; }
+.kit-nocast p b { display: block; color: var(--ink); font-weight: 700; }
+.kit-nocast .ds-eyebrow { color: var(--ink-3); }
+.kit-gearlist { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.kit-gear { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 64px; padding: 8px 10px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); }
+.kit-gear.on { border-color: var(--gold); }
+.kit-gear.dim { border-style: dashed; border-color: var(--st-illegal); background: transparent; }
+.kit-gear .art { width: 44px; height: 44px; }
+.kit-gear .main { display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left; }
+.kit-gear .main b { font: 700 calc(16px * var(--ts, 1))/1.25 var(--font-ui); color: var(--ink); }
+.kit-gear.dim .main b { color: var(--ink-2); }
+.kit-gear .main .gives { font: 400 calc(14px * var(--ts, 1))/1.25 var(--font-voice); color: var(--ink-2); }
+.kit-gear .main .sub { font: 400 calc(13px * var(--ts, 1))/1.25 var(--font-ui); color: var(--ink-3); }
+.kit-gear .main .sub.bad { color: var(--danger); }
+.kit-gear .main .sub.from { font-family: var(--font-voice); font-size: calc(14px * var(--ts, 1)); color: var(--ink-2); }          /* where he came by it (note 73) */
+.kit-gear .ds-btn { margin: 0; white-space: nowrap; }
+.kit-gear .ds-btn.primary { color: var(--ink-on-gold); }
+/* New belongings (screens/kit/phasegear.js): the same row, with its buttons on a line of their own under the words, so a long name and three buttons never fight for a phone's width. */
+.kit-gear.fresh { grid-template-columns: 44px minmax(0, 1fr); row-gap: 8px; align-items: start; }
+.kit-gear.fresh .kit-gearact { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.kit-gear.fresh .kit-gearact .ds-btn { flex: 1 1 0; min-width: 0; }
+.kit-gear.fresh .kit-gearact.confirm .ds-meta { flex: 1 0 100%; font: 400 calc(14px * var(--ts, 1))/1.25 var(--font-ui); color: var(--ink-2); }
+.kit-gear.fresh .kit-committed { margin-top: 4px; }
+@media (max-width: 380px) { .kit-gear { gap: 8px; padding: 8px; } .kit-gear .ds-btn { padding: 0 10px; } }
+
+/* the plan tray's spare tab: one more Move, from the pony (plan.js); dashed until it holds one. A Move the pony causes wears a small gold bar under its number. */
+.ds-plan .ds-tab.spare:not(.set) { border-style: dashed; border-color: var(--st-illegal); }
+.ds-plan .ds-tab.spare:not(.set):not(.on) { background: transparent; }
+.ds-plan .ds-tab.pony { box-shadow: inset 0 -3px 0 var(--gold); }
+
+/* package-local override of plan.css (legacy: `.chip.dim { pointer-events: none }`): a dim plan chip stays tappable and says why (plan.js actChips shows the reason as a toast), as every dim control does. */
+.ds-plan .ds-acts .chip.dim { pointer-events: auto; cursor: pointer; }

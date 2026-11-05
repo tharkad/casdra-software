@@ -1,0 +1,401 @@
+/* css/ds-combat.css: the combat scene "The Clearing" (P1: screens/combat_scene.js and ui/combat/*.js). Lifted from mockups/ds.css "@package P1" (398-448), the "P1 (combat: sizes)" block (560-576)
+   and the .cb-* rules at the end of that file (596-600), then the app-side additions (the scene is a fixed full-screen layer, the stage can hold six foes, the Record, the recap, the pick-a-chit screens).
+   Names the old fight sheet (css/combat.css, play.css, map.css, plan.css, shared.css) also defines (.cb-foes, .cb-round) are scoped under `.cb`, the scene's own root, so the old screen (the shared fight, until P6)
+   is untouched; two names were changed to avoid the clash: the Record's round box is .cb-rbox. */
+
+/* ---- the scene ---- */
+/* The scene covers the whole screen, status strip and all: nothing else is on screen while a fight is pending (the Belongings and the Map are one tap away). It is a fixed layer so it does not depend on how
+   the shell pads the app: it pads itself by the safe-area insets. Tokens: the scene is a rebuilt screen, so it takes the design system's 44 / 16 whatever legacy .screen it sits in. */
+.cb { --tap: 44px; --gutter: max(16px, var(--safe-l), var(--safe-r)); --foe: 92px; position: fixed; inset: 0; width: min(100%, 520px); margin-inline: auto; display: flex; flex-direction: column; overflow: hidden;
+    padding-top: var(--safe-t); background: radial-gradient(120% 70% at 50% 30%, #1a2034 0%, var(--surface-1) 70%); color: var(--ink); font-family: var(--font-ui); }
+.cb.ds-screen { flex: none; padding-left: 0; padding-right: 0; }
+.cb-top { flex: none; height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 var(--gutter); }
+.cb-top .cb-menu { flex: none; width: 44px; height: 44px; margin-left: -10px; display: grid; place-items: center; color: var(--ink-2); }
+.cb-top .where { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.1; }
+.cb-top .where b { font: 700 calc(16px * var(--ts, 1))/1.1 var(--font-display); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.cb-top .where span { font: 600 calc(12px * var(--ts, 1))/1.2 var(--font-display); letter-spacing: .14em; color: var(--ink-3); text-transform: uppercase; white-space: nowrap; }
+.cb-top .cb-sight { flex: none; font: 700 calc(12px * var(--ts, 1))/1 var(--font-display); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; padding: 7px 10px; border-radius: 999px; border: 1px solid var(--st-illegal); color: var(--gold-hi); }
+.cb-top .cb-sight.hid { border-color: var(--ink-3); color: var(--ink-2); }
+.cb-top .ds-btn.icon { color: var(--ink-2); }
+.cb-bar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 var(--gutter) 4px 4px; }          /* Fame / Notoriety / Gold: never hidden in a fight */
+.cb-stage { flex: 1; min-height: 150px; position: relative; padding: 6px var(--gutter) 6px; overflow: hidden; }
+.cb-stagein { position: relative; min-height: 100%; display: flex; flex-direction: column; justify-content: space-between; transform-origin: 50% 0; }
+.cb .cb-foes { padding-top: 2px; display: flex; flex-direction: row; grid-template-columns: none; flex-wrap: wrap; justify-content: center; align-content: flex-start; gap: 10px; }
+.cb .cb-foes.noslot { padding-top: 12px; }
+.cb-foe { position: relative; flex: none; text-align: center; padding: 0; display: flex; flex-direction: column; align-items: center; }
+/* the tag stands in its own slot over the counter, never on its name (QA-8); a stage that tags nothing has no slot */
+.cb-foe .tagslot { height: 24px; display: flex; align-items: flex-end; justify-content: center; }
+.cb-foes.noslot .tagslot { display: none; }
+.cb-foe .tag { position: relative; padding: 2px 7px; margin-bottom: 2px; border-radius: var(--r-pill); background: var(--gold); color: var(--ink-on-gold); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .08em; white-space: nowrap; z-index: 2; }
+.cb-foe .tag.dot { width: 14px; height: 14px; padding: 0; margin-bottom: 4px; }              /* an offer on a crowded stage (QA-6): a ghost dot, still a 44px tap */
+.cb-foe .tag.dot::after { inset: calc((14px - 44px / var(--z, 1)) / 2); }
+.cb-foe .tag.bad { background: var(--danger); color: #1a0705; }
+.cb-foe .tag.good { background: var(--success); color: #08140a; }
+.cb-foe .turned { display: block; width: max-content; margin: 2px auto 0; white-space: nowrap; padding: 1px 6px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--gold); border: 1px solid var(--gold-lo); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .04em; pointer-events: none; }
+.cb-legend { margin: 6px 0 0; font-size: calc(12px * var(--ts, 1)); line-height: 1.35; color: var(--ink-2); }
+.cb-foe .tag.ghost { background: var(--surface-1); color: var(--ink); border: 1px dashed var(--st-illegal); }     /* "TARGET" offered, not chosen */
+/* Hit areas: 44px whatever the size of the thing and whatever the stage is scaled to (--z is the zoom fitStage puts on a crowded stage; 1 otherwise) */
+.cb-foe .tag { height: 18px; }
+.cb-foe .tag::after { content: ""; position: absolute; inset: min(0px, calc((18px - 44px / var(--z, 1)) / 2)) min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }          /* an 18px pill with a 44px hit area */          /* an 18px pill with a 44px hit area */
+.cb-flip { position: relative; }
+.cb-flip::after { content: ""; position: absolute; inset: min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }          /* a counter smaller than 44 still takes a 44px tap */
+/* A slain counter is greyed on the picture itself, in ONE filter with its shadow: a filter on the wrapper AND a drop-shadow filter on the svg inside it (nested filters) paints nothing on iOS Safari,
+   which showed slain foes as blank spaces (no frame, no name, no art). */
+.cb-foe.dead .ds-cs-wrap { filter: none; }
+.cb-foe.dead .ds-cs-wrap svg { filter: grayscale(1) brightness(.55) drop-shadow(0 3px 5px rgba(0, 0, 0, .6)); }
+.cb-foe.dead::after { content: "SLAIN"; position: absolute; inset: 0; display: grid; place-items: center; font: 700 calc(15px * var(--ts, 1))/1 var(--font-display); letter-spacing: .14em; color: #fff; text-shadow: 0 1px 4px #000; transform: rotate(-12deg); pointer-events: none; }
+.cb-foe .turn { position: absolute; right: -7px; top: -7px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--gold-lo); display: grid; place-items: center; color: var(--gold); pointer-events: none; }
+.cb-foe .turn .ds-i { width: 11px; height: 11px; stroke-width: 2; }
+.cb-foe .ds-cs-wrap { display: block; }
+.cb-foe .ds-cs-wrap svg { width: var(--foe); height: var(--foe); display: block; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .6)); }
+.cb-foe.flip .ds-cs-wrap { animation: cb-flip var(--d-base) var(--ease-io); }
+@keyframes cb-flip { from { transform: rotateY(90deg); } to { transform: rotateY(0); } }
+.cb-foe.pacified .ds-cs-wrap { opacity: .7; }
+.cb .cb-peace-lbl { flex: 0 0 100%; margin: 4px 0 -6px; text-align: center; font: 700 calc(12px * var(--ts, 1))/16px var(--font-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }          /* natives at peace: they may be named, and then they fight (8.2.1a) */
+.cb-foe.pacified .ds-cs-wrap svg { filter: grayscale(.5) drop-shadow(0 3px 5px rgba(0, 0, 0, .6)); }
+.cb-foe.sel .ds-cs-wrap svg { filter: drop-shadow(0 0 6px rgba(181, 227, 156, .8)); }
+.cb-foe.held::before { content: ""; position: absolute; inset: -3px; border-radius: 12px; border: 2px solid var(--danger); pointer-events: none; }
+.cb-lanes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0; }
+.cb-lane { min-height: 36px; background: var(--surface-1); border: 1.5px dashed var(--line-2); border-radius: var(--r-sm); display: flex; flex-wrap: wrap; align-content: center; align-items: center; justify-content: center; gap: 4px; font: 600 calc(12px * var(--ts, 1))/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); position: relative; padding: 0 4px; }
+.cb-lane.mine { border-style: solid; border-color: var(--gold); color: var(--gold-hi); background: linear-gradient(var(--gold-wash), var(--gold-wash)), var(--surface-1); }
+.cb-lane.guard { color: var(--st-locked); }
+.cb-lane.guard { border-style: solid; border-color: var(--st-locked); color: var(--st-locked); background: linear-gradient(rgba(142, 166, 208, .08), rgba(142, 166, 208, .08)), var(--surface-1); }
+.cb-lane .ds-counter { width: 26px; height: 26px; border-radius: 6px; }
+.cb-lane .ds-counter.sm { width: 26px; height: 26px; }
+.cb-lane.crowd { padding-top: 2px; padding-bottom: 2px; row-gap: 1px; }          /* creatures stand in this box: the word over them, never beside them (it would run off the lane) */
+.cb-lane.crowd .lbl { flex: 0 0 100%; text-align: center; line-height: 1.1; }
+.cb-lane .cb-more { font: 700 calc(12px * var(--ts, 1))/1 var(--font-ui); letter-spacing: 0; color: var(--ink-2); }
+.cb-lane.pick { border-style: solid; border-color: var(--line-gold); cursor: pointer; }
+.cb-lane.pick::after { content: ""; position: absolute; inset: -4px 0; }
+.cb-pill { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: 8px; font: 700 calc(13px * var(--ts, 1))/1 var(--font-ui); letter-spacing: 0; background: var(--gold); color: var(--ink-on-gold); text-transform: none; }
+.cb-pill.g { background: var(--st-locked); color: #0d1220; }
+.cb-allies { flex: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; margin-top: 2px; }          /* QA-116: the hirelings beside you are counters, with their name and days; a tap turns one over */
+.cb-ally { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cb-ally .cb-flip { flex: none; }
+.cb-ally .ds-cs-wrap { display: block; }
+.cb-ally .ds-cs-wrap svg { width: var(--ally, 56px); height: var(--ally, 56px); display: block; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .6)); }
+.cb-ally .turn { position: absolute; right: -6px; top: -6px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--gold-lo); display: grid; place-items: center; color: var(--gold); pointer-events: none; }
+.cb-ally .turn .ds-i { width: 11px; height: 11px; stroke-width: 2; }
+.cb-ally .cap { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; max-width: 96px; text-align: left; }
+.cb-ally .cap b { font: 700 calc(13px * var(--ts, 1))/1.15 var(--font-ui); color: var(--ink); overflow-wrap: anywhere; }
+.cb-ally .cap small { font: 500 calc(12px * var(--ts, 1))/1.1 var(--font-ui); color: var(--ink-3); }
+.cb-ally.ctl .cap small { color: var(--mood-ally); }
+.cb-ally .ds-daypips { width: 100%; gap: 2px; margin: 1px 0 0; } .cb-ally .ds-daypips i { height: 4px; border-radius: 2px; }
+.cb-hero { flex: none; display: flex; align-items: center; justify-content: center; gap: 14px; }
+.cb-hero .face { position: relative; width: 72px; height: 72px; border-radius: 50%; background: var(--counter-face); box-shadow: 0 0 0 3px var(--gold-lo), 0 4px 14px rgba(0, 0, 0, .6); display: grid; place-items: center; overflow: hidden; }
+.cb-hero .face img { width: 82%; height: 82%; object-fit: contain; }
+.cb-hero .face.hid { box-shadow: 0 0 0 3px var(--gold-lo); opacity: .8; outline: 2px dashed var(--gold-hi); outline-offset: 3px; }
+.cb-hero .face.morph { background: none; box-shadow: none; overflow: visible; border-radius: 10px; width: auto; height: auto; }
+.cb-hero .gcol { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 76px; }
+.cb-hero .gcol .cap { font: 500 calc(12px * var(--ts, 1))/1.1 var(--font-ui); color: var(--ink-3); text-align: center; }
+.cb-hero .gear { position: relative; width: 44px; height: 44px; border-radius: 9px; background: var(--counter-face); box-shadow: inset 0 0 0 2px var(--counter-edge); display: grid; place-items: center; padding: 0; }
+.cb-hero .gear img { max-width: 80%; max-height: 80%; }
+.cb-hero .gear.hurt { box-shadow: inset 0 0 0 2px var(--danger); }
+.cb-hero .gear.none { background: transparent; box-shadow: none; border: 1.5px dashed var(--line-2); }
+.cb-hero .gear::after { content: ""; position: absolute; inset: min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }          /* 44px at rest, and 44px on screen when the stage is scaled down */
+.cb-hero .gear .more { position: absolute; right: -5px; bottom: -5px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--gold-lo); font: 700 calc(12px * var(--ts, 1))/calc(16px * var(--ts, 1)) var(--font-ui); color: var(--gold-hi); }
+/* Note 100: the weapon chip says whether the weapon is alerted: a green ring and a green plate ALERTED with the figures of the side up (harm and attack time), or a quiet outlined plate NOT ALERTED (a weapon card: WEAPON CARD, it cannot be alerted) */
+.cb-hero:has(.gear[data-wstate]) .gcol { width: 92px; }
+.cb-hero .gear .wfig { position: absolute; right: -9px; top: -7px; min-width: 22px; padding: 0 4px; border-radius: 9px; font: 800 calc(12px * var(--ts, 1))/16px var(--font-ui); letter-spacing: .02em; white-space: nowrap; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line-2); }
+.cb-hero .gear.w-alerted { box-shadow: inset 0 0 0 3px var(--gold), 0 0 10px rgba(134, 196, 122, .55); }
+.cb-hero .gear.w-alerted .wfig { background: var(--gold); color: var(--ink-on-gold); border-color: var(--gold-hi); }
+.cb-hero .gear.w-unalerted img { opacity: .78; }
+.cb-hero .wplate { display: block; margin-top: 1px; padding: 1px 7px; border-radius: var(--r-pill); font: 800 calc(12px * var(--ts, 1))/calc(15px * var(--ts, 1)) var(--font-ui); letter-spacing: .04em; white-space: nowrap; text-align: center; }
+.cb-hero .wplate.alerted { background: var(--gold); color: var(--ink-on-gold); }
+.cb-hero .wplate.unalerted, .cb-hero .wplate.card { background: transparent; color: var(--ink-3); border: 1px solid var(--line-2); padding: 0 6px; }
+.cb-hero .mid { display: flex; flex-direction: column; align-items: center; }
+.cb-hero .mid.tappable { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.cb-hero .name { font: 700 calc(13px * var(--ts, 1))/1 var(--font-display); letter-spacing: .12em; color: var(--ink); text-transform: uppercase; text-align: center; margin-top: 4px; white-space: nowrap; }
+.cb-hero .ribbon { margin-top: 4px; padding: 2px 8px; border-radius: var(--r-pill); background: var(--gold-wash-2); border: 1px solid var(--line-gold); color: var(--gold-hi); font: 700 calc(12px * var(--ts, 1))/calc(16px * var(--ts, 1)) var(--font-ui); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.cb-pips { display: flex; justify-content: center; gap: 3px; margin-top: 6px; }
+.cb-pips .ds-chit.mini { width: 14px; height: 20px; }
+.cb-pips .ds-chit.mini { font: 700 11px/1 var(--font-ui); padding-top: 3px; color: var(--ink-2); }   /* the type letter: F fight, M move, ✦ magic */
+.cb-pips .ds-chit.mini.tired { opacity: .7; border-style: dotted; color: var(--ink-3); }   /* tired: dotted, with a bar under the letter */
+.cb-pips .ds-chit.mini.tired::after { content: ""; position: absolute; left: 3px; right: 3px; bottom: 3px; height: 2px; border-radius: 1px; background: currentColor; }
+.cb-pips .ds-chit.mini.wounded { background: var(--danger-wash); }
+.cb-pips .ds-chit.mini.wounded::after { content: "×"; position: absolute; left: 0; right: 0; bottom: -1px; text-align: center; font-size: 11px; line-height: 1; }   /* wounded: red, dashed, crossed */
+.cb-pips .ds-chit.mini.committed { opacity: .5; border-style: dotted; }
+.cb-pips .ds-chit.mini.enchanted { border-color: var(--magic-gold); }
+.cb-pips .ds-chit.mini.fresh { animation: cb-pip var(--d-scene) var(--ease-out); }
+@keyframes cb-pip { from { transform: translateY(-6px); opacity: .2; } }
+.cb-narr { flex: none; margin: 0; padding: 8px var(--gutter) 10px; min-height: calc(2.44em + 18px); display: flex; align-items: center; justify-content: center; text-align: center; font: 400 calc(21px * var(--ts, 1))/1.22 var(--font-voice); font-style: italic; text-wrap: balance; }
+.cb-narr.land { animation: cb-land var(--d-scene) var(--ease-out); }          /* the verdict lands (a settle from a little smaller: never wider than the screen) */
+@keyframes cb-land { from { transform: scale(.94); opacity: 0; } }
+.cb-narr.verdict { font-size: calc(24px * var(--ts, 1)); color: var(--gold-hi); }
+.cb-narr.bad { color: var(--danger); }
+.cb-sheet { flex: none; position: relative; background: var(--surface-2); border-top: 1px solid var(--line-gold); border-radius: var(--r-lg) var(--r-lg) 0 0; padding: 8px var(--gutter) calc(10px + var(--safe-b)); box-shadow: var(--shadow-sheet); }
+.cb-sheet[data-kind=melee] { min-height: calc(275px + var(--safe-b)); }          /* the four steps are one height, so the stage does not move between them */
+.cb-sheet .q { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 2px 0 8px; font: 500 calc(16px * var(--ts, 1))/1.2 var(--font-ui); color: var(--ink-2); }
+.cb-sheet .q b { font: 600 calc(12px * var(--ts, 1))/1.2 var(--font-display); letter-spacing: .14em; color: var(--ink-3); text-transform: uppercase; }
+.cb-sheet .q .ds-btn { margin: -10px 0; }
+.cb .cb-steps { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; margin-bottom: 8px; }
+.cb-step { position: relative; height: 36px; border-radius: 9px; border-bottom: 3px solid var(--line-2); font: 600 calc(14px * var(--ts, 1))/calc(36px * var(--ts, 1)) var(--font-ui); color: var(--ink-3); text-align: center; white-space: nowrap; padding: 0; }
+.cb-step::after { content: ""; position: absolute; inset: -6px 0; }
+.cb-step.on { border-color: var(--gold); color: var(--gold-hi); } .cb-step.done { border-color: var(--gold-lo); color: var(--ink-2); }
+.cb-dirs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+.cb-dir { min-height: 52px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font: 700 calc(17px * var(--ts, 1))/1 var(--font-ui); padding: 0; }
+.cb-dir small { font: 400 calc(12.5px * var(--ts, 1))/1 var(--font-ui); color: var(--ink-3); } .cb-dir.on { border: 2px solid var(--gold); background: var(--gold-wash-2); color: var(--gold-hi); } .cb-dir.on small { color: var(--gold); }
+.cb-dir.dim, .cb-dir[disabled] { border-style: dashed; border-color: var(--st-illegal); background: transparent; color: var(--ink-3); }
+.cb-chits { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 3px; padding: 6px 0 2px; margin: 0 0 8px; }          /* seven chits fit one row at 360 (44 wide each) */
+.cb-chits .ds-chit small, .cb-chitgrid .ds-chit small { letter-spacing: 0; }
+.cb-chits .ds-chit, .cb-chitgrid .ds-chit { width: 100%; }
+.cb-chits .ds-chit.sel, .cb-chitgrid .ds-chit.sel { border: 2px solid var(--gold); background: var(--gold-wash-2); transform: translateY(-3px); }
+.cb-chits .ds-chit[aria-disabled=true] { opacity: .38; border-style: dashed; }
+.cb-verbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.cb-verb { min-height: 68px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font: 700 calc(15px * var(--ts, 1))/1.1 var(--font-ui); text-align: center; padding: 6px 4px; }
+.cb-verb img { width: 32px; height: 32px; } .cb-verb small { font: 400 calc(12.5px * var(--ts, 1))/1.1 var(--font-ui); color: var(--ink-3); }
+.cb-verb .ds-i { width: 28px; height: 28px; }
+.cb-verb.dim { border-style: dashed; border-color: var(--st-illegal); background: transparent; color: var(--ink-3); } .cb-verb.dim img { opacity: .4; filter: grayscale(1); }
+.cb-verb.on { border: 2px solid var(--gold); background: var(--gold-wash-2); color: var(--gold-hi); }
+.cb-verdict { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 4px 0 12px; }   /* air between the pills and the button row below */
+.cb .pitrow { margin: 6px 0; font: 400 calc(16px * var(--ts, 1))/1.35 var(--font-voice); } .cb .pitrow b { font-family: var(--font-ui); color: var(--gold-hi); }
+.cb-rounds { display: flex; flex-direction: column; gap: 14px; }
+.cb-rbox { border: 1px solid var(--line-2); border-radius: var(--r-md); padding: 12px 14px; background: var(--surface-3); position: relative; }
+.cb-rbox > .lg { position: absolute; top: -9px; left: 12px; padding: 0 8px; background: var(--surface-2); font: 600 calc(12px * var(--ts, 1))/calc(18px * var(--ts, 1)) var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.cb-blow { display: flex; gap: 10px; align-items: flex-start; padding: 4px 0; } .cb-blow + .cb-blow { border-top: 1px solid var(--line-1); margin-top: 4px; padding-top: 8px; }
+.cb-blow .n { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--surface-4); font: 700 calc(13px * var(--ts, 1))/calc(24px * var(--ts, 1)) var(--font-ui); text-align: center; color: var(--ink-2); }
+.cb-blow .t { flex: 1; font: 400 calc(16px * var(--ts, 1))/1.35 var(--font-voice); }
+.cb-blow.roll .t { font: 400 calc(14px * var(--ts, 1))/1.3 var(--font-ui); color: var(--ink-2); }
+.cb-stamp { display: inline-block; padding: 2px 8px; border-radius: 6px; border: 1.5px solid currentColor; font: 700 calc(12px * var(--ts, 1))/calc(16px * var(--ts, 1)) var(--font-display); letter-spacing: .12em; text-transform: uppercase; transform: rotate(-3deg); }
+.cb-stamp.kill { color: var(--gold-hi); } .cb-stamp.wound { color: var(--danger); } .cb-stamp.miss { color: var(--ink-3); } .cb-stamp.armor { color: var(--st-locked); }
+.cb-recap { text-align: center; padding: 4px 0 0; }
+.cb-recap .big { font: 700 calc(28px * var(--ts, 1))/1.1 var(--font-display); letter-spacing: .1em; color: var(--gold-hi); text-transform: uppercase; }
+.cb-recap .big.fallen { color: var(--danger); }
+.cb-recap .kills { margin: 6px 0 0; font: 400 calc(16px * var(--ts, 1))/1.3 var(--font-voice); color: var(--ink-2); }
+.cb-fields { display: flex; flex-direction: column; gap: 6px; }
+.cb-fields.two { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cb-sum { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 12px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); width: 100%; text-align: left; }
+.cb-sum .k { flex: 0 1 54px; min-width: 0; overflow-wrap: anywhere; font: 600 calc(12px * var(--ts, 1))/1 var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); } .cb-sum .v { flex: 1; min-width: 0; font: 600 calc(16px * var(--ts, 1))/1.25 var(--font-ui); } .cb-sum .ds-i { color: var(--ink-3); }
+.cb-sum.pick { border-color: var(--gold); background: var(--gold-wash-2); }
+.cb-fields.two .cb-sum { flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding: 4px 10px; position: relative; }
+.cb-fields.two .cb-sum .k { flex: none; width: auto; max-width: calc(100% - 20px); white-space: normal; letter-spacing: .08em; line-height: 1.1; }
+.cb-sum[data-place] .k { flex: 1 1 0; line-height: 1.15; } .cb-sum[data-place] .v { flex: 0 1 auto; }          /* (a row with its box name and the "tap to move" tag: the name takes what is left, the box name keeps its words, note 103's horse) */
+.cb-fields.scroll { max-height: 140px; overflow-y: auto; -webkit-mask-image: linear-gradient(#000 calc(100% - 14px), transparent); mask-image: linear-gradient(#000 calc(100% - 14px), transparent); padding-bottom: 10px; }          /* more than six creatures: the list scrolls inside the sheet, the sheet does not */ .cb-fields.two .cb-sum .v { font-size: calc(15px * var(--ts, 1)); line-height: 1.2; }
+.cb-fields.two .cb-sum .ds-i { position: absolute; right: 6px; top: 6px; width: 16px; height: 16px; }
+.cb-hint { font: 400 calc(14px * var(--ts, 1))/1.3 var(--font-ui); color: var(--ink-2); margin: 0 0 6px; min-height: 18px; }
+.cb-hint.bad { color: var(--danger); }
+@media (max-width: 374px) { .cb-hint { font-size: calc(13px * var(--ts, 1)); } }
+.cb-chitgrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin: 6px 0 8px; }
+.cb-sheet .ds-actions { padding: 0; min-height: 0; }
+.cb-sheet .cb-fields + .ds-actions, .cb-sheet .cb-hint + .ds-actions { margin-top: 8px; }
+.cb-sheet .ds-actions .lead { min-height: 0; flex: 0 1 auto; }          /* the secondary takes what its words need; the primary the rest, bottom right */
+.cb-sheet .ds-actions .lead .ds-lead-text { flex: 1; }
+.cb-sheet .ds-actions .ds-btn.primary { flex: 1 1 0; min-width: 52%; margin-left: auto; }
+.cb-sheet .ds-actions:has(.lead .ds-lead-text) .ds-btn.primary { flex: 0 0 62%; }
+.cb-sheet .ds-btn.primary { min-height: var(--tap-main); }
+.cb-sheet .ds-actions .lead .ds-btn { min-height: var(--tap); }
+.cb-spells { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; max-height: 34vh; overflow-y: auto; }
+.cb-spell { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 6px 12px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); width: 100%; text-align: left; }
+.cb-spell.on { border: 2px solid var(--gold); background: var(--gold-wash-2); padding: 5px 11px; }
+.cb-spell .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; } .cb-spell b { font: 700 calc(16px * var(--ts, 1))/1.2 var(--font-ui); } .cb-spell .what { font: 400 calc(14px * var(--ts, 1))/1.25 var(--font-voice); color: var(--ink-2); } .cb-spell small { font: 400 calc(13px * var(--ts, 1))/1.2 var(--font-ui); color: var(--ink-3); }
+.cb-spell .dot { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--magic-purple); box-shadow: 0 0 0 1px rgba(255, 255, 255, .25); }          /* the spell's own colour (QA-13) */
+.cb-spell .dot.white { background: var(--magic-white); } .cb-spell .dot.grey { background: var(--magic-grey); } .cb-spell .dot.gold { background: var(--magic-gold); } .cb-spell .dot.purple { background: var(--magic-purple); } .cb-spell .dot.black { background: var(--magic-black); }
+.cb-aimscroll { max-height: 150px; overflow-y: auto; margin-bottom: 8px; -webkit-mask-image: linear-gradient(#000 calc(100% - 16px), transparent); mask-image: linear-gradient(#000 calc(100% - 16px), transparent); }
+@media (max-height: 700px) { .cb-aimscroll { max-height: 100px; } }
+.cb-aim { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.cb-aim .ds-btn { min-height: 44px; padding: 0 12px; font-size: calc(15px * var(--ts, 1)); }
+.cb-aim .ds-btn.on { border: 2px solid var(--gold); background: var(--gold-wash-2); color: var(--gold-hi); }
+.cb-gear { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; max-height: 32vh; overflow-y: auto; }
+.cb-gearrow { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 4px 10px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); }
+.cb-gearrow .nm { flex: 1; min-width: 0; display: flex; flex-direction: column; } .cb-gearrow b { font: 700 calc(15px * var(--ts, 1))/1.2 var(--font-ui); } .cb-gearrow small { font: 400 calc(13px * var(--ts, 1))/1.2 var(--font-ui); color: var(--ink-3); }
+.cb-gearrow .ds-btn { min-height: 44px; padding: 0 10px; font-size: calc(14px * var(--ts, 1)); }
+.cb-gearrow .ds-btn.on { border: 2px solid var(--gold); background: var(--gold-wash-2); color: var(--gold-hi); }
+.cb-gearrow[data-marked] { border-color: var(--gold); }
+@media (max-height: 700px) { .cb-sheet .cb-gear { max-height: 24vh; } .cb-sheet .cb-verbs { gap: 6px; margin-bottom: 6px; } }          /* a short phone: the list scrolls so the sheet and its primary stay on screen */
+.cb-popbk { position: absolute; inset: 0; z-index: 5; }
+.cb-pop { position: absolute; left: var(--gutter); right: var(--gutter); bottom: 12px; z-index: 6; padding: 10px; border-radius: var(--r-md); border: 1px solid var(--line-gold); background: rgba(21, 25, 37, .97); box-shadow: var(--shadow-2); display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.cb-pop .gc { display: flex; flex-direction: column; align-items: center; gap: 2px; font: 500 calc(12px * var(--ts, 1))/1.2 var(--font-ui); color: var(--ink-3); max-width: 100px; text-align: center; padding: 0; }
+.cb-back { position: fixed; left: 0; right: 0; bottom: 0; width: min(100%, 520px); margin-inline: auto; z-index: 6; padding: 10px var(--gutter) calc(12px + var(--safe-b)); background: linear-gradient(transparent, var(--surface-1) 40%); }
+.cb-back .ds-btn { width: 100%; }
+.cb .ds-toast { z-index: 9; }
+
+/* P1 (combat: sizes): short phones (<= 700 tall): foes 64, hero face 56, the names and captions hide, lane rows 30, the narrator 18, stepper tabs 32 with their 44 hit area */
+@media (max-height: 700px) { .cb .cb-bar .ds-voice-sw button::after { inset: -8px 0; } .cb { --foe: 64px; } .cb-top { height: 44px; } .cb .cb-foes { padding-top: 2px; gap: 8px; } .cb .cb-foes.noslot { padding-top: 12px; } .cb-hero .face { width: 56px; height: 56px; } .cb-hero .gcol .cap, .cb-hero .name { display: none; } .cb-hero .gcol { width: 56px; }
+  .cb-narr { font-size: calc(18px * var(--ts, 1)); min-height: calc(2.44em + 8px); padding-top: 2px; padding-bottom: 6px; } .cb-lane { min-height: 30px; } .cb-lanes { margin: 2px 0; } .cb-step { height: 32px; line-height: 32px; } .cb-pips { margin-top: 3px; } .cb-sheet { padding-top: 6px; }
+  .cb-dir { min-height: 46px; } .cb-verb { min-height: 60px; } .cb-chitgrid .ds-chit { height: 52px; } .cb-bar .ds-voice-sw button { height: 28px; } .cb-bar { padding-bottom: 0; }
+  .cb-stage { padding-top: 2px; padding-bottom: 4px; } .cb-hero { gap: 10px; } .cb-sum { min-height: 44px; padding-top: 2px; padding-bottom: 2px; } .cb-fields { gap: 4px; } .cb-chits .ds-chit { height: 52px; } .cb-hero .ribbon { display: none; }
+  .cb-narr.verdict { font-size: calc(20px * var(--ts, 1)); } .cb-pips .ds-chit.mini { width: 12px; } .cb-sheet[data-kind=melee] { min-height: calc(281px + var(--safe-b)); } }
+@media (max-width: 374px) { .cb-top .where b { font-size: calc(15px * var(--ts, 1)); } }
+
+
+/* ---- G2 (fix wave 2) ---- */
+/* DR-21: the Belongings and Map peeks sit under the weapon and the armor, bottom left and bottom right of the stage (44px), not in the top 100px */
+.cb-hero .gcol { align-self: flex-start; }
+.cb-hero .gcol:not(:has(.gear)) { align-self: flex-end; }
+.cb-hero .cb-peek { margin-top: 4px; color: var(--ink-2); background: var(--surface-3); border: 1px solid var(--line-2); border-radius: 12px; }
+.cb-hero .cb-peek::after { content: ""; position: absolute; inset: min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }
+.cb-hero .cb-peek { position: relative; }
+/* DR-20: in a Meeting step the narrator stands in the void between the foes and you */
+.cb[data-mode=meet] .cb-stagein { justify-content: flex-start; }          /* foes and the line about them form one group, centred between the top and you (no 250px void) */
+.cb[data-mode=meet] .cb-foes { margin-top: auto; }
+.cb-void { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; margin-bottom: auto; min-height: 0; }
+.cb-void { width: 100%; } .cb-void .cb-narr { flex: 0 1 auto; min-width: 0; min-height: 0; padding-top: 14px; padding-bottom: 0; }          /* (shrinks and wraps: a long line must never run off the screen) */
+/* DR-15: one quiet action everywhere: the ds quiet button, no underline; an option (not a way out) wears a chevron */
+.cb-sheet .q .ds-btn.quiet .ds-i { width: 16px; height: 16px; margin-right: -4px; }
+/* A clearing spell is aimed on the map (Talk to Wise Bird): the choice is named, a button opens the map, and the bar under the map says what to tap */
+.cb-aimpick { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.cb-aimnow { display: grid; gap: 2px; min-width: 0; } .cb-aimnow small { color: var(--ink-3); font-size: var(--fs-12); text-transform: uppercase; letter-spacing: .08em; } .cb-aimnow b { font-size: var(--fs-15); overflow-wrap: anywhere; }
+.cb-aimpick .ds-btn { flex: none; }
+.cb-aimask { position: fixed; z-index: 6; left: 50%; transform: translateX(-50%); top: calc(var(--safe-t, 0px) + var(--strip-h) + 10px); margin: 0; width: max-content; max-width: calc(100% - 2 * var(--gutter)); padding: 8px 16px; border-radius: 999px; background: var(--surface-1); border: 1px solid var(--line-2, var(--line-1)); color: var(--ink-1); font-style: italic; font-size: var(--fs-15); text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+/* a short phone: the fight takes back the band under the status bar (the note button floats over the header's empty right side) so the stage keeps its size */
+@media (max-height: 700px) { .cb { padding-top: calc(var(--safe-t) - var(--topgap, 0px)); } }
+.cb-hint-sub { margin: 10px 0 2px; color: var(--ink-3); font-style: italic; }
+/* the quiet-evening cast sheet can hold a long list (Small Blessing's wishes): it scrolls inside its own height and the buttons stay pinned at its foot */
+.cb-sheet[data-kind=quiet] { max-height: calc(100% - 400px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.cb-sheet[data-kind=quiet] > .ds-actions { position: sticky; bottom: calc(-10px - var(--safe-b)); z-index: 2; background: var(--surface-2); padding: 8px 0 calc(10px + var(--safe-b)); margin-top: 6px; box-shadow: 0 -8px 10px -6px rgba(0,0,0,.35); }
+@media (max-height: 700px) { .cb-sheet[data-kind=quiet] { max-height: calc(100% - 290px); } }      /* (the fight header and the stage's smallest size take the rest) */
+/* the story line that says why the game stops runs to three lines on a short phone: the sheet gives way (it may shrink and scrolls inside itself) so Cast / Not tonight never leave the screen */
+.cb-sheet[data-kind=quiet] { flex: 0 1 auto; min-height: 0; }
+
+/* a counter you turned over to look at is not the current side (note 15): a red word and a dashed edge; the current side shows nothing */
+.cb-foe .sidelbl { position: absolute; left: 50%; transform: translateX(-50%); top: -11px; white-space: nowrap; padding: 1px 6px; border-radius: var(--r-pill); font: 700 calc(12px * var(--ts, 1))/14px var(--font-ui); letter-spacing: .08em; pointer-events: none; background: var(--surface-2); color: var(--gold); border: 1px solid var(--gold-lo); }
+.cb-foe .sidelbl.peek { top: calc(100% + 2px); background: var(--danger); color: #fff; border-color: var(--danger); }
+.cb-foe[data-foe] .cb-flip[aria-pressed=true] .ds-cs-wrap { outline: 2px dashed var(--danger); outline-offset: 1px; opacity: .85; }
+.cb-flip { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+
+/* the Record button on the Encounter card when the foot's lead slot is taken: a quiet row of its own */
+.cb-recrow { display: flex; justify-content: flex-start; margin: 4px 0 0; }
+
+/* note 75: Wither: a withered pip (tired, struck through) and the curse badge on the hero */
+.cb-pips .ds-chit.mini.withered { color: var(--danger); border-style: dotted; }
+.cb-pips .ds-chit.mini.withered::after { background: var(--danger); }
+.cb-hero .cb-curse { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; min-height: calc(44px / var(--z, 1)); padding: 0 8px; color: var(--danger); background: none; border: 0; font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); }
+.cb-hero .cb-curse .ds-i { width: 14px; height: 14px; }
+.cb-pop.curse { flex-direction: column; text-align: left; } .cb-pop.curse p { margin: 0; font: 500 calc(13px * var(--ts, 1))/1.35 var(--font-ui); color: var(--ink-2); } .cb-pop.curse p.detail { color: var(--ink-3); }
+
+/* ---- the whole clearing on the stage (F1 "The Clearing", docs/design/combat-metaphor): a word under every creature saying whom it is set on, the other characters and their hirelings as counters, and threads ---- */
+.cb-foe .seton { display: block; width: max-content; max-width: calc(var(--foe) + 24px); margin: 3px auto 0; padding: 1px 8px; border-radius: var(--r-pill); border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink-2); font: 600 calc(12px * var(--ts, 1))/calc(16px * var(--ts, 1)) var(--font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-foe .seton.you { color: var(--gold-hi); border-color: var(--line-gold); }
+.cb-foe .seton.other { color: var(--mood-ally, #8fb6e8); border-color: var(--mood-ally, #8fb6e8); }
+.cb-foe .seton.none, .cb-foe .seton.peace { color: var(--ink-3); border-style: dashed; }
+.cb-others { flex: none; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 4px 16px; margin-top: 4px; }
+.cb-other .face { position: relative; display: grid; place-items: center; width: var(--foe, 52px); height: var(--foe, 52px); border-radius: 50%; background: var(--counter-face); box-shadow: 0 0 0 3px var(--gold-lo), 0 3px 10px rgba(0, 0, 0, .55); overflow: hidden; }
+.cb-other .face img { width: 82%; height: 82%; object-fit: contain; }
+.cb-other .face i { font: 700 22px/1 var(--font-display); color: var(--ink-on-gold); font-style: normal; }
+.cb-other .face.hire { border-radius: 12px; box-shadow: 0 0 0 3px var(--mood-ally, #8fb6e8), 0 3px 10px rgba(0, 0, 0, .55); }
+.cb-other.dim .face { opacity: .8; outline: 2px dashed var(--gold-hi); outline-offset: 3px; }
+.cb-other.sel .face { box-shadow: 0 0 0 3px var(--gold), 0 0 12px rgba(181, 227, 156, .85); }
+.cb-other .tagslot { height: 22px; }
+.cb-other .cap { display: flex; flex-direction: column; align-items: center; margin-top: 3px; max-width: 110px; }
+.cb-other .cap b { font: 700 calc(12px * var(--ts, 1))/1.1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); text-align: center; overflow-wrap: anywhere; }
+.cb-other .cap small { font: 500 calc(12px * var(--ts, 1))/1.15 var(--font-ui); color: var(--ink-3); }
+.cb-other .cb-flip { position: relative; }
+.cb-other button.cb-flip::after { content: ""; position: absolute; inset: min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }
+.cb-threads { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 0; overflow: visible; }          /* under the counters, over the lanes */
+.cb-thread { fill: none; stroke-width: 2.5; stroke-linecap: round; }
+.cb-thread.tgt { stroke: var(--gold); stroke-dasharray: 7 6; opacity: .95; }
+.cb-thread.on { stroke: var(--mood-ally, #8fb6e8); stroke-dasharray: 3 6; opacity: .8; }
+.cb-thead.tgt { fill: var(--gold); } .cb-thead.on { fill: var(--mood-ally, #8fb6e8); }
+@media (max-height: 700px) { .cb-others { gap: 2px 12px; } .cb-other .cap small { display: none; } }
+.cb-other { position: relative; flex: none; text-align: center; padding: 0; display: flex; flex-direction: column; align-items: center; }
+.cb-other .tagslot { display: flex; align-items: flex-end; justify-content: center; }
+.cb-other .tag { position: relative; height: 18px; padding: 2px 7px; margin-bottom: 2px; border: 0; border-radius: var(--r-pill); background: var(--gold); color: var(--ink-on-gold); font: 700 calc(12px * var(--ts, 1))/calc(14px * var(--ts, 1)) var(--font-ui); letter-spacing: .08em; white-space: nowrap; z-index: 2; }
+.cb-other .tag.ghost { background: var(--surface-1); color: var(--ink); border: 1px dashed var(--st-illegal); }
+.cb-other .tag::after { content: ""; position: absolute; inset: min(0px, calc((18px - 44px / var(--z, 1)) / 2)) min(0px, calc((100% - 44px / var(--z, 1)) / 2)); }
+@media (max-height: 700px) { .cb-hero .gcol:has(.wplate) { gap: 1px; } .cb-hero .wplate { margin-top: 0; padding-top: 0; padding-bottom: 0; line-height: 13px; } }          /* (a short phone: the weapon's plate leaves the Belongings button its room) */
+
+/* ---- notes 102 and 103: the lane grid always says its words; each row says what was played; the armor stands beneath the defence row under the lanes it covers ---- */
+/* (the stage is scaled to fit, so everything here is tight: the chit stands beside the name where the lane is wide enough and under it where it is not; one line says each play; a piece of armor is 30px) */
+.cb-lane { padding-top: 2px; padding-bottom: 2px; row-gap: 0; column-gap: 4px; }
+.cb-lane .lbl { letter-spacing: .1em; }
+.cb-lane .cb-pill { height: 22px; padding: 0 6px; }
+.cb-lane.crowd .lbl { flex: 0 0 100%; }
+.cb-lanes.top { margin: 4px 0 0; } .cb-lanes.bot { margin: 3px 0 0; }
+.cb-lanewrap { display: block; position: relative; z-index: 1; }          /* (over the thread that runs from him to his target; the hero stands over this row) */
+.cb-hero { position: relative; z-index: 2; }
+.cb-pl { margin: 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0 5px; font: 500 calc(13px * var(--ts, 1))/16px var(--font-ui); color: var(--ink-2); text-align: center; }
+.cb-pl .sep { color: var(--ink-3); }
+.cb-pl .nbw { white-space: nowrap; }
+.cb-pl.atk { color: var(--gold-hi); }
+.cb-pl.grd { color: #b4c7ea; }
+.cb-armor { margin: 3px 0 0; }
+.cb-agrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px 6px; }
+.cb-apiece { display: flex; align-items: center; gap: 5px; min-height: 30px; padding: 1px 6px; border-radius: var(--r-sm); border: 1.5px solid var(--line-2); background: var(--surface-3); color: var(--ink); min-width: 0; }
+.cb-apiece .th.ds-counter { width: 22px; height: 22px; border-radius: 5px; }
+.cb-apiece .th img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.cb-apiece .t { display: flex; flex-direction: column; min-width: 0; line-height: 1.05; }
+.cb-apiece .t b { font: 700 calc(13px * var(--ts, 1))/1.05 var(--font-ui); overflow-wrap: anywhere; }
+.cb-apiece .t small { font: 500 calc(12px * var(--ts, 1))/1.1 var(--font-ui); color: var(--ink-2); }
+.cb-apiece:not(.s1) .t { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 6px; }          /* a piece under two or three lanes has the room for its lanes beside its name */
+.cb-apiece.dmg { border-style: dashed; border-color: var(--danger); }
+.cb-apiece.s1 .th { display: none; }          /* a piece under one lane has the width of its words only */
+.cb-abare { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 30px; padding: 1px 4px; border-radius: var(--r-sm); border: 1.5px dashed var(--st-illegal); color: var(--ink-3); text-align: center; line-height: 1.05; }
+.cb-abare span { display: none; }
+.cb-abare small { font: 500 calc(12px * var(--ts, 1))/1.1 var(--font-ui); }
+.cb-armor-why { margin: 2px 0 0; text-align: center; font: 500 calc(12px * var(--ts, 1))/15px var(--font-ui); color: var(--ink-2); text-wrap: balance; }
+@media (max-height: 700px) { html:not([data-voice-mode="detail"]) .cb-armor-why { display: none; }          /* a short phone has no room for the reason in Story: Detail has it */
+  .cb-pl { line-height: 15px; } .cb-apiece, .cb-abare { min-height: 28px; } .cb-lane { padding-top: 1px; padding-bottom: 1px; } }
+/* a short phone (note 102 gave the lanes more to say): the lane rows, the played lines and the armor pieces give back what they can, so the Belongings and the Map under the weapon and the armor are never pushed out of the stage */
+@media (max-height: 700px) { .cb .cb-lane { min-height: 26px; padding-top: 0; padding-bottom: 0; }  .cb-lanes.top { margin-top: 2px; } .cb-lanes.bot { margin-top: 2px; }
+  .cb-pl { font-size: calc(12px * var(--ts, 1)); line-height: 14px; } .cb-armor { margin-top: 2px; } .cb-agrid { gap: 2px 6px; }
+  .cb-apiece, .cb-abare { min-height: 24px; padding-top: 0; padding-bottom: 0; } .cb-apiece .t b { font-size: calc(12px * var(--ts, 1)); } .cb-apiece .th.ds-counter { width: 20px; height: 20px; } }
+
+/* the fight bar's pictures carry their words (note 102): the Belongings and the Map say so under the picture; on a short phone the hero's name and the armor's name stay (the armor column has the room: the weapon column is taller by its plate) */
+.cb-hero .cb-peek, .cb-party .cb-peek, .sf-head .cb-peek { flex-direction: column; gap: 1px; width: auto; min-width: 68px; height: 46px; padding: 2px 6px; justify-content: center; }
+.cb-peek .pk { font: 600 calc(12px * var(--ts, 1))/12px var(--font-ui); letter-spacing: 0; white-space: nowrap; color: var(--ink-2); }
+.cb-hero .cb-peek .ds-i, .cb-party .cb-peek .ds-i, .sf-head .cb-peek .ds-i { width: 20px; height: 20px; }
+.cb-hero .mid.tappable { min-height: calc(44px / var(--z, 1)); }
+@media (max-height: 700px) { .cb-hero .name { display: block; } .cb-hero .gcol:not(:has(.wplate)) .cap { display: block; width: 88px; margin: 0 -16px; line-height: 1; } }
+/* the note (microphone) button is fixed at the top right; with no margin above the fight (a short phone) the top row leaves it its corner, so it never covers the sight or the Map */
+@media (max-height: 700px) { .cb-top { padding-right: 44px; } .cb-top .cb-sight { padding: 5px 8px; letter-spacing: .06em; } .cb-top .where b { letter-spacing: .03em; } .cb-top .where span { letter-spacing: .05em; } .cb-top .cb-sight { font-size: calc(12px * var(--ts, 1)); } .cb-top { gap: 6px; } }
+.cb-stagein[data-tight] .cb-pl { display: none; }
+
+/* note 102: the fight bar's Fame, Notoriety and Gold carry their words, as the status strip does */
+.cb-bar .ds-stat { flex-direction: column; gap: 1px; padding: 0 5px; font-size: calc(16px * var(--ts, 1)); }
+.cb-bar .ds-stat .v { display: inline-flex; align-items: center; gap: 3px; }
+.cb-bar .ds-stat .w { font: 600 calc(12px * var(--ts, 1))/1 var(--font-ui); letter-spacing: .01em; color: var(--ink-2); }
+.cb-verb img.ds-px { background: var(--counter-face); border-radius: 5px; padding: 1px; box-sizing: content-box; }          /* the dark action art on a parchment plate, like the plan's chips (ui_screens: alert.gif was 1.8:1 on the tile) */
+.cb-hero .wplate.unalerted, .cb-hero .wplate.card { color: var(--ink-2); }          /* NOT ALERTED / WEAPON CARD at 4.5:1 or more (was the tertiary ink, 3.5:1) */
+.cb-foe.sel .tag::after { inset: min(0px, calc(18px - 44px / var(--z, 1))) min(0px, calc((100% - 44px / var(--z, 1)) / 2)) 0; }          /* the chosen one's TARGET word grows upward only: below it lies its own counter (a second tap there turns it over) */
+
+/* ---- note 111: the battlefield is the point of the screen ---- */
+.cb-hero .mid .cb-party { margin: 0; gap: 0 6px; }          /* two characters: their tiles stand in the hero's own row, between the weapon and the armor */
+.cb-hero .mid .cb-ptile { width: calc(var(--pt, 56px) + 30px); }
+/* the room: less dead air over the header, a header of two slim rows, a one-line prompt, a sheet with tighter gaps; the weapon's name stands in the played line (its plate says whether it is alerted) */
+.cb-hero .gcol:has(.wplate) .cap { display: none; }
+.cb-top { padding-right: max(var(--gutter), 52px); }          /* (the note button is fixed at the top right: the row leaves it its corner on every phone) */
+@media (min-height: 701px) {
+  .cb { padding-top: max(0px, calc(var(--safe-t) - 20px)); }
+  .cb-top { height: 40px; } .cb-bar { padding-bottom: 0; } .cb-bar .ds-stat { height: 36px; } .cb-stage { padding-top: 2px; padding-bottom: 2px; }
+  .cb-narr { min-height: calc(1.22em + 8px); padding: 3px var(--gutter) 5px; }
+  .cb-sheet { padding-top: 6px; } .cb-dir { min-height: 46px; } .cb-step { height: 32px; line-height: 32px; } .cb-bar .ds-voice-sw button { height: 30px; }
+  .cb .cb-steps { margin-bottom: 6px; } .cb-dirs { margin-bottom: 6px; } .cb-chits { padding: 5px 0 1px; margin-bottom: 4px; } .cb-hint { margin-bottom: 4px; }
+  .cb-sheet[data-kind=melee] { min-height: calc(240px + var(--safe-b)); }
+  .cb-armor-why { display: none; }
+  html[data-voice-mode="detail"] .cb-armor-why { display: block; }
+}
+@media (max-height: 700px) {
+  .cb-narr { min-height: calc(1.22em + 8px); padding-top: 2px; padding-bottom: 4px; }
+  .cb-sheet[data-kind=melee] { min-height: calc(238px + var(--safe-b)); }
+}
+.cb-top .where span { letter-spacing: .07em; }
+.cb-top .where span .cb-sight { display: inline; padding: 0; border: 0; border-radius: 0; font: inherit; letter-spacing: inherit; font-style: normal; color: var(--gold-hi); white-space: nowrap; }          /* a solo hero's sight is in the header's second line, no pill beside the title */
+.cb-top .where span .cb-sight.hid { color: var(--ink-2); }
+.cb-bar .ds-stats { position: relative; }
+.cb-bar .ds-stats::after { content: ""; position: absolute; inset: -4px 0; }          /* 36px to the eye, 44px to the thumb */
+.cb[data-party][data-mode=lure] .cb-hero:has(.cb-party) { display: flex; }          /* (the Lure step: the weapon, the armor and the chits stand aside; the tiles stay) */
+.cb[data-party][data-mode=lure] .cb-hero:has(.cb-party) .gcol, .cb[data-party][data-mode=lure] .cb-hero:has(.cb-party) .cb-pips { display: none; }
+.cb-top.sf-head { height: auto; min-height: 46px; }          /* (a shared fight's top row holds the Belongings and the Map with their words) */
+.cb-pips .ds-chit.mini { font-size: 12px; color: var(--ink); text-shadow: 0 0 2px rgba(0,0,0,.6); }          /* the type letter: 12px in full ink (ui_screens: 11px at 2.3 to 3.7:1) */
+.cb-pips .ds-chit.mini.tired { color: var(--ink-2); }
+@media (max-height: 820px) { .cb .cb-foes.few .cb-peace-lbl { display: none; } }          /* a short phone: the ones at peace stand in the same row (each already wears AT PEACE), not on a row of their own */
+.cb-pl .sep { background: var(--surface-1); padding: 0 2px; border-radius: 3px; color: var(--ink-2); }
+.cb-pips .ds-chit.mini { background: var(--surface-1); color: #fff; }          /* the type letter on the dark ground: 12px, white (ui_screens) */
+.cb-pips .ds-chit.mini.tired { color: var(--ink); }
+.cb-hero .gear .more { background: var(--surface-1); color: var(--ink); border-color: var(--gold); }          /* the count badge on the armor: solid, full ink */
+.cb-foe span.tag, .cb-foe span.tag::after { pointer-events: none; }          /* a word that is not a button (AT PEACE, WOUNDED YOU) takes no tap: its 44px area would lie over the counter beside it */
+
+/* Note 26 ("Ugly layout", the fight's round result, replayed in 0.10.0 next.125): two things that were out of line, measured at 393x852 and 360x640.
+   1. The weapon's "NOT ALERTED" plate and the Belongings button stood 4 to 7px from the screen's left edge, the armor's caption and the Map button 5px from the right, while everything else keeps the 16px
+      gutter: the hero row (counter, hero, counter) was wider than the screen because the 12 chit pips in the middle are one long row. The two ends of the row are held to the gutters now (the weapon's end at the
+      left one, the armor's at the right one), the pips are two pixels closer, and on a phone under 375px wide, where one row cannot fit, the pips stand in two rows of six (the name gives back the height).
+   2. The chips of a round's result (Fame, Notoriety, Gold, "1 asterisk to tire", "Unhurt") were three heights (34px, 26px, 24px) on one line: all of them are the 34px chip now. */
+.cb-hero:has(> .mid) { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); column-gap: 6px; justify-content: stretch; }
+.cb-hero:has(> .mid) > .gcol:first-child { justify-self: start; }
+.cb-hero:has(> .mid) > .gcol:last-child { justify-self: end; }
+.cb-hero:has(> .mid) .cb-pips { gap: 2px; }
+@media (max-width: 374px) {
+  .cb-hero:has(> .mid) .cb-pips { display: grid; grid-template-columns: repeat(6, 14px); justify-content: center; gap: 2px 3px; margin-top: 2px; }
+  .cb-hero:has(> .mid) .name { margin-top: 1px; }
+}
+.cb-verdict .ds-tag { height: 34px; padding: 0 12px; border-width: 1.5px; font-size: calc(15px * var(--ts, 1)); }

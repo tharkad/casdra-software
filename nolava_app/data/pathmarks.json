@@ -1,0 +1,15 @@
+{
+ "meta": {
+  "note": "Where a hidden path or secret passage really runs in the tile picture, when it is not the straight line between its two clearings. mid = the middle of the printed passage, in the same tile-normalised units as artpos.json (x -1..1 across the tile, y -0.866..0.866); the passage is drawn as a curve through it. Measured by eye on the pictures. Paths not listed here are drawn straight."
+ },
+ "tiles": {
+  "CN": {
+   "normal": { "1-4": { "mid": [0.55, 0.20] } },
+   "enchanted": { "4-5": { "mid": [-0.34, 0.14] } }
+  },
+  "CL": {
+   "normal": { "2-5": { "mid": [0.0, 0.52] } },
+   "enchanted": { "2-5": { "mid": [0.0, 0.52] } }
+  }
+ }
+}
