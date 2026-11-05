@@ -1,4 +1,5 @@
 import { isMountain, tileName, tileOf } from '../world.js';
+import { visitorsAt } from '../missions.js';
 
 // Colours of magic (rules 4.6.2, 6.1.2). The seventh day of each week fills the whole land with one colour (White and Black together on day 7,
 // then Grey on 14, Purple on 21 and Gold on 28), from the morning until midnight. A Chapel supplies White in its own clearing. Enchanted tiles and
@@ -17,13 +18,17 @@ export const COLOR_MEANING = {
 // by someone else" (4.6.2b) and does not wait to be switched on (4.6.2b.1 is about a card not yet turned over).
 const CARD_COLOR = { 'sacred-grail': 'White', 'golden-icon': 'Grey', 'flowers-of-rest': 'Gold', 'dragon-essence': 'Purple', 'cloven-hoof': 'Black' };
 const isCard = (i, id) => i.kind === 'treasure' && i.id === id && !i.destroyed;
+export const isEnchantedCard = i => i.kind === 'treasure' && !i.destroyed && i.id in CARD_COLOR;
+// 7.6.5 Special: an Enchanted card found among a native's or visitor's belongings on a Trade look is face up and radiates in the clearing where that seller stands.
+const cardInSellerStock = (st, data, clearing, id) => !!clearing && Object.entries(st.stock ?? {}).some(([group, box]) => box.some(i => isCard(i, id) && i.faceUp)
+    && (st.nats.some(n => !n.dead && n.loc?.c === clearing && data.natives?.[n.id]?.group === group) || visitorsAt(st, data, clearing).some(v => v.name === group)));
 const cardCarriedNear = (st, at, id) => (st.order?.length ?? 0) > 1 && st.order.some(who => {
     const c = st.chars[who];
     return who !== st.actor && c.at === at && !c.dead && !c.onRoad && !c.flying && c.items.some(i => isCard(i, id));
 });
 // 7.7.2a.3: the belongings of a hired leader's own native group stay on the Setup Card, out of play; an ACTIVATED Enchanted card among them still radiates its colour in the clearing where the hired leader stands.
 const cardInLeaderGroup = (st, data, clearing, id) => !!clearing && st.nats.some(n => n.hired && !n.dead && n.loc?.c === clearing && data.natives?.[n.id]?.leader && (st.stock?.[data.natives[n.id].group] ?? []).some(i => isCard(i, id) && i.active));
-const cardHere = (st, data, clearing, id) => !!clearing && (cardInLeaderGroup(st, data, clearing, id) || (clearing === st.ch.at && st.ch.items.some(i => isCard(i, id))) || cardCarriedNear(st, clearing, id) || (st.abandoned?.[clearing] ?? []).some(i => isCard(i, id)));
+const cardHere = (st, data, clearing, id) => !!clearing && (cardInLeaderGroup(st, data, clearing, id) || cardInSellerStock(st, data, clearing, id) || (clearing === st.ch.at && st.ch.items.some(i => isCard(i, id))) || cardCarriedNear(st, clearing, id) || (st.abandoned?.[clearing] ?? []).some(i => isCard(i, id)));
 const WEEK_COLORS = [['White', 'Black'], ['Grey'], ['Purple'], ['Gold']];            // day 7, 14, 21, 28 (and again for a longer game)
 export const isMagicDay = day => day > 0 && day % 7 === 0;
 // Day 7 gives White and Black in a one-month game; in a game of several months it alternates, White in the first month, Black in the second, and so on (6.1.2, 10.E.2.3).

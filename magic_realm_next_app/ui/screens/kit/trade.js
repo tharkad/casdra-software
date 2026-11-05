@@ -107,6 +107,15 @@ const infoOf = (G, it) => () => { const { card, faces, facts } = itemParts(G, it
 // Nothing is dealt, looked at or rolled on this page. The commit is the foot button; a tap on a row only picks the candidate.
 const counterLine = l => (l.counters.length ? l.counters.map(c => `${c.name}${c.n > 1 ? ` \u00D7${c.n}` : ''}`).join(', ') : 'No counters')
     + `${l.cards ? ` \u00B7 ${plural(l.cards, 'Treasure card')} face down` : ''}${l.spellCards ? ` \u00B7 ${plural(l.spellCards, 'Spell card')} face down` : ''}`;
+// Note 124: everything the player may know of a box, one chip each: every counter (face up on the Setup Card) with its picture, and the Treasure and Spell cards as face-down backs (4.4.1a: counted, not read).
+const cardBack = G => itemArt(G, { kind: 'treasure', id: '' });
+const chip = (G, art, text, tag = '') => h('span', { class: 'kit-chip' }, h('span', { class: 'ds-counter xs' }, art), h('span', {}, text), tag ? h('em', {}, tag) : null);
+function knownChips(G, l) {
+    const chips = l.counters.map(c => chip(G, itemArt(G, { kind: c.kind, id: c.id }), `${c.name}${c.n > 1 ? ` \u00D7${c.n}` : ''}`));
+    if (l.cards) chips.push(chip(G, cardBack(G), `Treasure card${l.cards > 1 ? ` \u00D7${l.cards}` : ''}`, 'face down'));
+    if (l.spellCards) chips.push(chip(G, cardBack(G), `Spell card${l.spellCards > 1 ? ` \u00D7${l.spellCards}` : ''}`, 'face down'));
+    return h('span', { class: 'kit-known', 'data-goods': l.group, 'aria-label': counterLine(l) }, chips.length ? chips : h('span', {}, 'No counters'));
+}
 function tradeWho(G, p, tf) {
     const lead = group => viewOf(G.st, G.data).table.natives.find(n => !n.dead && !n.hired && n.loc?.c === ownSheet(G.st, G.data).at && G.data.natives[n.id].group === group && G.data.natives[n.id].leader);
     const who = tf.lineup.some(l => l.group === G.ui.tradeWho) ? G.ui.tradeWho : null;
@@ -114,7 +123,7 @@ function tradeWho(G, p, tf) {
         const on = l.group === who, rel = tf.groups[l.group].rel, ld = lead(l.group);
         return h('button', { type: 'button', class: `ds-row kit-multi kit-whom${on ? ' sel' : ''}`, 'data-trade-who': l.group, role: 'radio', 'aria-checked': on ? 'true' : 'false', onclick: () => { G.ui.tradeWho = on ? null : l.group; render(G); } },
             h('span', { class: 'art' }, markGroup(h('span', { class: 'ds-counter sm' }, leaderArt(G, l.group, ld && nativeArt(G, ld.id))), l.group), on ? tick() : null),
-            h('span', { class: 'main' }, h('b', {}, l.group), h('span', { 'data-goods': l.group }, counterLine(l))), h('span', { class: 'end' }, moodTag(rel)));
+            h('span', { class: 'main' }, h('b', {}, l.group)), h('span', { class: 'end' }, moodTag(rel)), knownChips(G, l));
     });
     const body = h('div', { class: 'kit trade trade-who' },
         ask('Whom do you trade with?', 'Name one leader or visitor. Once you have, the choice is made for this Trade.'),
@@ -190,11 +199,14 @@ function tradeMain(G, p) {
         const foe = !visitor && !!missionsOf(G.st, G.data) && tf.groups[p.group].noDrinks;
         // the face-down cards: one row that stands for them, below the counters (the box has the counters on top, 7.6.4); tapping it picks the look, the foot commits it (7.6.5)
         const lookWhy = ashes ? 'Your gold is worthless under the Ashes curse: nobody will sell to you.' : p.mode === 'sell' ? 'A phase is selling or buying, not both.' : null;
-        const lookRow = hiddenN ? h('button', { type: 'button', class: `ds-row kit-multi kit-lookrow${sel.look ? ' sel' : ''}${lookWhy ? ' dim' : ''}`, 'data-look-row': '', 'data-multi': '', role: 'checkbox', 'aria-checked': sel.look ? 'true' : 'false', 'aria-disabled': lookWhy ? 'true' : null, onclick: () => (lookWhy ? say(G, lookWhy) : pickLook()) },
-            h('span', { class: 'art' }, icon('eye'), sel.look ? tick() : null),
-            h('span', { class: 'main' }, h('b', {}, [held.cards ? plural(held.cards, 'Treasure card') : null, held.spells ? plural(held.spells, 'Spell card') : null].filter(Boolean).join(' and '), h('span', { class: 'ds-tag kit-tag' }, 'face down')),
-                h('span', {}, lookWhy ?? 'Their faces are secret. Take the secret look to see them, then you must ask for something and roll.'))) : null;
-        rows = [foe ? h('p', { class: 'ds-why ms-foe', 'data-foe': p.group }, `The ${p.group} are foes of your campaign: they stand as Enemies, and you cannot buy them drinks.`) : drinksRow, ...rows, ...(lookRow ? [lookRow] : [])];
+        // each face-down card is its own row in the list, with its back showing; the look is at all of them at once, so tapping any one ticks them all (7.6.5)
+        const backRow = (key, label, what) => h('button', { type: 'button', class: `ds-row kit-multi kit-lookrow${sel.look ? ' sel' : ''}${lookWhy ? ' dim' : ''}`, 'data-look-row': key, 'data-multi': '', role: 'checkbox', 'aria-checked': sel.look ? 'true' : 'false', 'aria-disabled': lookWhy ? 'true' : null, onclick: () => (lookWhy ? say(G, lookWhy) : pickLook()) },
+            h('span', { class: 'art' }, cardBack(G), sel.look ? tick() : null),
+            h('span', { class: 'main' }, h('b', {}, label, h('span', { class: 'ds-tag kit-tag' }, 'face down')), h('span', {}, lookWhy ?? what)));
+        const faceDown = !hiddenN ? [] : [
+            ...Array.from({ length: held.cards }, (_, i) => backRow(`card:${i}`, 'Treasure card', 'Secret until you look. Tap to take the secret look at all the cards; then you must ask for something and roll.')),
+            ...Array.from({ length: held.spells }, (_, i) => backRow(`spell:${i}`, 'Spell card', 'Secret until you look. Tap to take the secret look at all the cards; then you must ask for something and roll.'))];
+        rows = [foe ? h('p', { class: 'ds-why ms-foe', 'data-foe': p.group }, `The ${p.group} are foes of your campaign: they stand as Enemies, and you cannot buy them drinks.`) : drinksRow, ...rows, ...faceDown];
     } else if (tab === 'spells') {
         rows = spellsRoom(G, p, sel, pickSpell);
     } else if (tab === 'owed') {

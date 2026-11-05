@@ -4,6 +4,7 @@ import { defOf, nameOf, priceOf, makeItem, summaryOf, autoEquip, noteGain, extra
 import { hasCurse } from './effects.js';
 import { meetingOutcome, drinksCost } from './meeting.js';
 import { relFor } from './hire.js';
+import { isEnchantedCard } from './magic/colour.js';
 import { isVisitorName, spellCards, spellWanted, learnFromVisitor, scholarStock } from './visitors.js';
 import * as missions from './missions.js';
 
@@ -159,6 +160,7 @@ export function tradeAction(st, data, p, a) {
         if (!held.cards && !held.spells) refuse('trade.no-cards', `The ${g} hold no cards to look at.`, { group: g }, '7.6.5');
         if (!p.looked) {
             p.looked = true; p.mode = 'buy'; pendingExtras(st, data, p);
+            for (const it of st.stock?.[p.group] ?? []) if (isEnchantedCard(it)) it.faceUp = true;          // 7.6.5 Special: an Enchanted card he finds turns face up and radiates its colour
         }
         st.pending = p;
         return undefined;

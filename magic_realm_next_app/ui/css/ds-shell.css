@@ -182,3 +182,9 @@
 /* A sheet is at least as tall as the tray beneath it, so the tray's last line never peeks out above a short sheet and is never half under its handle (ui_screens covered ds-last). Not for a peeked decision. */
 .layer .ds-sheet:not([data-detent="peek"]):not(.peeked) { min-height: calc(var(--tray-h, 0px) + 6px); }
 .ds-pip .ds-i { color: var(--ink) !important; } .ds-pip.done .ds-i { opacity: .85; }
+
+/* the flip button: above the bare-tiles one, 52px a step (note: Mike 2026-11-05) */
+.ds-map-btn.ds-flip-btn { bottom: calc(min(calc(12px + var(--cover, 0px)), calc(100% - 64px)) + 104px); }
+.ds-flip-btn.on { border-color: var(--gold); color: var(--gold-hi, #b5e39c); }
+.ds-flipnote { position: absolute; left: 12px; right: 68px; top: 10px; z-index: 3; padding: 6px 12px; border-radius: 12px; background: rgba(15, 17, 23, .9); border: 1px solid var(--gold); color: var(--ink); font: 600 calc(13px * var(--ts, 1))/1.25 var(--font-ui); pointer-events: none; }
+.ds-flipnote[hidden] { display: none; }

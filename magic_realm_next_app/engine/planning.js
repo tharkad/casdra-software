@@ -55,16 +55,21 @@ export function actRefusal(st, act) {
     return null;
 }
 
+// The realm as it would lie with every tile turned over (the Enchant preview, Mike 2026-11-05): the same game with each placement on its other side. Clearing numbers are the same on both sides of every tile;
+// only the roads and the kinds of clearing change. A Move recorded from this view is recorded in hope (6.2.4e): it is lost at its turn if no such road exists then (day.js doMove).
+export const flippedRealm = st => Object.create(st, { placements: { value: st.placements.map(p => ({ ...p, side: p.side === 'enchanted' ? 'normal' : 'enchanted' })), enumerable: true } });          // (a view over the same game: its getters, `ch` among them, still read the game itself)
+
 const ACTS = ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', 'enchant', 'fly', 'peer', 'follow', 'nothing'];
 /** Everything the plan builder asks about a draft in one answer (check, probe 'plan'): `at` / `climbing` (where he starts each phase and the mountain he is half way up), `moves[i]` (`sure`, `maybe`), `leave[i]`
- * (may he leave the map from there) and `refusals` (act -> why it cannot be recorded now). */
+ * (may he leave the map from there), `flip[i]` (the same as `moves[i]` on the realm with every tile turned over) and `refusals` (act -> why it cannot be recorded now). */
 export function whereOf(st, data, slots) {
     const { at, climbing } = planState(st, data, slots);
-    const moves = [], leave = [];
-    for (let i = 0; i < 9; i++) { moves.push(moveOptions(st, data, slots, i)); leave.push(canLeaveAt(st, data, slots, i)); }
+    const moves = [], leave = [], flip = [], fst = flippedRealm(st);
+    for (let i = 0; i < 9; i++) { moves.push(moveOptions(st, data, slots, i)); leave.push(canLeaveAt(st, data, slots, i)); flip.push(moveOptions(fst, data, slots, i)); }
     const refusals = {};
     for (const a of ACTS) { const why = actRefusal(st, a); if (why) refusals[a] = why; }
     const types = {};          // (the kind of every clearing a Move may name: woods, cave or mountain)
     for (const m of moves) for (const id of [...m.sure, ...m.maybe]) types[id] ??= clearingType(st, data, id);
-    return { at, climbing, moves, leave, refusals, types };
+    for (const m of flip) for (const id of [...m.sure, ...m.maybe]) types[id] ??= clearingType(fst, data, id);
+    return { at, climbing, moves, flip, leave, refusals, types };
 }

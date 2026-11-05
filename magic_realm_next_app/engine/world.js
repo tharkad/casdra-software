@@ -51,7 +51,11 @@ export const tileSide = (st, tile) => st.placements.find(p => p.id === tile)?.si
 // The key of the road between two clearings of one tile as that tile lies now: what he looks up, and writes down, when he uses or discovers it.
 export const pathKeyAt = (st, a, b) => pathKey(a, b, tileSide(st, tileOf(a)));
 // The roads he has discovered that exist on the side now up, as sorted pairs ("BL4~BL5"): what a map draws as found. A discovery of the side that is face down stays on his list but does not open the road.
-export const knownPathPairs = (st, ch = st.ch) => new Set((ch.discovered?.paths ?? []).filter(k => pathSide(k) === tileSide(st, tileOf(pathEnds(k)[0]))).map(k => k.split(':')[0]));
+// `flip`: as the map would show with every tile turned over (the flip view): the discoveries of the sides that are face down now.
+export const knownPathPairs = (st, ch = st.ch, flip = false) => {
+    const shown = tile => { const side = tileSide(st, tile); return flip ? (side === 'enchanted' ? 'normal' : 'enchanted') : side; };
+    return new Set((ch.discovered?.paths ?? []).filter(k => pathSide(k) === shown(tileOf(pathEnds(k)[0]))).map(k => k.split(':')[0]));
+};
 export const tileOf = id => id.slice(0, 2);
 export const numOf = id => Number(id.slice(2));
 

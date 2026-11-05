@@ -28,6 +28,8 @@ import { renderTray } from './tray.js';
 import { myId, saveUi, vpNow } from './state.js';
 import { ownSheet, fresh, gameOf, questionOf, tableFight, charsOf, missionsOf, todayOf, tableModel, seatOf, mapChits, viewOf, standingOf, planSlots } from '../../combat/feed.js';
 
+// ---- the flip view: every tile on its other side (G.ui.flip). The game is not changed; clearing numbers are the same on both sides, so the markers keep their clearings ----
+const turned = placements => placements.map(p => ({ ...p, side: p.side === 'enchanted' ? 'normal' : 'enchanted' }));
 // ---- model for the map ----
 export function mapModel(G) {
     const art = G.data.art;
@@ -90,8 +92,9 @@ export function mapModel(G) {
         const i = G.ui.planStep;
         if (i != null && (G.ui.pickMove === i || (ownSheet(G.st, G.data).onRoad && i === 0))) {
             // planlogic.js: the roads he can walk (no cave in a sunlight phase, only the mountain once a climb is begun) and the hidden paths a Search earlier in the plan may find (6.2.4e)
-            const o = moveOptions(G.st, G.data, G.ui.draft.slots, i);
-            G.ui.moveTargets = o.sure; G.ui.moveMaybe = o.maybe;
+            // the flip view: the roads of the tiles turned over; a Move recorded there is recorded in hope (6.2.4e), lost at its turn if no such road is there then
+            const o = moveOptions(G.st, G.data, G.ui.draft.slots, i, !!G.ui.flip);
+            G.ui.moveTargets = G.ui.flip ? [] : o.sure; G.ui.moveMaybe = G.ui.flip ? [...o.sure, ...o.maybe] : o.maybe;
         }
     }
     const localParty = !G.shared && !G.race && leaderGame(tableModel(G.st, G.data));
@@ -109,7 +112,7 @@ export function mapModel(G) {
         }
     }
     return {
-        tiles: G.data.tiles, art: G.data.art, placements: viewOf(G.st, G.data).table.map.placements, side: 'normal', showHidden: false, discovered: knownPathPairs(G.st),
+        tiles: G.data.tiles, art: G.data.art, placements: G.ui.flip ? turned(viewOf(G.st, G.data).table.map.placements) : viewOf(G.st, G.data).table.map.placements, side: 'normal', showHidden: false, discovered: knownPathPairs(G.st, undefined, !!G.ui.flip),
         chitsByTile, tokens, hero: ownSheet(G.st, G.data).onRoad || ownSheet(G.st, G.data).dead || ownSheet(G.st, G.data).flying ? null : ownSheet(G.st, G.data).at, heroAir: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : null, heroRoad: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).onRoad ? { from: ownSheet(G.st, G.data).onRoad.from, to: ownSheet(G.st, G.data).onRoad.to } : null, heroHidden: ownSheet(G.st, G.data).hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
         onTap: id => {
             // a spell aimed on the map (Talk to Wise Bird): a tap on a ringed clearing is the answer; the fight comes back with it chosen
@@ -134,7 +137,7 @@ export function mapModel(G) {
                 const wantsMove = i != null && (G.ui.pickMove === i || (ownSheet(G.st, G.data).onRoad && i === 0));
                 // only a clearing that is ringed can be chosen: the same list the ring is drawn from (so no cave in a sunlight phase, and nothing that would wipe the later phases)
                 if (wantsMove && (G.ui.moveTargets.includes(id) || G.ui.moveMaybe.includes(id))) { setMove(G, i, id); return; }
-                const why = wantsMove ? dimWhy(G, i).get(id) : null;
+                const why = wantsMove && !G.ui.flip ? dimWhy(G, i).get(id) : null;
                 if (why) { showPin(G, id, why, 'bad'); return; }
                 clearPin(G);
                 G.ui.sel = id; G.ui.peek = true; render(G); return;
@@ -201,7 +204,7 @@ function overlayFor(G) {
             const cur = d.slots[i]?.act === 'move' ? d.slots[i].to : null;
             for (const id of G.ui.moveTargets) rings.push({ id, kind: id === cur ? 'chosen' : monsAt.has(id) ? 'danger' : 'legal' });
             for (const id of G.ui.moveMaybe) rings.push({ id, kind: 'maybe' });
-            for (const id of dimWhy(G, i).keys()) rings.push({ id, kind: 'illegal' });
+            if (!G.ui.flip) for (const id of dimWhy(G, i).keys()) rings.push({ id, kind: 'illegal' });
         }
     } else if (p?.type === 'phase-pick' && G.ui.pickAct === 'move') {
         const day = todayOf(st, G.data), sug = day.planFull?.[day.turn?.i]; const sugTo = sug?.act === 'move' ? sug.to : null;          // (the suggested destination is the filled ring: the primary names it)
@@ -386,6 +389,10 @@ export function syncMapButton(G) {
     const on = !!G.ui.bare, e = G.bareBtn;
     G.mapBox.classList.toggle('bare', on);
     if (e) { e.setAttribute('aria-pressed', String(on)); e.setAttribute('aria-label', on ? 'Show the names again' : 'Show the bare tiles'); e.classList.toggle('on', on); e.replaceChildren(dsIcon(on ? 'eyeoff' : 'eye', 'lg')); }
+    const fl = !!G.ui.flip, f = G.flipBtn;
+    G.mapBox.classList.toggle('flipped', fl);
+    if (G.flipNote) G.flipNote.hidden = !fl;
+    if (f) { f.setAttribute('aria-pressed', String(fl)); f.setAttribute('aria-label', fl ? 'Turn the tiles back' : 'Turn every tile over'); f.classList.toggle('on', fl); f.replaceChildren(dsIcon('flip', 'lg')); }
 }
 
 // Monsters whose home row the Monster Roll has just called: they are the ones that can come to you at the end of the turn.
@@ -399,8 +406,10 @@ export function prowlers(G) {
 // Called once after the map is mounted: the map button (tap and long press), and the first touch on the map putting a decision sheet aside ("look at the map first").
 export function wireShell(G) {
     const b = G.mapTools; let long = false, timer = null;
-    doneLoading(G); G.mapBox.append(b, G.bareBtn);
+    G.flipNote = h('div', { class: 'ds-flipnote', hidden: true, 'aria-live': 'polite' }, 'Every tile turned over: the roads an Enchant would make.');
+    doneLoading(G); G.mapBox.append(b, G.bareBtn, G.flipBtn, G.flipNote);
     G.bareBtn.addEventListener('click', () => { G.ui.bare = !G.ui.bare; syncMapButton(G); });
+    G.flipBtn.addEventListener('click', () => { G.ui.flip = !G.ui.flip; G.ui.pin = null; render(G); });
     try { if (history.state?.mrSheet) history.replaceState(null, ''); } catch { /* ignore */ }               // (a reload with a sheet open keeps that entry's mark: the base screen has none)
     G.ui.popHandler = () => onBack(G); addEventListener('popstate', G.ui.popHandler);
     const hero = () => heroSpot(G);
@@ -411,5 +420,5 @@ export function wireShell(G) {
     G.mapBox.addEventListener('pointerdown', e => { if (!b.contains(e.target) && G.layer.querySelector('.ds-sheet.decision, .ds-sheet.result')) G.ui.peekGo?.(); }, { capture: true });   // (only a waiting question or result drops to its peek bar; an information sheet stays as it is)
     for (const ev of ['pointerup', 'wheel']) G.mapBox.addEventListener(ev, () => setTimeout(() => syncMapButton(G), 520), { passive: true });
     // a tray so tall that the map is a sliver has no room for the button: it steps aside until the map has room again
-    if (typeof ResizeObserver === 'function') new ResizeObserver(() => { const ch = G.mapBox.clientHeight; b.hidden = ch > 0 && ch < 68; G.bareBtn.hidden = ch > 0 && ch < 116; }).observe(G.mapBox);
+    if (typeof ResizeObserver === 'function') new ResizeObserver(() => { const ch = G.mapBox.clientHeight; b.hidden = ch > 0 && ch < 68; G.bareBtn.hidden = ch > 0 && ch < 116; G.flipBtn.hidden = ch > 0 && ch < 168; }).observe(G.mapBox);
 }

@@ -131,6 +131,8 @@ export function newPlayState(ctx) {
     G.mapTools = h('button', { type: 'button', class: 'ds-map-btn', 'data-act': 'fit', 'aria-label': 'Show the whole realm' });
     // The bare-tiles button (above it): hides every name and number so the tiles show; found paths and found sites throb. G.ui.bare holds it.
     G.bareBtn = h('button', { type: 'button', class: 'ds-map-btn ds-bare-btn', 'data-act': 'bare', 'aria-label': 'Show the bare tiles', 'aria-pressed': 'false' });
+    // The flip button (above the bare-tiles one): turns every tile to its other side, to see what an Enchant would do and to record a Move on those roads. G.ui.flip holds it.
+    G.flipBtn = h('button', { type: 'button', class: 'ds-map-btn ds-flip-btn', 'data-act': 'flip', 'aria-label': 'Turn every tile over', 'aria-pressed': 'false' });
     G.root.append(G.strip, mapBox, tray, G.layer);
     G.mySeat = (G.race ?? G.shared)?.seat;
     if (G.race) G.ui.sheet = ctx.params?.invited ? 'race' : null;

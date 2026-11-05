@@ -178,7 +178,8 @@ function planHints(G, i, at) {
         if (G.ui.pickMove === i && monsBy.size) out.push(line(`Red rings have monsters (${[...monsBy].map(([c, n]) => `${nameOfClearing(c)}: ${[...new Set(n)].join(', ')}`).join('; ')}). In plain sight at the end of the phase they block you and your turn is lost. Hiding first keeps you safe.`, 'bad', { 'data-hint': 'monsters-ahead' }));
         const heavy = s?.act === 'move' && s.to && s.to !== EDGE ? wouldDrop(G) : [];
         if (heavy.length) out.push(line(`Too heavy for you now: this Move would leave ${heavy.join(', ')} behind. Put something down or use a stronger Move chit first.`, 'bad', { 'data-hint': 'leave-behind' }));
-        if (G.ui.pickMove === i && G.ui.moveMaybe?.length) out.push(line(`Dotted: ${G.ui.moveMaybe.map(nameOfClearing).join(', ')} lie along a hidden path you have not found. Your earlier Search may find it; if it has not, this Move is lost.`));
+        if (G.ui.pickMove === i && G.ui.flip) out.push(line(G.ui.moveMaybe?.length ? `Turned over: dotted rings are the clearings you could walk to once the tiles are turned over (an Enchant). Record one only if an earlier phase will enchant this tile: if the roads are not there at its turn, this Move is lost.` : 'Turned over, no road leaves here. Turn the tiles back to see the roads as they are.', '', { 'data-hint': 'flip-moves' }));
+        else if (G.ui.pickMove === i && G.ui.moveMaybe?.length) out.push(line(`Dotted: ${G.ui.moveMaybe.map(nameOfClearing).join(', ')} lie along a hidden path you have not found. Your earlier Search may find it; if it has not, this Move is lost.`));
     }
     if (ownSheet(G.st, G.data).leader && G.ui.pickMove !== i) {          // (a seat: what Alert and Rest are for, and what a creature cannot do)
         const L = planActs(questionOf(G.st, G.data)), only = L && [...L.recordOnly].some(a => s?.act === a || !s);
