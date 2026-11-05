@@ -43,7 +43,7 @@ html[data-fit="wide"] .cb { inset: var(--strip-h) var(--rail-w) 0 0; width: auto
 html[data-fit="wide"] .cb > :not(.cb-popbk) { width: 100%; max-width: 760px; }
 html[data-fit="wide"] .cb-back { left: 0; right: var(--rail-w); width: auto; margin: 0; }
 /* the bug-note sheet: the same column, drawn at --z */
-@supports (zoom: 1) { html:not([data-fit="phone"]) .nt-layer { zoom: var(--z); } }
+@supports (zoom: 1) { html:not([data-fit="phone"]) .nt-sheet { zoom: var(--z); } }          /* (the sheet, not its fixed layer: a zoomed fixed box comes out the wrong size, and the sheet fell below the screen) */
 /* the bug-note microphone: at the right end of the strip, which leaves it room (it stood in the window's corner, which on a phone is outside the column) */
 html:not([data-fit="phone"]) .nt-btn { top: calc(var(--safe-t) + (var(--strip-h) * var(--z) - 32px) / 2); right: 8px; left: auto; bottom: auto; }
 html:not([data-fit="phone"]) .game .ds-strip { padding-right: calc(var(--gutter) + 34px); }
