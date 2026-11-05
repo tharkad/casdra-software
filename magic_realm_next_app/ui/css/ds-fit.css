@@ -12,7 +12,7 @@ html:not([data-fit="phone"]) { --topgap: 0px; }                              /* 
 html:not([data-fit="phone"]) #app:has(> .game.ds-screen) { width: 100%; box-shadow: none; }
 .ds-rail { display: none; }
 @supports (zoom: 1) {
-    html:not([data-fit="phone"]) .game.ds-screen :is(.ds-strip, .ds-tray, .layer, .ds-rail) { zoom: var(--z); }
+    html:not([data-fit="phone"]) .game.ds-screen :is(.ds-strip, .ds-tray, .layer, .ds-rail, .ds-party) { zoom: var(--z); }
 }
 
 /* ---- tall: the column, filling the width, a sheet no wider than a reading column ---- */
@@ -20,12 +20,12 @@ html[data-fit="tall"] .ds-sheet { left: 50%; right: auto; width: min(100%, 640px
 html[data-fit="tall"] .ds-tray { width: 100%; }
 
 /* ---- wide: the map on the left, the rail on the right ---- */
-html[data-fit="wide"] .game.ds-screen { display: grid; grid-template-columns: minmax(0, 1fr) calc(var(--rail-w) * var(--z)); grid-template-rows: auto minmax(0, 1fr) auto; }
+html[data-fit="wide"] .game.ds-screen { display: grid; grid-template-columns: minmax(0, 1fr) calc(var(--rail-w) * var(--z)); grid-template-rows: auto auto minmax(0, 1fr) auto; }          /* strip | the party's characters (rail side; no row when there is no party) | the rail | the tray */
 html[data-fit="wide"] .game .ds-strip { grid-column: 1 / -1; grid-row: 1; }
-html[data-fit="wide"] .game .mapbox { grid-column: 1; grid-row: 2 / 4; min-height: 0; min-width: 0; }
-html[data-fit="wide"] .game .ds-rail { display: flex; flex-direction: column; grid-column: 2; grid-row: 2; min-height: 0; background: var(--surface-2); border-left: 1px solid var(--line-1); }
-html[data-fit="wide"] .game .ds-tray { grid-column: 2; grid-row: 3; margin: 0; border-radius: 0; border-left: 1px solid var(--line-1); box-shadow: none; }
-html[data-fit="wide"] .game .layer { position: relative; inset: auto; grid-column: 2; grid-row: 2 / 4; min-height: 0; }
+html[data-fit="wide"] .game .mapbox { grid-column: 1; grid-row: 2 / 5; min-height: 0; min-width: 0; }
+html[data-fit="wide"] .game .ds-rail { display: flex; flex-direction: column; grid-column: 2; grid-row: 3; min-height: 0; background: var(--surface-2); border-left: 1px solid var(--line-1); }
+html[data-fit="wide"] .game .ds-tray { grid-column: 2; grid-row: 4; margin: 0; border-radius: 0; border-left: 1px solid var(--line-1); box-shadow: none; }
+html[data-fit="wide"] .game .layer { position: relative; inset: auto; grid-column: 2; grid-row: 3 / 5; min-height: 0; }
 .ds-rail-head { flex: none; display: flex; align-items: baseline; gap: 10px; padding: 12px var(--gutter) 8px; border-bottom: 1px solid var(--line-1); }
 .ds-rail-head h2 { margin: 0; font: 600 calc(14px * var(--ts, 1))/1.2 var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); flex: 1; }
 .ds-rail-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px var(--gutter) 16px; }
@@ -54,3 +54,6 @@ html:not([data-fit="phone"]) .ds-end::before { content: ""; position: fixed; ins
 html[data-fit="wide"] .ds-end { inset: 0 var(--rail-w) 0 0; }
 /* the map's own buttons grow with the chrome in a wide window (they sit in the map's corner, which is unzoomed; their offsets are zoomed with them) */
 @supports (zoom: 1) { html[data-fit="wide"] .game .mapbox .ds-map-btn { zoom: var(--z); } }
+
+/* note 126: the character selector stands at the top of the control column, never under the map: the party bar (hot seat, a hired party) is the rail's first row in a wide window */
+html[data-fit="wide"] .game .ds-party { grid-column: 2; grid-row: 2; min-width: 0; background: var(--surface-2); border-left: 1px solid var(--line-1); border-bottom: 1px solid var(--line-1); }

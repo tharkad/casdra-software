@@ -141,7 +141,7 @@ export function overScreen(G) {
             h('div', { class: 'end-final' }, h('span', { class: 'ds-eyebrow' }, 'Victory points'), h('div', { class: `ds-num ${s.total >= 0 ? 'pos' : 'neg'}` }, sgn(s.total))),
             frames({ fame: e.fame ?? 0, notor: e.notoriety ?? 0, gold: e.gold ?? 0 }),
             sect(rows.some(r => r.need > 0) ? 'Your goals' : 'Your score', 'what each was worth'),
-            h('div', { class: 'ds-list' }, ...rows.filter(r => r.need > 0).map(goalRow), ...rows.filter(r => !(r.need > 0) && r.pts).map(goalRow)),
+            h('div', { class: 'ds-list' }, ...rows.filter(r => r.need > 0).map(goalRow), ...rows.filter(r => !(r.need > 0)).map(goalRow)),          // (note 125: every category, the ones with no goal and no points too)
             saleLine(G),
         ];
     }

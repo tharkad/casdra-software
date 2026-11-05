@@ -102,8 +102,8 @@ export function historyScreen(ctx) {
         }).filter(Boolean);
         const check = state_.check;
         // the verdict: who, where, the day, the score, then the goals
-        const rows = (m.rows ?? []).filter(r => r.need > 0);
-        const met = rows.filter(r => r.earned >= r.need).map(r => GOAL[r.cat] ?? r.cat);
+        const rows = [...(m.rows ?? [])].sort((a, b) => (b.need > 0) - (a.need > 0));          // (note 125: every category, the ones with no goal too: Gold counts against the score when it is negative, so no score screen hides a row; the goals first)
+        const met = rows.filter(r => r.need > 0 && r.earned >= r.need).map(r => GOAL[r.cat] ?? r.cat);
         const num = typeof m.score === 'number' && o.kind !== 'abandoned' && o.kind !== 'playing' && o.kind !== 'unfinished' ? m.score : null;
         const verdict = {
             finished: `Victory points. ${met.length ? `You met your goals on ${list(met)}.` : 'No goal was met.'}`,
@@ -116,7 +116,7 @@ export function historyScreen(ctx) {
             h('span', { class: 'lg' }, o.label),
             h('div', { class: 'ds-verdict' }, num != null ? h('span', { class: `ds-num ds-bignum ${num >= 0 ? 'pos' : 'neg'}` }, sign(num)) : null, h('span', { class: 'ds-text' }, verdict)));
         const goals = o.kind === 'finished' && rows.length ? [h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Goals')),
-            h('div', { class: 'ds-goals' }, rows.map(r => h('div', { class: `ds-goal${r.earned >= r.need ? ' met' : ''}` }, h('span', {}, GOAL[r.cat] ?? r.cat), h('span', {}, `${r.earned} of ${r.need}`), h('b', {}, sign(r.basic + r.bonus)))))] : [];
+            h('div', { class: 'ds-goals' }, rows.map(r => h('div', { class: `ds-goal${r.need > 0 && r.earned >= r.need ? ' met' : ''}${r.need > 0 ? '' : ' idle'}` }, h('span', {}, GOAL[r.cat] ?? r.cat), h('span', {}, r.need > 0 ? `${r.earned} of ${r.need}` : `${r.earned} earned, no goal`), h('b', {}, sign(r.basic + r.bonus)))))] : [];
         const body = h('div', { class: 'hist-detail' }, card,
             h('div', { class: 'ds-framegap' }, frames({ fame: m.fame ?? 0, notor: m.notoriety ?? 0, gold: m.gold ?? 0 }, { cls: 'sheetbg' })), ...goals,
             h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'The story'), voiceSwitch()),
