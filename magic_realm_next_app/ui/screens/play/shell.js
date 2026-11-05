@@ -23,6 +23,8 @@ import { act } from './actions.js';
 import { setFly, setMove } from './plan.js';
 import { maybeShowDraw, maybeShowFightOver, sharedCamera, showPlayer } from './shared.js';
 import { sheets } from './sheets.js';
+import { journalDock } from './journal.js';
+import { isWide } from '../../fit.js';
 import { doneLoading } from './states.js';
 import { renderTray } from './tray.js';
 import { myId, saveUi, vpNow } from './state.js';
@@ -234,7 +236,8 @@ function syncCamera(G, force = false) {
     if (!G.map || !sh) { G.mapBox.style.removeProperty('--cover'); G.mapBox.classList.remove('cramped'); if (G.ui.camKey) { G.ui.camKey = null; G.map?.release(); } return; }
     const setCover = () => {
         const sh2 = [...G.layer.querySelectorAll('.ds-sheet')].at(-1); if (!sh2 || !G.root.isConnected) return 0;
-        const inset = Math.max(0, Math.round(sh2.offsetHeight - (G.layer.getBoundingClientRect().bottom - G.mapBox.getBoundingClientRect().bottom)));
+        // (screen pixels all round: the sheet may be drawn zoomed (fit.js), so its offsetHeight is not the map's pixel. In a wide window the sheet stands in the rail, beside the map: it covers none of it.)
+        const inset = isWide() ? 0 : Math.max(0, Math.round(sh2.getBoundingClientRect().height - (G.layer.getBoundingClientRect().bottom - G.mapBox.getBoundingClientRect().bottom)));
         G.mapBox.classList.toggle('cramped', G.mapBox.getBoundingClientRect().height - inset < 140);          // (two stacked buttons need 136px: 12 + 52 + 8 + 52 + 12; a tall sheet leaves a sliver: the buttons step aside)
         G.layer.style.setProperty('--tray-h', `${G.tray.offsetHeight}px`);          // (a sheet is never shorter than the tray under it: the tray's last line must not peek out above a short sheet)
         G.mapBox.style.setProperty('--cover', `${inset + 24}px`);          // (the map's own buttons ride up above the sheet's edge; +24: the handle's hit area reaches 10px above it)
@@ -297,6 +300,14 @@ function renderStrip(G) {
     G.strip.replaceChildren(...el.childNodes);
 }
 
+// The rail of a wide window (fit.js): the Journal, docked. Elsewhere it is empty (and display:none), so the phone never builds it.
+function renderRail(G) {
+    if (!isWide()) { if (G.rail.firstChild) G.rail.replaceChildren(); return; }
+    const body = G.rail.querySelector('.ds-rail-body'), top = body?.scrollTop ?? 0;
+    G.rail.replaceChildren(...journalDock(G));
+    G.rail.querySelector('.ds-rail-body').scrollTop = top;
+}
+
 export function render(G) {
     fresh(G.st);
     setStoryState(G.st);                                 // (the Story voice finds what a roll came to without every caller passing the state)
@@ -319,6 +330,7 @@ export function render(G) {
     if (G.shared) { if (!leaderGame(tableModel(G.st, G.data))) maybeShowDraw(G); maybeShowFightOver(G); }          // (with hired leaders the draw is told by Sunrise: it has the seats' Attention chits)
     maybeShowSunrise(G);          // (hired leaders: the Attention chits are drawn, once a day)
     renderTray(G);
+    renderRail(G);
     // Sheets are rebuilt on every change; keep each scrolling area where it was while the same question is still on screen
     // (tapping a chit or a target must not throw the view back to the top). A new question starts at the top.
     const sfKey = G.shared && tableFight(G.st, G.data)?.members?.[ownSheet(G.st, G.data).id] ? `${tableFight(G.st, G.data).round}.${tableFight(G.st, G.data).step}.${tableFight(G.st, G.data).members[ownSheet(G.st, G.data).id].state}.${revealKey(G.st, { at: tableFight(G.st, G.data).at }) && G.ui.revealSeen !== revealKey(G.st, { at: tableFight(G.st, G.data).at }) ? 'r' : ''}` : '';
@@ -413,7 +425,7 @@ export function wireShell(G) {
     try { if (history.state?.mrSheet) history.replaceState(null, ''); } catch { /* ignore */ }               // (a reload with a sheet open keeps that entry's mark: the base screen has none)
     G.ui.popHandler = () => onBack(G); addEventListener('popstate', G.ui.popHandler);
     const hero = () => heroSpot(G);
-    const fitAll = () => G.map.fit(), me = () => G.map.focus(hero(), { k: Math.max(G.map.camera().k ?? 1, 1.5), animate: true });
+    const fitAll = () => G.map.fit(), me = () => G.map.focus(hero(), { k: Math.max(G.map.camera().k ?? 1, 1.5 * G.map.comfort()), animate: true });
     b.addEventListener('pointerdown', () => { long = false; clearTimeout(timer); timer = setTimeout(() => { long = true; (b.dataset.mode === 'fit' ? me : fitAll)(); setTimeout(() => syncMapButton(G), 500); }, 520); });
     for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => clearTimeout(timer));
     b.addEventListener('click', () => { if (long) { long = false; return; } (b.dataset.mode === 'locate' ? me : fitAll)(); setTimeout(() => syncMapButton(G), 500); });

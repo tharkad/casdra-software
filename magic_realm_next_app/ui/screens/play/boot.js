@@ -46,7 +46,7 @@ export function boot(G) {
                 render(G);
                 G.sconn.watch();
                 // (the trade window after the day's fights is a lobby option, on by default and kept with the game: the server gives every character the standing choice; nothing is sent from here)
-                requestAnimationFrame(() => { G.map.fit(false); G.map.focus(ownSheet(G.st, G.data).onRoad ? ownSheet(G.st, G.data).onRoad.from : ownSheet(G.st, G.data).at, 1.5, false); G.lastHero = ownSheet(G.st, G.data).at; });
+                requestAnimationFrame(() => { G.map.fit(false); G.map.focus(ownSheet(G.st, G.data).onRoad ? ownSheet(G.st, G.data).onRoad.from : ownSheet(G.st, G.data).at, undefined, false); G.lastHero = ownSheet(G.st, G.data).at; });
                 window.addEventListener('resize', () => G.map?.fit(false));
                 return;
             }
@@ -59,7 +59,7 @@ export function boot(G) {
                 window.__mr.game = { get st() { return G.st; }, act: act.bind(null, G), data: G.data, ui: G.ui, render: () => render(G), race: G.race, get standings() { return G.standings; } };
                 G.map.set(mapModel(G), { refit: true });
                 render(G);
-                requestAnimationFrame(() => { G.map.fit(false); G.map.focus(ownSheet(G.st, G.data).onRoad ? ownSheet(G.st, G.data).onRoad.from : ownSheet(G.st, G.data).at, 1.5, false); G.lastHero = ownSheet(G.st, G.data).at; });
+                requestAnimationFrame(() => { G.map.fit(false); G.map.focus(ownSheet(G.st, G.data).onRoad ? ownSheet(G.st, G.data).onRoad.from : ownSheet(G.st, G.data).at, undefined, false); G.lastHero = ownSheet(G.st, G.data).at; });
                 window.addEventListener('resize', () => G.map?.fit(false));
                 return;
             }
@@ -91,7 +91,7 @@ export function boot(G) {
             window.__mr.game = { get st() { return G.st; }, act: act.bind(null, G), data: G.data, ui: G.ui, render: () => render(G), get rec() { return G.rec; } };          // (rec: the game record, whose `moves` are every action the screen sent: tools/ui_leaders.py reads who each one was addressed to)
             G.map.set(mapModel(G), { refit: true });
             render(G);
-            requestAnimationFrame(() => { G.map.fit(false); G.map.focus(ownSheet(G.st, G.data).at, 1.5, false); G.lastHero = ownSheet(G.st, G.data).at; });
+            requestAnimationFrame(() => { G.map.fit(false); G.map.focus(ownSheet(G.st, G.data).at, undefined, false); G.lastHero = ownSheet(G.st, G.data).at; });
             window.addEventListener('resize', () => G.map?.fit(false));
         } catch (e) {
             console.error(e);

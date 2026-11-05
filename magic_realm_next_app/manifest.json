@@ -1,11 +1,11 @@
 {
   "name": "Nolava: a Magical Realm",
   "short_name": "Nolava",
-  "description": "Nolava: a Magical Realm, for a phone held upright.",
+  "description": "Nolava: a Magical Realm, for a phone, a tablet and a big screen.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#0f1117",
   "theme_color": "#0f1117",
   "icons": [

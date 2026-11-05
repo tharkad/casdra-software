@@ -114,17 +114,29 @@ function logSections(G) {
     return out;
 }
 
-export function journalSheet(G) {
-    const close = () => { G.ui.sheet = null; G.ui.jSeen = journalNew(G).map(x => x.key).join(); render(G); };
-    G.ui.jSeen = journalNew(G).map(x => x.key).join();                                   // he has seen what is new now
-    const detent = G.ui.journalDetent ?? savedDetent();
+// What stands in the Journal: the standing states, what is new, the last roll, the story so far. The sheet (a phone) and the rail (a wide window: fit.js) show the same body.
+function journalBody(G) {
     const nt = notices(G), news = foundBoxes(G, journalNew(G)), roll = lastRoll(G), log = logSections(G);
-    const body = h('div', { class: 'journal' },
+    return h('div', { class: 'journal' },
         nt.length ? h('div', { class: 'ds-notes' }, ...nt) : null,
         (g => (g.period === 'daylight' || g.period === 'birdsong') ? blockedNote(G) : null)(gameOf(G.st, G.data)),          // a spell he knows that his own chit keeps him from casting tonight, and what to do (notes 104, 106)
         G.ui.jWilds && gameOf(G.st, G.data).prowl ? wildsLine(G) : null,
         news.length ? [sect('New'), ...news] : null,
         roll, ...(log.length ? log : [h('p', { class: 'ds-meta' }, 'Nothing has happened yet. Your story begins here.')]));
+}
+
+// The Journal docked in the rail of a wide window: always open, newest first, scrolling under its own head. What is new is on screen the moment it happens, so it counts as seen.
+export function journalDock(G) {
+    G.ui.jSeen = journalNew(G).map(x => x.key).join();
+    return [h('header', { class: 'ds-rail-head' }, h('h2', {}, 'The story so far'), h('span', { class: 'ds-meta' }, `Day ${gameOf(G.st, G.data).day}`), voiceSwitch()),
+        h('div', { class: 'ds-rail-body' }, journalBody(G))];
+}
+
+export function journalSheet(G) {
+    const close = () => { G.ui.sheet = null; G.ui.jSeen = journalNew(G).map(x => x.key).join(); render(G); };
+    G.ui.jSeen = journalNew(G).map(x => x.key).join();                                   // he has seen what is new now
+    const detent = G.ui.journalDetent ?? savedDetent();
+    const body = journalBody(G);
     const frag = modal(G, 'The story so far', body, { close, detent, eyebrow: `Day ${gameOf(G.st, G.data).day}`, head: voiceSwitch(), cls: 'journal-sheet', noPull: true });
     const el = frag.sheet;
     // the handle: pull up for tall, down for half, down again to put it away

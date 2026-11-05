@@ -113,6 +113,7 @@ export function newPlayState(ctx) {
         mapBox,
         strip: h('header', { class: 'ds-strip status' }),
         dock: tray, tray,                                  // (the tray replaced the dock, the dice bar and the drawer: `dock` stays as another name for it)
+        rail: h('aside', { class: 'ds-rail', 'aria-label': 'The story so far' }),          // (a wide window only: fit.js; the Journal, docked)
         layer: h('div', { class: 'layer' }),
         mapTools: null,
         lastHero: null, st: null, data: null, map: null, ui: { sheet: null, sel: null, draft: null, toast: null },
@@ -133,7 +134,7 @@ export function newPlayState(ctx) {
     G.bareBtn = h('button', { type: 'button', class: 'ds-map-btn ds-bare-btn', 'data-act': 'bare', 'aria-label': 'Show the bare tiles', 'aria-pressed': 'false' });
     // The flip button (above the bare-tiles one): turns every tile to its other side, to see what an Enchant would do and to record a Move on those roads. G.ui.flip holds it.
     G.flipBtn = h('button', { type: 'button', class: 'ds-map-btn ds-flip-btn', 'data-act': 'flip', 'aria-label': 'Turn every tile over', 'aria-pressed': 'false' });
-    G.root.append(G.strip, mapBox, tray, G.layer);
+    G.root.append(G.strip, mapBox, G.rail, tray, G.layer);
     G.mySeat = (G.race ?? G.shared)?.seat;
     if (G.race) G.ui.sheet = ctx.params?.invited ? 'race' : null;
     return G;

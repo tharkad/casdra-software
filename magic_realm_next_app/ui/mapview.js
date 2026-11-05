@@ -113,7 +113,9 @@ export function levelFor(k) {
     const lo = LOD_LEVELS.find(l => k >= l) ?? LOD_LEVELS.at(-1);
     return { id: `chips${lo}`, lo, scale: BADGE_PX / (BADGE_H * lo), lod: true };
 }
-export const shrinkFor = (lv, k) => (lv.lod ? Math.min(1, lv.lo / k) : Math.min(1, TEXT_CAP / (9 * k)));
+// `z` is how much larger than a phone's the interface is drawn (fit.js --z): a big screen lets a name grow to z times 13px. It never grows past the size it was laid out at, so it never overlaps.
+export const shrinkFor = (lv, k, z = 1) => (lv.lod ? Math.min(1, lv.lo / k) : Math.min(1, TEXT_CAP * z / (9 * k)));
+const uiZ = () => (typeof document === 'undefined' ? 1 : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--z')) || 1);
 
 // ---- the tile's printed name, turned upright (the picture is 497 x 431 and shows the name along its bottom edge, in the box NAME_BOX; the patch is that box without the letters) ----
 const AU = 2 * S / 497, AV = 1.732051 * S / 431, NAME_BOX = [160, 399, 192, 29];
@@ -129,6 +131,7 @@ export function mountMap(host) {
     const svg = sv('svg', { class: 'realm-svg', width: '100%', height: '100%' });
     host.append(svg);
     let model = null, view = null, size = [360, 520], bounds = null, moved = false;
+    let firstLook = null;                          // the first plain focus, made while the box may not have been laid out yet: taken again, at the right zoom, when it first has a size
     let inset = 0, restore = null;                 // the part of the map's bottom a sheet covers; the view to glide back to when it goes (see focus / release)
     let overlay = { rings: [], route: [], routeDone: 0, pin: null };
     const ov = h('div', { class: 'mv-ov' });
@@ -136,7 +139,11 @@ export function mountMap(host) {
 
     // the part of the box the player can see: a sheet may cover the bottom of the map, and the camera works in what is left
     const strip = () => [size[0], Math.max(60, size[1] - inset)];
-    const measure = () => { size = [host.clientWidth || size[0], host.clientHeight || size[1]]; };
+    // A phone shows the map close up at k = 1.5. A window with a bigger map box (fit.js: a tablet, a laptop, a monitor) draws it bigger too, but only as the square root of the box: a big screen
+    // should show a little more of the realm as well as bigger tiles. 1 on a phone (a 400px short side), at most 1.7.
+    const comfort = () => Math.min(1.7, Math.max(1, Math.sqrt(Math.min(size[0], size[1]) / 400)));
+    let sized = false;                             // the box has had a real size at least once
+    const measure = () => { if (host.clientWidth) sized = true; size = [host.clientWidth || size[0], host.clientHeight || size[1]]; };
 
     const api = {
         el: svg,
@@ -154,8 +161,9 @@ export function mountMap(host) {
         /** Zoom to k (0.2 to 6) about the middle of what the player sees. */
         zoom(k, animate = true) { if (!view) return; measure(); const [w, hh] = strip(), c = worldCentre(), kk = Math.min(6, Math.max(0.2, k)); go({ k: kk, x: w / 2 - c[0] * kk, y: hh / 2 - c[1] * kk }, animate); },
         relayout() { measure(); },
+        comfort,                                                  // 1 on a phone, up to 1.7 on a big map box: the zoom a close-up is drawn at is 1.5 times it
         // Show these clearings together: the camera fits their bounding box (with room around it) in whatever space the map has just now.
-        frame(ids, { animate = true, pad = 90, minK = 0.5, maxK = 1.8 } = {}) {
+        frame(ids, { animate = true, pad = 90, minK = 0.5, maxK = 1.8 * comfort() } = {}) {
             const pts = ids.map(id => posOf.get(id)).filter(Boolean); if (!pts.length) return;
             measure();
             const [w, hh] = strip();
@@ -196,6 +204,7 @@ export function mountMap(host) {
          *   focus(null, opts) is release(opts). */
         focus(clearingId, a, b) {
             const o = a != null && typeof a === 'object' ? a : { k: a, animate: b };
+            if (clearingId != null && o.k == null && o.insetBottom == null && !sized) firstLook = { id: clearingId };          // (the first plain look, to be taken again once the box has a real size)
             if (clearingId == null) { api.release(o); return; }
             const p = posOf.get(clearingId) ?? tileC.get(clearingId); if (!p) return;                // (a tile id centres the camera on the tile: a hero in the air)
             measure();
@@ -203,7 +212,7 @@ export function mountMap(host) {
             const toInset = sheet ? Math.max(0, Math.min(size[1] - 60, o.insetBottom)) : 0;
             if (sheet && !restore) restore = { view: view ? { ...view } : null, inset };           // the first sheet remembers where the player was looking
             if (!sheet) restore = null;
-            const kk = o.k ?? (sheet ? view?.k ?? 1 : Math.max(view?.k ?? 0, 1.5));
+            const kk = o.k ?? (sheet ? view?.k ?? 1 : Math.max(view?.k ?? 0, 1.5 * comfort()));
             let y = (size[1] - toInset) / 2 - p[1] * kk;
             // the names of the clearing (an Imp and a Statue below the hero) must not end under the sheet: lift the view by what they hang below the strip, never so far that the clearing nears the top (note 109)
             const ext = sheet ? nameExtent.get(clearingId) : null;
@@ -531,8 +540,9 @@ export function mountMap(host) {
     const recentre = c => { const [w, hh] = strip(); view = { k: view.k, x: w / 2 - c[0] * view.k, y: hh / 2 - c[1] * view.k }; };
     // While the drawer slides, the map's box changes size every frame: keep the same point in the middle.
     if (typeof ResizeObserver === 'function') new ResizeObserver(() => {
-        if (!view || flight) { measure(); return; }
-        const c = worldCentre(); measure(); recentre(c); apply();
+        const [w0, h0] = size;
+        if (!view || flight) measure(); else { const c = worldCentre(); measure(); recentre(c); apply(); }
+        if (firstLook && !moved && sized && (size[0] !== w0 || size[1] !== h0)) { const f = firstLook; firstLook = null; api.focus(f.id, undefined, false); }
     }).observe(host);
     // The camera glides to a new view: the centre of the strip travels in a straight line over the map while the zoom changes smoothly (geometrically,
     // so a zoom out and a zoom in feel alike). A touch, a drag or the wheel takes the camera back at once. With reduced motion it simply jumps.
@@ -572,7 +582,7 @@ export function mountMap(host) {
         svg.classList.toggle('zoomed', view.k >= 1.1);
         svg.classList.toggle('lod', level.lod);
         // names and chips never grow past their size on screen (about 13px text, 14px chips): they shrink about their clearing's side, inside the room they were given
-        const f = shrinkFor(level, view.k);
+        const f = shrinkFor(level, view.k, uiZ());
         if (Math.abs(f - lastShrink) > 0.004) {
             lastShrink = f;
             for (const L of labelEls) L.el.setAttribute('transform', f > 0.996 ? L.base : `translate(${L.ox.toFixed(1)} ${L.oy.toFixed(1)}) scale(${f.toFixed(3)}) translate(${(-L.ox).toFixed(1)} ${(-L.oy).toFixed(1)}) ${L.base}`);
