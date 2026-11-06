@@ -132,11 +132,17 @@ function askLine(G, i, step, total) {
 const WARN_RULE = { fly: '4.6.9c, 7.3.3a.1', mist: '8.4.5p.1' };
 function planWarnings(G) {
     const slots = G.ui.draft.slots, edge = edgeIndex(slots);
-    return validatePlan(G.st, G.data, slots).warnings.filter(w => edge < 0 || w.i <= edge).map(w => {
+    // note 147: a Move to a mountain clearing needs two Move phases in a row (7.3.1c.1); when the plan ends the day after the first of them, he has not moved at all and the climb is lost (it must be done again from the start)
+    const st0 = planState(G.st, G.data, slots), half = [];
+    slots.forEach((sl, i) => { if (sl?.act === 'move' && sl.to && sl.to !== 'Edge' && st0.climbing[i + 1] === sl.to && st0.climbing[i] !== sl.to && !(slots[i + 1]?.act === 'move' && slots[i + 1].to === sl.to) && (edge < 0 || i <= edge)) half.push(i); });
+    const climbs = half.map(i => { const place = nameOfClearing(slots[i].to).replace(/ (\d+)$/, '\u00A0$1'); return { i, copy: {
+        story: `Phase ${i + 1}: ${place} is a mountain, and it takes two Move phases in a row. This Move only starts the climb, and no Move follows it, so you stay where you are and the climb is lost. You can still change it.`,
+        detail: `Phase ${i + 1}: entering a mountain clearing takes two Move activities on consecutive phases of the same day, and he does not move at all until the second (7.3.1c.1). Nothing follows this Move, so it is recorded and wasted; nothing here is refused.` } }; });
+    return [...climbs, ...validatePlan(G.st, G.data, slots).warnings.filter(w => edge < 0 || w.i <= edge).map(w => {
         const text = w.text.replace(/^Phase \d+: /, ''), rule = slots[w.i]?.act === 'fly' ? WARN_RULE.fly : WARN_RULE.mist, fw = slots[w.i]?.act === 'fly' ? flyWarning(text, slots[w.i], G.data, G.st) : null;          // (a steed or a Fly chit that is not there: steeds.js)
         if (fw) return { ...w, copy: { story: `Phase ${w.i + 1}: ${fw.story}`, detail: `Phase ${w.i + 1}: ${fw.detail}` } };
         return { ...w, copy: { story: `Phase ${w.i + 1}: ${text} The phase will be lost when it comes. You can still change it.`, detail: `Phase ${w.i + 1}: ${text} It is recorded, then cancelled when tried (${rule}); nothing here is refused.` } };
-    });
+    })];
 }
 
 const warningLines = G => planWarnings(G).map(w => h('p', { class: 'ds-hint-line warn', 'data-hint': 'plan-warning', 'data-phase': w.i + 1 }, voiced(w.copy)));
