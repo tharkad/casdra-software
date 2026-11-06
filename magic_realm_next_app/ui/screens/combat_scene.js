@@ -347,7 +347,13 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
     }
     // the Encounter
     if (own(fm, data).mist && !p.spellOnly) return [`You hang as mist over ${place} and take no part in the fight. You may slip away, or let the round pass.`, `Round ${c.round}, Encounter: as mist you take no part; you may only run away with a Move chit, or pass (8.4.5p.1).`];
-    if (p.spellOnly) return ['A quiet evening. Nothing here is looking for a fight, but you have a spell you could cast tonight, so the game stops here to ask.', 'Spells are cast in the evening (rule 8.1.3a): a quiet clearing still gets its rounds, so the game stops here to let you cast one.'];
+    if (p.spellOnly) {          // a quiet evening is held for him whatever he can do (8.1.3a, 8.3.8h): the words say WHAT he can do tonight, not that a spell is always on offer
+        const o3 = optionsOf(fm, data), things = [o3.canRun && 'run for it', o3.canFly && 'fly away', o3.casts.length && 'cast a spell', own(fm, data).items.some(i => !i.destroyed) && 'switch a belonging'].filter(Boolean);
+        const all = [...things, 'let the evening pass'], orList = all.length > 2 ? `${all.slice(0, -1).join(', ')}, or ${all[all.length - 1]}` : all.join(' or ');
+        const lead = c.round > 1 ? 'Still quiet.' : 'A quiet evening. Nothing here is looking for a fight.';
+        return [things.length ? `${lead} Tonight you may ${orList}.` : `${lead} There is nothing to do tonight but let it pass.`,
+            `Rule 8.1.3a: a quiet clearing still gets its rounds. You may run or fly out of the clearing (8.3.8h), cast a spell, switch a belonging or do nothing; two quiet rounds in a row end the evening (8.8.2).`];
+    }
     const o2 = optionsOf(fm, data);
     const phrase = names.length ? phraseOf() : '';
     const gate = o2.why?.gate ? `A chit played here has to be faster than ${M.gateWords(fm, o2.why.gate)}.` : 'Nothing is set on you, so no creature holds your chits back.';

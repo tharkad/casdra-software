@@ -278,7 +278,7 @@ function answerOffer(st, data, a) {
     const take = (c, uids) => uids.map(u => c.items.splice(c.items.findIndex(i => i.uid === u), 1)[0]);
     const fromA = take(A, o.give.items), fromB = take(B, o.want.items);
     A.gold += o.want.gold - o.give.gold; B.gold += o.give.gold - o.want.gold;
-    const receive = (id, list) => withActor(st, id, () => { for (const it of list) { it.active = false; it.alerted = false; st.chars[id].items.push(it); noteGain(st, it); autoEquip(st, data, it); } });
+    const receive = (id, list) => withActor(st, id, () => { for (const it of list) { it.active = false; it.alerted = false; st.chars[id].items.push(it); noteGain(st, it); autoEquip(st, data, it, { now: true }); } });
     receive(o.to, fromA); receive(o.from, fromB);
     // discoveries: each is copied to the other (the giver keeps it), and everyone spying on the giver learns it too (4.5.6b.3)
     for (const [giver, taker, side] of [[o.from, o.to, o.give], [o.to, o.from, o.want]]) {
@@ -547,14 +547,27 @@ export function carry(st, data, from, to, road, caveTo) {
         if (!ok) dropFollower(st, data, f, 'too heavily laden to go on');
     }
 }
-// The guide's turn is over: following stops (7.11.8). The followers were carried to the end of it; the chits flipped once, for all of them, in the guide's own end of turn (a group, R-10).
+// The guide's turn is over, and the followers, put back on the map in his clearing, end their turn too, separately from him: they cause monsters to move and summon denizens normally
+// (7.11.8; Mike, 2026-11-05: the book, not the group of R-10). They are all in one clearing, so they end it together: the monsters already on the map and in the tile that prowl come to them
+// (a monster the guide's chits have just called to another clearing included), and the chits the guide turned up have called what they call. `res` is the guide's end of turn (summon.js
+// endOfTurn); what arrives for the followers is added to its `arrivals`, so the guide, standing in the same clearing, is closed in by it too. Returns nothing; each follower's own report is
+// left on him (`today.turnEnd`, with `follower: true`) for releaseFollowers to keep.
+export function endFollowersTurn(st, data, res) {
+    const g = st.actor, fs = followersOf(st, g);
+    const seen = new Set(res.arrivals.map(a => a.id));
+    for (const f of fs) {
+        const own = withActor(st, f, () => { hooks.followerEnds(st, data, res); return st.turnEnd; });
+        for (const a of own?.arrivals ?? []) if (!seen.has(a.id)) { seen.add(a.id); res.arrivals.push(a); }
+    }
+}
+// The guide's turn is over: following stops (7.11.8). The followers were carried to the end of it and have ended their own turn (endFollowersTurn).
 export function releaseFollowers(st, data) {
     const g = st.actor, fs = followersOf(st, g);
     for (const f of fs) {
         const c = st.chars[f];
         delete st.follows[f];
         c.today.stage = 'done';
-        c.today.turnEnd = { ...(st.chars[g].today.turnEnd ?? {}), follower: true };
+        if (!(c.today.turnEnd?.follower && c.today.turnEnd.day === st.day)) c.today.turnEnd = { ...(st.chars[g].today.turnEnd ?? {}), follower: true };
         say(st, `${c.name}'s turn ends with ${nameOfChar(st, g)}'s.`, 'day', null, { who: f, p: `${pn(st, f)}'s turn ends with ${pn(st, g)}'s.` });
     }
     if (st.follows && !Object.keys(st.follows).length) delete st.follows;

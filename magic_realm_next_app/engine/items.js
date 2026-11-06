@@ -1,4 +1,4 @@
-import { lvl } from './core.js';
+import { lvl, say } from './core.js';
 import { cardChits, BOOTS, GLOVES, EXTRA, hasTreasure, extraActs } from './modifiers.js';
 import { isCave } from './world.js';
 
@@ -182,8 +182,38 @@ export function extraPhaseCommitment(st, data, it) {
     return null;
 }
 
+// 7.3.2a and 7.3.1f.1: a horse, or a Boots card, can be in use only while its strength letter equals or exceeds the weight of the character and of every item he carries (what a
+// pack horse carries does not count). "If he obtains an item whose weight exceeds his horse's strength, he must instantly deactivate the horse or abandon the item": the same for Boots.
+// Returns the horses and Boots cards in use that cannot bear what he owns now.
+export function weakMounts(st, data) {
+    if (!st.ch || st.ch.leader || st.ch.morph) return [];
+    const out = [];
+    for (const it of st.ch.items) {
+        if (!it.active || it.destroyed) continue;
+        if (it.kind === 'horse' && data.horses[it.id]) { if (horseLevel(data, it) < Math.max(lvl(st.ch.weight), carriedLevel(st, data, it.uid))) out.push(it); }
+        else if (it.kind === 'treasure' && BOOTS[it.id] && !bootsStrongEnough(st, data, it)) out.push(it);
+    }
+    return out;
+}
+// Will the game stop on the 'phase-gear' question for what he is coming by (day.js gearPause)? Then he decides there; the same conditions as noteGain's `fresh` and gearPause.
+export const gearWillAsk = st => !!(st.pauseGear && st.turn && st.period === 'daylight' && !st.turn.end && !st.ch.flying && !st.ch.morph && !st.ch.leader);
+// Nobody is going to ask him (a game without the gear question, an Evening trade, a meeting between characters, the air): the horse or Boots is deactivated at once, which keeps the
+// new belonging. `now` forces it (a deal between characters comes at no phase of his own).
+export function settleMounts(st, data, { now = false } = {}) {
+    const weak = weakMounts(st, data);
+    if (!weak.length || (!now && gearWillAsk(st))) return;
+    for (const m of weak) {
+        m.active = false;
+        say(st, `The ${nameOf(data, m)} cannot bear what you now carry: it is taken off (${m.kind === 'horse' ? '7.3.2a' : '7.3.1f.1'}).`, 'info', null, { ev: { code: 'gear.activated', who: st.ch.id, item: m.uid, active: false } });
+    }
+}
+
 // Puts a newly acquired item into use if the slots it needs are free.
-export function autoEquip(st, data, it) {
+export function autoEquip(st, data, it, opts = {}) {
+    equipNew(st, data, it);
+    settleMounts(st, data, opts);
+}
+function equipNew(st, data, it) {
     if (st.ch.leader) { it.active = ENCHANTED_CARDS.has(it.id) && it.kind === 'treasure'; return; }          // a hired leader activates nothing, except that an Enchanted card he carries is active (7.2.2b)
     const slots = slotsOf(data, it);
     if (it.kind === 'treasure' && !slots.length) { if (!isOneUse(data, it)) it.active = true; return; }

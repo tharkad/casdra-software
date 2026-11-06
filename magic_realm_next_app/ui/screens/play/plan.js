@@ -361,6 +361,13 @@ export function setRoadEnd(G, d, id) {
 // The lock box says what the Move costs before he commits to it: a mountain end takes two Move phases (both fixed), any other end one.
 function roadLockBox(G, d) {
     const r = ownSheet(G.st, G.data).onRoad, cur = d.slots[0]?.to, mt = id => isMountain(G.st, G.data, id), climb = !!cur && mt(cur);
+    if (r.forest || r.from === r.to) {          // 7.10.4d.2: his road vanished as the tile turned over: he stands in the forest and the only way out is back to the clearing he ran from (one end, not two)
+        const id = r.from, hill = mt(id);
+        return h('div', { class: 'roadlock', 'data-forest': id },
+            h('div', { class: 'ds-lockbox', role: 'note', 'data-roadlock': 'forest' }, icon('lock'), h('span', {}, `Fixed: the road you fled along has vanished and you are in the forest. You must Move back to ${nb(nameOfClearing(id))} first.${hill ? ` ${nb(nameOfClearing(id))} is a mountain: climbing it takes two Move phases in a row, so phases 1 and 2 are both fixed.` : ''}`)),
+            h('div', { class: 'row2' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-road-end': id, 'data-phases': hill ? '2' : '1', 'aria-pressed': 'true', onclick: () => { setRoadEnd(G, d, id); render(G); } },
+                `Back to ${nb(nameOfClearing(id))} \u00B7 ${hill ? 'mountain, 2 phases' : '1 phase'}`)));
+    }
     const first = `Fixed: you fled along the road between ${nb(nameOfClearing(r.from))} and ${nb(nameOfClearing(r.to))}. You must Move to one end of it first.`;
     const second = !cur ? '' : climb ? ` ${nb(nameOfClearing(cur))} is a mountain: climbing it takes two Move phases in a row, so phases 1 and 2 are both fixed.` : ` ${nb(nameOfClearing(cur))} takes one phase.`;
     return h('div', { class: 'roadlock' },

@@ -402,6 +402,7 @@ export function mountMap(host) {
             const at = new Map(), place = new Map();
             const posFor = m => {
                 if (m.at && posOf.has(m.at)) return { key: m.at, p: posOf.get(m.at), anchored: true };
+                if (m.road && m.road.from === m.road.to && posOf.has(m.road.from)) { const a = posOf.get(m.road.from); return { key: `forest:${m.road.from}`, p: [a[0] + 19, a[1] + 15], anchored: false }; }          // (in the forest, 7.10.4d.2: beside the clearing he must go back to; a road with one end has no middle)
                 if (m.road && posOf.has(m.road.from) && posOf.has(m.road.to)) { const a = posOf.get(m.road.from), b = posOf.get(m.road.to); return { key: `road:${m.road.from}~${m.road.to}`, p: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], anchored: false }; }
                 if (m.air && tileCentre.has(m.air)) return { key: `air:${m.air}`, p: tileCentre.get(m.air), anchored: false };
                 return null;
@@ -641,6 +642,11 @@ export function mountMap(host) {
             ov.append(heroEl);
         }
         // out on a road between two clearings (he ran away: 8.3.8d): the marker stands in the middle of the road, so he is on the map and not nowhere (note 69: "looks totally bugged")
+        else if (model.heroRoad && !model.party?.length && (model.heroRoad.forest || model.heroRoad.from === model.heroRoad.to)) {
+            // in the forest (7.10.4d.2: his road vanished as the tile turned): a road that begins and ends at the one clearing has no middle, so the marker (a little tree) stands BESIDE that clearing: the one place he can go is back to it
+            heroEl = h('i', { class: 'ds-hero road forest', 'data-hero': `${model.heroRoad.from}-forest`, 'data-forest': model.heroRoad.from, 'aria-hidden': 'true' }, sv('svg', { viewBox: '0 0 24 24', class: 'roadg' }, sv('path', { d: 'M12 2.5l5 7h-3l4.2 6.2H5.8L10 9.5H7zM12 15.7v5.8' })));
+            ov.append(heroEl);
+        }
         else if (model.heroRoad && !model.party?.length) {
             heroEl = h('i', { class: 'ds-hero road', 'data-hero': `${model.heroRoad.from}-${model.heroRoad.to}`, 'data-road': `${model.heroRoad.from}-${model.heroRoad.to}`, 'aria-hidden': 'true' }, sv('svg', { viewBox: '0 0 24 24', class: 'roadg' }, sv('path', { d: 'M7.5 21L10.5 3M16.5 21L13.5 3M12 5v3.2M12 10.4v3.2M12 15.8v3.2' })));
             ov.append(heroEl);
@@ -664,7 +670,11 @@ export function mountMap(host) {
         // a ring is 44px where the map is zoomed in and shrinks with the clearings when it is zoomed far out, never below 26
         const ringD = Math.round(clamp(26, 44, 38 * k)), heroD = Math.round(clamp(24, 40, 21 * k + 11));          // (the hero's ring goes round the clearing's numbered disc, which stays readable inside it: note 98)
         for (const { id, el } of ringEls) { const p = posOf.get(id); el.hidden = !p; if (p) { sizeEl(el, ringD); at(el, sx(p), sy(p)); } }
-        if (heroEl) { const p = posOf.get(model.hero) ?? tileC.get(model.heroAir) ?? roadMid(model.heroRoad); heroEl.hidden = !p; if (p) { sizeEl(heroEl, heroEl.classList.contains('air') || heroEl.classList.contains('road') ? heroD + 10 : heroD); at(heroEl, sx(p), sy(p)); } }
+        if (heroEl) {
+            const forest = heroEl.classList.contains('forest'), p = forest ? posOf.get(model.heroRoad.from) ?? null : posOf.get(model.hero) ?? tileC.get(model.heroAir) ?? roadMid(model.heroRoad);          // (the forest: beside the clearing he ran out of, never on its number)
+            heroEl.hidden = !p;
+            if (p) { sizeEl(heroEl, heroEl.classList.contains('air') || heroEl.classList.contains('road') ? heroD + 10 : heroD); at(heroEl, sx(p) + (forest ? heroD * 0.95 + 6 : 0), sy(p) + (forest ? heroD * 0.75 + 4 : 0)); }
+        }
         if (routeSvg) {
             // stops on a clearing that already holds the hero or an earlier stop fan out to the lower right (the names stand above and beside a clearing): "you will be back here"
             const used = new Map(); if (overlay.route[0]) used.set(overlay.route[0], 1);

@@ -9,6 +9,7 @@
 .kit-gearlist { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .kit-gear { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 64px; padding: 8px 10px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); }
 .kit-gear.on { border-color: var(--gold); }
+.kit-gear.mount { border-color: var(--warn); }          /* a horse or Boots too weak for what he just came by (phasegear.js): it must come off */
 .kit-gear.dim { border-style: dashed; border-color: var(--st-illegal); background: transparent; }
 .kit-gear .art { width: 44px; height: 44px; }
 .kit-gear .main { display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left; }
@@ -35,3 +36,5 @@
 
 /* package-local override of plan.css (legacy: `.chip.dim { pointer-events: none }`): a dim plan chip stays tappable and says why (plan.js actChips shows the reason as a toast), as every dim control does. */
 .ds-plan .ds-acts .chip.dim { pointer-events: auto; cursor: pointer; }
+
+.kit-endlife { margin-top: 2px; display: flex; justify-content: flex-start; } .kit-endlife .ds-btn { color: var(--ink-3); }          /* End this adventure: quiet, last on the evening sheet (8.9.4) */

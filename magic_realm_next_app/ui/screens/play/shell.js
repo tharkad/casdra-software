@@ -95,7 +95,8 @@ export function mapModel(G) {
             // planlogic.js: the roads he can walk (no cave in a sunlight phase, only the mountain once a climb is begun) and the hidden paths a Search earlier in the plan may find (6.2.4e)
             // the flip view: the roads of the tiles turned over; a Move recorded there is recorded in hope (6.2.4e), lost at its turn if no such road is there then
             const o = moveOptions(G.st, G.data, G.ui.draft.slots, i, !!G.ui.flip);
-            G.ui.moveTargets = G.ui.flip ? [] : o.sure; G.ui.moveMaybe = G.ui.flip ? [...o.sure, ...o.maybe] : o.maybe;
+            G.ui.moveTargets = G.ui.flip ? [] : [...new Set(o.sure)];          // (a hero in the forest has one end: `from` twice)
+            G.ui.moveMaybe = G.ui.flip ? [...o.sure, ...o.maybe] : o.maybe;
         }
     }
     const localParty = !G.shared && !G.race && leaderGame(tableModel(G.st, G.data));
@@ -114,7 +115,7 @@ export function mapModel(G) {
     }
     return {
         tiles: G.data.tiles, art: G.data.art, placements: G.ui.flip ? turned(viewOf(G.st, G.data).table.map.placements) : viewOf(G.st, G.data).table.map.placements, side: 'normal', showHidden: false, discovered: foundPaths(G.st, G.data, !!G.ui.flip),
-        chitsByTile, tokens, hero: ownSheet(G.st, G.data).onRoad || ownSheet(G.st, G.data).dead || ownSheet(G.st, G.data).flying ? null : ownSheet(G.st, G.data).at, heroAir: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : null, heroRoad: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).onRoad ? { from: ownSheet(G.st, G.data).onRoad.from, to: ownSheet(G.st, G.data).onRoad.to } : null, heroHidden: ownSheet(G.st, G.data).hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
+        chitsByTile, tokens, hero: ownSheet(G.st, G.data).onRoad || ownSheet(G.st, G.data).dead || ownSheet(G.st, G.data).flying ? null : ownSheet(G.st, G.data).at, heroAir: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : null, heroRoad: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).onRoad ? { from: ownSheet(G.st, G.data).onRoad.from, to: ownSheet(G.st, G.data).onRoad.to, forest: !!ownSheet(G.st, G.data).onRoad.forest } : null, heroHidden: ownSheet(G.st, G.data).hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
         onTap: id => {
             // a spell aimed on the map (Talk to Wise Bird): a tap on a ringed clearing is the answer; the fight comes back with it chosen
             if (G.ui.combatMap && G.ui.aimMap) {

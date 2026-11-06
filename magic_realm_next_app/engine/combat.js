@@ -15,7 +15,7 @@ import { morphChits, morphParts, morphView } from './magic/morph.js';
 import { activatePhase, heldOptions } from './magic/phase.js';
 import { flySources, carries, flyAwayTiles, startFlight, blowAway } from './magic/fly.js';
 import { releaseFoes } from './magic/mist.js';
-import { blockedSpells, castOptions, castSpell, resolveSpells, canCastQuietly, previewAim, aimOptions, applyAim } from './spells.js';
+import { blockedSpells, castOptions, castSpell, resolveSpells, canCastQuietly, previewAim, aimOptions, applyAim, mayBeInterrupted } from './spells.js';
 import { tell } from './story.js';
 import { meetingOutcome, hasAdv, drinksCost } from './meeting.js';
 import { mayAttackHero } from './rules/mayAttackHero.js';
@@ -264,7 +264,7 @@ export function choiceAction(st, data, fight) {
         const spared = [...new Set(nativesIn(st, data, c.at).map(n => data.natives[n.id].group))];
         say(st, 'You let the natives be.', 'combat', null, { ev: { code: 'combat.natives.spared', who: st.ch.id, group: spared[0] ?? 'natives' } });
         for (const g of spared.slice(1)) emit(st, { code: 'combat.natives.spared', who: st.ch.id, group: g });
-        if (canCastQuietly(st, data)) return enterSpellOnly(st, data);
+        if (holdsQuiet(st, data)) return enterSpellOnly(st, data);
         c.ended = true; c.why = 'quiet'; c.step = 'done'; st.pending = null; return;
     }
     enterEncounter(st, data);
@@ -469,7 +469,7 @@ function enterEncounter(st, data) {
     }
     const live = c.dens.filter(d => !d.dead && !d.pacified && d.kind !== 'part' && d.kind !== 'horse');          // a creature made peaceful by a spell is not a foe
     if (!live.length && !(pvpOn(st) && contested(st))) {          // (pvp: another player's character is someone to fight, so the round is held)
-        if (canCastQuietly(st, data)) return enterSpellOnly(st, data);
+        if (holdsQuiet(st, data)) return enterSpellOnly(st, data);
         c.ended = true; c.why = 'quiet'; c.step = 'done'; st.pending = null;
         say(st, 'Nothing here wants a fight.', 'combat', null, { ev: { code: 'encounter.refused', who: st.ch.id, reason: 'no-fight' } });
         return;
@@ -513,8 +513,14 @@ function quietCasts(st, data, all = false) {
     return castOptions(st, data).filter(o => !done.includes(o.spell) && (all || st.options?.castAnytime || o.useful || o.quiet));
 }
 
-// Nothing is fighting him, but there is a spell worth casting: the Encounter step is held so that he may cast it (rule 8.8.3: combat is held
-// every evening a spell could be cast). Casting, or passing, ends it.
+// Is the Encounter step held when nothing is fighting him? In a game played at a screen (`st.pauseEvening`, which the game screens set and the computer players and the tests do not) always:
+// 8.1.3a, 8.3.8h. Otherwise only when a spell could be cast tonight (canCastQuietly), as before: nobody unattended would run, switch a belonging or cast, so the rounds are skipped.
+const holdsQuiet = (st, data) => !!st.pauseEvening || canCastQuietly(st, data);
+
+// Nothing is fighting him: the Encounter step is held all the same (8.1.3a: "the characters in the clearing still do at least two rounds of combat in which they can run away, cast spells,
+// activate items, or do nothing"; 8.3.8h: "A character can run or fly out of his clearing even if no monsters are present"). He may cast, switch a belonging, run, fly or pass; a cast, a
+// run or a flight is an event that ends or extends the rounds, and two passes in a row (8.8.2) end them. The question is a `combat-encounter` with `spellOnly: true` (the name is older than
+// the rule: it was held only when a spell could be cast).
 function enterSpellOnly(st, data) {
     const c = st.combat;
     c.melee = false; c.played = {}; c.asterisks = { move: 0, fight: 0, magic: 0 }; c.casts = [];
@@ -632,7 +638,8 @@ export function encounterAction(st, data, a) {
     if (c.spellOnly) {
         // only a spell can be cast; anything else is a pass
         if (a.act === 'gear') { gearAction(st, data, a); st.pending = { type: 'combat-encounter', round: c.round, spellOnly: true }; return; }       // (the evening is still held for his spell)
-        if (a.act !== 'cast' && a.act !== 'pass') throw new Error('nothing is fighting you: you may cast a spell, switch a belonging or do nothing');       // (a stray Run or Fly is not a way to end the evening)
+        if (a.act === 'run' || a.act === 'fly') { c.spellOnly = false; return encounterRun(st, data, a, encounterOptions(st, data)); }          // 8.3.8h: out of his clearing with nobody there to stop him
+        if (a.act !== 'cast' && a.act !== 'pass') throw new Error('nothing is fighting you: you may cast a spell, switch a belonging, run, fly or do nothing');
         if (a.act === 'cast') {
             if (!isOffered(quietCasts(st, data, true), a)) refuse('cast.not-offered', 'you cannot cast that spell now');       // (only what the cast screen lists: not one already cast tonight)
             castSpell(st, data, a.spell, a.chit, a.item); applyAim(st, data, a.spellAim); resolveSpells(st, data);
@@ -664,6 +671,10 @@ export function encounterAction(st, data, a) {
             }
         }
         c.spellOnly = false;
+        if (!c.quietDone?.length && !canCastQuietly(st, data)) {          // he held the rounds (pauseEvening) and did nothing, and no spell was worth casting: the evening ends as a quiet one always did (no fight to tell about)
+            if (c.dens.length && !c.choiceMade) say(st, 'Nothing here wants a fight.', 'combat', null, { ev: { code: 'encounter.refused', who: st.ch.id, reason: 'no-fight' } });
+            return endCombat(st, data, 'quiet', true);
+        }
         return endCombat(st, data, 'quiet');
     }
     const opt = encounterOptions(st, data);
@@ -705,7 +716,16 @@ export function encounterAction(st, data, a) {
         playChit(st, chit);
         st.ch.berserk = true;
         say(st, `You play your Berserk chit and fly into a rage: your vulnerability is Tremendous until midnight.`, 'combat', null, { ev: { code: 'encounter.berserk', who: st.ch.id } });
-    } else if (a.act === 'fly') {
+    } else if (a.act === 'fly' || a.act === 'run') {
+        return encounterRun(st, data, a, opt);
+    } else if (a.act !== 'pass') throw new Error('unknown encounter action');
+    enterMelee(st, data);
+}
+
+// Run or Fly in the Encounter step (8.3.8): shared by a fight and by a quiet evening with nobody there (8.3.8h).
+function encounterRun(st, data, a, opt) {
+    const c = st.combat;
+    if (a.act === 'fly') {
         const chit = opt.flyChits.find(x => x.id === a.chit) ?? (a.chit == null ? opt.flyChits[0] : null);
         if (!chit || !opt.canFly) throw new Error('you have no Fly chit you can play now');
         if (a.to != null && !opt.flyTiles.includes(a.to)) throw new Error('you can fly only to a tile next to this one');
@@ -714,20 +734,18 @@ export function encounterAction(st, data, a) {
         say(st, startFlight(st, data, a.to ?? opt.flyTiles[0], chit), 'combat', null, { ev: { code: 'encounter.flew', who: st.ch.id, to: a.to ?? opt.flyTiles[0] } });
         if (sharedFight(st)) { releaseSheet(st); mem(st).enc = 'done'; }
         return toFatigue(st, data);
-    } else if (a.act === 'run') {
-        const chit = opt.runChits.find(x => x.id === a.chit);
-        if (!chit) refuse('combat.not-offered', 'cannot run with that chit');
-        const dests = runDestinations(st, data);
-        if (!dests.length) refuse('combat.not-offered', 'there is nowhere to run');
-        if (a.to != null && !dests.includes(a.to)) throw new Error(st.ch.arrivedFrom ? 'you can only run back along the road you came by' : 'you can only run along a road you know');
-        playChit(st, chit);
-        c.ran = true;
-        st.ch.runTo = a.to ?? dests[0];
-        say(st, 'You break away from the fight.', 'combat', null, { ev: { code: 'combat.fled-by-road', who: st.ch.id, to: st.ch.runTo } });
-        if (sharedFight(st)) { releaseSheet(st); mem(st).enc = 'done'; }
-        return toFatigue(st, data);
-    } else if (a.act !== 'pass') throw new Error('unknown encounter action');
-    enterMelee(st, data);
+    }
+    const chit = opt.runChits.find(x => x.id === a.chit);
+    if (!chit) refuse('combat.not-offered', 'cannot run with that chit');
+    const dests = runDestinations(st, data);
+    if (!dests.length) refuse('combat.not-offered', 'there is nowhere to run');
+    if (a.to != null && !dests.includes(a.to)) throw new Error(st.ch.arrivedFrom ? 'you can only run back along the road you came by' : 'you can only run along a road you know');
+    playChit(st, chit);
+    c.ran = true;
+    st.ch.runTo = a.to ?? dests[0];
+    say(st, 'You break away from the fight.', 'combat', null, { ev: { code: 'combat.fled-by-road', who: st.ch.id, to: st.ch.runTo } });
+    if (sharedFight(st)) { releaseSheet(st); mem(st).enc = 'done'; }
+    return toFatigue(st, data);
 }
 
 // The Encounter-step belongings action (8.3.7d, 4.3.2): switch one item on or off, or abandon one where he stands (`a.drop`). The same horse and boots checks as between
@@ -802,7 +820,7 @@ export function meleeOptions(st, data) {
         controlled: c.dens.filter(d => d.dead && d.controlled && d.kind === 'mon' && (c.hires ?? []).some(h => !h.dead && h.kind === 'mon' && h.id === d.id) && st.mons.find(m => m.id === d.id)?.tie?.kind === 'control'),
         attackSpell: c.attackSpell ?? null,
         aims: aimOptions(st, data),                                                 // what each spell cast this round may be aimed at
-        fightChits: c.casts?.length ? [] : activeChits(st, 'fight', data),         // a character who cast a spell cannot also swing a weapon or play a Fight chit that round (8.4.5a)
+        fightChits: c.casts?.some(x => !x.cancelled && !(st.battle?.probe && mayBeInterrupted(st, x))) ? [] : activeChits(st, 'fight', data),         // a character who cast a spell cannot also swing a weapon or play a Fight chit that round; if it was cancelled before it started working he can (8.4.5a, 8.4.3b.4)
         moveChits: activeChits(st, 'move', data),
         duckChits: duckChits(st),
         fightOk: ch => lvl(ch.strength) >= wlvl,
@@ -2257,10 +2275,15 @@ function nextRound(st, data) {
     enterEncounter(st, data);
 }
 
-function endCombat(st, data, why) {
+function endCombat(st, data, why, silent = false) {
     const c = st.combat;
-    expireDue(st, data, 'round-end');                 // a Phase spell used this round ends with it
+    if (!silent) expireDue(st, data, 'round-end');                 // a Phase spell used this round ends with it
     c.ended = true; c.why = why; c.step = 'done';
+    if (silent) {
+        st.pending = null;
+        if (!c.dens.length && c.hires?.length) st.uidSeq = Math.max(0, (st.uidSeq ?? 0) - c.hires.length);          // (the uids startCombat gave his hirelings are given back: a quiet evening leaves the counter where the skipped evening left it, so games recorded before it replay)
+        return;
+    }          // (a quiet evening in which he did nothing: no combat took place, so nothing is tallied or told)
     tally(st, 'combats'); tally(st, 'rounds', c.round); tally(st, `combat.${why}`);
     for (const d of c.dens) { if (d.kind === 'mon' && d.side === 'red' && (!sharedFight(st) || d.assigned)) d.side = 'light'; }       // (in a shared fight only what was on his sheet lets go)
     if (sharedFight(st)) { const m = mem(st); m.enc = 'done'; m.done = true; }

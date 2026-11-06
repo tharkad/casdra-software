@@ -4,7 +4,8 @@ import { effortLimit, chitSpeed } from '../modifiers.js';
 import { COLORS, TYPE_COLOR, colorChits, colorsAt, nextDayWith } from './colour.js';
 import { HANDLERS, handlerOf, spellDef } from './registry.js';
 import { addFx, breakFx, fxTags, HERO, sameRef } from './fx.js';
-import { cancelCasts } from './util.js';
+import { cancelCasts, rivalTargets } from './util.js';
+import { withActor } from '../party.js';
 import { no, whySentence } from './why.js';
 
 // Casting (rules 4.6, 8.3.9, 8.4). A spell is cast in the Encounter step of an Evening combat round by playing a Magic chit of its numeral while its
@@ -221,6 +222,43 @@ export function applyAim(st, data, spellAim = {}) {
     }
 }
 
+// Rule 8.4.3b: when characters cast spells on each other, a faster spell cancels the slower one. Called once at the start of the Melee step of a fight between characters, before any
+// spell is carried out, with the ids of the characters who play this round (in the order of the draw). Each spell that names ANOTHER character as a target (b.1: he himself must be named,
+// not his clearing nor his spell) is looked at when it starts working, in the order of completion times (b.3), and cancels each of that character's spells still to be cast whose time is
+// HIGHER (equal or lower: not cancelled). A spell cancelled earlier by someone else never starts working, so it cancels nobody. The cancelled cast is flagged (`cancelled`, `cancelledBy`);
+// resolveCasts tires its Magic chit (b.4) and the caster keeps his Attention chit and may still attack (8.4.5a, meleeOptions). Only a spell that does something to its target is an
+// interruption (the optional rule 8.4.3b.2, "regardless of the effect", is not in force): a benevolent spell does not stop him.
+export function interruptCasts(st, data, ids) {
+    const list = [];
+    ids.forEach((id, order) => {
+        const c = st.chars[id]?.today?.combat, p = c?.play;
+        for (const cast of c?.casts ?? []) {
+            if (cast.done || cast.cancelled || handlerOf(cast.spell)?.benevolent === true) continue;
+            const legal = new Set(withActor(st, id, () => rivalTargets(st)).map(o => o.ref.id));
+            const named = [...new Set((p?.spellAim?.[cast.spell]?.targets ?? []).filter(r => r?.kind === 'char' && legal.has(r.id)).map(r => r.id))];
+            if (named.length) list.push({ id, order, cast, named });
+        }
+    });
+    list.sort((a, b) => (a.cast.time ?? 99) - (b.cast.time ?? 99) || a.order - b.order);
+    for (const { id, cast, named } of list) {
+        if (cast.cancelled) continue;                                    // cancelled by a faster spell before it started working (b.3)
+        for (const other of named) for (const theirs of st.chars[other]?.today?.combat?.casts ?? []) {
+            if (theirs.done || theirs.cancelled || (theirs.time ?? 99) <= (cast.time ?? 99)) continue;
+            theirs.cancelled = true; theirs.cancelledBy = id;
+        }
+    }
+}
+
+// Could a faster spell of another character, aimed at him, still cancel this cast (8.4.3b)? The plays of a round are made blind and together, so when a character names a Fight chit
+// beside a spell, the play is accepted for now if another character has a faster hostile spell to cast; the Melee step then judges it with the cancellations known (meleeOptions,
+// battle.js setupPlay: a play that turns out illegal is left out and he is told).
+export function mayBeInterrupted(st, cast) {
+    const b = st.battle;
+    if (!b?.pvp || !st.ch?.id) return false;
+    return b.order.some(id => id !== st.ch.id && b.members[id]?.state === 'in' && !st.chars[id].dead && st.chars[id].owner !== st.ch.owner
+        && (st.chars[id].today?.combat?.casts ?? []).some(y => !y.done && !y.cancelled && (y.time ?? 99) < (cast.time ?? 99) && handlerOf(y.spell)?.benevolent !== true));
+}
+
 // Bring the round's spells to life, lowest time first (equal times are simultaneous). Called once, at the start of resolution, so only what was damaged
 // in earlier rounds is mended.
 export function resolveCasts(st, data, log = t => say(st, t, 'combat')) {
@@ -231,6 +269,13 @@ export function resolveCasts(st, data, log = t => say(st, t, 'combat')) {
         if (c.ended || st.ch.dead) { cancelCasts(st, data, null); break; }       // the combat is over (a Wish) or he is dead: nothing more comes to life
         cast.done = true;
         const chit = cast.chit ? st.ch.chits.find(x => x.id === cast.chit) : null;
+        if (cast.cancelled) {                                             // a faster spell aimed at him stopped it (8.4.3b): it never starts working, its Magic chit tires (8.4.3b.4)
+            log(`${spellDef(data, cast.spell)?.name ?? cast.spell} is cancelled before it starts working: ${st.chars?.[cast.cancelledBy]?.name ?? 'another character'}'s faster spell stops it (8.4.3b).`, null, { ev: { code: 'play.cancelled', who: st.ch.id, play: 'spell', why: 'interrupted' } });
+            if (chit?.state === 'committed' && !chit.tie) chit.state = 'fatigued';
+            if (c.attackSpell && c.attackSpell.spell === cast.spell) c.attackSpell = null;
+            c.eventful = true;
+            continue;
+        }
         const item = cast.item ? st.ch.items.find(i => i.uid === cast.item) : null;
         const h = handlerOf(cast.spell), def = spellDef(data, cast.spell);
         // a spell cast with no melee step in between (the quiet-evening cast) takes the handler's own choice of target

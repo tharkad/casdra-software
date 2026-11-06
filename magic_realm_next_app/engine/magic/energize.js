@@ -1,6 +1,6 @@
 import { say } from '../core.js';
 import { tileClearings, tileOf } from '../world.js';
-import { colorSources, colorChits, TYPE_COLOR } from './colour.js';
+import { colorSources, colorChits, roadCardColors, TYPE_COLOR } from './colour.js';
 import { spellDef, handlerOf } from './registry.js';
 import { idleFx, wakeFx, sameRef, heldDown, elsewhere } from './fx.js';
 
@@ -13,11 +13,13 @@ import { idleFx, wakeFx, sameRef, heldDown, elsewhere } from './fx.js';
 // The spell's place is where its first target is: a clearing, or the clearings of a tile. A target we cannot place (a character on a road) counts
 // the calendar only. Generic: a transmorph spell (Transform, Melt into Mist) needs only to be dur 'permanent' and to implement apply/unapply.
 
+// The character a spell on a character is about: the acting one (HERO), or another character named by his own id (8.4.3b: a spell cast on a rival).
+const targetChar = (st, t) => (t && t.kind === 'char' && t.id !== 'ch' && st.chars?.[t.id]) || st.ch;
 // Where the spell is: the clearings whose colours count for it.
 export function fxPlaces(st, data, fx) {
     const t = fx.targets?.[0];
     if (!t) return [st.ch.at ?? null];
-    if (t.kind === 'char') return st.ch.flying ? tileClearings(st, data, st.ch.flying.tile) : st.ch.onRoad ? [st.ch.onRoad.from, st.ch.onRoad.to] : [st.ch.at];       // in the air only the tile's own colours count (4.6.2); on a roadway both ends supply him (4.6.2e.2)
+    if (t.kind === 'char') { const w = targetChar(st, t); return w.flying ? tileClearings(st, data, w.flying.tile) : w.onRoad ? [w.onRoad.from, w.onRoad.to] : [w.at]; }       // in the air only the tile's own colours count (4.6.2); on a roadway both ends supply him (4.6.2e.2)
     if (t.kind === 'clearing') return [t.id];
     if (t.kind === 'tile') return tileClearings(st, data, t.id);
     if (t.kind === 'mon' || t.kind === 'nat') {
@@ -30,8 +32,9 @@ export function fxPlaces(st, data, fx) {
 // The colours that fill the spell's place. With { calendar: false } only the sources that stay at Midnight (Chapel, enchanted tile or card).
 // A hero on a roadway gets the day's colour and the enchanted tiles of both ends, no Chapel or card (4.6.2e.2).
 export function fxSupply(st, data, fx, { calendar = true } = {}) {
-    const out = new Set(), road = fx.targets?.[0]?.kind === 'char' && !!st.ch.onRoad && !st.ch.flying;
+    const out = new Set(), who = targetChar(st, fx.targets?.[0]), road = fx.targets?.[0]?.kind === 'char' && !!who.onRoad && !who.flying;
     for (const place of fxPlaces(st, data, fx)) for (const s of colorSources(st, data, place, { road })) if (calendar || !s.calendar) out.add(s.color);
+    if (road) for (const color of roadCardColors(st, who.onRoad)) out.add(color);          // an Enchanted card carried on the roadway supplies it (4.6.2b.2)
     return out;
 }
 // A stronger Permanent spell that is energized on the same target keeps a weaker one asleep (4.6.10f: Melt into Mist 3 beats Transform 2 beats Absorb Essence 1); the

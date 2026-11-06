@@ -59,6 +59,15 @@ export function targetWords(st, data, f) {
 // Every character in the clearing who can bear a curse: the hero, and any other character the game holds.
 export const characters = st => [{ ref: { kind: 'char', id: 'ch' }, who: st.ch, name: 'you' }, ...Object.entries(st.others ?? {}).map(([id, who]) => ({ ref: { kind: 'char', id }, who, name: who.name ?? id }))];
 
+// The other characters in a shared fight (character against character) that a spell may be aimed at, as the references a spell stores: { kind: 'char', id: <his own id> }
+// (the acting character himself is HERO, id 'ch'). The same people as an attack may name (combat.js charFoes: not the same player's, a hidden one only if he found hidden enemies).
+export function rivalTargets(st) {
+    const b = st.battle;
+    if (!b?.pvp || !st.ch?.id) return [];
+    return b.order.filter(id => id !== st.ch.id && b.members[id]?.state === 'in' && !st.chars[id].dead && st.chars[id].owner !== st.ch.owner && (!st.chars[id].hidden || st.ch.hiddenEnemies))
+        .map(id => ({ ref: { kind: 'char', id }, label: st.chars[id].name ?? id }));
+}
+
 // A second casting of the same spell on the same target does nothing (4.6.10e): the later one is held nullified. Returns true when `fx` is that later one.
 export function nullifyIfDuplicate(st, fx) {
     const same = (st.fx ?? []).some(f => f !== fx && f.state === 'live' && f.spell === fx.spell && f.targets.length === fx.targets.length && f.targets.every((t, i) => t.kind === fx.targets[i].kind && String(t.id) === String(fx.targets[i].id)));

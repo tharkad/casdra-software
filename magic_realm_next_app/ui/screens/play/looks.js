@@ -2,10 +2,12 @@
 // host (the map's sheet layer, the fight's host, the shared fight's host) shows the same one the same way. A look is not a question: it never blocks the game, it has no scrim, and putting it away gives the screen back as it was.
 // (Notes 99 and 101: during a fight the menu opened but its Journal, Calendar, Score ... were built nowhere on the fight's host, so the tap seemed dead and the sheet turned up behind the fight when it was over.)
 import { h } from '../../dom.js';
-import { ownSheet, gameOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, questionOf } from '../../combat/feed.js';
 import { timed } from '../../gametext.js';
 import { HELP } from '../info.js';
-import { abandon } from './actions.js';
+import { abandon, act } from './actions.js';
+import { suicideOk } from './suicide.js';
+import { nameOfClearing } from '../../../engine/catalogue.js';
 import { modal } from './kit.js';
 import { cardInfoSheet, charSheet, cursesSheet, itemSheet, slotSheet, spellSheet, spellsSheet } from './sheet_char.js';
 import { journalSheet } from './journal.js';
@@ -55,6 +57,24 @@ export const abandonSheet = G => modal(G, 'Abandon this game?', h('div', { class
         h('button', { type: 'button', class: 'ds-btn danger', 'data-act': 'confirm-abandon', onclick: () => abandon(G) }, 'Abandon this game'),
         h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'keep-playing', onclick: () => { G.ui.sheet = null; render(G); } }, 'Keep playing')) });
 
+// Ending his own adventure (rules 8.9.4, 9.2.2a): the engine's `suicide` action, offered where the day ends for him (the evening-end question) and at the Birdsong plan. It is NOT Abandon: the game
+// goes on and a new character arrives after a day sat out. Two taps: the menu row (or the evening sheet's quiet link) opens this sheet, and only its red button sends the action. The safe choice is
+// the primary on the right, the red one is quiet on the left. Local solo games only: the shared and race tables have their own ways to leave.
+export const suicideSheet = G => {
+    const me = ownSheet(G.st, G.data), at = me.at ?? me.onRoad?.from, evening = questionOf(G.st, G.data)?.type === 'evening-end', where = at ? nameOfClearing(at).replace(/ (\d+)$/, '\u00A0$1') : 'where you stand';
+    const sit = evening ? 'Tomorrow is sat out. A new character arrives the day after.' : 'Today is sat out. A new character arrives tomorrow.';
+    return modal(G, 'End your adventure?', h('div', { class: 'confirmbox', 'data-suicide': '' },
+        h('p', {}, `${me.name ?? 'Your hero'} leaves the Realm for good. The game goes on for a new character.`),
+        h('ul', { class: 'confirm-lost' },
+            h('li', {}, `Your belongings are left behind in ${where}.`),
+            h('li', {}, 'Your Fame, Notoriety and Gold are lost: this adventure scores \u2212100.'),
+            h('li', {}, sit)),
+        h('p', { class: 'hint bad' }, 'This cannot be undone.')),
+        { close: () => { G.ui.sheet = null; render(G); }, bare: true, footer: h('div', { class: 'ds-opt-foot' },
+            h('button', { type: 'button', class: 'ds-btn danger', 'data-act': 'confirm-suicide', onclick: () => { G.ui.sheet = null; G.ui.leaveAsk = null; act(G, { type: 'suicide' }); } }, 'End my adventure'),
+            h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'keep-playing', onclick: () => { G.ui.sheet = null; render(G); } }, 'Keep playing')) });
+};
+
 /** The sheet for `G.ui.sheet` when it is one of the looks, or null (a name that is not a look: a question's own sheet, the plan ...). */
 export function lookSheet(G) {
     switch (G.ui.sheet) {
@@ -78,6 +98,7 @@ export function lookSheet(G) {
         case 'settings': return settingsSheet(G);
         case 'bug': return bugSheet(G);
         case 'confirm-abandon': return G.race ? null : abandonSheet(G);
+        case 'confirm-suicide': return suicideOk(G) ? suicideSheet(G) : null;
         default: return null;
     }
 }

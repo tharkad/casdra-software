@@ -124,7 +124,7 @@ const WAITING = { 'turn-end': ['End of turn', ''], 'evening-end': ['Evening', 'b
 
 export function renderTray(G) {
     const p = questionOf(G.st, G.data), st = G.st;
-    const where = ownSheet(st, G.data).onRoad ? 'On the road' : ownSheet(st, G.data).flying ? `Over the ${tileName(ownSheet(st, G.data).flying.tile)}` : nameOfClearing(ownSheet(st, G.data).at);
+    const where = ownSheet(st, G.data).onRoad ? (ownSheet(st, G.data).onRoad.forest ? 'In the forest' : 'On the road') : ownSheet(st, G.data).flying ? `Over the ${tileName(ownSheet(st, G.data).flying.tile)}` : nameOfClearing(ownSheet(st, G.data).at);
     const planning = p?.type === 'plan' && G.ui.sheet === 'plan' && G.ui.draft;
     const banner = G.shared && !p ? sharedBanner(G) : null;
     const m = { last: null, body: [], situ: null, lead: null, primary: null, cls: [] };

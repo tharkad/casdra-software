@@ -26,14 +26,15 @@ import { eveningContent } from '../kit/evening.js';
 import { phaseGearContent } from '../kit/phasegear.js';
 import { mountSheet } from '../kit/common.js';
 import { assignSheet, handoverSheet, sunriseSheet } from './leaders.js';
-import { abandonSheet, cardSheet, helpSheet, keySheet, lookSheet, tablesSheet } from './looks.js';
+import { abandonSheet, cardSheet, helpSheet, keySheet, lookSheet, suicideSheet, tablesSheet } from './looks.js';
+import { suicideOk } from './suicide.js';
 import { render } from './shell.js';
 import { setWelcomed, vpNow, welcomed } from './state.js';
 
 // ---- sheets ----
 // A look at the belongings, the Journal, the menu, the calendar... while a question waits on a sheet: the question stays where it is (under the scrim) and the look opens over it;
 // closing the look gives the question back. (A fight, the draw and the other full-screen things have their own hosts and are not covered.)
-const LOOKS = new Set(['char', 'menu', 'calendar', 'score', 'journal', 'dice', 'log', 'curses', 'spells', 'spell', 'item', 'cardinfo', 'key', 'help', 'tables', 'setupcard', 'settings', 'card', 'piece', 'slot']);
+const LOOKS = new Set(['char', 'menu', 'calendar', 'score', 'journal', 'dice', 'log', 'curses', 'spells', 'spell', 'item', 'cardinfo', 'key', 'help', 'tables', 'setupcard', 'settings', 'card', 'piece', 'slot', 'confirm-suicide']);
 const QUESTIONS = new Set(['turn-end', 'evening-end', 'phase-gear', 'rest', 'search-table', 'search-choice', 'effort-cost', 'runes-target', 'learn-spell', 'enchant-choice', 'trade', 'trade-offer', 'hire', 'hire-offer']);
 
 // The morning's day report and the first-day welcome are not modal (Mike's note 81): the strip and the menu open their look over them, like over any question (a clearing looked at already did, through `lookAt`).
@@ -98,6 +99,7 @@ export function sheets(G, lookOnly = false) {
     else if (G.ui.sheet === 'clearing' && G.ui.sel) out.push(clearingSheet(G));
     else if (G.ui.sheet === 'menu') out.push(menuSheet(G));
     else if (G.ui.sheet === 'confirm-abandon' && !G.race) out.push(abandonSheet(G));
+    else if (G.ui.sheet === 'confirm-suicide' && suicideOk(G)) out.push(suicideSheet(G));
     else if (G.ui.sheet === 'race' && G.race) out.push(raceSheet(G));
     else if (G.ui.sheet === 'players' && G.shared) out.push(playersSheet(G));
     else if (G.ui.sheet === 'quit-confirm' && G.shared) out.push(quitSheet(tc(G)));

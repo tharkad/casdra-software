@@ -6,9 +6,9 @@
 import { h } from '../../dom.js';
 import { icon } from '../../icons.js';
 import { ROAD_STORY, commitmentOf, roadLockOf, voiced } from '../../commit.js';
-import { nameOf } from '../../../engine/catalogue.js';
+import { nameOf, weightOf, lvl } from '../../../engine/catalogue.js';
 import { itemOrigin } from '../../stocknotes.js';
-import { journalLines } from '../../combat/feed.js';
+import { journalLines, ownSheet } from '../../combat/feed.js';
 import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
 import { footRow, itemArt, oneLine, say, twoLine } from './common.js';
@@ -45,18 +45,38 @@ function belongingRow(G, it) {
         actions);
 }
 
+// A horse or Boots in use that cannot bear what he just came by (`pending.mounts`; 7.3.2a, 7.3.1f.1, 4.3.3b): it comes off, or the new belonging is left here. The engine refuses Continue until then.
+// `heavy` is the new belonging that is too much for it (the heaviest of what he came by); the line says it in plain words.
+const heaviest = (G, items) => items.reduce((best, it) => (!best || lvl(weightOf(G.data, it)) > lvl(weightOf(G.data, best)) ? it : best), null);
+const mountWhy = (G, mount, items) => { const heavy = heaviest(G, items); return `The ${nameOf(G.data, mount)} cannot carry ${heavy ? `the ${nameOf(G.data, heavy)}` : 'all you carry now'}.`; };
+function mountRow(G, it, items) {
+    const name = nameOf(G.data, it), heavy = heaviest(G, items);
+    return h('div', { class: 'kit-gear fresh mount', 'data-mount': it.uid, 'data-state': 'too-weak' },
+        h('span', { class: 'ds-counter art' }, itemArt(G, it) ?? icon('plus', 'lg')),
+        h('span', { class: 'main' },
+            h('b', {}, name, h('span', { class: 'ds-tag bad kit-tag' }, 'Too weak')),
+            h('span', { class: 'sub bad', 'data-why': 'mount' }, mountWhy(G, it, items)),
+            h('span', { class: 'sub' }, `Take it off, or leave ${heavy ? `the ${nameOf(G.data, heavy)}` : 'what you came by'} here.`)),
+        h('div', { class: 'kit-gearact' }, h('button', { type: 'button', class: 'ds-btn sm', 'data-act': 'gear-mount-off', 'data-item': it.uid, onclick: () => tidyAct(G, it) }, 'Take it off')));
+}
+
 // phaseGearContent(G, pending) -> { title, eyebrow, body, foot, detent } for mountSheet (a decision: the map can be looked at while it waits).
 export function phaseGearContent(G, p) {
     const st = G.st, items = (p.items ?? []).map(uid => st.ch.items.find(i => i.uid === uid)).filter(Boolean);
     (G.ui.itemsShown ??= new Set()); for (const it of items) G.ui.itemsShown.add(it.uid);          // he has seen these here: the item card does not open them again (note 91)
-    const body = items.length
+    const mounts = (p.mounts ?? []).map(uid => ownSheet(st, G.data).items.find(i => i.uid === uid && i.active)).filter(Boolean);          // (a mount he already took off falls out of the list; the engine drops it from `mounts` too)
+    const body = items.length || mounts.length
         ? h('div', { class: 'kit kit-evening kit-phasegear', 'data-phasegear': 'items' },
-            h('div', { class: 'kit-gearlist' }, items.map(it => belongingRow(G, it))))
+            h('div', { class: 'kit-gearlist' }, mounts.map(it => mountRow(G, it, items)), items.map(it => belongingRow(G, it))))
         : h('div', { class: 'kit kit-evening quiet', 'data-phasegear': 'done' },
             h('div', { class: 'ds-ask' }, h('b', {}, 'Nothing left to decide.'), h('span', {}, 'What you came by is settled. The phase can end.')));
     const off = items.filter(i => !i.active && !whyNot(G, i));
     const note = items.length && off.length ? `Not in use: ${names(off.map(i => nameOf(G.data, i)))}.` : null;
     const belongings = h('button', { type: 'button', class: 'ds-btn sm quiet', 'data-act': 'gear-kit', onclick: () => { G.ui.sheet = 'char'; render(G); } }, 'Belongings');
-    const go = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'gear-go', onclick: () => { G.ui.leaveAsk = null; act(G, { type: 'continue' }); } }, twoLine('Continue', 'the phase ends'));
-    return { title: 'New belongings', eyebrow: `Day ${st.day} · End of phase`, body, detent: items.length ? 'tall' : 'hug', foot: footRow({ note, bad: false, secondary: belongings, primary: go }) };
+    // Continue stays dim and says why while a mount is too weak (the engine's gear.too-heavy): a dim control still answers a tap
+    const stuck = mounts.length ? `${mountWhy(G, mounts[0], items)} Take it off, or leave ${items.length ? `the ${nameOf(G.data, heaviest(G, items))}` : 'what you came by'} here.` : null;
+    const go = stuck
+        ? h('button', { type: 'button', class: 'ds-btn primary is-dim', 'data-act': 'gear-go', 'aria-disabled': 'true', onclick: () => say(G, stuck) }, twoLine('Continue', 'the phase ends'))
+        : h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'gear-go', onclick: () => { G.ui.leaveAsk = null; act(G, { type: 'continue' }); } }, twoLine('Continue', 'the phase ends'));
+    return { title: 'New belongings', eyebrow: `Day ${st.day} · End of phase`, body, detent: items.length || mounts.length ? 'tall' : 'hug', foot: footRow({ note: stuck ?? note, bad: !!stuck, secondary: belongings, primary: go }) };
 }

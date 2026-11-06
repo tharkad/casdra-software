@@ -113,7 +113,7 @@ export function playersBody(people, { view, answer, orderLine, copyInvite, rowEx
             pcEl(p, { size: 34 }),
             h('span', { class: 'main rp-main' }, h('b', {}, `${p.player}${p.mine ? ' (you)' : ''}`),
                 h('span', {}, `${displayName(p.character)} · ${p.dead ? 'fallen' : statusLine(p)}${p.turnNo ? ` · turn ${p.turnNo}` : ''}`),
-                h('span', {}, p.onRoad ? 'on the road' : p.flying ? 'in the air' : p.at ? `at ${nameOfClearing(p.at)}${p.hidden ? ' · hidden' : ''}` : ''),
+                h('span', {}, p.onRoad ? (p.onRoad.forest ? 'in the forest' : 'on the road') : p.flying ? 'in the air' : p.at ? `at ${nameOfClearing(p.at)}${p.hidden ? ' · hidden' : ''}` : ''),
                 p.hires ? h('span', { 'data-hires': String(p.hires) }, `${p.hires} hireling${p.hires === 1 ? '' : 's'}, theirs alone`) : null,
                 rowExtra?.(p) ?? null),
             h('span', { class: 'end rp-nums' }, h('span', { class: 'ds-c-fame' }, `Fame ${p.fame}`), h('span', { class: 'ds-c-notor' }, `Notoriety ${p.notoriety}`)),

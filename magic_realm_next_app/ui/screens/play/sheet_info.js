@@ -12,6 +12,7 @@ import { modal, mrChit, picOf } from './kit.js';
 import { calendarSheet as buildCalendar } from './sheet_calendar.js';
 import { render } from './shell.js';
 import { persist } from './state.js';
+import { SUICIDE_NOT_NOW, suicideOk } from './suicide.js';
 import { ownSheet, gameOf, standingOf, questionOf } from '../../combat/feed.js';
 import { colorSources } from '../../combat/mapfeed.js';
 
@@ -33,7 +34,7 @@ export function raceSheet(G) {
 
 export function menuSheet(G) {
     const go = (sheet) => () => { G.ui.sheet = sheet; render(G); };
-    const row = (label, hint, onclick, extra = {}) => h('button', { class: `mrow${extra.danger ? ' danger' : ''}`, 'data-act': extra.act ?? null, onclick },
+    const row = (label, hint, onclick, extra = {}) => h('button', { class: `mrow${extra.danger ? ' danger' : ''}${extra.dim ? ' dim' : ''}`, 'data-act': extra.act ?? null, 'aria-disabled': extra.dim ? 'true' : null, onclick },
         h('span', { class: 't' }, h('span', {}, label), hint ? h('small', {}, hint) : null), extra.danger ? null : h('span', { class: 'chev', 'aria-hidden': 'true' }, '\u203A'));
     return modal(G, 'Menu', h('div', { class: 'menulist' },
         ...(G.shared ? [h('h4', {}, 'The table'),
@@ -59,6 +60,9 @@ export function menuSheet(G) {
         h('h4', {}, 'Other'),
         row('Report a problem', null, go('bug'), { act: 'menu-bug' }),
         row('Back to the title screen', null, () => { G.conn?.stop(); G.sconn?.unwatch(); G.ctx.go('title'); }),
+        ...(G.shared || G.race ? [] : [suicideOk(G)
+            ? row('End this adventure', 'Your character leaves; a new one arrives after a day sat out', () => { G.ui.sheet = 'confirm-suicide'; render(G); }, { act: 'menu-suicide', danger: true })
+            : row('End this adventure', SUICIDE_NOT_NOW, () => { G.ui.toast = SUICIDE_NOT_NOW; G.ui.toastWhy = true; render(G); clearTimeout(G.ui.toastTimer); G.ui.toastTimer = setTimeout(() => { G.ui.toast = null; G.ui.toastWhy = false; render(G); }, 2600); }, { act: 'menu-suicide', dim: true })]),
         row(G.shared ? 'Put the game down (it waits for you on the server)' : G.race ? 'Leave the race (your game stays on the server)' : 'Abandon this game', null, G.race || G.shared ? () => abandon(G) : () => { G.ui.sheet = 'confirm-abandon'; render(G); }, { danger: true })),
         { close: () => { G.ui.sheet = null; render(G); } });
 }

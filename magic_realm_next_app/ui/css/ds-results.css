@@ -66,6 +66,7 @@
 .ds-death .skull .ds-i { width: 72px; height: 72px; stroke-width: 1.4; }
 .ds-death h1 { margin: 0; font: 700 calc(34px * var(--ts, 1))/1.05 var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--danger); text-wrap: balance; }
 .ds-death .ds-eyebrow { margin-bottom: 6px; }
+.ds-death.left .skull, .ds-death.left h1 { color: var(--ink-2); }          /* a character who ended his own adventure: no red, he was not struck down (8.9.4) */
 .ds-death .ds-voice { margin: 10px 0 4px; text-wrap: balance; }
 .ds-end .vsw { margin: 10px 0 0; display: flex; justify-content: center; }
 .ds-end .end-hero { text-align: center; }

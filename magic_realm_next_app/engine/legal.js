@@ -158,6 +158,8 @@ function phaseOf(p, state, data, who) {
         case 'learn-spell': out.answers = [turn('learn-spell', { learn: true }, { pick: p.full ? { erase: { free: true } } : {} }), turn('learn-spell', { learn: false })]; break;
         default: break;
     }
+    if (p.type === 'evening-end') out.free.push({ action: { type: 'suicide' } });          // (8.9.4: a character may suicide at Midnight; the end of his evening is where the day ends for him)
+    if (p.type === 'phase-gear' && p.mounts?.length) out.answers = [turn('continue', {}, { disabled: { code: 'gear.too-heavy', rule: '7.3.2a' } })];          // (7.3.2a, 7.3.1f.1: the horse or Boots that cannot bear what he came by must come off, or the new belonging be left, first)
     if (state.missions && (p.type === 'phase' || p.type === 'phase-pick')) out.free.push(...takeChits(state, data, who));          // (7.2.4: "each time a character starts a phase of his turn"; the engine takes `take-chit` at these two questions only)
     return out;
 }

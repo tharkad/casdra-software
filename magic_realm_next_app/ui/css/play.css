@@ -130,6 +130,7 @@
 .menulist .mrow small { font-size: calc(13px * var(--ts, 1)); color: var(--dim); }
 .menulist .mrow .chev { color: var(--dim); font-size: calc(22px * var(--ts, 1)); line-height: 1; flex: none; }
 .menulist .mrow.danger { color: #f08a8a; }
+.menulist .mrow.dim { color: var(--ink-3); } .menulist .mrow.dim small { color: var(--ink-3); }          /* a row that is not available now and says why (End this adventure) */
 .menulist h4 { margin: 16px var(--gutter) 4px; font-family: var(--font-display); font-size: calc(12px * var(--ts, 1)); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); font-weight: 400; }
 
 /* a total with its recorded part under it */

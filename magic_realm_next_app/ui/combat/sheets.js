@@ -236,7 +236,7 @@ const needsAim = x => !!x.aim && (x.aim.options.length > x.aim.min || (Array.isA
 
 // ---- cast a spell: the spells ready tonight as cards (one per spell; a spell that can be cast on several chits asks which) ----
 function castPick(X, o, round, back, itemsBtn) {
-    const { st: fm, data, cb, send, render, p, c } = X, quiet = !!p.spellOnly;
+    const { st: fm, data, cb, send, render, p, c } = X, quiet = !!p.spellOnly, items = own(fm, data).items.filter(i => !i.destroyed);
     const groups = new Map();
     for (const x of o.casts) (groups.get(x.spell) ?? groups.set(x.spell, []).get(x.spell)).push(x);
     const mend = id => own(fm, data).chits.filter(x => x.id !== id && (x.state === 'fatigued' || x.state === 'wounded')).length;
@@ -267,9 +267,16 @@ function castPick(X, o, round, back, itemsBtn) {
         if (quiet && needsAim(chosen)) send(P.castAimed(chosen, P.aimOf(chosen.aim, aimStore)));
         else send(P.cast(chosen)); } }) : null;
     if (quiet) {
-        const lead = chosen ? btn(c.quietDone?.length ? 'That is enough' : 'Not tonight', '', { 'data-act': 'pass', onclick: () => send(P.pass()) }) : null;
-        const prim = castGo ?? primary(c.quietDone?.length ? 'That is enough' : 'Not tonight', { 'data-act': 'pass', onclick: () => send(P.pass()) });
-        return sheetEl(X, 'quiet', qRow('Quiet evening', itemsBtn ?? h('span', {}, 'cast a spell?')), h('div', { class: 'cb-spells' }, ...cards), aimNow, blocked, foot(lead, prim));
+        // 8.1.3a, 8.3.8h: a quiet evening still gets its rounds. He may cast, use his belongings, run or fly out of the clearing, or let it pass; Run and Fly are quiet buttons beside the spells (the
+        // pick sheets are the encounter's own: the engine says where he may go), and ONE primary ends the evening (or casts the spell that is lit).
+        const canDo = !!(o.casts.length || o.canRun || o.canFly || items.length);
+        const endWord = c.quietDone?.length ? 'That is enough' : o.casts.length ? 'Not tonight' : 'End the evening';
+        const go = (kind, label, icoName) => h('button', { type: 'button', class: 'ds-btn cb-quietgo', 'data-act': `quiet-${kind}`, onclick: () => { cb.pick = { kind, chit: null, to: null }; cb.quiet = null; render(); } }, actIcon(icoName, 24), label);
+        const moves = [o.canRun ? go('run', 'Run for it', 'move') : null, o.canFly ? go('fly', 'Fly away', 'fly') : null].filter(Boolean);
+        const lead = chosen ? btn(endWord, '', { 'data-act': 'pass', onclick: () => send(P.pass()) }) : null;
+        const prim = castGo ?? primary(endWord, { 'data-act': 'pass', onclick: () => send(P.pass()) });
+        return sheetEl(X, 'quiet', qRow(c.round > 1 ? `Quiet evening \u00B7 round ${c.round}` : 'Quiet evening', itemsBtn ?? h('span', {}, o.casts.length ? 'cast a spell?' : canDo ? 'what now?' : 'nothing to do')), h('div', { class: 'cb-spells' }, ...cards), moves.length ? h('div', { class: 'cb-quietmoves' }, ...moves) : null, aimNow, blocked,
+            canDo ? null : hint('Nothing to cast, no road to run along and nothing to switch. The evening only has to end.'), foot(lead, prim));
     }
     return sheetEl(X, 'encounter-pick', qRow(round, h('span', {}, 'Cast a spell')), h('div', { class: 'cb-spells' }, ...cards), blocked,
         hint('The Magic chit is the cost: it counts toward the asterisks of the round and is tired afterwards.'),

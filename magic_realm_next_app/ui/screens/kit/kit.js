@@ -61,12 +61,14 @@ export function gearLock(G, it = null) {
     if (ownSheet(G.st, G.data).flying) return 'You cannot rearrange your gear in the air.';
     if (roadLockOf(G.st)) return ROAD_STORY;          // 8.3.8d: out on a road between clearings (the engine's gearLockedWhy); ROAD_STORY is the Story words, lockText gives the Detail
     if (p === 'plan') return PLAN_LOCK;
-    if (p === 'phase-gear') return it && !(questionOf(G.st, G.data).items ?? []).includes(it.uid) ? FRESH_LOCK : null;
+    if (p === 'phase-gear') return it && !freshOk(G, it.uid) ? FRESH_LOCK : null;
     if (!['phase', 'phase-pick', 'evening-end'].includes(p)) return 'Gear can be changed between phases.';
     return null;
 }
 // Is `uid` one of the things he may change right now on the 'phase-gear' question? (true when that question is not asked)
-const freshOk = (G, uid) => questionOf(G.st, G.data)?.type !== 'phase-gear' || (questionOf(G.st, G.data).items ?? []).includes(uid);
+// (a horse or Boots in `pending.mounts` is one of them too: too weak for what he came by, it may be taken off here; 7.3.2a, 7.3.1f.1)
+const freshOk = (G, uid) => questionOf(G.st, G.data)?.type !== 'phase-gear' || (questionOf(G.st, G.data).items ?? []).includes(uid) || (questionOf(G.st, G.data).mounts ?? []).includes(uid);
+export const isWeakMount = (G, it) => questionOf(G.st, G.data)?.type === 'phase-gear' && (questionOf(G.st, G.data).mounts ?? []).includes(it.uid);          // (taken off, never left behind: the engine refuses gear.mount-stays)
 // The lock of one slot: its occupant's, or for an empty slot (on 'phase-gear') whether something he has just come by could go there.
 function slotLock(G, key, occupant) {
     if (occupant) return gearLock(G, occupant);
@@ -271,7 +273,7 @@ export function itemContent(G, it, o = {}) {
         h('p', { class: 'ds-voice kit-story' }, storyLine(G, it)),
         h('details', { class: 'kit-detail' }, h('summary', {}, 'Detail'), ...facts.map(t => h('p', {}, t))),
         lock && !it.destroyed ? h('div', { class: 'ds-why kit-lock' }, icon('lock', 'kit-lockico'), lockText(lock, G)) : null,
-        can && !bound ? (leaving ? h('div', { class: 'kit-leave' }, h('span', { class: 'ds-meta' }, `Leave the ${name} lying here?`),
+        can && !bound && !isWeakMount(G, it) ? (leaving ? h('div', { class: 'kit-leave' }, h('span', { class: 'ds-meta' }, `Leave the ${name} lying here?`),
             h('button', { type: 'button', class: 'ds-btn sm danger', 'data-act': 'item-leave', onclick: () => { G.ui.leaveAsk = null; G.ui.sheet = G.ui.itemFrom === 'dock' ? null : 'char'; G.ui.itemFrom = null; tidyAct(G, it, { drop: true }); } }, `Leave the ${name} here`),
             h('button', { type: 'button', class: 'ds-btn sm quiet', onclick: () => { G.ui.leaveAsk = null; render(G); } }, 'Keep it'))
             : h('button', { type: 'button', class: 'ds-btn sm quiet kit-leavebtn', 'data-act': 'item-leave-ask', onclick: () => { G.ui.leaveAsk = it.uid; render(G); } }, 'Leave it here')) : null);

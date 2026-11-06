@@ -1,11 +1,11 @@
 import { clone, die, roll2, int, say, emit, lvl, shuffle, noteRoll, tally, chitWord, refuse } from './core.js';
 import { hides, PEER, LOCATE, meetingResult } from './tables.js';
 import { roadsFrom, isCave, isMountain, tileOf, numOf, nameOfClearing, pathKey, tileClearings, graph, tileName, mapEdgeClearings } from './world.js';
-import { endOfTurn, blockers, resetChitsAtMidnight } from './summon.js';
+import { endOfTurn, blockers, stopBlockers, resetChitsAtMidnight } from './summon.js';
 import * as combat from './combat.js';
 import * as battle from './battle.js';
 import * as hirefight from './hirefight.js';
-import { makeItem, defOf, isWeaponCard, extraPhaseCommitment, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain, noteFind, nextDayGear, gearLockedWhy } from './items.js';
+import { makeItem, defOf, isWeaponCard, extraPhaseCommitment, nameOf, priceOf, dropHeavy, abandon, weightOf, carriedLevel, toggleItem, noteGain, noteFind, nextDayGear, gearLockedWhy, weakMounts } from './items.js';
 import { lootFrom, lootSiteCard, groundPileAt, sitesHere, effortOptions, payEffort, applySearchResult, peerBlocked } from './search.js';
 import { hasCurse, liftCursesAtChapel } from './effects.js';
 import { tell } from './story.js';
@@ -284,7 +284,7 @@ function planned(st, data) {
     emit(st, { code: 'plan.recorded', who: st.ch.id, phases: (st.plan ?? []).filter(Boolean).length });          // (that a plan is recorded and how long: the table's half; the activities are the seat's, plan.detail)
     if (!multi(st)) return sunrise(st, data);
     st.ch.today.stage = 'planned';
-    if (st.order.every(id => ['planned', 'gone'].includes(st.chars[id].today.stage))) sunrise(st, data);
+    if (st.order.every(id => ['planned', 'gone', 'out'].includes(st.chars[id].today.stage))) sunrise(st, data);
 }
 
 // ---- sunrise: the Monster Roll ----
@@ -381,6 +381,7 @@ function blockOthers(st, data, res) {
         const here = res.arrivals.filter(a => a.to === c.at);
         if (!here.length) continue;
         c.today.noTurn = true;
+        stopBlockers(st, here.map(a => a.id));                                                          // (7.12.5: what blocked him stops where it is)
         say(st, `${here.map(a => a.name).join(', ')} close in on ${c.name} before his chit is drawn: he is blocked and will have no turn today.`, 'block', null, { who: id });
     }
 }
@@ -479,20 +480,21 @@ function finishPhase0(st, data, text) {
     energizePass(st, data, 'phase');
     if (st.ch.dead) return died(st, data);
     if (st.missions) missions.tick(st, data);                      // 7.2.4i: a campaign whose foes are all dead is won (by himself or by others)
-    if (gearPause(st)) return;                     // the phase is not complete until he has said what to do with what he came by (4.3.2); `continue` goes on at finishPhaseEnd
+    if (gearPause(st, data)) return;                     // the phase is not complete until he has said what to do with what he came by (4.3.2); `continue` goes on at finishPhaseEnd
     return finishPhaseEnd(st, data);
 }
 // 4.3.2 and 4.3.3b: "as soon as he obtains the item, before completing the phase": with `st.pauseGear` (the game screens set it; the computer players and the tests do not) a phase in
 // which he came by a belonging (a Loot or Magic Sight find, a purchase, a Treasure-within-Treasure) ends on the question 'phase-gear', before the blocking check and the next phase.
 // It carries the new belongings (`items`, their uids); 'tidy' works on those and only those, 'continue' ends the phase. What he came by is already on if its slots were free (items.js
 // autoEquip), so the question is his chance to take it off, switch it on over something else, or leave it behind.
-function gearPause(st) {
+function gearPause(st, data) {
     const t = st.turn;
     if (!st.pauseGear || !t?.fresh?.length || st.ch.flying || st.ch.morph) return false;
     const items = t.fresh.filter(uid => st.ch.items.some(i => i.uid === uid && !i.destroyed));
     delete t.fresh;
     if (!items.length) return false;
-    st.pending = { type: 'phase-gear', items, i: t.i };
+    const mounts = weakMounts(st, data).map(m => m.uid);          // 7.3.2a, 7.3.1f.1: a horse or Boots in use that cannot bear what he came by: it must come off (or the new belonging be left) before the phase is complete
+    st.pending = { type: 'phase-gear', items, i: t.i, ...(mounts.length ? { mounts } : null) };
     return true;
 }
 function finishPhaseEnd(st, data) {
@@ -506,6 +508,7 @@ function finishPhaseEnd(st, data) {
     if (bl.length || t.forceBlock) {
         t.blocked = true;
         st.ch.hidden = false;
+        stopBlockers(st, bl);
         say(st, bl.length ? `Blocked by ${bl.map(m => data.monsters[m.id].name).join(', ')}! The rest of your turn is lost.` : 'You are stopped: the rest of your turn is lost.', 'block', null, { ev: bl.length ? { code: 'block.monsters', who: st.ch.id, monsters: bl.map(m => m.id), by: 'phase-end' } : { code: 'turn.stopped', who: st.ch.id, why: 'prophecy-broken' } });
         t.results[t.i] += ' (blocked)';
         return endDaylight(st, data);
@@ -571,6 +574,7 @@ function endDaylight0(st, data) {
     // His turn is over: the world reacts.
     const res = endOfTurn(st, data);
     st.turn.end = res;
+    if (multi(st)) meet.endFollowersTurn(st, data, res);              // the followers, put back on the map, end their turn separately and after his (7.11.8)
     if (multi(st)) blockOthers(st, data, res);                       // what arrived finds the others standing in its clearing too
     const bl = blockers(st);
     // Blocked in the middle of the turn costs him the rest of it; creatures that only arrive now (a chit calling them, prowlers in the tile) find
@@ -578,6 +582,7 @@ function endDaylight0(st, data) {
     const blockedMid = !!st.turn.blocked;
     if (bl.length && !blockedMid) {
         st.turn.blocked = true; st.ch.hidden = false;
+        stopBlockers(st, bl);
         say(st, `${bl.map(m => data.monsters[m.id].name).join(', ')} close in on you.`, 'block', null, { ev: { code: 'block.monsters', who: st.ch.id, monsters: bl.map(m => m.id), by: 'turn-end' } });
     }
     // Show him what the end of his turn did, before the evening begins.
@@ -694,7 +699,7 @@ function unattended(p) {
 function sharedEvening(st, data, at, ids) {
     st.period = 'evening';
     for (const id of ids) withActor(st, id, () => say(st, 'The sun sets.', 'day', tell.sunset(st, nameOfClearing(at))));
-    const hostile = st.mons.some(m => !m.dead && !m.hired && m.loc?.c === at) || st.nats.some(n => !n.dead && !n.hired && n.loc?.c === at) || ids.some(id => withActor(st, id, () => canCastQuietly(st, data))) || battle.mayFight(st, ids);          // (the last: with the pvp switch on, two players' characters in one clearing hold their evening)
+    const hostile = st.mons.some(m => !m.dead && !m.hired && m.loc?.c === at) || st.nats.some(n => !n.dead && !n.hired && n.loc?.c === at) || !!st.pauseEvening || ids.some(id => withActor(st, id, () => canCastQuietly(st, data))) || battle.mayFight(st, ids);          // (the last: with the pvp switch on, two players' characters in one clearing hold their evening)
     if (!hostile) {
         for (const id of ids) withActor(st, id, () => say(st, 'A quiet evening.', 'day', tell.quiet(st)));
         return nextEvening(st, data);
@@ -716,7 +721,7 @@ function hostilesHere(st, data) {
     const here = st.ch.at;
     const mons = st.mons.some(m => !m.dead && !m.hired && m.loc?.c === here);
     const nats = st.nats.some(n => !n.dead && !n.hired && n.loc?.c === here);
-    return mons || nats || canCastQuietly(st, data);
+    return mons || nats || !!st.pauseEvening || canCastQuietly(st, data);          // (pauseEvening: 8.1.3a, 8.3.8h, the rounds are held for a person at a screen even when nothing is there: combat.js holdsQuiet)
 }
 
 function evening(st, data) {
@@ -726,6 +731,7 @@ function evening(st, data) {
     if (st.ch.onRoad || st.ch.flying) return eveningDone(st, data);          // (on a road, or still in the air: no clearing, no fight)
     if (st.ch.mist) { say(st, 'As mist you take no part in any fight: the evening passes.', 'day', tell.quiet(st)); return eveningDone(st, data); }
     if (!hostilesHere(st, data)) { say(st, 'A quiet evening.', 'day', tell.quiet(st)); return eveningDone(st, data); }
+    if (st.pauseEvening && !st.mons.some(m => !m.dead && !m.hired && m.loc?.c === st.ch.at) && !st.nats.some(n => !n.dead && !n.hired && n.loc?.c === st.ch.at) && !canCastQuietly(st, data)) say(st, 'A quiet evening.', 'day', tell.quiet(st), { ev: { code: 'day.evening.quiet' } });          // (the rounds of 8.1.3a are held for him, combat.js holdsQuiet; the evening is told as it always was)
     combat.startCombat(st, data, st.ch.at);
     afterCombatStep(st, data);
 }
@@ -780,6 +786,28 @@ function died(st, data, carryOn = true) {
     st.score = scoreGame(st, data);
     say(st, 'Your adventure ends here.', 'day');
     st.pending = { type: 'over' };
+}
+
+// 8.9.4, 9.2.2a: a player kills his own character at Midnight. His belongings are abandoned in his clearing (as in any death, `died`), his hirelings are let go, what he cast ends, and he stays
+// out of the game for at least one complete game day, then starts again as after a death (9.1.2). `rejoin` is the day he may come back: Midnight of today means tomorrow is the day he sits out
+// (so the day after); at Birdsong the day he sits out is today (so tomorrow).
+function suicide(st, data, p) {
+    const c = st.ch, midnightNow = p.type === 'evening-end', rejoin = st.day + (midnightNow ? 2 : 1), at = c.at ?? c.onRoad?.from ?? null;
+    say(st, `${c.name} takes his own life.`, 'day', null, multi(st) ? { who: c.id, ev: { code: 'char.dies', who: c.id, cause: 'suicide' } } : { ev: { code: 'char.dies', who: c.id, cause: 'suicide' } });
+    c.dead = true; c.hidden = false;
+    st.slain = null;
+    st.pending = null;
+    if (multi(st)) {
+        died(st, data, false);
+        c.death = { day: st.day, by: null, text: null, at, suicide: true, rejoin };
+        c.today.stage = 'out';                                         // (he sits out today: the Birdsong barrier does not wait for him; he is asked about starting again at the Birdsong of the day he may return)
+        if (st.order.every(id => ['planned', 'gone', 'out'].includes(st.chars[id].today.stage))) sunrise(st, data);
+        return st;
+    }
+    died(st, data);
+    c.death = { day: st.day, by: null, text: null, at, suicide: true, rejoin };
+    if (st.over) st.over.suicide = true;
+    return st;
 }
 
 // A timed game ends at the last midnight; sudden death ends when every goal is met; an endless game never ends.
@@ -981,6 +1009,7 @@ function landForPhase(st, data, i) {
     if (down.cave) for (let k = i; k < st.plan.length; k++) if (sunlight(k)) { st.plan[k] = null; if (k === i) lostHere = true; }
     if (lostHere) return 'You land in a cave, where there is no sunlight: the rest of your turn is lost.';
     const bl = blockers(st);
+    if (bl.length) stopBlockers(st, bl);
     if (bl.length) return `You land among the ${bl.map(m => data.monsters[m.id].name).join(', ')} and are blocked before you can act.`;
     return null;
 }
@@ -1005,7 +1034,7 @@ function doMove(st, data, slot) {
         const r = st.ch.onRoad;
         if (to !== r.from && to !== r.to) return 'You cannot reach that from the road.';
         if (isMountain(st, data, to) && t.climb !== to) { t.climb = to; return `You begin the climb toward ${nameOfClearing(to)}.`; }
-        st.ch.arrivedFrom = to === r.to ? r.from : r.to; st.ch.at = to; st.ch.onRoad = null; t.climb = null;
+        st.ch.arrivedFrom = r.forest ? null : to === r.to ? r.from : r.to; st.ch.at = to; st.ch.onRoad = null; t.climb = null;          // (out of the forest he came by no road: nothing holds his running back, 7.10.4d.2)
         followHero(st, data);
         return arrive(st, data, to);
     }
@@ -1389,7 +1418,11 @@ function step(st, data, action) {
         }
         case 'continue': {
             if (p.type === 'evening-end') { st.pending = null; return midnight(st, data); }          // the evening is over: Midnight
-            if (p.type === 'phase-gear') { st.pending = null; resumePhase(st, data); return st; }          // he has settled what to do with what he came by: the phase is complete (4.3.2)
+            if (p.type === 'phase-gear') {
+                const weak = weakMounts(st, data);
+                if (weak.length) refuse('gear.too-heavy', `The ${nameOf(data, weak[0])} cannot bear what you carry: take it off or leave the new belonging behind before the phase ends (${weak[0].kind === 'horse' ? '7.3.2a' : '7.3.1f.1'}).`, { items: weak.map(m => m.uid) }, weak[0].kind === 'horse' ? '7.3.2a' : '7.3.1f.1');
+                st.pending = null; resumePhase(st, data); return st;
+            }          // he has settled what to do with what he came by: the phase is complete (4.3.2)
             if (p.type !== 'turn-end') refuse('question.mismatch', 'nothing to continue');
             st.pending = null;
             afterTurnEnd(st, data);
@@ -1398,6 +1431,15 @@ function step(st, data, action) {
         case 'end-option': {
             if (p.type !== 'end-option') refuse('question.mismatch', 'nobody is asking whether the game ends');
             return endOption(st, data, action);
+        }
+        case 'suicide': {
+            // 8.9.4, 9.2.2a: "A character can suicide at Midnight of any day." The engine offers it where the day ends for him: the `evening-end` question (one character, before Midnight is worked out) and the
+            // Birdsong plan (the moment right after Midnight, the only one a table of several characters has). The two come to the same: he sits out one complete day (9.2.2a) and starts again as after a death.
+            if (p.type !== 'evening-end' && p.type !== 'plan') refuse('suicide.not-now', 'A character can suicide only at Midnight: when his evening is over, or at the Birdsong that follows (8.9.4).', null, '8.9.4');
+            if (st.ch.leader) refuse('suicide.leader', 'A hired leader is not a character: he cannot suicide.', null, '9.2.2a');
+            if (st.ch.dead) refuse('suicide.dead', 'your character is dead already', null, '9.2.2a');
+            if (st.ch.flying) refuse('suicide.in-air', 'He must be on the ground to suicide: his belongings are abandoned in his clearing (9.2.2a).', null, '9.2.2a');
+            return suicide(st, data, p);
         }
         case 'restart': {
             if (p.type === 'restart') return restartChar(st, data, action.vp, action.character ?? null);        // (several characters: the seat starts again at this Birdsong)
@@ -1459,7 +1501,9 @@ function step(st, data, action) {
             // (an extra phase from a horse or a card must be active at Birdsong, 6.2.2c.1, so it has to be switched on the evening before: see nextDayGear and the 'evening-end' question).
             if (p.type === 'plan') throw new Error('you cannot rearrange your belongings while you record your plan: only at the start of a phase of your turn, or in the evening after the fighting (4.3.3a)');
             if (p.type !== 'phase' && p.type !== 'phase-pick' && p.type !== 'evening-end' && p.type !== 'phase-gear') throw new Error('you can only rearrange your gear between phases (in a fight, use your Encounter action)');
-            if (p.type === 'phase-gear' && !p.items.includes(action.item)) throw new Error('only what you have just come by can be changed now (4.3.3b); the rest at the start of your next phase');
+            const mountOff = p.type === 'phase-gear' && weakMounts(st, data).some(m => m.uid === action.item);          // (7.3.2a: the horse or Boots he must take off, 4.3.3b's list of what he has just come by does not hold it)
+            if (mountOff && action.drop) refuse('gear.mount-stays', 'A horse or Boots that cannot bear your load is deactivated, not abandoned: abandon the new belonging instead (7.3.2a).', null, '7.3.2a');
+            if (p.type === 'phase-gear' && !p.items.includes(action.item) && !mountOff) throw new Error('only what you have just come by can be changed now (4.3.3b); the rest at the start of your next phase');
             if (st.ch.flying && !action.drop) throw new Error('you cannot rearrange your gear in the air: you can only abandon (7.2.2d)');
             const locked = gearLockedWhy(st); if (locked) throw new Error(locked);          // 8.3.8d: not on a roadway between clearings
             if (p.type === 'phase' && st.turn && st.turn.gear?.i !== st.turn.i) st.turn.gear = { i: st.turn.i, active: st.ch.items.filter(x => x.active && !x.destroyed).map(x => x.uid) };          // what was on when this phase began (7.3.2b: an extra phase needs its horse already active then)
@@ -1507,8 +1551,12 @@ function step(st, data, action) {
 
 // A free action leaves the question open; under Prophecy it is asked again, for the choices may have changed (a belonging he just activated).
 const afterTidy = (st, data, p) => (p.type === 'evening-end' ? { ...p, gear: nextDayGear(st, data) }
-    : p.type === 'phase-gear' ? { ...p, items: p.items.filter(uid => st.ch.items.some(i => i.uid === uid)) }          // (what he left behind is no longer his to arrange)
+    : p.type === 'phase-gear' ? gearAsk(st, data, p)          // (what he left behind is no longer his to arrange)
         : keep(st, data, p));
+function gearAsk(st, data, p) {
+    const { mounts, ...rest } = p, now = weakMounts(st, data).map(m => m.uid);
+    return { ...rest, items: p.items.filter(uid => st.ch.items.some(i => i.uid === uid)), ...(now.length ? { mounts: now } : null) };
+}
 const keep = (st, data, p) => (p.type === 'phase-pick' ? (proPending(st, data) ?? p) : p);
 
 function combatAction(st, data, a) {
@@ -1614,7 +1662,7 @@ function leaveMap(st, data, { viaMove = false } = {}) {
     if (st.order.every(id => st.chars[id].gone)) return endGame(st, data, 'left');
     if (!midTurn) {                                                     // at the Birdsong barrier: perhaps his plan was the one the day was waiting for
         c.today.stage = 'gone';
-        if (st.order.every(id => ['planned', 'gone'].includes(st.chars[id].today.stage))) sunrise(st, data);
+        if (st.order.every(id => ['planned', 'gone', 'out'].includes(st.chars[id].today.stage))) sunrise(st, data);
         return st;
     }
     st.turn = null;
@@ -1637,12 +1685,13 @@ meet.hooks.resumePhase = (st, data) => runPhase(st, data);
 meet.hooks.toMidnight = (st, data) => midnight(st, data);
 meet.hooks.followHero = (st, data) => followHero(st, data);
 // A follower's turn ends in the middle of his guide's (he stopped following, or could not go on): the end of a turn as endDaylight does it, without the question that stops a turn that is his own.
-meet.hooks.followerEnds = (st, data) => {
+// (When the guide's own turn ends the followers end theirs the same way, 7.11.8: `guideRes` is then the guide's end of turn, whose chits and arrivals their report keeps.)
+meet.hooks.followerEnds = (st, data, guideRes) => {
     const res = endOfTurn(st, data);
     blockOthers(st, data, res);
     const bl = blockers(st), names = bl.map(m => data.monsters[m.id].name);
-    if (bl.length) { st.ch.hidden = false; say(st, `${names.join(', ')} close in on you.`, 'block'); }
-    st.turnEnd = { ...res, day: st.day, blocked: false, blockers: [], closedIn: names, plan: [], hidden: !!st.ch.hidden, companions: [], follower: true };
+    if (bl.length) { st.ch.hidden = false; stopBlockers(st, bl); say(st, `${names.join(', ')} close in on you.`, 'block'); }
+    st.turnEnd = { ...(guideRes ?? {}), ...res, ...(guideRes ? { arrivals: [...guideRes.arrivals, ...res.arrivals], flipped: guideRes.flipped, chits: guideRes.chits, natives: guideRes.natives } : {}), day: st.day, blocked: false, blockers: [], closedIn: names, plan: [], hidden: !!st.ch.hidden, companions: [], follower: true };
 };
 
 // For tests and tools that set a clearing up by hand: open the evening of a state whose `dayRec` names the order of the day's turns (every character's turn played).
