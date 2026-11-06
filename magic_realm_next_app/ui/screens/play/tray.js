@@ -4,7 +4,7 @@
 import { nameOf } from '../../../engine/catalogue.js';
 import { phasesFor, tableModel, seatOf, gameOf } from '../../combat/feed.js';
 import { nameOfClearing, tileName } from '../../../engine/catalogue.js';
-import { isMountain } from '../../../engine/world.js';
+import { isMountain } from '../../combat/mapfeed.js';
 import { EDGE, destName } from '../../planlogic.js';
 import { h } from '../../dom.js';
 import { btn, last, pips, primary, situ, tray, twoLine } from '../../ds.js';
@@ -145,7 +145,7 @@ export function renderTray(G) {
     ] : [];
 
     // hired followers and hired leaders (hirelingRules): leave a follower behind at the start of a phase; give to or take from his own leader
-    if (p?.type === 'phase' && st.options?.hirelingRules) {
+    if (p?.type === 'phase' && gameOf(st, G.data).options?.hirelingRules) {
         freeActs.push(...followerChips(G));
         if (leaderGame(tableModel(G.st, G.data)) && meetWith(G).ok) freeActs.push(h('button', { type: 'button', class: 'ds-chip spellact handchip', 'data-act': 'handover-open', title: 'Give to him or take from him: it is done at once',
             onclick: () => { G.ui.hand = null; G.ui.sheet = 'handover'; render(G); } }, `Give or take: ${seatName(tableModel(G.st, G.data), meetWith(G).other)}`));

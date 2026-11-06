@@ -3,7 +3,6 @@
 // Payloads are the old sheet's: { type: 'hire', act: 'pick', group, rehire, drinks } / 'accept' / 'decline' / 'pay' / 'fight' / 'back'.
 import { WEIGHT_WORDS } from '../../../engine/catalogue.js';
 import { hireStats } from '../../combat/feed.js';
-import { noDrinks } from '../../../engine/missions.js';
 import { nameOfClearing } from '../../../engine/catalogue.js';
 import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';

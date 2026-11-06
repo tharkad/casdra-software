@@ -5,9 +5,8 @@
 import { kindIcon, kindOfId } from '../../kindicons.js';
 import { lvl } from '../../../engine/catalogue.js';
 import { nameOf } from '../../../engine/catalogue.js';
-import { colorSources } from '../../../engine/spells.js';
 import { nameOfClearing, numOf, tileName, tileOf } from '../../../engine/catalogue.js';
-import { roadsFrom } from '../../../engine/world.js';
+import { colorSources, roadsFrom } from '../../combat/mapfeed.js';
 import { h } from '../../dom.js';
 import { sect, sectionOpen, setSectionOpen } from '../../ds.js';
 import { callsOf } from '../../chitcalls.js';
@@ -49,7 +48,7 @@ function siteNeeds(G, name) {
     const tChit = ownSheet(G.st, G.data).chits.some(x => x.state === 'active' && lvl(x.strength) >= 4) || ownSheet(G.st, G.data).items.some(i => i.id === 'lost-keys' && i.active);
     if (name === 'Cairns') return `Every Loot roll costs an asterisk of effort, found or not. ${asterisk ? 'You have one ready.' : 'You have none ready now, so you could not loot it.'}`;
     if (name === 'Pool') return `Each thing taken costs an asterisk of effort. ${asterisk ? 'You have one ready.' : 'You have none ready now.'}`;
-    if (name === 'Vault') return G.st.sitesOpen?.Vault ? 'The Vault is open, for everyone.' : `Sealed until opened with a Tremendous-strength chit or the Lost Keys. ${tChit ? 'You can open it.' : 'You cannot open it now.'}`;
+    if (name === 'Vault') return viewOf(G.st, G.data).table.map.sitesOpen?.Vault ? 'The Vault is open, for everyone.' : `Sealed until opened with a Tremendous-strength chit or the Lost Keys. ${tChit ? 'You can open it.' : 'You cannot open it now.'}`;
     return null;
 }
 

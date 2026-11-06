@@ -5,7 +5,6 @@ import { WEIGHT_WORDS } from '../../../engine/catalogue.js';
 import { nameOf, summaryOf, weightOf } from '../../../engine/catalogue.js';
 import { dayColors } from '../../../engine/catalogue.js';
 import { ATTACK_SPELLS } from '../../../engine/catalogue.js';
-import { castOptions } from '../../../engine/spells.js';
 import { nameOfClearing, tileName } from '../../../engine/catalogue.js';
 import { h } from '../../dom.js';
 import { found, sect, voiceSwitch } from '../../ds.js';
@@ -22,6 +21,7 @@ import { itemParts } from './sheet_char.js';
 import { prowlers, render } from './shell.js';
 import { steedAloft } from '../../steeds.js';
 import { gameOf, ownSheet, todayOf, journalLines, rollsOf, sheetOf, magicOf } from '../../combat/feed.js';
+import { castsNow } from '../../combat/mapfeed.js';
 
 const CURSE_SHORT = { Eyemist: 'you cannot Search', Squeak: 'you cannot Hide', Wither: 'asterisk chits cannot be played', 'Ill Health': 'you cannot Rest', Ashes: 'your gold is worthless', Disgust: 'your Fame is worthless' };
 
@@ -52,7 +52,7 @@ function notices(G) {
     if (fx.length) out.push(h('button', { class: 'ds-note', 'data-act': 'spells', 'aria-label': `Spells in effect: ${fx.map(f => G.data.spells?.[f.spell]?.name ?? f.spell).join(', ')}`, onclick: () => { G.ui.sheet = 'spells'; render(G); } }, icon('spark'), `Spells (${fx.length})`));
     const form = me.morph ? `You are ${me.morph.creature?.name ?? 'a creature'}` : me.mist ? 'You are mist' : me.flying ? `You are flying over ${tileName(me.flying.tile)}${steedAloft(st, G.data) ? ` on the ${steedAloft(st, G.data).name}` : ''}` : null;
     if (form) out.push(h('span', { class: 'ds-note', 'data-act': 'form' }, icon('eye'), form));
-    const tonight = (g.period === 'daylight' || g.period === 'birdsong') && !sheetOf(st, G.data) && !me.onRoad ? castOptions(st, G.data).filter(o => (o.useful || o.quiet) && !ATTACK_SPELLS[o.spell]) : [];
+    const tonight = (g.period === 'daylight' || g.period === 'birdsong') && !sheetOf(st, G.data) && !me.onRoad ? castsNow(st, G.data).filter(o => (o.useful || o.quiet) && !ATTACK_SPELLS[o.spell]) : [];
     if (tonight.length) out.push(h('button', { class: 'ds-note', 'data-act': 'cast-tonight', title: 'The game will stop and ask you this evening, even if nothing attacks', onclick: () => { G.ui.sheet = 'spells'; render(G); } }, icon('spark'), `Cast tonight: ${[...new Set(tonight.map(o => o.name))].join(', ')}`));
     if (g.period === 'daylight' && g.prowl) out.push(h('button', { class: `ds-note${G.ui.jWilds ? ' on' : ''}`, 'data-act': 'prowl', 'aria-expanded': G.ui.jWilds ? 'true' : 'false', onclick: () => { G.ui.jWilds = !G.ui.jWilds; render(G); } }, icon('eye'), 'The wilds'));
     return out;

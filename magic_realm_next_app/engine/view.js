@@ -12,6 +12,11 @@ import { fxTags, HERO } from './magic/fx.js';
 import { denOnSheet } from './hirefight.js';
 import { earned } from './score.js';
 import { legalFor } from './legal.js';
+import { tileClearings, clearingType, roadsFrom, knownPathPairs } from './world.js';
+import { ownedItems } from './magic/mist.js';
+import { priceOf } from './items.js';
+import { meetOptions } from './meet.js';
+import { gearFacts, colorFacts, taskFacts } from './kitfacts.js';
 
 const CARD = new Set(['treasure', 'spell']);
 const json = o => JSON.parse(JSON.stringify(o));
@@ -56,7 +61,7 @@ function publicChar(st, c) {
     };
 }
 const faceOf = ch => ({ kind: ch.kind, name: ch.name, num: ch.num ?? null, ...(ch.letter != null ? { letter: ch.letter } : {}), id: ch.id });
-const counterOf = o => ({ id: o.id, loc: o.loc ?? { box: 'unknown' }, dead: !!o.dead, hired: !!o.hired, ...(o.hiredBy ? { hiredBy: o.hiredBy } : {}), ...(o.hired && o.hiredUntil != null ? { hiredUntil: o.hiredUntil } : {}), ...(o.hired && o.guide ? { guide: o.guide } : {}), ...(o.hired && o.tie ? { tie: { kind: o.tie.kind } } : {}), ...(o.side ? { side: o.side } : {}) });
+const counterOf = o => ({ id: o.id, loc: o.loc ?? { box: 'unknown' }, dead: !!o.dead, hired: !!o.hired, ...(o.hiredBy ? { hiredBy: o.hiredBy } : {}), ...(o.hired && o.hiredUntil != null ? { hiredUntil: o.hiredUntil } : {}), ...(o.hired && o.guide ? { guide: o.guide } : {}), ...(o.hired && o.controlledUntil != null ? { controlledUntil: o.controlledUntil } : {}), ...(o.hired && o.hidden ? { hidden: true } : {}), ...(o.hired && o.tie ? { tie: { kind: o.tie.kind } } : {}), ...(o.side ? { side: o.side } : {}) });
 
 // The viewer's own sheet of the fight (`combat`): every creature on it with its stats as the rules read them now (`stat`: name, size, vulnerability, harm, times ... with the spells in force and a
 // transformed counter taken into account), and his hirelings with theirs, so a screen never asks the engine for "the side of a denizen" itself.
@@ -118,6 +123,14 @@ function journalOf(st, viewer, owner) {
 }
 const JOURNAL_LINES = 240;
 
+// His reading of the roads (world.js roadsFrom, knownPathPairs): `out[clearing]` lists the roads leaving it ({ to, kind, bridge, usable }: `usable` is whether he may walk it, a hidden path or secret passage
+// needing to be discovered); `found` the hidden paths and secret passages he has discovered on the side of each tile that is up, as sorted pairs ("BL4~BL5"), `foundTurned` the same as the map would show with every tile turned over.
+function roadsFact(st, data) {
+    const out = {};
+    for (const p of st.placements) for (const id of tileClearings(st, data, p.id)) out[id] = roadsFrom(st, data, id);
+    return json({ out, found: [...knownPathPairs(st)], foundTurned: [...knownPathPairs(st, st.ch, true)] });
+}
+
 /** @param {any} state a game state @param {string|null} viewer a character id (a seat), or null for a spectator @param {any} data the indexed rules data @param {{ engine?: string, api: string }} version */
 export function makeView(state, viewer, data, version) {
     const st = clone(state);
@@ -134,7 +147,7 @@ export function makeView(state, viewer, data, version) {
         game: { players: st.players ?? [], day: st.day, period: st.period ?? 'birdsong', mode: st.mode ?? 'month', lastDay: st.lastDay ?? 28, options: json(st.options ?? {}), prowl: st.prowl, over: st.over ?? null,
             turn: st.dayRec?.order && st.actor ? st.actor : null, order: st.dayRec?.order ?? st.order, waitingFor: st.asks.map(a => a.who),
             dayRec: st.dayRec ? json(st.dayRec) : null },          // (the day's draw is public: who plays when, and who follows whom)
-        map: { placements: st.placements, dwellings: st.dwellings ?? [], garrisonAt: st.garrisonAt ?? {}, ghostsAt: st.ghostsAt ?? null, sitesOpen: st.sitesOpen ?? {}, discSides: st.discSides ?? null },
+        map: { placements: st.placements, clearings: Object.fromEntries(st.placements.flatMap(p => tileClearings(st, data, p.id).map(id => [id, clearingType(st, data, id)]))), dwellings: st.dwellings ?? [], garrisonAt: st.garrisonAt ?? {}, ghostsAt: st.ghostsAt ?? null, sitesOpen: st.sitesOpen ?? {}, discSides: st.discSides ?? null },
         chits, piles: { lostCity: (st.piles?.lostCity ?? []).length, lostCastle: (st.piles?.lostCastle ?? []).length },
         monsters: st.mons.map(counterOf), natives: st.nats.map(counterOf),
         abandoned: Object.fromEntries(Object.entries(st.abandoned ?? {}).map(([at, l]) => [at, l.map(it => (CARD.has(it.kind) ? hiddenCard(it) : it))])),
@@ -155,8 +168,14 @@ export function makeView(state, viewer, data, version) {
         today: todayOf(st, viewer),
         journal: journalOf(st, viewer, me.owner), logEnd: (st.logSkipped ?? 0) + (st.log ?? []).length,
         standing: withActor(st, viewer, () => { const get = f => { try { return json(f()); } catch { return null; } }; return { score: get(() => scoreNow(st, data)), targets: get(() => targetsOf(st)), progress: get(() => progressNow(st, data)) }; }),          // (his own goals and what the game would score him now (9.3): his, and a hired leader's are his hirer's)
+        gear: withActor(st, viewer, () => { try { return json(gearFacts(st, data)); } catch { return null; } }),          // (his belongings now: what he can carry, what a pack horse bears, what cannot be put to use and why, what an extra phase binds, the road lock; kitfacts.js)
+        colors: withActor(st, viewer, () => { try { return json(colorFacts(st, data)); } catch { return null; } }),          // (the colours of magic in his clearing and in his enchanted chits)
+        tasks: withActor(st, viewer, () => { try { return json(taskFacts(st, data)); } catch { return null; } }),          // (the mission and campaign chits he carries, and how each native group stands with him)
         lull: withActor(st, viewer, () => json(lullFacts(st, data))),          // (an active Flowers of Rest in his clearing: what it will do to him today, or why not; null without one)
         magic: withActor(st, viewer, () => { try { return json(spellFacts(st, data, new Set(st.order.filter(id => st.chars[id].owner === me.owner)))); } catch { return null; } }),          // (the spells in force, what a held or energized spell can do now, what a Fly would use)
+        roads: withActor(st, viewer, () => roadsFact(st, data)),          // (the roads out of every clearing and which he may use; the hidden paths he has found, as the map draws them)
+        saleValue: withActor(st, viewer, () => ownedItems(st).filter(i => !i.destroyed).reduce((a, i) => a + Math.max(0, priceOf(data, i)), 0)),          // (what everything he owns, what a Melt into Mist holds for him too, would fetch at the printed prices)
+        meet: withActor(st, viewer, () => { try { return json(meetOptions(st, data, viewer)); } catch { return null; } }),          // (with whom he may trade now and what he may give: meet.js meetOptions)
         fightLog: fightLogOf(st, viewer, new Set([viewer, ...st.order.filter(id => id !== viewer && st.chars[id].leader && st.chars[id].owner === me.owner)])),
         earned: withActor(st, viewer, () => { try { return json(earned(st, data)); } catch { return null; } }),          // what he holds now toward each goal (score.js), for the fight's closing sheet
     };

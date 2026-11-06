@@ -1,15 +1,15 @@
 // steeds.js: the words and small pure helpers the screens share for VISITORS (Trade with the Scholar, Shaman, Warlock or Crone, buying a Spell card) and for STEEDS and denizens that fly
 // (riding a Bat or Flying Dragon in a Fly phase, a Fly chit on a hireling). Rules: 7.6.x, 7.12.6 (visitors), 7.3.3g, 4.6.7e.2, 7.3.3d.2, 7.3.3a.4 (flight); engine: app/engine/visitors.js, steeds.js;
-// the rulings are in docs/rules-spec/rulings/steeds-visitors.md. Nothing here decides a rule: the engine says what is possible (steedSources, flyChitOf, a spell offer's `learnable` and `why`) and these
+// the rulings are in docs/rules-spec/rulings/steeds-visitors.md. Nothing here decides a rule: the engine says what is possible (view.me.magic.fly: `rides`, `sources`, `chits`; a spell offer's `learnable` and `why`) and these
 // functions only word it, in both voices (Story: plain and short; Detail: the rule). The screens: screens/kit/visitors.js (Trade), screens/play/steedplan.js (the Fly plan),
 // screens/play/steeds.js (the tray in the air), the Broomstick's target chooser (broomstickAim, called from combat/sheets.js aimEl).
 import { isVisitorName } from '../engine/catalogue.js';
-import { flyChitOf, steedSources } from '../engine/steeds.js';
-import { flySources, carries } from '../engine/magic/fly.js';
 import { nextDayWith } from '../engine/catalogue.js';
 import { h } from './dom.js';
 import { actIcon } from './icons.js';
 import { chitEl } from './missions.js';
+import { flyFacts } from './combat/mapfeed.js';
+import { gameOf, ownSheet } from './combat/feed.js';
 
 export { isVisitorName };
 export const cap = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
@@ -32,15 +32,14 @@ export function learnWhy(why) {
 // ---- steeds, in the air ----
 // The steed he is riding now: { id, name, monster } or null.
 export function steedAloft(st, data) {
-    const id = st.ch?.flying?.steed;
+    const id = ownSheet(st, data).flying?.steed;
     return id ? { id, name: nameOfDenizen(data, id), monster: !!data.monsters?.[id] } : null;
 }
 
 // What a Fly phase could fly on at the start of the plan: { rides: [{ id, name, strength }], chits: [source], own } (the engine's own lists).
 export function flightSources(st, data) {
-    const rides = steedSources(st, data).map(r => ({ id: r.id, name: r.name, strength: r.strength }));
-    const all = flySources(st, data), own = all.some(x => x.morph);
-    return { rides, chits: all.filter(x => !x.morph && carries(st, x)), own };
+    const f = flyFacts(st, data), rides = f.rides.map(r => ({ id: r.id, name: r.name, strength: r.strength })), own = f.sources.some(x => x.morph);
+    return { rides, chits: f.sources.filter(x => !x.morph && x.carries), own };
 }
 
 // The Fly phase `i` of a draft follows another Fly phase straight away: he is already in the air, so nothing new is needed to fly.
@@ -55,7 +54,7 @@ export function flyWarning(text, slot, data, st) {
     const ride = steedName(data, slot?.with), t = String(text ?? '');
     const lost = ' The phase will be lost when it comes. You can still change it.';
     if (/Flying Carpet is not energized/i.test(t)) {          // a Carpet owned but asleep: not "nothing to fly with"
-        const next = st ? nextDayWith('Purple', st.day, st.lastDay ?? 28) : null;
+        const next = st ? nextDayWith('Purple', gameOf(st, data).day, gameOf(st, data).lastDay ?? 28) : null;
         return { story: `Your Flying Carpet sleeps: it wakes only to Purple magic, and there is none here today.${next ? ` The next day the land is full of Purple is Day ${next}.` : ''} A Fly phase planned now will be lost. You can still change it.`,
             detail: `Flying Carpet (Fly M2) needs Purple magic: the land, an enchanted tile, the Dragon Essence, or an enchanted Purple chit of your own (7.3.3h). None supplies it here, so the Fly is recorded and then cancelled (7.3.3a.1, 6.2.1a).${next ? ` Next Purple day: ${next}.` : ''}` };
     }
@@ -68,20 +67,19 @@ export function flyWarning(text, slot, data, st) {
 
 // ---- a Fly chit on a hireling ----
 // Does this hired counter hold a Fly chit (a held Broomstick on a hireling), and is it in use (its guide is in the air)? -> { inUse } or null
-export function flyChitState(st, kind, id) {
-    const fx = flyChitOf(st, { kind: kind === 'nat' ? 'nat' : 'mon', id });
-    return fx ? { inUse: !!fx.data?.flying } : null;
+export function flyChitState(st, kind, id, data) {
+    return flyFacts(st, data).chits[`${kind === 'nat' ? 'nat' : 'mon'}:${id}`] ?? null;
 }
 // The small round badge on a counter: the Fly art, a word for the screen readers. (Never the only sign: the card says it in words too.)
-export function flyBadge(st, kind, id, name) {
-    const s = flyChitState(st, kind, id);
+export function flyBadge(st, kind, id, name, data) {
+    const s = flyChitState(st, kind, id, data);
     if (!s) return null;
     const word = s.inUse ? `${name} is flying with you on its Fly chit` : `${name} holds a Fly chit`;
     return h('span', { class: `st-badge${s.inUse ? ' use' : ''}`, 'data-fly-badge': String(id), 'data-fly-state': s.inUse ? 'use' : 'held', role: 'img', 'aria-label': word, title: word }, actIcon('fly', 24));
 }
 // The words under a group of hirelings that hold a Fly chit: { story, detail } or null.
 export function flyChitWords(st, data, members, kind) {
-    const held = members.map(o => ({ o, s: flyChitState(st, kind, o.id) })).filter(x => x.s);
+    const held = members.map(o => ({ o, s: flyChitState(st, kind, o.id, data) })).filter(x => x.s);
     if (!held.length) return null;
     const names = held.map(x => nameOfDenizen(data, x.o.id)), many = held.length > 1, who = many ? 'They hold' : `${names[0]} holds`;
     const use = held.some(x => x.s.inUse);
@@ -102,4 +100,5 @@ export function broomstickOption(o, data) {
         detail: `A denizen can use the Fly chit in place of his own move values (4.6.7e.2, 7.3.3d.2), so he can follow a flying guide (7.3.3a.4); the chit expires when the guide lands (4.6.7e.1). The spellcaster controls when it is used.` };
 }
 
-export { steedSources };
+// The steeds he could ride now: [{ id, steed, name, strength, time }] (view.me.magic.fly.rides).
+export const steedSources = (st, data) => flyFacts(st, data).rides;

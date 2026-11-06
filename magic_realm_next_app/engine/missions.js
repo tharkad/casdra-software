@@ -166,6 +166,9 @@ export function foeCount(st, data, foes) {
 export const isFoe = (st, group, ch = st.ch) => carried(ch).some(e => e.kind === 'campaign' && e.foes.includes(group));
 // the level he trades at: always Enemy for a foe, else his own (partners already stand two levels higher in ch.rel, kept above Ally; the Meeting Table clamps the column, 7.2.4h.1)
 export const relation = (st, group, rel, ch = st.ch) => (isFoe(st, group, ch) ? -2 : rel);
+// How a native group stands with him for the screens that show a mood: his own level, except that a foe of the campaign he carries is always an Enemy (7.2.4h), and partners (who stand two
+// levels higher in ch.rel, past Ally) read as Ally. Without the option this is exactly ch.rel. (`view.me.tasks.rel` shows it for every group.)
+export const standingWith = (st, group, ch = st.ch) => { const r = ch.rel?.[group] ?? 0; return st.missions ? Math.max(-2, Math.min(2, relation(st, group, r, ch))) : r; };
 export const noDrinks = (st, group, ch = st.ch) => isFoe(st, group, ch);                 // "he cannot buy drinks for foes"
 const shift = (ch, e, d) => { for (const g of e.partners ?? []) ch.rel[g] = (ch.rel[g] ?? 0) + d; };
 

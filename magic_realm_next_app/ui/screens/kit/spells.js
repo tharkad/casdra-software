@@ -1,8 +1,7 @@
 // screens/kit/spells.js (P2): the Spells room of the Kit sheet and the spell flows: a card per spell you know (a plain synopsis, a status line built from the state, the printed
 // text one tap under it), the spells in force, the printed spell card, and the learn sheet (the runes show a spell: learn it, and forget one if the spellbook is full).
 // The wording of "why not" comes from the engine (blockedSpells); nothing here decides a rule.
-import { MAX_SPELLS, whySentence } from '../../../engine/catalogue.js';
-import { castable, colorChits, colorsAt } from '../../../engine/spells.js';
+import { MAX_SPELLS, whySentence, castable } from '../../../engine/catalogue.js';
 import { act } from '../play/actions.js';
 import { fxEnds } from '../play/sheet_char.js';
 import { render } from '../play/shell.js';
@@ -16,6 +15,7 @@ import { footRow } from './common.js';
 import { heldLockOf } from '../../spellwhy.js';
 import { voiced } from '../../commit.js';
 import { ownSheet, gameOf, magicOf } from '../../combat/feed.js';
+import { colorsOf } from '../../kitfeed.js';
 
 const CHIT_ART = { White: 'whitechit', Black: 'blackchit', Grey: 'graychit', Purple: 'purplechit', Gold: 'goldchit' };
 export const printedOf = (G, id) => G.data.cardtext?.spells?.[id] ?? '';
@@ -36,11 +36,11 @@ function status(G, sp, blocked) {
     if (!castable(sp)) return { ok: false, text: 'It cannot be cast yet.' };
     const b = blocked.find(x => x.spell === sp.id);
     if (b) return { ok: false, text: `Not tonight. ${whySentence(b.whyCode).split(/(?<=\.)\s/).slice(0, 2).join(' ')}` };
-    try {
-        const here = colorsAt(G.st, G.data, ownSheet(G.st, G.data).at);
-        if (sp.color) return { ok: true, text: here.has(sp.color) ? `Castable tonight: ${sp.color} magic is here.` : colorChits(G.st, sp.color).length ? `Castable tonight: your enchanted ${sp.color} chit gives the magic.` : 'Castable tonight.' };
-        return { ok: true, text: here.size ? 'Castable tonight: magic is here.' : 'Castable tonight.' };
-    } catch { return { ok: true, text: 'Cast in the evening.' }; }
+    const col = colorsOf(G.st, G.data);          // (view.me.colors: the colours of magic in his clearing, and of his enchanted chits)
+    if (!col) return { ok: true, text: 'Cast in the evening.' };
+    const here = new Set(col.here);
+    if (sp.color) return { ok: true, text: here.has(sp.color) ? `Castable tonight: ${sp.color} magic is here.` : col.chits.includes(sp.color) ? `Castable tonight: your enchanted ${sp.color} chit gives the magic.` : 'Castable tonight.' };
+    return { ok: true, text: here.size ? 'Castable tonight: magic is here.' : 'Castable tonight.' };
 }
 
 // Spells he knows that cannot be cast tonight, and why, as one small card: what the evening's end and the end of his turn show, where he looks for the cast (notes 104, 106). The engine says why (view.me.magic.blocked);

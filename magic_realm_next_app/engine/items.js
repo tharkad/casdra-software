@@ -206,14 +206,20 @@ export const gearLockedWhy = st => (st.ch?.onRoad ? 'You are out on the road bet
 
 // Why this inactive item cannot be switched on now (null: it can). A horse (4.3.8a, 7.3.2a): never in a cave, strong enough for him and everything he owns (either side of the
 // counter, ruling R5), and only one at a time. The same checks whether he switches it on between phases (day.js tidy) or as his Encounter action in a fight (combat.js gear).
-export function activationBlock(st, data, it) {
+const ACTIVATION_WORDS = { cave: 'A horse cannot be ridden in a cave.', weak: 'The horse is not strong enough to carry you and your gear.', boots: 'Those boots are not strong enough to carry you and your gear.' };
+// The same as a code: 'cave' | 'weak' (a horse) | 'boots', or null when the item may be switched on. (`view.me.gear.blocked` shows it to the screens.)
+export function activationBlockCode(st, data, it) {
     if (it.kind === 'horse') {
         const at = st.combat?.at ?? st.ch.at;
-        if (at && isCave(st, data, at)) return 'A horse cannot be ridden in a cave.';
-        if (horseLevel(data, it) < Math.max(lvl(st.ch.weight), carriedLevel(st, data, it.uid))) return 'The horse is not strong enough to carry you and your gear.';
+        if (at && isCave(st, data, at)) return 'cave';
+        if (horseLevel(data, it) < Math.max(lvl(st.ch.weight), carriedLevel(st, data, it.uid))) return 'weak';
     }
-    if (BOOTS[it.id] && !bootsStrongEnough(st, data, it)) return 'Those boots are not strong enough to carry you and your gear.';
+    if (BOOTS[it.id] && !bootsStrongEnough(st, data, it)) return 'boots';
     return null;
+}
+export function activationBlock(st, data, it) {
+    const code = activationBlockCode(st, data, it);
+    return code ? ACTIVATION_WORDS[code] : null;
 }
 
 export function toggleItem(st, data, it) {

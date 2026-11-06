@@ -3,7 +3,6 @@
 // stand with each group, and what you owe. There is no dismiss action in the engine, so none is offered; hirelings fight beside you without orders (the engine deploys them).
 import { hireStats } from '../../combat/feed.js';
 import { SIDE_WORD, nextSide, sideFigures } from '../../sides.js';
-import { hirelingsOf } from '../../../engine/party.js';
 import { policyBlock } from '../meetui.js';
 import { act } from '../play/actions.js';
 import { mc } from '../play/kit.js';
@@ -18,13 +17,15 @@ import { switchTo } from '../play/hotseat.js';
 import { flyBadge } from '../../steeds.js';
 import { standing } from '../../missions.js';
 import { steedNote, steedAskWords } from './companysteed.js';
-import { ownSheet, gameOf, questionOf, charsOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, questionOf, charsOf, tableModel, viewOf } from '../../combat/feed.js';
+import { carriedOf } from '../../kitfeed.js';
 
 // Everyone who is with this character and alive: natives and monsters he hired, and creatures a spell put under his command.
-export function hirelings(G) { return hirelingsOf(G.st, ownSheet(G.st, G.data).id).filter(o => !o.dead); }
+// (the counters of the public table that are in his pay: view.table.natives and monsters, which carry `hired`, `hiredBy`, `hiredUntil`, `controlledUntil`, `side` and `hidden`)
+export function hirelings(G) { const tm = tableModel(G.st, G.data), id = ownSheet(G.st, G.data).id; return [...tm.nats, ...tm.mons].filter(o => o.hired && o.hiredBy === id && !o.dead); }
 export const hireCount = G => hirelings(G).length;
 
-const isNat = (G, o) => G.st.nats.includes(o);
+const isNat = (G, o) => tableModel(G.st, G.data).nats.includes(o);
 const daysLeft = (G, o) => Math.max(0, (o.hiredUntil ?? gameOf(G.st, G.data).day) - gameOf(G.st, G.data).day + 1);          // hired on day D it runs to midnight of D+13: 14 days counting today
 
 // The art of a hireling's counter: a native's counter, or a monster's colour counter.
@@ -56,7 +57,7 @@ function counter(G, o, ctl) {
         'aria-label': `${def.name}: ${back ? `${back.name.toLowerCase()} showing, the other side; the ${back.now} is up now. Tap to turn it back` : 'tap to turn the counter over'}${look?.hidden ? `. It is ${look.word}` : ''}`, 'aria-pressed': flipped ? 'true' : 'false',
         onclick: () => { (G.ui.coFlip ??= {})[o.id] = !flipped; render(G); } },
         flipped ? h('span', { class: 'kit-back' }, back ? [h('small', { 'data-side': back.side }, back.name), h('b', {}, back.hit), h('small', {}, back.move)] : [h('small', {}, 'No other side')]) : (img ? art(img.replace(/^art\//, ''), '', def.name) : h('span', { class: 'kit-noart' }, def.name)),
-        flipped ? null : h('span', { class: 'lbl' }, lbl), look?.hidden && !flipped ? h('span', { class: 'hc-tag' }, 'hidden') : null, flyBadge(G.st, nat ? 'nat' : 'mon', o.id, def.name));          // (a Fly chit on a hireling: steeds.js)
+        flipped ? null : h('span', { class: 'lbl' }, lbl), look?.hidden && !flipped ? h('span', { class: 'hc-tag' }, 'hidden') : null, flyBadge(G.st, nat ? 'nat' : 'mon', o.id, def.name, G.data));          // (a Fly chit on a hireling: steeds.js)
     return nat ? markGroup(el, def.group) : el;
 }
 
@@ -131,17 +132,17 @@ function groupCard(G, g, ctl) {
 }
 
 // the native groups that are foes of the campaign he carries (they stand as Enemies even when his own level with them is not recorded)
-const foeGroups = G => (G.st.ch.missions ?? []).filter(e => e.kind === 'campaign').flatMap(e => e.foes).filter(g => G.data.groups[g]);
+const foeGroups = G => carriedOf(G.st, G.data).filter(e => e.kind === 'campaign').flatMap(e => e.foes).filter(g => G.data.groups[g]);
 
 // companyTab(G) -> the room's DOM
 export function companyTab(G) {
-    const { ch } = G.st, cards = groups(G), owed = ch.boons ?? [];
+    const rel = ownSheet(G.st, G.data).rel, cards = groups(G), owed = viewOf(G.st, G.data).me?.boons ?? [];
     const ctl = { say: t => say(G, t) };
     return h('div', { class: 'kit-room kit-company' },
         h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'In your pay'), cards.length ? h('small', {}, 'tap a counter to turn it') : null),
         cards.length ? h('div', { class: 'kit-groups' }, cards.map(g => groupCard(G, g, ctl))) : h('p', { class: 'kit-none' }, 'Nobody is in your pay. Natives here will hire out in a Hire phase.'),
         h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Where you stand')),
-        h('div', { class: 'kit-moods' }, [...new Set([...Object.keys(ch.rel ?? {}), ...foeGroups(G)])].map(g => moodTag(standing(G.st, g), g))),
+        h('div', { class: 'kit-moods' }, [...new Set([...Object.keys(rel ?? {}), ...foeGroups(G)])].map(g => moodTag(standing(G.st, g, G.data), g))),
         h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'You owe')),
         owed.length ? h('div', { class: 'ds-list' }, owed.map(b => h('div', { class: 'ds-row kit-owe', 'data-owe': b.group }, h('span', { class: 'main' }, h('b', {}, `The ${b.group}’s ${b.what}`), h('span', {}, 'Buy their goodwill back in a Trade phase beside them: one roll, then it is lost for good.')), h('span', { class: 'end' }, goldEl(G, b.price)))))
             : h('p', { class: 'ds-text kit-none' }, 'Nothing. No favours to repay.'),

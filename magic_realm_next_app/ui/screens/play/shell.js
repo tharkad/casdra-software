@@ -2,8 +2,7 @@
 import { dayColors } from '../../../engine/catalogue.js';
 import { hereColors } from './sheet_clearing.js';
 import { nameOfClearing, tileOf } from '../../../engine/catalogue.js';
-import { isCave, knownPathPairs, roadsFrom, tileClearings } from '../../../engine/world.js';
-import { flyTiles } from '../../../engine/magic/fly.js';
+import { flyFacts, foundPaths, isCave, roadsFrom, tileClearings } from '../../combat/mapfeed.js';
 import { h } from '../../dom.js';
 import { lastDayOf, timed } from '../../gametext.js';
 import { meetState, playerOf as playerNameOf } from '../../meet.js';
@@ -114,7 +113,7 @@ export function mapModel(G) {
         }
     }
     return {
-        tiles: G.data.tiles, art: G.data.art, placements: G.ui.flip ? turned(viewOf(G.st, G.data).table.map.placements) : viewOf(G.st, G.data).table.map.placements, side: 'normal', showHidden: false, discovered: knownPathPairs(G.st, undefined, !!G.ui.flip),
+        tiles: G.data.tiles, art: G.data.art, placements: G.ui.flip ? turned(viewOf(G.st, G.data).table.map.placements) : viewOf(G.st, G.data).table.map.placements, side: 'normal', showHidden: false, discovered: foundPaths(G.st, G.data, !!G.ui.flip),
         chitsByTile, tokens, hero: ownSheet(G.st, G.data).onRoad || ownSheet(G.st, G.data).dead || ownSheet(G.st, G.data).flying ? null : ownSheet(G.st, G.data).at, heroAir: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : null, heroRoad: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).onRoad ? { from: ownSheet(G.st, G.data).onRoad.from, to: ownSheet(G.st, G.data).onRoad.to } : null, heroHidden: ownSheet(G.st, G.data).hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
         onTap: id => {
             // a spell aimed on the map (Talk to Wise Bird): a tap on a ringed clearing is the answer; the fight comes back with it chosen
@@ -135,7 +134,7 @@ export function mapModel(G) {
                 // planning: a tap on a clearing next to where this phase starts sets the move; any other tap just looks at that clearing
                 const i = G.ui.planStep;
                 // Fly: a tap on any clearing of a ringed tile chooses that tile
-                if (i != null && (G.ui.pickFly === i || (G.ui.draft.slots[i]?.act === 'fly' && !G.ui.draft.slots[i].to))) { const t = tileOf(id); if (flyTiles(G.st, G.data).includes(t)) { setFly(G, i, t); return; } }
+                if (i != null && (G.ui.pickFly === i || (G.ui.draft.slots[i]?.act === 'fly' && !G.ui.draft.slots[i].to))) { const t = tileOf(id); if (flyFacts(G.st, G.data).tiles.includes(t)) { setFly(G, i, t); return; } }
                 const wantsMove = i != null && (G.ui.pickMove === i || (ownSheet(G.st, G.data).onRoad && i === 0));
                 // only a clearing that is ringed can be chosen: the same list the ring is drawn from (so no cave in a sunlight phase, and nothing that would wipe the later phases)
                 if (wantsMove && (G.ui.moveTargets.includes(id) || G.ui.moveMaybe.includes(id))) { setMove(G, i, id); return; }
@@ -200,7 +199,7 @@ function overlayFor(G) {
         for (const s of d.slots) if (s?.act === 'move' && s.to && s.to !== EDGE && s.to !== stops.at(-1)) stops.push(s.to);          // (a climb's two Moves are one stop)
         if (stops.length) route = [hero, ...stops];
         const fi = G.ui.pickFly ?? (d.slots[i]?.act === 'fly' && !d.slots[i].to ? i : null);
-        if (fi != null && fi === i) for (const t of flyTiles(st, G.data)) { const c = tileClearings(st, G.data, t)[0]; if (c) rings.push({ id: c, kind: d.slots[i]?.to === t ? 'chosen' : 'legal' }); }
+        if (fi != null && fi === i) for (const t of flyFacts(st, G.data).tiles) { const c = tileClearings(st, G.data, t)[0]; if (c) rings.push({ id: c, kind: d.slots[i]?.to === t ? 'chosen' : 'legal' }); }
         if (i != null && (G.ui.pickMove === i || (me.onRoad && i === 0))) {
             const monsAt = new Set(tableModel(st, G.data).mons.filter(m => !m.dead && !m.hired && m.loc?.c).map(m => m.loc.c));
             const cur = d.slots[i]?.act === 'move' ? d.slots[i].to : null;

@@ -18,8 +18,12 @@ function memo(st, who, kind, make) {
 }
 const whoOf = (st, who) => who ?? st.actor ?? st.order?.[0] ?? null;
 
+const dataFor = new WeakMap();          // (the rules data a state was last asked about: a helper that is handed only a state - `roadLockOf(st)`, `standing(st, group)` - finds the API through it)
+let lastData = null;
+/** The rules data this state has been viewed through (or the last one used): for the helpers that take a state alone. */
+export const dataOf = st => dataFor.get(raw(st)) ?? lastData;
 /** What `who` (default: the character on screen) may know: view.schema.json. */
-export const viewOf = (st, data, who) => memo(raw(st), whoOf(raw(st), who), 'view', () => apiOf(data).view(raw(st), whoOf(raw(st), who)));
+export const viewOf = (st, data, who) => { dataFor.set(raw(st), data); lastData = data; return memo(raw(st), whoOf(raw(st), who), 'view', () => apiOf(data).view(raw(st), whoOf(raw(st), who))); };
 /** The question he is asked and every way to answer it: legal.schema.json. */
 export const legalOf = (st, data, who) => memo(raw(st), whoOf(raw(st), who), 'legal', () => apiOf(data).legal(raw(st), whoOf(raw(st), who)));
 /** The engine's own option record for his fight question (what the Encounter, Melee and Shift screens draw): legal(...).options. */
@@ -111,7 +115,7 @@ export function tableModel(st, data, who) {
         const owner = id => v.table.characters[id]?.owner, mine = new Set(Object.keys(v.table.characters).filter(id => owner(id) === v.viewer.player));
         const chars = Object.fromEntries(Object.entries(v.table.characters).map(([id, c]) => {
             const full = mine.has(id) ? viewOf(s, data, id).me : null;
-            return [id, { ...c, items: full ? full.items : c.gear, ...(full ? { gold: full.gold, vp: full.vp, spells: full.spells.recorded, discovered: { paths: full.discoveries.paths, sites: full.discoveries.sites } } : {}), today: { ...c.today, ...(full ? { plan: full.plan?.slots ?? null } : {}) } }];
+            return [id, { ...c, items: full ? full.items : c.gear, ...(full ? { gold: full.gold, vp: full.vp, policy: full.policy, spells: full.spells.recorded, discovered: { paths: full.discoveries.paths, sites: full.discoveries.sites } } : {}), today: { ...c.today, ...(full ? { plan: full.plan?.slots ?? null } : {}) } }];
         }));
         const tm = {
             day: g.day, period: g.period, over: g.over, mode: g.mode, lastDay: g.lastDay, prowl: g.prowl, options: g.options, actor: v.viewer.seat, order: Object.keys(v.table.characters), players: g.players ?? [], dayRec: g.dayRec,

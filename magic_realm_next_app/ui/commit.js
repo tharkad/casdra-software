@@ -10,10 +10,11 @@
 //   committedNote(st, data)       the one short line under a list that leaves committed belongings out (sell, pay with, hand over), or null
 import { h } from './dom.js';
 import { isWeaponCard, nameOf } from '../engine/catalogue.js';
-import { extraPhaseCommitment, gearLockedWhy } from '../engine/items.js';
+import { gearOf } from './kitfeed.js';
+import { ownSheet, dataOf } from './combat/feed.js';
 
 export function weaponCardOf(st, data) {
-    const w = st.ch?.items?.find(i => i.kind === 'weapon' && i.active && !i.destroyed);
+    const w = ownSheet(st, data).items.find(i => i.kind === 'weapon' && i.active && !i.destroyed);
     return w && isWeaponCard(data, w) ? w : null;
 }
 
@@ -23,14 +24,13 @@ export const alertCardWhy = name => ({
 });
 
 export function commitmentOf(st, data, it) {
-    let sentence = null;
-    try { sentence = extraPhaseCommitment(st, data, it); } catch { sentence = null; }
+    const sentence = gearOf(st, data).committed[it?.uid] ?? null;          // (view.me.gear.committed: the engine's extraPhaseCommitment for each belonging he carries)
     if (!sentence) return null;
     return { story: 'You need it for an extra phase you recorded.', detail: sentence };
 }
 
 export function committedItems(st, data) {
-    return (st.ch?.items ?? []).map(it => ({ it, name: nameOf(data, it), why: commitmentOf(st, data, it) })).filter(x => x.why);
+    return ownSheet(st, data).items.map(it => ({ it, name: nameOf(data, it), why: commitmentOf(st, data, it) })).filter(x => x.why);
 }
 
 export const voiced = (copy, attrs = {}) => h('span', attrs, h('span', { 'data-v': 'story' }, copy.story), h('span', { 'data-v': 'detail' }, copy.detail));
@@ -45,10 +45,10 @@ export function committedNote(st, data) {
     }, { class: 'ds-why kit-committed', 'data-committed': names.length });
 }
 
-// Rule 8.3.8d: out on a road between clearings (after running away) he cannot rearrange or abandon belongings. The engine's gearLockedWhy says whether (and is the Detail words);
+// Rule 8.3.8d: out on a road between clearings (after running away) he cannot rearrange or abandon belongings. The engine's gearLockedWhy says whether (view.me.gear.roadLock; it is the Detail words);
 // the Story words are the same fact told plainly. Every control that would send `tidy` or `open` is dimmed or left out with this.
 export const ROAD_STORY = 'You are out on the road. Your things stay as they are until you reach a clearing.';
 export function roadLockOf(st) {
-    const why = gearLockedWhy(st);
+    const data = dataOf(st), why = data ? gearOf(st, data).roadLock : null;          // (view.me.gear.roadLock: the engine's gearLockedWhy)
     return why ? { story: ROAD_STORY, detail: why } : null;
 }

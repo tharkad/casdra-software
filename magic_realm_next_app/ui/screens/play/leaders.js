@@ -12,7 +12,6 @@
 //   counterEl(G, o)          a hired counter as a picture with its `side` and `hidden`
 //   showSeat(G, id)          a tap on a seat's counter on the map
 // Story words are plain and short; Detail names the rule. Nothing here decides a rule: the engine refuses, the sheet says why.
-import { meetOptions } from '../../../engine/meet.js';
 import { nameOfClearing } from '../../../engine/catalogue.js';
 import { voiced } from '../../commit.js';
 import { h } from '../../dom.js';
@@ -31,7 +30,7 @@ import { switchTo } from './hotseat.js';
 import { apiOf } from '../../../engine/api.js';
 import { myId } from './state.js';
 import { playerOf } from '../../meet.js';
-import { gameOf, questionOf, charsOf, todayOf, tableModel, seatOf } from '../../combat/feed.js';
+import { gameOf, questionOf, charsOf, todayOf, tableModel, seatOf, viewOf, planSlots } from '../../combat/feed.js';
 
 const nb = s => String(s).replace(/ (\d+)$/, ' $1');
 
@@ -61,9 +60,9 @@ export function counterEl(G, o, cls = 'sm') {
 /** The seats this screen's player plays: all of a solo party; at a shared table my character and the hired leaders and controlled monsters that belong to me (the same owner). */
 export function ownSeats(G) {
     const st = G.st;
-    if (!G.shared) return st.order.slice();
+    if (!G.shared) return tableModel(st, G.data).order.slice();
     const me = myId(G), owner = tableModel(st, G.data).chars[me]?.owner;
-    return st.order.filter(id => id === me || (!!owner && tableModel(st, G.data).chars[id]?.leader && tableModel(st, G.data).chars[id].owner === owner));
+    return tableModel(st, G.data).order.filter(id => id === me || (!!owner && tableModel(st, G.data).chars[id]?.leader && tableModel(st, G.data).chars[id].owner === owner));
 }
 /** The players of a table are people: a hired leader of somebody's is not one more player in the strip (his counter is on the map and his chip in his hirer's seat bar). */
 export const tableCrew = (G, crew) => (G.shared && leaderGame(tableModel(G.st, G.data)) ? crew.filter(x => !charsOf(G.st, G.data)[x.id]?.leader) : crew);
@@ -72,7 +71,7 @@ export const tableCrew = (G, crew) => (G.shared && leaderGame(tableModel(G.st, G
 export function settleSeat(G) {
     const st = G.st;
     if (!G.shared || !leaderGame(tableModel(G.st, G.data))) return;
-    const own = ownSeats(G), asked = id => st.asks.some(a => a.who === id && a.pending), chosen = G.ui.seat && own.includes(G.ui.seat) ? G.ui.seat : null;
+    const own = ownSeats(G), asked = id => !!viewOf(st, G.data, id).pending, chosen = G.ui.seat && own.includes(G.ui.seat) ? G.ui.seat : null;
     const pick = (chosen && asked(chosen) ? chosen : null) ?? own.find(asked) ?? chosen ?? own[0];
     G.ui.seat = pick;
     if (pick) { G.st = apiOf(G.data).seat(st, pick); G.ctx.state = G.st; }          // (a new value: the one held is not written)
@@ -201,12 +200,12 @@ export function leaderSheet(G) {
 
 // ---------------------------------------------------------------------------------------------------------------------------------- hirer and leader: give or take, in one step
 const WINDOW = { story: 'You can give and take at the start of a phase, when you stand together.', detail: 'Characters trade at the start of a phase of someone’s turn, or after the evening’s fights (7.2.1, 4.5.5).' };
-/** May the actor give to or take from his own leader (or hirer) now? `{ ok, other, why }`: the engine's own meetOptions says. */
+/** May the actor give to or take from his own leader (or hirer) now? `{ ok, other, why }`: the engine says (view.me.meet of the seat, meetOptions). */
 export function meetWith(G, id = seatOf(G.st, G.data)) {
     const st = G.st, c = tableModel(st, G.data).chars[id], out = { ok: false, other: null, why: '' };
     if (!c) return out;
     const others = c.leader ? [c.leader.hirer] : seatIds(tableModel(G.st, G.data)).filter(s => tableModel(st, G.data).chars[s].leader.hirer === id);
-    let o = null; try { o = meetOptions(st, G.data, id); } catch { o = null; }
+    const o = viewOf(st, G.data, id).me?.meet ?? null;          // (the seat's own view: with whom he may trade now and what he may give)
     const p = o?.partners?.find(x => others.includes(x.id));
     if (p) return { ok: true, other: p.id, why: '' };
     const near = others.find(x => tableModel(st, G.data).chars[x] && !tableModel(st, G.data).chars[x].dead && tableModel(st, G.data).chars[x].at && tableModel(st, G.data).chars[x].at === c.at && !c.onRoad);
@@ -222,7 +221,7 @@ export function handoverSheet(G) {
     const d = (G.ui.hand ??= { dir: 'give', items: [], gold: 0, disc: [] });
     const from = d.dir === 'give' ? hirer : leader, to = d.dir === 'give' ? leader : hirer;
     const fromC = tableModel(st, G.data).chars[from];
-    let o = null; try { o = meetOptions(st, G.data, from); } catch { o = null; }
+    const o = viewOf(st, G.data, from).me?.meet ?? null;
     const mine = o?.give ?? { items: [], gold: 0, discoveries: [] };
     d.items = d.items.filter(u => mine.items.some(i => i.uid === u)); d.gold = Math.min(d.gold, mine.gold);
     const tog = (arr, v) => { const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); render(G); };
@@ -310,7 +309,7 @@ export function seatTurnEndSheet(G) {
     const he = mon ? 'it' : 'he', him = mon ? 'it' : 'him', his = mon ? 'its' : 'his', place = nb(nameOfClearing(t.at));
     const uniq = list => [...new Set(list)], many = list => (list.length <= 1 ? (list[0] ?? '') : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`);
     const called = uniq(t.chits.flatMap(c => c.summons ?? [])), arrived = uniq([...(t.arrivals ?? []).map(a => a.name), ...called]), natives = (t.natives ?? []).map(n => `the ${n.group}`);
-    const lost = t.blocked ? (st.plan ?? []).filter((s, i) => i >= (t.plan?.length ?? 0) && s && s.act !== 'nothing').length : 0;
+    const lost = t.blocked ? planSlots(st, G.data).filter((s, i) => i >= (t.plan?.length ?? 0) && s && s.act !== 'nothing').length : 0;
     const title = t.noTurn ? `${name} has no turn today.` : t.hidden ? `${name} is hidden.` : `${name} is in plain sight.`;
     const why = {
         story: t.blocked ? `${t.blockers?.length ? `${many(uniq(t.blockers))} stops ${him}` : `${name}’s turn was cut short`}. The rest of ${his} day is lost.` : t.hidden ? `Nothing here can come for ${him} tonight unless ${he} strikes first.` : `Whatever shares ${his} clearing may come for ${him} tonight.`,

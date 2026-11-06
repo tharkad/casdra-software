@@ -1,10 +1,9 @@
 import { h } from '../dom.js';
 import { icon, art } from '../icons.js';
 import { sheet, sect } from '../ds.js';
-import { castable } from '../../engine/spells.js';
 import { loadData } from '../dataload.js';
-import { newGame as startState } from '../../engine/setup.js';
-import { nameOfClearing } from '../../engine/catalogue.js';
+import { apiOf } from '../../engine/api.js';
+import { castable, nameOfClearing } from '../../engine/catalogue.js';
 import { createRace, joinRace, peekRace, serverUrl } from '../online.js';
 import { createShared, joinShared, chooseShared } from '../shared_online.js';
 import { bar, cardSrc, foot, nb, openSheet, portraitSrc, seatBadge, sum, switchRow } from '../front.js';
@@ -164,8 +163,8 @@ const PLACES = new Map();
 // Where each dwelling stands in the realm of this seed: the real setup, run once (a valley chit tells the Inn, the House, the Chapel and the Guard house where they are).
 async function placesFor(seed) {
     if (PLACES.has(seed)) return PLACES.get(seed);
-    const data = await getData(), st = startState(data, { seed, character: 'black-knight' });
-    const out = Object.fromEntries(st.dwellings.map(d => [d.kind, nameOfClearing(d.at)]));
+    const data = await getData(), api = apiOf(data), { state } = api.newGame({ seed, character: 'black-knight' }, { record: false });
+    const out = Object.fromEntries(api.view(state, state.actor).table.map.dwellings.map(d => [d.kind, nameOfClearing(d.at)]));
     PLACES.set(seed, out); return out;
 }
 

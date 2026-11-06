@@ -2,10 +2,7 @@
 // the pack with worth in gold, the slot picker and the item card. It replaces the Active/Inactive switches of the old belongings list. The engine is untouched: choosing for a slot
 // is the same `tidy` action the switches sent (toggleItem takes a rival out of the slot by itself), so every payload is byte-identical to the old one.
 import { WEIGHT_WORDS, letterOf, lvl } from '../../../engine/catalogue.js';
-import { BOOTS } from '../../../engine/catalogue.js';
 import { defOf, isOneUse, isWeaponCard, nameOf, priceOf, slotsOf, weightOf } from '../../../engine/catalogue.js';
-import { bootsStrongEnough, carriedLevel, carryCapacity, onPackHorse } from '../../../engine/items.js';
-import { isCave } from '../../../engine/world.js';
 import { itemParts } from '../play/sheet_char.js';
 import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
@@ -17,7 +14,8 @@ import { companyTab, hireCount } from './company.js';
 import { carriedCount, chitsTab } from './chits.js';
 import { dimBtn, footRow, goldEl, guards, itemArt, oneLine, plural, say, seg, signed, weightWord } from './common.js';
 import { spellCount, spellsTab } from './spells.js';
-import { ownSheet, gameOf, questionOf, tableFight, missionsOf } from '../../combat/feed.js';
+import { ownSheet, gameOf, questionOf, tableFight, missionsOf, sheetOf } from '../../combat/feed.js';
+import { gearOf } from '../../kitfeed.js';
 
 // ---- the rooms ----
 const TAB_KEY = 'mr-kit-tab';
@@ -57,7 +55,7 @@ export const PLAN_LOCK_DETAIL = 'Rule 7.2.2f: belongings are rearranged only at 
 export const FRESH_LOCK = 'Only what you have just come by can be changed now. The rest waits for the start of your next phase.';
 export function gearLock(G, it = null) {
     const p = questionOf(G.st, G.data)?.type;
-    if (G.st.combat || p?.startsWith('combat') || (G.shared && tableFight(G.st, G.data)?.members?.[ownSheet(G.st, G.data).id])) return 'In a fight, changing your gear is your Encounter action, once.';
+    if (sheetOf(G.st, G.data) || p?.startsWith('combat') || (G.shared && tableFight(G.st, G.data)?.members?.[ownSheet(G.st, G.data).id])) return 'In a fight, changing your gear is your Encounter action, once.';
     if (ownSheet(G.st, G.data).morph) return 'Your gear is of no use to a creature.';
     if (ownSheet(G.st, G.data).flying) return 'You cannot rearrange your gear in the air.';
     if (roadLockOf(G.st)) return ROAD_STORY;          // 8.3.8d: out on a road between clearings (the engine's gearLockedWhy); ROAD_STORY is the Story words, lockText gives the Detail
@@ -80,18 +78,12 @@ function slotLock(G, key, occupant) {
 export const lockText = (lock, G = null) => (lock === PLAN_LOCK ? h('span', {}, h('span', { 'data-v': 'story' }, PLAN_LOCK), h('span', { 'data-v': 'detail' }, PLAN_LOCK_DETAIL))
     : lock === ROAD_STORY && G && roadLockOf(G.st) ? voiced(roadLockOf(G.st)) : lock);
 
-// Why an item cannot be put to use now (the engine's own refusals from toggleItem, said before the press), or null.
+// Why an item cannot be put to use now (the engine's own refusals from toggleItem, said before the press), or null. The engine says which (view.me.gear.blocked); these are the words.
+const WHY_BLOCKED = { cave: 'A horse cannot be ridden in a cave.', weak: 'The horse is not strong enough to carry you and your gear.', boots: 'Those boots are not strong enough to carry you and your gear.' };
 export function whyNot(G, it) {
-    const { st, data } = G;
     if (it.destroyed) return 'It is destroyed.';
     if (it.active) return null;
-    if (it.kind === 'horse') {
-        const at = st.combat?.at ?? ownSheet(st, data).at;
-        if (at && isCave(st, data, at)) return 'A horse cannot be ridden in a cave.';
-        if (lvl(data.horses[it.id].walk.strength) < Math.max(lvl(ownSheet(st, data).weight), carriedLevel(st, data, it.uid))) return 'The horse is not strong enough to carry you and your gear.';
-    }
-    if (BOOTS[it.id] && !bootsStrongEnough(st, data, it)) return 'Those boots are not strong enough to carry you and your gear.';
-    return null;
+    return WHY_BLOCKED[gearOf(G.st, G.data).blocked[it.uid]] ?? null;
 }
 
 // Put an item to use, or put it away: the one action the old switch sent.
@@ -100,11 +92,11 @@ export function tidyAct(G, it, extra = {}) { G.ui.keep = true; act(G, { type: 't
 // ---- the carry limit ----
 // the names of what he would put down if he moved now (the engine's dropHeavy, said before the move): too heavy for what he can carry and no pack horse bears it
 export function wouldDrop(G) {
-    const { st, data } = G, top = Math.max(carryCapacity(st, data), 0);
-    return ownSheet(st, data).items.filter(it => !it.destroyed && it.kind !== 'horse' && !onPackHorse(st, data, it) && lvl(weightOf(data, it)) > top && lvl(weightOf(data, it)) > 0).map(it => nameOf(data, it));
+    const drops = gearOf(G.st, G.data).drops;          // (view.me.gear.drops: what the engine's dropHeavy would put down)
+    return ownSheet(G.st, G.data).items.filter(it => drops.includes(it.uid)).map(it => nameOf(G.data, it));
 }
 function carryLimit(G) {
-    const { st, data } = G, cap = carryCapacity(st, data), carried = carriedLevel(st, data), top = Math.max(cap, 0);
+    const { st, data } = G, { capacity: cap, level: carried } = gearOf(st, data);
     const word = cap <= 0 ? 'almost nothing' : WEIGHT_WORDS[letterOf(cap)];
     let src = '';
     if (ownSheet(st, data).morph) src = `as the ${ownSheet(st, data).morph.creature?.name ?? 'creature'}`;

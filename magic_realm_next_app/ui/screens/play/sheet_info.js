@@ -13,7 +13,7 @@ import { calendarSheet as buildCalendar } from './sheet_calendar.js';
 import { render } from './shell.js';
 import { persist } from './state.js';
 import { ownSheet, gameOf, standingOf, questionOf } from '../../combat/feed.js';
-import { colorSources } from '../../../engine/spells.js';
+import { colorSources } from '../../combat/mapfeed.js';
 
 // The Calendar sheet (its own file: the Days and Turn order tabs). The colours of magic in the viewer's clearing are read here and handed in.
 export const calendarSheet = G => buildCalendar(G, colorSources(G.st, G.data, ownSheet(G.st, G.data).at));
