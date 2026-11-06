@@ -58,22 +58,27 @@ const here = c => !!c.at && !c.onRoad && !c.flying && !c.asleep;          // (a 
 // House rule (Mike 2026-11-06, note 142; the game option `shareAtBirdsong`, ON unless switched off): while the plan is made at Birdsong the characters of ONE player, standing together, may tell each other what they
 // have found (a discovery only: no belongings, no gold), so that a find reaches the plan of the day it is used on. The printed times are the start of a phase and the day-end window (4.5.5h, 7.2.1).
 const birdsongShare = (st, a, b) => st.period === 'birdsong' && !st.tradeWindow && st.options?.shareAtBirdsong !== false && !!st.chars[a] && !!st.chars[b] && sameHand(st.chars[a], st.chars[b]);
-export function tradeError(st, a, b) {
-    if (!isMulti(st)) return 'there is nobody to trade with';
+// Why not, as { code, text } (the screens word the code; `text` is the engine's own sentence), or null.
+//   alone / gone / self / apart / mist   the two cannot meet at all   window-day  in the day-end window but not in the same group   time  no meeting is on now   group  not the turn-holder's group   blocked  7.12.4b
+export function tradeProblem(st, a, b) {
+    if (!isMulti(st)) return { code: 'alone', text: 'there is nobody to trade with' };
     const x = st.chars[a], y = st.chars[b];
-    if (!x || !y || x.dead || y.dead) return 'that character is not here';
-    if (a === b) return 'you cannot trade with yourself';
-    if (!here(x) || !here(y) || x.at !== y.at) return 'you can trade only with a character in your own clearing (7.2.1d)';
-    if (x.mist || y.mist) return 'a character in mist cannot trade';
+    if (!x || !y || x.dead || y.dead) return { code: 'gone', text: 'that character is not here' };
+    if (a === b) return { code: 'self', text: 'you cannot trade with yourself' };
+    if (!here(x) || !here(y) || x.at !== y.at) return { code: 'apart', text: 'you can trade only with a character in your own clearing (7.2.1d)' };
+    if (x.mist || y.mist) return { code: 'mist', text: 'a character in mist cannot trade' };
     const tw = st.tradeWindow;
-    if (tw) return tw.groups.some(g => g.ids.includes(a) && g.ids.includes(b)) ? null : 'only those who stand together may trade in the day-end window';
+    if (tw) return tw.groups.some(g => g.ids.includes(a) && g.ids.includes(b)) ? null : { code: 'window-day', text: 'only those who stand together may trade in the day-end window' };
     if (birdsongShare(st, a, b)) return null;
     const w = phaseWindow(st);
-    if (!w) return 'you can trade at the start of a phase of someone\'s turn, or in the window after the day\'s fights (7.2.1, R-5)';
-    if (!w.group.includes(a) && !w.group.includes(b)) return `only ${nameOfChar(st, w.actor)} and those who follow him can trade now: the others can trade with him, not with each other (7.2.1)`;
-    for (const id of [a, b]) if (isBlocked(st.chars[id])) return `${nameOfChar(st, id)} was blocked today and cannot trade with those who are about to start phases (7.12.4b)`;
+    if (!w) return { code: 'time', text: 'you can trade at the start of a phase of someone\'s turn, or in the window after the day\'s fights (7.2.1, R-5)' };
+    if (!w.group.includes(a) && !w.group.includes(b)) return { code: 'group', text: `only ${nameOfChar(st, w.actor)} and those who follow him can trade now: the others can trade with him, not with each other (7.2.1)` };
+    for (const id of [a, b]) if (isBlocked(st.chars[id])) return { code: 'blocked', text: `${nameOfChar(st, id)} was blocked today and cannot trade with those who are about to start phases (7.12.4b)` };
     return null;
 }
+export const tradeError = (st, a, b) => tradeProblem(st, a, b)?.text ?? null;
+// Belongings and gold change hands only at the start of a phase or in the day-end window: not under the Birdsong house rule, which lets one player's characters tell each other what they found (a discovery only).
+const BIRDSONG_ITEMS = 'at Birdsong the characters of one player may only tell each other what they have found (a house rule: the start of a phase is the time to hand over belongings and gold)';
 
 // ---- discoveries (4.5.5): a hidden path or secret passage, a Site chit, a Site card ----
 // { kind: 'path', key } | { kind: 'site', id } | { kind: 'sitecard', id }
@@ -233,7 +238,7 @@ function offerFrom(st, data, a) {
     if ((st.offers ?? []).some(o => o.to === to)) throw new Error(`${nameOfChar(st, to)} is already considering an offer`);
     const give = normSide(a.give), want = normSide(a.want), at = st.chars[from].at;
     if (sideEmpty(give) && sideEmpty(want)) throw new Error('an offer must give something or ask for something');
-    if (birdsongShare(st, from, to) && !phaseWindow(st) && (give.items.length || give.gold || !sideEmpty(want))) refuse('meet.birdsong-discoveries-only', 'at Birdsong the characters of one player may only tell each other what they have found (a house rule: the start of a phase is the time to hand over belongings and gold)', null, '4.5.5h');
+    if (birdsongShare(st, from, to) && !phaseWindow(st) && (give.items.length || give.gold || !sideEmpty(want))) refuse('meet.birdsong-discoveries-only', BIRDSONG_ITEMS, null, '4.5.5h');
     checkSide(st, data, from, give, at, { strict: true });
     checkSide(st, data, to, want, at, { strict: false, named: true });
     const ra = askOf(st, to);
@@ -613,7 +618,7 @@ export function shareFind(st, before) {
 // For character `who`, only what he may know: with whom he may trade right now and what of theirs he can see to ask for, what he has to give (belongings, gold, the discoveries that belong to
 // this clearing), whom he could follow at Birdsong, his standing policy, and which window (if any) is open. Nothing in it is another character's secret.
 export function meetOptions(st, data, who) {
-    const me = st.chars[who], out = { window: null, partners: [], give: { items: [], gold: 0, discoveries: [] }, followable: [], followWhy: [], policy: policyOf(me), offers: { made: null, received: null }, news: [] };
+    const me = st.chars[who], out = { window: null, partners: [], give: { items: [], gold: 0, discoveries: [], held: [] }, gifts: [], followable: [], followWhy: [], policy: policyOf(me), offers: { made: null, received: null }, news: [] };
     if (!isMulti(st) || !me || me.dead) return out;
     const itemView = it => ({ uid: it.uid, kind: it.kind, id: it.id, name: nameOf(data, it), sub: summaryOf(data, it), active: !!it.active, damaged: !!it.damaged });
     out.window = st.tradeWindow ? 'dayend' : phaseWindow(st) ? 'phase' : null;
@@ -625,6 +630,7 @@ export function meetOptions(st, data, who) {
     const at = me.at;
     out.give.items = me.items.filter(i => !i.destroyed && !committed(st, data, who, i)).map(itemView);          // (a belonging that causes a recorded extra phase cannot be handed over: 6.2.4d)
     out.give.gold = me.gold;
+    for (const i of me.items) if (!i.destroyed) { const why = committed(st, data, who, i); if (why) out.give.held.push({ uid: i.uid, why }); }          // (the ones that cannot be handed over, and the engine's sentence)
     if (here(me)) {
         for (const key of me.discovered.paths) { const d = { kind: 'path', key }; if (knows(st, me, d, at)) out.give.discoveries.push({ ...d, label: discLabel(st, data, d, at) }); }
         for (const id of me.discovered.sites) { const d = { kind: 'site', id }; if (knows(st, me, d, at)) out.give.discoveries.push({ ...d, label: discLabel(st, data, d, at) }); }
@@ -636,6 +642,15 @@ export function meetOptions(st, data, who) {
         if (id === who || !sameHand(me, c)) continue;
         const items = newsFor(st, data, who, id);
         if (items.length) out.news.push({ id, name: c.name, items, now: !tradeError(st, who, id) });
+    }
+    // Giving a belonging to one of his own player's characters (a party on one phone): for each who stands in his clearing, may it be done NOW (`now`), and if not, why (`code`, `why`) so that a screen can say
+    // when it can. `heavy` names the belongings he holds that the other could not carry on a Move: the engine does not refuse them (a gift is received whole, 7.2.1a), the receiver puts them down when he next moves.
+    if (here(me)) for (const id of st.order) {
+        const c = st.chars[id];
+        if (id === who || c.dead || !sameHand(me, c) || !here(c) || c.at !== at) continue;
+        const bad = tradeProblem(st, who, id) ?? (birdsongShare(st, who, id) && !phaseWindow(st) ? { code: 'birdsong', text: BIRDSONG_ITEMS } : null);
+        const heavy = withActor(st, id, () => { const cap = Math.max(carryCapacity(st, data), 0); return out.give.items.filter(i => { const it = me.items.find(x => x.uid === i.uid); return lvl(weightOf(data, it)) > cap && lvl(weightOf(data, it)) > 0 && it.kind !== 'horse' && !onPackHorse(st, data, { ...it, active: false }); }).map(i => i.uid); });
+        out.gifts.push({ id, name: c.name, hidden: !!c.hidden, now: !bad, code: bad?.code ?? null, why: bad?.text ?? null, heavy });
     }
     if (st.period === 'birdsong' && me.today.stage === 'plan' && here(me)) out.followable = st.order.filter(id => id !== who && !st.chars[id].dead && here(st.chars[id]) && st.chars[id].at === at).map(id => ({ id, name: st.chars[id].name }));
     out.followWhy = followWhy(st, who);

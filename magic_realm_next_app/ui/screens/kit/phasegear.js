@@ -10,6 +10,7 @@ import { nameOf, weightOf, lvl } from '../../../engine/catalogue.js';
 import { itemOrigin } from '../../stocknotes.js';
 import { journalLines, ownSheet } from '../../combat/feed.js';
 import { act } from '../play/actions.js';
+import { giveBlock } from '../play/give.js';
 import { render } from '../play/shell.js';
 import { footRow, itemArt, oneLine, say, twoLine } from './common.js';
 import { tidyAct, whyNot } from './kit.js';
@@ -41,7 +42,8 @@ function belongingRow(G, it) {
             h('span', { class: 'gives' }, cap(oneLine(G, it))),
             origin ? h('span', { class: 'sub from', 'data-from': origin.via }, origin.what) : null,          // where he came by it (note 73): the Remains of Thief at the Hoard, a Loot, a purchase
             h('span', { class: `sub${!it.active && why ? ' bad' : ''}` }, sub),
-            bound ? h('span', { class: 'ds-why kit-lock kit-committed', 'data-committed': it.uid }, icon('lock', 'kit-lockico'), voiced(bound)) : null),
+            bound ? h('span', { class: 'ds-why kit-lock kit-committed', 'data-committed': it.uid }, icon('lock', 'kit-lockico'), voiced(bound)) : null,
+            giveBlock(G, it, { compact: true, held: false })),          // (note 143: where and when he can hand it to another character of the party)
         actions);
 }
 

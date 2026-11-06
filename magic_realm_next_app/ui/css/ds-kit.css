@@ -90,6 +90,15 @@
 .kit-story { margin: 6px 0 !important; }
 .kit-leave { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
 .kit-leavebtn { align-self: flex-start; margin-top: 6px; }
+/* give a belonging to another character of the party (note 143): one button, or the short choice, and the quiet line that says when */
+.give-block { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 10px 0 4px; }
+.give-block .give-btn { min-height: 44px; }
+.give-block .give-btn { gap: 8px; }
+.give-block .give-btn .ds-i { width: 18px; height: 18px; }
+.give-block.ask .give-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.give-line { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0 2px; font-size: calc(13px * var(--ts, 1)); line-height: 1.35; }
+.give-line .ds-i { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+.give-heavy { margin: 0; color: var(--bad, var(--ink-2)); font-size: calc(13px * var(--ts, 1)); }
 
 /* the chits of the day and the character card row */
 .kit-chits { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px 8px; }

@@ -5,6 +5,7 @@ import { WEIGHT_WORDS, letterOf, lvl } from '../../../engine/catalogue.js';
 import { defOf, isOneUse, isWeaponCard, nameOf, priceOf, slotsOf, weightOf } from '../../../engine/catalogue.js';
 import { itemParts } from '../play/sheet_char.js';
 import { act } from '../play/actions.js';
+import { giveBlock } from '../play/give.js';
 import { render } from '../play/shell.js';
 import { h } from '../../dom.js';
 import { icon } from '../../icons.js';
@@ -267,6 +268,7 @@ export function itemContent(G, it, o = {}) {
     const body = h('div', { class: 'kit kit-item itemsheet' },
         card ?? h('div', { class: 'kit-faces' }, ...faces),
         h('div', { class: 'kit-state' }, h('span', { class: `ds-tag ${stateTag[0]}`, 'data-state': it.active ? 'active' : 'inactive' }, stateTag[1]), sub ? h('span', { class: 'ds-meta' }, sub) : null, key ? h('span', { class: 'ds-meta' }, `${SLOTS.find(s => s[0] === key)[1]} slot`) : null),
+        giveBlock(G, it, { held: !commitmentOf(G.st, G.data, it), done: () => { G.ui.sheet = G.ui.itemFrom === 'dock' ? null : 'char'; G.ui.itemFrom = null; G.ui.leaveAsk = null; } }),          // note 143: hand it to another character of the party, now or when the engine says it can
         bound ? h('div', { class: 'ds-why kit-lock kit-committed', 'data-committed': it.uid }, icon('lock', 'kit-lockico'), voiced(bound)) : null,
         origin ? h('p', { class: 'ds-meta kit-origin', 'data-from': origin.via }, origin.text) : null,          // where he came by it (note 73)
         card ? null : factsOf(G, it),                  // the cream card already says weight, price and Notoriety
