@@ -3,13 +3,13 @@
 // with a PICTURE of the screen as it was when the button was tapped (shot.js: layers and overlays included), the screen's text and markup, what the game was doing,
 // and the game state, so that it can be worked on later without asking where it was said.
 // Nothing is worked on at once: the notes are a master list (the server's report table, tagged "[Note]"; tools/notes_digest.py turns it into docs/notes/MASTER.md).
-import { BUG_URL, CHANNEL } from './channel.js';
+import { BUG_URL, CHANNEL, dbName } from './channel.js';
 import { VERSION, BUILD } from './version.js';
 import { h } from './dom.js';
 import { gzip, toBase64 } from './bugreport.js';
 import { captureScreen, preloadShotAssets } from './shot.js';
 
-const DB = CHANNEL === 'next' ? 'magic-realm-notes-next' : 'magic-realm-notes', STORE = 'notes', SHOW_KEY = 'mr-notebtn';
+const DB = dbName('magic-realm-notes'), STORE = 'notes', SHOW_KEY = 'mr-notebtn';
 const LIMIT = 700_000, memory = new Map();
 let dbp = null;
 const open = () => (dbp ??= new Promise((res, rej) => { try { const r = indexedDB.open(DB, 1); r.onupgradeneeded = () => r.result.createObjectStore(STORE, { keyPath: 'id' }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } }));

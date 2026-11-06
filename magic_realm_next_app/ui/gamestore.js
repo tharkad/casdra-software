@@ -1,7 +1,7 @@
 // Where finished and running games are kept on the device: IndexedDB (a record with its whole log is far bigger than localStorage allows).
 // If IndexedDB is not available (a private window, say) records are held in memory for the session and nothing breaks.
-import { CHANNEL } from './channel.js';
-const DB = CHANNEL === 'next' ? 'magic-realm-games-next' : 'magic-realm-games', STORE = 'games';
+import { dbName } from './channel.js';
+const DB = dbName('magic-realm-games'), STORE = 'games';
 const memory = new Map();
 let dbp = null;
 
