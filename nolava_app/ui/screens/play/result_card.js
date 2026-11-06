@@ -31,12 +31,16 @@ export function markPhase(G, action) {
 const mine = (G, x) => !x.who || !G.shared || x.who === ownSheet(G.st, G.data).id;
 
 // What the phase just played came to. `n` is the phase number (1-based). null while no phase has been played (or the one on screen is not finished).
-export function resultInfo(G) {
+// `last`: the turn has ended (note 140): there is no next phase to carry the card, so the card of the LAST phase played today is told on the turn-end sheet instead
+export function resultInfo(G, { last = false } = {}) {
     const st = G.st, p = questionOf(st, G.data), day = gameOf(st, G.data).day, c = ownSheet(st, G.data);
-    if (!p || !(p.type === 'phase' || p.type === 'phase-pick') || !c.id) return null;
-    const n = p.i;                                                                 // the phase just played is the one before the pending one
-    if (!(n >= 1)) return null;
+    if (!c.id || !p) return null;
+    if (!last && !(p.type === 'phase' || p.type === 'phase-pick')) return null;
     const log = st.log ?? [];
+    const doneN = last ? log.filter(x => x.k === 'phase' && x.day === day).map(x => Number(/^Phase (\d+):/.exec(x.t)?.[1]) || 0).filter(Boolean) : [];
+    const real = doneN.filter(i => { const a = planSlots(st, G.data)[i - 1]?.act; return a && a !== 'nothing'; });          // (the last phase that DID something: an unplanned one at the end of the day has nothing to tell)
+    const n = last ? Math.max(0, ...(real.length ? real : doneN)) : p.i;          // (the phase just played is the one before the pending one)
+    if (!(n >= 1)) return null;
     const line = [...log].reverse().find(x => x.k === 'phase' && x.day === day && x.t.startsWith(`Phase ${n}:`));
     if (!line) return null;
     // a flight that ends as this phase begins: he came down first (the engine logs "You land in X." just before the phase's own line): the card leads with where (QA-107)
@@ -93,8 +97,8 @@ function tradeStory(G, info) {
     return out.length ? { story: out.join(' '), detail: `${info.trades.map(l => l.t).filter(t => /^You (?:sell|buy) /.test(t) || /^No deal/.test(t)).join(' ').replace(/ \([^()]*rolled [^()]*\)/g, '')} ${info.line.t.replace(/^Phase \d+:\s*/, '')}`.trim() } : null;
 }
 
-export function resultCardFor(G) {
-    const info = resultInfo(G);
+export function resultCardFor(G, opts = {}) {
+    const info = resultInfo(G, opts);
     if (!info || !worthACard(info)) return null;
     const st = G.st, plain = info.line.t.replace(/^Phase \d+:\s*/, '').replace(/ \(rolled [^)]*\)/, '');
     let story = lineFor(info.line, 'story', st) || plain, detail = plain.replace(/ \((?:rolled )?\d[\d+]*\)/g, '');

@@ -176,7 +176,7 @@ export function situation(view, answer = {}, myId = view?.actor) {
             const k = draw ? draw.order.indexOf(act.id) + 1 : null, n = draw?.order.length ?? null;
             const mine = draw ? draw.order.indexOf(myId) + 1 : null, until = mine && k && mine > k ? mine - k : null;
             // (DR-8: whole sentences, each with its full stop: "White Knight at Awful Valley 5. Turn 1 of 3."; the number is bound to its word so it never stands alone on a line)
-            const whereLine = `${act.character}${act.at ? ` at ${nameOfClearing(act.at)}` : act.onRoad ? ' on the road' : ''}.${k ? ` Turn\u00A0${k}\u00A0of\u00A0${n}.` : ''}`;
+            const whereLine = `${act.character}${act.at ? ` at ${nameOfClearing(act.at)}` : act.onRoad ? (act.onRoad.forest ? ' in the forest' : ' on the road') : ''}.${k ? ` Turn\u00A0${k}\u00A0of\u00A0${n}.` : ''}`;
             if (act.autopilot) return { ...base, kind: 'spectate', active: act, title: `${act.player} is away: the autopilot plays for them.`, text: whereLine,
                 why: `The table marked ${act.player} away. The autopilot plays cautiously and ${act.player} takes over the moment they open the game.` };
             return { ...base, kind: 'spectate', active: act, title: `${act.player} has the turn.`, text: act.away ? `The game is waiting for ${act.player}, who is away.` : whereLine,
@@ -217,7 +217,7 @@ export function observe(prev, next, myId) {
         if (!a.dead && b.dead) { out.push({ id, kind: 'death', t: `${who} has fallen.`, s: `${nm} has fallen.` }); continue; }
         if (b.dead) continue;
         if (b.at && a.at !== b.at && !b.onRoad) out.push({ id, kind: 'move', t: `${who} comes to ${nameOfClearing(b.at)}.`, s: `${nm} comes into ${nameOfClearing(b.at)}.` });
-        else if (b.onRoad && !a.onRoad) out.push({ id, kind: 'move', t: `${who} is out on the road.`, s: `${nm} is out on the road.` });
+        else if (b.onRoad && !a.onRoad) out.push(b.onRoad.forest ? { id, kind: 'move', t: `${who} is in the forest.`, s: `${nm} is in the forest.` } : { id, kind: 'move', t: `${who} is out on the road.`, s: `${nm} is out on the road.` });
         if (a.hidden === false && b.hidden === true) out.push({ id, kind: 'hide', t: `${who} slips out of sight.`, s: `${nm} slips out of sight and goes still.` });
         if (a.hidden === true && b.hidden === false && a.at === b.at && next.period === 'daylight') out.push({ id, kind: 'hide', t: `${who} steps into the open.`, s: `${nm} steps into the open.` });
         if (b.flying && !a.flying) out.push({ id, kind: 'fly', t: `${who} takes to the air over the ${tileName(b.flying.tile)}.`, s: `${nm} takes to the air over the ${tileName(b.flying.tile)}.` });

@@ -1,6 +1,5 @@
 // play/chits.js: the mission, campaign and visitor chits on the play screen: the Take buttons of the phase tray, the chits listed in a clearing's sheet, the notices (the week's flip, a delivery, a win,
-// a failure). The engine decides (missions.js takeable, whyNot, visitorsAt); these functions word it and send `take-chit`.
-import { takeable, visitorsAt } from '../../../engine/missions.js';
+// a failure). The engine decides (legal.free: a `take-chit` for each chit he may take, greyed with its reason when he may not); these functions word it and send `take-chit`.
 import { h } from '../../dom.js';
 import { icon } from '../../icons.js';
 import { chitEl, costText, faceInfo, kindTag, noticesFrom, whyCopy } from '../../missions.js';
@@ -9,13 +8,15 @@ import { logText } from '../../voice.js';
 import { act } from './actions.js';
 import { showToast } from './kit.js';
 import { render } from './shell.js';
-import { questionOf, missionsOf, ownSheet } from '../../combat/feed.js';
+import { legalOf, questionOf, missionsOf, ownSheet } from '../../combat/feed.js';
 
 const OPEN = new Set(['phase', 'phase-pick']);            // 7.2.4: "each time a character starts a phase of his turn" (the engine takes the action at these questions only)
 
 // ---- taking a chit ----
 export function takeNow(G) { return !!missionsOf(G.st, G.data) && !G.shared && !G.race && OPEN.has(questionOf(G.st, G.data)?.type) && !ownSheet(G.st, G.data).dead; }
-export function takeList(G) { return takeNow(G) ? takeable(G.st, G.data) : []; }
+export function takeList(G) {
+    return takeNow(G) ? legalOf(G.st, G.data).free.filter(e => e.action.type === 'take-chit').map(e => ({ chit: e.action.chit, face: e.preview.face, name: e.preview.name, kind: e.preview.kind, cost: e.cost, ok: !e.disabled, why: e.disabled?.params?.text ?? null })) : [];
+}
 
 // Take it (the engine pays the cost at once); the line it logs is told in a toast, in the voice that is on
 export function doTake(G, t) {
@@ -57,7 +58,7 @@ export function chitRows(G, id) {
 // ---- the notices: the engine's own lines about the chits, shown as a card in the tray until they are read ----
 export function noticeCards(G) {
     const st = G.st;
-    if (!st.missions || G.shared || G.race) return [];
+    if (!missionsOf(st, G.data) || G.shared || G.race) return [];
     G.ui.msFrom ??= st.log?.length ?? 0;
     if (G.ui.msFrom > (st.log?.length ?? 0)) G.ui.msFrom = st.log.length;
     const list = noticesFrom(st, G.ui.msFrom);

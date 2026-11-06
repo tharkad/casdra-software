@@ -42,6 +42,7 @@ export function endOfTurn(st, data) {
     // 1. prowling monsters already in this tile move to him
     for (const m of st.mons) {
         if (m.dead || m.hired || !m.loc?.c || tileOf(m.loc.c) !== tile || m.loc.c === here) continue;
+        if (m.stopped === st.day) continue;                // 7.12.5: a denizen that has blocked someone today stops prowling and cannot move for the rest of the day
         const row = monRow(data, m.id);
         if (row === ROW_ALWAYS || row === st.prowl) { out.arrivals.push({ id: m.id, name: data.monsters[m.id].name, from: m.loc.c, to: here, why: 'prowls in your tile' }); m.loc = { c: here }; }
     }
@@ -147,6 +148,14 @@ function chitText(c, tile) {
 export function blockers(st) {
     if (st.ch.hidden || st.ch.asleep || st.ch.onRoad || st.ch.flying || st.ch.mist) return [];          // (a sleeper, put to sleep by the Flowers of Rest, cannot be blocked)        // nothing blocks a flier in the air (7.12.2d) or mist (Melt into Mist)
     return st.mons.filter(m => !m.dead && !m.hired && !m.pacify?.length && m.loc?.c === st.ch.at);        // a pacified monster (Deal with Goblins) does not block him
+}
+
+// 7.12.5: "When a denizen blocks or is blocked, it stops prowling and cannot move for the rest of the day." The monsters in `ms` (ids or monster records) have just blocked an unhidden
+// individual: they stay where they are until Midnight (the day number on the monster says which day, so nothing has to be cleared). It matters only when a second turn ends the same
+// day, so a one-character game does not record it (its states stay as they were).
+export function stopBlockers(st, ms) {
+    if (st.order.length < 2) return;
+    for (const x of ms) { const m = typeof x === 'string' ? st.mons.find(q => q.id === x) : x; if (m) m.stopped = st.day; }
 }
 
 // Midnight housekeeping for chits and monster arrivals.

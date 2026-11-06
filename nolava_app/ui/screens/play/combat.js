@@ -11,6 +11,7 @@ import { clearingSheet } from './sheet_clearing.js';
 import { playersSheet } from './shared.js';
 import { fightModel } from '../../combat/feed.js';
 import { endOfFight } from '../../voice/fight.js';
+import { partyRecapScreen } from '../../combat/partyrecap.js';
 
 // A shared fight. Returns true when it filled `out` (the caller returns it as it is), false when there is no fight screen for this seat after all.
 export function sharedFightHost(G, out) {
@@ -59,5 +60,12 @@ export function combatHost(G, out) {
     if (inFight) { if (fm.pending.type === 'combat-over') G.ui.cbBeat = null; out.push(combatScene({ st: G.st, data: G.data, act: act.bind(null, G), ui: G.ui, render: () => render(G), peek })); }
     else out.push(combatBeat({ st: G.st, data: G.data, ui: G.ui, render: () => render(G) }));
     const look = lookSheet(G); if (look) out.push(look);          // (every look, the menu's own included, stands in front of the fight: notes 99 and 101)
+    return out;
+}
+
+// The end of a fight of a party on one phone: the recap of every character (kills, gains, losses) stands until it is dismissed, before the day goes on (note 137).
+export function partyBeatHost(G, out) {
+    out.push(partyRecapScreen({ rec: G.ui.partyBeat, data: G.data, ui: G.ui, render: () => render(G), onDone: () => { G.ui.partyBeat = null; render(G); } }));
+    const look = lookSheet(G); if (look) out.push(look);          // (the menu's own look stands in front of it, as in the fight)
     return out;
 }

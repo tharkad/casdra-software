@@ -53,15 +53,20 @@ export function spellsSheet(G) {
 export function cursesSheet(G) {
     const back = { close: () => { G.ui.sheet = null; render(G); } };
     const mine = ownSheet(G.st, G.data).curses ?? [];
+    return modal(G, mine.length ? 'You are cursed' : 'Curses', cursesBody(G, h('button', { type: 'button', class: 'ds-btn block', onclick: back.close }, 'Back')), back);
+}
+// The curses on him and the six there are: the body of the Curses sheet and of the Curses room of the character sheet (note 131).
+export function cursesBody(G, foot = null) {
+    const mine = ownSheet(G.st, G.data).curses ?? [];
     const rows = Object.values(G.data.tables.curses.rows);
     const atChapel = G.st.dwellings.some(d => d.kind === 'Chapel' && d.at === ownSheet(G.st, G.data).at);
-    return modal(G, mine.length ? 'You are cursed' : 'Curses', h('div', { class: 'cursesheet' },
+    return h('div', { class: 'cursesheet' },
         mine.length ? null : h('p', { class: 'hint' }, 'You carry no curse. A curse can fall on you from a Treasure Location card, a Reading Runes result or a Loot result.'),
         ...mine.map(n => h('div', { class: 'curserow' }, h('span', { class: 'skull', 'aria-hidden': 'true' }, '\u2620'), h('div', {}, h('b', {}, n), h('p', {}, CURSE_PLAIN[n] ?? rows.find(r => r.name === n)?.effect ?? '')))),
         mine.length ? h('p', { class: 'hint' }, atChapel ? 'You are in a Chapel\u2019s clearing: at Midnight it lifts every curse.' : 'A curse stays until Midnight finds you in the clearing of a Chapel, which lifts them all. Walk there before the day ends.') : null,
         h('h3', {}, 'All six curses'),
         ...rows.map(r => h('p', { class: `hint${mine.includes(r.name) ? ' bad' : ''}` }, h('b', {}, r.name + ': '), CURSE_PLAIN[r.name] ?? r.effect)),
-        h('button', { type: 'button', class: 'ds-btn block', onclick: back.close }, 'Back')), back);
+        foot);
 }
 
 // A treasure card he found but does not carry (a Mouldy Skeleton, a Toadstool Circle): what it says.

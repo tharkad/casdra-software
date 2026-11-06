@@ -4,10 +4,9 @@
 // the others stand quiet. Everything is read from `view.table.fight` (the members' `state`, `why` and the step they are at) and the characters' public sheets; nothing is parsed from a sentence.
 import { h } from '../dom.js';
 import { displayName } from '../names.js';
-import { crowdedFight } from './model.js';
 
 const pic = (src, alt = '') => h('img', { src, alt, draggable: 'false' });
-const FLED = { ran: 'ran', flew: 'flew', mist: 'as mist', teleported: 'carried off', peace: 'at peace', quiet: 'out' };
+const FLED = { ran: 'ran', flew: 'flew', mist: 'as mist', teleported: 'carried off', peace: 'at peace', quiet: 'done' };
 
 /** What each step of a fight is called to a player: the rulebook's own words (8.3: the Meeting, Luring, Charging, the Encounter step, the Melee step, then the harm). */
 export const STEP_NAME = { 'combat-drinks': 'Meeting', 'combat-pay': 'Meeting', 'combat-choice': 'Meeting', 'combat-lure': 'Lure', 'combat-charge': 'Charge', 'combat-deploy': 'Deployment', 'combat-encounter': 'Encounter', 'combat-melee': 'Melee', 'combat-shift': 'Melee', 'combat-wounds': 'Wounds', 'combat-fatigue': 'Fatigue', 'combat-over': 'The fight is over' };
@@ -30,7 +29,7 @@ function roleOf(b, id, m, asked, sheetN) {
  * { actor: id, members: [{ id, name, pic, hidden, sight, key: 'now' | 'wait' | 'done' | 'out', word }] } */
 export function partyOf(fm, data) {
     const b = fm.battle;
-    if (!b?.order || b.pvp || !crowdedFight(fm)) return null;
+    if (!b?.order || b.pvp || b.order.length < 2) return null;          // (note 141: every character of the fight stays on the stage, one who has left it too, saying so in a word: the party does not shrink while the fight goes on)
     const asked = new Set((fm.asks ?? []).map(a => a.who)), art = data.art?.characters ?? {};
     const members = b.order.map(id => {
         const m = b.members[id] ?? { state: 'out', why: null }, c = fm.chars?.[id] ?? {}, mine = (b.dens ?? []).filter(d => d.sheet === id && !d.dead && d.kind !== 'part' && d.kind !== 'horse').length;

@@ -2,7 +2,8 @@
 // the notices). Rules: 2.2.5, 3.4, 6.3.4b, 7.2.4, 7.13.5; the engine is app/engine/missions.js (docs/rules-spec/missions-notes.md). Nothing here changes the game: it reads `st.missions`, `ch.missions` and the
 // engine's helpers (takeable, carriedTasks, whyNot, visitorsAt) and builds DOM.
 import { boxDef, boxIds, missionDefOf as defOf, facesOf, kindOf, otherFace, pairIds } from '../engine/catalogue.js';
-import { relation } from '../engine/missions.js';
+import { relationOf } from './kitfeed.js';
+import { missionsOf, charsOf } from './combat/feed.js';
 import { h } from './dom.js';
 import { logText } from './voice.js';
 
@@ -35,11 +36,8 @@ export function faceInfo(data, face) {
 }
 
 // How a native group stands with him for the screens that show a mood: his own level, except that a foe of the campaign he carries is always an Enemy (7.2.4h), and partners (who stand two
-// levels higher in ch.rel, past Ally) read as Ally. Without the option this is exactly ch.rel.
-export function standing(st, group) {
-    const r = st.ch.rel?.[group] ?? 0;
-    return st.missions ? Math.max(-2, Math.min(2, relation(st, group, r))) : r;
-}
+// levels higher in ch.rel, past Ally) read as Ally. Without the option this is exactly ch.rel. The engine says (view.me.tasks.rel); `data` may be left out for a state the screen has already viewed.
+export const standing = (st, group, data) => relationOf(st, group, data);
 
 // ---- the chit as a counter: a round token whose edge says the kind (and a word always beside it, never colour alone) ----
 const GLYPH = { scholar: 'Sc', shaman: 'Sh', warlock: 'Wa', crone: 'Cr', escort_party: 'Es', food_ale: 'Fo', pillage: 'Pi', raid: 'Ra', conquer: 'Cn', war: 'Wr', revolt: 'Re', quest: 'Qu' };
@@ -98,7 +96,7 @@ export function whyCopy(why) {
 // ---- where a chit lies, in words ----
 export function whereWords(st, data, c) {
     if (c.loc?.box) return `in the box of the ${boxTitle(data, c.loc.box)}`;
-    if (c.loc?.by) return `carried by ${st.chars?.[c.loc.by]?.name ?? 'a character'}`;
+    if (c.loc?.by) return `carried by ${charsOf(st, data)[c.loc.by]?.name ?? 'a character'}`;
     if (c.loc?.c) return `in clearing ${c.loc.c.slice(2)}`;
     return '';
 }
@@ -107,7 +105,7 @@ export function whereWords(st, data, c) {
 // a visitor shows its name, a mission or campaign its name and cost (the engine's helpers say which)
 export function mapTokens(st, data) {
     const out = [];
-    for (const c of st.missions?.chits ?? []) {
+    for (const c of missionsOf(st, data)?.chits ?? []) {
         if (!c.loc?.c) continue;
         const kind = kindOf(data, c.face), def = defOf(data, c.face);
         if (kind === 'visitor') out.push({ at: c.loc.c, k: 'visit', label: def.name });

@@ -27,6 +27,7 @@ import { modeOfPending, SCENE_MODES } from '../combat/modes.js';
 import { fightOf } from '../fight.js';
 import * as LU from '../combat/lure.js';
 import * as PT from '../combat/party.js';
+import * as PF from '../combat/partyfacts.js';
 
 const RESULT_TYPES = ['combat-fatigue', 'combat-wounds', 'combat-encounter', 'combat-deploy', 'combat-lure', 'combat-charge'];          // (combat-lure / combat-charge: a fight of several characters starts its next round there, so each one sees the last round first; combat-deploy: a round on Melee Sections starts with the Deployment, so the last round's result comes before it)
 const hashOf = s => { let x = 0; for (let i = 0; i < s.length; i++) x = (Math.imul(31, x) + s.charCodeAt(i)) | 0; return x; };
@@ -118,7 +119,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
 
     // ---- the stage ----
     const bodies = c.dens.filter(d => d.kind !== 'horse');          // (the whole clearing, whoever a creature is set on: F1 "The Clearing")
-    const killedNow = new Set(c.killed ?? []);
+    const killedNow = M.slainThisRound(fm);          // (uids: whoever struck the blow, a party's kills are not all on one character's list: note 136)
     let foes;                                       // [{ d, dead, tag, turned }]
     const turned = mode === 'result' ? M.turnedOver(events, fm) : new Set();   // (a Tactics roll turned these counters over before the blows)
     if (mode === 'meet') {
@@ -130,7 +131,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
         // who hit you is said once, in the verdict (QA-8): the wound or fatigue grid that follows is the next question, so the counters stand bare there and every round starts bare
         const res = mode === 'result' ? M.foeResults(events, fm) : new Map();
         const WORDS = { wounded: { text: 'WOUNDED YOU', short: 'WOUNDED', kind: 'bad' }, hit: { text: 'HIT YOU', short: 'HIT', kind: 'bad' }, held: { text: 'NO EFFECT', short: 'NO EFFECT', kind: 'good' }, missed: { text: 'MISSED', short: 'MISSED', kind: 'good' } };
-        foes = bodies.filter(d => (!d.dead || (d.kind !== 'part' && killedNow.has(denSide(fm, data, d).name))) && d.kind !== 'part' || (!d.dead && d.kind === 'part'))
+        foes = bodies.filter(d => (!d.dead || (d.kind !== 'part' && killedNow.has(d.uid))) && d.kind !== 'part' || (!d.dead && d.kind === 'part'))
             .map(d => { const nm = denSide(fm, data, d).name, dead = d.dead; return { d, dead, tag: !dead && WORDS[res.get(nm)] ? { ...WORDS[res.get(nm)] } : null, turned: mode === 'result' && !dead && turned.has(nm) }; });
     } else if (mode === 'over') {
         foes = bodies.filter(d => d.dead && d.kind !== 'part').map(d => ({ d, dead: true }));
@@ -303,7 +304,9 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
         let said = roundSynopsis(events) || (hr ? '' : 'The round passed.');
         if (miss) said = said.replace(/You struck at empty air: the .+? was too quick to catch\.\s*/, '');          // (the miss note below says the same, with the numbers)
         // Story voice carries no numbers (tools/ui_round.py): the miss, with the number that beat it, is for the Detail voice only
-        const story = [turnedLine, said, hr?.story].filter(Boolean).join(' '), detail = [turnedLine, miss ? `${miss} ${said}`.trim() : said, hr?.detail].filter(Boolean).join(' ');
+        // a party on one phone: "you" is the asked character, so what the others did is told with their names first (note 136: Woods Girl's arrow felled the spider, the caption spoke only of White Knight's miss)
+        const others = X.party ? PF.othersSay(M.roundLines(fm), X.party.members, X.party.actor, names => (names.length === 1 ? `the ${names[0]}` : M.foesPhrase(names))) : [];
+        const story = [...others.map(x => x.story), turnedLine, said, hr?.story].filter(Boolean).join(' '), detail = [...others.map(x => x.detail), turnedLine, miss ? `${miss} ${said}`.trim() : said, hr?.detail].filter(Boolean).join(' ');
         return [story, detail, 'verdict'];
     }
     if (mode === 'over' && X.shared) return ['The fighting is over.', 'Combat is over: nothing hostile is left.', 'verdict'];
@@ -333,21 +336,27 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
                 `Round ${c.round}, Melee: ${M.cap(nm)} ${tgt.kind === 'nat' ? 'are' : 'is'} at peace with you. Naming ${tgt.kind === 'nat' ? 'a native' : 'it'} as your target starts the fight: ${tgt.kind === 'nat' ? 'its whole group battles you from the next round' : 'it fights you from the next round'} (8.2.1a, 8.2.3a). ${limText}`];
         }
         const line = {
-            whom: ['Whom do you strike?', 'Your play is sealed until everyone has chosen. Name any creature in the clearing, another character, or a hireling: or no one (8.4.2c).'],
-            strike: [one ? 'How do you strike?' : 'Whom do you strike, and how?', 'Pick whom you strike, in which direction and with which Fight chit.'],
-            aim: [`Whom does ${o.aims?.[0]?.name ?? 'the spell'} take?`, null],
+            whom: ['Choose target', 'Your play is sealed until everyone has chosen. Name any creature in the clearing, another character, or a hireling: or no one (8.4.2c).'],
+            strike: [one ? 'How do you strike?' : 'Choose target and strike', 'Pick your target, the direction and the Fight chit.'],
+            aim: [`Choose target for ${o.aims?.[0]?.name ?? 'the spell'}`, null],
             guard: ['How do you guard yourself?', 'The maneuver defends you; a blow aimed at your direction connects, one that comes sooner than your chit gets under it.'],
             shield: ['Which way does your shield guard?', null],
             parts: ['What do its other attacks do?', null],
             sections: ['Tap a counter to move it to the next lane.', 'Melee Sections: box, circle and square of one direction are one line (8.4.8b). You choose whom an attacked hireling strikes, where each counter stands and the side a defender shows (8.4.2e, 8.4.2f, 8.4.5n); then the dice move the attackers (8.4.6d).'],
             foes: [`Where will ${one ? 'it' : 'they'} come at you?`, 'Place the creatures in the three red boxes; the dice shuffle them afterwards.'],
-            roll: X.shared ? ['Your play is set. Nobody sees it until everyone has played.', 'Plays are sealed; once everyone has chosen, every play is shown at once and the dice decide the rest.'] : ['Your plays are set. The dice decide the rest.', 'Plays are chosen together; then the dice shuffle the creatures and the blows land.'],
+            roll: X.party?.members.some(x => x.key === 'wait') ? [`${X.party.me?.name ?? 'Your'}${X.party.me ? '’s' : ''} play is set. ${X.party.members.filter(x => x.key === 'wait').map(x => x.name).join(' and ')} still to choose.`, 'The dice are rolled once, after every character has chosen a play.'] : X.shared ? ['Your play is set. Nobody sees it until everyone has played.', 'Plays are sealed; once everyone has chosen, every play is shown at once and the dice decide the rest.'] : ['Your plays are set. The dice decide the rest.', 'Plays are chosen together; then the dice shuffle the creatures and the blows land.'],
         }[step];
         return [line[0], `Round ${c.round}, Melee: ${line[1] ?? line[0]} ${limText}`];
     }
     // the Encounter
     if (own(fm, data).mist && !p.spellOnly) return [`You hang as mist over ${place} and take no part in the fight. You may slip away, or let the round pass.`, `Round ${c.round}, Encounter: as mist you take no part; you may only run away with a Move chit, or pass (8.4.5p.1).`];
-    if (p.spellOnly) return ['A quiet evening. Nothing here is looking for a fight, but you have a spell you could cast tonight, so the game stops here to ask.', 'Spells are cast in the evening (rule 8.1.3a): a quiet clearing still gets its rounds, so the game stops here to let you cast one.'];
+    if (p.spellOnly) {          // a quiet evening is held for him whatever he can do (8.1.3a, 8.3.8h): the words say WHAT he can do tonight, not that a spell is always on offer
+        const o3 = optionsOf(fm, data), things = [o3.canRun && 'run for it', o3.canFly && 'fly away', o3.casts.length && 'cast a spell', own(fm, data).items.some(i => !i.destroyed) && 'switch a belonging'].filter(Boolean);
+        const all = [...things, 'let the evening pass'], orList = all.length > 2 ? `${all.slice(0, -1).join(', ')}, or ${all[all.length - 1]}` : all.join(' or ');
+        const lead = c.round > 1 ? 'Still quiet.' : 'A quiet evening. Nothing here is looking for a fight.';
+        return [things.length ? `${lead} Tonight you may ${orList}.` : `${lead} There is nothing to do tonight but let it pass.`,
+            `Rule 8.1.3a: a quiet clearing still gets its rounds. You may run or fly out of the clearing (8.3.8h), cast a spell, switch a belonging or do nothing; two quiet rounds in a row end the evening (8.8.2).`];
+    }
     const o2 = optionsOf(fm, data);
     const phrase = names.length ? phraseOf() : '';
     const gate = o2.why?.gate ? `A chit played here has to be faster than ${M.gateWords(fm, o2.why.gate)}.` : 'Nothing is set on you, so no creature holds your chits back.';

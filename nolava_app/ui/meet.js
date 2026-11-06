@@ -136,6 +136,28 @@ export function draftReading(player, give, want) {
     return { ok: true, text: `Offer ${player} ${joinList(g)} for ${joinList(w)}.` };
 }
 
+// ------------------------------------------------------------------------------------------------------------------------------- sharing what one character knows with another of the same player (4.5.5, note 142)
+const nbsp = t => String(t).replace(/ (\d+)/g, '\u00A0$1');
+const aloud = items => joinList(items.map(d => nbsp(d.label)));
+const chitName = d => String(d.label).replace(/^the /, '').replace(/ here$/, '');
+
+/** One finding one of my characters holds that another of mine, in the same clearing, lacks: `s` is { fromName, toName, items: [{ kind, label, turnsUp }], now }. Said in plain words:
+ * the question (and what the one button does), what the receiver gets, the Site chit that is shown (4.5.5d), the confirmation, and, when this is not a time to trade, when it will be. */
+export function shareReading(s) {
+    const what = aloud(s.items), many = s.items.length > 1, chits = s.items.filter(d => d.turnsUp).map(chitName);
+    const faceUp = chits.length ? `${joinList(chits.map(n => `The ${n}`))} chit${chits.length > 1 ? 's are' : ' is'} turned face up for everyone to see, then put back face down.` : null;
+    return {
+        what, faceUp,
+        title: `${s.fromName} knows ${what}.`,
+        ask: `Tell ${s.toName}?`,
+        button: `Tell ${s.toName}`,
+        gets: `${s.toName} can use ${many ? 'them' : 'it'} from then on, as if ${s.toName} had found ${many ? 'them' : 'it'} too. ${s.fromName} keeps ${many ? 'them' : 'it'}.`,
+        confirm: `${s.fromName} told ${s.toName} about ${what}. ${s.toName} can use ${many ? 'them' : 'it'} now.${faceUp ? ` ${faceUp}` : ''}`,
+        later: `${s.fromName} knows ${what}, and ${s.toName} does not. ${s.fromName} can tell ${s.toName} at the start of a phase of the day, or after the fights before Midnight.`,
+        planLine: `${s.fromName} knows ${what}, and ${s.toName} does not, so ${s.toName}\u2019s plan cannot use ${many ? 'them' : 'it'} yet. ${s.fromName} can tell ${s.toName} at the start of a phase today, or after the fights tonight.`,
+    };
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------- standing policies, in plain words
 export const BLOCK_WORDS = {
     never: { label: 'Never', says: 'You let everyone pass. Nobody asks you anything.' },

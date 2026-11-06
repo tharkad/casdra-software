@@ -4,12 +4,15 @@ import { h } from '../../dom.js';
 import { frames, voiceSwitch } from '../../ds.js';
 import { actIcon, icon } from '../../icons.js';
 import { logText } from '../../voice.js';
-import { daySummary } from './dayresult.js';
+import { daySummary, hotParty } from './dayresult.js';
+import { partyFacts } from '../../combat/partyfacts.js';
+import { memberCard } from '../../combat/partyrecap.js';
+import { displayName } from '../../names.js';
 import { modal, picOf, voidBy } from './kit.js';
 import { unattendedBlock } from './leaders.js';
 import { render } from './shell.js';
 import { vpNow } from './state.js';
-import { gameOf } from '../../combat/feed.js';
+import { gameOf, ownSheet, tableModel } from '../../combat/feed.js';
 
 // The lines of a group, with each combat round in a box of its own under a "Round N" marker (a round is always labelled: the marker and its lines are one box).
 function roundBoxes(G, lines) {
@@ -50,17 +53,23 @@ function scoreNote(G) {
 
 // The day's lines under the phase or the evening they belong to (the ledger). One list for the folded Details on the Day Result card and for the step-by-step page.
 function ledgerSteps(G, day) {
-    const prev = G.st.log.filter(l => l.day === day && l.k !== 'day' || (l.day === day && /sun sets/.test(l.t)));
+    // a party on one phone: each character's phases are his own (the day on screen is the day of the character on screen); the evening's fight is everyone's, and stands once, with a card for every character
+    const hot = hotParty(G), seat = hot ? ownSheet(G.st, G.data).id : null, tm = hot ? tableModel(G.st, G.data) : null;
+    const prev = G.st.log.filter(l => l.day === day && l.k !== 'day' || (l.day === day && /sun sets/.test(l.t))).filter(l => !hot || !l.who || l.who === seat || l.r != null);
     const groups = [];
     for (const l of prev) {
         if (l.k === 'phase') groups.push({ head: logText(l, G.st), phase: true, n: /^Phase (\d+)/.exec(l.t)?.[1] ?? '', kids: [] });
         else if (/sun sets/.test(l.t) || !groups.length) groups.push({ head: /sun sets/.test(l.t) ? 'The evening' : 'Morning', n: /sun sets/.test(l.t) ? 'E' : '\u2014', kids: [] });
         else groups.at(-1).kids.push(l);
     }
+    if (hot) { const ev = groups.find(g => g.n === 'E'); if (ev) ev.party = partyFacts(prev.filter(l => l.r != null && l.k === 'combat'), hot.map(id => ({ id, name: displayName(tm.chars?.[id]?.name ?? id) }))); }
     return groups.filter(g => g.kids.length || g.phase);
 }
+// the evening of a party: a card for every character first (who slew what, what each won and lost: the facts of the screen after the fight, partyfacts.js), then the rounds; it stands open, and a tap on its heading
+// brings it into view (the ledger is a long list in a short box: note 138 saw only the heading)
+const eveningCards = (G, g) => (g.party ? h('div', { class: 'pr-cards ledger', 'data-evening-party': '' }, ...g.party.members.map(m => memberCard(m, G.data, { pic: G.data.art?.characters?.[m.id]?.replace(/\.gif$/, '.png') ?? null }))) : null);
 const ledgerStep = G => g => (g.kids.length
-    ? h('details', { class: 'repstep' }, h('summary', {}, h('span', { class: 'ph' }, g.n), h('span', {}, g.head)), ...roundBoxes(G, g.kids))
+    ? h('details', { class: 'repstep', open: g.party ? '' : null }, h('summary', { onclick: e => { const d = e.currentTarget.parentElement; setTimeout(() => d.open && d.scrollIntoView?.({ block: 'nearest' }), 40); } }, h('span', { class: 'ph' }, g.n), h('span', {}, g.head)), eveningCards(G, g), ...roundBoxes(G, g.kids))
     : h('p', { class: 'repstep plain' }, h('span', { class: 'ph' }, g.n), h('span', {}, g.head)));
 
 // Overview and Result bring the sheet back up when it was dropped to its bar to look at the map (note 93: the page changed under the bar and nothing showed).
@@ -72,7 +81,7 @@ export function reportSheet(G) {
         const group = list => { const c = new Map(); for (const n of list) c.set(n, (c.get(n) ?? 0) + 1); return [...c].map(([n, k]) => (k > 1 ? `${n} \u00D7${k}` : n)); };
         const row = (k, names, imgs) => h('div', { class: 'line', 'data-row': k.toLowerCase() }, h('span', { class: 'k' }, k), ...imgs, h('span', { class: 'what' }, names.join(' \u00B7 ')));
         const rows = [];
-        if (sum.kills.length) { const n = group(sum.kills.map(k => k.name)); rows.push(row('Slain', n, [pic(G, sum.kills[0].name, 'mon')])); }
+        if (sum.kills.length) { const n = group(sum.kills.map(k => (k.byName ? `${k.name} (${k.byName})` : k.name))); rows.push(row('Slain', n, [pic(G, sum.kills[0].name, 'mon')])); }
         if (sum.found.length) rows.push(row('Found', sum.found.map(f => f.name), [pic(G, sum.found[0].name, 'item')]));
         if (sum.bought.length) rows.push(row('Bought', sum.bought.map(b => `${b.name}, for ${b.cost} Gold`), [pic(G, sum.bought[0].name, 'item')]));
         if (sum.sold.length) rows.push(row('Sold', sum.sold.map(b => `${b.name}, for ${b.gold} Gold`), [pic(G, sum.sold[0].name, 'item')]));

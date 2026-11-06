@@ -13,6 +13,7 @@ import { askOptions } from './hirefight.js';
 import { denSide } from './combat.js';
 import { siteLeft, sitesHere } from './search.js';
 import { tradeFacts, TRADE_QUESTIONS } from './tradefacts.js';
+import { takeable } from './missions.js';
 
 export const COMBAT_QUESTIONS = ['combat-pay', 'combat-drinks', 'combat-choice', 'combat-encounter', 'combat-melee', 'combat-shift', 'combat-wounds', 'combat-fatigue', 'combat-over', 'combat-lure', 'combat-charge', 'combat-deploy'];
 
@@ -128,6 +129,15 @@ function lootSitesOf(state, who) {
     const st = clone(state);
     return withActor(st, who, () => sitesHere(st)).map(c => ({ id: c.id, name: c.name }));
 }
+// The mission and campaign chits lying in his clearing that he may take at the start of a phase (7.2.4), each a free `take-chit`: its cost, what it is (`preview`), and, when he may not take it now, why (`disabled`:
+// the engine's sentence rides in `params.text` until the voice layer writes the words).
+function takeChits(state, data, who) {
+    const st = clone(state);
+    return withActor(st, who, () => takeable(st, data)).map(t => ({
+        action: { type: 'take-chit', chit: t.chit }, cost: { fame: t.cost.fame, notoriety: t.cost.notoriety }, preview: { face: t.face, name: t.name, kind: t.kind },
+        ...(t.ok ? {} : { disabled: { code: 'take.refused', params: { text: t.why } } }),
+    }));
+}
 const turn = (type, fields = {}, extra = {}) => ({ action: { type, ...fields }, ...extra });
 function phaseOf(p, state, data, who) {
     const out = { answers: [], free: [], options: plain(p) }, os = p.options ?? [];
@@ -148,6 +158,9 @@ function phaseOf(p, state, data, who) {
         case 'learn-spell': out.answers = [turn('learn-spell', { learn: true }, { pick: p.full ? { erase: { free: true } } : {} }), turn('learn-spell', { learn: false })]; break;
         default: break;
     }
+    if (p.type === 'evening-end') out.free.push({ action: { type: 'suicide' } });          // (8.9.4: a character may suicide at Midnight; the end of his evening is where the day ends for him)
+    if (p.type === 'phase-gear' && p.mounts?.length) out.answers = [turn('continue', {}, { disabled: { code: 'gear.too-heavy', rule: '7.3.2a' } })];          // (7.3.2a, 7.3.1f.1: the horse or Boots that cannot bear what he came by must come off, or the new belonging be left, first)
+    if (state.missions && (p.type === 'phase' || p.type === 'phase-pick')) out.free.push(...takeChits(state, data, who));          // (7.2.4: "each time a character starts a phase of his turn"; the engine takes `take-chit` at these two questions only)
     return out;
 }
 

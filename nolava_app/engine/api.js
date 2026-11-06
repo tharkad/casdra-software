@@ -11,10 +11,12 @@
 import { indexData, FILES } from './data.js';
 import { newGame as engineNewGame, addCharacter as engineAddCharacter, checkVp } from './setup.js';
 import { apply as engineApply, validatePlan, phasesFor, planKinds } from './day.js';
-import { upgradeState, ownerOf, withActor } from './party.js';
+import { upgradeState, ownerOf, withActor, legacyView } from './party.js';
+import { windowInfo } from './meet.js';
 import { clone, collect } from './core.js';
 import { makeView } from './view.js';
 import { legalFor } from './legal.js';
+import { replay as replayRecord } from './gamerecord.js';
 import { legalBoxPlan } from './combat.js';
 import { whereOf } from './planning.js';
 import * as HF from './hirefight.js';
@@ -22,7 +24,11 @@ import { sha256hex } from './sha256.js';
 
 export { makeRng } from './rng.js';
 export { newRecord, finalize, daySnapshot, groupByDay, readableLog, bundle, replay } from './gamerecord.js';          // (the game record a device keeps: functions of a record and a finished state, no data needed; CONTRACT section 9)
-export { FILES, checkVp, upgradeState };          // (checkVp: a victory point spread is a legal one; a function of the spread alone)
+export { FILES, checkVp, upgradeState };
+// Two functions of a whole state that only the SERVER (the host that holds every seat's state) asks, not a screen, and that are not rules: a screen reads the same facts from `view`. They are exported like `historyOf`/`hashOf`
+// (host helpers over a state, no rules data): `legacyView(st)` is the version 1 shape of a one-character state (the wire format older clients read; a projection of the state, not a game fact), and
+// `windowInfo(st)` is { kind: 'phase' | 'dayend' | null, actor?, group?, groups? }: whether a meeting between characters is possible now, which the server publishes for every seat (`table.meetWindow`) without building a view per seat.
+export { legacyView, windowInfo };          // (checkVp: a victory point spread is a legal one; a function of the spread alone)
 /** The API's own version. `schema` is the version of docs/engine-api/schema/*.json; `state` the saved-state format (party.js STATE_VERSION). */
 export const API_VERSION = { api: '0.1.0', schema: 1 };
 
@@ -131,6 +137,11 @@ function build(data, engine) {
             const next = clone(state);
             next.actor = id;
             return next;
+        },
+
+        /** A finished game's record played again from its parameters and moves, checked against what was recorded: { ok, steps, problems[], state } (gamerecord.js `replay`; `opts.check(st, step)` is run after each move). */
+        replay(rec, opts = {}) {
+            return replayRecord(rec, { newGame: (d, p) => engineNewGame(d, p), apply: (st, d, a) => engineApply(st, d, a), data, check: opts.check });
         },
 
         /** A saved state of ANY earlier version (JSON text) as a state of the current one. */

@@ -185,6 +185,7 @@
 .cb-sheet .ds-btn.primary { min-height: var(--tap-main); }
 .cb-sheet .ds-actions .lead .ds-btn { min-height: var(--tap); }
 .cb-spells { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; max-height: 34vh; overflow-y: auto; }
+.cb-quietmoves { display: flex; gap: 8px; margin-bottom: 8px; } .cb-quietmoves .cb-quietgo { flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; } .cb-quietmoves .cb-quietgo img { width: 24px; height: 24px; }          /* Run and Fly on a quiet evening (8.3.8h): quiet buttons, the one primary stays the end of the evening */
 .cb-spell { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 6px 12px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); width: 100%; text-align: left; }
 .cb-spell.on { border: 2px solid var(--gold); background: var(--gold-wash-2); padding: 5px 11px; }
 .cb-spell .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; } .cb-spell b { font: 700 calc(16px * var(--ts, 1))/1.2 var(--font-ui); } .cb-spell .what { font: 400 calc(14px * var(--ts, 1))/1.25 var(--font-voice); color: var(--ink-2); } .cb-spell small { font: 400 calc(13px * var(--ts, 1))/1.2 var(--font-ui); color: var(--ink-3); }
@@ -264,7 +265,7 @@
 .cb-pop.curse { flex-direction: column; text-align: left; } .cb-pop.curse p { margin: 0; font: 500 calc(13px * var(--ts, 1))/1.35 var(--font-ui); color: var(--ink-2); } .cb-pop.curse p.detail { color: var(--ink-3); }
 
 /* ---- the whole clearing on the stage (F1 "The Clearing", docs/design/combat-metaphor): a word under every creature saying whom it is set on, the other characters and their hirelings as counters, and threads ---- */
-.cb-foe .seton { display: block; width: max-content; max-width: calc(var(--foe) + 24px); margin: 3px auto 0; padding: 1px 8px; border-radius: var(--r-pill); border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink-2); font: 600 calc(12px * var(--ts, 1))/calc(16px * var(--ts, 1)) var(--font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-foe .seton { display: block; width: max-content; max-width: calc(var(--foe) + 36px); margin: 3px auto 0; padding: 1px 6px; border-radius: 12px; text-align: center; text-wrap: balance; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink-2); font: 600 calc(12px * var(--ts, 1))/calc(15px * var(--ts, 1)) var(--font-ui); white-space: normal; overflow-wrap: break-word; }          /* ("targets White Knight" is longer than a small counter: it takes a second line rather than being cut: note 135) */
 .cb-foe .seton.you { color: var(--gold-hi); border-color: var(--line-gold); }
 .cb-foe .seton.other { color: var(--mood-ally, #8fb6e8); border-color: var(--mood-ally, #8fb6e8); }
 .cb-foe .seton.none, .cb-foe .seton.peace { color: var(--ink-3); border-style: dashed; }
@@ -338,7 +339,7 @@
 @media (max-height: 700px) { .cb-hero .name { display: block; } .cb-hero .gcol:not(:has(.wplate)) .cap { display: block; width: 88px; margin: 0 -16px; line-height: 1; } }
 /* the note (microphone) button is fixed at the top right; with no margin above the fight (a short phone) the top row leaves it its corner, so it never covers the sight or the Map */
 @media (max-height: 700px) { .cb-top { padding-right: 44px; } .cb-top .cb-sight { padding: 5px 8px; letter-spacing: .06em; } .cb-top .where b { letter-spacing: .03em; } .cb-top .where span { letter-spacing: .05em; } .cb-top .cb-sight { font-size: calc(12px * var(--ts, 1)); } .cb-top { gap: 6px; } }
-.cb-stagein[data-tight] .cb-pl { display: none; }
+
 
 /* note 102: the fight bar's Fame, Notoriety and Gold carry their words, as the status strip does */
 .cb-bar .ds-stat { flex-direction: column; gap: 1px; padding: 0 5px; font-size: calc(16px * var(--ts, 1)); }
@@ -399,3 +400,31 @@
   .cb-hero:has(> .mid) .name { margin-top: 1px; }
 }
 .cb-verdict .ds-tag { height: 34px; padding: 0 12px; border-width: 1.5px; font-size: calc(15px * var(--ts, 1)); }
+
+/* note 133: what was played (the chit, the weapon, the attack or maneuver time) stands inside the lane it was played in, in small type under the chit: it can never read as belonging to a neighbour */
+.cb-lane .cb-pl { flex: 0 0 100%; justify-content: center; font-size: calc(12px * var(--ts, 1)); line-height: 13px; letter-spacing: 0; text-transform: none; font-weight: 500; padding: 0 0 1px; gap: 0 4px; }
+.cb-lane .cb-pl .sep { background: none; padding: 0; }
+.cb-lane.mine, .cb-lane.guard { padding-top: 2px; padding-bottom: 1px; }
+.cb-stagein[data-tight] .cb-lane .cb-pl .w, .cb-stagein[data-tight] .cb-lane .cb-pl .sep { display: none; }          /* a crowded stage on a short phone: the weapon's name gives way, the time stays in the lane */
+.cb-stagein[data-tight] .cb-lane .cb-pl { line-height: 12px; padding: 0; }
+
+/* ---- the end of a party's fight (note 137): a card for every character: his face, the creatures he slew, what he won, what it cost him ---- */
+.cb-sheet[data-kind=partyover] { max-height: calc(100% - 250px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.cb-sheet[data-kind=partyover] > .ds-actions { position: sticky; bottom: calc(-10px - var(--safe-b)); z-index: 2; background: var(--surface-2); padding: 8px 0 calc(10px + var(--safe-b)); margin-top: 6px; box-shadow: 0 -8px 10px -6px rgba(0,0,0,.35); }
+.cb[data-beat=party] .cb-stage { min-height: 0; }
+.cb[data-beat=party] .cb-foes:empty { display: none; }
+.pr-cards { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 0; }
+.pr-card { border: 1px solid var(--line-2); border-radius: var(--r-md, 12px); background: var(--surface-1, rgba(255,255,255,.04)); padding: 8px 10px; }
+.pr-card.fell { border-color: var(--danger); }
+.pr-head { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.pr-head b { font: 600 calc(17px * var(--ts, 1))/1.2 var(--font-ui); color: var(--ink); }
+.pr-head small { font: 400 calc(13px * var(--ts, 1))/1.2 var(--font-ui); color: var(--ink-3); }
+.pr-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 6px 0 0; }
+.pr-k { font: 600 calc(12px * var(--ts, 1))/1 var(--font-display); letter-spacing: .14em; color: var(--ink-3); text-transform: uppercase; }
+.pr-kill { display: inline-flex; align-items: center; gap: 6px; font: 500 calc(15px * var(--ts, 1))/1.2 var(--font-ui); color: var(--ink-2); }
+.pr-ctr { width: 36px; height: 36px; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--line-2); }
+.pr-ctr img { width: 100%; height: 100%; object-fit: cover; }
+.pr-chips { margin: 8px 0 0; justify-content: flex-start; gap: 6px; }
+.pr-chips .ds-tag, .pr-chips .ds-delta { height: 28px; font-size: calc(13px * var(--ts, 1)); }
+.pr-none { margin: 6px 0 0; font: 400 calc(14px * var(--ts, 1))/1.3 var(--font-ui); color: var(--ink-3); }
+@media (max-height: 700px) { .cb-sheet[data-kind=partyover] { max-height: calc(100% - 205px); } }

@@ -2,10 +2,7 @@
 // the pack with worth in gold, the slot picker and the item card. It replaces the Active/Inactive switches of the old belongings list. The engine is untouched: choosing for a slot
 // is the same `tidy` action the switches sent (toggleItem takes a rival out of the slot by itself), so every payload is byte-identical to the old one.
 import { WEIGHT_WORDS, letterOf, lvl } from '../../../engine/catalogue.js';
-import { BOOTS } from '../../../engine/catalogue.js';
 import { defOf, isOneUse, isWeaponCard, nameOf, priceOf, slotsOf, weightOf } from '../../../engine/catalogue.js';
-import { bootsStrongEnough, carriedLevel, carryCapacity, onPackHorse } from '../../../engine/items.js';
-import { isCave } from '../../../engine/world.js';
 import { itemParts } from '../play/sheet_char.js';
 import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
@@ -17,11 +14,13 @@ import { companyTab, hireCount } from './company.js';
 import { carriedCount, chitsTab } from './chits.js';
 import { dimBtn, footRow, goldEl, guards, itemArt, oneLine, plural, say, seg, signed, weightWord } from './common.js';
 import { spellCount, spellsTab } from './spells.js';
-import { ownSheet, gameOf, questionOf, tableFight, missionsOf } from '../../combat/feed.js';
+import { curseCount, cursesTab, findCount, findsTab } from './finds.js';
+import { ownSheet, gameOf, questionOf, tableFight, missionsOf, sheetOf } from '../../combat/feed.js';
+import { gearOf } from '../../kitfeed.js';
 
 // ---- the rooms ----
 const TAB_KEY = 'mr-kit-tab';
-const TABS = ['kit', 'co', 'sp', 'ch'];
+const TABS = ['kit', 'di', 'cu', 'co', 'sp', 'ch'];
 export function kitTab(G) {
     if (!G.ui.kitTab) { let t = null; try { t = localStorage.getItem(TAB_KEY); } catch { /* ignore */ } G.ui.kitTab = TABS.includes(t) ? t : 'kit'; }
     if (G.ui.kitTab === 'ch' && !missionsOf(G.st, G.data)) G.ui.kitTab = 'kit';          // (the Chits room exists only in a game with mission, campaign and visitor chits)
@@ -57,17 +56,19 @@ export const PLAN_LOCK_DETAIL = 'Rule 7.2.2f: belongings are rearranged only at 
 export const FRESH_LOCK = 'Only what you have just come by can be changed now. The rest waits for the start of your next phase.';
 export function gearLock(G, it = null) {
     const p = questionOf(G.st, G.data)?.type;
-    if (G.st.combat || p?.startsWith('combat') || (G.shared && tableFight(G.st, G.data)?.members?.[ownSheet(G.st, G.data).id])) return 'In a fight, changing your gear is your Encounter action, once.';
+    if (sheetOf(G.st, G.data) || p?.startsWith('combat') || (G.shared && tableFight(G.st, G.data)?.members?.[ownSheet(G.st, G.data).id])) return 'In a fight, changing your gear is your Encounter action, once.';
     if (ownSheet(G.st, G.data).morph) return 'Your gear is of no use to a creature.';
     if (ownSheet(G.st, G.data).flying) return 'You cannot rearrange your gear in the air.';
     if (roadLockOf(G.st)) return ROAD_STORY;          // 8.3.8d: out on a road between clearings (the engine's gearLockedWhy); ROAD_STORY is the Story words, lockText gives the Detail
     if (p === 'plan') return PLAN_LOCK;
-    if (p === 'phase-gear') return it && !(questionOf(G.st, G.data).items ?? []).includes(it.uid) ? FRESH_LOCK : null;
+    if (p === 'phase-gear') return it && !freshOk(G, it.uid) ? FRESH_LOCK : null;
     if (!['phase', 'phase-pick', 'evening-end'].includes(p)) return 'Gear can be changed between phases.';
     return null;
 }
 // Is `uid` one of the things he may change right now on the 'phase-gear' question? (true when that question is not asked)
-const freshOk = (G, uid) => questionOf(G.st, G.data)?.type !== 'phase-gear' || (questionOf(G.st, G.data).items ?? []).includes(uid);
+// (a horse or Boots in `pending.mounts` is one of them too: too weak for what he came by, it may be taken off here; 7.3.2a, 7.3.1f.1)
+const freshOk = (G, uid) => questionOf(G.st, G.data)?.type !== 'phase-gear' || (questionOf(G.st, G.data).items ?? []).includes(uid) || (questionOf(G.st, G.data).mounts ?? []).includes(uid);
+export const isWeakMount = (G, it) => questionOf(G.st, G.data)?.type === 'phase-gear' && (questionOf(G.st, G.data).mounts ?? []).includes(it.uid);          // (taken off, never left behind: the engine refuses gear.mount-stays)
 // The lock of one slot: its occupant's, or for an empty slot (on 'phase-gear') whether something he has just come by could go there.
 function slotLock(G, key, occupant) {
     if (occupant) return gearLock(G, occupant);
@@ -80,18 +81,12 @@ function slotLock(G, key, occupant) {
 export const lockText = (lock, G = null) => (lock === PLAN_LOCK ? h('span', {}, h('span', { 'data-v': 'story' }, PLAN_LOCK), h('span', { 'data-v': 'detail' }, PLAN_LOCK_DETAIL))
     : lock === ROAD_STORY && G && roadLockOf(G.st) ? voiced(roadLockOf(G.st)) : lock);
 
-// Why an item cannot be put to use now (the engine's own refusals from toggleItem, said before the press), or null.
+// Why an item cannot be put to use now (the engine's own refusals from toggleItem, said before the press), or null. The engine says which (view.me.gear.blocked); these are the words.
+const WHY_BLOCKED = { cave: 'A horse cannot be ridden in a cave.', weak: 'The horse is not strong enough to carry you and your gear.', boots: 'Those boots are not strong enough to carry you and your gear.' };
 export function whyNot(G, it) {
-    const { st, data } = G;
     if (it.destroyed) return 'It is destroyed.';
     if (it.active) return null;
-    if (it.kind === 'horse') {
-        const at = st.combat?.at ?? ownSheet(st, data).at;
-        if (at && isCave(st, data, at)) return 'A horse cannot be ridden in a cave.';
-        if (lvl(data.horses[it.id].walk.strength) < Math.max(lvl(ownSheet(st, data).weight), carriedLevel(st, data, it.uid))) return 'The horse is not strong enough to carry you and your gear.';
-    }
-    if (BOOTS[it.id] && !bootsStrongEnough(st, data, it)) return 'Those boots are not strong enough to carry you and your gear.';
-    return null;
+    return WHY_BLOCKED[gearOf(G.st, G.data).blocked[it.uid]] ?? null;
 }
 
 // Put an item to use, or put it away: the one action the old switch sent.
@@ -100,11 +95,11 @@ export function tidyAct(G, it, extra = {}) { G.ui.keep = true; act(G, { type: 't
 // ---- the carry limit ----
 // the names of what he would put down if he moved now (the engine's dropHeavy, said before the move): too heavy for what he can carry and no pack horse bears it
 export function wouldDrop(G) {
-    const { st, data } = G, top = Math.max(carryCapacity(st, data), 0);
-    return ownSheet(st, data).items.filter(it => !it.destroyed && it.kind !== 'horse' && !onPackHorse(st, data, it) && lvl(weightOf(data, it)) > top && lvl(weightOf(data, it)) > 0).map(it => nameOf(data, it));
+    const drops = gearOf(G.st, G.data).drops;          // (view.me.gear.drops: what the engine's dropHeavy would put down)
+    return ownSheet(G.st, G.data).items.filter(it => drops.includes(it.uid)).map(it => nameOf(G.data, it));
 }
 function carryLimit(G) {
-    const { st, data } = G, cap = carryCapacity(st, data), carried = carriedLevel(st, data), top = Math.max(cap, 0);
+    const { st, data } = G, { capacity: cap, level: carried } = gearOf(st, data);
     const word = cap <= 0 ? 'almost nothing' : WEIGHT_WORDS[letterOf(cap)];
     let src = '';
     if (ownSheet(st, data).morph) src = `as the ${ownSheet(st, data).morph.creature?.name ?? 'creature'}`;
@@ -200,10 +195,10 @@ const sect2 = (t, r) => h('div', { class: 'ds-sect' }, h('span', { class: 'ds-ey
 export function kitContent(G, o = {}) {
     const tab = o.tab ?? kitTab(G), pick = o.onTab ?? (t => setKitTab(G, t)), ch = ownSheet(G.st, G.data);
     const ctl = { openItem: o.openItem ?? (it => { G.ui.itemUid = it.uid; G.ui.itemFrom = null; G.ui.sheet = 'item'; render(G); }) };
-    const room = tab === 'co' ? companyTab(G) : tab === 'sp' ? spellsTab(G, o) : tab === 'ch' && missionsOf(G.st, G.data) ? chitsTab(G) : kitRoom(G, ctl);
-    return { title: displayName(ch.name), eyebrow: `Day ${gameOf(G.st, G.data).day} · ${tab === 'co' ? 'Company' : tab === 'sp' ? 'Spells' : tab === 'ch' ? 'Chits' : 'Kit'}`, detent: 'tall',
+    const room = tab === 'di' ? findsTab(G) : tab === 'cu' ? cursesTab(G) : tab === 'co' ? companyTab(G) : tab === 'sp' ? spellsTab(G, o) : tab === 'ch' && missionsOf(G.st, G.data) ? chitsTab(G) : kitRoom(G, ctl);
+    return { title: displayName(ch.name), eyebrow: `Day ${gameOf(G.st, G.data).day} · ${tab === 'di' ? 'Discoveries' : tab === 'cu' ? 'Curses' : tab === 'co' ? 'Company' : tab === 'sp' ? 'Spells' : tab === 'ch' ? 'Chits' : 'Kit'}`, detent: 'tall',
         body: h('div', { class: 'kit' },
-            seg([{ key: 'kit', label: 'Kit' }, { key: 'co', label: 'Company', n: hireCount(G) }, { key: 'sp', label: 'Spells', n: spellCount(G) }, ...(missionsOf(G.st, G.data) ? [{ key: 'ch', label: 'Chits', n: carriedCount(G) }] : [])], tab, pick, 'data-kit-tab'),
+            seg([{ key: 'kit', label: 'Kit' }, { key: 'di', label: 'Discoveries', n: findCount(G) }, { key: 'cu', label: 'Curses', n: curseCount(G) }, { key: 'co', label: 'Company', n: hireCount(G) }, { key: 'sp', label: 'Spells', n: spellCount(G) }, ...(missionsOf(G.st, G.data) ? [{ key: 'ch', label: 'Chits', n: carriedCount(G) }] : [])], tab, pick, 'data-kit-tab'),
             room) };
 }
 
@@ -278,7 +273,7 @@ export function itemContent(G, it, o = {}) {
         h('p', { class: 'ds-voice kit-story' }, storyLine(G, it)),
         h('details', { class: 'kit-detail' }, h('summary', {}, 'Detail'), ...facts.map(t => h('p', {}, t))),
         lock && !it.destroyed ? h('div', { class: 'ds-why kit-lock' }, icon('lock', 'kit-lockico'), lockText(lock, G)) : null,
-        can && !bound ? (leaving ? h('div', { class: 'kit-leave' }, h('span', { class: 'ds-meta' }, `Leave the ${name} lying here?`),
+        can && !bound && !isWeakMount(G, it) ? (leaving ? h('div', { class: 'kit-leave' }, h('span', { class: 'ds-meta' }, `Leave the ${name} lying here?`),
             h('button', { type: 'button', class: 'ds-btn sm danger', 'data-act': 'item-leave', onclick: () => { G.ui.leaveAsk = null; G.ui.sheet = G.ui.itemFrom === 'dock' ? null : 'char'; G.ui.itemFrom = null; tidyAct(G, it, { drop: true }); } }, `Leave the ${name} here`),
             h('button', { type: 'button', class: 'ds-btn sm quiet', onclick: () => { G.ui.leaveAsk = null; render(G); } }, 'Keep it'))
             : h('button', { type: 'button', class: 'ds-btn sm quiet kit-leavebtn', 'data-act': 'item-leave-ask', onclick: () => { G.ui.leaveAsk = it.uid; render(G); } }, 'Leave it here')) : null);

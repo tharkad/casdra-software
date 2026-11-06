@@ -80,6 +80,17 @@ export function bundle(records, exportedAt = null) {
     return JSON.stringify({ app: 'magic-realm', format: RECORD_V, exported: exportedAt, games: records }, null, 1);
 }
 
+const LATER = new Set(['plan', 'next', 'pick', 'continue', 'restart', 'end-option', 'rest', 'search-table', 'search-choice', 'effort-cost', 'enchant-choice', 'runes-target', 'learn-spell', 'hire', 'trade', 'tidy', 'suicide']);
+const quietAsks = st => (st.asks ?? []).filter(k => k.pending?.type === 'combat-encounter' && k.pending.spellOnly === true);
+function passQuiet(st, env, move) {
+    for (let guard = 0; guard < 40 && LATER.has(move.type) && quietAsks(st).length; guard++) {
+        for (const k of quietAsks(st)) st = env.apply(st, env.data, { type: 'combat', kind: 'encounter', act: 'pass', who: k.who });
+    }
+    // Likewise a game recorded before 7.3.2a / 7.3.1f.1 were kept: its `continue` at the 'phase-gear' question left a horse or Boots in use beside an item too heavy for it; now the mount comes off first.
+    if (move.type === 'continue') for (const k of st.asks ?? []) for (const uid of k.pending?.type === 'phase-gear' ? k.pending.mounts ?? [] : []) st = env.apply(st, env.data, { type: 'tidy', item: uid, who: k.who });
+    return st;
+}
+
 // Plays a record's moves again from its parameters and checks the result against what was recorded.
 //   env = { newGame, apply, data, check?(st, step) }.  Returns { ok, steps, problems:[], state }.
 export function replay(rec, env) {
@@ -88,6 +99,10 @@ export function replay(rec, env) {
     let st;
     try { st = env.newGame(env.data, rec.params); } catch (e) { out.ok = false; out.problems.push(`could not start: ${e.message}`); return out; }
     for (const a of rec.moves) {
+        // A game recorded before 2026-11-05 has no answer to the quiet rounds of an evening with nobody to fight (8.1.3a: held in a game at a screen, `pauseEvening`): when the next move is for a later
+        // question, the quiet round it never saw is passed, which is what the player did then (the engine skipped it).
+        try { st = passQuiet(st, env, a); }
+        catch (e) { out.ok = false; out.problems.push(`move ${out.steps + 1} (${a.type}): the quiet evening could not be passed: ${e.message}`); return Object.assign(out, { state: st }); }
         try { st = env.apply(st, env.data, a); } catch (e) { out.ok = false; out.problems.push(`move ${out.steps + 1} (${a.type}) was refused: ${e.message}`); return Object.assign(out, { state: st }); }
         out.steps++;
         if (env.check) { try { env.check(st, out.steps); } catch (e) { out.ok = false; out.problems.push(`invariant after move ${out.steps}: ${e.message}`); } }

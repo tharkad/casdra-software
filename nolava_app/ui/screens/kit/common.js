@@ -92,7 +92,9 @@ export const dimBtn = (G, label, why, attrs = {}, cls = '') => h('button', { typ
 
 // The segmented control of a sheet: [{ key, label, n }] with the current key lit. `attr` is the data attribute the tabs carry (tests click them).
 export function seg(list, on, pick, attr = 'data-tab') {
-    return h('div', { class: 'ds-seg kit-seg', role: 'tablist' }, list.map(t => h('button', { type: 'button', role: 'tab', 'aria-selected': on === t.key ? 'true' : 'false', [attr]: t.key, class: on === t.key ? 'on' : null, onclick: () => pick(t.key) }, t.label, t.n ? h('sup', {}, String(t.n)) : null)));
+    const el = h('div', { class: 'ds-seg kit-seg', role: 'tablist' }, list.map(t => h('button', { type: 'button', role: 'tab', 'aria-selected': on === t.key ? 'true' : 'false', [attr]: t.key, class: on === t.key ? 'on' : null, onclick: () => pick(t.key) }, t.label, t.n ? h('sup', {}, String(t.n)) : null)));
+    requestAnimationFrame(() => { const lit = el.querySelector('[aria-selected=true]'); if (lit && el.scrollWidth > el.clientWidth) el.scrollLeft = Math.max(0, lit.offsetLeft - (el.clientWidth - lit.offsetWidth) / 2); });          // (the lit tab is in view when the bar scrolls)
+    return el;
 }
 
 // The foot of a decision sheet: one line of what will happen (with the balance after), then the secondary on the left and the ONE primary on the right.

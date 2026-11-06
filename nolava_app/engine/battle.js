@@ -3,6 +3,7 @@ import { withActor } from './party.js';
 import { hirelings, monsterHires } from './hire.js';
 import { legalBoxPlan, nativesIn, denizensIn, hireStats, denSide, payOrFight, drinksAction, choiceAction, encounterAction, encounterOptions, chooseWounds, chooseFatigue, meleeSetup, meleeEngaged, meleeReposition, meleeCollect, deliverBlows, meleeAfter, parts, charFoes, contested, charUid } from './combat.js';
 import { expireDue } from './magic/fx.js';
+import { interruptCasts } from './magic/cast.js';
 import { energizePass } from './magic/energize.js';
 import { worldFadesRoll } from './magic/combathide.js';
 import { mayAttackHero } from './rules/mayAttackHero.js';
@@ -461,6 +462,7 @@ function submitMelee(st, data, a) {
     if (!b.pvp && typeof p.target === 'string' && /^(char|hire):/.test(p.target)) throw new Error('character against character is switched off in this game');
     const probe = clone(st);
     probe.actor = id;
+    if (probe.battle) probe.battle.probe = true;                                                    // (a spell of his may still be cancelled by a faster one, 8.4.3b: his Fight chit is judged again when the spells are known)
     inSheet(probe, id, () => meleeSetup(probe, data, p));                                           // (throws the reason a play is illegal)
     c.play = p;
     m.ready = true;
@@ -505,6 +507,8 @@ function resolveMelee(st, data) {
         b.reveal.plays[id] = { target: p.target ?? null, fightChit: p.fightChit ?? null, attackDir: p.attackDir ?? null, moveChit: p.moveChit ?? null, moveDir: p.moveDir ?? null, shieldDir: p.shieldDir ?? null, spell: p.spellAim ? true : false };
     }
     say(st, `The plays are shown: ${roster.map(id => nameOf(st, id)).join(', ')}.`, 'combat', null, { who: null, ev: { code: 'melee.plays.shown', plays: roster.map(id => ({ who: id, ...b.reveal.plays[id], spell: b.reveal.plays[id].spell ? 'aimed' : null })) } });
+    // 0. a faster spell aimed at a character cancels his slower spell before either starts working (8.4.3b)
+    if (b.pvp) interruptCasts(st, data, roster);
     // 1. in the order of the draw: chits played, spells aimed and resolved, the target named, the creatures on his sheet placed
     for (const id of roster) {
         if (st.chars[id].dead || st.chars[id].today.combat?.ended) { S[id] = { stop: 'ended' }; continue; }

@@ -9,7 +9,7 @@ import { lengthLine } from '../../gametext.js';
 import { meetSheet, offerSheet } from '../meetui.js';
 import { endOptionSheet, leaveSheet, quitSheet } from '../tableui.js';
 import { abandon, act, isForced } from './actions.js';
-import { combatHost, fightBeat, sharedFightHost } from './combat.js';
+import { combatHost, fightBeat, sharedFightHost, partyBeatHost } from './combat.js';
 import { mc, modal, tc } from './kit.js';
 import { choiceSheet, effortSheet, enchantSheet, learnSheet, pickSheet, restSheet, runesSheet, searchSheet, tableName, turnEndSheet } from './phases.js';
 import { overScreen, restartSheet } from './endscreen.js';
@@ -26,14 +26,15 @@ import { eveningContent } from '../kit/evening.js';
 import { phaseGearContent } from '../kit/phasegear.js';
 import { mountSheet } from '../kit/common.js';
 import { assignSheet, handoverSheet, sunriseSheet } from './leaders.js';
-import { abandonSheet, cardSheet, helpSheet, keySheet, lookSheet, tablesSheet } from './looks.js';
+import { abandonSheet, cardSheet, helpSheet, keySheet, lookSheet, suicideSheet, tablesSheet } from './looks.js';
+import { suicideOk } from './suicide.js';
 import { render } from './shell.js';
 import { setWelcomed, vpNow, welcomed } from './state.js';
 
 // ---- sheets ----
 // A look at the belongings, the Journal, the menu, the calendar... while a question waits on a sheet: the question stays where it is (under the scrim) and the look opens over it;
 // closing the look gives the question back. (A fight, the draw and the other full-screen things have their own hosts and are not covered.)
-const LOOKS = new Set(['char', 'menu', 'calendar', 'score', 'journal', 'dice', 'log', 'curses', 'spells', 'spell', 'item', 'cardinfo', 'key', 'help', 'tables', 'setupcard', 'settings', 'card', 'piece', 'slot']);
+const LOOKS = new Set(['char', 'menu', 'calendar', 'score', 'journal', 'dice', 'log', 'curses', 'spells', 'spell', 'item', 'cardinfo', 'key', 'help', 'tables', 'setupcard', 'settings', 'card', 'piece', 'slot', 'confirm-suicide']);
 const QUESTIONS = new Set(['turn-end', 'evening-end', 'phase-gear', 'rest', 'search-table', 'search-choice', 'effort-cost', 'runes-target', 'learn-spell', 'enchant-choice', 'trade', 'trade-offer', 'hire', 'hire-offer']);
 
 // The morning's day report and the first-day welcome are not modal (Mike's note 81): the strip and the menu open their look over them, like over any question (a clearing looked at already did, through `lookAt`).
@@ -61,6 +62,7 @@ export function sheets(G, lookOnly = false) {
     { const ts = G.shared && !lookOnly ? tableSheet(G) : null; if (ts) { out.push(ts); return out; } }          // (what the table asks me: a vote, marked away, welcome back)
     // A shared fight: a seat that is in it (or was, and watches) gets the shared frame; the map is one tap away at every step. Anyone else only sees the banner in the dock.
     if (G.shared && tableFight(G.st, G.data)?.members?.[ownSheet(G.st, G.data).id] && sharedFightHost(G, out)) return out;
+    if (!G.shared && !lookOnly && G.ui.partyBeat) { partyBeatHost(G, out); return out; }          // (a party's fight has just ended: its recap comes before whatever the evening or the day asks next)
     if (p?.type?.startsWith('combat') || fightBeat(G)) { combatHost(G, out); return out; }
     // The game is over (solo or a race): the death callout or the verdict, full screen, once the fight has had its one beat. A dead character may return tomorrow (a sheet over it).
     if (!G.shared && p?.type === 'over') { out.push(overScreen(G)); if (G.ui.restartVp) out.push(restartSheet(G)); if (G.ui.sheet === 'menu') out.push(menuSheet(G)); return out; }
@@ -98,6 +100,7 @@ export function sheets(G, lookOnly = false) {
     else if (G.ui.sheet === 'clearing' && G.ui.sel) out.push(clearingSheet(G));
     else if (G.ui.sheet === 'menu') out.push(menuSheet(G));
     else if (G.ui.sheet === 'confirm-abandon' && !G.race) out.push(abandonSheet(G));
+    else if (G.ui.sheet === 'confirm-suicide' && suicideOk(G)) out.push(suicideSheet(G));
     else if (G.ui.sheet === 'race' && G.race) out.push(raceSheet(G));
     else if (G.ui.sheet === 'players' && G.shared) out.push(playersSheet(G));
     else if (G.ui.sheet === 'quit-confirm' && G.shared) out.push(quitSheet(tc(G)));

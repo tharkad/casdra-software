@@ -1,4 +1,4 @@
-import { say, lvl } from './core.js';
+import { say, lvl, refuse } from './core.js';
 import { withActor, charsAt, isMulti, askOf, livingIds, playerNameOf } from './party.js';
 import { nameOf, summaryOf, autoEquip, noteGain, weightOf, carryCapacity, onPackHorse, extraPhaseCommitment, transferLock } from './items.js';
 import { pathKeyAt, pathEnds, pathSide, tileSide, nameOfClearing, roadsFrom, tileOf, numOf } from './world.js';
@@ -55,6 +55,9 @@ const here = c => !!c.at && !c.onRoad && !c.flying && !c.asleep;          // (a 
 // May a and b trade now? Returns why not, or null. At the start of a phase of the actor's turn he (and his followers) may trade with any character in his clearing, not the others with each
 // other (7.2.1); hidden ones may (7.2.1b); not while flying, in the woods or on a road (7.2.1d); a character blocked today may not trade with those about to start phases (7.12.4b). After the
 // day's fights, while the trade window is open, those who stand together may (R-5).
+// House rule (Mike 2026-11-06, note 142; the game option `shareAtBirdsong`, ON unless switched off): while the plan is made at Birdsong the characters of ONE player, standing together, may tell each other what they
+// have found (a discovery only: no belongings, no gold), so that a find reaches the plan of the day it is used on. The printed times are the start of a phase and the day-end window (4.5.5h, 7.2.1).
+const birdsongShare = (st, a, b) => st.period === 'birdsong' && !st.tradeWindow && st.options?.shareAtBirdsong !== false && !!st.chars[a] && !!st.chars[b] && sameHand(st.chars[a], st.chars[b]);
 export function tradeError(st, a, b) {
     if (!isMulti(st)) return 'there is nobody to trade with';
     const x = st.chars[a], y = st.chars[b];
@@ -64,6 +67,7 @@ export function tradeError(st, a, b) {
     if (x.mist || y.mist) return 'a character in mist cannot trade';
     const tw = st.tradeWindow;
     if (tw) return tw.groups.some(g => g.ids.includes(a) && g.ids.includes(b)) ? null : 'only those who stand together may trade in the day-end window';
+    if (birdsongShare(st, a, b)) return null;
     const w = phaseWindow(st);
     if (!w) return 'you can trade at the start of a phase of someone\'s turn, or in the window after the day\'s fights (7.2.1, R-5)';
     if (!w.group.includes(a) && !w.group.includes(b)) return `only ${nameOfChar(st, w.actor)} and those who follow him can trade now: the others can trade with him, not with each other (7.2.1)`;
@@ -95,6 +99,25 @@ function discLabel(st, data, d, at) {
     if (d.kind === 'site') return `the ${st.chits.find(x => x.id === d.id)?.name ?? 'site'} here`;
     return `the ${st.twt?.[d.id]?.name ?? 'site card'} here`;
 }
+// What `giver` could tell `taker` that `taker` does not know yet (4.5.5, notes 142): the discoveries of this clearing the giver holds (4.5.5a, 4.5.5b) and the taker lacks (4.5.5c: each one separately).
+// Pure facts of the two records, so it is asked wherever both are the same player's (a party on one phone, where nobody can be told anything the same person does not already hold).
+// `turnsUp` says a face-down Site chit would be shown to all and put back face down (4.5.5d). "Hidden enemies" is not a discovery and cannot be given (4.5.5e); recorded spells cannot (4.5.5f).
+export function newsFor(st, data, giver, taker) {
+    const G = st.chars[giver], T = st.chars[taker];
+    if (!G || !T || G.dead || T.dead || !G.at || G.at !== T.at) return [];
+    const at = G.at, out = [], add = (d, extra = {}) => { if (knows(st, G, d, at) && !knows(st, T, d, at)) out.push({ ...d, label: discLabel(st, data, d, at), ...extra }); };
+    for (const key of G.discovered.paths) add({ kind: 'path', key });
+    for (const id of G.discovered.sites) add({ kind: 'site', id }, { turnsUp: (c => !!c && !c.up && !c.known)(st.chits.find(x => x.id === id)) });
+    for (const id of G.siteCards?.[at] ?? []) add({ kind: 'sitecard', id });
+    return out;
+}
+// Do the characters of one clearing and one player hold news for each other? (a party on one phone; a hired leader's finds are his hirer's own business, 7.7)
+const sameHand = (a, b) => a.owner === b.owner && !a.leader && !b.leader;
+export function partyNews(st, ids) {
+    for (const a of ids) for (const b of ids) if (a !== b && sameHand(st.chars[a], st.chars[b]) && newsFor(st, null, a, b).length) return true;
+    return false;
+}
+
 // 4.5.5d (selling) and 7.5.5b.2 (looting), ruling I2 (Mike 2026-11-01): a face-down Site chit is turned up for all to see, then put in its clearing FACE DOWN again. Every character in the
 // game has now seen it (`seen`), and it is marked `known`: it is turned over later like any chit but summons nothing (summon.js), because everyone already saw it. Returns true when it was shown.
 export function showSiteChit(st, chit) {
@@ -210,11 +233,12 @@ function offerFrom(st, data, a) {
     if ((st.offers ?? []).some(o => o.to === to)) throw new Error(`${nameOfChar(st, to)} is already considering an offer`);
     const give = normSide(a.give), want = normSide(a.want), at = st.chars[from].at;
     if (sideEmpty(give) && sideEmpty(want)) throw new Error('an offer must give something or ask for something');
+    if (birdsongShare(st, from, to) && !phaseWindow(st) && (give.items.length || give.gold || !sideEmpty(want))) refuse('meet.birdsong-discoveries-only', 'at Birdsong the characters of one player may only tell each other what they have found (a house rule: the start of a phase is the time to hand over belongings and gold)', null, '4.5.5h');
     checkSide(st, data, from, give, at, { strict: true });
     checkSide(st, data, to, want, at, { strict: false, named: true });
     const ra = askOf(st, to);
     const rp = unwrapped(ra?.pending);
-    if (ra && !(STARTS.has(rp?.type) || rp?.type === 'meet-window')) throw new Error(`${nameOfChar(st, to)} is busy answering something else`);
+    if (ra && !(STARTS.has(rp?.type) || rp?.type === 'meet-window' || (rp?.type === 'plan' && birdsongShare(st, from, to)))) throw new Error(`${nameOfChar(st, to)} is busy answering something else`);
     if (ra && ra.pending.type === 'meet-offer') throw new Error(`${nameOfChar(st, to)} is already considering an offer`);
     const id = `o${st.offerSeq = (st.offerSeq ?? 0) + 1}`;
     const o = { id, from, to, at, day: st.day, window: st.tradeWindow ? 'dayend' : 'phase', give, want };
@@ -278,7 +302,7 @@ function answerOffer(st, data, a) {
     const take = (c, uids) => uids.map(u => c.items.splice(c.items.findIndex(i => i.uid === u), 1)[0]);
     const fromA = take(A, o.give.items), fromB = take(B, o.want.items);
     A.gold += o.want.gold - o.give.gold; B.gold += o.give.gold - o.want.gold;
-    const receive = (id, list) => withActor(st, id, () => { for (const it of list) { it.active = false; it.alerted = false; st.chars[id].items.push(it); noteGain(st, it); autoEquip(st, data, it); } });
+    const receive = (id, list) => withActor(st, id, () => { for (const it of list) { it.active = false; it.alerted = false; st.chars[id].items.push(it); noteGain(st, it); autoEquip(st, data, it, { now: true }); } });
     receive(o.to, fromA); receive(o.from, fromB);
     // discoveries: each is copied to the other (the giver keeps it), and everyone spying on the giver learns it too (4.5.6b.3)
     for (const [giver, taker, side] of [[o.from, o.to, o.give], [o.to, o.from, o.want]]) {
@@ -312,7 +336,7 @@ export function openWindow(st) {
     const by = new Map();
     for (const id of livingIds(st)) { const c = st.chars[id]; if (!here(c) || c.mist) continue; if (!by.has(c.at)) by.set(c.at, []); by.get(c.at).push(id); }
     const groups = [];
-    for (const [at, ids] of by) if (ids.length > 1 && ids.some(id => policyOf(st.chars[id]).dayEnd)) groups.push({ at, ids, done: [] });
+    for (const [at, ids] of by) if (ids.length > 1 && (ids.some(id => policyOf(st.chars[id]).dayEnd) || partyNews(st, ids))) groups.push({ at, ids, done: [] });          // (a party on one phone is also called when one of them holds a find the other lacks: 4.5.5h, note 142)
     if (!groups.length) return false;
     st.tradeWindow = { groups };
     for (const g of groups) for (const id of g.ids) st.asks.push({ who: id, pending: { type: 'meet-window', at: g.at, with: g.ids.filter(x => x !== id) } });
@@ -547,14 +571,27 @@ export function carry(st, data, from, to, road, caveTo) {
         if (!ok) dropFollower(st, data, f, 'too heavily laden to go on');
     }
 }
-// The guide's turn is over: following stops (7.11.8). The followers were carried to the end of it; the chits flipped once, for all of them, in the guide's own end of turn (a group, R-10).
+// The guide's turn is over, and the followers, put back on the map in his clearing, end their turn too, separately from him: they cause monsters to move and summon denizens normally
+// (7.11.8; Mike, 2026-11-05: the book, not the group of R-10). They are all in one clearing, so they end it together: the monsters already on the map and in the tile that prowl come to them
+// (a monster the guide's chits have just called to another clearing included), and the chits the guide turned up have called what they call. `res` is the guide's end of turn (summon.js
+// endOfTurn); what arrives for the followers is added to its `arrivals`, so the guide, standing in the same clearing, is closed in by it too. Returns nothing; each follower's own report is
+// left on him (`today.turnEnd`, with `follower: true`) for releaseFollowers to keep.
+export function endFollowersTurn(st, data, res) {
+    const g = st.actor, fs = followersOf(st, g);
+    const seen = new Set(res.arrivals.map(a => a.id));
+    for (const f of fs) {
+        const own = withActor(st, f, () => { hooks.followerEnds(st, data, res); return st.turnEnd; });
+        for (const a of own?.arrivals ?? []) if (!seen.has(a.id)) { seen.add(a.id); res.arrivals.push(a); }
+    }
+}
+// The guide's turn is over: following stops (7.11.8). The followers were carried to the end of it and have ended their own turn (endFollowersTurn).
 export function releaseFollowers(st, data) {
     const g = st.actor, fs = followersOf(st, g);
     for (const f of fs) {
         const c = st.chars[f];
         delete st.follows[f];
         c.today.stage = 'done';
-        c.today.turnEnd = { ...(st.chars[g].today.turnEnd ?? {}), follower: true };
+        if (!(c.today.turnEnd?.follower && c.today.turnEnd.day === st.day)) c.today.turnEnd = { ...(st.chars[g].today.turnEnd ?? {}), follower: true };
         say(st, `${c.name}'s turn ends with ${nameOfChar(st, g)}'s.`, 'day', null, { who: f, p: `${pn(st, f)}'s turn ends with ${pn(st, g)}'s.` });
     }
     if (st.follows && !Object.keys(st.follows).length) delete st.follows;
@@ -576,7 +613,7 @@ export function shareFind(st, before) {
 // For character `who`, only what he may know: with whom he may trade right now and what of theirs he can see to ask for, what he has to give (belongings, gold, the discoveries that belong to
 // this clearing), whom he could follow at Birdsong, his standing policy, and which window (if any) is open. Nothing in it is another character's secret.
 export function meetOptions(st, data, who) {
-    const me = st.chars[who], out = { window: null, partners: [], give: { items: [], gold: 0, discoveries: [] }, followable: [], followWhy: [], policy: policyOf(me), offers: { made: null, received: null } };
+    const me = st.chars[who], out = { window: null, partners: [], give: { items: [], gold: 0, discoveries: [] }, followable: [], followWhy: [], policy: policyOf(me), offers: { made: null, received: null }, news: [] };
     if (!isMulti(st) || !me || me.dead) return out;
     const itemView = it => ({ uid: it.uid, kind: it.kind, id: it.id, name: nameOf(data, it), sub: summaryOf(data, it), active: !!it.active, damaged: !!it.damaged });
     out.window = st.tradeWindow ? 'dayend' : phaseWindow(st) ? 'phase' : null;
@@ -592,6 +629,13 @@ export function meetOptions(st, data, who) {
         for (const key of me.discovered.paths) { const d = { kind: 'path', key }; if (knows(st, me, d, at)) out.give.discoveries.push({ ...d, label: discLabel(st, data, d, at) }); }
         for (const id of me.discovered.sites) { const d = { kind: 'site', id }; if (knows(st, me, d, at)) out.give.discoveries.push({ ...d, label: discLabel(st, data, d, at) }); }
         for (const id of me.siteCards?.[at] ?? []) { const d = { kind: 'sitecard', id }; out.give.discoveries.push({ ...d, label: discLabel(st, data, d, at) }); }
+    }
+    // 4.5.5 (note 142): what he could tell each of his own player's characters in this clearing that the other lacks, and whether now is a time to tell it (`now`: the engine's own trade window, 4.5.5h, 7.2.1)
+    if (here(me)) for (const id of st.order) {
+        const c = st.chars[id];
+        if (id === who || !sameHand(me, c)) continue;
+        const items = newsFor(st, data, who, id);
+        if (items.length) out.news.push({ id, name: c.name, items, now: !tradeError(st, who, id) });
     }
     if (st.period === 'birdsong' && me.today.stage === 'plan' && here(me)) out.followable = st.order.filter(id => id !== who && !st.chars[id].dead && here(st.chars[id]) && st.chars[id].at === at).map(id => ({ id, name: st.chars[id].name }));
     out.followWhy = followWhy(st, who);

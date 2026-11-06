@@ -36,7 +36,7 @@ export function newGame(data, opts = {}) {
     if (opts.pauseEvening) st.pauseEvening = true;          // the game screen: a one-character evening ends on the question where he may rearrange his belongings (day.js eveningDone)
     if (opts.pauseGear) st.pauseGear = true;                // the game screen: a phase in which he came by a belonging ends on the question where he may activate, deactivate or abandon it (4.3.2, day.js gearPause)
     if (opts.pauseVictory) { st.pauseVictory = true; st.pauseShift = true; }          // the game screen: stop on a result screen and on the Bracelets / Cloak offer
-    st.options = { knightsAdjustment: !!opts.options?.knightsAdjustment, watchfulNatives: !!opts.options?.watchfulNatives, quietMonsters: !!opts.options?.quietMonsters, ...(opts.options?.castAnytime ? { castAnytime: true } : {}), ...(opts.options?.hirelingRules ? { hirelingRules: true } : {}), ...(opts.options?.hireSections ? { hireSections: true } : {}) };       // (castAnytime, hirelingRules and hireSections are in the state only when on, so a game without them is exactly as it was)
+    st.options = { knightsAdjustment: !!opts.options?.knightsAdjustment, watchfulNatives: !!opts.options?.watchfulNatives, quietMonsters: !!opts.options?.quietMonsters, ...(opts.options?.castAnytime ? { castAnytime: true } : {}), ...(opts.options?.hirelingRules ? { hirelingRules: true } : {}), ...(opts.options?.hireSections ? { hireSections: true } : {}), ...(opts.options?.shareAtBirdsong === false ? { shareAtBirdsong: false } : {}) };       // (castAnytime, hirelingRules and hireSections are in the state only when on, so a game without them is exactly as it was)
     st.startGear = { weapon: opts.startGear?.weapon ?? true, armor: opts.startGear?.armor ?? true };
     if (opts.missions) setupVisitorChits(st, data, opts.missions);          // the visitor, mission and campaign chits (3.4, missions.js): only when asked for, so a game without them is as it was
     // One realm, one or several characters (2 to 4): each has his own gear, goals, start dwelling (a sealed choice from his card; the first listed by default) and spells.
@@ -253,8 +253,9 @@ export function checkVp(vp, total) {
 export function restartAfterDeath(st, data, vp) {
     const old = st.ch;
     if (!old.dead) throw new Error('your character is alive');
-    if (st.day >= (st.lastDay ?? 28) && st.mode !== 'endless') throw new Error('the game is over');
-    if (vp) checkVp(vp, Math.max(2, Math.ceil(((st.lastDay ?? 28) - st.day) / 7) + 1));
+    const back = old.death?.rejoin ?? st.day + 1;          // 9.2.2a: a character who suicided at Midnight sits out one complete day, and so comes back a day later than one killed (day.js suicide)
+    if (back > (st.lastDay ?? 28) && st.mode !== 'endless') throw new Error('the game is over');
+    if (vp) checkVp(vp, Math.max(2, Math.ceil(((st.lastDay ?? 28) - (back - 1)) / 7) + 1));
     st.deaths = (st.deaths ?? 0) + 1;                      // from now on gear counters are never conjured from nothing
     const ch = makeCharacter(st, data, old.id, vp, { gear: st.startGear, dwelling: data.characters[old.id].startDwellings[0] });   // a new hero starts at the Inn
     ch.at = chooseStart(st, data, ch);
@@ -262,7 +263,7 @@ export function restartAfterDeath(st, data, vp) {
     ch.owner = old.owner; ch.life = (old.life ?? 1) + 1;           // the same seat, the next life; his day carries over (assigning st.ch keeps `today`)
     st.ch = ch;
     st.over = null; st.score = null; st.combat = null; st.plan = null; st.turn = null;
-    st.day += 1;
+    st.day = back;
     say(st, `A new ${ch.name} arrives at the ${ch.startDwelling}.`, 'day');
     beginDay(st, data);
     return st;

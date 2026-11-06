@@ -5,9 +5,8 @@
 import { kindIcon, kindOfId } from '../../kindicons.js';
 import { lvl } from '../../../engine/catalogue.js';
 import { nameOf } from '../../../engine/catalogue.js';
-import { colorSources } from '../../../engine/spells.js';
 import { nameOfClearing, numOf, tileName, tileOf } from '../../../engine/catalogue.js';
-import { roadsFrom } from '../../../engine/world.js';
+import { colorSources, roadsFrom } from '../../combat/mapfeed.js';
 import { h } from '../../dom.js';
 import { sect, sectionOpen, setSectionOpen } from '../../ds.js';
 import { callsOf } from '../../chitcalls.js';
@@ -18,6 +17,7 @@ import { newDraft as newMeetDraft } from '../meetui.js';
 import { modal, mrChit } from './kit.js';
 import { standing } from '../../missions.js';
 import { chitRows } from './chits.js';
+import { shareRows } from './share.js';
 import { openPiece } from './piece_card.js';
 import { markGroup } from '../../groups.js';
 import { render } from './shell.js';
@@ -49,7 +49,7 @@ function siteNeeds(G, name) {
     const tChit = ownSheet(G.st, G.data).chits.some(x => x.state === 'active' && lvl(x.strength) >= 4) || ownSheet(G.st, G.data).items.some(i => i.id === 'lost-keys' && i.active);
     if (name === 'Cairns') return `Every Loot roll costs an asterisk of effort, found or not. ${asterisk ? 'You have one ready.' : 'You have none ready now, so you could not loot it.'}`;
     if (name === 'Pool') return `Each thing taken costs an asterisk of effort. ${asterisk ? 'You have one ready.' : 'You have none ready now.'}`;
-    if (name === 'Vault') return G.st.sitesOpen?.Vault ? 'The Vault is open, for everyone.' : `Sealed until opened with a Tremendous-strength chit or the Lost Keys. ${tChit ? 'You can open it.' : 'You cannot open it now.'}`;
+    if (name === 'Vault') return viewOf(G.st, G.data).table.map.sitesOpen?.Vault ? 'The Vault is open, for everyone.' : `Sealed until opened with a Tremendous-strength chit or the Lost Keys. ${tChit ? 'You can open it.' : 'You cannot open it now.'}`;
     return null;
 }
 
@@ -215,7 +215,9 @@ export function clearingSheet(G) {
     else if (here) hereRows.push(row('me', 'You', `${ownSheet(G.st, G.data).name}, ${ownSheet(G.st, G.data).hidden ? 'hidden: nothing can block you' : 'in plain sight'}`, tile_(G.data.art?.characters?.[ownSheet(G.st, G.data).id], ownSheet(G.st, G.data).name)));
     for (const x of srcs) hereRows.push(row('magic', `${x.color} magic`, x.why, `art/colormagic/${{ Grey: 'gray' }[x.color] ?? x.color.toLowerCase()}chit.gif`));          // (the chit's own art in the tile: DR-3)
     if (G.shared) hereRows.push(...meetRowsFor(G, id));
+
     put('here', G.shared ? 'Who is here' : 'Here now', hereRows);
+    if (!G.shared) put('share', 'Share what you know', shareRows(G, id));          // (a party on one phone: what one knows that another lacks, and the button that tells it: note 142)
     if (G.shared || gameOf(G.st, G.data).options?.hirelingRules) put('companions', 'Companions', companionRows(G, id));
 
     // living here: dwellings and natives (counters, mood), then the monsters
@@ -273,7 +275,7 @@ export function clearingSheet(G) {
     // nothing known about the place yet (a clearing far away that no one has seen): one line saying so, not an empty sheet (DR-26)
     if (!sections.length) sections.push({ key: 'none', node: [h('p', { class: 'ds-voice none-known' }, h('span', { 'data-v': 'story' }, 'Nothing is known of this clearing yet.'), h('span', { 'data-v': 'detail' }, 'Nothing is known of this clearing yet: no site, creature or native has been seen here.'))] });
     // a find opens the sheet on what was found: what you could get leads
-    const ordered = [...sections].sort((a, b) => (fresh ? (b.key === 'get') - (a.key === 'get') : 0));
+    const ordered = [...sections].sort((a, b) => (b.key === 'share') - (a.key === 'share') || (fresh ? (b.key === 'get') - (a.key === 'get') : 0));          // (what may be told leads the box)
     const kindWord = cdef.type === 'mountain' ? 'mountain clearing' : cdef.type === 'cave' ? 'cave clearing' : 'woods clearing';
     const close = () => { G.ui.foundSite = null; if (G.ui.peek) { G.ui.peek = false; G.ui.sel = null; } else { G.ui.sheet = null; G.ui.sel = null; } render(G); };
     return modal(G, nbsp(nameOfClearing(id)), h('div', { class: 'clearing ds-clearing', 'data-clearing': id }, ...ordered.flatMap(s => s.node), roadsEl),

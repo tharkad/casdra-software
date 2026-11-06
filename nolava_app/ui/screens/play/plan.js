@@ -1,8 +1,7 @@
 // play/plan.js: the plan tray (planTray: tabs, one line, the nine actions, Start the day; tray.js puts it in the tray) and the draft logic behind it (pick, setMove, advance, pruneOver, startDay).
 import { planKinds, phasesFor, validatePlan, tableModel } from '../../combat/feed.js';
-import { canRecordFly, flySources, flyTiles, hasCarpet } from '../../../engine/magic/fly.js';
 import { nameOfClearing, numOf, tileName } from '../../../engine/catalogue.js';
-import { isCave, isMountain } from '../../../engine/world.js';
+import { flyFacts, isCave, isMountain } from '../../combat/mapfeed.js';
 import { h } from '../../dom.js';
 import { FOLLOW_FIRST, followReason, playerOf as playerNameOf } from '../../meet.js';
 import { EDGE, actRefusal, canLeaveAt, destName, edgeIndex, planState } from '../../planlogic.js';
@@ -13,7 +12,6 @@ import { wouldDrop } from '../kit/kit.js';
 import { flyRefusal, flyWords, voicedWhy } from '../../spellwhy.js';
 import { MONSTER_PLAN_NOTE, PLAN_ONLY_NOTE, leaderGame, planActs, seatName } from '../../leaders.js';
 import { flyWarning } from '../../steeds.js';
-import { hasSteed } from '../../../engine/steeds.js';
 import { flyChoice, flySlot } from './steedplan.js';
 import { act } from './actions.js';
 import { followersLine, needsAssign, takeAssign } from './leaders.js';
@@ -24,6 +22,7 @@ import { actIcon, icon } from '../../icons.js';
 import { ACT_LABEL, CURSE_ACT, CURSE_PLAIN, actArt, mc, showToast } from './kit.js';
 import { describeSlot, searchWhere } from './phases.js';
 import { render } from './shell.js';
+import { shareCards, shareHints } from './share.js';
 import { ownSheet, questionOf, lullOf } from '../../combat/feed.js';
 
 // ---- planning: the plan tray (mockup 01 a2 to a6) ----
@@ -91,14 +90,14 @@ function followNote(G, i) {
 // The nine (or eight, ten, eleven) actions as chips. A dim chip stays tappable and says why.
 const PONY_WHY = 'The pony adds a Move only after a Move of your own: they take turns, and the first Move of the day is never the pony\u2019s.';
 // A Flying Carpet he owns that sleeps today and nothing else to fly with: the Fly chip stays on (7.3.3a.1) and says why it will fail
-const carpetAsleep = G => hasCarpet(G.st) && !flySources(G.st, G.data).length && !ownSheet(G.st, G.data).flying && !ownSheet(G.st, G.data).morph && !hasSteed(G.st, G.data);
+const carpetAsleep = G => flyFacts(G.st, G.data).carpet && !flyFacts(G.st, G.data).sources.length && !ownSheet(G.st, G.data).flying && !ownSheet(G.st, G.data).morph && !flyFacts(G.st, G.data).rides.length;
 function actChips(G, i, at, over, others, baseOver) {
     const d = G.ui.draft, s = d.slots[i], isSpare = planInfo(G).spare === i;
     // a hired leader's plan (6.2.5): the engine names what he may record (`pending.leader.acts`); no Enchant, no Fly of his own, and a controlled monster no Trade or Hire
     // Follow (7.11) is always on the sheet when there is anyone to follow in the game (several characters); it is dim, with the reason, when it cannot be used
     const L = planActs(questionOf(G.st, G.data)), fRows = followRows(G), showFollow = fRows.length > 0;
     const acts = L ? [...L.acts.filter(a => a !== 'follow'), ...(showFollow ? ['follow'] : []), 'nothing']
-        : ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(ownSheet(G.st, G.data).chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(canRecordFly(G.st, G.data) || flyRefusal(G.st, G.data) ? ['fly'] : []), ...(showFollow ? ['follow'] : []), 'nothing'];
+        : ['move', 'hide', 'search', 'trade', 'hire', 'rest', 'alert', ...(ownSheet(G.st, G.data).chits.some(x => x.type === 'magic') ? ['enchant'] : []), ...(flyFacts(G.st, G.data).canRecord || flyRefusal(G.st, G.data) ? ['fly'] : []), ...(showFollow ? ['follow'] : []), 'nothing'];
     const n = acts.length;
     return h('div', { class: `ds-acts n${n}` }, ...acts.map(a => {
         const curse = (ownSheet(G.st, G.data).curses ?? []).find(c => CURSE_ACT[c] === a), refused = actRefusal(G.st, G.data, a) ?? (a === 'fly' && flyRefusal(G.st, G.data) ? voicedWhy(flyRefusal(G.st, G.data)) : null);          // (a transformed hero cannot play a Fly chit: the chip stays, dim, and says so)
@@ -162,6 +161,7 @@ function planHints(G, i, at) {
     const line = (txt, cls = '', attrs = {}) => h('p', { class: `ds-hint-line ${cls}`.trim(), ...attrs }, txt);
     if (G.ui.planNote) out.push(line(G.ui.planNote, 'bad'));
     out.push(...followNote(G, i));
+    out.push(...shareCards(G), ...shareHints(G));          // (note 142: the finds one of the party may tell another now, with the button that tells them, and the ones that must wait)
     out.push(...warningLines(G));
     // Why a chip is dim, said where he looks, not only when he taps it (note 110): the curses that forbid an action, one line
     { const dimmed = (ownSheet(G.st, G.data).curses ?? []).filter(c => CURSE_ACT[c]);
@@ -174,7 +174,7 @@ function planHints(G, i, at) {
     if (s?.act === 'search' && at[i]) out.push(line(searchWhere(G, at[i]), '', { 'data-hint': 'search-where' }));
     if (G.ui.pickMove === i || s?.act === 'move') {
         // where monsters wait: they block you at the end of the phase unless you are hidden, so the ones you could walk into are named
-        const monsBy = new Map(); for (const m of G.st.mons) if (!m.dead && !m.hired && m.loc?.c && (G.ui.moveTargets ?? []).includes(m.loc.c)) monsBy.set(m.loc.c, [...(monsBy.get(m.loc.c) ?? []), G.data.monsters[m.id].name]);
+        const monsBy = new Map(); for (const m of tableModel(G.st, G.data).mons) if (!m.dead && !m.hired && m.loc?.c && (G.ui.moveTargets ?? []).includes(m.loc.c)) monsBy.set(m.loc.c, [...(monsBy.get(m.loc.c) ?? []), G.data.monsters[m.id].name]);
         if (G.ui.pickMove === i && monsBy.size) out.push(line(`Red rings have monsters (${[...monsBy].map(([c, n]) => `${nameOfClearing(c)}: ${[...new Set(n)].join(', ')}`).join('; ')}). In plain sight at the end of the phase they block you and your turn is lost. Hiding first keeps you safe.`, 'bad', { 'data-hint': 'monsters-ahead' }));
         const heavy = s?.act === 'move' && s.to && s.to !== EDGE ? wouldDrop(G) : [];
         if (heavy.length) out.push(line(`Too heavy for you now: this Move would leave ${heavy.join(', ')} behind. Put something down or use a stronger Move chit first.`, 'bad', { 'data-hint': 'leave-behind' }));
@@ -210,9 +210,9 @@ function subPicker(G, i, at) {
                 ...readyMagic.map(c => chip(`Magic ${c.numeral}${c.time}${'*'.repeat(c.effort)}`, s.magic === c.id, () => { s.magic = c.id; advance(G, i + 1); render(G); }, c.id)))];
     }
     if (s?.act === 'fly' || G.ui.pickFly === i) {
-        return [h('p', { class: 'ds-hint-line', 'data-hint': 'fly' }, voiced(flyWords(G.st, G.data), { 'data-own-wings': flySources(G.st, G.data).some(x => x.morph) ? '1' : null })),
+        return [h('p', { class: 'ds-hint-line', 'data-hint': 'fly' }, voiced(flyWords(G.st, G.data), { 'data-own-wings': flyFacts(G.st, G.data).sources.some(x => x.morph) ? '1' : null })),
             ...flyChoice(G, i),
-            h('div', { class: 'ds-chips' }, ...flyTiles(G.st, G.data).map(t => h('button', { type: 'button', class: `ds-chip${s?.to === t ? ' on' : ''}`, 'data-fly-tile': t, onclick: () => setFly(G, i, t) }, tileName(t))))];
+            h('div', { class: 'ds-chips' }, ...flyFacts(G.st, G.data).tiles.map(t => h('button', { type: 'button', class: `ds-chip${s?.to === t ? ' on' : ''}`, 'data-fly-tile': t, onclick: () => setFly(G, i, t) }, tileName(t))))];
     }
     if (s?.act === 'follow' && i === 0) return [h('div', { class: 'ds-sub-scroll' }, ...followPicker(mc(G), s, who => { d.slots = Array(9).fill(null); d.slots[0] = { act: 'follow', who }; G.ui.planNote = null; render(G); }, followRows(G)))];
     return null;
@@ -363,6 +363,13 @@ export function setRoadEnd(G, d, id) {
 // The lock box says what the Move costs before he commits to it: a mountain end takes two Move phases (both fixed), any other end one.
 function roadLockBox(G, d) {
     const r = ownSheet(G.st, G.data).onRoad, cur = d.slots[0]?.to, mt = id => isMountain(G.st, G.data, id), climb = !!cur && mt(cur);
+    if (r.forest || r.from === r.to) {          // 7.10.4d.2: his road vanished as the tile turned over: he stands in the forest and the only way out is back to the clearing he ran from (one end, not two)
+        const id = r.from, hill = mt(id);
+        return h('div', { class: 'roadlock', 'data-forest': id },
+            h('div', { class: 'ds-lockbox', role: 'note', 'data-roadlock': 'forest' }, icon('lock'), h('span', {}, `Fixed: the road you fled along has vanished and you are in the forest. You must Move back to ${nb(nameOfClearing(id))} first.${hill ? ` ${nb(nameOfClearing(id))} is a mountain: climbing it takes two Move phases in a row, so phases 1 and 2 are both fixed.` : ''}`)),
+            h('div', { class: 'row2' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-road-end': id, 'data-phases': hill ? '2' : '1', 'aria-pressed': 'true', onclick: () => { setRoadEnd(G, d, id); render(G); } },
+                `Back to ${nb(nameOfClearing(id))} \u00B7 ${hill ? 'mountain, 2 phases' : '1 phase'}`)));
+    }
     const first = `Fixed: you fled along the road between ${nb(nameOfClearing(r.from))} and ${nb(nameOfClearing(r.to))}. You must Move to one end of it first.`;
     const second = !cur ? '' : climb ? ` ${nb(nameOfClearing(cur))} is a mountain: climbing it takes two Move phases in a row, so phases 1 and 2 are both fixed.` : ` ${nb(nameOfClearing(cur))} takes one phase.`;
     return h('div', { class: 'roadlock' },

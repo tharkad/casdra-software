@@ -13,6 +13,7 @@ import { markPhase } from './result_card.js';
 import { render } from './shell.js';
 import { clearSaved, meetEnd, myId, noteError, persist, saveGame } from './state.js';
 import { gameOf, questionOf, tableModel, seatOf } from '../../combat/feed.js';
+import * as PB from '../../combat/partybeat.js';
 
 function commit(G, next) { G.st = next; G.ctx.state = G.st; if (!G.race && !G.shared) saveGame(G.st); render(G); forcedAnswer(G); }
 
@@ -41,11 +42,13 @@ export function act(G, action) {
     if (G.race) { actRemote(G, action); return; }
     if (G.shared) { actShared(G, action); return; }
     try {
+        const fight = PB.watch(G.st, G.data);          // (a party's fight: the answer that ends it brings the recap, partybeat.js)
         const r = apiOf(G.data).apply(G.st, action);          // (through the API: a refusal is a value; the sentence is still the engine's)
         if (!r.ok) throw new Error(r.error.params.text);
         const next = r.state;
         G.rec?.moves.push(JSON.parse(JSON.stringify(action)));
         const newDay = next.day !== gameOf(G.st, G.data).day;
+        if (fight) G.ui.partyBeat = PB.ended(fight, next, G.data) ?? G.ui.partyBeat;
         commit(G, next);
         if (newDay) G.rec?.days.push(daySnapshot(next));
         persist(G, next.period === 'over');

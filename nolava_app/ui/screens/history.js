@@ -1,10 +1,8 @@
 import { h } from '../dom.js';
 import { icon } from '../icons.js';
 import { allRecords, getRecord, deleteRecord } from '../gamestore.js';
-import { groupByDay, readableLog, bundle, replay } from '../../engine/api.js';
+import { groupByDay, readableLog, bundle, apiOf } from '../../engine/api.js';
 import { loadData } from '../dataload.js';
-import { newGame } from '../../engine/setup.js';
-import { apply } from '../../engine/day.js';
 import { VERSION } from '../version.js';
 import { frames, state, voiceSwitch } from '../ds.js';
 import { logText, onVoice } from '../voice.js';
@@ -129,7 +127,7 @@ export function historyScreen(ctx) {
                         h('button', { type: 'button', class: 'ds-btn block', 'data-act': 'replay-check', disabled: !rec.replayable, onclick: async () => {
                             state_.check = { running: true, open: true }; await showDetail(id);
                             const data = await loadData('data/');
-                            const r = replay(rec, { newGame, apply, data });
+                            const r = apiOf(data).replay(rec);
                             state_.check = { ok: r.ok, steps: r.steps, problems: r.problems, sameVersion: rec.version === VERSION, open: true };
                             await showDetail(id);
                         } }, rec.replayable ? 'Replay and check' : 'Cannot replay (earlier moves unknown)'),

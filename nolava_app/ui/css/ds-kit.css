@@ -36,6 +36,10 @@
 .kit .ds-slot, .kit .ds-spell, .kit .ds-counter { font-family: var(--font-ui); }
 .kit .ds-slot { color: var(--ink); }
 .kit-seg { margin: 2px 0 10px; }
+/* the room tabs (note 131: six of them on a phone were tight, the lit one filled its cell): each tab keeps its own width and room round the label, the bar scrolls sideways when they do not all fit, and the lit tab is brought into view */
+.kit-seg { display: flex; position: relative; overflow-x: auto; scrollbar-width: none; gap: 4px; padding: 3px; scroll-snap-type: x proximity; overscroll-behavior-x: contain; }
+.kit-seg::-webkit-scrollbar { display: none; }
+.kit-seg button { flex: 1 0 auto; padding: 0 15px; white-space: nowrap; scroll-snap-align: center; }
 .kit-room { display: flex; flex-direction: column; min-width: 0; }
 .kit-room > .ds-sect:first-child { margin-top: 12px; }
 .kit-none { margin: 4px 0; font: 400 calc(15px * var(--ts, 1))/1.3 var(--font-voice); color: var(--ink-2); }

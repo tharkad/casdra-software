@@ -1,7 +1,6 @@
 // screens/kit/chits.js: the Chits room of the Kit sheet (only in a game with mission, campaign and visitor chits): "Chits I carry" (the destination or the foes, the days left, the reward, the foes still
 // on the map and on the Setup Card, Abandon for a campaign), where the six chits are, and Row 6 of the Appearance Chart with the chit in each of its seven boxes.
 // The engine's carriedTasks() says everything shown here; Abandon sends `abandon-chit` after a second tap.
-import { carriedTasks, dwellingAt } from '../../../engine/missions.js';
 import { nameOfClearing } from '../../../engine/catalogue.js';
 import { h } from '../../dom.js';
 import { icon } from '../../icons.js';
@@ -11,12 +10,13 @@ import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
 import { say } from './common.js';
 import { ownSheet, questionOf, missionsOf } from '../../combat/feed.js';
+import { carriedOf, dwellingAt } from '../../kitfeed.js';
 
 const nb = s => String(s).replace(/ (\d+)$/, ' $1');
 const list = a => (a.length <= 1 ? (a[0] ?? '') : `${a.slice(0, -1).join(', ')} and ${a.at(-1)}`);
 const ABANDON_OK = new Set(['phase', 'phase-pick', 'plan', 'turn-end', 'evening-end']);          // the engine's own list (day.js 'abandon-chit')
 
-export const carriedCount = G => (missionsOf(G.st, G.data) ? (G.st.ch.missions ?? []).length : 0);
+export const carriedCount = G => (missionsOf(G.st, G.data) ? carriedOf(G.st, G.data).length : 0);
 const foeWord = f => (/Dragon$/.test(f) ? `${f}s` : f);
 
 function daysTag(t) {
@@ -42,10 +42,10 @@ function abandonRow(G, t) {
 
 // One chit he carries
 function carriedCard(G, t) {
-    const info = faceInfo(G.data, t.face), st = G.st;
+    const info = faceInfo(G.data, t.face);
     const lines = [];
     if (t.kind === 'mission') {
-        const at = dwellingAt(st, t.dest);
+        const at = dwellingAt(G.st, G.data, t.dest);
         lines.push(h('p', { class: 'ds-voice ms-goal' }, at ? `Bring it to the ${t.dest}, ${nb(nameOfClearing(at))}.` : `Bring it to the ${t.dest}.`));
         lines.push(h('dl', { class: 'ds-kv ms-kv' },
             h('dt', {}, 'Reward'), h('dd', {}, `${t.reward} gold${t.clearings ? `, 2 for each of the ${t.clearings} clearings` : ', a flat 30'}`),
@@ -84,7 +84,7 @@ function whereRows(G) {
 const sect2 = (t, r) => h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, t), r ? h('small', {}, r) : null);
 
 export function chitsTab(G) {
-    const st = G.st, carried = carriedTasks(st, G.data);
+    const carried = carriedOf(G.st, G.data);
     return h('div', { class: 'kit-room kit-chits-room', 'data-room': 'chits' },
         sect2('Chits I carry', carried.length ? `${carried.length}` : ''),
         carried.length ? h('div', { class: 'kit-groups ms-cards' }, carried.map(t => carriedCard(G, t)))
@@ -92,6 +92,6 @@ export function chitsTab(G) {
         sect2('The six chits', 'where they lie'),
         h('div', { class: 'ds-list' }, whereRows(G)),
         sect2('Row 6 of the Appearance Chart', 'the seven small boxes'),
-        chartEl(G.data, st.missions.chits),
+        chartEl(G.data, missionsOf(G.st, G.data).chits),
         h('p', { class: 'ds-meta' }, 'When Row 6 prowls, a leader or site here calls the chit of its box out onto the map. At the end of a week in which Row 6 prowls, the chits nobody carries turn over to their other side.'));
 }

@@ -3,7 +3,6 @@
 // Payloads are the old sheet's: { type: 'hire', act: 'pick', group, rehire, drinks } / 'accept' / 'decline' / 'pay' / 'fight' / 'back'.
 import { WEIGHT_WORDS } from '../../../engine/catalogue.js';
 import { hireStats } from '../../combat/feed.js';
-import { noDrinks } from '../../../engine/missions.js';
 import { nameOfClearing } from '../../../engine/catalogue.js';
 import { act } from '../play/actions.js';
 import { render } from '../play/shell.js';
@@ -66,7 +65,7 @@ function offerContent(G, p) {
 
 // ---- the parley: whom to ask ----
 function chooser(G, p) {
-    const keyOf = o => `${o.group}|${o.rehire ? 1 : 0}`;
+    const keyOf = o => `${o.group}|${o.rehire ? 1 : 0}|${o.members.join(',')}`;          // (7.7.1d: two hired Order or Rogues in the clearing are two rehire options of one group: told apart by who they are)
     const sel = G.ui.hireSel && p.options.some(o => keyOf(o) === G.ui.hireSel) ? G.ui.hireSel : p.options.length === 1 ? keyOf(p.options[0]) : null;
     const pickedOpt = p.options.find(o => keyOf(o) === sel) ?? null;
     const rounds = G.ui.drinksFor && G.ui.drinksFor === sel ? G.ui.drinksFor : null;
@@ -75,8 +74,8 @@ function chooser(G, p) {
         const key = keyOf(o), on = key === sel, dc = tf.groups[o.group].drinks, rel = o.monsters ? 0 : tf.groups[o.group].rel, round = rounds === key;          // (drinks work for pacified monsters too, one gold each, H1)
         const days = o.rehire ? Math.max(0, Math.min(...o.members.map(id => (viewOf(G.st, G.data).table.natives.find(n => n.id === id)?.hiredUntil ?? gameOf(G.st, G.data).day) - gameOf(G.st, G.data).day + 1))) : null;
         const why = ownSheet(G.st, G.data).gold < dc ? `A round costs ${dc} Gold and you have ${ownSheet(G.st, G.data).gold}.` : null;
-        return h('div', { class: `ds-group kit-hcard${on ? ' sel' : ''}`, 'data-hire-card': o.group },
-            h('button', { type: 'button', class: 'kit-pick', 'data-hire-group': o.group, 'data-rehire': o.rehire ? '1' : '0', role: 'radio', 'aria-checked': on ? 'true' : 'false', onclick: () => { G.ui.hireSel = on && p.options.length > 1 ? null : key; render(G); } },
+        return h('div', { class: `ds-group kit-hcard${on ? ' sel' : ''}`, 'data-hire-card': o.group, 'data-members': o.members.join(',') },
+            h('button', { type: 'button', class: 'kit-pick', 'data-hire-group': o.group, 'data-rehire': o.rehire ? '1' : '0', 'data-members': o.members.join(','), role: 'radio', 'aria-checked': on ? 'true' : 'false', onclick: () => { G.ui.hireSel = on && p.options.length > 1 ? null : key; render(G); } },
                 h('div', { class: 'hd' }, h('b', {}, titleOf(G, o)), o.monsters ? h('span', { class: 'kit-tags' }, h('span', { class: 'ds-tag' }, 'pacified'), round ? moodTag(1) : null) : moodTag(round ? Math.min(2, rel + 1) : rel)),
                 counters(G, o.members, o.monsters),
                 h('span', { class: 'ds-meta' }, `${o.rehire ? `Extend hire (${days} day${days === 1 ? '' : 's'} left). ` : ''}Wages: ${o.wage} Gold${o.members.length > 1 ? ` for all ${o.members.length}` : ''}.${G.data.groups[o.group]?.hireMode === 'individual' ? ' One at a time.' : ''} ${strengthLine(G, o.members, o.monsters)}`.trim()),
@@ -90,7 +89,7 @@ function chooser(G, p) {
     const body = h('div', { class: 'kit kit-hire' },
         ask(p.options.some(o => o.monsters) ? 'Natives, and creatures a spell has calmed, will hire out for 14 days.' : 'Natives here will hire out for 14 days.', 'Ask first: the roll sets the price, and you may refuse it.'),
         h('div', { class: 'kit-groups', role: 'radiogroup' }, cards));
-    const go = () => { const o = pickedOpt, drinks = rounds === keyOf(o); G.ui.hireSel = null; G.ui.drinksFor = null; G.ui.drinks = false; act(G, { type: 'hire', act: 'pick', group: o.group, rehire: !!o.rehire, drinks }); };
+    const go = () => { const o = pickedOpt, drinks = rounds === keyOf(o); G.ui.hireSel = null; G.ui.drinksFor = null; G.ui.drinks = false; act(G, { type: 'hire', act: 'pick', group: o.group, rehire: !!o.rehire, drinks, ...(o.rehire && G.data.groups[o.group]?.hireMode === 'individual' ? { member: o.members[0] } : {}) }); };          // (the Order or Rogues: he names WHICH one he extends, 7.7.1d)
     // a planned Hire can be passed: nobody worth hiring, or nothing to hire with. The engine's own answer is `cancel` ("You decide not to hire anyone").
     const skip = skipBtn(() => { G.ui.hireSel = null; G.ui.drinksFor = null; act(G, { type: 'hire', act: 'cancel' }); });
     const foot = footRow({ note: `You have ${ownSheet(G.st, G.data).gold} Gold`, aside: skip, secondary: h('button', { type: 'button', class: 'ds-btn', 'data-act': 'hire-back', onclick: () => { G.ui.hireSel = null; G.ui.drinksFor = null; act(G, { type: 'hire', act: 'back' }); } }, 'Back'),

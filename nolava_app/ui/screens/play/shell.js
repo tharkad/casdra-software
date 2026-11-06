@@ -2,8 +2,7 @@
 import { dayColors } from '../../../engine/catalogue.js';
 import { hereColors } from './sheet_clearing.js';
 import { nameOfClearing, tileOf } from '../../../engine/catalogue.js';
-import { isCave, knownPathPairs, roadsFrom, tileClearings } from '../../../engine/world.js';
-import { flyTiles } from '../../../engine/magic/fly.js';
+import { flyFacts, foundPaths, isCave, roadsFrom, tileClearings } from '../../combat/mapfeed.js';
 import { h } from '../../dom.js';
 import { lastDayOf, timed } from '../../gametext.js';
 import { meetState, playerOf as playerNameOf } from '../../meet.js';
@@ -14,7 +13,8 @@ import { strip } from '../../ds.js';
 import { renderParty } from './hotseat.js';
 import { leaderGame, seatMarkers } from '../../leaders.js';
 import { maybeShowSunrise, ownSeats, showSeat, tableCrew } from './leaders.js';
-import { setStoryState } from '../../storyvoice.js';
+import { setStoryState, setStoryParty } from '../../storyvoice.js';
+import { partyVoice } from './dayresult.js';
 import { icon as dsIcon } from '../../icons.js';
 import { revealKey } from '../sharedfight.js';
 import { voidBy } from './kit.js';
@@ -96,7 +96,8 @@ export function mapModel(G) {
             // planlogic.js: the roads he can walk (no cave in a sunlight phase, only the mountain once a climb is begun) and the hidden paths a Search earlier in the plan may find (6.2.4e)
             // the flip view: the roads of the tiles turned over; a Move recorded there is recorded in hope (6.2.4e), lost at its turn if no such road is there then
             const o = moveOptions(G.st, G.data, G.ui.draft.slots, i, !!G.ui.flip);
-            G.ui.moveTargets = G.ui.flip ? [] : o.sure; G.ui.moveMaybe = G.ui.flip ? [...o.sure, ...o.maybe] : o.maybe;
+            G.ui.moveTargets = G.ui.flip ? [] : [...new Set(o.sure)];          // (a hero in the forest has one end: `from` twice)
+            G.ui.moveMaybe = G.ui.flip ? [...o.sure, ...o.maybe] : o.maybe;
         }
     }
     const localParty = !G.shared && !G.race && leaderGame(tableModel(G.st, G.data));
@@ -114,8 +115,8 @@ export function mapModel(G) {
         }
     }
     return {
-        tiles: G.data.tiles, art: G.data.art, placements: G.ui.flip ? turned(viewOf(G.st, G.data).table.map.placements) : viewOf(G.st, G.data).table.map.placements, side: 'normal', showHidden: false, discovered: knownPathPairs(G.st, undefined, !!G.ui.flip),
-        chitsByTile, tokens, hero: ownSheet(G.st, G.data).onRoad || ownSheet(G.st, G.data).dead || ownSheet(G.st, G.data).flying ? null : ownSheet(G.st, G.data).at, heroAir: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : null, heroRoad: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).onRoad ? { from: ownSheet(G.st, G.data).onRoad.from, to: ownSheet(G.st, G.data).onRoad.to } : null, heroHidden: ownSheet(G.st, G.data).hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
+        tiles: G.data.tiles, art: G.data.art, placements: G.ui.flip ? turned(viewOf(G.st, G.data).table.map.placements) : viewOf(G.st, G.data).table.map.placements, side: 'normal', showHidden: false, discovered: foundPaths(G.st, G.data, !!G.ui.flip),
+        chitsByTile, tokens, hero: ownSheet(G.st, G.data).onRoad || ownSheet(G.st, G.data).dead || ownSheet(G.st, G.data).flying ? null : ownSheet(G.st, G.data).at, heroAir: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).flying ? ownSheet(G.st, G.data).flying.tile : null, heroRoad: !ownSheet(G.st, G.data).dead && ownSheet(G.st, G.data).onRoad ? { from: ownSheet(G.st, G.data).onRoad.from, to: ownSheet(G.st, G.data).onRoad.to, forest: !!ownSheet(G.st, G.data).onRoad.forest } : null, heroHidden: ownSheet(G.st, G.data).hidden, selected: G.ui.sel, pathMarks: G.data.pathmarks,
         onTap: id => {
             // a spell aimed on the map (Talk to Wise Bird): a tap on a ringed clearing is the answer; the fight comes back with it chosen
             if (G.ui.combatMap && G.ui.aimMap) {
@@ -135,7 +136,7 @@ export function mapModel(G) {
                 // planning: a tap on a clearing next to where this phase starts sets the move; any other tap just looks at that clearing
                 const i = G.ui.planStep;
                 // Fly: a tap on any clearing of a ringed tile chooses that tile
-                if (i != null && (G.ui.pickFly === i || (G.ui.draft.slots[i]?.act === 'fly' && !G.ui.draft.slots[i].to))) { const t = tileOf(id); if (flyTiles(G.st, G.data).includes(t)) { setFly(G, i, t); return; } }
+                if (i != null && (G.ui.pickFly === i || (G.ui.draft.slots[i]?.act === 'fly' && !G.ui.draft.slots[i].to))) { const t = tileOf(id); if (flyFacts(G.st, G.data).tiles.includes(t)) { setFly(G, i, t); return; } }
                 const wantsMove = i != null && (G.ui.pickMove === i || (ownSheet(G.st, G.data).onRoad && i === 0));
                 // only a clearing that is ringed can be chosen: the same list the ring is drawn from (so no cave in a sunlight phase, and nothing that would wipe the later phases)
                 if (wantsMove && (G.ui.moveTargets.includes(id) || G.ui.moveMaybe.includes(id))) { setMove(G, i, id); return; }
@@ -200,7 +201,7 @@ function overlayFor(G) {
         for (const s of d.slots) if (s?.act === 'move' && s.to && s.to !== EDGE && s.to !== stops.at(-1)) stops.push(s.to);          // (a climb's two Moves are one stop)
         if (stops.length) route = [hero, ...stops];
         const fi = G.ui.pickFly ?? (d.slots[i]?.act === 'fly' && !d.slots[i].to ? i : null);
-        if (fi != null && fi === i) for (const t of flyTiles(st, G.data)) { const c = tileClearings(st, G.data, t)[0]; if (c) rings.push({ id: c, kind: d.slots[i]?.to === t ? 'chosen' : 'legal' }); }
+        if (fi != null && fi === i) for (const t of flyFacts(st, G.data).tiles) { const c = tileClearings(st, G.data, t)[0]; if (c) rings.push({ id: c, kind: d.slots[i]?.to === t ? 'chosen' : 'legal' }); }
         if (i != null && (G.ui.pickMove === i || (me.onRoad && i === 0))) {
             const monsAt = new Set(tableModel(st, G.data).mons.filter(m => !m.dead && !m.hired && m.loc?.c).map(m => m.loc.c));
             const cur = d.slots[i]?.act === 'move' ? d.slots[i].to : null;
@@ -311,6 +312,7 @@ function renderRail(G) {
 export function render(G) {
     fresh(G.st);
     setStoryState(G.st);                                 // (the Story voice finds what a roll came to without every caller passing the state)
+    setStoryParty(G.st ? partyVoice(G) : null);                        // (a party on one phone: the other characters' lines are told by name)
     if (G.shared) {
         G.crew = tableCrew(G, party(G.st, G.answer, myId(G)));
         // a seat of my party on screen (hireling rules): what he may meet and follow is his own; and my own people are not partners of mine at the table's Meet button
@@ -394,7 +396,8 @@ const FIT_K = 0.95;
 export function syncMapButton(G) {
     const b = G.mapTools, k = G.map?.camera?.().k;
     if (!b || k == null) return;
-    const out = k < FIT_K;
+    const fk = G.map.fitK?.() ?? 0, out = k < FIT_K || k <= fk * 1.08;          // (a big window's whole-realm view is zoomed past the phone's number: the button must still say "centre on me" there)
+    if (!out) G.ui.zoomBefore = null;                                      // (a close-up the player made himself is the one to come back to, not an old one)
     b.dataset.mode = out ? 'locate' : 'fit';
     b.setAttribute('aria-label', out ? 'Centre on me' : 'Show the whole realm');
     b.replaceChildren(dsIcon(out ? 'cross' : 'fit', 'lg'));                 // (no word: the owner's call, note 113; the aria-label still names it)
@@ -425,7 +428,9 @@ export function wireShell(G) {
     try { if (history.state?.mrSheet) history.replaceState(null, ''); } catch { /* ignore */ }               // (a reload with a sheet open keeps that entry's mark: the base screen has none)
     G.ui.popHandler = () => onBack(G); addEventListener('popstate', G.ui.popHandler);
     const hero = () => heroSpot(G);
-    const fitAll = () => G.map.fit(), me = () => G.map.focus(hero(), { k: Math.max(G.map.camera().k ?? 1, 1.5 * G.map.comfort()), animate: true });
+    // Show the whole realm remembers the close-up it left; "centre on me" goes back to that zoom (note 128: it used to stay at the whole-realm zoom on a big window).
+    const fitAll = () => { const k = G.map.camera().k ?? 1, fk = G.map.fitK?.() ?? 0; if (k > fk * 1.08) G.ui.zoomBefore = k; G.map.fit(); };
+    const me = () => G.map.focus(hero(), { k: G.ui.zoomBefore ?? Math.max(G.map.camera().k ?? 1, 1.5 * G.map.comfort()), animate: true });
     b.addEventListener('pointerdown', () => { long = false; clearTimeout(timer); timer = setTimeout(() => { long = true; (b.dataset.mode === 'fit' ? me : fitAll)(); setTimeout(() => syncMapButton(G), 500); }, 520); });
     for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => clearTimeout(timer));
     b.addEventListener('click', () => { if (long) { long = false; return; } (b.dataset.mode === 'locate' ? me : fitAll)(); setTimeout(() => syncMapButton(G), 500); });

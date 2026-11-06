@@ -166,19 +166,21 @@ export function alliesEl({ st: fm, data, allies, flipped = {}, onFlip, size = 56
 // see playSays); and beneath the defence row stand the armor pieces, each under the lanes it covers (`armor` = armorPieces()), with `why` (the voice pair { story, detail }) saying why the player does
 // not place a lone creature in a lane.
 export function lanesEl({ attack = null, guard = null, boxes = {}, sec = null, armor = null, why = null } = {}) {
+    const nbsp = t => String(t).replace(/ (?=\d)/g, ' ');
+    const line = (row, says, what) => (says ? h('p', { class: `cb-pl ${row === 'attack' ? 'atk' : 'grd'}`, 'data-row': row, 'data-says': says.kind ?? '' },
+        ...[says.weapon, says.time != null ? nbsp(`${what} time ${says.time}`) : null].filter(Boolean).flatMap((t, k, all) => [k ? h('span', { class: 'sep', 'aria-hidden': 'true' }, '·') : null, h('span', { class: `nbw${t === says.weapon && all.length > 1 ? ' w' : ''}` }, t)]).filter(Boolean)) : null);
     const top = [0, 1, 2].map(i => h('div', { class: `cb-lane${attack && attack.dir === i ? ' mine' : ''}${(boxes[i] ?? []).length ? ' crowd' : ''}`, 'data-lane': `a${i}` },
-        h('span', { class: 'lbl' }, DIRS[i]),
-        attack && attack.dir === i && attack.text ? h('span', { class: 'cb-pill' }, attack.glove ? icon('glove') : null, attack.text) : null,
+        h('span', { class: 'lbl', 'aria-hidden': 'true' }, DIRS[i]),
+        attack && attack.dir === i && attack.text ? h('span', { class: 'cb-pill', 'aria-hidden': 'true' }, attack.glove ? icon('glove') : null, attack.text) : null,
+        attack && attack.dir === i && attack.text ? line('attack', attack.says, 'attack') : null,          // (note 133: what was played stands inside the lane it was played in)
         ...(boxes[i] ?? []).slice(0, 3).map(src => h('span', { class: 'ds-counter sm', 'aria-hidden': 'true' }, src ? pic(src) : null)), (boxes[i] ?? []).length > 3 ? h('span', { class: 'cb-more' }, `+${boxes[i].length - 3}`) : null));
     const bot = [0, 1, 2].map(i => h('div', { class: `cb-lane${guard && guard.dir === i ? ' guard' : ''}`, 'data-lane': `g${i}` },
-        h('span', { class: 'lbl' }, MNV[i]),
-        guard && guard.dir === i && guard.text ? h('span', { class: 'cb-pill g' }, guard.text) : null));
-    const nbsp = t => String(t).replace(/ (?=\d)/g, ' ');
-    const line = (row, says, what) => (says ? h('p', { class: `cb-pl ${row === 'attack' ? 'atk' : 'grd'}`, 'data-row': row },
-        ...[says.kind, says.weapon, says.time != null ? nbsp(`${what} time ${says.time}`) : null].filter(Boolean).flatMap((t, k) => [k ? h('span', { class: 'sep', 'aria-hidden': 'true' }, '·') : null, h('span', { class: 'nbw' }, t)]).filter(Boolean)) : null);
+        h('span', { class: 'lbl', 'aria-hidden': 'true' }, MNV[i]),
+        guard && guard.dir === i && guard.text ? h('span', { class: 'cb-pill g', 'aria-hidden': 'true' }, guard.text) : null,
+        guard && guard.dir === i && guard.text ? line('guard', guard.says, 'maneuver') : null));
     return h('div', { class: 'cb-lanewrap', 'data-sec': sec },
-        h('div', { class: 'cb-lanes top', 'aria-hidden': 'true' }, ...top), line('attack', attack?.text ? attack.says : null, 'attack'),
-        h('div', { class: 'cb-lanes bot', 'aria-hidden': 'true' }, ...bot), line('guard', guard?.text ? guard.says : null, 'maneuver'),
+        h('div', { class: 'cb-lanes top' }, ...top),
+        h('div', { class: 'cb-lanes bot' }, ...bot),
         armor ? armorRow(armor, why) : null);
 }
 
@@ -318,8 +320,8 @@ export function fitStage(root) {
         const lw = inner.querySelector('.cb-lanewrap'); if (lw) lw.style.zoom = '';
         const cs = getComputedStyle(stage), room = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
         let need = inner.scrollHeight;
-        // a crowded stage on a short phone (note 102): below 0.6 the words would be too small to read, so the played lines give way (the chits stay in their lanes, the armor stays); data-tight says so
-        if (need > room / 0.6 && room > 80 && typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches && inner.querySelector('.cb-pl')) { inner.setAttribute('data-tight', ''); need = inner.scrollHeight; }
+        // a crowded stage on a short phone (notes 102, 133): when it has to shrink, the weapon's name in the played lane gives way (the chit, the time and the armor stay); data-tight says so
+        if (need > room * 0.8 && room > 80 && typeof matchMedia === 'function' && matchMedia('(max-height: 700px)').matches && inner.querySelector('.cb-pl')) { inner.setAttribute('data-tight', ''); need = inner.scrollHeight; }
         if (need > room + 1 && room > 80) {
             // Note 111: the words of the lanes, the played lines and the armor keep their own size on the screen (12px stays 12px): the stage is scaled by what is left after them, and they are scaled back by the same factor
             // (on a short phone they give up an eighth: 12px words are 10.5px there)

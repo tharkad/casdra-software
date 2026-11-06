@@ -32,8 +32,13 @@ export function hireOptions(st, data) {
     // Natives already in his pay may be hired again: another 14 days.
     for (const g of Object.values(data.groups)) {
         let mine = st.nats.filter(n => !n.dead && n.hired && mineOf(st, n) && !himself(st, n) && n.loc?.c === here && data.natives[n.id].group === g.id);
-        // Order and Rogues are hired, and so extended, one native per Hire phase (7.7.1a.1, 7.7.1d): the one whose term ends soonest, in hiring order.
-        if (individual(data, g.id) && mine.length > 1) mine = [mine.sort((a, b) => a.hiredUntil - b.hiredUntil || hireRank(data, b) - hireRank(data, a))[0]];
+        // Order and Rogues are hired, and so extended, one native per Hire phase, at his choice (7.7.1a.1, 7.7.1d): each hired one of them is offered by himself. The first offered is the one an
+        // answer that names no one gets (a bot, a recorded game): the one whose term ends soonest, in hiring order.
+        if (individual(data, g.id) && mine.length > 1) {
+            mine.sort((a, b) => a.hiredUntil - b.hiredUntil || hireRank(data, b) - hireRank(data, a));
+            for (const m of mine) out.push({ group: g.id, rehire: true, members: [m.id], names: [data.natives[m.id].name], wage: data.natives[m.id].wage });
+            continue;
+        }
         if (mine.length) out.push({ group: g.id, rehire: true, members: mine.map(m => m.id), names: mine.map(m => data.natives[m.id].name), wage: mine.reduce((s, m) => s + data.natives[m.id].wage, 0) });
     }
     // Monsters a spell has pacified (Deal with Goblins) may be hired too, at the Neutral column: the wage is their Notoriety bounty (7.7.2, per card). All the targets of the spell here are
@@ -89,8 +94,9 @@ export function hireAction(st, data, p, a) {
         return 'You decide not to hire anyone.';
     }
     if (a.act === 'cancel') return 'You decide not to hire anyone.';
-    const opt = p.options.find(o => o.group === a.group && !!o.rehire === !!a.rehire);
-    if (!opt) throw new Error('no such group here');
+    // (`member` names the one of his hired Order or Rogues he rehires, 7.7.1d; an answer without it takes the first offered.)
+    const opt = p.options.find(o => o.group === a.group && !!o.rehire === !!a.rehire && (a.member == null || o.members.includes(a.member)));
+    if (!opt) throw new Error(a.member != null ? `${a.member} is not one of those you can hire or rehire here` : 'no such group here');
     const g = opt.group;
     // Drinks (7.6.5b / 7.7.1b): paid for everyone of the group in his clearing, hired or not, even if he hires only one.
     let drinks = false;

@@ -31,6 +31,7 @@ export const EVENT_CODES = {
     'move.climb.started': ['7.3.2', 'table'],
     'move.refused': ['7.3', 'table'],
     'move.fly.landed': ['7.3.3', 'table'],
+    'move.road.vanished': ['7.10.4d.2', 'table'],
     'move.cave.horse-left': ['7.3.2e', 'table'],
     'move.lost': ['7.3', 'table'],
     'hide.attempted': ['7.4.1', 'clearing'],

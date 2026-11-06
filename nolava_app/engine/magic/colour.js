@@ -1,4 +1,6 @@
-import { isMountain, tileName, tileOf } from '../world.js';
+import { isMountain, tileName, tileOf, roadsFrom } from '../world.js';
+import { withActor } from '../party.js';
+import { say } from '../core.js';
 import { visitorsAt } from '../missions.js';
 
 // Colours of magic (rules 4.6.2, 6.1.2). The seventh day of each week fills the whole land with one colour (White and Black together on day 7,
@@ -28,7 +30,7 @@ const cardCarriedNear = (st, at, id) => (st.order?.length ?? 0) > 1 && st.order.
 });
 // 7.7.2a.3: the belongings of a hired leader's own native group stay on the Setup Card, out of play; an ACTIVATED Enchanted card among them still radiates its colour in the clearing where the hired leader stands.
 const cardInLeaderGroup = (st, data, clearing, id) => !!clearing && st.nats.some(n => n.hired && !n.dead && n.loc?.c === clearing && data.natives?.[n.id]?.leader && (st.stock?.[data.natives[n.id].group] ?? []).some(i => isCard(i, id) && i.active));
-const cardHere = (st, data, clearing, id) => !!clearing && (cardInLeaderGroup(st, data, clearing, id) || cardInSellerStock(st, data, clearing, id) || (clearing === st.ch.at && st.ch.items.some(i => isCard(i, id))) || cardCarriedNear(st, clearing, id) || (st.abandoned?.[clearing] ?? []).some(i => isCard(i, id)));
+const cardHere = (st, data, clearing, id) => !!clearing && (cardInLeaderGroup(st, data, clearing, id) || cardInSellerStock(st, data, clearing, id) || (clearing === st.ch.at && !st.ch.onRoad && st.ch.items.some(i => isCard(i, id))) || cardCarriedNear(st, clearing, id) || (st.abandoned?.[clearing] ?? []).some(i => isCard(i, id)));
 const WEEK_COLORS = [['White', 'Black'], ['Grey'], ['Purple'], ['Gold']];            // day 7, 14, 21, 28 (and again for a longer game)
 export const isMagicDay = day => day > 0 && day % 7 === 0;
 // Day 7 gives White and Black in a one-month game; in a game of several months it alternates, White in the first month, Black in the second, and so on (6.1.2, 10.E.2.3).
@@ -42,6 +44,17 @@ export const dayColors = (day, lastDay = 28) => {
 export function nextDayWith(color, from, lastDay = 28) {
     for (let d = from; d <= lastDay; d++) if (dayColors(d, lastDay).includes(color)) return d;
     return null;
+}
+// 4.6.2b.2: an Enchanted card on a roadway supplies its colour to everyone on that roadway (and not to the clearings at either end). A card is on the roadway when a character who stands
+// on it carries it (ruling S1: a card found counts whether or not it is switched on). `road` is { from, to }; the colours of every such card, whoever carries it.
+const sameRoad = (a, b) => !!a && !!b && ((a.from === b.from && a.to === b.to) || (a.from === b.to && a.to === b.from));
+export function roadCardColors(st, road) {
+    const out = new Set();
+    for (const c of Object.values(st.chars ?? { ch: st.ch })) {
+        if (!c || c.dead || c.flying || !sameRoad(c.onRoad, road)) continue;
+        for (const [id, color] of Object.entries(CARD_COLOR)) if ((c.items ?? []).some(i => isCard(i, id))) out.add(color);
+    }
+    return out;
 }
 // Every colour present in a clearing, with where it comes from: [{ color, why }].
 // `road`: the colours that reach a roadway running into that clearing (4.6.2e.2): the day's colour and an enchanted tile's, but not the Chapel's, the Toadstool Circle's
@@ -76,7 +89,21 @@ export function flipTile(st, data, tile) {
     st.discSides = 1;          // from the first flip on, discovered paths are kept by side (party.js keepDiscoveriesBySide)
     p.side = p.side === 'enchanted' ? 'normal' : 'enchanted';
     (st.tileFlips ??= []).push({ tile, day: st.day, to: p.side });
+    forestVanished(st, data, tile);
     return p.side;
+}
+// 7.10.4d.2: "If a character is on a roadway when it vanishes or turns into a hidden path or secret passage that he has not discovered, he is put in the forest. He must start his next
+// turn by moving back to the clearing he just ran out of." A character out on a road (he ran away, 8.3.8) whose road no longer exists for him once `tile` is turned is in the forest of the
+// tile: still on no clearing (`onRoad` is set, so he fights, trades and rearranges nothing), but the one place he can go is back to `from`: his road becomes { from, to: from, forest: true }.
+function forestVanished(st, data, tile) {
+    for (const id of st.order ?? []) {
+        const c = st.chars[id], r = c?.onRoad;
+        if (!r || r.forest || (tileOf(r.from) !== tile && tileOf(r.to) !== tile)) continue;
+        const still = withActor(st, id, () => roadsFrom(st, data, r.from).some(x => x.to === r.to && x.usable));
+        if (still) continue;
+        c.onRoad = { from: r.from, to: r.from, forest: true };
+        withActor(st, id, () => say(st, `The road you were on vanishes as ${tileName(tile)} turns over: you stand in the forest, and must start your next turn by moving back to ${r.from}.`, 'info', null, { ev: { code: 'move.road.vanished', who: id, tile, at: r.from } }));
+    }
 }
 // The ways he can enchant the tile he stands on with a ready Magic chit of Type I to V whose colour of magic is present in his clearing
 // (from the land, a Chapel, the tile itself, or one of his own enchanted chits of that colour, which is then used up). [{ chit, tile, supply }]

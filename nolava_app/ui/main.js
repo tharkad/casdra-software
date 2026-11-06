@@ -27,7 +27,7 @@ const ctx = {
 function render() {
     if (ctx.screen === 'title') {
         const s = loadSaved();
-        ctx.saved = s && s.period !== 'over' ? [{ id: 'auto', character: s.ch.name, day: s.day, period: s.period, gold: s.ch.gold, mode: s.mode, lastDay: s.lastDay }] : [];
+        ctx.saved = s && s.period !== 'over' ? [{ id: 'auto', character: s.ch.name, characters: (s.order ?? []).map(id => s.chars?.[id]?.name).filter(Boolean), day: s.day, period: s.period, gold: s.ch.gold, mode: s.mode, lastDay: s.lastDay }] : [];
     }
     clear(app);
     const make = SCREENS[ctx.screen] ?? SCREENS.title;

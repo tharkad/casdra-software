@@ -18,7 +18,7 @@ export { MAX_SPELLS } from './runes.js';
 export { whySentence } from './magic/why.js';
 export { pairIds, facesOf, boxIds, boxDef, kindOf, otherFace, defOf as missionDefOf } from './missions.js';          // (the visitor, mission and campaign chits of the data: which pairs, faces and boxes there are, and what a face is)
 export { isVisitorName, SPELL_PRICE } from './visitors.js';
-export { ATTACK_SPELLS } from './spells.js';
+export { ATTACK_SPELLS, castable } from './spells.js';          // (castable: a spell's data says whether the engine has it; a function of the spell definition alone)
 export { generateRealm, tileById } from './mapbuild.js';          // (the realm a seed makes: a function of the seed alone)
 export { EDGE } from './planning.js';          // the destination of a Move that leaves the map          // the words for a blocked spell's `whyCode` ({ code, params }): the one place they are built
 

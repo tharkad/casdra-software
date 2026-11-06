@@ -24,7 +24,7 @@ export function gameSettingRows(view, { groups = [], params = null } = {}) {
     }
     // the optional rules, as the New Game screen worded them
     const opts = g.options ?? {};
-    for (const grp of groups) for (const o of grp.items) rows.push({ id: o.k, title: o.title, value: opts[o.k] ? 'On' : 'Off', line: o.line, rule: o.rule, group: grp.title });
+    for (const grp of groups) for (const o of grp.items) rows.push({ id: o.k, title: o.title, value: (o.k === 'shareAtBirdsong' ? opts[o.k] !== false : opts[o.k]) ? 'On' : 'Off', line: o.line, rule: o.rule, group: grp.title });
     rows.push({ id: 'missions', title: 'Missions and campaigns', value: view?.table?.missions ? 'On' : 'Off', line: 'Visitors, missions and campaigns lie in the realm.', group: 'Visitors' });
     // a table of several players
     if ((g.players ?? []).length > 1) {

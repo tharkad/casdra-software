@@ -3,11 +3,9 @@
 // next). One screen, shown once, the moment the game is over: the fight stays under the death for the one beat the combat scene gives it (fightBeat), then this. The old death box in the tray and the
 // two death sheets are gone. The restart question (a dead character may return tomorrow with new goals) is a sheet over this screen.
 import { CATS, FACTORS } from '../../../engine/catalogue.js';
-import { priceOf } from '../../../engine/catalogue.js';
-import { ownedItems } from '../../../engine/magic/mist.js';
 import { nameOfClearing } from '../../../engine/catalogue.js';
 import { ask } from '../../ask.js';
-import { gameOf, ownSheet, standingOf } from '../../combat/feed.js';
+import { gameOf, ownSheet, standingOf, viewOf } from '../../combat/feed.js';
 import { carriedGoals } from '../../restartgoals.js';
 import { h } from '../../dom.js';
 import { lastDayOf } from '../../gametext.js';
@@ -27,7 +25,7 @@ const nbsp = s => String(s).replace(/ (\d+)$/, ' $1');
 
 // ---- the facts ----
 function goalRows(G) {
-    const st = G.st, s = st.score;
+    const st = G.st, s = viewOf(st, G.data).table.score;
     if (s?.rows?.length) return s.rows.map(r => ({ ...r, pts: r.basic + r.bonus }));
     const sd = standingOf(st, G.data), e = sd.earned, need = sd.targets;                              // (a dead character has no rows: show how far each goal got)
     return CATS.map(c => ({ cat: c, earned: e[c], need: need[c], diff: e[c] - need[c], pts: null }));
@@ -36,6 +34,7 @@ function goalRows(G) {
 // The line that killed him, told in the Story voice (the log line "X deals T harm; you are slain" has a Story of its own), and in Detail as written.
 function deathLines(G) {
     const st = G.st, g = gameOf(st, G.data), o = g.over ?? {}, by = o.by ? o.by.replace(/ #\d+$/, '') : null;
+    if (o.suicide) return { story: 'You walk away from the Realm by your own choice. What you carried lies where you left it.', detail: 'You ended your adventure (8.9.4, 9.2.2a): your belongings are abandoned in your clearing, and a character who is dead or has left scores \u2212100.' };
     const l = [...(st.log ?? [])].reverse().find(x => x.k !== 'roll' && /you are slain|^You die|dies\b|slain/i.test(x.t) && x.day === (o.day ?? g.day));
     const story = l ? lineFor(l, 'story', st) : (by ? `The ${by} is too much for you. You do not get up.` : 'You do not get up.');
     const detail = l ? l.t : (o.text ?? (by ? `Slain by the ${by}.` : 'Fallen.'));
@@ -99,13 +98,13 @@ function goalRow(r) {
 
 // For interest only: what the goods he carries would fetch if he sold the lot at the printed prices.
 function saleLine(G) {
-    const sum = ownedItems(G.st).filter(i => !i.destroyed).reduce((a, i) => a + Math.max(0, priceOf(G.data, i)), 0);
+    const sum = viewOf(G.st, G.data).me?.saleValue ?? 0;
     return sum > 0 ? h('p', { class: 'ds-meta end-sale' }, 'If you sold everything you carry: ', h('b', { class: 'ds-c-gold' }, `+${sum} Gold`), '. For interest only.') : null;
 }
 
 // ---- the screen ----
 export function overScreen(G) {
-    const st = G.st, g = gameOf(st, G.data), me = ownSheet(st, G.data), o = g.over ?? {}, dead = o.reason === 'died' || !!me.dead, s = st.score ?? standingOf(st, G.data).score;
+    const st = G.st, g = gameOf(st, G.data), me = ownSheet(st, G.data), o = g.over ?? {}, dead = o.reason === 'died' || !!me.dead, s = viewOf(st, G.data).table.score ?? standingOf(st, G.data).score;
     const rows = goalRows(G), won = !dead && s.won, mode = g.mode ?? 'month';
     const canRestart = dead && mode !== 'endless' && g.day < g.lastDay && !G.race;
     const goTitle = () => { clearSaved(); G.ctx.go('title'); };
@@ -114,15 +113,15 @@ export function overScreen(G) {
     let hero, middle;
     if (dead) {
         const d = deathLines(G);
-        hero = h('div', { class: 'ds-death' },
-            h('div', { class: 'skull ds-stamp' }, icon('skull')),
-            h('div', { class: 'ds-eyebrow', style: 'color:var(--danger)' }, `Day ${o.day ?? g.day}${place ? ` · ${place}` : ''}`),
-            h('h1', {}, 'You have fallen'),
+        hero = h('div', { class: `ds-death${o.suicide ? ' left' : ''}` },
+            h('div', { class: 'skull ds-stamp' }, icon(o.suicide ? 'flag' : 'skull')),
+            h('div', { class: 'ds-eyebrow', style: o.suicide ? 'color:var(--ink-2)' : 'color:var(--danger)' }, `Day ${o.day ?? g.day}${place ? ` · ${place}` : ''}`),
+            h('h1', {}, o.suicide ? 'You ended your adventure' : 'You have fallen'),
             h('p', { class: 'ds-voice lg', 'data-v': 'story' }, d.story), h('p', { class: 'ds-voice lg', 'data-v': 'detail' }, d.detail),
             h('div', { class: 'vsw' }, voiceSwitch()));
         middle = [
             frames({ fame: me.fame, notor: me.notoriety, gold: me.gold }),
-            h('div', { class: 'end-final' }, h('span', { class: 'ds-eyebrow' }, 'Final score'), h('div', { class: 'ds-num neg' }, '−100'), h('p', { class: 'ds-meta' }, 'A dead character scores −100.')),
+            h('div', { class: 'end-final' }, h('span', { class: 'ds-eyebrow' }, 'Final score'), h('div', { class: 'ds-num neg' }, '−100'), h('p', { class: 'ds-meta' }, o.suicide ? 'A character who ends his adventure scores −100.' : 'A dead character scores −100.')),
             ...(rows.some(r => r.need > 0) ? [sect('How far you got'), h('div', { class: 'ds-list' }, ...rows.filter(r => r.need > 0).map(goalRow))] : []),
         ];
     } else {
@@ -148,11 +147,12 @@ export function overScreen(G) {
     const story = h('div', { class: 'end-run' }, sect('The run'), h('p', { class: 'ds-voice', 'data-v': 'story' }, runStory(f)),
         h('p', { class: 'ds-meta', 'data-v': 'detail' }, `Days ${f.days} · kills ${f.kills} · looted ${f.looted} · sites found ${f.sites} · wounds taken ${f.wounds}${f.deaths ? ` · deaths ${f.deaths}` : ''}.`));
     const restart = () => { G.ui.restartVp = carriedGoals(me.vp, Math.max(2, Math.ceil((g.lastDay - g.day) / 7) + 1)); render(G); };
-    const primary = canRestart ? btn(twoLine('Return tomorrow', `as a new ${me.name}`), 'primary', { 'data-act': 'restart', onclick: restart })
+    const late = (me.death?.rejoin ?? g.day + 1) - g.day > 1;          // (a suicide at Midnight sits out one whole day first: 9.2.2a; the engine says the day he may return)
+    const primary = canRestart ? btn(twoLine(late ? 'Return in two days' : 'Return tomorrow', `as a new ${me.name}`), 'primary', { 'data-act': 'restart', onclick: restart })
         : G.race ? btn('Back to the title', 'primary', { 'data-act': 'over-title', onclick: goTitle })
             : btn(dead ? 'Begin again' : 'New game', 'primary', { 'data-act': 'over-new', onclick: () => { clearSaved(); G.ctx.go('newgame'); } });
     const quiet = G.race ? null : btn('History', 'quiet', { 'data-act': 'over-history', onclick: () => { clearSaved(); G.ctx.go('history'); } });
-    const screen = h('main', { class: `ds-end ds-screen ${dead ? 'dead' : won ? 'won' : 'lost'}`, 'data-screen': 'over', role: 'dialog', 'aria-label': dead ? 'You have fallen' : won ? 'Victory' : 'The game is over' },
+    const screen = h('main', { class: `ds-end ds-screen ${dead ? 'dead' : won ? 'won' : 'lost'}`, 'data-screen': 'over', role: 'dialog', 'aria-label': dead ? (o.suicide ? 'You ended your adventure' : 'You have fallen') : won ? 'Victory' : 'The game is over' },
         h('div', { class: 'ds-scroll ds-fade-b end-scroll' }, hero, ...middle, story,
             h('div', { class: 'end-title' }, btn('Menu', 'quiet sm', { 'data-act': 'menu', onclick: () => { G.ui.sheet = 'menu'; render(G); } }), G.race ? null : btn('Back to the title', 'quiet sm', { 'data-act': 'over-title', onclick: goTitle }))),
         h('div', { class: 'ds-foot' }, quiet, primary));
@@ -171,7 +171,7 @@ export function restartSheet(G) {
     const begin = h('button', { type: 'button', class: `ds-btn primary${left ? ' is-dim' : ''}`, disabled: left !== 0 || null, 'data-act': 'restart-go', onclick: () => { const vp = { ...v }; G.ui.restartVp = null; G.ui.sheet = null; act(G, { type: 'restart', vp }); } }, 'Begin');
     const foot = h('div', { class: 'ds-opt-foot' }, h('span', { class: `lead ds-lead-text${left ? ' bad' : ''}` }, left === 0 ? 'All points spent.' : `${left} left to spend.`), begin);
     return modal(G, `A new ${ownSheet(st, G.data).name}`, h('div', { class: 'restart-goals' },
-        ask('Set the goals for your next character.', `He arrives at the Inn tomorrow and is scored against what you set now. With ${weeks} week${weeks === 1 ? '' : 's'} left he has ${total} victory points to spend.`),
+        ask('Set the goals for your next character.', `He arrives at the Inn ${(ownSheet(st, G.data).death?.rejoin ?? g.day + 1) - g.day > 1 ? 'the day after tomorrow' : 'tomorrow'} and is scored against what you set now. With ${weeks} week${weeks === 1 ? '' : 's'} left he has ${total} victory points to spend.`),
         ...rows.map(([k, label, fct]) => h('div', { class: 'ds-row vprow' },
             h('div', { class: 'vp-l main' }, h('b', {}, label), h('span', {}, v[k] ? `goal: ${v[k] * fct}` : 'no goal')),
             h('div', { class: 'stepper' },

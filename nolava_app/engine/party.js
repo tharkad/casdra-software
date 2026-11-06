@@ -96,7 +96,8 @@ export const charIds = st => st.order.slice();
 export const askOf = (st, who) => st.asks.find(a => a.who === who) ?? null;
 export const ownerOf = (st, who) => st.chars[who]?.owner ?? null;
 // The player's name for a character (the table talks about players); the character's own name when the game has no players' names.
-export const playerNameOf = (st, id) => st.players?.find(p => p.id === st.chars[id]?.owner)?.name ?? st.chars[id]?.name ?? id;
+// (a player who runs several characters on one phone is told by each character's own name: "You and You trade" says nothing)
+export const playerNameOf = (st, id) => { const p = st.players?.find(x => x.id === st.chars[id]?.owner); return p && st.order.filter(c => st.chars[c].owner === p.id).length < 2 ? p.name : st.chars[id]?.name ?? id; };
 // The characters in the same clearing (not on a road, not in the air): the ones who can see, trade with and fight each other.
 export const charsAt = (st, clearing) => st.order.filter(id => { const c = st.chars[id]; return c && !c.dead && c.at === clearing && !c.onRoad && !c.flying; });
 // The natives and monsters a character has hired or controls.
