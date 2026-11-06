@@ -211,14 +211,14 @@ export function aimEl(X, a, store) {
         const chosen = a.options.filter(o => sel.some(r => sameRef(r, o.ref)));
         const names = chosen.length ? chosen.map(o => o.label).join(', ') : 'None picked yet';
         return h('div', { class: 'cb-aimwrap cb-aimmap', 'data-aim': a.spell },
-            hint(a.max === 1 ? `Whom does ${a.name} take?` : `Choose ${a.min === a.max ? a.min : `${a.min} to ${a.max}`}.`),
+            hint(a.max === 1 ? `Choose target for ${a.name}.` : `Choose ${a.min === a.max ? a.min : `${a.min} to ${a.max}`}.`),
             h('div', { class: 'cb-aimpick' }, h('span', { class: 'cb-aimnow', 'data-aim-now': '' }, h('small', {}, a.max === 1 ? 'Your choice' : 'Your choices'), h('b', {}, names)),
                 h('button', { type: 'button', class: 'ds-btn', 'data-act': 'aim-map', onclick: () => {
                     X.ui.aimMap = { spell: a.spell, min: a.min, max: a.max, store, refs: Object.fromEntries(a.options.map(o => [String(o.ref.id), o.ref])), labels: Object.fromEntries(a.options.map(o => [String(o.ref.id), o.label])) };
                     X.peek.map(); } }, 'Choose on the map')));
     }
     return h('div', { class: 'cb-aimwrap', 'data-aim': a.spell },
-        a.options.length ? hint(a.max === 1 ? `Whom does ${a.name} take?` : a.max === 0 ? '' : `Choose ${a.min === a.max ? a.min : `${a.min} to ${a.max}`}${a.min === 0 ? ' (none picked takes every one that qualifies)' : ''}.`) : null,
+        a.options.length ? hint(a.max === 1 ? `Choose target for ${a.name}.` : a.max === 0 ? '' : `Choose ${a.min === a.max ? a.min : `${a.min} to ${a.max}`}${a.min === 0 ? ' (none picked takes every one that qualifies)' : ''}.`) : null,
         a.options.length ? h('div', { class: 'cb-aim' }, ...a.options.map(opt => {
             const on = sel.some(r => sameRef(r, opt.ref));
             return h('button', { type: 'button', class: `ds-btn${on ? ' on' : ''}`, 'data-aim-opt': `${opt.ref.kind}:${opt.ref.id}`, 'aria-pressed': on ? 'true' : 'false', onclick: () => {
@@ -285,7 +285,7 @@ function castPick(X, o, round, back, itemsBtn) {
 
 // ================= the Melee stepper =================
 export function stepsFor(o, X = null) {
-    const s = X && needsWhom(X.st, o) ? [{ id: 'whom', l: 'Whom' }] : [];          // (a fight with others in it, shared or hot-seat: others' creatures, characters and hirelings can be named too)
+    const s = X && needsWhom(X.st, o) ? [{ id: 'whom', l: 'Target' }] : [];          // (a fight with others in it, shared or hot-seat: others' creatures, characters and hirelings can be named too)
     s.push({ id: 'strike', l: 'Strike' });
     if ((o.aims ?? []).length) s.push({ id: 'aim', l: 'Aim' });
     s.push({ id: 'guard', l: 'Guard' });
@@ -319,7 +319,7 @@ export function meleeSheet(X) {
         lead = backBtn;
     } else if (cur === 'whom') {
         const w = whomBody(X, o, m);
-        body = [h('div', { class: 'cb-fields sf-whom', role: 'radiogroup', 'aria-label': 'Whom you strike' }, ...w.els)];
+        body = [h('div', { class: 'cb-fields sf-whom', role: 'radiogroup', 'aria-label': 'Choose target' }, ...w.els)];
         lead = leadText(tgtName ? `You strike ${tgtName}.` : 'You strike no one.');
         prim = primary(`Next: ${next.l}`, { 'data-act': 'step-next', disabled: w.blocked, onclick: () => go(next.id) });
     } else if (cur === 'strike') {

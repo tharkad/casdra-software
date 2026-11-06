@@ -333,9 +333,9 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
                 `Round ${c.round}, Melee: ${M.cap(nm)} ${tgt.kind === 'nat' ? 'are' : 'is'} at peace with you. Naming ${tgt.kind === 'nat' ? 'a native' : 'it'} as your target starts the fight: ${tgt.kind === 'nat' ? 'its whole group battles you from the next round' : 'it fights you from the next round'} (8.2.1a, 8.2.3a). ${limText}`];
         }
         const line = {
-            whom: ['Whom do you strike?', 'Your play is sealed until everyone has chosen. Name any creature in the clearing, another character, or a hireling: or no one (8.4.2c).'],
-            strike: [one ? 'How do you strike?' : 'Whom do you strike, and how?', 'Pick whom you strike, in which direction and with which Fight chit.'],
-            aim: [`Whom does ${o.aims?.[0]?.name ?? 'the spell'} take?`, null],
+            whom: ['Choose target', 'Your play is sealed until everyone has chosen. Name any creature in the clearing, another character, or a hireling: or no one (8.4.2c).'],
+            strike: [one ? 'How do you strike?' : 'Choose target and strike', 'Pick your target, the direction and the Fight chit.'],
+            aim: [`Choose target for ${o.aims?.[0]?.name ?? 'the spell'}`, null],
             guard: ['How do you guard yourself?', 'The maneuver defends you; a blow aimed at your direction connects, one that comes sooner than your chit gets under it.'],
             shield: ['Which way does your shield guard?', null],
             parts: ['What do its other attacks do?', null],
