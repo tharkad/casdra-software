@@ -389,7 +389,10 @@ export function meleeSheet(X) {
         if (!SEC.inPlay(o) && !M.placementMatters(fm, o, m) && M.placementCounters(fm, o, m) >= 1) body.push(h('p', { class: 'cb-hint', 'data-hint': 'foes-die' }, voiced({ story: 'You do not place them: a die puts the creatures in their lanes after your plays, so no lane is the safe one.',
             detail: 'He may place the creatures (8.4.5m), but one die then shuffles them among the three boxes after the plays (8.4.6a): with three or fewer attacking counters every placement is as likely afterwards, so none is asked for.' })));
         lead = leadText(eff.over ? h('span', { class: 'bad', style: 'color:var(--danger)' }, `${eff.text}: ${eff.words}.`) : [`${eff.text}: `, eff.words, '.']);
-        prim = primary(sh ? 'Seal your play' : 'Roll the dice', { 'data-act': 'commit', disabled: eff.over || confirmPending || !!m.secErr, onclick: () => X.sendMelee(o, m) });
+        // note 132: with several characters on one phone the dice are rolled once, after the last of them has chosen: until then the button hands the phone on, it does not say "Roll"
+        const waiting = (X.party?.members ?? []).filter(x => x.key === 'wait');
+        if (waiting.length) body.push(h('p', { class: 'cb-hint', 'data-hint': 'party-wait' }, `${waiting.map(x => x.name).join(' and ')} still ${waiting.length === 1 ? 'has' : 'have'} to choose. The dice are rolled once everyone has.`));
+        prim = primary(waiting.length ? `Play it: ${waiting[0].name} next` : sh ? 'Seal your play' : 'Roll the dice', { 'data-act': 'commit', disabled: eff.over || confirmPending || !!m.secErr, onclick: () => X.sendMelee(o, m) });
         if (eff.over) lead = leadText(h('span', { style: 'color:var(--danger)' }, `Put a chit back: ${M.limitWord(o.effortLimit ?? 2)} asterisks at most.`));
         else if (m.secErr) lead = leadText(h('span', { style: 'color:var(--danger)' }, 'Your hirelings are not placed yet.'));
     }

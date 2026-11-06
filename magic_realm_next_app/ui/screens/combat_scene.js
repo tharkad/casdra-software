@@ -341,7 +341,7 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
             parts: ['What do its other attacks do?', null],
             sections: ['Tap a counter to move it to the next lane.', 'Melee Sections: box, circle and square of one direction are one line (8.4.8b). You choose whom an attacked hireling strikes, where each counter stands and the side a defender shows (8.4.2e, 8.4.2f, 8.4.5n); then the dice move the attackers (8.4.6d).'],
             foes: [`Where will ${one ? 'it' : 'they'} come at you?`, 'Place the creatures in the three red boxes; the dice shuffle them afterwards.'],
-            roll: X.shared ? ['Your play is set. Nobody sees it until everyone has played.', 'Plays are sealed; once everyone has chosen, every play is shown at once and the dice decide the rest.'] : ['Your plays are set. The dice decide the rest.', 'Plays are chosen together; then the dice shuffle the creatures and the blows land.'],
+            roll: X.party?.members.some(x => x.key === 'wait') ? [`${X.party.me?.name ?? 'Your'}${X.party.me ? '’s' : ''} play is set. ${X.party.members.filter(x => x.key === 'wait').map(x => x.name).join(' and ')} still to choose.`, 'The dice are rolled once, after every character has chosen a play.'] : X.shared ? ['Your play is set. Nobody sees it until everyone has played.', 'Plays are sealed; once everyone has chosen, every play is shown at once and the dice decide the rest.'] : ['Your plays are set. The dice decide the rest.', 'Plays are chosen together; then the dice shuffle the creatures and the blows land.'],
         }[step];
         return [line[0], `Round ${c.round}, Melee: ${line[1] ?? line[0]} ${limText}`];
     }

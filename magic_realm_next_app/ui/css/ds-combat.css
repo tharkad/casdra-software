@@ -339,7 +339,7 @@
 @media (max-height: 700px) { .cb-hero .name { display: block; } .cb-hero .gcol:not(:has(.wplate)) .cap { display: block; width: 88px; margin: 0 -16px; line-height: 1; } }
 /* the note (microphone) button is fixed at the top right; with no margin above the fight (a short phone) the top row leaves it its corner, so it never covers the sight or the Map */
 @media (max-height: 700px) { .cb-top { padding-right: 44px; } .cb-top .cb-sight { padding: 5px 8px; letter-spacing: .06em; } .cb-top .where b { letter-spacing: .03em; } .cb-top .where span { letter-spacing: .05em; } .cb-top .cb-sight { font-size: calc(12px * var(--ts, 1)); } .cb-top { gap: 6px; } }
-.cb-stagein[data-tight] .cb-pl { display: none; }
+
 
 /* note 102: the fight bar's Fame, Notoriety and Gold carry their words, as the status strip does */
 .cb-bar .ds-stat { flex-direction: column; gap: 1px; padding: 0 5px; font-size: calc(16px * var(--ts, 1)); }
@@ -400,3 +400,10 @@
   .cb-hero:has(> .mid) .name { margin-top: 1px; }
 }
 .cb-verdict .ds-tag { height: 34px; padding: 0 12px; border-width: 1.5px; font-size: calc(15px * var(--ts, 1)); }
+
+/* note 133: what was played (the chit, the weapon, the attack or maneuver time) stands inside the lane it was played in, in small type under the chit: it can never read as belonging to a neighbour */
+.cb-lane .cb-pl { flex: 0 0 100%; justify-content: center; font-size: calc(12px * var(--ts, 1)); line-height: 13px; letter-spacing: 0; text-transform: none; font-weight: 500; padding: 0 0 1px; gap: 0 4px; }
+.cb-lane .cb-pl .sep { background: none; padding: 0; }
+.cb-lane.mine, .cb-lane.guard { padding-top: 2px; padding-bottom: 1px; }
+.cb-stagein[data-tight] .cb-lane .cb-pl .w, .cb-stagein[data-tight] .cb-lane .cb-pl .sep { display: none; }          /* a crowded stage on a short phone: the weapon's name gives way, the time stays in the lane */
+.cb-stagein[data-tight] .cb-lane .cb-pl { line-height: 12px; padding: 0; }
