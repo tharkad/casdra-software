@@ -52,10 +52,10 @@ function corner(side, ax, ay, r, W, H, h0) {
  * @param groups    [{ id, ax, ay, ar, prio, prefer?, boxes:[{w,h}] }]  anchor point, the radius around it that must stay clear, lower prio is placed first
  * @param obstacles [{ x, y, r }]                                         round things that never move (clearing numbers, counters)
  * @param anchors   [{ id, x, y }]  every clearing's centre; a group with `own` set to its clearing's id is kept nearer to that clearing than to any other
- * @returns Map id -> { boxes:[{x,y,w,h}], side, ring, leader:boolean, overlap:number }
+ * @returns Map id -> { boxes:[{x,y,w,h}], side, ring, leader:boolean, overlap:number, edge:boolean (stands off the board's edge, touching its clearing), edgeIdx:[box indices that do] }
  */
 export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anchors = [] } = {}) {
-    const grid = new Grid(), held = [];                       // the round things that never move, then the names placed so far (all grown by MARGIN where they are placed)
+    const grid = new Grid(), held = new Map(), lone0 = [];                       // the round things that never move, then the names placed so far (all grown by MARGIN where they are placed)
     for (const o of obstacles) grid.add({ x: o.x - o.r, y: o.y - o.r, w: 2 * o.r, h: 2 * o.r });
     const out = new Map();
     const areaOf = rects => { let area = 0; for (const r of rects) area += grid.area(grow(r, MARGIN)); return area; };
@@ -110,24 +110,94 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
         }
         return best;
     };
+    // ---- a clearing at the edge of the board: its names stand in the empty space off the board, up against the clearing ----
+    // A group that carries `board(x, y)` (is this point on any tile?) and `inside(x, y)` (is it on the clearing's own tile?) may stand where every sample point of its stack is on its own tile or off the
+    // board altogether, never on a neighbour's ground: a column touching the clearing on the side that faces nothing (note 148: four creatures of a clearing at the east edge were strewn over the
+    // next tile, 150px from their clearing). The column slides along the clearing's side only as far as it must to stand clear of what is already placed, and always keeps touching the clearing's height.
+    const onNeighbour = (g, rects) => {
+        for (const r of rects) for (const fx of [0, 0.5, 1]) for (const fy of [0, 0.5, 1]) { const px = r.x + r.w * fx, py = r.y + r.h * fy; if (g.board(px, py) && !g.inside(px, py)) return true; }
+        return false;
+    };
+    const edgeSearch = (g, boxes) => {
+        const W = Math.max(...boxes.map(b => b.w)), H = boxes.reduce((s, b) => s + b.h, 0) + GAP * (boxes.length - 1), er = (g.er ?? g.ar) + 2;
+        const own = obstacles.filter(o => o.x === g.ax && o.y === g.ay).map(o => ({ x: o.x - o.r, y: o.y - o.r, w: 2 * o.r, h: 2 * o.r }));       // the clearing's own keep-clear square does not count against its own names
+        const areaWithoutOwn = rects => { let a = 0; for (const r of rects) { const gr = grow(r, MARGIN); let v = grid.area(gr); for (const o of own) v -= overlapArea(gr, o); a += Math.max(0, v); } return a; };
+        const sides = (g.prefer ?? []).filter(s => ['right', 'left', 'below', 'above'].includes(s));
+        for (const s of ['right', 'left', 'below', 'above']) if (!sides.includes(s)) sides.push(s);
+        let best = null;
+        sides.forEach((side, rank) => {
+            const vertical = side === 'right' || side === 'left';
+            const span = (vertical ? H : W) / 2, reach = 6;         // the stack must still touch the clearing's own width: its middle may be at most `span - reach` from the clearing's
+            for (let sh = 0; sh <= span - reach; sh += 3) for (const sg of sh ? [-1, 1] : [1]) {
+                const d = sh * sg, ax = vertical ? g.ax : g.ax + d, ay = vertical ? g.ay + d : g.ay;
+                const [x, y] = corner(side, ax, ay, er, W, H, vertical ? H : boxes[0].h);          // (a side column is centred on the shift: `h0` = H)
+                const rects = []; let yy = y;
+                for (const b of boxes) { rects.push({ x: vertical ? x : x + (W - b.w) / 2, y: yy, w: b.w, h: b.h }); yy += b.h + GAP; }
+                if (onNeighbour(g, rects)) continue;
+                const area = areaWithoutOwn(rects);
+                if (area > 0) continue;
+                const score = Math.abs(d) + rank * 4;
+                if (!best || score < best.score) best = { score, rects, side, ring: 0, area: 0, dist: Math.hypot(x + W / 2 - g.ax, y + H / 2 - g.ay), W, H, owned: true, outside: 0, edge: true };
+            }
+        });
+        return best;
+    };
     const order = groups.slice().sort((a, b) => (a.prio ?? 5) - (b.prio ?? 5) || b.boxes.length - a.boxes.length || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     for (const g of order) {
-        let best = search(g, g.boxes), small = false;
+        let best = search(g, g.boxes), small = false, edge = false;
+        // a clearing on the edge of the board: its names go off the board, touching it, when its own tile has no clear room for them (see edgeSearch)
+        if (g.board && g.inside && (best.area > 0 || best.owned === false || (best.outside ?? 0) > 0 || best.dist > g.ar + 40)) {
+            // The whole stack goes off the board as one column; when it is too tall for the room beside the clearing, its creatures (g.core: the pills that matter most) do, and the rest are placed
+            // one by one as before. When the clearing's characters already stand off the board (g.with: their group), his pill and the creatures make ONE column: his pill first.
+            const all = g.boxes.map((_, i) => i), core = g.core?.length && g.core.length < all.length ? g.core : null;
+            const mate = g.with ? out.get(g.with) : null;
+            const attempt = (idx, useMate) => {
+                const bx = idx.map(i => g.boxes[i]);
+                if (!useMate) return edgeSearch(g, bx);
+                for (const it of held.get(g.with)) grid.remove(it);
+                const mb = mate.boxes.map(b => ({ w: b.w, h: b.h })), e = edgeSearch(g, [...mb, ...bx]);
+                if (e) { mate.boxes = e.rects.slice(0, mb.length); e.rects = e.rects.slice(mb.length); }
+                held.set(g.with, mate.boxes.map(r => grid.add(grow(r, MARGIN))));
+                return e;
+            };
+            let got = null, idx = all;
+            for (const [ix, um] of [[all, true], ...(core ? [[core, true]] : []), [all, false], ...(core ? [[core, false]] : [])]) {
+                if (um && !mate?.edge) continue;
+                const e = attempt(ix, um);
+                if (e) { got = e; idx = ix; break; }
+            }
+            if (got) {
+                edge = true;
+                if (idx.length === all.length) best = got;
+                else {
+                    // the creatures stand against the clearing; each other pill takes the nearest clear room, beside the one before
+                    const rects = new Array(all.length), mine = got.rects.map(r => grid.add(grow(r, MARGIN))), lone = [];
+                    idx.forEach((i, k) => { rects[i] = got.rects[k]; });
+                    let area = 0, prev = null;
+                    for (const i of all) if (!rects[i]) {
+                        const r = search(prev ? { ...g, ox: g.ax, oy: g.ay, ax: prev.x + prev.w / 2, ay: prev.y + prev.h / 2, ar: prev.h / 2, prefer: ['below', 'above', 'right', 'left'] } : g, [g.boxes[i]]);
+                        rects[i] = r.rects[0]; prev = rects[i]; area += r.area; lone.push(grid.add(grow(rects[i], MARGIN)));
+                    }
+                    for (const it of [...mine, ...lone]) grid.remove(it);
+                    best = { ...got, rects, area, partial: true, idx };
+                }
+            }
+        }
         // a chit's name belongs on its own tile: when its own clear spot has no room (the ring round the hero's clearing, another name), it takes the tile's next clear spot that has
         // (g.alts: [[x, y], ...] in the world, best first) rather than hang over the tile's edge, far from its chit (note 92)
-        if (g.alts && !(best.area === 0 && !best.outside)) for (const [ax, ay] of g.alts) {
+        if (!edge && g.alts && !(best.area === 0 && !best.outside)) for (const [ax, ay] of g.alts) {
             const r = searchIn({ ...g, ax, ay, ar: 3 }, g.boxes, 4);
             if (r && r.area === 0 && !r.outside) { best = r; break; }
         }
         // a stack that would be staggered at full size tries the same column in the compact pill style first (g.small: the boxes at COMPACT size); it is used only if it stands clear, owned and on the tile
-        if (g.small && g.boxes.length > 1 && (best.area > 0 || best.owned === false || (best.outside ?? 0) > 0 || best.dist > g.ar + 40)) {
+        if (!edge && g.small && g.boxes.length > 1 && (best.area > 0 || best.owned === false || (best.outside ?? 0) > 0 || best.dist > g.ar + 40)) {
             const sm = search(g, g.small);
             if (sm.area === 0 && sm.owned !== false && !(sm.outside ?? 0) && sm.dist <= g.ar + 40) { best = sm; small = true; }
         }
         let boxes = best.rects, side = best.side, ring = best.ring, area = best.area, far = best.dist > g.ar + Math.max(best.W, best.H) + 4;
         // the stack does not fit as one column: it collides, hangs over its tile's edge, stands on a neighbour's side, or only fits far off. Try its pills one by one,
         // each wherever there is room nearest, BEFORE the caller gives up and turns the clearing into a marker (a tall column of four does not fit a hexagon that has plenty of room)
-        if (!small && g.boxes.length > 1 && (best.area > 0 || best.owned === false || (best.outside ?? 0) > 0 || best.dist > g.ar + 40)) {
+        if (!edge && !small && g.boxes.length > 1 && (best.area > 0 || best.owned === false || (best.outside ?? 0) > 0 || best.dist > g.ar + 40)) {
             const lone = []; let worst = 0, maxRing = 0, allOwned = true, far2 = 0, loneOut = 0;
             let prev = null;
             for (const b of g.boxes) {
@@ -135,16 +205,16 @@ export function layoutLabels(groups, obstacles = [], { rings = 24, step = 5, anc
                 const gp = prev ? { ...g, ox: g.ax, oy: g.ay, ax: prev.x + prev.w / 2, ay: prev.y + prev.h / 2, ar: prev.h / 2, prefer: ['below', 'above', 'right', 'left'] } : g;
                 const r = search(gp, [b]);
                 prev = r.rects[0];
-                for (const rc of r.rects) held.push(grid.add(grow(rc, MARGIN)));
+                for (const rc of r.rects) lone0.push(grid.add(grow(rc, MARGIN)));
                 lone.push(r.rects[0]); worst += r.area; maxRing = Math.max(maxRing, r.ring); loneOut += r.outside ?? 0;
                 allOwned = allOwned && r.owned !== false; far2 = Math.max(far2, r.dist);
             }
-            for (const it of held.splice(0)) grid.remove(it);       // they are re-added below with the rest of the bookkeeping
+            for (const it of lone0.splice(0)) grid.remove(it);       // they are re-added below with the rest of the bookkeeping
             const better = worst < best.area || (worst === best.area && ((best.owned === false && allOwned) || far2 + 8 < best.dist || (loneOut < (best.outside ?? 0) && allOwned)));
             if (better) { boxes = lone; side = 'split'; ring = maxRing; area = worst; far = true; best = { ...best, owned: allOwned, outside: loneOut }; }
         }
-        for (const r of boxes) grid.add(grow(r, MARGIN));
-        out.set(g.id, { small, boxes, side, ring, overlap: area, outside: best.outside ?? 0, leader: ring > 0 || far || best.owned === false || (best.outside ?? 0) > 0 });      // a name that could not stay on its tile is tied to its clearing
+        held.set(g.id, boxes.map(r => grid.add(grow(r, MARGIN))));
+        out.set(g.id, { small, boxes, side, ring, overlap: area, outside: best.outside ?? 0, edge, edgeIdx: edge ? best.idx ?? boxes.map((_, i) => i) : null, leader: !!best.partial || !edge && (ring > 0 || far || best.owned === false || (best.outside ?? 0) > 0) });      // a name that could not stay on its tile is tied to its clearing (one off the board's edge touches it: no line)
     }
     return out;
 }

@@ -16,6 +16,7 @@ const calmMotion = () => (typeof matchMedia === 'function' && matchMedia('(prefe
 const S = 100;
 const NUM_W = 17;            // room at the start of a clearing's pill for the circle with its number
 const tokW = t => (t.k === 'char' && t.short ? NUM_W + 17 + 3 + 14 : pillWidth(t.label, { img: !!t.img }) + NUM_W + (t.k === 'char' ? 16 : 0));          // a pill's width: the name, its picture, and for a character the hex face and the eye (a party in one clearing: face and eye, no name)
+const EDGE_R = 24;           // how far from the hero's clearing its names stand when they go off the board's edge: against his dotted ring (24 units, see apply)
 const CHIT_R = 6.5;          // radius of a counter on the map; names sit beside it, never over it
 const GROUP = { valley: '#26382f', woods: '#1f3a2a', mountain: '#3a3530', cave: '#2c2a3a' };
 const CLEARING = { woods: '#3f7a52', mountain: '#8d7a62', cave: '#5a4f7a' };
@@ -151,8 +152,10 @@ export function mountMap(host) {
             model = m;
             const before = view && !refit ? worldCentre() : null;
             computeBounds(); measure();
-            if (refit || !view) view = fit();
+            const fresh = refit || !view, usedOver = overKey;
+            if (fresh) view = fit();
             draw();
+            if (fresh && overKey !== usedOver) { computeBounds(); view = fit(); draw(); }          // names off the board's edge changed what the whole realm takes: look again
             if (before) recentre(before);                           // the map may have grown or shrunk (the details drawer): keep what was in the middle there
             buildOverlay();
             apply();
@@ -216,13 +219,27 @@ export function mountMap(host) {
             if (!sheet) restore = null;
             const kk = o.k ?? (sheet ? view?.k ?? 1 : Math.max(view?.k ?? 0, 1.5 * comfort()));
             let y = (size[1] - toInset) / 2 - p[1] * kk;
+            if (model && view && levelFor(kk).id !== level.id) { const keep = view; view = { ...view, k: kk }; draw(); view = keep; }          // (the names at the zoom we go to: where they stand decides how the map must sit)
             // the names of the clearing (an Imp and a Statue below the hero) must not end under the sheet: lift the view by what they hang below the strip, never so far that the clearing nears the top (note 109)
             const ext = sheet ? nameExtent.get(clearingId) : null;
             if (ext) {
                 const lowest = y + ext.y1 * kk, room = size[1] - toInset - 10;
                 if (lowest > room) y -= Math.min(lowest - room, Math.max(0, y + p[1] * kk - 70));
             }
-            go({ k: kk, x: size[0] / 2 - p[0] * kk, y }, o.animate ?? true, toInset);
+            // names standing off the board's edge beside this clearing (a stack of creatures touching it) must be in view: slide the map along, but keep the clearing itself well inside
+            let x = size[0] / 2 - p[0] * kk;
+            const ee = edgeExtent.get(clearingId);
+            if (ee) {
+                const W = size[0];
+                const right = ee.x1 * kk + x, left = ee.x0 * kk + x, cx = p[0] * kk + x;
+                if (right > W - 10) x -= Math.max(0, Math.min(right - (W - 10), cx - 40));
+                else if (left < 10) x += Math.max(0, Math.min(10 - left, W - 40 - cx));
+                // and in the strip a sheet leaves: its column (a tall one) between the strip's top and bottom, the clearing beside it
+                const avail = size[1] - toInset, top = ee.y0 * kk + y, bot = ee.y1 * kk + y;
+                if (bot > avail - 8) y -= Math.min(bot - (avail - 8), Math.max(0, top - 8));
+                else if (top < 8) y += Math.min(8 - top, avail - 8 - bot);
+            }
+            go({ k: kk, x, y }, o.animate ?? true, toInset);
         },
         /** The sheet is gone: glide back to where the camera was before it (or, if the player has moved the map since, keep what they were looking at and just give the strip back). */
         release({ animate = true } = {}) {
@@ -249,17 +266,19 @@ export function mountMap(host) {
         hit(x, y) { return nearest(x, y); },
     };
     const posOf = new Map(), tileC = new Map();          // clearing id -> world position; tile id -> the tile's centre
+    const edgeExtent = new Map();          // clearing id -> the world box of its names that stand off the board's edge (the camera keeps them in view; the fit makes room for them)
+    let over = null, overKey = '';          // the same names' box over the whole map: the whole-realm view makes room for it
     const nameExtent = new Map();          // clearing id -> the world box its names (pills or marker) fill, so the camera can keep them clear of a sheet (note 109)
 
     // ---- the layout of the names is the costly part of a draw, and the same state always lays out the same way: remember it by its inputs ----
     const layoutCache = new Map();
-    const layoutKey = (level, groups, obstacles, anchors, badgeOf) => JSON.stringify([level.id, groups.map(g0 => [g0.id, g0.ax, g0.ay, g0.ar, g0.prio, g0.prefer, g0.own, g0.kind, g0.boxes, g0.alts, badgeOf.get(g0.id)?.boxes]),
+    const layoutKey = (level, groups, obstacles, anchors, badgeOf) => JSON.stringify([level.id, groups.map(g0 => [g0.id, g0.ax, g0.ay, g0.ar, g0.prio, g0.prefer, g0.own, g0.er, !!g0.board, g0.with, g0.core, g0.kind, g0.boxes, g0.alts, badgeOf.get(g0.id)?.boxes]),
         obstacles.map(o => [Math.round(o.x * 10), Math.round(o.y * 10), o.r]), anchors.map(a => [a.id, Math.round(a.x * 10), Math.round(a.y * 10)])]);
     let level = levelFor(1), labelEls = [], lastShrink = 1, heroRing = null, stats = { draws: 0 };
 
     function draw() {
         const tDraw = performance.now(); let tLayout = 0;
-        posOf.clear(); tileC.clear(); nameExtent.clear();
+        posOf.clear(); tileC.clear(); nameExtent.clear(); edgeExtent.clear();
         const { tiles, placements } = model;
         level = levelFor(view?.k ?? fit().k);
         const g = sv('g', { class: 'world' });
@@ -268,6 +287,9 @@ export function mountMap(host) {
         const groups = [], obstacles = [], anchors = [], makeLabel = new Map(), badgeOf = new Map();
         heroRing = null;
         const tileDefs = Object.fromEntries(tiles.map(t => [t.id, t])), tileCentre = tileC;
+        // is a point on the board at all (on any tile)? The names of a clearing at the board's edge may stand off it, touching the clearing (labels.js edgeSearch)
+        const hexCentres = placements.map(p0 => hexCenter(p0.q, p0.r, S));
+        const onBoard = (px, py) => hexCentres.some(([hx, hy]) => { const dx = Math.abs(px - hx), dy = Math.abs(py - hy); return dy <= S * 0.866025 && dx <= S - dy / 0.866025 * 0.5; });
         for (const p of placements) {
             const side = p.side ?? model.side ?? 'normal';          // each tile shows its own side: an enchanted tile is turned over
             const tile = tileDefs[p.id], def = tile.sides[side], lay = layoutSide(tile, side);
@@ -372,7 +394,7 @@ export function mountMap(host) {
                 if (chars.length) {
                     const gid = `char:${id}`;
                     badgeOf.set(gid, { segs: [{ k: 'char', n: chars.length, img: chars[0].img, hid: chars.every(t0 => t0.hid) }], id, num: c.n });
-                    groups.push({ id: gid, own: id, kind: 'char', ax: cx + x, ay: cy + y, ar: clearR, prio: 0, prefer: ['below', 'above', 'right', 'left'], inside: insideTile,
+                    groups.push({ id: gid, own: id, kind: 'char', ax: cx + x, ay: cy + y, ar: clearR, er: youHere ? EDGE_R : clearR, prio: 0, prefer: ['below', 'above', 'right', 'left'], inside: insideTile, board: onBoard,
                         boxes: chars.map(t0 => ({ w: tokW(t0), h: 17 })), small: chars.map(t0 => ({ w: tokW(t0) * COMPACT, h: 17 * COMPACT })) });
                     makeLabel.set(gid, (box, i) => pillEl(chars[i], box, c.n, id));
                 }
@@ -385,7 +407,7 @@ export function mountMap(host) {
                     const KS = ['mon', 'nat', 'ally', 'dwelling', 'visit', 'task', 'site', 'sound'], count = t => Number(/x(\d+)$/.exec(t.label)?.[1] ?? 1);
                     const segs = KS.map(k => { const ts = toks.filter(t => t.k === k); return ts.length ? { k, n: ts.reduce((n, t) => n + count(t), 0), disc: ts.some(t => t.disc) } : null; }).filter(Boolean);
                     badgeOf.set(gid, { segs, id, num: c.n });
-                    groups.push({ id: gid, own: id, kind: shown[0]?.k ?? 'site', ax: cx + x, ay: cy + y, ar: clearR, prio, prefer: ['right', 'left'], inside: insideTile,
+                    groups.push({ id: gid, own: id, kind: shown[0]?.k ?? 'site', ax: cx + x, ay: cy + y, ar: clearR, er: youHere ? EDGE_R : clearR, prio, prefer: ['right', 'left'], inside: insideTile, board: onBoard, core: shown.map((t, i) => (t.k === 'mon' || t.k === 'nat' ? i : -1)).filter(i => i >= 0), ...(chars.length ? { with: `char:${id}` } : {}),
                         boxes: shown.map(t => ({ w: tokW(t), h: t.img ? 17 : PILL_H })),
                         small: shown.map(t => ({ w: tokW(t) * COMPACT, h: (t.img ? 17 : PILL_H) * COMPACT })) });
                     makeLabel.set(gid, (box, i) => pillEl(shown[i], box, c.n, id));
@@ -449,7 +471,7 @@ export function mountMap(host) {
         else {
             const demoted = new Set();
             const sc = level.scale;
-            const asBadge = g0 => ({ ...g0, boxes: badgeOf.get(g0.id).boxes.map(b => ({ w: b.w * sc, h: b.h * sc })), prefer: ['right', 'left', 'below', 'above'], prio: 1, ...(level.lod ? { inside: null } : {}) });          // (a chip that is 40px wide at the whole-realm zoom cannot stay inside a 70px tile: it may stand on the neighbours' ground)
+            const asBadge = g0 => ({ ...g0, boxes: badgeOf.get(g0.id).boxes.map(b => ({ w: b.w * sc, h: b.h * sc })), prefer: ['right', 'left', 'below', 'above'], prio: 1, ...(level.lod ? { inside: null, board: null } : {}) });          // (a chip that is 40px wide at the whole-realm zoom cannot stay inside a 70px tile: it may stand on the neighbours' ground)
             // only when the names truly cannot sit by their clearing: they collide, spill off their tile, or would have to stand well away from it. (A name that sits close
             // but nearer another clearing keeps its place and gets a thin line to its own.)
             const bad = (r, g0) => r.overlap > 0 || r.ring >= 18 || (g0.own !== model.hero && needsMarker(r, g0.boxes.length));       // (the clearing he stands in keeps its names even when they hang over the tile's edge; others become a marker only when mostly off their tile)
@@ -490,6 +512,11 @@ export function mountMap(host) {
                 const e = nameExtent.get(gr.own) ?? { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
                 for (const b of r.boxes) { e.x0 = Math.min(e.x0, b.x); e.y0 = Math.min(e.y0, b.y); e.x1 = Math.max(e.x1, b.x + b.w); e.y1 = Math.max(e.y1, b.y + b.h); }
                 nameExtent.set(gr.own, e);
+                if (r.edge) {
+                    const ee = edgeExtent.get(gr.own) ?? { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+                    for (const i of r.edgeIdx) { const b = r.boxes[i]; ee.x0 = Math.min(ee.x0, b.x); ee.y0 = Math.min(ee.y0, b.y); ee.x1 = Math.max(ee.x1, b.x + b.w); ee.y1 = Math.max(ee.y1, b.y + b.h); }
+                    edgeExtent.set(gr.own, ee);
+                }
             }
             if (demoted.has(gr.id)) {
                 const bd = badgeOf.get(gr.id), bx = r.boxes[0], w0 = bd.boxes[0].w;
@@ -518,6 +545,8 @@ export function mountMap(host) {
             }
         }
         og.append(leaders, names);
+        over = edgeExtent.size ? [...edgeExtent.values()].reduce((a, e) => ({ x0: Math.min(a.x0, e.x0), y0: Math.min(a.y0, e.y0), x1: Math.max(a.x1, e.x1), y1: Math.max(a.y1, e.y1) })) : null;
+        overKey = over ? [over.x0, over.y0, over.x1, over.y1].map(Math.round).join() : '';
         top.append(markerLayer, og, tagLayer);
         g.append(top);
         svg.replaceChildren(g);
@@ -529,6 +558,7 @@ export function mountMap(host) {
     function computeBounds() {
         let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
         for (const p of model.placements) { const [cx, cy] = hexCenter(p.q, p.r, S); minX = Math.min(minX, cx - S); maxX = Math.max(maxX, cx + S); minY = Math.min(minY, cy - S * .87); maxY = Math.max(maxY, cy + S * .87); }
+        if (over) { minX = Math.min(minX, over.x0 - 4); minY = Math.min(minY, over.y0 - 4); maxX = Math.max(maxX, over.x1 + 4); maxY = Math.max(maxY, over.y1 + 4); }          // names standing off the board's edge are part of the realm to look at
         bounds = { minX, minY, maxX, maxY };
     }
 
