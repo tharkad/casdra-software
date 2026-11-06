@@ -60,8 +60,7 @@ export function titleScreen(ctx) {
         h('button', { type: 'button', class: 'ds-btn icon quiet ds-gear', 'data-act': 'settings', 'aria-label': 'Settings', onclick: () => ctx.go('settings') }, icon('gear', 'lg'), h('span', { class: 'lbl' }, 'Settings')),
         h('header', { class: 'ds-title-head' },
             emblem(),
-            h('h1', { class: 'ds-wordmark' }, h('span', { class: 'b' }, 'Nolava'), h('span', { class: 'a' }, 'a Magical Realm')),
-            h('p', { class: 'ds-voice ds-tagline' }, 'Clearings, chits and cunning')),
+            h('h1', { class: 'ds-wordmark' }, h('span', { class: 'b' }, 'Nolava'), h('span', { class: 'a' }, 'a Magical Realm'))),
         h('div', { class: 'ds-grow' }, note),
         nav,
         h('footer', { class: 'ds-meta ds-fine' }, 'An unofficial fan project, based on ', h('b', {}, 'Magic Realm'), ', which belongs to its owners.'));
