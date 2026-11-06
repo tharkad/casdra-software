@@ -17,16 +17,19 @@ import { apiOf } from '../../../engine/api.js';
 export const isHotSeat = G => !G.race && (G.shared ? leaderGame(tableModel(G.st, G.data)) && ownSeats(G).length > 1 : (G.st?.order?.length ?? 0) > 1);
 
 // A plan half made for one character waits for him: each keeps his own draft.
+const LOOKS = new Set(['char', 'score', 'spells', 'curses', 'journal', 'dice', 'log']);
 export function switchTo(G, id) {
     const st = G.st, drafts = (G.ui.drafts ??= {});
     const keepClearing = G.ui.sheet === 'clearing' && !!G.ui.sel && !G.ui.peek;
+    // notes 145, 146: a look at a character (his belongings and tabs, his goals and score, his spells, his curses, his story) stays open when another character is tapped, and shows HIM; an item's own card, which belongs to the one who held it, gives way to his Kit
+    const keepSheet = !(!!partyPlan(G) && G.ui.sheet === 'plan') ? (LOOKS.has(G.ui.sheet) ? G.ui.sheet : G.ui.sheet === 'item' ? 'char' : null) : null;
     const party = partyPlan(G), wasPlan = !!party && G.ui.sheet === 'plan';          // (a party that plans keeps its plan tray up and every plan as it stands: partyplan.js)
     drafts[seatOf(st, G.data)] = { draft: G.ui.draft, step: G.ui.planStep, snap: party ? planSnapshot(G) : null };
     G.st = apiOf(G.data).seat(st, id); G.ctx.state = G.st;          // (the game seen from his seat: a new value, the one held is not written)
     const mine = drafts[id];
     G.ui.draft = mine?.draft ?? null; G.ui.planStep = mine ? mine.step : 0;          // (a plan that is whole has no open tab: null)
     if (wasPlan && questionOf(G.st, G.data, id)?.type === 'plan') { G.ui.draft ??= newDraft(G); G.ui.sheet = 'plan'; if (!mine?.draft) G.ui.planStep = 0; }
-    else G.ui.sheet = null;
+    else G.ui.sheet = keepSheet;
     // note 139: the box of a clearing stays open when another character is tapped, and shows the clearing HE stands in
     const keepAt = !wasPlan && G.ui.sheet === null && keepClearing ? tableModel(G.st, G.data).chars[id]?.at ?? null : null;
     G.ui.sel = null; G.ui.pickMove = null; G.ui.pickFly = null; G.ui.planNote = null; G.ui.peek = false;

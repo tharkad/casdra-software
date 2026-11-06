@@ -1,4 +1,4 @@
-import { say, lvl, refuse } from './core.js';
+import { say, lvl } from './core.js';
 import { withActor, charsAt, isMulti, askOf, livingIds, playerNameOf } from './party.js';
 import { nameOf, summaryOf, autoEquip, noteGain, weightOf, carryCapacity, onPackHorse, extraPhaseCommitment, transferLock } from './items.js';
 import { pathKeyAt, pathEnds, pathSide, tileSide, nameOfClearing, roadsFrom, tileOf, numOf } from './world.js';
@@ -55,8 +55,9 @@ const here = c => !!c.at && !c.onRoad && !c.flying && !c.asleep;          // (a 
 // May a and b trade now? Returns why not, or null. At the start of a phase of the actor's turn he (and his followers) may trade with any character in his clearing, not the others with each
 // other (7.2.1); hidden ones may (7.2.1b); not while flying, in the woods or on a road (7.2.1d); a character blocked today may not trade with those about to start phases (7.12.4b). After the
 // day's fights, while the trade window is open, those who stand together may (R-5).
-// House rule (Mike 2026-11-06, note 142; the game option `shareAtBirdsong`, ON unless switched off): while the plan is made at Birdsong the characters of ONE player, standing together, may tell each other what they
-// have found (a discovery only: no belongings, no gold), so that a find reaches the plan of the day it is used on. The printed times are the start of a phase and the day-end window (4.5.5h, 7.2.1).
+// House rule (Mike 2026-11-06, note 142 and "how do I give an item at midnight"; the game option `shareAtBirdsong`, ON unless switched off): while the plan is made at Birdsong (Midnight is the same moment) the
+// characters of ONE player, standing together, may tell each other what they have found AND hand each other belongings and gold, so that what they hold is in the right hands for the plan of the day. The printed times
+// are the start of a phase and the day-end window (4.5.5h, 7.2.1).
 const birdsongShare = (st, a, b) => st.period === 'birdsong' && !st.tradeWindow && st.options?.shareAtBirdsong !== false && !!st.chars[a] && !!st.chars[b] && sameHand(st.chars[a], st.chars[b]);
 // Why not, as { code, text } (the screens word the code; `text` is the engine's own sentence), or null.
 //   alone / gone / self / apart / mist   the two cannot meet at all   window-day  in the day-end window but not in the same group   time  no meeting is on now   group  not the turn-holder's group   blocked  7.12.4b
@@ -78,7 +79,6 @@ export function tradeProblem(st, a, b) {
 }
 export const tradeError = (st, a, b) => tradeProblem(st, a, b)?.text ?? null;
 // Belongings and gold change hands only at the start of a phase or in the day-end window: not under the Birdsong house rule, which lets one player's characters tell each other what they found (a discovery only).
-const BIRDSONG_ITEMS = 'at Birdsong the characters of one player may only tell each other what they have found (a house rule: the start of a phase is the time to hand over belongings and gold)';
 
 // ---- discoveries (4.5.5): a hidden path or secret passage, a Site chit, a Site card ----
 // { kind: 'path', key } | { kind: 'site', id } | { kind: 'sitecard', id }
@@ -238,7 +238,6 @@ function offerFrom(st, data, a) {
     if ((st.offers ?? []).some(o => o.to === to)) throw new Error(`${nameOfChar(st, to)} is already considering an offer`);
     const give = normSide(a.give), want = normSide(a.want), at = st.chars[from].at;
     if (sideEmpty(give) && sideEmpty(want)) throw new Error('an offer must give something or ask for something');
-    if (birdsongShare(st, from, to) && !phaseWindow(st) && (give.items.length || give.gold || !sideEmpty(want))) refuse('meet.birdsong-discoveries-only', BIRDSONG_ITEMS, null, '4.5.5h');
     checkSide(st, data, from, give, at, { strict: true });
     checkSide(st, data, to, want, at, { strict: false, named: true });
     const ra = askOf(st, to);
@@ -648,7 +647,7 @@ export function meetOptions(st, data, who) {
     if (here(me)) for (const id of st.order) {
         const c = st.chars[id];
         if (id === who || c.dead || !sameHand(me, c) || !here(c) || c.at !== at) continue;
-        const bad = tradeProblem(st, who, id) ?? (birdsongShare(st, who, id) && !phaseWindow(st) ? { code: 'birdsong', text: BIRDSONG_ITEMS } : null);
+        const bad = tradeProblem(st, who, id);
         const heavy = withActor(st, id, () => { const cap = Math.max(carryCapacity(st, data), 0); return out.give.items.filter(i => { const it = me.items.find(x => x.uid === i.uid); return lvl(weightOf(data, it)) > cap && lvl(weightOf(data, it)) > 0 && it.kind !== 'horse' && !onPackHorse(st, data, { ...it, active: false }); }).map(i => i.uid); });
         out.gifts.push({ id, name: c.name, hidden: !!c.hidden, now: !bad, code: bad?.code ?? null, why: bad?.text ?? null, heavy });
     }

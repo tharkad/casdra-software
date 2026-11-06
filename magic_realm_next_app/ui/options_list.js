@@ -18,8 +18,8 @@ export const OPTION_GROUPS = [
     SECTIONS_GROUP,
     { title: 'Characters', items: [
         // (a house rule that starts ON, like the one above: the characters of one player tell each other their finds while planning; the engine stores only the OFF switch)
-        { k: 'shareAtBirdsong', title: 'Tell discoveries at Birdsong', rule: '4.5.5h', line: 'Your characters may tell each other what they found while you plan.',
-          text: 'The book lets characters give each other information at the start of a phase or after the evening’s fights. This house rule adds Birdsong for the characters of one player standing in the same clearing, so a find reaches the plan of the day it is used on. Only discoveries can be told then, not belongings or gold.' },
+        { k: 'shareAtBirdsong', title: 'Hand things over at Birdsong', rule: '4.5.5h', line: 'Your characters may tell each other finds and hand over belongings while you plan.',
+          text: 'The book lets characters trade and share information at the start of a phase or after the evening’s fights. This house rule adds Birdsong (and Midnight, which is the same moment) for the characters of one player standing in the same clearing: they may tell each other what they found and give each other belongings and gold, so everything is in the right hands for the plan of the day.' },
         { k: 'knightsAdjustment', title: "Knights’ Adjustment", rule: '10.A.6.8', line: 'Tames the Knights’ trading edge: their allies are only Friendly.',
           text: 'The White Knight is only Friendly with the Order, and the Black Knight Friendly with the Company, instead of Allies. It tames their trading advantage.' },
     ] },

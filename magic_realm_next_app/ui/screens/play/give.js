@@ -23,10 +23,9 @@ export function giveFacts(G) {
     return { gifts: meet.gifts.map(g => ({ ...g, name: displayName(g.name) })), held: Object.fromEntries((meet.give?.held ?? []).map(x => [x.uid, x.why])), from: seatOf(G.st, G.data) };
 }
 
-// When it can be done, said by the engine's code: the start of a phase of the day (Birdsong, a fight, the evening before the fights are done are not the time); the rest is the engine's own sentence.
+// When it can be done, said by the engine's code: the start of a phase of the day (a fight, the evening before the fights are done are not the time; with the house rule on, Birdsong and Midnight are too); the rest is the engine's own sentence.
 const WHEN = {
     time: n => ({ story: `You can hand things to ${n} at the start of a phase of the day.`, detail: `Characters trade at the start of a phase of someone’s turn, or after the evening’s fights (7.2.1, 4.5.5h).` }),
-    birdsong: n => ({ story: `You can hand things to ${n} at the start of a phase of the day, not while you plan.`, detail: 'At Birdsong one player’s characters may only tell each other what they have found; belongings and gold change hands at the start of a phase (4.5.5h, 7.2.1).' }),
     group: (n, g) => ({ story: 'Belongings change hands with the one whose turn it is, at the start of one of his phases.', detail: g.why }),
 };
 const whenText = (g) => voiced((WHEN[g.code] ?? ((n, x) => ({ story: `${n} cannot take it now.`, detail: x.why ?? '' })))(g.name, g));
