@@ -13,7 +13,8 @@ import { strip } from '../../ds.js';
 import { renderParty } from './hotseat.js';
 import { leaderGame, seatMarkers } from '../../leaders.js';
 import { maybeShowSunrise, ownSeats, showSeat, tableCrew } from './leaders.js';
-import { setStoryState } from '../../storyvoice.js';
+import { setStoryState, setStoryParty } from '../../storyvoice.js';
+import { partyVoice } from './dayresult.js';
 import { icon as dsIcon } from '../../icons.js';
 import { revealKey } from '../sharedfight.js';
 import { voidBy } from './kit.js';
@@ -311,6 +312,7 @@ function renderRail(G) {
 export function render(G) {
     fresh(G.st);
     setStoryState(G.st);                                 // (the Story voice finds what a roll came to without every caller passing the state)
+    setStoryParty(G.st ? partyVoice(G) : null);                        // (a party on one phone: the other characters' lines are told by name)
     if (G.shared) {
         G.crew = tableCrew(G, party(G.st, G.answer, myId(G)));
         // a seat of my party on screen (hireling rules): what he may meet and follow is his own; and my own people are not partners of mine at the table's Meet button

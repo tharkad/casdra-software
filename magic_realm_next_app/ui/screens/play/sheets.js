@@ -9,7 +9,7 @@ import { lengthLine } from '../../gametext.js';
 import { meetSheet, offerSheet } from '../meetui.js';
 import { endOptionSheet, leaveSheet, quitSheet } from '../tableui.js';
 import { abandon, act, isForced } from './actions.js';
-import { combatHost, fightBeat, sharedFightHost } from './combat.js';
+import { combatHost, fightBeat, sharedFightHost, partyBeatHost } from './combat.js';
 import { mc, modal, tc } from './kit.js';
 import { choiceSheet, effortSheet, enchantSheet, learnSheet, pickSheet, restSheet, runesSheet, searchSheet, tableName, turnEndSheet } from './phases.js';
 import { overScreen, restartSheet } from './endscreen.js';
@@ -62,6 +62,7 @@ export function sheets(G, lookOnly = false) {
     { const ts = G.shared && !lookOnly ? tableSheet(G) : null; if (ts) { out.push(ts); return out; } }          // (what the table asks me: a vote, marked away, welcome back)
     // A shared fight: a seat that is in it (or was, and watches) gets the shared frame; the map is one tap away at every step. Anyone else only sees the banner in the dock.
     if (G.shared && tableFight(G.st, G.data)?.members?.[ownSheet(G.st, G.data).id] && sharedFightHost(G, out)) return out;
+    if (!G.shared && !lookOnly && G.ui.partyBeat) { partyBeatHost(G, out); return out; }          // (a party's fight has just ended: its recap comes before whatever the evening or the day asks next)
     if (p?.type?.startsWith('combat') || fightBeat(G)) { combatHost(G, out); return out; }
     // The game is over (solo or a race): the death callout or the verdict, full screen, once the fight has had its one beat. A dead character may return tomorrow (a sheet over it).
     if (!G.shared && p?.type === 'over') { out.push(overScreen(G)); if (G.ui.restartVp) out.push(restartSheet(G)); if (G.ui.sheet === 'menu') out.push(menuSheet(G)); return out; }

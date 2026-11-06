@@ -16,6 +16,7 @@ import { targetName as pvpTargetName } from '../pvp.js';
 import { DIRS, MNV, BOX, chitText, chitKindWord, chitName, nb, listOf, baseName } from './model.js';
 import * as SEC from './sections.js';
 import { sectionsStep } from './sections_ui.js';
+import * as PF from './partyfacts.js';
 import { reviewButton } from './sections_review.js';          // (hirelings on Melee Sections: the Hires step)
 
 const hint = (text, cls = '') => h('p', { class: `cb-hint${cls ? ` ${cls}` : ''}` }, text);
@@ -436,6 +437,8 @@ export function resultSheet(X, facts) {
     else if (facts.damaged.length) tags.push(h('span', { class: 'ds-tag bad' }, `${facts.damaged.map(M.cap).join(', ')} damaged`));
     else if (facts.noEffect) tags.push(h('span', { class: 'ds-tag' }, 'Armor holds'));
     if (!facts.landed.length && !facts.ran && (c.killed?.length || facts.avoided)) tags.push(h('span', { class: 'ds-tag good' }, 'Unhurt'));
+    // a party on one phone: what the OTHER characters won in this round is theirs and is said with their names (note 136), beside what the asked one won
+    if (X.party) for (const m of PF.partyFacts(M.roundLines(fm), X.party.members.filter(x => x.id !== X.party.actor)).members) { const w = PF.gainWords(m.gain); if (w.length) tags.push(h('span', { class: 'ds-tag good', 'data-gain-of': m.id }, `${m.name}: ${w.join(', ')}`)); }
     const routes = { 'combat-wounds': ['Choose the wound' + (p.count > 1 ? 's' : ''), p.count === 1 ? '1 chit gives way' : `${p.count} chits give way`], 'combat-fatigue': ['Choose what tires', `${plural(p.need, 'asterisk')} to pay`] };
     const route = routes[p.type];
     const prim = route ? primary(twoLine(route[0], route[1]), { 'data-act': 'round-ok', onclick: () => { cb.seen = X.resultKey; render(); } }) : primary(twoLine('Go on', `Round ${c.round}`), { 'data-act': 'round-ok', onclick: () => { cb.seen = X.resultKey; render(); } });

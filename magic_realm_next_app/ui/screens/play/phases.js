@@ -21,6 +21,7 @@ import { seatTurnEndSheet } from './leaders.js';
 import { seatName } from '../../leaders.js';
 import { isHotSeat } from './hotseat.js';
 import { render } from './shell.js';
+import { resultCardFor } from './result_card.js';
 import { ownSheet, gameOf, todayOf, planSlots, siteChits, legalOf, tableModel } from '../../combat/feed.js';
 
 // Where a Search will be made, and what the map already shows of sites on this tile: a site in another clearing is not found from here.
@@ -102,7 +103,8 @@ export function turnEndSheet(G) {
     const bl = G.shared && !t.noTurn ? meetLines(tableModel(G.st, G.data), ownSheet(G.st, G.data).id).filter(l => l.kind === 'blocked').at(-1) : null;
     const blockCardEl = bl && t.blocked ? h('div', { class: 'phase-result bad meet-result', role: 'status', 'data-meet-result': 'blocked' }, h('div', { class: 'pr-head' }, h('small', {}, 'Blocked')), h('p', { class: 'pr-line' }, voice() === 'story' ? bl.story : bl.text)) : null;
     const place = nameOfClearing(t.at).replace(/ (\d+)$/, '\u00A0$1');
-    return modal(G, who ? `${who}\u2019s turn ends` : 'Turn\u2019s end', h('div', { class: 'turnend clearing' }, blockCardEl, status, rows.length ? sect(who ? `At the end of ${who}\u2019s turn` : 'At the end of your turn') : null, ...rows, blockedNote(G)),
+    const lastCard = resultCardFor(G, { last: true });          // (note 140: what the last phase of the day came to: no next phase is left to carry its card)
+    return modal(G, who ? `${who}\u2019s turn ends` : 'Turn\u2019s end', h('div', { class: 'turnend clearing' }, blockCardEl, lastCard, status, rows.length ? sect(who ? `At the end of ${who}\u2019s turn` : 'At the end of your turn') : null, ...rows, blockedNote(G)),
         { kind: 'result', bare: true, eyebrow: `Day ${gameOf(G.st, G.data).day} \u00B7 ${place}`, head: voiceSwitch(), cls: 'turnend-sheet',
             footer: h('div', { class: 'dayres-foot' }, h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'turn-ok', onclick: () => act(G, { type: 'continue' }) }, 'End turn')) });
 }

@@ -580,7 +580,10 @@ export const setStoryState = st => {
     // the seats of hired leaders and controlled monsters this game has had: what they do is told of them, not of "you" (seatvoice.js); remembered after a seat closes, so an old line stays as it was told
     for (const id of st?.order ?? []) { const c = st.chars?.[id]; if (c?.leader) SEATS.set(id, { name: c.name, kind: c.leader.kind }); }
 };
-const SEATS = new Map();
+// a party on one phone (several characters of one player): "You" in a line is the character on screen, so the lines of the others are told of them by name (note 136: "You kill the Heavy Spider" was Woods Girl's
+// blow). The shell says who they are once per render, from the view (play/dayresult.js partyVoice): Map id -> { name, kind: 'named' }; an empty one (alone, a table) changes nothing.
+export const setStoryParty = others => { PARTY.clear(); for (const [id, seat] of others ?? []) PARTY.set(id, seat); };
+const SEATS = new Map(), PARTY = new Map();
 const after = (e, st) => {
     const log = (st ?? CTX)?.log; if (!log?.length) return null;
     const rolls = rollLines(log);
@@ -662,7 +665,7 @@ export function storyLine(entry, st = null) {
 export function lineFor(entry, voice = 'story', st = null) {
     if (!entry) return '';
     if (entry.p) return entry.p;
-    const seat = entry.who ? SEATS.get(entry.who) : null;
+    const seat = entry.who ? SEATS.get(entry.who) ?? PARTY.get(entry.who) ?? null : null;
     if (voice !== 'story') return seat ? seatVoice(entry.t ?? '', seat) : entry.t ?? '';
     const s = storyLine(entry, st) ?? entry.s, told = STORY_SWAPS[s] ?? s;
     return seat ? seatVoice(told, seat) : told;

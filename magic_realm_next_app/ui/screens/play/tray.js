@@ -21,8 +21,9 @@ import { guardIfChanged } from '../../tapguard.js';
 import { isStory, logText } from '../../voice.js';
 import { blockCard, followCard, joinCard, newDraft as newMeetDraft, resultCards, waitingCard, windowCard } from '../meetui.js';
 import { noteCard, tableCards } from '../tableui.js';
-import { act } from './actions.js';
+import { act, actMany } from './actions.js';
 import { noticeCards, takeChips } from './chits.js';
+import { shareCards, shareNow } from './share.js';
 import { airCard } from './steeds.js';
 import { journalFresh } from './journal.js';
 import { followerChips, meetWith, seatLine } from './leaders.js';
@@ -209,6 +210,13 @@ export function renderTray(G) {
     } else if (p.type === 'restart') {
         m.body.push(ask('You have fallen.', 'Choose who returns and set new goals; then the day goes on.', { compact: true }));
         m.situ = null;
+    } else if (!G.shared && p.type === 'meet-window') {
+        // the trade window after the fights, for a party on one phone: what one knows that another lacks may be told now; then on to Midnight (every one of them is done)
+        const group = tableModel(st, G.data).tradeWindow?.groups?.find(g => g.ids.includes(p.who ?? seatOf(st, G.data)) || g.ids.includes(seatOf(st, G.data)));
+        const cards = shareCards(G, { evening: true });
+        m.body.push(...(cards.length ? cards : [ask('The fighting is over.', 'Nobody has anything left to tell the others. On to Midnight.', { compact: true })]));
+        m.situ = null; m.cls.push('with-share');
+        m.primary = primary('On to Midnight', { 'data-act': 'window-done', onclick: () => actMany(G, (group?.ids ?? []).filter(id => !group.done.includes(id)).map(id => ({ type: 'meet', kind: 'done', who: id }))) });
     } else if (G.shared && p.type === 'end-option') {
         m.body.push(ask('Sudden Death: you have met every goal.', 'The game waits for you to say whether it ends at this Midnight. The question is on screen; the map is one tap away.', { compact: true }));
     } else if (G.shared && p.type === 'meet-offer') {
@@ -239,6 +247,7 @@ export function renderTray(G) {
             m.lead = btn(mb.label, 'sm meetbtn', { 'data-act': 'meet', 'data-meet-certain': mb.certain ? '1' : '0', 'aria-label': `Meet ${mb.names}: give or trade`, onclick: () => { G.ui.meet = null; G.ui.sheet = 'meet'; render(G); } });
         }
     }
+    if (!planning && !G.shared && (p?.type === 'phase' || p?.type === 'phase-pick') && shareNow(G).length) { m.body.unshift(...shareCards(G)); m.cls.push('with-share'); }          // (note 142: what one of my characters knows and another lacks is offered at the start of a phase)
     if (freeActs.length) m.body.push(h('div', { class: 'spellacts' }, ...freeActs));
     // mission, campaign and visitor chits (a game with the option): a notice card for what the engine just told (the week's flip, a delivery, a win, a failure), and a Take button for each chit in his clearing
     if (!planning) { const air = airCard(G); if (air) m.body.unshift(air); }          // (in the air on a steed: who carries him, and a way to let it go: steeds.js)

@@ -70,15 +70,36 @@ export function othersHere(fm, data) {
         return { uid: `char:${id}`, id, name: charName(fm, id), hidden: !!fm.chars?.[id]?.hidden, pic: art.characters?.[id] ? art.characters[id].replace(/\.gif$/, '.png') : null, hires };
     });
 }
-// Whom a creature is set on, in a word a player says ("on you", "on the White Knight", "on no one"). Alone, nothing needs saying (every creature that fights is on you), so this is null.
+// Whom a creature is set on, said as what it does: it TARGETS him ("targets you", "targets White Knight", "targets no one"; note 135: "if it's because the spider is targeting me say that"). Alone, nothing needs saying
+// (every creature that fights is on you), so this is null.
 // Returns { text, kind: 'you' | 'other' | 'none' | 'peace' | 'hire', on: 'you' | <character id> | null }.
 export function setOn(fm, d) {
     if (!crowdedFight(fm) || !d || d.kind === 'part' || d.kind === 'horse') return null;
     if (d.pacified || (d.bystander && !d.assigned)) return { text: 'at peace', kind: 'peace', on: null };
-    if (d.engagedBy) return { text: 'on a hireling', kind: 'hire', on: null };
-    if (d.assigned) return { text: 'on you', kind: 'you', on: 'you' };
-    if (d.sheet && d.sheet !== fm.ch.id) return { text: `on ${charName(fm, d.sheet)}`, kind: 'other', on: d.sheet };
-    return { text: 'on no one', kind: 'none', on: null };
+    if (d.engagedBy) return { text: 'targets a hireling', kind: 'hire', on: null };
+    if (d.assigned) return { text: 'targets you', kind: 'you', on: 'you' };
+    if (d.sheet && d.sheet !== fm.ch.id) return { text: `targets ${charName(fm, d.sheet)}`, kind: 'other', on: d.sheet };
+    return { text: 'targets no one', kind: 'none', on: null };
+}
+// The creatures that fell in the round that was just rolled, by uid, WHOEVER struck the blow. The one-character fight keeps its kills in `combat.killed` (names), but a character's own list holds only HIS kills: in
+// a party the foe that Woods Girl's arrow felled is not on White Knight's list (note 136: it vanished from his result screen). The engine says it three ways, and all of them are read: the kill events of the round's
+// lines (any character's), the `slain` mark a shared fight keeps on a den until the next round starts, and the names on this character's own list.
+export function slainThisRound(fm) {
+    const c = fm.combat, out = new Set();
+    if (!c) return out;
+    const dens = c.dens ?? [];
+    for (const d of dens) if (d.dead && d.slain) out.add(d.uid);
+    const round = c.evRound ?? null;
+    let told = false;
+    for (const l of fm.fightLog?.lines ?? []) {
+        if (round != null && l.r !== round) continue;
+        const e = l.ev;
+        if (e?.code === 'den.killed' && e.den) { out.add(e.den); told = true; }
+        else if (e?.code === 'hire.struck' && e.result === 'killed' && e.target) { out.add(e.target); told = true; }
+    }
+    if (!told) { const names = new Set(c.killed ?? []); for (const d of dens) if (d.dead && d.kind !== 'part' && names.has(d.stat?.name)) out.add(d.uid); }          // (a game that records no events: the names)
+    for (const d of dens) if (d.dead && d.partOf && out.has(d.partOf)) out.add(d.uid);          // (a part falls with its body)
+    return out;
 }
 export const isImp = (data, d) => d.kind === 'mon' && data.monsters[d.id]?.family === 'Imp';
 // "two Wolves", "a Troll and two Goblins": how a group of foes is named in a sentence
@@ -158,7 +179,10 @@ export function defaultPlan(fm, data, o) {
     const left = lim - (o.asterisksPlayed + (m.fightChit ? asterisksOf(fm, m.fightChit) : 0));
     const moves = o.moveChits.filter(ch => o.moveOk(ch) && (ch.effort ?? 0) <= left && ch.id !== m.fightChit);
     moves.sort((a, b) => (a.effort ?? 0) - (b.effort ?? 0) || (a.time ?? 0) - (b.time ?? 0));
-    m.moveChit = fm.ch?.hidden ? null : moves[0]?.id ?? null;          // striking from hiding: the one he names cannot strike back this round, so there is nothing to maneuver against
+    // A Move chit is played to guard against a blow (and costs effort). So it is not played by default when nothing can strike him: he strikes from hiding (the one he names cannot strike back this round), or
+    // nothing is set on HIS sheet (a party: the creature is set on another character, note 134), no character charges him, and no hireling's section needs a maneuver. He may still tap a chit himself.
+    const struck = o.boxable.length > 0 || (fm.combat?.incoming ?? []).length > 0 || !!o.sections;
+    m.moveChit = fm.ch?.hidden || !struck ? null : moves[0]?.id ?? null;
     o.boxable.forEach((d, i) => { m.boxes[d.uid] = i % 3; });
     return m;
 }
@@ -268,6 +292,8 @@ export function roundFacts(events, fm = null, data = null) {
         ran: L.some(l => /You break away and flee/.test(l)),
     };
 }
+// The lines of the round that was just rolled, every character's (the voice layer: the engine names the round), or [] for a game that records no events.
+export const roundLines = fm => (fm && roundLinesOf(fm)) || [];
 // The foes that hit him this round, by display name ("Wolf #2"), read from the story lines (a name with a tag keeps it)
 export const hitters = (events, fm = null) => (fm && roundLinesOf(fm) ? hittersOf(fm, roundLinesOf(fm)).map(n => n.replace(/^the /i, '')) : (events ?? []).map(e => STRIKE_RE.exec(String(e).trim())).filter(Boolean).map(x => x[1].replace(/^the /i, '')));
 

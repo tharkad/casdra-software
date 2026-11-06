@@ -27,6 +27,7 @@ import { modeOfPending, SCENE_MODES } from '../combat/modes.js';
 import { fightOf } from '../fight.js';
 import * as LU from '../combat/lure.js';
 import * as PT from '../combat/party.js';
+import * as PF from '../combat/partyfacts.js';
 
 const RESULT_TYPES = ['combat-fatigue', 'combat-wounds', 'combat-encounter', 'combat-deploy', 'combat-lure', 'combat-charge'];          // (combat-lure / combat-charge: a fight of several characters starts its next round there, so each one sees the last round first; combat-deploy: a round on Melee Sections starts with the Deployment, so the last round's result comes before it)
 const hashOf = s => { let x = 0; for (let i = 0; i < s.length; i++) x = (Math.imul(31, x) + s.charCodeAt(i)) | 0; return x; };
@@ -118,7 +119,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
 
     // ---- the stage ----
     const bodies = c.dens.filter(d => d.kind !== 'horse');          // (the whole clearing, whoever a creature is set on: F1 "The Clearing")
-    const killedNow = new Set(c.killed ?? []);
+    const killedNow = M.slainThisRound(fm);          // (uids: whoever struck the blow, a party's kills are not all on one character's list: note 136)
     let foes;                                       // [{ d, dead, tag, turned }]
     const turned = mode === 'result' ? M.turnedOver(events, fm) : new Set();   // (a Tactics roll turned these counters over before the blows)
     if (mode === 'meet') {
@@ -130,7 +131,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
         // who hit you is said once, in the verdict (QA-8): the wound or fatigue grid that follows is the next question, so the counters stand bare there and every round starts bare
         const res = mode === 'result' ? M.foeResults(events, fm) : new Map();
         const WORDS = { wounded: { text: 'WOUNDED YOU', short: 'WOUNDED', kind: 'bad' }, hit: { text: 'HIT YOU', short: 'HIT', kind: 'bad' }, held: { text: 'NO EFFECT', short: 'NO EFFECT', kind: 'good' }, missed: { text: 'MISSED', short: 'MISSED', kind: 'good' } };
-        foes = bodies.filter(d => (!d.dead || (d.kind !== 'part' && killedNow.has(denSide(fm, data, d).name))) && d.kind !== 'part' || (!d.dead && d.kind === 'part'))
+        foes = bodies.filter(d => (!d.dead || (d.kind !== 'part' && killedNow.has(d.uid))) && d.kind !== 'part' || (!d.dead && d.kind === 'part'))
             .map(d => { const nm = denSide(fm, data, d).name, dead = d.dead; return { d, dead, tag: !dead && WORDS[res.get(nm)] ? { ...WORDS[res.get(nm)] } : null, turned: mode === 'result' && !dead && turned.has(nm) }; });
     } else if (mode === 'over') {
         foes = bodies.filter(d => d.dead && d.kind !== 'part').map(d => ({ d, dead: true }));
@@ -303,7 +304,9 @@ function narration(X, { mode, o, step, foes, facts, recap, events }) {
         let said = roundSynopsis(events) || (hr ? '' : 'The round passed.');
         if (miss) said = said.replace(/You struck at empty air: the .+? was too quick to catch\.\s*/, '');          // (the miss note below says the same, with the numbers)
         // Story voice carries no numbers (tools/ui_round.py): the miss, with the number that beat it, is for the Detail voice only
-        const story = [turnedLine, said, hr?.story].filter(Boolean).join(' '), detail = [turnedLine, miss ? `${miss} ${said}`.trim() : said, hr?.detail].filter(Boolean).join(' ');
+        // a party on one phone: "you" is the asked character, so what the others did is told with their names first (note 136: Woods Girl's arrow felled the spider, the caption spoke only of White Knight's miss)
+        const others = X.party ? PF.othersSay(M.roundLines(fm), X.party.members, X.party.actor, names => (names.length === 1 ? `the ${names[0]}` : M.foesPhrase(names))) : [];
+        const story = [...others.map(x => x.story), turnedLine, said, hr?.story].filter(Boolean).join(' '), detail = [...others.map(x => x.detail), turnedLine, miss ? `${miss} ${said}`.trim() : said, hr?.detail].filter(Boolean).join(' ');
         return [story, detail, 'verdict'];
     }
     if (mode === 'over' && X.shared) return ['The fighting is over.', 'Combat is over: nothing hostile is left.', 'verdict'];

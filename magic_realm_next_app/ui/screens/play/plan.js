@@ -22,6 +22,7 @@ import { actIcon, icon } from '../../icons.js';
 import { ACT_LABEL, CURSE_ACT, CURSE_PLAIN, actArt, mc, showToast } from './kit.js';
 import { describeSlot, searchWhere } from './phases.js';
 import { render } from './shell.js';
+import { shareHints } from './share.js';
 import { ownSheet, questionOf, lullOf } from '../../combat/feed.js';
 
 // ---- planning: the plan tray (mockup 01 a2 to a6) ----
@@ -160,6 +161,7 @@ function planHints(G, i, at) {
     const line = (txt, cls = '', attrs = {}) => h('p', { class: `ds-hint-line ${cls}`.trim(), ...attrs }, txt);
     if (G.ui.planNote) out.push(line(G.ui.planNote, 'bad'));
     out.push(...followNote(G, i));
+    out.push(...shareHints(G));          // (what one of the party knows that another lacks cannot be planned with yet: note 142)
     out.push(...warningLines(G));
     // Why a chip is dim, said where he looks, not only when he taps it (note 110): the curses that forbid an action, one line
     { const dimmed = (ownSheet(G.st, G.data).curses ?? []).filter(c => CURSE_ACT[c]);
