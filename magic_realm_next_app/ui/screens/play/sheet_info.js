@@ -159,8 +159,8 @@ export function scoreSheet(G) {
             over ? 'The game is over; this is how each goal finished.'
                 : 'You win if your total is zero or more when the game ends. Going past a goal earns bonus points; ending short of one costs points, counted three times over.'),
         ...pr.goals.map(goalCard),
-        idle.length ? h('details', { class: 'sr-idle' }, h('summary', {}, 'Goals you put no points on'),
-            ...idle.map(c => h('p', { class: 'hint' }, `${NAME[c]}: need 0, earned ${e[c]}. ${r0(c)}`))) : null,
+        idle.length ? h('div', { class: 'sr-idle', 'data-idle-goals': String(idle.length) }, h('b', { class: 'sr-idle-head' }, 'Goals you put no points on'),
+            ...idle.map(c => h('p', { class: 'hint', 'data-idle-cat': c }, `${NAME[c]}: need 0, earned ${e[c]}. ${r0(c)}`))) : null,
         h('div', { class: 'scorerow2 ifnow' },
             h('div', { class: 'sr-head' }, h('b', {}, over ? 'Final total' : 'If the game ended right now'), h('span', {}, res.dead ? '-100' : sign(res.total ?? 0))),
             h('p', { class: 'hint' }, over ? 'Zero or more is a win.' : 'The score is only worked out for real at the end. Early on it is always low, because every goal still counts as short; it rises as you earn.')),

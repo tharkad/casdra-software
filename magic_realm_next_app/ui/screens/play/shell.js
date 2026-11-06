@@ -393,7 +393,8 @@ const FIT_K = 0.95;
 export function syncMapButton(G) {
     const b = G.mapTools, k = G.map?.camera?.().k;
     if (!b || k == null) return;
-    const out = k < FIT_K;
+    const fk = G.map.fitK?.() ?? 0, out = k < FIT_K || k <= fk * 1.08;          // (a big window's whole-realm view is zoomed past the phone's number: the button must still say "centre on me" there)
+    if (!out) G.ui.zoomBefore = null;                                      // (a close-up the player made himself is the one to come back to, not an old one)
     b.dataset.mode = out ? 'locate' : 'fit';
     b.setAttribute('aria-label', out ? 'Centre on me' : 'Show the whole realm');
     b.replaceChildren(dsIcon(out ? 'cross' : 'fit', 'lg'));                 // (no word: the owner's call, note 113; the aria-label still names it)
@@ -424,7 +425,9 @@ export function wireShell(G) {
     try { if (history.state?.mrSheet) history.replaceState(null, ''); } catch { /* ignore */ }               // (a reload with a sheet open keeps that entry's mark: the base screen has none)
     G.ui.popHandler = () => onBack(G); addEventListener('popstate', G.ui.popHandler);
     const hero = () => heroSpot(G);
-    const fitAll = () => G.map.fit(), me = () => G.map.focus(hero(), { k: Math.max(G.map.camera().k ?? 1, 1.5 * G.map.comfort()), animate: true });
+    // Show the whole realm remembers the close-up it left; "centre on me" goes back to that zoom (note 128: it used to stay at the whole-realm zoom on a big window).
+    const fitAll = () => { const k = G.map.camera().k ?? 1, fk = G.map.fitK?.() ?? 0; if (k > fk * 1.08) G.ui.zoomBefore = k; G.map.fit(); };
+    const me = () => G.map.focus(hero(), { k: G.ui.zoomBefore ?? Math.max(G.map.camera().k ?? 1, 1.5 * G.map.comfort()), animate: true });
     b.addEventListener('pointerdown', () => { long = false; clearTimeout(timer); timer = setTimeout(() => { long = true; (b.dataset.mode === 'fit' ? me : fitAll)(); setTimeout(() => syncMapButton(G), 500); }, 520); });
     for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => clearTimeout(timer));
     b.addEventListener('click', () => { if (long) { long = false; return; } (b.dataset.mode === 'locate' ? me : fitAll)(); setTimeout(() => syncMapButton(G), 500); });

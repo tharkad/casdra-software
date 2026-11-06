@@ -158,6 +158,8 @@ export function mountMap(host) {
             apply();
         },
         fit(animate = true) { go(fit(), animate); },
+        /** The zoom of the whole-realm view (it is high on a big box: the map button compares the camera with it, not with a phone's number). */
+        fitK() { return view || bounds ? fit().k : null; },
         /** Zoom to k (0.2 to 6) about the middle of what the player sees. */
         zoom(k, animate = true) { if (!view) return; measure(); const [w, hh] = strip(), c = worldCentre(), kk = Math.min(6, Math.max(0.2, k)); go({ k: kk, x: w / 2 - c[0] * kk, y: hh / 2 - c[1] * kk }, animate); },
         relayout() { measure(); },
