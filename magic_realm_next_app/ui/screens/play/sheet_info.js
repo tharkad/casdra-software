@@ -55,7 +55,7 @@ export function menuSheet(G) {
         row('How to play', null, go('help')),
         row('Map key', null, go('key')),
         row('The Setup Card', 'What the printed card tells everyone', go('setupcard'), { act: 'setup-card' }),
-        ...(G.data.art?.misc?.meetingTable ? [row('Tables', 'Meeting, Search, Missile, Pit', go('tables'))] : []),
+        row('Tables', 'Meeting, Search, Missile, Pit', go('tables')),
         h('h4', {}, 'Other'),
         row('Report a problem', null, go('bug'), { act: 'menu-bug' }),
         row('Back to the title screen', null, () => { G.conn?.stop(); G.sconn?.unwatch(); G.ctx.go('title'); }),
@@ -113,10 +113,10 @@ export function scoreSheet(G) {
     const sumUp = c => { const r = rows.find(x => x.cat === c); return r ? `${sign(r.basic + r.bonus)} points if the game ended now` : ''; };
     const goalCard = g => {
         const r = rows.find(x => x.cat === g.cat);
-        return h('div', { class: 'scorerow2' },
-            h('div', { class: 'sr-head' }, h('b', {}, NAME[g.cat]), h('span', {}, g.earned >= g.need ? `${g.earned} of ${g.need} \u2713${g.earned > g.need ? ` (${g.earned - g.need} over)` : ''}` : `${g.earned} of ${g.need}: ${g.need - g.earned} to go`)),
-            h('div', { class: 'goalbar', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': g.need, 'aria-valuenow': Math.max(0, g.earned) }, h('i', { style: `width:${Math.round(g.frac * 100)}%` })),
-            h('p', { class: 'hint' }, `${g.vp} victory point${g.vp === 1 ? ' is' : 's are'} riding on this goal. ${how[g.cat]}`),
+        return h('div', { class: g.idle ? 'scorerow2 idle' : 'scorerow2', 'data-idle-cat': g.idle ? g.cat : null },
+            h('div', { class: 'sr-head' }, h('b', {}, NAME[g.cat]), h('span', {}, g.idle ? `${g.earned} earned, no goal` : g.earned >= g.need ? `${g.earned} of ${g.need} \u2713${g.earned > g.need ? ` (${g.earned - g.need} over)` : ''}` : `${g.earned} of ${g.need}: ${g.need - g.earned} to go`)),
+            g.idle ? null : h('div', { class: 'goalbar', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': g.need, 'aria-valuenow': Math.max(0, g.earned) }, h('i', { style: `width:${Math.round(g.frac * 100)}%` })),
+            h('p', { class: 'hint' }, g.idle ? `No victory points are riding on this goal, but what you earn here still counts. ${how[g.cat]}` : `${g.vp} victory point${g.vp === 1 ? ' is' : 's are'} riding on this goal. ${how[g.cat]}`),
             partsEl(g),
             h('details', { class: 'sr-math' }, h('summary', {}, sumUp(g.cat) || 'The arithmetic'),
                 r ? h('p', { class: 'hint' }, r.diff < 0
@@ -159,8 +159,7 @@ export function scoreSheet(G) {
             over ? 'The game is over; this is how each goal finished.'
                 : 'You win if your total is zero or more when the game ends. Going past a goal earns bonus points; ending short of one costs points, counted three times over.'),
         ...pr.goals.map(goalCard),
-        idle.length ? h('div', { class: 'sr-idle', 'data-idle-goals': String(idle.length) }, h('b', { class: 'sr-idle-head' }, 'Goals you put no points on'),
-            ...idle.map(c => h('p', { class: 'hint', 'data-idle-cat': c }, `${NAME[c]}: need 0, earned ${e[c]}. ${r0(c)}`))) : null,
+        ...idle.map(c => goalCard({ cat: c, earned: e[c] ?? 0, need: 0, vp: 0, frac: 0, idle: true })),          // (note 129: every goal is a section of its own, the ones with no points on them too)
         h('div', { class: 'scorerow2 ifnow' },
             h('div', { class: 'sr-head' }, h('b', {}, over ? 'Final total' : 'If the game ended right now'), h('span', {}, res.dead ? '-100' : sign(res.total ?? 0))),
             h('p', { class: 'hint' }, over ? 'Zero or more is a win.' : 'The score is only worked out for real at the end. Early on it is always low, because every goal still counts as short; it rises as you earn.')),

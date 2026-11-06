@@ -14,12 +14,13 @@ import { companyTab, hireCount } from './company.js';
 import { carriedCount, chitsTab } from './chits.js';
 import { dimBtn, footRow, goldEl, guards, itemArt, oneLine, plural, say, seg, signed, weightWord } from './common.js';
 import { spellCount, spellsTab } from './spells.js';
+import { curseCount, cursesTab, findCount, findsTab } from './finds.js';
 import { ownSheet, gameOf, questionOf, tableFight, missionsOf, sheetOf } from '../../combat/feed.js';
 import { gearOf } from '../../kitfeed.js';
 
 // ---- the rooms ----
 const TAB_KEY = 'mr-kit-tab';
-const TABS = ['kit', 'co', 'sp', 'ch'];
+const TABS = ['kit', 'di', 'cu', 'co', 'sp', 'ch'];
 export function kitTab(G) {
     if (!G.ui.kitTab) { let t = null; try { t = localStorage.getItem(TAB_KEY); } catch { /* ignore */ } G.ui.kitTab = TABS.includes(t) ? t : 'kit'; }
     if (G.ui.kitTab === 'ch' && !missionsOf(G.st, G.data)) G.ui.kitTab = 'kit';          // (the Chits room exists only in a game with mission, campaign and visitor chits)
@@ -192,10 +193,10 @@ const sect2 = (t, r) => h('div', { class: 'ds-sect' }, h('span', { class: 'ds-ey
 export function kitContent(G, o = {}) {
     const tab = o.tab ?? kitTab(G), pick = o.onTab ?? (t => setKitTab(G, t)), ch = ownSheet(G.st, G.data);
     const ctl = { openItem: o.openItem ?? (it => { G.ui.itemUid = it.uid; G.ui.itemFrom = null; G.ui.sheet = 'item'; render(G); }) };
-    const room = tab === 'co' ? companyTab(G) : tab === 'sp' ? spellsTab(G, o) : tab === 'ch' && missionsOf(G.st, G.data) ? chitsTab(G) : kitRoom(G, ctl);
-    return { title: displayName(ch.name), eyebrow: `Day ${gameOf(G.st, G.data).day} · ${tab === 'co' ? 'Company' : tab === 'sp' ? 'Spells' : tab === 'ch' ? 'Chits' : 'Kit'}`, detent: 'tall',
+    const room = tab === 'di' ? findsTab(G) : tab === 'cu' ? cursesTab(G) : tab === 'co' ? companyTab(G) : tab === 'sp' ? spellsTab(G, o) : tab === 'ch' && missionsOf(G.st, G.data) ? chitsTab(G) : kitRoom(G, ctl);
+    return { title: displayName(ch.name), eyebrow: `Day ${gameOf(G.st, G.data).day} · ${tab === 'di' ? 'Discoveries' : tab === 'cu' ? 'Curses' : tab === 'co' ? 'Company' : tab === 'sp' ? 'Spells' : tab === 'ch' ? 'Chits' : 'Kit'}`, detent: 'tall',
         body: h('div', { class: 'kit' },
-            seg([{ key: 'kit', label: 'Kit' }, { key: 'co', label: 'Company', n: hireCount(G) }, { key: 'sp', label: 'Spells', n: spellCount(G) }, ...(missionsOf(G.st, G.data) ? [{ key: 'ch', label: 'Chits', n: carriedCount(G) }] : [])], tab, pick, 'data-kit-tab'),
+            seg([{ key: 'kit', label: 'Kit' }, { key: 'di', label: 'Discoveries', n: findCount(G) }, { key: 'cu', label: 'Curses', n: curseCount(G) }, { key: 'co', label: 'Company', n: hireCount(G) }, { key: 'sp', label: 'Spells', n: spellCount(G) }, ...(missionsOf(G.st, G.data) ? [{ key: 'ch', label: 'Chits', n: carriedCount(G) }] : [])], tab, pick, 'data-kit-tab'),
             room) };
 }
 

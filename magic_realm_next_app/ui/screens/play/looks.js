@@ -25,9 +25,26 @@ export const keySheet = G => modal(G, 'Map key', h('div', { class: 'key' },
 
 export const helpSheet = G => modal(G, 'How to play', h('div', {}, ...HELP.flatMap(([t, x]) => [h('h3', {}, t), h('p', {}, x)])), { close: () => { G.ui.sheet = null; render(G); } });
 
-export const tablesSheet = G => modal(G, 'Tables', h('div', { class: 'tables' },
-    ...[['Meeting Table', 'meetingTable'], ['Search table', 'searchTable'], ['Missile table', 'missileTable'], ['Power of the Pit', 'pitTable']].filter(([, k]) => G.data.art?.misc?.[k])
-        .flatMap(([t, k]) => [h('h3', {}, t), h('img', { class: 'tablepic', src: G.data.art.misc[k], alt: t })])), { close: () => { G.ui.sheet = null; render(G); } });
+// The four tables, drawn from the game's own data (tables.json) as part of the interface: no pictures of rule pages (note: Mike, 2026-11-06).
+const wrapT = (cls, ...kids) => h('div', { class: 'rtable-wrap' }, h('table', { class: `rtable ${cls}` }, ...kids));
+const th = t => h('th', { scope: 'col' }, t), td = (t, cls) => h('td', { class: cls ?? null }, t);
+const SEARCH_WORD = { choice: 'Your choice of any result', clues: 'Clues', paths: 'Hidden paths', 'hidden-enemies': 'Hidden enemies', passages: 'Secret passages', 'discover-chits': 'Discover chits', nothing: 'Nothing' };
+const ORD = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth'];
+const LEVEL = { 2: 'Two levels up', 1: 'One level up', 0: 'No change', '-1': 'One level down', '-2': 'Two levels down', '-3': 'Three levels down' };
+export const tablesSheet = G => {
+    const T = G.data.tables ?? {}, six = [1, 2, 3, 4, 5, 6], words = codes => [].concat(codes).map(c => SEARCH_WORD[c] ?? c).join(' and ');
+    const part = (title, note, el) => [h('h3', {}, title), note ? h('p', { class: 'hint' }, note) : null, el];
+    const meet = T.meeting ? part('Meeting Table', `Roll: ${T.meeting.dice}. The columns are how the people there feel about you.`,
+        wrapT('nowrap', h('thead', {}, h('tr', {}, th('Roll'), ...T.meeting.columns.map(th))), h('tbody', {}, ...six.map(n => h('tr', {}, td(String(n), 'roll'), ...(T.meeting.rows[n] ?? []).map(c => td(c.label))))))) : [];
+    const meetRules = T.meeting?.rules ? [h('div', { class: 'rtable-key' }, ...Object.entries(T.meeting.rules).map(([k, v]) => h('p', {}, h('b', {}, k + ': '), v)))] : [];
+    const search = T.peer && T.locate && T.loot ? part('Search table', 'Peer shows hidden paths and enemies, Locate finds secret passages and sites, Loot takes a treasure.',
+        wrapT('', h('thead', {}, h('tr', {}, th('Roll'), th('Peer'), th('Locate'), th('Loot'))), h('tbody', {}, ...six.map(n => h('tr', {}, td(String(n), 'roll'), td(words(T.peer[n])), td(words(T.locate[n])), td(`Take the ${ORD[T.loot[n]?.takeNth ?? n]} treasure`)))))) : [];
+    const missile = T.missile ? part('Missile table', `Roll: ${T.missile.dice}. ${T.missile.note}`,
+        wrapT('', h('thead', {}, h('tr', {}, th('Roll'), th('Harm of the hit'))), h('tbody', {}, ...six.map(n => h('tr', {}, td(String(n), 'roll'), td(LEVEL[T.missile.rows[n]?.levelShift] ?? String(T.missile.rows[n]?.levelShift))))))) : [];
+    const pit = T.powerOfThePit ? part('Power of the Pit', null,
+        wrapT('', h('thead', {}, h('tr', {}, th('Roll'), th('Result'), th('What happens'))), h('tbody', {}, ...six.map(n => h('tr', {}, td(String(n), 'roll'), td(T.powerOfThePit.rows[n]?.name ?? '', 'rname'), td(T.powerOfThePit.rows[n]?.effect ?? '')))))) : [];
+    return modal(G, 'Tables', h('div', { class: 'tables', 'data-native-tables': '' }, ...meet, ...meetRules, ...search, ...missile, ...pit), { close: () => { G.ui.sheet = null; render(G); } });
+};
 
 export const cardSheet = G => modal(G, ownSheet(G.st, G.data).name, h('div', {}, G.data.art?.cards?.[ownSheet(G.st, G.data).id] ? h('img', { class: 'cardpic', src: G.data.art.cards[ownSheet(G.st, G.data).id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } });
 
