@@ -57,7 +57,7 @@ export function apartHint(g) {
     return { story, detail };
 }
 export const MAX_PARTY = 4;
-export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, party: [], open: null, goalOpen: null, view: 'party', seed: Math.floor(Math.random() * 9999) + 1, missions: { on: false, place: [] }, options: { knightsAdjustment: false, watchfulNatives: false, quietMonsters: false, castAnytime: true } });
+export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, party: [], open: null, goalOpen: null, view: 'party', seed: Math.floor(Math.random() * 9999) + 1, missions: { on: false, place: [] }, options: { knightsAdjustment: false, watchfulNatives: false, quietMonsters: false, castAnytime: true, shareAtBirdsong: true } });
 
 
 export const vpTotal = g => g.length === 'month' ? 5 : g.length === 'custom' ? g.weeks + 1 : g.length === 'sudden' ? g.suddenVp : 5;

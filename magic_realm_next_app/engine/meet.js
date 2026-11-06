@@ -1,4 +1,4 @@
-import { say, lvl } from './core.js';
+import { say, lvl, refuse } from './core.js';
 import { withActor, charsAt, isMulti, askOf, livingIds, playerNameOf } from './party.js';
 import { nameOf, summaryOf, autoEquip, noteGain, weightOf, carryCapacity, onPackHorse, extraPhaseCommitment, transferLock } from './items.js';
 import { pathKeyAt, pathEnds, pathSide, tileSide, nameOfClearing, roadsFrom, tileOf, numOf } from './world.js';
@@ -55,6 +55,9 @@ const here = c => !!c.at && !c.onRoad && !c.flying && !c.asleep;          // (a 
 // May a and b trade now? Returns why not, or null. At the start of a phase of the actor's turn he (and his followers) may trade with any character in his clearing, not the others with each
 // other (7.2.1); hidden ones may (7.2.1b); not while flying, in the woods or on a road (7.2.1d); a character blocked today may not trade with those about to start phases (7.12.4b). After the
 // day's fights, while the trade window is open, those who stand together may (R-5).
+// House rule (Mike 2026-11-06, note 142; the game option `shareAtBirdsong`, ON unless switched off): while the plan is made at Birdsong the characters of ONE player, standing together, may tell each other what they
+// have found (a discovery only: no belongings, no gold), so that a find reaches the plan of the day it is used on. The printed times are the start of a phase and the day-end window (4.5.5h, 7.2.1).
+const birdsongShare = (st, a, b) => st.period === 'birdsong' && !st.tradeWindow && st.options?.shareAtBirdsong !== false && !!st.chars[a] && !!st.chars[b] && sameHand(st.chars[a], st.chars[b]);
 export function tradeError(st, a, b) {
     if (!isMulti(st)) return 'there is nobody to trade with';
     const x = st.chars[a], y = st.chars[b];
@@ -64,6 +67,7 @@ export function tradeError(st, a, b) {
     if (x.mist || y.mist) return 'a character in mist cannot trade';
     const tw = st.tradeWindow;
     if (tw) return tw.groups.some(g => g.ids.includes(a) && g.ids.includes(b)) ? null : 'only those who stand together may trade in the day-end window';
+    if (birdsongShare(st, a, b)) return null;
     const w = phaseWindow(st);
     if (!w) return 'you can trade at the start of a phase of someone\'s turn, or in the window after the day\'s fights (7.2.1, R-5)';
     if (!w.group.includes(a) && !w.group.includes(b)) return `only ${nameOfChar(st, w.actor)} and those who follow him can trade now: the others can trade with him, not with each other (7.2.1)`;
@@ -229,11 +233,12 @@ function offerFrom(st, data, a) {
     if ((st.offers ?? []).some(o => o.to === to)) throw new Error(`${nameOfChar(st, to)} is already considering an offer`);
     const give = normSide(a.give), want = normSide(a.want), at = st.chars[from].at;
     if (sideEmpty(give) && sideEmpty(want)) throw new Error('an offer must give something or ask for something');
+    if (birdsongShare(st, from, to) && !phaseWindow(st) && (give.items.length || give.gold || !sideEmpty(want))) refuse('meet.birdsong-discoveries-only', 'at Birdsong the characters of one player may only tell each other what they have found (a house rule: the start of a phase is the time to hand over belongings and gold)', null, '4.5.5h');
     checkSide(st, data, from, give, at, { strict: true });
     checkSide(st, data, to, want, at, { strict: false, named: true });
     const ra = askOf(st, to);
     const rp = unwrapped(ra?.pending);
-    if (ra && !(STARTS.has(rp?.type) || rp?.type === 'meet-window')) throw new Error(`${nameOfChar(st, to)} is busy answering something else`);
+    if (ra && !(STARTS.has(rp?.type) || rp?.type === 'meet-window' || (rp?.type === 'plan' && birdsongShare(st, from, to)))) throw new Error(`${nameOfChar(st, to)} is busy answering something else`);
     if (ra && ra.pending.type === 'meet-offer') throw new Error(`${nameOfChar(st, to)} is already considering an offer`);
     const id = `o${st.offerSeq = (st.offerSeq ?? 0) + 1}`;
     const o = { id, from, to, at, day: st.day, window: st.tradeWindow ? 'dayend' : 'phase', give, want };

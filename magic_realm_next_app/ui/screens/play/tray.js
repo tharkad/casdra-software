@@ -247,7 +247,7 @@ export function renderTray(G) {
             m.lead = btn(mb.label, 'sm meetbtn', { 'data-act': 'meet', 'data-meet-certain': mb.certain ? '1' : '0', 'aria-label': `Meet ${mb.names}: give or trade`, onclick: () => { G.ui.meet = null; G.ui.sheet = 'meet'; render(G); } });
         }
     }
-    if (!planning && !G.shared && (p?.type === 'phase' || p?.type === 'phase-pick') && shareNow(G).length) { m.body.unshift(...shareCards(G)); m.cls.push('with-share'); }          // (note 142: what one of my characters knows and another lacks is offered at the start of a phase)
+    if (!planning && !G.shared && (p?.type === 'phase' || p?.type === 'phase-pick' || p?.type === 'plan') && shareNow(G).length) { m.body.unshift(...shareCards(G)); m.cls.push('with-share'); }          // (note 142: what one of my characters knows and another lacks is offered at the start of a phase)
     if (freeActs.length) m.body.push(h('div', { class: 'spellacts' }, ...freeActs));
     // mission, campaign and visitor chits (a game with the option): a notice card for what the engine just told (the week's flip, a delivery, a win, a failure), and a Take button for each chit in his clearing
     if (!planning) { const air = airCard(G); if (air) m.body.unshift(air); }          // (in the air on a steed: who carries him, and a way to let it go: steeds.js)

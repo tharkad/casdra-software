@@ -2,6 +2,6 @@
 // VERSION is the ENGINE version (records and the server pin to it): it changes only with engine changes, which are made on main and merged here.
 export const VERSION = '0.10.0';
 // BUILD names the redesign build published at /magic-realm-next/ (tools/deploy.py --channel next checks for it); empty on main.
-export const BUILD = 'next.141';
+export const BUILD = 'next.142';
 // A shared game created from this build keeps its engine events (the server then sends each seat the ones it may read). On only where BUILD is set: the stable build, whose BUILD is empty, never asks for it.
 export const RECORD_SHARED = BUILD !== '';

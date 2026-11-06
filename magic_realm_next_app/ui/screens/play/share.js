@@ -36,7 +36,7 @@ export function tell(G, s) {
     const actions = [{ type: 'meet', kind: 'offer', who: s.from, to: s.to, give: { items: [], gold: 0, discoveries: s.items.map(discOut) }, want: { items: [], gold: 0 } }, { type: 'meet', kind: 'answer', who: s.to, accept: true }];
     const win = tableModel(G.st, G.data).tradeWindow?.groups?.find(g => g.ids.includes(s.from));
     if (win && !sharesOf(G).filter(x => x.now && !(x.from === s.from && x.to === s.to)).length) for (const id of win.ids) if (!win.done.includes(id)) actions.push({ type: 'meet', kind: 'done', who: id });
-    actMany(G, actions, { ok: () => { G.ui.sheet = G.ui.sheet === 'clearing' ? G.ui.sheet : null; showToast(G, rd.confirm); } });
+    actMany(G, actions, { ok: () => { G.ui.sheet = G.ui.sheet === 'clearing' || G.ui.sheet === 'plan' ? G.ui.sheet : null; showToast(G, rd.confirm); } });
 }
 
 /** "Not now": the card is put away for the rest of the day. The clearing box still has the button, and the evening window comes before Midnight. */
