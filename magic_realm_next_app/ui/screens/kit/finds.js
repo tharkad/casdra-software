@@ -2,6 +2,7 @@
 import { nameOfClearing } from '../../../engine/catalogue.js';
 import { h } from '../../dom.js';
 import { ownSheet, siteChits } from '../../combat/feed.js';
+import { roadsFrom } from '../../combat/mapfeed.js';
 import { cursesBody } from '../play/sheet_char.js';
 
 const sect = (t, r) => h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, t), r ? h('small', {}, r) : null);
@@ -12,7 +13,9 @@ export function findsOf(G) {
     const me = ownSheet(G.st, G.data), out = [];
     for (const key of me.discovered?.paths ?? []) {
         const [a, b] = String(key).replace(':enchanted', '').split('~');
-        out.push({ kind: 'path', title: `${nameOfClearing(a)} to ${nameOfClearing(b)}`, line: String(key).endsWith(':enchanted') ? 'A path you found on the enchanted side of the tile.' : 'A path or passage you have found.' });
+        // note 144: it says what it is, a Secret passage or a Hidden path (the road's own kind), and where it runs
+        const kind = roadsFrom(G.st, G.data, a).find(r => r.to === b)?.kind, what = kind === 'secret' ? 'Secret passage' : kind === 'hidden' ? 'Hidden path' : 'Path or passage';
+        out.push({ kind: 'path', title: what, line: `${nameOfClearing(a)} to ${nameOfClearing(b)}${String(key).endsWith(':enchanted') ? ', on the enchanted side of the tile' : ''}` });
     }
     const chits = siteChits(G.st, G.data);
     for (const id of me.discovered?.sites ?? []) {

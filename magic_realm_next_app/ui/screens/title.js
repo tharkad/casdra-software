@@ -11,7 +11,8 @@ export const PERIOD_LABEL = { setup: 'Birdsong', birdsong: 'Birdsong', sunrise: 
 export const periodLabel = p => PERIOD_LABEL[p] ?? '';
 
 // "Your White Knight is on day 6 of 28, with 112 Gold."
-const where = s => `Your ${s.character} is on day ${s.day}${s.mode === 'month' && s.lastDay ? ` of ${s.lastDay}` : ''}, with ${s.gold ?? 0} Gold.`;
+const crew = s => (s.characters?.length > 1 ? s.characters.join(', ') : s.character);          // (note 143: every character of the game, not only the one who was acting)
+const where = s => `Your ${s.characters?.length > 1 ? s.characters.join(' and ').replace(/ and ([^,]*)$/, ' and $1') : s.character} ${s.characters?.length > 1 ? 'are' : 'is'} on day ${s.day}${s.mode === 'month' && s.lastDay ? ` of ${s.lastDay}` : ''}, with ${s.gold ?? 0} Gold.`;
 
 // A live table that is waiting on me: { r, i } from what this device last knew of its shared games (online.js keeps it), or null. (QA-132)
 const tableTurn = cache => myRaces().filter(r => r.kind === 'shared').map(r => ({ r, i: cache[r.game] })).find(x => x.i?.yourTurn && !x.i.gone && !x.i.lobby) ?? null;
@@ -36,7 +37,7 @@ export function titleScreen(ctx) {
     // the buttons: a table that waits on me comes first (the primary), then the game on this device, then New game and the row of three
     const solo = (primary, small) => h('button', { type: 'button', class: `ds-btn${primary ? ' primary' : ''} block ds-continue`, 'data-act': 'continue', onclick: () => ctx.go('game', { id: last.id }) }, h('span', { class: 'col' }, 'Continue', h('small', {}, small)));
     const navEl = () => {
-        const live = tableTurn(cache), soloSmall = last ? [last.character, `Day ${last.day}`, periodLabel(last.period)].filter(Boolean).join(' · ') : '';
+        const live = tableTurn(cache), soloSmall = last ? [crew(last), `Day ${last.day}`, periodLabel(last.period)].filter(Boolean).join(' · ') : '';
         return h('nav', { class: 'ds-title-nav', 'aria-label': 'Main menu' },
             live ? h('button', { type: 'button', class: 'ds-btn primary block ds-continue', 'data-act': 'continue-table', 'data-game': live.r.game, onclick: () => ctx.go('game', { shared: live.r }) },
                 h('span', { class: 'col' }, 'Continue', h('small', {}, ['Your move at the table', live.i.character, live.i.day != null ? `Day ${live.i.day}` : null].filter(Boolean).join(' · ')))) : null,
