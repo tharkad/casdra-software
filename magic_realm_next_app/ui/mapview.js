@@ -4,6 +4,7 @@ import { layoutSide, chitSlotsFor } from '../engine/catalogue.js';
 import { tileName } from '../engine/catalogue.js';
 import { layoutLabels, needsMarker, pillWidth, PILL_H, COMPACT } from './labels.js';
 import { shapeEl, fan, tagText } from './party.js';
+import { portraitSetting, turnFor } from './portrait.js';
 
 // The pannable, zoomable realm map. It draws whatever model it is given; it knows nothing about the rules.
 // model = { tiles, placements, side, showHidden, discovered:Set(pathKeys), chitsByTile:{tile:[chit]}, dwellings:[{kind,at}], tokens:{clearing:[{k,label}]},
@@ -23,6 +24,7 @@ const CLEARING = { woods: '#3f7a52', mountain: '#8d7a62', cave: '#5a4f7a' };
 const MAGIC = { grey: '#aeb4bd', gold: '#e8c868', purple: '#b08cf0' };
 const PATH = { open: { stroke: '#d8cba8', w: 2.4 }, tunnel: { stroke: '#9a8fb8', w: 2.4, dash: '6 4' }, hidden: { stroke: '#c58a4a', w: 2.2, dash: '1.5 4' }, secret: { stroke: '#8fd0c8', w: 2.2, dash: '1.5 4' } };
 const rot = ([x, y], a) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
+const quarter = ([x, y], t) => (t ? [-y, x] : [x, y]);          // a quarter turn clockwise on screen (y runs down): north (0, -1) goes to the right (1, 0), east to the bottom
 const pk = (a, b) => (a < b ? `${a}~${b}` : `${b}~${a}`);
 
 // A badge's chips: monsters, natives and companions carry a small picture (claw marks, a figure) so that what is in the clearing reads at a glance; a count follows when there is more than one.
@@ -132,11 +134,19 @@ export function mountMap(host) {
     const svg = sv('svg', { class: 'realm-svg', width: '100%', height: '100%' });
     host.append(svg);
     let model = null, view = null, size = [360, 520], bounds = null, moved = false;
+    // The turned map (note 150, portrait.js): on an upright phone the realm may be turned a quarter turn clockwise (north to the right) so its long side runs down the tall screen. Only POSITIONS turn:
+    // the world is built in the turned frame (Q maps the board's own frame to it, Qi back), so names, numbers, rings, hit-testing, the camera and the label layout all work in the one frame the
+    // player sees, upright, and none of them knows about the turn. The tile pictures turn with their tiles (a quarter turn more). turn = 0 is the map exactly as it always was.
+    let turn = 0, baseBox = null;
+    const Q = p => quarter(p, turn), Qi = ([x, y]) => (turn ? [y, -x] : [x, y]);
     let firstLook = null;                          // the first plain focus, made while the box may not have been laid out yet: taken again, at the right zoom, when it first has a size
     let inset = 0, restore = null;                 // the part of the map's bottom a sheet covers; the view to glide back to when it goes (see focus / release)
     let overlay = { rings: [], route: [], routeDone: 0, pin: null };
     const ov = h('div', { class: 'mv-ov' });
     host.append(ov);
+    // while the board is turned, a small mark in the corner says where north went (the board has no compass of its own; the words on the sheets, 'the north edge', still mean the board's north)
+    const north = h('div', { class: 'mv-north', 'aria-label': 'North is to the right', hidden: true }, sv('svg', { viewBox: '0 0 26 12', width: 26, height: 12, 'aria-hidden': 'true' }, sv('path', { d: 'M1 6H23M18 1.5L23.5 6L18 10.5' })), h('span', {}, 'North'));
+    host.append(north);
 
     // the part of the box the player can see: a sheet may cover the bottom of the map, and the camera works in what is left
     const strip = () => [size[0], Math.max(60, size[1] - inset)];
@@ -150,7 +160,11 @@ export function mountMap(host) {
         el: svg,
         set(m, { refit = false } = {}) {
             model = m;
-            const before = view && !refit ? worldCentre() : null;
+            let before = view && !refit ? worldCentre() : null;
+            baseBoundsOf(m);
+            const want = turnWanted();
+            if (want !== turn) { if (before) before = quarter(Qi(before), want); turn = want; over = null; overKey = ''; }          // (the player's turn changed: keep what was in the middle there)
+            north.hidden = !turn;
             computeBounds(); measure();
             const fresh = refit || !view, usedOver = overKey;
             if (fresh) view = fit();
@@ -261,7 +275,9 @@ export function mountMap(host) {
         project(clearingId) { const p = posOf.get(clearingId); if (!p || !view) return null; return { x: p[0] * view.k + view.x, y: p[1] * view.k + view.y, visible: api.visible(clearingId, 0) }; },
         /** What the last draw cost: { drawMs, layoutMs, cached (the names' layout was remembered), level, draws }: for the tests. */
         stats() { return { ...stats }; },
-        camera() { return { ...view, inset, flying: !!flight, restoring: !!restore }; },
+        camera() { return { ...view, inset, flying: !!flight, restoring: !!restore, rotation: turn * 90 }; },
+        /** How far the board is turned on screen, clockwise, in degrees: 0 (as ever) or 90 (north to the right, note 150). */
+        rotation() { return turn * 90; },
         /** Which clearing does a tap at (x, y) in map-box pixels mean? the nearest one within 22px (or the clearing's own circle when the map is zoomed in), else null. */
         hit(x, y) { return nearest(x, y); },
     };
@@ -288,30 +304,30 @@ export function mountMap(host) {
         heroRing = null;
         const tileDefs = Object.fromEntries(tiles.map(t => [t.id, t])), tileCentre = tileC;
         // is a point on the board at all (on any tile)? The names of a clearing at the board's edge may stand off it, touching the clearing (labels.js edgeSearch)
-        const hexCentres = placements.map(p0 => hexCenter(p0.q, p0.r, S));
-        const onBoard = (px, py) => hexCentres.some(([hx, hy]) => { const dx = Math.abs(px - hx), dy = Math.abs(py - hy); return dy <= S * 0.866025 && dx <= S - dy / 0.866025 * 0.5; });
+        const hexCentres = placements.map(p0 => hexCenter(p0.q, p0.r, S));          // (in the board's own frame: a point is turned back into it)
+        const onBoard = (qx, qy) => hexCentres.some(([hx, hy]) => { const [px, py] = Qi([qx, qy]), dx = Math.abs(px - hx), dy = Math.abs(py - hy); return dy <= S * 0.866025 && dx <= S - dy / 0.866025 * 0.5; });
         for (const p of placements) {
             const side = p.side ?? model.side ?? 'normal';          // each tile shows its own side: an enchanted tile is turned over
             const tile = tileDefs[p.id], def = tile.sides[side], lay = layoutSide(tile, side);
-            const [cx, cy] = hexCenter(p.q, p.r, S), a = p.rot * Math.PI / 3;
+            const [cx, cy] = Q(hexCenter(p.q, p.r, S)), a = p.rot * Math.PI / 3, pa = p.rot * 60 + 90 * turn;          // (pa: how far the tile's picture is turned on screen)
             tileCentre.set(p.id, [cx, cy]);
-            const pos = Object.fromEntries(def.clearings.map(c => [c.n, rot(lay.pos[c.n], a).map(v => v * S)]));
+            const pos = Object.fromEntries(def.clearings.map(c => [c.n, Q(rot(lay.pos[c.n], a).map(v => v * S))]));
             for (const c of def.clearings) posOf.set(p.id + c.n, [cx + pos[c.n][0], cy + pos[c.n][1]]);
             const tg = sv('g', { transform: `translate(${cx.toFixed(1)} ${cy.toFixed(1)})` });
             // a name belongs on its own tile: the hexagon, so a pill never reads as belonging to the clearing across the border
-            const hexPoly = corners(S).map(([hx, hy]) => [cx + hx, cy + hy]);
+            const hexPoly = corners(S).map(c0 => Q(c0)).map(([hx, hy]) => [cx + hx, cy + hy]);
             const insideTile = (px, py) => { let ins = false; for (let i = 0, j = hexPoly.length - 1; i < hexPoly.length; j = i++) { const [xi, yi] = hexPoly[i], [xj, yj] = hexPoly[j]; if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) ins = !ins; } return ins; };
             const picture = lay.art ? model.art?.tiles?.[tile.id]?.[side] : null;
-            tg.append(sv('polygon', { class: 'hex', points: corners(S - (picture ? 0.5 : 1.5)).map(c => c.join(',')).join(' '), fill: GROUP[tile.group] }));
+            tg.append(sv('polygon', { class: 'hex', points: corners(S - (picture ? 0.5 : 1.5)).map(c0 => Q(c0).join(',')).join(' '), fill: GROUP[tile.group] }));
             // The original tile picture, turned with the tile. The roads, caves and numbers are all in it; we draw only what changes.
-            if (picture) tg.append(sv('image', { href: picture, x: -S, y: -S * 0.866025, width: 2 * S, height: 1.732051 * S, transform: `rotate(${p.rot * 60})`, 'pointer-events': 'none' }));
+            if (picture) tg.append(sv('image', { href: picture, x: -S, y: -S * 0.866025, width: 2 * S, height: 1.732051 * S, transform: `rotate(${pa})`, 'pointer-events': 'none' }));
             // The name printed on the picture reads upside down once the tile is turned 120 to 240 degrees: cover it with the same strip of the picture without the letters and set the name again, upright (QA-14; tools/build_tile_names.py)
-            if (picture && p.rot % 6 >= 2 && p.rot % 6 <= 4) tg.append(upright(picture, p.rot * 60, p.id, side));
+            if (picture && pa % 360 > 100 && pa % 360 < 260) tg.append(upright(picture, pa, p.id, side));          // (a quarter turn leaves the names of tiles at 90 and 270 degrees running down or up the tile, like a book's spine: readable, and part of the art)
             const paths = sv('g', { class: 'paths' });
             // A hidden path or secret passage that bends in the picture: a curve through the measured middle of the printed passage (a quadratic bend), else the straight line.
             const bendOf = (path, A, B) => {
                 const m = model.pathMarks?.[tile.id]?.[side]?.[`${path.a}-${path.b}`]?.mid; if (!m) return null;
-                const M = rot([m[0], m[1]], a).map(v => v * S), C = [2 * M[0] - (A[0] + B[0]) / 2, 2 * M[1] - (A[1] + B[1]) / 2];
+                const M = Q(rot([m[0], m[1]], a).map(v => v * S)), C = [2 * M[0] - (A[0] + B[0]) / 2, 2 * M[1] - (A[1] + B[1]) / 2];
                 return { mid: M, d: `M${A[0].toFixed(1)} ${A[1].toFixed(1)} Q${C[0].toFixed(1)} ${C[1].toFixed(1)} ${B[0].toFixed(1)} ${B[1].toFixed(1)}` };
             };
             for (const path of def.paths) {
@@ -332,18 +348,18 @@ export function mountMap(host) {
             if (!picture) EDGES.forEach((name, le) => {
                 const n = def.edges[name];
                 if (n == null) return;
-                const [dx, dy] = edgeDir(worldEdge(le, p.rot)), A = pos[n];
+                const [dx, dy] = Q(edgeDir(worldEdge(le, p.rot))), A = pos[n];
                 paths.append(sv('line', { x1: A[0], y1: A[1], x2: dx * S * .866, y2: dy * S * .866, stroke: '#d8cba8', 'stroke-width': 2.4, 'stroke-linecap': 'round' }));
             });
             tg.append(paths);
-            if (!picture) tg.append(sv('text', { class: 'tname', y: S * .8, 'text-anchor': 'middle' }, tileName(p.id).toUpperCase()));
+            if (!picture) tg.append(sv('text', { class: 'tname', x: Q([0, S * .8])[0], y: Q([0, S * .8])[1], 'text-anchor': 'middle' }, tileName(p.id).toUpperCase()));
             // chits lying in the forest: a counter on a clear spot of the picture, with its name once it is known and '?' while it is not
             const slots = picture ? chitSlotsFor(p.id, side) : null;
             (model.chitsByTile?.[p.id] ?? []).forEach((c, i) => {
                 const label = c.up ? c.name : '?';
                 let x, y;
-                if (slots?.length) { const s0 = slots[(c.slot ?? i) % slots.length]; [x, y] = rot(s0, a).map(v => v * S); }
-                else { x = 0; y = (-0.74 + i * 0.13) * S; }
+                if (slots?.length) { const s0 = slots[(c.slot ?? i) % slots.length]; [x, y] = Q(rot(s0, a).map(v => v * S)); }
+                else { [x, y] = Q([0, (-0.74 + i * 0.13) * S]); }
                 const wx = cx + x, wy = cy + y;
                 if (!c.up) {
                     og.append(downChitEl(wx, wy));                  // not yet known: a small counter with a question mark
@@ -353,7 +369,7 @@ export function mountMap(host) {
                 // known: the glyph is part of the name, as for a sound in a clearing: one pill, on the chit's own clear spot
                 const glyph = chitGlyph(c.kind);
                 const text = `${glyph} ${label}`, id = `chit:${c.id ?? p.id + i}`;
-                groups.push({ id, noLeader: true, ax: wx, ay: wy, ar: 3, prio: 3, prefer: ['center', 'below', 'above', 'right', 'left'], inside: insideTile, alts: slots?.map(s1 => { const [sx, sy] = rot(s1, a).map(v => v * S); return [Math.round((cx + sx) * 10) / 10, Math.round((cy + sy) * 10) / 10]; }), boxes: [{ w: pillWidth(text), h: PILL_H }] });
+                groups.push({ id, noLeader: true, ax: wx, ay: wy, ar: 3, prio: 3, prefer: ['center', 'below', 'above', 'right', 'left'], inside: insideTile, alts: slots?.map(s1 => { const [sx, sy] = Q(rot(s1, a).map(v => v * S)); return [Math.round((cx + sx) * 10) / 10, Math.round((cy + sy) * 10) / 10]; }), boxes: [{ w: pillWidth(text), h: PILL_H }] });
                 badgeOf.set(id, { segs: [{ k: c.kind === 'sound' ? 'sound' : c.kind === 'site' ? 'site' : c.kind === 'warning' ? 'warn' : 'star', glyph }], id: null, boxes: [{ w: 16, h: 12 }] });
                 makeLabel.set(id, box => chitPillEl(c.kind, text, box));
             });
@@ -555,9 +571,18 @@ export function mountMap(host) {
     }
 
     // the realm's box in the world, from the tiles alone (the camera needs it before anything is drawn)
-    function computeBounds() {
+    // the board's own box (before any turn): what the decision to turn is made on
+    function baseBoundsOf(m) {
         let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
-        for (const p of model.placements) { const [cx, cy] = hexCenter(p.q, p.r, S); minX = Math.min(minX, cx - S); maxX = Math.max(maxX, cx + S); minY = Math.min(minY, cy - S * .87); maxY = Math.max(maxY, cy + S * .87); }
+        for (const p of m.placements) { const [cx, cy] = hexCenter(p.q, p.r, S); minX = Math.min(minX, cx - S); maxX = Math.max(maxX, cx + S); minY = Math.min(minY, cy - S * .87); maxY = Math.max(maxY, cy + S * .87); }
+        baseBox = { minX, minY, maxX, maxY };
+    }
+    // (a keyboard opening on a phone shrinks the window: while a text field has the focus the board stays as it is, so it never flips under a note being typed)
+    const typing = () => typeof document !== 'undefined' && /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName ?? '');
+    const turnWanted = () => (typeof window === 'undefined' || !baseBox ? 0 : typing() ? turn : turnFor({ w: window.innerWidth, h: window.innerHeight, bw: baseBox.maxX - baseBox.minX, bh: baseBox.maxY - baseBox.minY, setting: portraitSetting() }));
+    function computeBounds() {
+        let { minX, minY, maxX, maxY } = baseBox;
+        if (turn) { const xs = [], ys = []; for (const c of [[minX, minY], [maxX, minY], [minX, maxY], [maxX, maxY]]) { const [qx, qy] = Q(c); xs.push(qx); ys.push(qy); } minX = Math.min(...xs); maxX = Math.max(...xs); minY = Math.min(...ys); maxY = Math.max(...ys); }
         if (over) { minX = Math.min(minX, over.x0 - 4); minY = Math.min(minY, over.y0 - 4); maxX = Math.max(maxX, over.x1 + 4); maxY = Math.max(maxY, over.y1 + 4); }          // names standing off the board's edge are part of the realm to look at
         bounds = { minX, minY, maxX, maxY };
     }
@@ -574,6 +599,7 @@ export function mountMap(host) {
     // While the drawer slides, the map's box changes size every frame: keep the same point in the middle.
     if (typeof ResizeObserver === 'function') new ResizeObserver(() => {
         const [w0, h0] = size;
+        if (model && baseBox && turnWanted() !== turn) { measure(); api.set(model); return; }          // (the phone was turned over, or the setting changed: the board turns with it)
         if (!view || flight) measure(); else { const c = worldCentre(); measure(); recentre(c); apply(); }
         if (firstLook && !moved && sized && (size[0] !== w0 || size[1] !== h0)) { const f = firstLook; firstLook = null; api.focus(f.id, undefined, false); }
     }).observe(host);

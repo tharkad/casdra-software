@@ -194,3 +194,8 @@ html[data-calm="on"] .mv-ov .ds-ring.legal { animation: none; }
 @media (prefers-reduced-motion: reduce) { .mapbox.bare .sitehalo, .mapbox.bare .found-path { animation: none; opacity: 1; } }
 /* art switch: the black-and-white box counters need their cream tile on a pill (the pill-colour rule above hid it) */
 .realm-svg g.pill rect.thumbbg { fill: #efe6d0; }
+
+/* ---- the turned map (note 150, portrait.js): a small mark in the corner says where north went ---- */
+.mv-north { position: absolute; left: 12px; top: 10px; z-index: 2; display: flex; align-items: center; gap: 6px; pointer-events: none; font: 600 12px/1 var(--font-ui, system-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--dim, #a39a84); padding: 4px 8px; border-radius: 10px; background: rgba(12, 14, 20, .72); }
+.mv-north[hidden] { display: none; }
+.mv-north svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }

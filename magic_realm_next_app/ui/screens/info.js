@@ -6,6 +6,7 @@ import { myName, setMyName, serverUrl, setServerUrl } from '../online.js';
 import { collect as collectReport, send as sendReport } from '../bugreport.js';
 import { noteButtonOn, setNoteButton, openNotesList } from '../notes.js';
 import { VERSION, BUILD } from '../version.js';
+import { portraitOn, setPortraitOn } from '../portrait.js';
 import { bar, field, input, openSheet, say, seg, switchRow } from '../front.js';
 
 // How to play: five rows, each one sentence of the world's voice, each opening to today's paragraphs (review FD-16). The same list feeds the welcome modal (HOW_TO_PLAY is exported for it).
@@ -101,6 +102,8 @@ export function readingFields(redraw) {
         field('Top margin', seg(TOP_GAPS, topGap(), v => { setTopGap(v); redraw(); }, { label: 'Top margin', attrOf: id => ({ 'data-topgap-pick': id }) }),
             { cls: 'ds-fieldgap', why: h('span', { class: 'ds-why' }, 'Room under the status bar. On an iPhone the very top of the page can look faded; more margin moves the text out of it.') }),
         switchRow({ title: 'Calm motion', line: 'No gliding or flipping. The game follows your phone’s setting unless you turn this on.', on: calm(), attrs: { 'data-option': 'calm' }, onToggle: () => { setCalm(!calm()); redraw(); } }),
+        // (only where it can matter: a phone, held either way; a tablet or a desktop never turns the map)
+        ...(Math.min(innerWidth, innerHeight) < 700 ? [switchRow({ title: 'Turn the map to fill a tall screen', line: 'Held upright, the realm turns sideways when that makes it bigger, with north to the right. Names and numbers stay upright.', on: portraitOn(), attrs: { 'data-option': 'portrait' }, onToggle: () => { setPortraitOn(!portraitOn()); redraw(); } })] : []),
         switchRow({ title: 'Note button', line: 'A round microphone button on every screen: say what you want to happen there. It goes on a list for later.', on: noteButtonOn(), attrs: { 'data-option': 'notebtn' }, onToggle: () => { setNoteButton(!noteButtonOn()); redraw(); } })
     ];
 }
