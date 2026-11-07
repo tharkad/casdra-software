@@ -6,7 +6,7 @@
 export { tileName, nameOfClearing, tileOf, numOf, sameTile, pathEnds, pathSide } from './world.js';
 export { defOf, nameOf, isWeaponCard, weightOf, priceOf, slotsOf, summaryOf, isOneUse, horseLevel } from './items.js';
 export { LEVELS, WEIGHT_WORDS, lvl, letterOf, chitWord } from './core.js';
-export { FACTORS, CATS } from './score.js';
+export { FACTORS, CATS, scoreFrom } from './score.js';
 export { EDGES, opposite, neighbor, hexKey, worldEdge, localEdge, hexCenter, edgeDir, corners } from './hex.js';
 export { layoutSide, chitSlotsFor } from './layout.js';
 export { bookPic, isBookPic } from './artbook.js';

@@ -75,7 +75,7 @@ export function summary(g) {
 const q = text => h('p', { class: 'ds-voice lg ds-q' }, nb(text));
 const why = text => h('p', { class: 'ds-why ds-qwhy' }, nb(text));
 
-const stepper = (value, unit, min, max, set, { big = false } = {}) => h('div', { class: `ds-stepper${big ? ' ds-stepper-goal' : ''}` },
+export const stepper = (value, unit, min, max, set, { big = false } = {}) => h('div', { class: `ds-stepper${big ? ' ds-stepper-goal' : ''}` },
     h('button', { type: 'button', 'aria-label': 'Fewer', disabled: value <= min, onclick: e => { e.stopPropagation(); set(value - 1); } }, icon('minus')),
     h('span', { class: 'v' }, String(value), unit ? h('small', {}, unit(value)) : null),
     h('button', { type: 'button', 'aria-label': 'More', disabled: value >= max, onclick: e => { e.stopPropagation(); set(value + 1); } }, icon('plus')));

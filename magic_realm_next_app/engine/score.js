@@ -40,20 +40,27 @@ export function targets(st) {
     return t;
 }
 
-export function scoreGame(st, data) {
-    if (st.ch.gone && st.ch.goneScore) return { ...st.ch.goneScore };            // he left the map: his score was fixed that moment (R-21, 9.3.1a)
-    if (st.ch.dead) return { total: -100, dead: true, rows: [], won: false };
-    const e = earned(st, data), need = targets(st);
+// What a spread of victory points `vp` scores when `e` has been earned in each goal (rules 9.3.2 to 9.3.2h): per goal, earned minus needed, a shortfall counted three times, divided by the
+// goal's factor and rounded down (the basic score), plus a bonus of that times the victory points on the goal. scoreGame below uses it, and so do the screens that tell a player what
+// the score is at the start (nothing earned: `scoreFrom(vp, {})`): the one arithmetic.
+export function scoreFrom(vp, e = {}) {
     let total = 0;
     const rows = CATS.map(c => {
-        let diff = e[c] - need[c];
+        const need = (vp?.[c] ?? 0) * FACTORS[c], got = e[c] ?? 0;
+        let diff = got - need;
         if (diff < 0) diff *= 3;
         const basic = Math.floor(diff / FACTORS[c]);
-        const bonus = basic * (st.ch.vp[c] ?? 0);
+        const bonus = basic * (vp?.[c] ?? 0);
         total += basic + bonus;
-        return { cat: c, earned: e[c], need: need[c], diff, basic, bonus };
+        return { cat: c, earned: got, need, diff, basic, bonus };
     });
     return { total, rows, won: total >= 0, dead: false };
+}
+
+export function scoreGame(st, data) {
+    if (st.ch.gone && st.ch.goneScore) return { ...st.ch.goneScore };            // the character left the map: the score was fixed at that moment (R-21, 9.3.1a)
+    if (st.ch.dead) return { total: -100, dead: true, rows: [], won: false };
+    return scoreFrom(st.ch.vp, earned(st, data));
 }
 
 // The end of a game with several characters: every character is scored once, on his own targets (9.3.2), and each player's score is the average over his characters (10.E.4.6;

@@ -2,6 +2,7 @@
 import { defOf, nameOf, priceOf } from '../../../engine/catalogue.js';
 import { CATS, FACTORS } from '../../../engine/catalogue.js';
 import { ask } from '../../ask.js';
+import { howWin } from '../../howwin.js';
 import { collect as collectReport, send as sendReport } from '../../bugreport.js';
 import { h } from '../../dom.js';
 import { SPELLS_HOW } from '../../gametext.js';
@@ -113,7 +114,8 @@ export function scoreSheet(G) {
     };
     const rows = res.rows ?? [];
     const sign = n => (n > 0 ? `+${n}` : String(n));
-    const pr = sd.progress, over = gameOf(G.st, G.data).period === 'over';
+    const game = gameOf(G.st, G.data), pr = sd.progress, over = game.period === 'over';
+    const howVoiced = t => [h('span', { 'data-v': 'story' }, t.story), h('span', { 'data-v': 'detail' }, t.detail)];          // (the Story and Detail voices of the player's setting)
     const sumUp = c => { const r = rows.find(x => x.cat === c); return r ? `${sign(r.basic + r.bonus)} points if the game ended now` : ''; };
     const goalCard = g => {
         const r = rows.find(x => x.cat === g.cat);
@@ -161,7 +163,7 @@ export function scoreSheet(G) {
         ask(over ? `Final score: ${sign(res.total ?? -100)}${res.dead ? ' (dead characters score -100)' : (res.total >= 0 ? ': a win' : ': not enough')}`
             : res.dead ? 'You are dead: a dead character scores -100.' : `Score ${sign(res.total ?? 0)}. You have reached ${pr.met} of your ${pr.count} goals.`,
             over ? 'The game is over; this is how each goal finished.'
-                : 'You win if your total is zero or more when the game ends. Going past a goal earns bonus points; ending short of one costs points, counted three times over.'),
+                : res.dead ? null : howVoiced(howWin({ mode: game.mode, lastDay: game.lastDay, start: pr.count ? null : 0 }))),
         ...pr.goals.map(goalCard),
         ...idle.map(c => goalCard({ cat: c, earned: e[c] ?? 0, need: 0, vp: 0, frac: 0, idle: true })),          // (note 129: every goal is a section of its own, the ones with no points on them too)
         h('div', { class: 'scorerow2 ifnow' },

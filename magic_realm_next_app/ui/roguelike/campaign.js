@@ -13,7 +13,7 @@
 // the flat rewards above the fourth stage (6.7) and their higher targets (6.8) are NOT built.
 // Nothing here touches the DOM or the engine's states; the engine's own part is `newGame(data, { startStage, extraChits })` (engine/stages.js).
 import { chitId, MAX_STAGE, cardChits } from '../../engine/catalogue.js';
-import { spreadVp } from '../goalspread.js';
+import { spreadVp, fitSpread, validSpread } from '../goalspread.js';
 
 /** Days in a run, by the stage he plays at. Tunable: the bots (docs/design/roguelike/STAGE-SIM.md) found 28 days the band where survival is about 30 to 60 percent at stages 2 to 4, and stage 1 too deadly that long. */
 export const RUN_DAYS = { 1: 14, 2: 21, 3: 28, 4: 28 };
@@ -57,15 +57,29 @@ function settle(data, id, ids) {
 }
 
 // ---- the run that comes ----
-/** The run the character will play: his stage and extras, the length, the Victory Points (6.2) and their default spread. */
+/** The goals the player chose last time for this character (the record keeps one spread per character), or null. */
+export const lastGoals = (rec, id) => { const g = rec.characters?.[id]?.goals; return g && typeof g === 'object' ? g : null; };
+/** The run the character will play: the stage and extra chits, the length, the Victory Points (6.2) and the goals they start on. `goals` is the spread the run begins with unless the player changes it: the
+ * one chosen last time, fitted to this run's points (the total changes when the stage does), or the usual spread when nothing was chosen yet. `goalsFrom` says which: 'last' (the same as last time),
+ * 'fitted' (last time's, with points added or taken away to fit) or 'usual'. `usual` is the usual spread, whichever is the start. */
 export function runPlan(rec, id) {
-    const h = heroOf(rec, id), vp = targetVp(h.stage);
-    return { character: id, runNo: h.runs + 1, stage: h.stage, playStage: playStage(h.stage), extra: [...h.extra], days: runDays(h.stage), vp, goals: spreadVp(vp) };
+    const h = heroOf(rec, id), vp = targetVp(h.stage), usual = spreadVp(vp), last = lastGoals(rec, id), fit = last ? fitSpread(last, vp) : null;
+    const goalsFrom = !fit ? 'usual' : validSpread(last, vp) ? 'last' : 'fitted';
+    return { character: id, runNo: h.runs + 1, stage: h.stage, playStage: playStage(h.stage), extra: [...h.extra], days: runDays(h.stage), vp, goals: fit ?? usual, goalsFrom, usual, last: fit ? last : null };
 }
-/** The parameters of the game screen for his next run (a normal single-character game, plus the stage option and a `roguelike` tag the end screen and the History read). */
-export function runParams(rec, id, { seed, options } = {}) {
+/** The goals the player chose, kept for the character's next run. A spread that is not a whole spread of this run's points is refused (the record is left alone). */
+export function rememberGoals(rec, id, goals) {
     const p = runPlan(rec, id);
-    return { fresh: true, character: id, vp: p.goals, mode: 'month', lastDay: p.days, seed, options: options ? { ...options } : undefined, startStage: p.playStage, extraChits: p.extra,
+    if (!validSpread(goals, p.vp)) throw new Error(`goals must be a spread of exactly ${p.vp} victory points over the five goals, each 0 to 5`);
+    return { ...rec, characters: { ...rec.characters, [id]: { ...heroOf(rec, id), goals: { great: goals.great, spells: goals.spells, fame: goals.fame, notoriety: goals.notoriety, gold: goals.gold } } } };
+}
+/** The parameters of the game screen for the next run (a normal single-character game, plus the stage option and a `roguelike` tag the end screen and the History read). `goals` is the spread the
+ * player chose (it must be a whole spread of this run's points: anything else throws); without it the run begins on the plan's own goals. */
+export function runParams(rec, id, { seed, options, goals } = {}) {
+    const p = runPlan(rec, id);
+    if (goals && !validSpread(goals, p.vp)) throw new Error(`goals must be a spread of exactly ${p.vp} victory points over the five goals, each 0 to 5`);
+    const vp = goals ? { great: goals.great, spells: goals.spells, fame: goals.fame, notoriety: goals.notoriety, gold: goals.gold } : p.goals;
+    return { fresh: true, character: id, vp, mode: 'month', lastDay: p.days, seed, options: options ? { ...options } : undefined, startStage: p.playStage, extraChits: p.extra,
         roguelike: { character: id, runNo: p.runNo, stage: p.stage, extra: p.extra, days: p.days, vp: p.vp } };
 }
 
