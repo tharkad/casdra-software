@@ -4,7 +4,7 @@ import { nameOfClearing, numOf, tileName } from '../../../engine/catalogue.js';
 import { flyFacts, isCave, isMountain } from '../../combat/mapfeed.js';
 import { h } from '../../dom.js';
 import { FOLLOW_FIRST, followReason, playerOf as playerNameOf } from '../../meet.js';
-import { EDGE, actRefusal, canLeaveAt, destName, edgeIndex, planState } from '../../planlogic.js';
+import { EDGE, actRefusal, canLeaveAt, destName, edgeIndex, moveOptions, planState } from '../../planlogic.js';
 import { followPicker } from '../meetui.js';
 import { nameOf } from '../../../engine/catalogue.js';
 import { alertCardWhy, voiced, weaponCardOf } from '../../commit.js';
@@ -332,6 +332,8 @@ function startButton(G, nextTo) {
 // Out on the road after running away, the first phase is not a choice: it is a Move to one of the road's two ends (rule 8.3.8). The plan starts with it filled in
 // and it cannot be cleared or turned into anything else; only which end can be changed.
 function roadLocked(G, i) { return !!ownSheet(G.st, G.data).onRoad && i === 0; }
+// Where a Move off the road may go: the two ends of the road, or (solitaire, not on the map yet) the clearings of the edge he may enter at (the engine's moveOptions)
+const roadEnds = G => [...new Set(moveOptions(G.st, G.data, [], 0).sure)];
 
 // Fly: the tile is chosen on the map (a ring on each tile he may fly over) or by the chip fallback; the day goes on to the next phase.
 export function setFly(G, i, t) { G.ui.draft.slots[i] = flySlot(G, i, t); G.ui.pickFly = null; G.ui.planNote = null; advance(G, i + 1); render(G); }
@@ -352,7 +354,7 @@ export function newDraft(G) {
 // Choosing which end of the road to go to (8.3.8d.1: "if he moves to a mountain clearing he must use two Move phases to move"). The Move to it is phase 1; a mountain end is a climb of two Moves in a row,
 // so phase 2 is the same Move, fixed. The other end's second Move is let go (it used to stay behind as a Move to the end he was no longer going to: note 67, a plan that lost its day).
 export function setRoadEnd(G, d, id) {
-    const r = ownSheet(G.st, G.data).onRoad, ends = [r?.from, r?.to];
+    const r = ownSheet(G.st, G.data).onRoad, ends = r?.entry ? roadEnds(G) : [r?.from, r?.to];
     if (climbLocked(G, 1) || (d.slots[1]?.act === 'move' && ends.includes(d.slots[1].to))) d.slots[1] = null;          // the second half of the climb chosen before
     d.slots[0] = { act: 'move', to: id };
     G.ui.planNote = null; G.ui.pickMove = null;
@@ -369,6 +371,13 @@ export function setRoadEnd(G, d, id) {
 // The lock box says what the Move costs before he commits to it: a mountain end takes two Move phases (both fixed), any other end one.
 function roadLockBox(G, d) {
     const r = ownSheet(G.st, G.data).onRoad, cur = d.slots[0]?.to, mt = id => isMountain(G.st, G.data, id), climb = !!cur && mt(cur);
+    if (r.entry) {          // solitaire (10.E.1.6): he stands on the road at the edge of the map and his first activity is a Move onto it, along any road from the edge to the Borderland (a new character: the same road as the first)
+        const ends = roadEnds(G), one = ends.length === 1;
+        return h('div', { class: 'roadlock', 'data-entry': String(ends.length) },
+            h('div', { class: 'ds-lockbox', role: 'note', 'data-roadlock': 'entry' }, icon('lock'), h('span', {}, `Fixed: you are at the edge of the map. Your first activity must be a Move onto it, ${one ? 'along the road the first of you came by' : 'along any road that runs from the edge to the Borderland'}.${cur && mt(cur) ? ` ${nb(nameOfClearing(cur))} is a mountain: climbing it takes two Move phases in a row, so phases 1 and 2 are both fixed.` : ''}`)),
+            h('div', { class: 'row2', style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px' }, ...ends.map(id => h('button', { type: 'button', class: `ds-btn${cur === id ? ' primary' : ''}`, 'data-road-end': id, 'data-phases': mt(id) ? '2' : '1', 'aria-pressed': cur === id ? 'true' : 'false', onclick: () => { setRoadEnd(G, d, id); render(G); } },
+                `${nb(nameOfClearing(id))}${mt(id) ? ' \u00B7 mountain' : ''}`))));
+    }
     if (r.forest || r.from === r.to) {          // 7.10.4d.2: his road vanished as the tile turned over: he stands in the forest and the only way out is back to the clearing he ran from (one end, not two)
         const id = r.from, hill = mt(id);
         return h('div', { class: 'roadlock', 'data-forest': id },
@@ -431,7 +440,7 @@ export function setMove(G, i, to) {
         advance(G, i + 1); render(G); return;
     }
     G.ui.leaveMapAsk = null;
-    if (roadLocked(G, i) && to !== ownSheet(G.st, G.data).onRoad.from && to !== ownSheet(G.st, G.data).onRoad.to) return;
+    if (roadLocked(G, i) && !roadEnds(G).includes(to)) return;
     if (climbLocked(G, i + 1)) d.slots[i + 1] = null;                      // a changed Move takes the second half of its old climb with it
     d.slots[i] = { act: 'move', to };
     // a mountain takes two moves in a row: fill the next phase with the same move

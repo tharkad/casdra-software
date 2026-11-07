@@ -22,6 +22,7 @@ export function summarize(st) {
         result, score: st.score?.total ?? null, won: st.score?.won ?? null, rows: st.score?.rows ?? null, deaths: st.deaths ?? 0,
         fame: st.ch?.fame ?? 0, notoriety: st.ch?.notoriety ?? 0, gold: st.ch?.gold ?? 0, items: (st.ch?.items ?? []).filter(i => !i.destroyed).length,
         vp: st.ch?.vp ?? null, options: st.options ?? null,
+        ...(st.options?.openScoring && st.ch?.growth ? { growth: { points: st.ch.growth.hw - st.ch.growth.base, chits: [...st.ch.growth.chits] } } : {}),          // (open scoring: the points gained and the chits taken, for the History)
         kills: s.kills ?? 0, combats: s.combats ?? 0, rounds: s.rounds ?? 0, woundsTaken: s.woundsTaken ?? 0, looted: s.looted ?? 0, sitesDiscovered: s.sitesDiscovered ?? 0,
         armorDamaged: s.armorDamaged ?? 0, armorDestroyed: s.armorDestroyed ?? 0, ran: s['combat.ran'] ?? 0, logLines: st.log?.length ?? 0, stats: s,
     };

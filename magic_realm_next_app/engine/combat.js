@@ -412,10 +412,18 @@ function berserkChits(st, slowest) {
 // His vulnerability: his weight, raised to Tremendous for the rest of the day once the Berserk chit is played
 const heroVuln = st => (st.ch.berserk ? 'T' : st.ch.weight);
 
+// Optional rule 10.A.6.7: asked to play a chit that a Light or a Great Elf cannot play, the engine says why (such a chit still pays for fatigue and wounds).
+export function refuseUnplayable(st, id) {
+    const x = id != null ? st.ch.chits.find(c => c.id === id && c.unplayable) : null;
+    if (!x) return;
+    refuse('chit.unplayable', `${st.ch.elfKind === 'great' ? 'A Great Elf cannot play the MOVE L2* chit' : 'A Light Elf cannot play the Medium Fight and Move chits'}: it can only pay for fatigue and wounds.`, { chit: id, elfKind: st.ch.elfKind }, '10.A.6.7');
+}
+
 function activeChits(st, type, data) {
     // A hero who is a creature (Absorb Essence, Transform) plays dummy chits made from its counter and nothing of his own (RS CharacterWrapper:4950: only colour chits remain)
     if (st.ch.morph) return morphChits(st, type).filter(x => !st.combat.played?.['morph:' + x.type]);
-    let real = st.ch.chits.filter(x => x.state === 'active' && (!type || x.type === type));
+    // (optional rule 10.A.6.7: the chits a Light or a Great Elf cannot play are `unplayable`; they still pay for fatigue and wounds, which read the sheet, not this list)
+    let real = st.ch.chits.filter(x => x.state === 'active' && !x.unplayable && (!type || x.type === type));
     // Elven Grace: each Move chit's strength is its time number (the chits themselves are unchanged)
     if (st.fx?.length && fxTags(st, HERO, 'moveBySize').length) real = real.map(x => (x.type === 'move' ? { ...x, time: SIZE_TIME[x.strength] ?? x.time } : x));
     // Unleash Power: a transformed Magic chit is both a Move chit and a Fight chit (one play a round: both share the chit's id)
@@ -679,6 +687,7 @@ export function encounterAction(st, data, a) {
     }
     const opt = encounterOptions(st, data);
     if (st.ch.mist && a.act !== 'run' && a.act !== 'pass') throw new Error('As mist you take no part in the fight: the only chit you can play is a Move chit, to run away (8.4.5p.1)');
+    if (a.act === 'alert' || a.act === 'run') refuseUnplayable(st, a.chit);
     if (a.act === 'cast') {
         if (!isOffered(opt.casts, a)) throw new Error('you cannot cast that now: a Magic chit must be no slower than the fastest creature facing you');       // (8.3.7a.2: the same list the screen shows)
         castSpell(st, data, a.spell, a.chit, a.item);
@@ -969,6 +978,7 @@ export function meleeSetup(st, data, p) {
     if (gone(p.moveChit, [...o.moveChits, ...o.duckChits], [...o2.moveChits, ...o2.duckChits])) { log(`Your play of the Move chit is cancelled: the spell forbids it (4.6.10a).`, null, { ev: { code: 'play.cancelled', who: st.ch.id, play: 'move', why: 'spell' } }); p = { ...p, moveChit: null }; }
     let fight = null, move = null;
     const cancelled = [];          // (plays cancelled as illegal: 8.4.5g)
+    refuseUnplayable(st, p.fightChit); refuseUnplayable(st, p.moveChit);
     if (p.fightChit) {
         fight = o2.fightChits.find(x => x.id === p.fightChit);
         if (!fight) throw new Error('that Fight chit is not available');

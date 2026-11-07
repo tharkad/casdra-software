@@ -3,6 +3,7 @@
 import { roadsFrom, isMountain, isCave, mapEdgeClearings, clearingType } from './world.js';
 import { planKinds } from './day.js';
 import { MORPH_REFUSED } from './magic/morph.js';
+import { roadEnds } from './solitaire.js';
 
 export const EDGE = 'Edge';
 
@@ -34,8 +35,9 @@ export function canLeaveAt(st, data, slots, i) {
 // plan Searches at one of their ends, so they may be found by then (6.2.4e: an activity that may be impossible can be recorded in hope; it is cancelled if it still is when its turn comes).
 // Caves are left out of a sunlight phase (6.2.2b, 7.3.1c.2); a climb already begun offers only its mountain.
 export function moveOptions(st, data, slots, i) {
-    if (st.ch.onRoad && i === 0) return { sure: [st.ch.onRoad.from, st.ch.onRoad.to], maybe: [] };
+    if (st.ch.onRoad && i === 0) return { sure: roadEnds(st, data, st.ch.onRoad), maybe: [] };
     const { at, climbing } = planState(st, data, slots), from = at[i];
+    if (!from && st.ch.onRoad?.entry) return { sure: climbing[i] ? [climbing[i]] : roadEnds(st, data, st.ch.onRoad), maybe: [] };          // (10.E.1.6: not on the map yet: the clearings he may enter at, or the mountain he is half way up)
     if (!from) return { sure: [], maybe: [] };
     const roads = roadsFrom(st, data, from);
     if (climbing[i]) return { sure: roads.filter(r => r.usable && r.to === climbing[i]).map(r => r.to), maybe: [] };

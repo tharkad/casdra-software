@@ -11,6 +11,7 @@ import { hasCurse, liftCursesAtChapel } from './effects.js';
 import { tell } from './story.js';
 import { runesTargets, readRunes, learnSpell } from './runes.js';
 import { restartAfterDeath, restartChar } from './setup.js';
+import { abilityOn } from './abilities.js';
 import { activeHorse } from './items.js';
 import { extraActs, hasTreasure, noSunlight, oneDie, locateMod, modRoll, modNote } from './modifiers.js';
 import { beginTrade, tradeAction } from './trade.js';
@@ -29,11 +30,13 @@ import { planFlyError, canRecordFly, hasCarpet, CARPET_DRY, flySources, flyTiles
 import { ownedGold } from './magic/mist.js';
 import { resolveWho, settleActor, ownerOf, withActor, isMulti as multi, livingIds, playerNameOf } from './party.js';
 import * as meet from './meet.js';
+import * as growth from './growth.js';
 import { chooseSource, canFollowFlier } from './steeds.js';
 import * as hs from './hirestate.js';
 import * as leaders from './leaders.js';
 import * as missions from './missions.js';
 import { lullAll, wakeAll, fallAsleep } from './flowers.js';
+import { prowlRows, rowProwls, rowsWords, roadEnds, enteredAt } from './solitaire.js';
 
 // The day loop (rules digest 01 section 4): Birdsong plan, Sunrise, Daylight phases, Sunset, Evening combat, Midnight.
 // A game is a plain object; apply(state, data, action) returns the next state and never mutates its input.
@@ -231,6 +234,10 @@ export function planKinds(st, data, slots) {
 export function validatePlan(st, data, slots, strict = false) {          // strict: the warnings count as errors (the computer players never record a phase they know will be lost)
     const v = planKinds(st, data, slots);
     const warnings = [];
+    if (st.ch.onRoad?.entry) {          // 10.E.1.6: until he is on the map his first activity must be a Move onto it
+        const first = slots.findIndex(x => x && x.act !== 'nothing');
+        if (first >= 0 && slots[first].act !== 'move') v.errors.push(`Phase ${first + 1}: your first activity must be a Move onto the map (10.E.1.6).`);
+    }
     slots.forEach((s, i) => {
         if (!s) return;
         if (s.act === 'fly' && s.to) { const e = planFlyError(st, data, slots, i); if (e) warnings.push({ i, text: `Phase ${i + 1}: ${e}` }); }
@@ -294,14 +301,34 @@ function sunrise(st, data) {
     const table = multi(st) ? { who: null } : null;              // (a line or a roll of the whole table belongs to no one character)
     st.period = 'sunrise';
     st.prowl = die(st, 'day.prowl');
+    if (st.options?.solitaire) return sunriseSolitaire(st, data, table);          // two rows prowl (10.E.1.7)
     noteRoll(st, 'Monster roll', [st.prowl], st.prowl, `row ${st.prowl} prowls today`, null, { ...table, ev: { code: 'roll.made', what: 'day.prowl', result: `row-${st.prowl}` } });
     st.rolls.at(-1).tale = tell.wilds(st, data);                       // the story voice says what prowls, not which row
     const magic = dayColors(st.day, st.lastDay ?? 28), week = st.day % 7 === 0 ? regenerate(st, data) : null;
     say(st, `Dawn of day ${st.day}: row ${st.prowl} prowls.${magic.length ? ` The land is filled with ${magic.join(' and ')} magic until midnight.` : ''}`, 'day', tell.dawn(st, data, { magic }), { ...table, ev: { code: 'day.prowl', row: st.prowl } });
     if (week) say(st, `Regeneration: row ${st.prowl} creatures return to their homes.`, 'day', tell.weekEnd(st, data, week), { ...table, ev: { code: 'day.regenerate', row: st.prowl } });
+    return afterDawn(st, data);
+}
+// The rest of the sunrise, the same with one row or two: the sleepers, the draw of the chits, the first turn.
+function afterDawn(st, data) {
     lullAll(st, data);                       // Daylight begins: an active Flowers of Rest puts whoever stands by it to sleep (flowers.js)
     if (multi(st)) { const { gone } = meet.declareFollows(st); drawChits(st, gone); return nextTurn(st, data); }
     beginTurn(st, data);
+}
+// Solitaire (10.E.1.7): the player rolls twice at Sunrise and puts a Monster Roll chit in each row rolled; on doubles both chits go in the same row and that is the only row that prowls.
+// The first die is `day.prowl` (rolled by sunrise), the second `day.prowl2`. `st.prowl` is the first row and `st.prowl2` the second, set only when it is another row.
+function sunriseSolitaire(st, data, table) {
+    const second = die(st, 'day.prowl2');
+    if (second === st.prowl) delete st.prowl2; else st.prowl2 = second;
+    const again = second === st.prowl;
+    noteRoll(st, 'Monster roll', [st.prowl], st.prowl, `row ${st.prowl} prowls today`, null, { ...table, ev: { code: 'roll.made', what: 'day.prowl', result: `row-${st.prowl}` } });
+    noteRoll(st, 'Second Monster roll', [second], second, again ? 'a double: both chits are in the same row, the only row that prowls' : `row ${second} prowls today too`, null, { ...table, ev: { code: 'roll.made', what: 'day.prowl2', result: `row-${second}` } });
+    st.rolls.at(-1).tale = tell.wilds(st, data);                       // (the story voice says what prowls, not which rows)
+    const magic = dayColors(st.day, st.lastDay ?? 28), week = st.day % 7 === 0 ? regenerate(st, data) : null;
+    say(st, `Dawn of day ${st.day}: ${again ? `row ${st.prowl} prowls (a double: both Monster Roll chits are in the same row)` : `${rowsWords(st)} prowl`}.${magic.length ? ` The land is filled with ${magic.join(' and ')} magic until midnight.` : ''}`, 'day', tell.dawn(st, data, { magic }), { ...table, ev: { code: 'day.prowl', row: st.prowl } });
+    if (st.prowl2) say(st, `The second Monster Roll chit is in row ${st.prowl2}: it prowls too.`, 'day', null, { ...table, ev: { code: 'day.prowl-second', row: st.prowl2 } });
+    if (week) say(st, `Regeneration: ${rowsWords(st)} creatures return to their homes.`, 'day', tell.weekEnd(st, data, week), { ...table, ev: { code: 'day.regenerate', row: st.prowl } });
+    return afterDawn(st, data);
 }
 
 // His chit is drawn and his turn begins: he is no longer hidden (7.1.2: a character becomes unhidden when his own chit is drawn; so on day 1 everyone is, in turn).
@@ -310,6 +337,7 @@ function beginTurn(st, data) {
     st.ch.hidden = false;
     st.period = 'daylight';
     st.turn = { i: 0, climb: null, blocked: false, results: [], movedHere: null, auto: false, base: st.planBase ?? 4, kinds: st.planKinds ?? null };
+    if (abilityOn(st, 'wizard')) st.turn.enchants = 1;          // optional rule 10.A.6.5: the Wizard enchants on every Enchant phase, so the meditation (7.10.1) is already done: his first Enchant phase is the second of the count
     if (companionsOf(st).length) runCompanionTurns(st, data);          // a Phantasm takes its turn just before the hero
     if (st.planFree) {
         st.turn.pro = startPro(st, data); st.turn.kinds = [];
@@ -428,16 +456,16 @@ function regenerate(st, data) {
         const def = data.monsters[m.id];
         if (m.hired || m.absorbed) continue;                // (an absorbed monster is out of play inside a spell)
         if (def.family === 'Ghost') { if (m.loc?.c !== st.ghostsAt || m.dead) { m.loc = { c: st.ghostsAt }; if (m.dead) revived.push(def.name); m.dead = false; back++; ghosts = true; } continue; }
-        if (def.homeRow !== st.prowl) continue;
+        if (!rowProwls(st, def.homeRow)) continue;
         if (m.loc?.c || m.dead) { m.loc = { box: def.homeBox }; if (m.dead) revived.push(def.name); m.dead = false; back++; }
     }
     for (const n of st.nats) {
         const def = data.natives[n.id], g = data.groups[def.group];
-        if (n.hired || g.homeRow !== st.prowl) continue;
+        if (n.hired || !rowProwls(st, g.homeRow)) continue;
         if (n.dead || n.loc?.c) {
             if (n.dead) revived.push(def.name ?? n.id);
             n.dead = false; n.horseDead = false;
-            n.loc = g.garrison ? { c: st.garrisonAt[g.garrison] } : { box: g.id };
+            n.loc = g.garrison && st.garrisonAt[g.garrison] ? { c: st.garrisonAt[g.garrison] } : { box: g.id };          // (a Dwelling whose chit is still face down, solitaire: the natives are still off the map)
             back++;
         }
     }
@@ -860,7 +888,8 @@ function midnight(st, data) {
         st.ch.wishStrength = null;                          // a Wish of Strength not used today is lost
         st.companions = [];
         for (const it of st.ch.items) if (it.kind === 'weapon') it.alerted = false;
-        for (const c of st.ch.chits) if (c.alerted) { c.alerted = false; if (c.state === 'active') c.state = 'fatigued'; }          // an alerted Magic chit that was not used tires at Midnight
+        const keepsReady = abilityOn(st, 'magician');          // optional rule 10.A.6.4: the Magician's alerted Magic chits do not fatigue at Midnight, they only become unprepared
+        for (const c of st.ch.chits) if (c.alerted) { c.alerted = false; if (c.state === 'active' && !keepsReady) c.state = 'fatigued'; }          // an alerted Magic chit that was not used tires at Midnight
     });
     // The Midnight housekeeping is for a game that goes on (rule 8.9.2): at the last Midnight nothing is returned and no curse is lifted before the score is worked out.
     const ending = gameEnds(st, data);
@@ -959,10 +988,10 @@ function executeSlot(st, data, slot, i) {
     const here = st.ch.at;
     if (t.kinds?.[i] === 'lantern' && !(here && !st.ch.onRoad && isCave(st, data, here))) { t.climb = null; return 'The Shielded Lantern\'s phase needs a cave clearing and you are not in one: the activity is cancelled.'; }
     if (t.kinds?.[i] === 'blazing' && here !== st.planBlazing) { t.climb = null; return 'You have left the Blazing Light behind: the extra phase is lost.'; }
-    if (st.ch.onRoad && !(slot.act === 'move' && (slot.to === st.ch.onRoad.from || slot.to === st.ch.onRoad.to))) {
+    if (st.ch.onRoad && !(slot.act === 'move' && roadEnds(st, data, st.ch.onRoad).includes(slot.to))) {
         // He is still out on a road; only a Move to one of its ends gets him anywhere.
         t.climb = null;
-        return 'You are still on the road and cannot do that.';
+        return st.ch.onRoad.entry ? (slot.act === 'move' ? 'There is no road onto the map to that clearing: the move is lost.' : 'You have not entered the map yet: your first activity must be a Move onto it (10.E.1.6).') : 'You are still on the road and cannot do that.';
     }
     if (st.ch.morph && MORPH_REFUSED[slot.act]) { t.climb = null; return MORPH_REFUSED[slot.act]; }          // as a creature he can only move, hide, search and alert
     // 7.3.3e (with ruling S6, record and cancel): "If a character is transmorphized into a flying monster or creature, he must use the Fly activity instead of the Move activity."
@@ -1032,9 +1061,10 @@ function doMove(st, data, slot) {
     let to = slot.to;
     if (st.ch.onRoad) {
         const r = st.ch.onRoad;
-        if (to !== r.from && to !== r.to) return 'You cannot reach that from the road.';
+        if (!roadEnds(st, data, r).includes(to)) return r.entry ? 'There is no road onto the map there.' : 'You cannot reach that from the road.';
         if (isMountain(st, data, to) && t.climb !== to) { t.climb = to; return `You begin the climb toward ${nameOfClearing(to)}.`; }
-        st.ch.arrivedFrom = r.forest ? null : to === r.to ? r.from : r.to; st.ch.at = to; st.ch.onRoad = null; t.climb = null;          // (out of the forest he came by no road: nothing holds his running back, 7.10.4d.2)
+        st.ch.arrivedFrom = r.forest || r.entry ? null : to === r.to ? r.from : r.to; st.ch.at = to; st.ch.onRoad = null; t.climb = null;
+        if (r.entry) enteredAt(st, to);          // 10.E.1.6: he is on the map; a new character after a death enters along the same roadway          // (out of the forest he came by no road: nothing holds his running back, 7.10.4d.2)
         followHero(st, data);
         return arrive(st, data, to);
     }
@@ -1261,6 +1291,7 @@ export function apply(st0, data, action) {
     leaders.afterStep(st, data);                                        // (hireling rules: the counter of a leader follows his seat, his Fame and Notoriety are the hirer's)
     hs.sync(st, data);                                                  // (hireling rules: hidden status and the side of the counters follow what the action did)
     leaders.unalias(st);
+    growth.tick(st, data);                                              // (open scoring: the points every character holds now; growth.js. Nothing without the option)
     settleActor(st, who);
     return st;
 }
@@ -1268,6 +1299,7 @@ export function apply(st0, data, action) {
 function step(st, data, action) {
     if (action.type === 'meet') return meet.act(st, data, action);          // characters meeting: an offer, an answer, a policy (meet.js); anyone may, with or without a question
     if (action.type === 'hireling') return hs.act(st, data, action);        // assigning underlings to guides, letting them stay behind (hirestate.js); the hirer may, with or without a question
+    if (action.type === 'chit') return growth.act(st, data, action);        // open scoring: take the chit his points have earned (growth.js); a standing choice, so with or without a question
     const p = st.pending;
     if (multi(st) && st.offers && meet.openOffer(st, st.actor) && p) throw new Error(`wait: ${st.chars[meet.openOffer(st, st.actor).to].name} has not answered your offer yet (withdraw it to go on)`);
     if (!p) refuse('question.none', multi(st) ? `${st.ch.name} has nothing to answer now (it is not their turn, or the others are still to answer)` : 'nothing to do');

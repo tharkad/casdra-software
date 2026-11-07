@@ -60,8 +60,8 @@ function notices(G) {
 
 function wildsLine(G) {
     const g = gameOf(G.st, G.data), list = prowlers(G).join(', ') || 'no one stirs';
-    return h('div', { class: 'ds-ask' }, h('b', {}, isStory() ? 'The wilds stir' : `Monster roll ${g.prowl}`), h('span', {}, list),
-        g.day % 7 === 0 ? h('span', {}, isStory() ? 'The week turns: the creatures of the wilds are called home to where they began, the slain among them.' : `Week’s end: row ${g.prowl} was called back to where it began, the slain among them.`) : null);
+    return h('div', { class: 'ds-ask' }, h('b', {}, isStory() ? 'The wilds stir' : `Monster roll ${g.prowl}${g.prowl2 ? ` and ${g.prowl2}` : ''}`), h('span', {}, list),
+        g.day % 7 === 0 ? h('span', {}, isStory() ? 'The week turns: the creatures of the wilds are called home to where they began, the slain among them.' : `Week’s end: ${g.prowl2 ? `rows ${g.prowl} and ${g.prowl2} were` : `row ${g.prowl} was`} called back to where it began, the slain among them.`) : null);
 }
 
 // The found boxes (an item got, a curse, a site or a card found): the Journal lists what is new; the result card (result_card.js) shows what the phase just played brought.

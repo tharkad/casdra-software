@@ -265,6 +265,9 @@ rule(/^The (.+?) is used up and returns to the (.+?)\.?$/, m => [`The ${place(m[
 // ---- curses
 rule(/^A curse falls on you: (\w[\w ]*?)\./, m => curseTale(m[1]));
 rule(/^(?:You are|(.+?) is) shielded from magic: the (?:(\w[\w ]*?) )?curse (?:finds nothing to hold on to|has no hold)/, () => 'The curse finds nothing to hold: you are shielded from magic.');
+rule(/^(?:You are|(.+?) is) untouched by curses: the curse finds nothing to hold on to/, m => (m[1] ? `The curse finds nothing to hold: ${m[1]} is untouched by curses.` : ['The curse finds nothing to hold: you are untouched by curses.', 'The curse slides off you. You are untouched by curses.']));          // (optional rule 10.A.6.3: the Druid is immune)
+rule(/^Curse: nothing \(.+?\) on you\.?$/, () => 'The curse finds nothing to hold.');
+rule(/^Curse: nothing \(.+?\) on (.+?)\.?$/, m => `The curse finds nothing to hold on ${m[1]}.`);
 rule(/^You already bear the (.+?) curse/, m => `The ${m[1]} curse is on you already.`);
 rule(/^The Chapel lifts your curses/, () => ['The Chapel lifts your curses.', 'Prayer in the Chapel lifts every curse from you.']);
 rule(/^Curse: (\w[\w ]*?) on you\.?$/, m => curseTale(m[1]));

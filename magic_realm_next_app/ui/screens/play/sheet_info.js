@@ -8,10 +8,12 @@ import { h } from '../../dom.js';
 import { SPELLS_HOW } from '../../gametext.js';
 import { markable } from '../../table.js';
 import { VERSION } from '../../version.js';
+import { thisGame } from '../../modes.js';
 import { abandon, copyInvite } from './actions.js';
 import { modal, mrChit, picOf } from './kit.js';
 import { calendarSheet as buildCalendar } from './sheet_calendar.js';
 import { render } from './shell.js';
+import { growthNow, growthSheet } from './growth.js';
 import { persist } from './state.js';
 import { SUICIDE_NOT_NOW, suicideOk } from './suicide.js';
 import { ownSheet, gameOf, standingOf, questionOf } from '../../combat/feed.js';
@@ -64,7 +66,7 @@ export function menuSheet(G) {
         ...(G.shared || G.race ? [] : [suicideOk(G)
             ? row('End this adventure', 'Your character leaves; a new one arrives after a day sat out', () => { G.ui.sheet = 'confirm-suicide'; render(G); }, { act: 'menu-suicide', danger: true })
             : row('End this adventure', SUICIDE_NOT_NOW, () => { G.ui.toast = SUICIDE_NOT_NOW; G.ui.toastWhy = true; render(G); clearTimeout(G.ui.toastTimer); G.ui.toastTimer = setTimeout(() => { G.ui.toast = null; G.ui.toastWhy = false; render(G); }, 2600); }, { act: 'menu-suicide', dim: true })]),
-        row(G.shared ? 'Put the game down (it waits for you on the server)' : G.race ? 'Leave the race (your game stays on the server)' : 'Abandon this game', null, G.race || G.shared ? () => abandon(G) : () => { G.ui.sheet = 'confirm-abandon'; render(G); }, { danger: true })),
+        row(G.shared ? 'Put the game down (it waits for you on the server)' : G.race ? 'Leave the race (your game stays on the server)' : `Abandon ${thisGame(G.rec?.params)}`, null, G.race || G.shared ? () => abandon(G) : () => { G.ui.sheet = 'confirm-abandon'; render(G); }, { danger: true })),
         { close: () => { G.ui.sheet = null; render(G); } });
 }
 
@@ -102,6 +104,8 @@ export function bugSheet(G) {
 }
 
 export function scoreSheet(G) {
+    const gr = growthNow(G);          // open scoring: there are no goals to show; the Growth sheet takes the place of this one
+    if (gr) return growthSheet(G, gr);
     const sd = standingOf(G.st, G.data), res = sd.score, e = sd.earned, need = sd.targets, vp = ownSheet(G.st, G.data).vp ?? {};
     const NAME = { great: 'Great Treasures', spells: 'Spells', fame: 'Fame', notoriety: 'Notoriety', gold: 'Gold' };
     const belong = (key) => ownSheet(G.st, G.data).items.filter(i => !i.destroyed).map(i => { const d = defOf(G.data, i); const t = i.card ? G.data.treasures[i.card] : d; return { name: nameOf(G.data, i), v: (t?.[key] ?? d?.[key] ?? 0) }; }).filter(x => x.v);

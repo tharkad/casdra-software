@@ -10,7 +10,7 @@ const answers = (box, chit, letter) => (box.summonedBy ?? []).some(s => s.chit =
  * @param data  the game data (appearance chart, monsters, tile)
  * @param chit  a map chit { kind: 'sound' | 'warning', name, letter? }
  * @param tile  the tile the chit lies on (a sound chit with a letter answers only on a tile of that letter: M mountains, C caves)
- * @param prowl today's Monster Roll (marks the row of today), or null
+ * @param prowl today's Monster Roll (marks the row of today), or null; a list of rows when two prowl (solitaire)
  * @returns [{ row, today, names: [{ name, n }] }] one entry per row of the chart that holds a box for it, in row order; `n` is how many one call brings
  */
 export function callsOf(data, chit, tile, prowl = null) {
@@ -23,7 +23,7 @@ export function callsOf(data, chit, tile, prowl = null) {
             for (const id of b.monsters) { const nm = data.monsters?.[id]?.name; if (nm) here.set(nm, (here.get(nm) ?? 0) + 1); }
             for (const [nm, n] of here) names.set(nm, Math.max(names.get(nm) ?? 0, n));
         }
-        if (names.size) out.push({ row: r.row, today: prowl != null && r.row === prowl, names: [...names].map(([name, n]) => ({ name, n })) });
+        if (names.size) out.push({ row: r.row, today: prowl != null && [].concat(prowl).includes(r.row), names: [...names].map(([name, n]) => ({ name, n })) });
     }
     return out;
 }

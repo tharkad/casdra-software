@@ -73,15 +73,16 @@ export function scoreParty(st, data) {
         chars[id] = { ...withActor(st, id, () => scoreGame(st, data)), id, name: c.name, owner: c.owner, life: c.life ?? 1 };
         if (c.gone) chars[id].gone = c.gone.day;                    // (left the map on this day: his score is the one he had then)
     }
+    const solo = !!st.options?.solitaire;
     const players = st.players.map(p => {
         const total = p.chars.reduce((a, id) => a + chars[id].total, 0) / p.chars.length;
-        return { id: p.id, name: p.name, chars: p.chars.slice(), total, won: total >= 0 };
+        return { id: p.id, name: p.name, chars: p.chars.slice(), total, won: solo ? p.chars.every(id => chars[id].total >= 0) : total >= 0 };          // (solitaire, 10.E.1.4.2: the player wins only if every one of his characters does; `total` stays the average, for display)
     });
     const best = Math.max(...players.map(p => p.total)), bestChar = Math.max(...st.order.map(id => chars[id].total));
     // places: the best score is first and equals share a place (R-19: a tie is a shared victory, no tiebreak); the next place is the number of players ahead plus one
     for (const p of players) { p.rank = 1 + players.filter(o => o.total > p.total).length; p.victor = p.total === best; }
     const victors = players.filter(p => p.victor).map(p => p.id);
-    return { multi: true, total: best, won: best >= 0, rows: [], dead: false, chars, players, victors, tie: victors.length > 1, reason: st.over?.reason ?? 'finished', leaders: st.order.filter(id => chars[id].total === bestChar) };
+    return { multi: true, total: best, won: solo ? players.some(p => p.victor && p.won) : best >= 0, rows: [], dead: false, chars, players, victors, tie: victors.length > 1, reason: st.over?.reason ?? 'finished', leaders: st.order.filter(id => chars[id].total === bestChar) };
 }
 
 // How far along he is toward the goals he chose, weighted by the victory points he put on each (0..100). Only for display.

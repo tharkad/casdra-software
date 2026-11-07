@@ -4,6 +4,7 @@
 import { h } from '../../dom.js';
 import { ownSheet, gameOf, questionOf } from '../../combat/feed.js';
 import { timed } from '../../gametext.js';
+import { thisGame } from '../../modes.js';
 import { HELP } from '../info.js';
 import { abandon, act } from './actions.js';
 import { suicideOk } from './suicide.js';
@@ -50,11 +51,11 @@ export const tablesSheet = G => {
 
 export const cardSheet = G => modal(G, ownSheet(G.st, G.data).name, h('div', {}, G.data.art?.cards?.[ownSheet(G.st, G.data).id] ? h('img', { class: 'cardpic', src: G.data.art.cards[ownSheet(G.st, G.data).id], alt: 'Character card' }) : h('p', {}, 'No card picture.')), { close: () => { G.ui.sheet = 'char'; render(G); } });
 
-export const abandonSheet = G => modal(G, 'Abandon this game?', h('div', { class: 'confirmbox' },
+export const abandonSheet = G => modal(G, `Abandon ${thisGame(G.rec?.params)}?`, h('div', { class: 'confirmbox' },
     h('p', {}, `${G.st.ch?.name ?? 'Your hero'} is on day ${gameOf(G.st, G.data).day}${timed(gameOf(G.st, G.data)) ? ` of ${gameOf(G.st, G.data).lastDay ?? 28}` : ''}, with ${G.st.ch?.gold ?? 0} gold, ${G.st.ch?.fame ?? 0} Fame and ${G.st.ch?.notoriety ?? 0} Notoriety.`),
-    h('p', { class: 'hint bad' }, 'Abandoning ends this adventure for good. It stays in History as abandoned, but it cannot be picked up again.')),
+    h('p', { class: 'hint bad' }, `Abandoning ends ${thisGame(G.rec?.params)} for good. It stays in History as abandoned, but it cannot be picked up again.`)),
     { close: () => { G.ui.sheet = null; render(G); }, bare: true, footer: h('div', { class: 'ds-opt-foot' },
-        h('button', { type: 'button', class: 'ds-btn danger', 'data-act': 'confirm-abandon', onclick: () => abandon(G) }, 'Abandon this game'),
+        h('button', { type: 'button', class: 'ds-btn danger', 'data-act': 'confirm-abandon', onclick: () => abandon(G) }, `Abandon ${thisGame(G.rec?.params)}`),
         h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'keep-playing', onclick: () => { G.ui.sheet = null; render(G); } }, 'Keep playing')) });
 
 // Ending his own adventure (rules 8.9.4, 9.2.2a): the engine's `suicide` action, offered where the day ends for him (the evening-end question) and at the Birdsong plan. It is NOT Abandon: the game

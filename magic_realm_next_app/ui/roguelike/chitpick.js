@@ -6,10 +6,15 @@ import { chooseChits, pendingPool, saveRecord } from './campaign.js';
 
 const stars = n => (n ? '*'.repeat(n) : '');
 
+/** The chit itself, drawn as in the Kit (kind, strength and time, the effort stars). */
+export function chitFace(chit, f = chitFacts(chit)) {
+    return h('span', { class: `ds-chit ${f.type}`, 'aria-hidden': 'true' }, h('span', {}, f.label, f.stars ? h('sup', {}, stars(f.stars)) : null), h('small', {}, f.kind.toUpperCase()));
+}
+
 /** One chit as a card: the chit itself (as in the Kit), the kind in words, strength, time and the effort stars. */
 export function chitCard(chit, { id = null, on = false, onclick = null } = {}) {
     const f = chitFacts(chit);
-    const face = h('span', { class: `ds-chit ${f.type}`, 'aria-hidden': 'true' }, h('span', {}, f.label, f.stars ? h('sup', {}, stars(f.stars)) : null), h('small', {}, f.kind.toUpperCase()));
+    const face = chitFace(chit, f);
     const body = h('span', { class: 'main' }, h('b', {}, `${f.kind} ${f.label}${f.stars ? ' ' + stars(f.stars) : ''}`), h('span', {}, f.line));
     return onclick ? h('button', { type: 'button', class: `rl-chit${on ? ' on' : ''}`, role: 'checkbox', 'aria-checked': on ? 'true' : 'false', 'data-chit': id, onclick }, face, body, h('span', { class: 'rl-tick', 'aria-hidden': 'true' }))
         : h('div', { class: 'rl-chit', 'data-chit': id }, face, body);

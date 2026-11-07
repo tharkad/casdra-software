@@ -14,6 +14,7 @@ import { initNotes } from './notes.js';
 import { initDs } from './ds.js';
 import { applyFit, initFit } from './fit.js';
 import { initKeys } from './keys.js';
+import { modeName } from './modes.js';
 
 // A very small router: the app is a stack of full-screen views. Each screen is a function (ctx) -> element.
 const app = document.getElementById('app');
@@ -28,7 +29,7 @@ const ctx = {
 function render() {
     if (ctx.screen === 'title') {
         const s = loadSaved();
-        ctx.saved = s && s.period !== 'over' ? [{ id: 'auto', character: s.ch.name, characters: (s.order ?? []).map(id => s.chars?.[id]?.name).filter(Boolean), day: s.day, period: s.period, gold: s.ch.gold, mode: s.mode, lastDay: s.lastDay, roguelike: !!s.session?.params?.roguelike }] : [];
+        ctx.saved = s && s.period !== 'over' ? [{ id: 'auto', character: s.ch.name, characters: (s.order ?? []).map(id => s.chars?.[id]?.name).filter(Boolean), day: s.day, period: s.period, gold: s.ch.gold, mode: s.mode, lastDay: s.lastDay, roguelike: !!s.session?.params?.roguelike, params: s.session?.params ?? null, kind: modeName(s.session?.params ?? s) }] : [];
     }
     clear(app);
     const make = SCREENS[ctx.screen] ?? SCREENS.title;

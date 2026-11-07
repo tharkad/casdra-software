@@ -216,6 +216,7 @@ svg.ico.kico.ki-colour { padding: 0; }
 .ds-chit.fight { --chit-kind: var(--chit-fight); } .ds-chit.move { --chit-kind: var(--chit-move); } .ds-chit.magic { --chit-kind: var(--chit-magic); } .ds-chit.duck { --chit-kind: var(--chit-move); } .ds-chit.berserk { --chit-kind: var(--chit-fight); }
 .ds-chit.on { border: 2px solid var(--gold); background: var(--gold-wash-2); transform: translateY(-3px); }
 .ds-chit.tired { opacity: .5; } .ds-chit.wounded { border-style: dashed; border-color: var(--danger); color: var(--danger); } .ds-chit.dim { opacity: .38; border-style: dashed; }
+.ds-chit.unplayable { border-style: dotted; opacity: .6; }
 .ds-chit.mini { width: 14px; height: 20px; border-radius: 4px; border-width: 1px; font-size: 0; } .ds-chit.mini::before { top: 0; left: 2px; right: 2px; height: 3px; }
 .ds-daypips { display: flex; gap: 3px; } .ds-daypips i { flex: 1; height: 6px; border-radius: 3px; background: var(--success); } .ds-daypips i.off { background: var(--line-1); } .ds-daypips.low i:not(.off) { background: var(--warn); }
 .ds-die { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; background: #efe6d0; color: #1d1a12; font: 700 calc(16px * var(--ts, 1))/1 var(--font-ui); box-shadow: inset 0 0 0 1.5px #c9b98f; }

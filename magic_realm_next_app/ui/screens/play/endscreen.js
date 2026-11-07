@@ -5,7 +5,7 @@
 import { CATS, FACTORS } from '../../../engine/catalogue.js';
 import { nameOfClearing } from '../../../engine/catalogue.js';
 import { ask } from '../../ask.js';
-import { gameOf, ownSheet, standingOf, viewOf } from '../../combat/feed.js';
+import { gameOf, growthOf, ownSheet, standingOf, viewOf } from '../../combat/feed.js';
 import { carriedGoals } from '../../restartgoals.js';
 import { h } from '../../dom.js';
 import { lastDayOf } from '../../gametext.js';
@@ -18,6 +18,7 @@ import { modal } from './kit.js';
 import { render } from './shell.js';
 import { clearSaved } from './state.js';
 import { campaignBlock, rlOf, settleRun, waitingFor } from '../../roguelike/endblock.js';
+import { growthCards } from './growth.js';
 
 const NAME = { great: 'Great Treasures', spells: 'Spells', fame: 'Fame', notoriety: 'Notoriety', gold: 'Gold' };
 const COLOR = { great: 'var(--gold-hi)', spells: 'var(--magic-purple, #b79af0)', fame: 'var(--c-fame)', notoriety: 'var(--c-notor)', gold: 'var(--c-gold)' };
@@ -110,8 +111,11 @@ export function overScreen(G) {
     const rl = !G.race && !G.shared ? rlOf(G) : null;          // a run of the roguelike campaign: its end is settled with the campaign, and there is no fresh start on the next day
     const canRestart = dead && mode !== 'endless' && g.day < g.lastDay && !G.race && !rl;
     const goTitle = () => { clearSaved(); G.ctx.go('title'); };
-    const settled = rl ? settleRun(G, { dead, won, day: o.day ?? g.day }) : null;
-    const rlBlock = settled ? campaignBlock(G, settled, () => render(G)) : null;
+    // open scoring (no goals): the end is told about the hero, not about a score. A chit earned by the run's last move is still to be chosen (the card below); the campaign is settled once it is taken.
+    const gr = rl?.open ? growthOf(G.st, G.data) : null, open = !!gr, due = open && !dead ? gr.due : 0;
+    const settled = rl && !due ? settleRun(G, { dead, won, day: o.day ?? g.day, growth: gr }) : null;
+    const rlBlock = settled ? campaignBlock(G, settled, () => render(G), gr) : null;
+    const flourished = open && !dead && (gr.chits.length > 0 || due > 0);
     const place = o.at ? nbsp(nameOfClearing(o.at)) : null;
     const f = runFacts(G);
     let hero, middle;
@@ -125,8 +129,26 @@ export function overScreen(G) {
             h('div', { class: 'vsw' }, voiceSwitch()));
         middle = [
             frames({ fame: me.fame, notor: me.notoriety, gold: me.gold }),
-            h('div', { class: 'end-final' }, h('span', { class: 'ds-eyebrow' }, 'Final score'), h('div', { class: 'ds-num neg' }, '−100'), h('p', { class: 'ds-meta' }, o.suicide ? 'A character who ends their adventure scores −100.' : 'A dead character scores −100.')),
-            ...(rows.some(r => r.need > 0) ? [sect('How far you got'), h('div', { class: 'ds-list' }, ...rows.filter(r => r.need > 0).map(goalRow))] : []),
+            ...(open ? [h('div', { class: 'end-final', 'data-run-points': String(gr.run) }, h('span', { class: 'ds-eyebrow' }, 'Points this run'), h('div', { class: 'ds-num' }, String(gr.run)), h('p', { class: 'ds-meta' }, gr.chits.length ? `You earned ${gr.chits.length === 1 ? 'a chit' : gr.chits.length + ' chits'} in the run. A fall loses three chits.` : 'A fall loses three chits.'))]
+                : [h('div', { class: 'end-final' }, h('span', { class: 'ds-eyebrow' }, 'Final score'), h('div', { class: 'ds-num neg' }, '−100'), h('p', { class: 'ds-meta' }, o.suicide ? 'A character who ends their adventure scores −100.' : 'A dead character scores −100.')),
+                    ...(rows.some(r => r.need > 0) ? [sect('How far you got'), h('div', { class: 'ds-list' }, ...rows.filter(r => r.need > 0).map(goalRow))] : [])]),
+        ];
+    } else if (open) {
+        // alive at the end of an open run: no Victory banner and no score. What happened to the hero, in the words of the campaign.
+        const e = Object.fromEntries(rows.map(r => [r.cat, r.earned]));
+        const told = due ? 'The run is over. Choose the chit you earned and the campaign settles.' : flourished ? 'You came through the run stronger than you went in.' : 'You came through the run.';          // (the campaign block below says what it means for the hero)
+        hero = h('div', { class: 'end-hero', 'data-open-end': flourished ? 'flourished' : 'survived' },
+            h('div', { class: `end-mark ds-stamp ${flourished ? 'win' : 'lose'}` }, icon(flourished ? 'trophy' : 'flag')),
+            h('div', { class: 'ds-eyebrow', style: `color:${flourished ? 'var(--gold)' : 'var(--ink-2)'}` }, `Day ${o.day ?? g.day}${o.reason === 'finished' && mode === 'month' ? ` \u00B7 the ${lastDayOf(g) === 28 ? 'month' : 'run'} ends` : ''}`),
+            h('h1', { class: 'ds-h1' }, flourished ? 'You flourished' : 'You survived'),
+            h('p', { class: 'ds-voice lg', 'data-v': 'story' }, told),
+            h('p', { class: 'ds-voice lg', 'data-v': 'detail' }, `Points this run ${gr.run}. Chits earned during the run: ${gr.chits.length + due}.`),
+            deedLine(f) ? h('p', { class: 'ds-meta end-deed' }, h('span', { 'data-v': 'story' }, deedLine(f).story), h('span', { 'data-v': 'detail' }, deedLine(f).detail)) : null,
+            h('div', { class: 'vsw' }, voiceSwitch()));
+        middle = [
+            h('div', { class: 'end-final', 'data-run-points': String(gr.run) }, h('span', { class: 'ds-eyebrow' }, 'Points this run'), h('div', { class: 'ds-num pos' }, String(gr.run))),
+            frames({ fame: e.fame ?? 0, notor: e.notoriety ?? 0, gold: e.gold ?? 0 }),
+            saleLine(G),
         ];
     } else {
         const title = won ? 'Victory' : 'Short of your goals';
@@ -152,14 +174,14 @@ export function overScreen(G) {
         h('p', { class: 'ds-meta', 'data-v': 'detail' }, `Days ${f.days} · kills ${f.kills} · looted ${f.looted} · sites found ${f.sites} · wounds taken ${f.wounds}${f.deaths ? ` · deaths ${f.deaths}` : ''}.`));
     const restart = () => { G.ui.restartVp = carriedGoals(me.vp, Math.max(2, Math.ceil((g.lastDay - g.day) / 7) + 1)); render(G); };
     const late = (me.death?.rejoin ?? g.day + 1) - g.day > 1;          // (a suicide at Midnight sits out one whole day first: 9.2.2a; the engine says the day he may return)
-    const waiting = settled ? waitingFor(G, settled) : false;
+    const waiting = settled ? waitingFor(G, settled) : !!due;
     const primary = rl ? btn('Back to the campaign', `primary${waiting ? ' is-dim' : ''}`, { 'data-act': 'over-campaign', disabled: waiting ? true : null, onclick: () => { clearSaved(); G.ctx.go('campaign', { from: 'over' }); } })
         : canRestart ? btn(twoLine(late ? 'Return in two days' : 'Return tomorrow', `as a new ${me.name}`), 'primary', { 'data-act': 'restart', onclick: restart })
         : G.race ? btn('Back to the title', 'primary', { 'data-act': 'over-title', onclick: goTitle })
             : btn(dead ? 'Begin again' : 'New game', 'primary', { 'data-act': 'over-new', onclick: () => { clearSaved(); G.ctx.go('newgame'); } });
     const quiet = G.race ? null : btn('History', 'quiet', { 'data-act': 'over-history', onclick: () => { clearSaved(); G.ctx.go('history'); } });
-    const screen = h('main', { class: `ds-end ds-screen ${dead ? 'dead' : won ? 'won' : 'lost'}`, 'data-screen': 'over', role: 'dialog', 'aria-label': dead ? (o.suicide ? 'You ended your adventure' : 'You have fallen') : won ? 'Victory' : 'The game is over' },
-        h('div', { class: 'ds-scroll ds-fade-b end-scroll' }, hero, rlBlock, ...middle, story,
+    const screen = h('main', { class: `ds-end ds-screen ${dead ? 'dead' : (open ? flourished : won) ? 'won' : 'lost'}`, 'data-screen': 'over', role: 'dialog', 'aria-label': dead ? (o.suicide ? 'You ended your adventure' : 'You have fallen') : open ? (flourished ? 'You flourished' : 'You survived') : won ? 'Victory' : 'The game is over' },
+        h('div', { class: 'ds-scroll ds-fade-b end-scroll' }, hero, ...(due ? growthCards(G, { end: true }) : []), rlBlock, ...middle, story,
             h('div', { class: 'end-title' }, btn('Menu', 'quiet sm', { 'data-act': 'menu', onclick: () => { G.ui.sheet = 'menu'; render(G); } }), G.race ? null : btn('Back to the title', 'quiet sm', { 'data-act': 'over-title', onclick: goTitle }))),
         h('div', { class: 'ds-foot' }, quiet, primary));
     // every button of the end screen, the leaving ones too, waits a moment: the taps that were on their way to the fight's last primary (Roll) must not land on "Begin again" or "Back to the title" (QA-4)

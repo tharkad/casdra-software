@@ -15,6 +15,7 @@ export { NO_EFFORT_LIMIT, BOOTS, GLOVES } from './modifiers.js';
 export { chitLabel } from './day.js';
 export { MAX_CHARACTERS, VP_CATS } from './setup.js';
 export { MAX_STAGE, chitId, normalVp, stageVp, chitsOfStage, cardChits } from './stages.js';          // (the development stages of a character card, 10.E.5 / 10.E.6: functions of the card and the number of days alone)
+export { chitCost, CHIT_COST_PER_STAGE } from './growth.js';          // (open scoring: what a chit costs a hero of a stage; a function of the stage alone)
 export { MAX_SPELLS } from './runes.js';
 export { whySentence } from './magic/why.js';
 export { pairIds, facesOf, boxIds, boxDef, kindOf, otherFace, defOf as missionDefOf } from './missions.js';          // (the visitor, mission and campaign chits of the data: which pairs, faces and boxes there are, and what a face is)

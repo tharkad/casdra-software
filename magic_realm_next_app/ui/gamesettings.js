@@ -5,12 +5,16 @@
 //   groups   the optional rules as the New Game screen lists them (options_list.js, plus leaders.js HIRELING_GROUP): [{ title, items: [{ k, title, line, rule }] }]
 //   params   what the game was begun with, when the screen has it (the game record's `params`): the seed and the place he began at
 
+import { modeName, modeOf } from './modes.js';
+
 const GOALS = [['fame', 'Fame'], ['notoriety', 'Notoriety'], ['gold', 'Gold'], ['spells', 'Spells'], ['great', 'Great treasure']];
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
 export function gameSettingRows(view, { groups = [], params = null } = {}) {
     const g = view?.table?.game ?? {}, rows = [];
     const day = g.day ?? 1, last = g.lastDay ?? 28;
+    // how it is played: Adventure, Solo or Roguelike (modes.js); a game saved before the modes is an Adventure
+    if (params) rows.push({ id: 'mode', title: 'How you play', value: modeName(params), line: { adventure: 'The standard game.', solo: 'Alone, with the solitaire rules and the optional abilities.', roguelike: 'A run of the campaign.' }[modeOf(params)] });
     // how long
     if (g.mode === 'sudden') rows.push({ id: 'length', title: 'How long', value: 'Sudden death', line: `Ends at the first midnight someone has met every goal. Day ${day} now.` });
     else if (g.mode === 'endless') rows.push({ id: 'length', title: 'How long', value: 'Endless', line: `No last day and no scoring. Day ${day} now.` });

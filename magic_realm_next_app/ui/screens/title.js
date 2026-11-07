@@ -4,6 +4,7 @@ import { icon } from '../icons.js';
 import { myRaces, serverAvailable } from '../online.js';
 import { confirmSheet } from '../front.js';
 import { glance, readCache, writeCache } from './online.js';
+import { thisGame } from '../modes.js';
 
 // The title screen (mockup 06 h1, h1b). One list that never moves: Continue (when a game is on this device, with where you are), New game, then a row of three.
 // Play online is dim while the server answers and then live, so nothing jumps under the thumb. The gear (top right) opens Settings.
@@ -30,14 +31,14 @@ export function titleScreen(ctx) {
     // The answer to a dim tap has a place of its own above the buttons, reserved at all times, so nothing on the title moves when it appears (DR-10)
     const note = h('p', { class: 'ds-title-say', role: 'status', 'aria-live': 'polite' });
     // New game over a game in progress asks first: who, which day, what it costs, what survives (review FD-01). Keep playing is the safe, gold choice.
-    const askNew = () => confirmSheet({ eyebrow: 'New game', title: 'Start a new game?', lines: [where(last), last?.roguelike ? 'A new game ends this run. In the roguelike that counts as a fall: your character drops back a stage. It stays in History as abandoned.' : 'A new game ends that adventure. It stays in History as abandoned.'],
+    const askNew = () => confirmSheet({ eyebrow: 'New game', title: 'Start a new game?', lines: [where(last), last?.roguelike ? 'A new game ends this run. In the roguelike that counts as a fall: your character drops back a stage. It stays in History as abandoned.' : `A new game ends ${last?.params ? thisGame(last.params).replace(/^this/, 'that') : 'that adventure'}. It stays in History as abandoned.`],
         attrs: { 'data-confirm': 'new', role: 'alertdialog' },
         safe: { label: 'Keep playing', attrs: { 'data-act': 'keep-playing' }, onclick: () => ctx.go('game', { id: last?.id }) },
         risky: { label: 'Start a new game', attrs: { 'data-act': 'replace' }, onclick: () => ctx.go('newgame') } });
     // the buttons: a table that waits on me comes first (the primary), then the game on this device, then New game and the row of three
     const solo = (primary, small) => h('button', { type: 'button', class: `ds-btn${primary ? ' primary' : ''} block ds-continue`, 'data-act': 'continue', onclick: () => ctx.go('game', { id: last.id }) }, h('span', { class: 'col' }, 'Continue', h('small', {}, small)));
     const navEl = () => {
-        const live = tableTurn(cache), soloSmall = last ? [crew(last), `Day ${last.day}`, periodLabel(last.period)].filter(Boolean).join(' · ') : '';
+        const live = tableTurn(cache), soloSmall = last ? [last.kind, crew(last), `Day ${last.day}`, periodLabel(last.period)].filter(Boolean).join(' · ') : '';
         return h('nav', { class: 'ds-title-nav', 'aria-label': 'Main menu' },
             live ? h('button', { type: 'button', class: 'ds-btn primary block ds-continue', 'data-act': 'continue-table', 'data-game': live.r.game, onclick: () => ctx.go('game', { shared: live.r }) },
                 h('span', { class: 'col' }, 'Continue', h('small', {}, ['Your move at the table', live.i.character, live.i.day != null ? `Day ${live.i.day}` : null].filter(Boolean).join(' · ')))) : null,

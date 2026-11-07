@@ -13,8 +13,11 @@ import { OPTION_GROUPS } from '../options_list.js';
 import { HIRELING_GROUP } from '../leaders.js';
 import { openPlacement, placementStatus } from './placement.js';
 import { spreadVp } from '../goalspread.js';
+import { DEFAULT_MODE, MODES, MODE_STEP, SOLO_DEFAULTS, ADVENTURE_DEFAULTS, migrateDraft, modeOptions, setMode } from '../modes.js';
+import { SOLO_RULES } from '../solo_rules.js';
 
-// New game: a four-step wizard, one question each (mockup 05): how long, the realm and its rules, who, where and what for.
+// New game: first the way to play (Adventure, Solo or Roguelike: modes.js, the step before the four, with no "Step n of m"), then a four-step wizard, one question each (mockup 05): how long, the realm and its rules, who, where and what for.
+// Adventure and Solo walk the four steps; the Roguelike goes to the Campaign instead. Solo starts the engine with the solitaire rules and the optional abilities (docs/design/MODES.md).
 // Everything here is a *choice about the rules*, so the facts come from docs/rules/01 and 06 (see the notes beside each option). The engine inputs are unchanged.
 
 export const STEPS = [
@@ -26,12 +29,11 @@ export const STEPS = [
 
 // How long / how it ends. A month is 4 weeks = 28 days; victory points to spend = weeks + 1 (3rd ed. 10.E.2).
 export const LENGTHS = [
-    { id: 'month', title: 'A month', line: 'The standard game: four weeks.', badge: () => '28 days · 5 VP' },
+    { id: 'month', title: 'A month', line: 'The standard length: four weeks.', badge: () => '28 days · 5 VP' },
     { id: 'custom', title: 'Choose the length', line: 'Any whole number of weeks.', badge: (g, on) => (on ? `${g.weeks * 7} days · ${g.weeks + 1} VP` : 'any weeks') },
     { id: 'sudden', title: 'Sudden death', line: 'Ends at the first midnight someone has met every goal.', badge: g => `${g.suddenVp} VP` },
     { id: 'endless', title: 'Endless', line: 'No end and no scoring. Play until you stop.', badge: () => 'no limit' },
-    // The roguelike (docs/design/roguelike/ROGUELIKE-V0.md): not a length but a campaign, so choosing it replaces the steps that follow with the Campaign screen. A solo game only: a race or a shared table does not offer it.
-    { id: 'roguelike', title: 'Roguelike', line: 'A campaign: one character you keep from run to run. Survive to grow, die and fall back.', badge: () => 'campaign', solo: true },
+    // (The roguelike is not a length but a campaign: it is a mode of its own, the third card of the first step, and goes to the Campaign screen.)
 ];
 
 // (The old "How much of the game?" switch is gone: it reached neither the engine nor the saved game, so it changed nothing. Verified: no `depth` is read by start(), by the online
@@ -60,7 +62,7 @@ export function apartHint(g) {
     return { story, detail };
 }
 export const MAX_PARTY = 4;
-export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, party: [], open: null, goalOpen: null, view: 'party', seed: Math.floor(Math.random() * 9999) + 1, missions: { on: false, place: [] }, options: { knightsAdjustment: false, watchfulNatives: false, quietMonsters: false, castAnytime: true, shareAtBirdsong: true } });
+export const defaultGame = () => ({ step: MODE_STEP, mode: DEFAULT_MODE, touched: {}, length: 'month', weeks: 4, suddenVp: 5, party: [], open: null, goalOpen: null, view: 'party', seed: Math.floor(Math.random() * 9999) + 1, missions: { on: false, place: [] }, options: { knightsAdjustment: false, watchfulNatives: false, quietMonsters: false, castAnytime: true, shareAtBirdsong: true } });
 
 
 export const vpTotal = g => g.length === 'roguelike' ? 5 : g.length === 'month' ? 5 : g.length === 'custom' ? g.weeks + 1 : g.length === 'sudden' ? g.suddenVp : 5;
@@ -89,8 +91,19 @@ function lengthCard(g, opt, redraw) {
     on && opt.id === 'sudden' ? h('div', { class: 'ds-choice-extra' }, stepper(g.suddenVp, () => 'victory points', 1, 12, v => { g.suddenVp = v; redraw(); }), why('The points you spread over Great Treasures, Spells, Fame, Notoriety and Gold.')) : null];
 }
 
+// the first step: how do you want to play? Three big cards (modes.js); the primary below opens the next step (or the Campaign)
+function modeStep(g, redraw) {
+    return [q('How do you want to play?'), h('div', { class: 'ds-choices ds-modes', role: 'radiogroup', 'aria-label': 'How to play' }, MODES.map(m => {
+        const on = g.mode === m.id;
+        return h('button', { type: 'button', class: `ds-choice mode-card${on ? ' on' : ''}`, role: 'radio', 'aria-checked': on ? 'true' : 'false', 'data-mode': m.id, onclick: () => { setMode(g, m.id); redraw(); } },
+            h('span', { class: 'glyph', 'aria-hidden': 'true' }, icon(m.icon, 'lg')),
+            h('span', { class: 'main' }, h('b', {}, m.title), h('span', { class: 'l' }, nb(m.line))));
+    }))];
+}
+
+const LENGTH_ASK = { adventure: 'How long is the adventure?', solo: 'How long is your solo game?' };
 function typeStep(g, redraw, online = false) {
-    return [q('How long is the game?'), h('div', { class: 'ds-choices', role: 'radiogroup', 'aria-label': 'Game length' }, LENGTHS.filter(o => !(online && o.solo)).flatMap(o => lengthCard(g, o, redraw)))];
+    return [q(online ? 'How long is the game?' : LENGTH_ASK[g.mode] ?? 'How long is the game?'), h('div', { class: 'ds-choices', role: 'radiogroup', 'aria-label': 'Game length' }, LENGTHS.flatMap(o => lengthCard(g, o, redraw)))];
 }
 
 const VP_ROWS = [
@@ -296,6 +309,7 @@ export function pickStart(g, m, d) {
 }
 function startPicker(g, m, redraw) {
     const c = charOf(m.id);
+    if (g.mode === 'solo') return h('div', { 'data-start': m.id, 'data-start-road': '' }, h('div', { class: 'lbl' }, 'Begins'), h('p', { class: 'ds-why', style: 'margin:6px 0 0' }, 'At the edge of the map. Your first move takes you in along a road to the Borderland (10.E.1.6).'));
     if (c.starts.length < 2) {
         return h('div', { 'data-start': m.id }, h('div', { class: 'lbl' }, 'Begins'), startLine(g, m), h('p', { class: 'ds-why', style: 'margin:6px 0 0' }, nb(`The ${c.name} has only the ${c.starts[0]} on the character card. ${dwellingBrief(m.start, c)}`.trim())));
     }
@@ -303,6 +317,16 @@ function startPicker(g, m, redraw) {
         h('div', { class: 'ds-seg', role: 'radiogroup', 'aria-label': 'Starting place' }, c.starts.map(d => h('button', { type: 'button', class: m.start === d ? 'on' : null, role: 'radio', 'aria-checked': m.start === d ? 'true' : 'false', 'data-dwelling': d,
             onclick: () => { pickStart(g, m, d); redraw(); } }, d))),
         h('p', { class: 'ds-why', 'data-start-brief': '', style: 'margin:6px 0 0' }, nb(startBrief(g, m))));
+}
+
+// Optional rule 10.A.6.7: with Optional abilities on, the Elf is a Light Elf or a Great Elf, chosen here (the engine takes `elfKind`; a member who never chose is a Light Elf).
+const elfKindOf = (g, m) => (g.options?.optionalAbilities && m.id === 'elf' ? (m.elfKind ?? 'light') : undefined);
+function elfPicker(g, m, redraw) {
+    if (!elfKindOf(g, m)) return null;
+    const kind = elfKindOf(g, m);
+    return h('div', { 'data-elf-kind': m.id }, h('div', { class: 'lbl' }, 'Which Elf'),
+        h('div', { class: 'ds-seg', role: 'radiogroup', 'aria-label': 'Light Elf or Great Elf' }, [['light', 'Light Elf'], ['great', 'Great Elf']].map(([k, t]) => h('button', { type: 'button', class: kind === k ? 'on' : null, role: 'radio', 'aria-checked': kind === k ? 'true' : 'false', 'data-elf': k, onclick: () => { m.elfKind = k; redraw(); } }, t))),
+        h('p', { class: 'ds-why', style: 'margin:6px 0 0' }, nb(kind === 'light' ? 'A Light Elf cannot play the Medium Fight and Move chits. They still pay for fatigue and wounds.' : 'A Great Elf cannot play the MOVE L2* chit. It still pays for fatigue and wounds.')));
 }
 
 function partyStep(g, redraw, o) {
@@ -323,6 +347,7 @@ function partyStep(g, redraw, o) {
         const body = h('div', { class: 'pt-rbody' },
             h('div', { class: 'pt-tags' }, h('span', { class: 'ds-tag gold' }, c.weight), h('span', { class: 'ds-meta' }, online ? v2('Played by you', 'Player: you') : v2(`Played by you, ${ORDINAL[i]}`, `Player: you · Order: ${i + 1}`))),
             startPicker(g, m, redraw),
+            elfPicker(g, m, redraw),
             i > 0 && !online ? togetherRow(g, m, i, redraw) : null,
             c.spells ? h('div', {}, h('div', { class: 'lbl' }, 'Spells', h('em', { class: nd ? 'pt-need' : 'pt-ok' }, `${(m.spells ?? []).length} of ${c.spells.n}`)),
                 !Array.isArray(m.spells) ? h('p', { class: 'ds-why' }, 'Loading the spell list…')
@@ -343,7 +368,8 @@ function partyStep(g, redraw, o) {
         g.party.length ? [sect(online ? 'Your character' : 'Your party', right), !online && apartHint(g) ? h('p', { class: 'ds-why pt-apart', 'data-apart': '' }, v2(apartHint(g).story, apartHint(g).detail)) : null, h('div', { class: 'pt-acc' }, g.party.map(row))]
             : h('div', { class: 'pt-empty' }, h('div', { class: 'pt-seats' }, [0, 1, 2, 3].map(i => h('span', { class: 'pt-seat' }, String(i + 1)))), h('p', { class: 'ds-voice' }, v2('No one yet. Add a character to begin. You can bring up to four.', `Choose at least one character. Up to ${MAX_PARTY}, all yours.`)), h('p', { class: 'ds-why' }, 'Add character is below.')),
         g._shared ? h('p', { class: 'ds-why', 'data-sealed': '' }, 'Your goals and starting spells are sealed: the others see them only when the game is over.') : null,
-        !online && g.party.length && !full ? h('p', { class: 'ds-why', style: 'margin-top:10px' }, 'Each character keeps their own spells, starting place and goals. Goals are chosen next.') : null];
+        !online && g.party.length && !full ? h('p', { class: 'ds-why', style: 'margin-top:10px' }, 'Each character keeps their own spells, starting place and goals. Goals are chosen next.') : null,
+        !online && g.mode === 'solo' && g.party.length > 1 ? h('p', { class: 'ds-why', 'data-solo-win': '', style: 'margin-top:10px' }, 'Solo: you win only if every one of your characters meets their goals.') : null];
 }
 
 // ---- the picker: every character on one screen. It adds a member (solo) or changes the one character of a seat (a race or a shared table) ----
@@ -421,13 +447,27 @@ function tableStep(g, redraw) {
                 : 'Off: characters trade only at the start of a phase of someone’s turn, not after the fights.' })];
 }
 
+// "Solo rules": what the Solo mode changes, from solo_rules.js. A rule the engine does not do yet says "coming".
+const soloOn = () => Object.keys(SOLO_DEFAULTS).filter(k => SOLO_DEFAULTS[k] && !ADVENTURE_DEFAULTS[k] && k !== 'optionalAbilities')
+    .map(k => OPTION_GROUPS.flatMap(grp => grp.items).find(o => o.k === k)?.title).filter(Boolean);
+function soloCard() {
+    const on = soloOn();
+    return h('section', { class: 'solo-card', 'data-solo-rules': '', 'aria-label': 'Solo rules' },
+        h('h2', { class: 'ds-h2' }, 'Solo rules'),
+        h('p', { class: 'ds-why', style: 'margin:0 0 8px' }, 'Alone, you play the book’s solitaire rules (10.E.1).'),
+        h('ul', {}, SOLO_RULES.map(r => h('li', { 'data-solo-rule': r.id, 'data-built': r.built ? 'yes' : 'no' },
+            h('b', {}, r.title, r.built ? null : h('em', { class: 'ds-tag solo-coming' }, 'coming')),
+            h('span', {}, nb(r.line))))),
+        on.length ? h('p', { class: 'ds-why', style: 'margin:8px 0 0' }, nb(`Solo also starts with ${on.join(' and ')} switched on, as the book recommends for solitaire. Change any of them below.`)) : null);
+}
+
 function realmStep(g, redraw, go, ctx, { shared, online }) {
     g.options ??= {};
     const realmCard = !online ? [h('button', { type: 'button', class: 'ds-row ds-realmrow', 'data-act': 'preview', onclick: () => { ctx.realm = { seed: g.seed, showHidden: false, enchanted: false, sel: null, view: null }; go('realm'); } },
         realmThumb(g.seed), h('span', { class: 'main' }, h('b', {}, 'A realm of twenty tiles'), h('span', {}, `Seed ${g.seed}. Tap to see another.`)), icon('right'))] : [];
-    return [q('Your realm.'), ...realmCard, ...(shared ? tableStep(g, redraw) : []),
+    return [q('Your realm.'), ...realmCard, ...(g.mode === 'solo' && !online ? [soloCard()] : []), ...(shared ? tableStep(g, redraw) : []),
         ...optionGroups(shared, online).flatMap(grp => [sect(grp.title),
-            ...grp.items.map(o => switchRow({ title: o.title, line: o.line, on: !!g.options[o.k], attrs: { 'data-option': o.k }, info: `Rule ${o.rule}. ${o.text}`, onToggle: () => { g.options[o.k] = !g.options[o.k]; redraw(); } }))]),
+            ...grp.items.map(o => switchRow({ title: o.title, line: o.line, on: !!g.options[o.k], attrs: { 'data-option': o.k }, info: `Rule ${o.rule}. ${o.text}`, onToggle: () => { g.options[o.k] = !g.options[o.k]; (g.touched ??= {})[o.k] = true; redraw(); } }))]),
         ...(online ? [] : missionsBlock(g, redraw)),
         h('p', { class: 'ds-why ds-fixed' }, 'The printed rules are the default. These cannot be changed once the game has begun.')];
 }
@@ -446,7 +486,7 @@ function missionsBlock(g, redraw) {
 }
 
 export function newGameScreen(ctx) {
-    const g = ctx.newGame ?? (ctx.newGame = defaultGame());
+    const g = migrateDraft(ctx.newGame ?? (ctx.newGame = defaultGame()));          // (a draft from before the modes opens as an Adventure, on the first step)
     const root = h('main', { class: 'screen ds-screen ds-title flush newgame', 'data-screen': 'newgame' });
     const redraw = () => {
         if (!root.isConnected && root.dataset.mounted) return;
@@ -484,13 +524,16 @@ export function newGameScreen(ctx) {
         }
     }
     if (online && g.step < first) g.step = first;
+    if (online && g.mode !== 'adventure') setMode(g, 'adventure');                // a race or a shared table is an Adventure; Solo and the Roguelike are for one phone
     if (online) g.party = g.party.length ? g.party.slice(0, 1) : [newMember('white-knight')];   // each seat of a race or a shared table runs one character, and the seat needs one at once: online keeps the White Knight as its starting choice (solo games open on an empty picker, note 63)
     const closePicker = () => { g.view = 'party'; g._scroll = 0; g.flip = false; g.reveal = true; redraw(); };
     const back = () => {
         if (g.view === 'pick') { closePicker(); return; }
         if (g.step <= first) {
             if (online?.mode === 'choose') ctx.go('sharedlobby', { game: online.game });
-            else ctx.go(online ? 'online' : 'title', online ? { message: '' } : {});
+            else if (online) ctx.go('online', { message: '' });
+            else if (g.step > MODE_STEP) { g.step = MODE_STEP; g._scroll = 0; redraw(); }          // the first of the four steps goes back to the choice of how to play
+            else ctx.go('title');
         } else { g.step -= 1; g._scroll = 0; g.removeArm = null; redraw(); }
     };
     // each character's goals must add up to the length's budget (rule 3.3.6a): the quick start, which skips the goals page, spreads it for you
@@ -506,10 +549,10 @@ export function newGameScreen(ctx) {
         syncTogether(g); fitVp(); ensureSpells(g.party);
         const lastDay = g.length === 'custom' ? g.weeks * 7 : 28;
         if (online) { startOnline(lastDay); return; }
-        const members = g.party.map(m => ({ id: m.id, vp: { ...m.vp }, startDwelling: m.start, spells: spellsOf(m) }));
+        const members = g.party.map(m => ({ id: m.id, vp: { ...m.vp }, startDwelling: m.start, spells: spellsOf(m), ...(elfKindOf(g, m) ? { elfKind: elfKindOf(g, m) } : null) }));
         const l = members[0];
         const missions = g.missions?.on ? (g.missions.place.length ? { place: g.missions.place.map(p => ({ ...p })) } : true) : undefined;
-        const params = { fresh: true, missions, characters: members.length > 1 ? members : undefined, character: l.id, vp: l.vp, options: { ...g.options }, startDwelling: l.startDwelling, startSpells: l.spells, lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month', seed: g.seed };
+        const params = { fresh: true, missions, characters: members.length > 1 ? members : undefined, character: l.id, vp: l.vp, options: modeOptions(g), startDwelling: l.startDwelling, startSpells: l.spells, ...(l.elfKind ? { elfKind: l.elfKind } : null), lastDay, mode: g.length === 'sudden' ? 'sudden' : g.length === 'endless' ? 'endless' : 'month', seed: g.seed };
         ctx.newGame = null;                                           // the next new game starts from the defaults, with a realm of its own
         ctx.go('game', params);
     };
@@ -535,7 +578,7 @@ export function newGameScreen(ctx) {
             ctx.go('game', { online: race, invited: online.mode === 'create' });
         } catch (e) { g.busy = false; g.note = e.message; redraw(); }
     }
-    const next = () => { if (g.step < STEPS.length - 1) { g.step += 1; g._scroll = 0; g.goalOpen = null; g.removeArm = null; if (g.step === 2 && !online && !g.party.length) openPicker(); else redraw(); } };
+    const next = () => { if (g.step === MODE_STEP) { g.step = 0; g._scroll = 0; redraw(); return; } if (g.step < STEPS.length - 1) { g.step += 1; g._scroll = 0; g.goalOpen = null; g.removeArm = null; if (g.step === 2 && !online && !g.party.length) openPicker(); else redraw(); } };
     const openPicker = () => {
         g.view = 'pick'; g.flip = false; g._scroll = 0; g.removeArm = null;
         g.pick = online ? lead().id : g.party.length ? (CHARACTERS.find(c => !g.party.some(m => m.id === c.id) && !takenBy(g, c.id)) ?? CHARACTERS[0]).id : null;      // the first pick is the player's own: nothing is chosen for him
@@ -548,8 +591,8 @@ export function newGameScreen(ctx) {
         closePicker();
     };
 
-    const title = () => !online ? 'New game' : online.mode === 'choose' ? 'Your character' : kindOf() === 'shared' ? (online.mode === 'join' ? 'Join the shared game' : 'Start a shared game') : (online.mode === 'join' ? 'Join the race' : 'Start a race');
-    const goLabel = () => !online ? 'Start the game' : online.mode === 'choose' ? 'Save my choice' : online.mode === 'join' ? 'Take my seat' : kindOf() === 'shared' ? 'Open the table' : 'Start the race';
+    const title = () => !online ? (g.step === MODE_STEP ? 'New game' : g.mode === 'solo' ? 'New solo game' : 'New adventure') : online.mode === 'choose' ? 'Your character' : kindOf() === 'shared' ? (online.mode === 'join' ? 'Join the shared game' : 'Start a shared game') : (online.mode === 'join' ? 'Join the race' : 'Start a race');
+    const goLabel = () => !online ? (g.mode === 'solo' ? 'Start the solo game' : 'Start the adventure') : online.mode === 'choose' ? 'Save my choice' : online.mode === 'join' ? 'Take my seat' : kindOf() === 'shared' ? 'Open the table' : 'Start the race';
 
     // what stops the primary, said in words next to it (a dim button with its reason on screen)
     function blocker() {
@@ -581,10 +624,17 @@ export function newGameScreen(ctx) {
                 foot(h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'pick-back', onclick: closePicker }, 'Back'),
                     h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'pick-ok', disabled: free ? null : true, onclick: pickOk }, online ? `Use the ${charOf(g.pick).name}` : g.pick ? `Add ${charOf(g.pick).name}` : 'Choose a character'))];
         }
+        if (g.step === MODE_STEP && !online) {                  // how do you want to play? (the Roguelike is a campaign of its own: its next screen is the Campaign, not the steps of one game)
+            const rogue = g.mode === 'roguelike';
+            return [bar(title(), { onBack: back }),
+                h('div', { class: 'ds-scroll ds-pad ds-wizbody', 'data-step': 'mode', onscroll: e => { g._scroll = e.target.scrollTop; } }, ...modeStep(g, redraw)),
+                foot(h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'back', onclick: back }, 'Back'),
+                    rogue ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'campaign', onclick: () => ctx.go('campaign') }, 'Open the campaign')
+                        : h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'next', onclick: next }, 'Next'))];
+        }
         const bodyEls = g.step === 0 ? typeStep(g, redraw, !!online) : g.step === 1 ? realmStep(g, redraw, ctx.go, ctx, { shared: shared && online?.mode === 'create', online: !!online })
             : g.step === 2 ? partyStep(g, redraw, { online: !!online, joinNote }) : goalsStep(g, redraw, !!online);
         const stop = blocker(), busy = g.loading || g.busy;
-        const rogue = g.step === 0 && g.length === 'roguelike' && !online;          // the roguelike is a campaign of its own: the next screen is the Campaign, not the steps of a single game
         // left slot: Quick start on step 1, Add character on the party step, a counter or summary where there is one, else Back
         let leftEl;
         if (g.step === 2) leftEl = h('button', { type: 'button', class: 'ds-btn', 'data-act': 'add', disabled: busy || (!online && g.party.length >= MAX_PARTY) ? true : null, onclick: openPicker }, icon('plus'), online ? 'Change character' : 'Add character');
@@ -592,11 +642,10 @@ export function newGameScreen(ctx) {
         else if (stop) leftEl = sum(h('b', { class: 'bad' }, stop));
         else if (last) leftEl = g.party.length > 1 ? sum(h('b', { class: 'gold' }, `${g.party.length} characters`), ' · all goals set') : sum('Goals: ', h('b', {}, goalsText(g.party[0]) || 'none'));
         else if (online?.mode === 'join' && g.race) leftEl = sum(joinNote);
-        else if (g.step === 0 && !online && !rogue) leftEl = h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'quick', onclick: start }, 'Quick start');
+        else if (g.step === 0 && !online) leftEl = h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'quick', onclick: start }, 'Quick start');
         else leftEl = h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'back', onclick: back }, 'Back');
-        const primary = rogue ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'campaign', onclick: () => ctx.go('campaign') }, 'Open the campaign')
-            : h('button', { type: 'button', class: 'ds-btn primary', 'data-act': last ? 'start' : 'next', disabled: busy || stop ? true : null, onclick: last ? start : next }, last ? goLabel() : g.step === 2 ? 'Continue' : 'Next');
-        return [bar(title(), rogue ? { onBack: back } : { onBack: back, step: at, of: n }),
+        const primary = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': last ? 'start' : 'next', disabled: busy || stop ? true : null, onclick: last ? start : next }, last ? goLabel() : g.step === 2 ? 'Continue' : 'Next');
+        return [bar(title(), { onBack: back, step: at, of: n }),
             h('div', { class: 'ds-scroll ds-pad ds-wizbody', 'data-step': STEPS[g.step].id, onscroll: e => { g._scroll = e.target.scrollTop; } }, ...bodyEls),
             foot(leftEl, primary)];
     }

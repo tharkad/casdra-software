@@ -82,7 +82,7 @@ function narrateByKind(r) {
         case 'meeting.evening': return { title: `The ${group()}`, line: EVENING_BY[t] ?? res };
         case 'meeting.table': return { title: `The ${group()}`, line: TRADE_BY[t] ?? res };
         case 'move.hide': return { title: 'Hiding', line: t === 'seen' ? 'Eyes find you. There is no cover.' : 'You slip out of sight.' };
-        case 'day.prowl': { const row = /^row-(\d)/.exec(t ?? '')?.[1]; return { title: 'The wilds', line: r.tale ?? (row ? 'Something stirs in the wilds.' : res) }; }
+        case 'day.prowl2': case 'day.prowl': { const row = /^row-(\d)/.exec(t ?? '')?.[1]; return { title: 'The wilds', line: r.tale ?? (row ? 'Something stirs in the wilds.' : res) }; }
         case 'combat.reposition': return { title: 'The melee', line: t === 'shuffle' ? 'The creatures circle and trade places.' : 'Nothing shifts.' };
         case 'combat.tactics': return { title: `The ${r.box} box`, line: t === 'flip' ? 'A snarl, a twist: they change their stance.' : 'They hold their stance.' };
         case 'combat.missile': case 'combat.missile.foe': {

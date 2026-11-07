@@ -24,6 +24,7 @@ import { noteCard, tableCards } from '../tableui.js';
 import { act, actMany } from './actions.js';
 import { noticeCards, takeChips } from './chits.js';
 import { shareCards, shareNow } from './share.js';
+import { growthCards } from './growth.js';
 import { airCard } from './steeds.js';
 import { journalFresh } from './journal.js';
 import { followerChips, meetWith, seatLine } from './leaders.js';
@@ -125,7 +126,7 @@ const WAITING = { 'turn-end': ['End of turn', ''], 'evening-end': ['Evening', 'b
 
 export function renderTray(G) {
     const p = questionOf(G.st, G.data), st = G.st;
-    const where = ownSheet(st, G.data).onRoad ? (ownSheet(st, G.data).onRoad.forest ? 'In the forest' : 'On the road') : ownSheet(st, G.data).flying ? `Over the ${tileName(ownSheet(st, G.data).flying.tile)}` : nameOfClearing(ownSheet(st, G.data).at);
+    const where = ownSheet(st, G.data).onRoad ? (ownSheet(st, G.data).onRoad.forest ? 'In the forest' : ownSheet(st, G.data).onRoad.entry ? 'At the edge of the map' : 'On the road') : ownSheet(st, G.data).flying ? `Over the ${tileName(ownSheet(st, G.data).flying.tile)}` : nameOfClearing(ownSheet(st, G.data).at);
     const planning = p?.type === 'plan' && G.ui.sheet === 'plan' && G.ui.draft;
     const banner = G.shared && !p ? sharedBanner(G) : null;
     const m = { last: null, body: [], situ: null, lead: null, primary: null, cls: [] };
@@ -250,6 +251,7 @@ export function renderTray(G) {
     if (!planning && !G.shared && (p?.type === 'phase' || p?.type === 'phase-pick' || p?.type === 'plan') && shareNow(G).length) { m.body.unshift(...shareCards(G)); m.cls.push('with-share'); }          // (note 142: what one of my characters knows and another lacks is offered at the start of a phase)
     if (freeActs.length) m.body.push(h('div', { class: 'spellacts' }, ...freeActs));
     // mission, campaign and visitor chits (a game with the option): a notice card for what the engine just told (the week's flip, a delivery, a win, a failure), and a Take button for each chit in his clearing
+    if (!planning && !G.shared) { const gc = growthCards(G); if (gc.length) { m.body.unshift(...gc); m.last = null; m.cls.push('with-growth'); } }          // (open scoring: a chit his points have earned: a card in the tray, never a question; growth.js)
     if (!planning) { const air = airCard(G); if (air) m.body.unshift(air); }          // (in the air on a steed: who carries him, and a way to let it go: steeds.js)
     if (!planning) { m.body.unshift(...noticeCards(G)); const takes = takeChips(G); if (takes.length) m.body.push(h('div', { class: 'spellacts ms-takes', 'data-takes': String(takes.length) }, ...takes)); }
 

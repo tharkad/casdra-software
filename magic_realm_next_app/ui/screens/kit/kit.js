@@ -18,6 +18,7 @@ import { spellCount, spellsTab } from './spells.js';
 import { curseCount, cursesTab, findCount, findsTab } from './finds.js';
 import { ownSheet, gameOf, questionOf, tableFight, missionsOf, sheetOf } from '../../combat/feed.js';
 import { gearOf } from '../../kitfeed.js';
+import { growthLine } from '../play/growth.js';
 
 // ---- the rooms ----
 const TAB_KEY = 'mr-kit-tab';
@@ -161,8 +162,9 @@ function worthLine(G) {
 function chitsEl(G) {
     const label = c => (c.type === 'magic' ? `${c.numeral ?? ''}${c.time}` : `${c.strength}${c.time}`), word = c => (c.type === 'move' ? 'MOVE' : c.type === 'fight' ? 'FIGHT' : c.type === 'duck' ? 'DUCK' : c.type === 'berserk' ? 'BERSERK' : 'MAGIC');
     const state = c => (c.state === 'fatigued' ? 'tired' : c.state === 'wounded' ? 'wounded' : '');
-    return h('div', { class: 'kit-chits', 'data-chits': '' }, ownSheet(G.st, G.data).chits.map(c => h('span', { class: `ds-chit ${c.type} ${state(c)}`, 'data-chit': c.id, 'aria-label': `${word(c).toLowerCase()} chit ${label(c)}${c.effort ? `, effort ${c.effort}` : ''}${state(c) ? `, ${state(c)}` : ''}` },
-        h('span', {}, label(c), c.effort ? h('sup', {}, '*'.repeat(c.effort)) : null), h('small', {}, word(c)))));
+    // (a chit the Light or the Great Elf cannot play, rule 10.A.6.7: it still pays for fatigue and wounds)
+    return h('div', { class: 'kit-chits', 'data-chits': '' }, ownSheet(G.st, G.data).chits.map(c => h('span', { class: `ds-chit ${c.type} ${state(c)}${c.unplayable ? ' unplayable' : ''}`, 'data-chit': c.id, 'aria-label': `${word(c).toLowerCase()} chit ${label(c)}${c.effort ? `, effort ${c.effort}` : ''}${state(c) ? `, ${state(c)}` : ''}${c.unplayable ? ', cannot be played (it can still pay for fatigue and wounds)' : ''}` },
+        h('span', {}, label(c), c.effort ? h('sup', {}, '*'.repeat(c.effort)) : null), h('small', {}, c.unplayable ? 'NOT PLAYED' : word(c)))));
 }
 
 function kitRoom(G, o) {
@@ -199,6 +201,7 @@ export function kitContent(G, o = {}) {
     const room = tab === 'di' ? findsTab(G) : tab === 'cu' ? cursesTab(G) : tab === 'co' ? companyTab(G) : tab === 'sp' ? spellsTab(G, o) : tab === 'ch' && missionsOf(G.st, G.data) ? chitsTab(G) : kitRoom(G, ctl);
     return { title: displayName(ch.name), eyebrow: `Day ${gameOf(G.st, G.data).day} · ${tab === 'di' ? 'Discoveries' : tab === 'cu' ? 'Curses' : tab === 'co' ? 'Company' : tab === 'sp' ? 'Spells' : tab === 'ch' ? 'Chits' : 'Kit'}`, detent: 'tall',
         body: h('div', { class: 'kit' },
+            growthLine(G),          // (open scoring: points this run and how far the next chit is; nothing in a game with goals)
             seg([{ key: 'kit', label: 'Kit' }, { key: 'di', label: 'Discoveries', n: findCount(G) }, { key: 'cu', label: 'Curses', n: curseCount(G) }, { key: 'co', label: 'Company', n: hireCount(G) }, { key: 'sp', label: 'Spells', n: spellCount(G) }, ...(missionsOf(G.st, G.data) ? [{ key: 'ch', label: 'Chits', n: carriedCount(G) }] : [])], tab, pick, 'data-kit-tab'),
             room) };
 }

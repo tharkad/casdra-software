@@ -75,6 +75,8 @@ export function standingOf(st, data, who) {
     const v = viewOf(st, data, who);
     return { earned: v.me?.earned ?? null, ...(v.me?.standing ?? { score: null, targets: null, progress: null }) };
 }
+/** Open scoring (view.me.growth): the points he holds, what a chit costs, how far he is, the chit he may choose; null in a game without the option or for a spectator. */
+export const growthOf = (st, data, who) => viewOf(st, data, who).me?.growth ?? null;
 /** The story so far (view.me.journal): the log lines he may read, no dice, no notes, oldest first. [] for a spectator. */
 export const journalLines = (st, data, who) => viewOf(st, data, who).me?.journal ?? [];
 /** The dice of the game so far, newest last (view.me.fightLog.rolls). */
@@ -118,7 +120,7 @@ export function tableModel(st, data, who) {
             return [id, { ...c, items: full ? full.items : c.gear, ...(full ? { gold: full.gold, vp: full.vp, policy: full.policy, spells: full.spells.recorded, discovered: { paths: full.discoveries.paths, sites: full.discoveries.sites } } : {}), today: { ...c.today, ...(full ? { plan: full.plan?.slots ?? null } : {}) } }];
         }));
         const tm = {
-            day: g.day, period: g.period, over: g.over, mode: g.mode, lastDay: g.lastDay, prowl: g.prowl, options: g.options, actor: v.viewer.seat, order: Object.keys(v.table.characters), players: g.players ?? [], dayRec: g.dayRec,
+            day: g.day, period: g.period, over: g.over, mode: g.mode, lastDay: g.lastDay, prowl: g.prowl, ...(g.prowl2 ? { prowl2: g.prowl2 } : {}), options: g.options, actor: v.viewer.seat, order: Object.keys(v.table.characters), players: g.players ?? [], dayRec: g.dayRec,
             chars, nats: v.table.natives, mons: v.table.monsters, follows: v.table.meetings.follows, followCheck: v.table.meetings.followCheck ?? null, tradeWindow: v.table.meetings.tradeWindow,
             offers: v.table.meetings.offers, blockCheck: v.table.meetings.blockCheck, missions: v.table.missions, asks: g.waitingFor.map(w => ({ who: w })), pending: v.pending,
             ch: own(s, data, who), log: v.me?.journal ?? [], logSkipped: 0, logEnd: v.me?.logEnd ?? 0,

@@ -1,4 +1,5 @@
 import { lvl } from './core.js';
+import { abilityOn } from './abilities.js';
 import { activeHorse } from './items.js';
 import { fxTags, inertPermanentTags, HERO } from './magic/fx.js';
 import { chitTime } from './rules/chitTime.js';
@@ -63,6 +64,13 @@ export function chitSpeed(st, chit) {
 // The six tiles whose names end in "Woods" (Deep, Linden, Maple, Nut, Oak, Pine). The Deep Woods is a mountain tile for chits and climbing,
 // so this goes by name, not by the tile's group.
 export const isTrackingTile = (data, where) => /Woods$/.test(data.tile(where.slice(0, 2))?.name ?? '');
+// Optional rule 10.A.6.6 (abilities.js): her tracking extends to every woods clearing (any clearing that is neither a cave nor a mountain) but those of the Ruins and of the Valley tiles.
+export const isWoodsGirlWoods = (st, data, where) => {
+    const tile = data.tile(where.slice(0, 2));
+    if (!tile || tile.id === 'RU' || tile.group === 'valley') return false;
+    const kind = clearingKind(st, data, where);
+    return kind !== 'cave' && kind !== 'mountain';
+};
 
 // The advantage that changes a Reading Runes roll: 'lore' (Wizard, Sorceror) and 'learning' (Pilgrim) roll one die, 'knowledge' (Witch, Magician) subtracts one; else 'none'.
 export const runesAdvantage = st => { const adv = st.ch.adv ?? []; return ['lore', 'learning', 'knowledge'].find(k => adv.includes(k)) ?? 'none'; };
@@ -78,7 +86,7 @@ export function oneDie(st, kind, where = null, data = null) {
     // Cave Knowledge), and the Druid's Concealment on the Hide table
     const adv = st.ch.adv ?? [];
     if (where && data && (kind === 'search' || kind === 'hide' || kind === 'meeting' || kind === 'loot')) {
-        if (adv.includes('tracking') && isTrackingTile(data, where)) return true;
+        if (adv.includes('tracking') && (isTrackingTile(data, where) || (abilityOn(st, 'woodsGirl') && isWoodsGirlWoods(st, data, where)))) return true;
         if (adv.includes('cave-knowledge') && clearingKind(st, data, where) === 'cave') return true;
     }
     if (kind === 'hide' && adv.includes('concealment')) return true;

@@ -11,7 +11,9 @@ import { viewOf } from '../../combat/feed.js';
 import { readingFields } from '../info.js';
 import { modal, showToast } from './kit.js';
 import { render } from './shell.js';
+import { thisGame } from '../../modes.js';
 
+const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
 const FIXED = 'This was chosen when the game began. It stays as it is until the game is over.';
 const GROUPS = [...OPTION_GROUPS, HIRELING_GROUP];
 
@@ -28,7 +30,7 @@ export function settingsSheet(G) {
         if (last && last.title === title) last.rows.push(r); else sections.push({ title, rows: [r] });
     }
     const body = h('div', { class: 'kit set-sheet' },
-        ask('This game’s settings.', 'What you chose when it began is fixed now. How the game reads on your phone can change at any time.'),
+        ask(`${cap(thisGame(G.rec?.params))}’s settings.`, 'What you chose when it began is fixed now. How the game reads on your phone can change at any time.'),
         h('div', { class: 'set-block', 'data-settings': 'game' },
             h('div', { class: 'ds-sect set-head' }, h('span', { class: 'ds-eyebrow' }, 'Fixed for this game'), h('small', {}, icon('lock', 'set-lock'), 'cannot change now')),
             ...sections.flatMap(s => [s.title === 'This game' ? null : h('p', { class: 'ds-meta set-group' }, s.title), h('div', { class: 'ds-list' }, s.rows.map(row))])),

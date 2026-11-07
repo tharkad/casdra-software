@@ -1,6 +1,7 @@
 import { isCave, roadsFrom } from '../world.js';
 import { extraActs, noSunlight } from '../modifiers.js';
 import { fxTags, HERO } from './fx.js';
+import { roadEnds } from '../solitaire.js';
 
 // Prophecy's choose-as-you-go turn (handlers/prophecy.js; docs/design/magic/02-day-spells.md section 3). Under a live Prophecy the hero does not record a plan
 // at Birdsong; each phase he chooses what to do as it comes. He gets the same number of phases and kinds of activity as a recorded turn would give. The engine state is
@@ -34,7 +35,7 @@ export function phaseOptions(st, data) {
         if (left.includes(act)) acts.push({ act, kind: 'extra' });
         else if (regularLeft > 0 && PRO_ACTS.includes(act)) acts.push({ act, kind: regularKind });
     }
-    let roads = st.ch.onRoad ? [st.ch.onRoad.from, st.ch.onRoad.to] : roadsFrom(st, data, st.ch.at).filter(r => r.usable).map(r => r.to);
+    let roads = st.ch.onRoad ? roadEnds(st, data, st.ch.onRoad) : roadsFrom(st, data, st.ch.at).filter(r => r.usable).map(r => r.to);
     // a cave cannot be entered in a sunlight phase (6.2.2b, 7.3.1c.2; day.js doMove would refuse it and lose the phase): do not offer one unless the Move would be an extra phase
     if (regularKind === 'sunlight' && !left.includes('move')) roads = roads.filter(to => !isCave(st, data, to));
     return { i: t.i, acts: roads.length ? acts : acts.filter(a => a.act !== 'move'), moves: roads, regularLeft, extrasLeft: left };          // (no Move to offer when every road is a cave in a sunlight phase)

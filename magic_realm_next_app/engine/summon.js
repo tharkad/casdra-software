@@ -3,6 +3,8 @@ const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^
 import { tileOf, numOf, graph } from './world.js';
 import { fxTags, HERO } from './magic/fx.js';
 import { summonVisitors } from './missions.js';
+import { abilityOn } from './abilities.js';
+import { prowlRows, rowProwls, revealValley } from './solitaire.js';
 
 // What happens when a character's turn ends (rules digest 02 section 5.2 and digest 05 section 5.2):
 // prowling monsters in his tile come to him, the map chits of his tile turn up, and chits summon boxes of prowling monsters.
@@ -32,11 +34,11 @@ function monstersInBox(st, boxId) { return st.mons.filter(m => !m.dead && !m.hir
 // Peace with Nature (the Druid's advantage, or the energized spell): at the end of his own turn the Warning and Sound chits of his tile do not summon.
 // They are shown to him but turned face down again, so they call normally for anyone else (7.13.5b). Site chits and dwellings act as usual.
 export const peaceWithNature = st => (st.ch.adv ?? []).includes('peace-with-nature') || fxTags(st, HERO, 'noSummon').length > 0;
-const quietChit = c => c.kind === 'warning' || c.kind === 'sound';
+const quietChit = (c, sites = false) => c.kind === 'warning' || c.kind === 'sound' || (sites && c.kind === 'site');
 
 export function endOfTurn(st, data) {
     const here = st.ch.at, tile = tileOf(here);
-    const out = { at: here, tile, prowl: st.prowl, arrivals: [], flipped: [], chits: [], natives: [] };
+    const out = { at: here, tile, prowl: st.prowl, ...(st.prowl2 ? { prowl2: st.prowl2 } : {}), arrivals: [], flipped: [], chits: [], natives: [] };
     if (st.ch.onRoad || st.ch.flying) return out;       // on a road, or in the air, he is in no clearing and nothing reacts
     if (st.ch.asleep) return out;                       // a sleeper (Flowers of Rest) summons nothing
     // 1. prowling monsters already in this tile move to him
@@ -44,23 +46,25 @@ export function endOfTurn(st, data) {
         if (m.dead || m.hired || !m.loc?.c || tileOf(m.loc.c) !== tile || m.loc.c === here) continue;
         if (m.stopped === st.day) continue;                // 7.12.5: a denizen that has blocked someone today stops prowling and cannot move for the rest of the day
         const row = monRow(data, m.id);
-        if (row === ROW_ALWAYS || row === st.prowl) { out.arrivals.push({ id: m.id, name: data.monsters[m.id].name, from: m.loc.c, to: here, why: 'prowls in your tile' }); m.loc = { c: here }; }
+        if (row === ROW_ALWAYS || rowProwls(st, row)) { out.arrivals.push({ id: m.id, name: data.monsters[m.id].name, from: m.loc.c, to: here, why: 'prowls in your tile' }); m.loc = { c: here }; }
     }
     // 2. chits in the tile turn face up (with the optional Quiet Monsters rule, 10.B.1, not if he is hidden: they stay down and call no one)
     const quiet = !!st.options?.quietMonsters && st.ch.hidden;
     const peace = peaceWithNature(st);
+    const peaceSites = peace && abilityOn(st, 'druidSites');          // optional rule 10.A.6.3: from the 4th level the Druid's Peace with Nature reaches the Site chits of his tile too
     const flipped = [];
     for (const c of st.chits) {
         if (quiet) break;
         if (c.tile !== tile || c.up || c.pile) continue;
-        if (c.kind === 'warning' && c.letter === 'V') continue;       // valley warnings were exchanged for dwellings at setup
-        if (peace && quietChit(c)) {                                   // he sees it, but it stays face down and has not called anyone
-            if (!(st.ch.seen ??= []).includes(c.id)) { st.ch.seen.push(c.id); say(st, `Peace with Nature: you see the ${c.name}${c.kind === 'sound' ? ' ' + c.num : ''} chit, but it keeps quiet and is turned face down again.`, 'discover'); }
+        if (c.kind === 'warning' && c.letter === 'V' && !c.dwell) continue;       // valley warnings were exchanged for dwellings at setup
+        if (peace && quietChit(c, peaceSites)) {                       // he sees it, but it stays face down and has not called anyone
+            if (!(st.ch.seen ??= []).includes(c.id)) { st.ch.seen.push(c.id); say(st, `Peace with Nature: you see the ${c.name}${c.kind === 'sound' || c.kind === 'site' ? ' ' + c.num : ''} chit, but it keeps quiet and is turned face down again.`, 'discover'); }
             continue;
         }
         c.up = true;
         if (c.kind === 'sound' || c.kind === 'site') c.clearing = c.num;
         flipped.push(c);
+        if (c.dwell) revealValley(st, data, c);          // 10.E.1.5: the Dwelling or the Ghosts appear like a campfire
         // Smoke and Stink in the woods turn into campfires, in clearing 5, else 4, else 2.
         if (c.kind === 'warning' && c.letter === 'W' && (c.name === 'Smoke' || c.name === 'Stink')) {
             const reach = graph(st, data).reach;
@@ -73,7 +77,7 @@ export function endOfTurn(st, data) {
             say(st, `${c.kind === 'lost-city' ? 'The Lost City' : 'The Lost Castle'} is revealed!`, 'discover');
             for (const id of pile.splice(0)) {
                 const pc = st.chits.find(x => x.id === id);
-                pc.pile = false; pc.tile = tile; pc.up = !(peace && quietChit(pc));
+                pc.pile = false; pc.tile = tile; pc.up = !(peace && quietChit(pc, peaceSites));
                 if (!pc.up) { if (!(st.ch.seen ??= []).includes(pc.id)) st.ch.seen.push(pc.id); continue; }
                 if (pc.kind === 'sound' || pc.kind === 'site') pc.clearing = pc.num;
                 flipped.push(pc);
@@ -91,18 +95,18 @@ export function endOfTurn(st, data) {
     if (!quiet) for (const c of st.chits.filter(x => faceUp(x) && x.summoned)) {
         report[c.id] ??= { id: c.id, kind: c.kind, name: c.name, letter: c.letter ?? null, num: c.num ?? null, summons: [], dest: null, already: true, why: 'it has already called out today' };
     }
-    if (!quiet) for (const c of [...st.chits.filter(x => faceUp(x) && !x.summoned && !(peace && quietChit(x)))].sort((a, b) => rank(a) - rank(b))) {
+    if (!quiet) for (const c of [...st.chits.filter(x => faceUp(x) && !x.summoned && !(peace && quietChit(x, peaceSites)))].sort((a, b) => rank(a) - rank(b))) {
         if (c.known) {                                    // a Site chit shown to all when it was sold or looted (4.5.5d, 7.5.5b.2; ruling I2): everyone has seen it, so it calls no one
             report[c.id] ??= { id: c.id, kind: c.kind, name: c.name, letter: c.letter ?? null, num: c.num ?? null, summons: [], dest: null, already: true };
             report[c.id].why = 'it was shown to everyone when it was sold or looted, so it calls no one';
             continue;
         }
-        const row = boxesOfRow(data, st.prowl);
+        const row = prowlRows(st).flatMap(r => boxesOfRow(data, r));
         const matching = row.filter(b => boxMatches(b, c, letter));
         const box = matching.find(b => monstersInBox(st, b.id).length);
         c.summoned = true;
         if (!box) {
-            const why = matching.length ? 'the creatures it calls are not waiting to come today' : `its row is not the one prowling (the Monster Roll was ${st.prowl})`;
+            const why = matching.length ? 'the creatures it calls are not waiting to come today' : (st.prowl2 ? `its row is not one of the two prowling (the Monster Rolls were ${st.prowl} and ${st.prowl2})` : `its row is not the one prowling (the Monster Roll was ${st.prowl})`);
             (report[c.id] ??= { id: c.id, kind: c.kind, name: c.name, letter: c.letter ?? null, num: c.num ?? null, summons: [], dest: null, already: true }).why = why;
             continue;
         }
@@ -122,7 +126,7 @@ export function endOfTurn(st, data) {
     // 4. natives appear where a dwelling of theirs stands, if their row prowls
     for (const g of Object.values(data.groups)) {
         if (g.garrison) continue;
-        if (g.homeRow !== st.prowl) continue;
+        if (!rowProwls(st, g.homeRow)) continue;
         const dw = st.dwellings.find(d => d.at === here && (g.dwellings ?? []).includes(d.kind));
         if (!dw) continue;
         const members = st.nats.filter(n => !n.dead && !n.hired && n.loc?.box && data.natives[n.id].group === g.id);

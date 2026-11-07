@@ -1,5 +1,6 @@
 import { say, int, shuffle } from './core.js';
 import { graph } from './world.js';
+import { rowProwls } from './solitaire.js';
 
 // Visitor, mission and campaign chits (rules 2.2.5, 3.4, 6.3.4b, 7.2.4, 7.13.5). A game option (`newGame(data, { missions: true })`, default off): without it none of this exists,
 // there is no `st.missions` and nothing in the other modules reads it, so a game is exactly what it was.
@@ -60,7 +61,7 @@ export function setupVisitorChits(st, data, spec) {
 // A Site chit "is" in a clearing once it has been put there (turned up, 7.13.2b); a Site card is assumed to be in the clearing of the chit whose box it lies in (7.5.5 g.2, the List of Treasures).
 // Called by summon.js at the end of a turn, after the map chits of the tile have turned up. Returns the ids of the chits that appeared.
 export function summonVisitors(st, data, here) {
-    if (!st.missions || st.prowl !== ROW) return [];
+    if (!st.missions || !rowProwls(st, ROW)) return [];
     const out = [];
     for (const c of st.missions.chits) {
         const box = c.loc?.box;
@@ -83,7 +84,7 @@ function summonedHere(st, data, s, here) {
 
 // ---- 6.3.4b: at the end of a week in which Row 6 prowls, every visitor, mission and campaign chit turns over where it lies (a box, a clearing); one a character holds does not
 export function flipChits(st, data) {
-    if (!st.missions || st.prowl !== ROW) return [];
+    if (!st.missions || !rowProwls(st, ROW)) return [];
     const out = [];
     for (const c of st.missions.chits) {
         if (c.loc?.by) continue;

@@ -53,3 +53,33 @@
     .rl-grid.locked { grid-template-columns: repeat(8, minmax(0, 1fr)); }
     .rl-chits-pick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* growth during a run (open scoring; screens/play/growth.js): the strip's chip, the line on the Kit, the chit card in the tray, the sheet */
+.ds-vp.growth { min-width: 58px; }
+.ds-vp.growth small { letter-spacing: .06em; }
+.ds-vp.growth b { color: var(--gold-hi); }
+.ds-vp.growth.ready b { color: var(--ink-on-gold); background: var(--gold); border-radius: 8px; padding: 2px 6px; }
+.gr-line { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; margin: 0 0 8px; padding: 6px 10px; border-radius: var(--r-md); border: 1px solid var(--line-1); background: var(--surface-2); text-align: left; color: var(--ink); }
+.gr-line.ready { border-color: var(--line-gold); background: var(--gold-wash); }
+.gr-line .gr-ico { flex: none; width: 26px; height: 26px; display: grid; place-items: center; color: var(--gold-hi); } .gr-line .gr-ico .ds-i { width: 22px; height: 22px; }
+.gr-line .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.gr-line b { font: 700 calc(14px * var(--ts, 1))/1.2 var(--font-ui); color: var(--gold-hi); }
+.gr-line .main > span { font: 400 calc(14px * var(--ts, 1))/1.3 var(--font-ui); color: var(--ink-2); }
+.gr-line .gr-more { flex: none; color: var(--ink-3); } .gr-line .gr-more .ds-i { width: 18px; height: 18px; }
+/* the chit card: three chits in a row, one button; the tray keeps its situation line and the plan under it, and drops the last-action line while the card is up */
+.gr-card { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 10px; border-radius: var(--r-md); border: 1px solid var(--line-gold); background: var(--gold-wash); }
+.gr-head { display: flex; flex-direction: column; gap: 1px; }
+.gr-head b { font: 700 calc(15px * var(--ts, 1))/1.2 var(--font-ui); color: var(--gold-hi); }
+.gr-head span { font: 400 calc(13px * var(--ts, 1))/1.3 var(--font-ui); color: var(--ink-2); min-height: 1.3em; }
+.gr-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.gr-opt { display: flex; align-items: center; justify-content: center; min-height: 66px; padding: 4px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); color: var(--ink); }
+.gr-opt.on { border: 2px solid var(--gold); background: var(--gold-wash-2); padding: 3px; }
+.gr-opt .ds-chit.on, .gr-opt .ds-chit { transform: none; }
+.gr-take { width: 100%; min-height: 48px; }
+.ds-tray.with-growth .tray-body { max-height: 232px; padding-top: 0; }
+.growthsheet .gr-bar { margin: 4px 0 10px; }
+.growthsheet .gr-card { margin: 6px 0 10px; }
+.growthsheet .gr-kind { align-items: flex-start; gap: 10px; }
+.growthsheet .gr-kind span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.growthsheet .gr-kind small { font: 400 calc(13px * var(--ts, 1))/1.3 var(--font-ui); color: var(--ink-3); }
+.growthsheet .gr-kind b.pos { color: var(--success); } .growthsheet .gr-kind b.neg { color: var(--danger); }

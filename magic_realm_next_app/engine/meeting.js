@@ -4,6 +4,7 @@ import { oneDie, spellMod, hoofHere } from './modifiers.js';
 import { meetingDiceCount } from './rules/meetingDiceCount.js';
 import { tableResult } from './rules/tableResult.js';
 import { isVisitorName } from './visitors.js';
+import { abilityOn } from './abilities.js';
 
 // Rolls on the Meeting Table: normally two dice, higher counts. Special advantages change it: Fear rolls one die, Honor subtracts one
 // from each die (never below 1). Used for trading, hiring and the battle roll at the start of an evening.
@@ -15,7 +16,8 @@ export const hasAdv = (st, key) => (st.ch.adv ?? []).includes(key);
 export function meetingDice(st, data = null, activity = null) {
     // Fear, Barter in a Trade, Tracking in the Woods tiles, Cave Knowledge, and a Lucky Charm each give one die (they do not stack)
     const advantage = hasAdv(st, 'fear') ? 'fear' : hasAdv(st, 'barter') ? 'barter' : hasAdv(st, 'honor') ? 'honor' : 'none';
-    const n = meetingDiceCount(advantage, activity === 'trade' || activity === 'hire' ? activity : 'battle', !!(data && oneDie(st, 'meeting', st.ch.at, data)));
+    // (optional rule 10.A.6.2: the Captain rolls one die on the Hire activity, and two when trading or battling natives; the kernel's "another reason for one die")
+    const n = meetingDiceCount(advantage, activity === 'trade' || activity === 'hire' ? activity : 'battle', !!(data && oneDie(st, 'meeting', st.ch.at, data)) || (activity === 'hire' && abilityOn(st, 'captain')));
     const raw = Array.from({ length: n }, () => die(st, 'meeting'));
     const honor = hasAdv(st, 'honor') ? 1 : 0;
     const used = raw.map(d => Math.max(1, d - honor));

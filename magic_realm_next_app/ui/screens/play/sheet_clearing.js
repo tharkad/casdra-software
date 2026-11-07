@@ -182,7 +182,7 @@ const tile_ = (src, label = null, group = null) => markGroup(h('span', { class: 
 // A sound chit lying in a clearing: its counter, and what it can call on this tile. The chart is printed, so naming the creatures tells nothing secret; where a row has several kinds,
 // one call brings the first of them that is waiting (the list is the order of the chart). A chit the chart has no box for on this tile calls nothing here.
 function signRow(G, c, tile) {
-    const calls = callsOf(G.data, c, tile, gameOf(G.st, G.data).prowl ?? null);
+    const calls = callsOf(G.data, c, tile, gameOf(G.st, G.data).prowl2 ? [gameOf(G.st, G.data).prowl, gameOf(G.st, G.data).prowl2] : gameOf(G.st, G.data).prowl ?? null);
     const toWhere = c.kind === 'sound' ? `clearing ${c.num}` : 'you';
     const art = name => G.data.art?.monsters?.[name];
     const list = calls.length

@@ -232,7 +232,7 @@ export function playSays(fm, data, chit, { move = false, spell = false } = {}) {
 export function pipsEl(fm, prev = null, data = null) {
     const order = { fight: 0, move: 1, magic: 2 };
     const chits = [...own(fm, data).chits].sort((a, b) => (order[a.type] ?? 3) - (order[b.type] ?? 3));
-    const cls = x => (isWithered(fm, x) ? 'tired withered' : x.state === 'fatigued' ? 'tired' : x.state === 'wounded' ? 'wounded' : x.state === 'committed' ? 'committed' : x.state === 'enchanted' ? 'enchanted' : '');
+    const cls = x => (isWithered(fm, x) ? 'tired withered' : x.state === 'fatigued' ? 'tired' : x.state === 'wounded' ? 'wounded' : x.state === 'committed' ? 'committed' : x.state === 'enchanted' ? 'enchanted' : '') + (x.unplayable ? ' unplayable' : '');
     return h('div', { class: 'cb-pips', role: 'img', 'aria-label': `${chits.filter(x => x.state === 'active').length} chits ready, ${chits.filter(x => x.state === 'fatigued').length} tired, ${chits.filter(x => x.state === 'wounded').length} wounded` },
         ...chits.map(x => h('i', { class: `ds-chit mini ${x.type}${cls(x) ? ` ${cls(x)}` : ''}${prev && prev[x.id] && prev[x.id] !== x.state ? ' fresh' : ''}`, 'data-pip': x.id }, ({ fight: 'F', move: 'M', magic: '✦' })[x.type] || '?')));
 }

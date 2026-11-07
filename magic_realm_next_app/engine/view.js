@@ -17,6 +17,8 @@ import { ownedItems } from './magic/mist.js';
 import { priceOf } from './items.js';
 import { meetOptions } from './meet.js';
 import { gearFacts, colorFacts, taskFacts } from './kitfacts.js';
+import { entryClearings } from './solitaire.js';
+import { facts as growthFacts } from './growth.js';
 
 const CARD = new Set(['treasure', 'spell']);
 const json = o => JSON.parse(JSON.stringify(o));
@@ -57,6 +59,7 @@ function publicChar(st, c) {
         hirelings: [...st.nats, ...st.mons].filter(o => o.hired && o.hiredBy === c.id && !o.dead).map(o => o.id),
         adv: c.adv ?? [], owner: c.owner, leader: c.leader ?? null, flying: c.flying ?? null, morph: c.morph ?? null, mist: c.mist ?? null, death: c.death ?? null, berserk: !!c.berserk,
         curses: c.curses ?? [],          // (V10: a curse is laid in the open)
+        ...(c.elfKind ? { elfKind: c.elfKind } : null),          // (optional rule 10.A.6.7: a Light or a Great Elf, a choice made in the open)
         today: { planned: t.plan != null, phases: Array.isArray(t.plan) ? t.plan.length : null, ...(t.stage ? { stage: t.stage } : {}) },
     };
 }
@@ -138,16 +141,17 @@ export function makeView(state, viewer, data, version) {
     const over = st.period === 'over';
     const known = new Set([...(me?.seen ?? []), ...(me?.discovered?.sites ?? [])]);
     const chits = st.chits.map(ch => {
-        const base = { id: ch.id, tile: ch.tile, clearing: ch.clearing != null ? ch.tile + ch.clearing : null, ...(ch.kind === 'warning' && ch.letter === 'V' ? { exchanged: true } : {}) };          // (`exchanged`: a valley warning, swapped for a dwelling at setup: no marker of its own, and public since the dwelling is)
+        const base = { id: ch.id, tile: ch.tile, clearing: ch.clearing != null ? ch.tile + ch.clearing : null, ...(ch.kind === 'warning' && ch.letter === 'V' && ch.up ? { exchanged: true } : {}) };          // (`exchanged`: a valley warning, swapped for a dwelling at setup: no marker of its own, and public since the dwelling is)
         return ch.up || over ? { ...base, up: true, pile: !!ch.pile, face: faceOf(ch) } : { ...base, up: false, pile: !!ch.pile };
     });
     const ask = me ? st.asks.find(a => a.who === viewer)?.pending ?? null : null;
     const pending = ask ? { ...json(ask), who: viewer } : null;
     const table = {
-        game: { players: st.players ?? [], day: st.day, period: st.period ?? 'birdsong', mode: st.mode ?? 'month', lastDay: st.lastDay ?? 28, options: json(st.options ?? {}), prowl: st.prowl, over: st.over ?? null,
+        game: { players: st.players ?? [], day: st.day, period: st.period ?? 'birdsong', mode: st.mode ?? 'month', lastDay: st.lastDay ?? 28, options: json(st.options ?? {}), prowl: st.prowl, ...(st.prowl2 ? { prowl2: st.prowl2 } : {}), over: st.over ?? null,
             turn: st.dayRec?.order && st.actor ? st.actor : null, order: st.dayRec?.order ?? st.order, waitingFor: st.asks.map(a => a.who),
             dayRec: st.dayRec ? json(st.dayRec) : null },          // (the day's draw is public: who plays when, and who follows whom)
-        map: { placements: st.placements, clearings: Object.fromEntries(st.placements.flatMap(p => tileClearings(st, data, p.id).map(id => [id, clearingType(st, data, id)]))), dwellings: st.dwellings ?? [], garrisonAt: st.garrisonAt ?? {}, ghostsAt: st.ghostsAt ?? null, sitesOpen: st.sitesOpen ?? {}, discSides: st.discSides ?? null },
+        map: { placements: st.placements, clearings: Object.fromEntries(st.placements.flatMap(p => tileClearings(st, data, p.id).map(id => [id, clearingType(st, data, id)]))), dwellings: st.dwellings ?? [], garrisonAt: st.garrisonAt ?? {}, ghostsAt: st.ghostsAt ?? null, sitesOpen: st.sitesOpen ?? {}, discSides: st.discSides ?? null,
+            ...(st.options?.solitaire ? { entries: st.entryRoad ? [st.entryRoad] : entryClearings(st, data) } : {}) },          // (solitaire, 10.E.1.6: the clearings a character on the road at the edge of the map may Move to; once one has entered, a new character enters by the same road)
         chits, piles: { lostCity: (st.piles?.lostCity ?? []).length, lostCastle: (st.piles?.lostCastle ?? []).length },
         monsters: st.mons.map(counterOf), natives: st.nats.map(counterOf),
         abandoned: Object.fromEntries(Object.entries(st.abandoned ?? {}).map(([at, l]) => [at, l.map(it => (CARD.has(it.kind) ? hiddenCard(it) : it))])),
@@ -177,6 +181,7 @@ export function makeView(state, viewer, data, version) {
         saleValue: withActor(st, viewer, () => ownedItems(st).filter(i => !i.destroyed).reduce((a, i) => a + Math.max(0, priceOf(data, i)), 0)),          // (what everything he owns, what a Melt into Mist holds for him too, would fetch at the printed prices)
         meet: withActor(st, viewer, () => { try { return json(meetOptions(st, data, viewer)); } catch { return null; } }),          // (with whom he may trade now and what he may give: meet.js meetOptions)
         fightLog: fightLogOf(st, viewer, new Set([viewer, ...st.order.filter(id => id !== viewer && st.chars[id].leader && st.chars[id].owner === me.owner)])),
+        ...(st.options?.openScoring ? { growth: withActor(st, viewer, () => { try { return json(growthFacts(st, data)); } catch { return null; } }) } : {}),          // (open scoring, growth.js: the points he holds, what a chit costs, how far he is, the chit he may choose; absent without the option)
         earned: withActor(st, viewer, () => { try { return json(earned(st, data)); } catch { return null; } }),          // what he holds now toward each goal (score.js), for the fight's closing sheet
     };
     return json({

@@ -1,0 +1,22 @@
+/* css/ds-modes.css: the first step of the New Game screen (three big cards: Adventure, Solo, Roguelike; screens/newgame.js modeStep) and the "Solo rules" card on the realm step. Design tokens only; text is 12px and up. */
+.ds-modes { gap: 12px; }
+.mode-card { min-height: 108px; padding: 14px 16px; gap: 14px; align-items: center; text-align: left; }
+.mode-card.on { padding: 13px 15px; }
+.mode-card .glyph { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink-2); }
+.mode-card.on .glyph { border-color: var(--gold); background: var(--gold-wash); color: var(--gold-hi); }
+.mode-card .glyph svg { width: 26px; height: 26px; }
+.mode-card .main { gap: 4px; }
+.mode-card b { justify-content: flex-start; font-size: calc(21px * var(--ts, 1)); }
+.mode-card span.l { font-size: calc(15px * var(--ts, 1)); line-height: 1.3; }
+.mode-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (max-height: 700px) { .ds-modes { gap: 8px; } .mode-card { min-height: 96px; padding: 10px 14px; } .mode-card.on { padding: 9px 13px; } .mode-card .glyph { width: 44px; height: 44px; } }
+
+.solo-card { margin: 4px 0 14px; padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-2); }
+.solo-card .ds-h2 { margin: 0 0 4px; }
+.solo-card ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.solo-card li { display: flex; flex-direction: column; gap: 2px; }
+.solo-card li b { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font: 700 calc(15px * var(--ts, 1))/1.25 var(--font-ui); }
+.solo-card li span { font: 400 calc(14px * var(--ts, 1))/1.35 var(--font-ui); color: var(--ink-2); }
+.solo-card .solo-coming { font-style: normal; }
+.ds-histfilter { margin: 0 0 10px; }
+@media (min-height: 780px) { .ds-modes { gap: 14px; } .mode-card { min-height: 148px; padding: 18px; } .mode-card.on { padding: 17px; } .mode-card .glyph { width: 60px; height: 60px; } .mode-card .glyph svg { width: 30px; height: 30px; } .mode-card b { font-size: calc(23px * var(--ts, 1)); } .mode-card span.l { font-size: calc(16px * var(--ts, 1)); } }

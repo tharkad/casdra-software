@@ -8,6 +8,7 @@ import { frames, state, voiceSwitch } from '../ds.js';
 import { logText, onVoice } from '../voice.js';
 import { bar, confirmSheet, dateLabel, face, plural, sign } from '../front.js';
 import { loadSaved } from './game.js';
+import { MODES, modeName, modeOf } from '../modes.js';
 
 // Previous games (mockup 06 h2, h3). Rows lead with the result; a game opens on its verdict, then the story day by day; the developer tools sit behind one quiet Export disclosure, and
 // Delete is alone at the bottom behind the house confirm. Seed and build number live in the detail footer.
@@ -28,13 +29,14 @@ export function slainBy(log) {
 
 // What happened to a game, in words: { kind, title, bad, sub }. `live` is the id of the game that is on this device now (its record is "in progress" and plays on).
 export function outcome(rec, live) {
-    const o = outcomeOf(rec, live), rl = rec.params?.roguelike;          // a run of the roguelike campaign says so (and which run, at which stage)
-    return rl ? { ...o, roguelike: true, sub: [`Roguelike run ${rl.runNo} \u00b7 stage ${rl.stage}`, o.sub].filter(Boolean).join(' \u00b7 ') } : o;
+    const o = outcomeOf(rec, live), rl = rec.params?.roguelike, mode = modeOf(rec);          // a run of the roguelike campaign says so (and which run, at which stage); every other game names its kind: Adventure or Solo
+    return rl ? { ...o, mode, roguelike: true, sub: [`Roguelike run ${rl.runNo} \u00b7 stage ${rl.stage}`, o.sub].filter(Boolean).join(' \u00b7 ') } : { ...o, mode, sub: [modeName(rec), o.sub].filter(Boolean).join(' \u00b7 ') };
 }
 function outcomeOf(rec, live) {
     const m = rec.meta ?? {}, name = m.name ?? rec.params?.character ?? 'Game', date = dateLabel(rec.startedAt);
     if (m.result === 'died') { const by = slainBy(rec.log); return { kind: 'died', name, bad: true, label: `Died day ${m.day}`, sub: [by ? `Slain by the ${by}` : null, date].filter(Boolean).join(' \u00b7 ') }; }
     if (m.result === 'abandoned') return { kind: 'abandoned', name, label: `Abandoned day ${m.day}`, sub: date };
+    if (m.result === 'finished' && m.growth) return { kind: 'finished', name, label: `Finished day ${m.day}`, sub: `${date} \u00b7 ${plural(m.growth.points, 'point')} \u00b7 ${plural(m.growth.chits.length, 'chit')} earned` };          // (open scoring: no score, no goals; the points and the chits)
     if (m.result === 'finished') return { kind: 'finished', name, label: `Finished day ${m.day}`, sub: `${date} \u00b7 Fame ${m.fame ?? 0} \u00b7 Notoriety ${m.notoriety ?? 0} \u00b7 ${m.gold ?? 0} gold` };
     if (rec.id === live) return { kind: 'playing', name, label: `In progress, day ${m.day ?? 1}`, sub: `${date} \u00b7 plays on this device` };
     return { kind: 'unfinished', name, label: `Unfinished, day ${m.day ?? 1}`, sub: date };
@@ -57,7 +59,7 @@ const flash = (btn, text, back) => { btn.textContent = text; setTimeout(() => { 
 
 export function historyScreen(ctx) {
     const root = h('main', { class: 'screen ds-screen ds-title flush history', 'data-screen': 'history' });
-    const state_ = { filter: 'all', check: null };
+    const state_ = { filter: 'all', check: null, kind: 'all' };
     const back = () => ctx.go(ctx.params?.back ?? 'title');
     const top = (title, onBack) => bar(title, { onBack, hook: { 'data-act': 'hist-back' } });
     let unsub = null;
@@ -71,6 +73,11 @@ export function historyScreen(ctx) {
         const finished = recs.filter(r => r.meta?.result === 'finished');
         const best = finished.reduce((a, r) => (typeof r.meta.score === 'number' && (a == null || r.meta.score > a) ? r.meta.score : a), null);
         const strip = h('p', { class: 'ds-meta ds-histstrip' }, `${plural(recs.length, 'game')} \u00b7 ${finished.length} finished`, best != null ? [' \u00b7 best ', h('b', { class: best >= 0 ? 'pos' : 'neg' }, sign(best))] : null);
+        // a filter by kind of game (Adventure, Solo, Roguelike), offered once there is more than one kind to tell apart
+        const present = MODES.filter(m => recs.some(r => modeOf(r) === m.id));
+        if (state_.kind !== 'all' && !present.some(m => m.id === state_.kind)) state_.kind = 'all';
+        const shown = state_.kind === 'all' ? recs : recs.filter(r => modeOf(r) === state_.kind);
+        const kinds = present.length > 1 ? h('div', { class: 'ds-chips ds-histfilter', role: 'group', 'aria-label': 'Kind of game' }, [{ id: 'all', title: 'All' }, ...present].map(m => h('button', { type: 'button', class: `ds-chip${state_.kind === m.id ? ' on' : ''}`, 'data-kind': m.id, onclick: () => { state_.kind = m.id; showList(); } }, m.title))) : null;
         const row = r => {
             const m = r.meta ?? {}, o = outcome(r, live), id = m.character ?? r.params?.character;
             return h('button', { type: 'button', class: `ds-hrow histrow res-${m.result ?? 'playing'}`, 'data-game': r.id, onclick: () => showDetail(r.id) },
@@ -84,7 +91,7 @@ export function historyScreen(ctx) {
             return;
         }
         root.replaceChildren(top('History', back),
-            h('div', { class: 'ds-scroll ds-fade-b ds-pad' }, strip, h('div', { class: 'ds-list histlist' }, ...recs.map(row)),
+            h('div', { class: 'ds-scroll ds-fade-b ds-pad' }, strip, kinds, h('div', { class: 'ds-list histlist' }, ...shown.map(row)),
                 h('button', { type: 'button', class: 'ds-btn quiet block ds-saveall', 'data-act': 'save-all', onclick: async e => { const b = e.currentTarget; const how = await deliver(bundle(await allRecords(), new Date().toISOString()), `magic-realm-games-${new Date().toISOString().slice(0, 10)}.json`, { download: true, type: 'application/json' }); flash(b, `${how} \u2713`, 'Save all games (.json)'); } }, 'Save all games (.json)')));
     }
 
@@ -106,9 +113,10 @@ export function historyScreen(ctx) {
         // the verdict: who, where, the day, the score, then the goals
         const rows = [...(m.rows ?? [])].sort((a, b) => (b.need > 0) - (a.need > 0));          // (note 125: every category, the ones with no goal too: Gold counts against the score when it is negative, so no score screen hides a row; the goals first)
         const met = rows.filter(r => r.need > 0 && r.earned >= r.need).map(r => GOAL[r.cat] ?? r.cat);
-        const num = typeof m.score === 'number' && o.kind !== 'abandoned' && o.kind !== 'playing' && o.kind !== 'unfinished' ? m.score : null;
+        const gro = m.growth ?? null;          // (open scoring: points and chits instead of a score and goals)
+        const num = !gro && typeof m.score === 'number' && o.kind !== 'abandoned' && o.kind !== 'playing' && o.kind !== 'unfinished' ? m.score : null;
         const verdict = {
-            finished: `Victory points. ${met.length ? `You met your goals on ${list(met)}.` : 'No goal was met.'}`,
+            finished: gro ? `Points this run: ${gro.points}. Chits you earned during the run: ${gro.chits.length}.` : `Victory points. ${met.length ? `You met your goals on ${list(met)}.` : 'No goal was met.'}`,
             died: slainBy(rec.log) ? `Slain by the ${slainBy(rec.log)}.` : 'The adventure ended here.',
             abandoned: 'You put this adventure down. It cannot be picked up again.',
             playing: 'Plays on this device: continue it from the title screen.',
@@ -117,7 +125,7 @@ export function historyScreen(ctx) {
         const card = h('div', { class: `ds-frame card ${o.kind === 'finished' && num >= 0 ? 'good' : o.kind === 'died' ? 'bad' : ''}`, 'data-verdict': o.kind },
             h('span', { class: 'lg' }, o.label),
             h('div', { class: 'ds-verdict' }, num != null ? h('span', { class: `ds-num ds-bignum ${num >= 0 ? 'pos' : 'neg'}` }, sign(num)) : null, h('span', { class: 'ds-text' }, verdict)));
-        const goals = o.kind === 'finished' && rows.length ? [h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Goals')),
+        const goals = o.kind === 'finished' && rows.length && !gro ? [h('div', { class: 'ds-sect' }, h('span', { class: 'ds-eyebrow' }, 'Goals')),
             h('div', { class: 'ds-goals' }, rows.map(r => h('div', { class: `ds-goal${r.need > 0 && r.earned >= r.need ? ' met' : ''}${r.need > 0 ? '' : ' idle'}` }, h('span', {}, GOAL[r.cat] ?? r.cat), h('span', {}, r.need > 0 ? `${r.earned} of ${r.need}` : `${r.earned} earned, no goal`), h('b', {}, sign(r.basic + r.bonus)))))] : [];
         const body = h('div', { class: 'hist-detail' }, card,
             h('div', { class: 'ds-framegap' }, frames({ fame: m.fame ?? 0, notor: m.notoriety ?? 0, gold: m.gold ?? 0 }, { cls: 'sheetbg' })), ...goals,

@@ -11,8 +11,11 @@
 // OURS, not the book's (docs/design/roguelike/ROGUELIKE-V0.md): the run length by stage (RUN_DAYS), the starter set (STARTERS), a run that is abandoned counts as a fall, the order in which a death takes
 // the three chits away (the chits above his stage first, then the last of the card), a winner re-picks the chits he had earned (as a count) from the new next stage, a veteran plays the fourth-stage hero and
 // the flat rewards above the fourth stage (6.7) and their higher targets (6.8) are NOT built.
+// OPEN SCORING (docs/design/roguelike/OPEN-SCORING.md, rule 10.E.6.10) is the default: a run has no goals, the hero earns chits DURING the run from points of every kind (engine/growth.js), and the
+// run ends in one of three ways: FELL (killed or ended their own life: three chits lost), SURVIVED (alive at the end: the survival chit) or FLOURISHED (survived AND earned at least one chit in the run: the
+// survival chit, the chits earned, and the jump of a full stage, 6.3.4). `chooseGoals` on the record is the advanced switch that brings back today's goal-based run (won / survived / fell).
 // Nothing here touches the DOM or the engine's states; the engine's own part is `newGame(data, { startStage, extraChits })` (engine/stages.js).
-import { chitId, MAX_STAGE, cardChits } from '../../engine/catalogue.js';
+import { chitId, MAX_STAGE, cardChits, chitCost } from '../../engine/catalogue.js';
 import { spreadVp, fitSpread, validSpread } from '../goalspread.js';
 
 /** Days in a run, by the stage he plays at. Tunable: the bots (docs/design/roguelike/STAGE-SIM.md) found 28 days the band where survival is about 30 to 60 percent at stages 2 to 4, and stage 1 too deadly that long. */
@@ -22,8 +25,12 @@ export const STARTERS = ['woods-girl', 'amazon', 'witch', 'druid', 'magician', '
 export const KEEP_RUNS = 60;
 const KEY = 'mr-roguelike-v1';
 
-export const blankRecord = () => ({ v: 1, characters: {}, runs: [], unlockedAll: false, pending: null, last: null });
+export const blankRecord = () => ({ v: 1, characters: {}, runs: [], unlockedAll: false, pending: null, last: null, chooseGoals: false });
 export const heroOf = (rec, id) => ({ stage: 1, extra: [], runs: 0, wins: 0, deaths: 0, best: 1, ...(rec.characters?.[id] ?? {}) });
+/** Does the next run use open scoring (the default), or the goals the player chooses (the advanced switch)? */
+export const isOpen = rec => !rec.chooseGoals;
+/** The advanced switch "Choose your goals": on brings back the goal-based run (a win means the goals are met). */
+export const setChooseGoals = (rec, on) => ({ ...rec, chooseGoals: !!on });
 export const playable = (rec, allIds) => (rec.unlockedAll ? [...allIds] : STARTERS.filter(id => allIds.includes(id)));
 export const setUnlockedAll = (rec, on) => ({ ...rec, unlockedAll: !!on });
 /** The character the campaign screen opens on (the last one played). */
@@ -35,8 +42,9 @@ export const playStage = stage => Math.min(stage, MAX_STAGE);
 export const targetVp = stage => playStage(stage) + 1;
 export const runDays = stage => RUN_DAYS[playStage(stage)];
 export const stageLabel = stage => (stage > MAX_STAGE ? 'Veteran' : `Stage ${stage}`);
-/** How a finished run counts: killed (or ended his own life) is a fall, alive with the goals met a win, otherwise he survived. */
-export const resultOf = ({ dead, won }) => (dead ? 'fell' : won ? 'won' : 'survived');
+/** How a finished run counts. Killed (or ended their own life) is a fall. With goals: alive with the goals met is a win, otherwise survived. Open scoring (`open`): alive having earned at least one chit in the
+ * run (`earned`, how many) is flourished; alive otherwise survived (the score is not a verdict: there are no goals). */
+export const resultOf = ({ dead, won, open = false, earned = 0 }) => (dead ? 'fell' : open ? (earned > 0 ? 'flourished' : 'survived') : won ? 'won' : 'survived');
 
 // ---- the chits a record describes ----
 const cardOf = (data, id) => data.characters[id];
@@ -65,7 +73,8 @@ export const lastGoals = (rec, id) => { const g = rec.characters?.[id]?.goals; r
 export function runPlan(rec, id) {
     const h = heroOf(rec, id), vp = targetVp(h.stage), usual = spreadVp(vp), last = lastGoals(rec, id), fit = last ? fitSpread(last, vp) : null;
     const goalsFrom = !fit ? 'usual' : validSpread(last, vp) ? 'last' : 'fitted';
-    return { character: id, runNo: h.runs + 1, stage: h.stage, playStage: playStage(h.stage), extra: [...h.extra], days: runDays(h.stage), vp, goals: fit ?? usual, goalsFrom, usual, last: fit ? last : null };
+    return { character: id, runNo: h.runs + 1, stage: h.stage, playStage: playStage(h.stage), extra: [...h.extra], days: runDays(h.stage), vp, goals: fit ?? usual, goalsFrom, usual, last: fit ? last : null,
+        open: isOpen(rec), cost: chitCost(Math.min(playStage(h.stage), MAX_STAGE - 1)), top: playStage(h.stage) >= MAX_STAGE };
 }
 /** The goals the player chose, kept for the character's next run. A spread that is not a whole spread of this run's points is refused (the record is left alone). */
 export function rememberGoals(rec, id, goals) {
@@ -77,6 +86,8 @@ export function rememberGoals(rec, id, goals) {
  * player chose (it must be a whole spread of this run's points: anything else throws); without it the run begins on the plan's own goals. */
 export function runParams(rec, id, { seed, options, goals } = {}) {
     const p = runPlan(rec, id);
+    if (p.open) return { fresh: true, character: id, mode: 'month', lastDay: p.days, seed, options: options ? { ...options } : undefined, startStage: p.playStage, extraChits: p.extra, openScoring: true,
+        roguelike: { character: id, runNo: p.runNo, stage: p.stage, extra: p.extra, days: p.days, open: true, cost: p.cost } };          // (no goals: the engine records none)
     if (goals && !validSpread(goals, p.vp)) throw new Error(`goals must be a spread of exactly ${p.vp} victory points over the five goals, each 0 to 5`);
     const vp = goals ? { great: goals.great, spells: goals.spells, fame: goals.fame, notoriety: goals.notoriety, gold: goals.gold } : p.goals;
     return { fresh: true, character: id, vp, mode: 'month', lastDay: p.days, seed, options: options ? { ...options } : undefined, startStage: p.playStage, extraChits: p.extra,
@@ -84,27 +95,37 @@ export function runParams(rec, id, { seed, options, goals } = {}) {
 }
 
 // ---- after a run ----
-const word = n => (n === 1 ? 'a chit' : 'two chits');
-function outcomeOf(kind, from, to, pick, data, id) {
+const word = n => (n === 1 ? 'a chit' : n === 2 ? 'two chits' : `${n} chits`);
+function outcomeOf(kind, from, to, pick, data, id, earned = []) {
     const label = s => (s > MAX_STAGE ? `stage ${s}, a veteran` : `stage ${s}`);
+    const n = earned.length;
     let text;
     if (kind === 'fell') {
         text = from.stage === 1 && to.stage === 1 ? 'You fell: you stay at stage 1, the lowest stage.' : `You fell: back to ${label(to.stage)}.`;
+        if (n) text += ` The ${n === 1 ? 'chit' : 'chits'} you earned in the run could not save you.`;
+    } else if (kind === 'flourished') {
+        text = to.stage > MAX_STAGE ? `You survived and earned ${word(n)} this run: you rise to ${label(to.stage)}. A veteran has every chit; what comes after is for a later build.` : `You survived and earned ${word(n)} this run: you rise to stage ${to.stage}.`;
+        if (pick) text += ` You also earn ${word(pick.k)}. Choose ${pick.k === 1 ? 'it' : 'them'}.`;
     } else if (kind === 'won') {
         text = to.stage > MAX_STAGE ? `You won: you rise to ${label(to.stage)}. A veteran has every chit; what comes after is for a later build.` : `You won: you rise to stage ${to.stage}.`;
         if (pick) text += ` You also earn ${word(pick.k)}. Choose ${pick.k === 1 ? 'it' : 'them'}.`;
     } else if (pick) text = 'You survived: you earn a chit. Choose it.';
     else if (to.stage > from.stage) text = `You survived: the last chit of stage ${to.stage} is yours, and you rise to stage ${to.stage}.`;
     else text = 'You survived. A hero of the fourth stage has every chit.';
-    return { kind, from: { stage: from.stage, extra: [...from.extra] }, to: { stage: to.stage, extra: [...to.extra] }, pick, text };
+    return { kind, from: { stage: from.stage, extra: [...from.extra] }, to: { stage: to.stage, extra: [...to.extra] }, pick, earned: [...earned], text };
 }
 
-/** Apply a finished run to the record: `run` is { id, character, result ('survived' | 'won' | 'fell'), day }. Applied once per run id (a second call returns the first outcome and changes nothing).
+/** Apply a finished run to the record: `run` is { id, character, result ('survived' | 'won' | 'flourished' | 'fell'), day, earned?, points? }. `earned` lists the chits the hero earned DURING the run (open scoring: they were
+ * taken in the game and are theirs already, so they are counted here once: as part of the hero the run left, never again as new). Applied once per run id (a second call returns the first outcome and changes nothing).
  * A chit to choose waits in `rec.pending` until `chooseChits`. Returns { rec, outcome, again? }. */
 export function applyRun(rec, data, run) {
     const seen = rec.runs.find(r => r.id === run.id);
     if (seen) return { rec, outcome: seen.outcome, again: true };
-    const id = run.character, h = heroOf(rec, id), from = { stage: h.stage, extra: [...h.extra] };
+    const id = run.character, h0 = heroOf(rec, id), from = { stage: h0.stage, extra: [...h0.extra] };
+    const earned = h0.stage >= MAX_STAGE ? [] : [...new Set(run.earned ?? [])];
+    // the hero the run left: the chits earned in it are his (a third chit of a stage completes the stage); everything below works on him
+    const h = earned.length ? { ...h0, ...settle(data, id, [...chitsOwned(data, id, h0), ...earned]) } : h0;
+    const jump = run.result === 'won' || run.result === 'flourished';
     let to = { stage: h.stage, extra: [...h.extra] }, pick = null;
     if (run.result === 'fell') {
         if (h.stage > MAX_STAGE) to = { stage: h.stage - 1, extra: [] };              // (above the fourth stage a stage is only a count: all twelve chits stay)
@@ -115,11 +136,11 @@ export function applyRun(rec, data, run) {
             const left = own.filter(x => !order.slice(0, 3).includes(x));
             to = left.length < 3 ? { stage: 1, extra: [] } : settle(data, id, left);
         }
-    } else if (h.stage > MAX_STAGE || (h.stage === MAX_STAGE && run.result === 'survived')) {
-        to = { stage: run.result === 'won' ? h.stage + 1 : h.stage, extra: [] };            // (no chit above the fourth stage: 6.6)
+    } else if (h.stage > MAX_STAGE || (h.stage === MAX_STAGE && !jump)) {
+        to = { stage: jump ? h.stage + 1 : h.stage, extra: [] };            // (no chit above the fourth stage: 6.6)
     } else {
         const count = h.extra.length + 1;                                               // the chit for surviving (6.3.1) joins the extras
-        const rise = (count === 3 ? 1 : 0) + (run.result === 'won' ? 1 : 0);
+        const rise = (count === 3 ? 1 : 0) + (jump ? 1 : 0);
         if (!rise) pick = { k: 1, stage: h.stage + 1 };
         else {
             const stage = h.stage + rise, keep = count === 3 ? 0 : count;              // three chits complete a stage (6.3.3); the winner jumps (6.3.4) and re-picks the ones he had
@@ -127,9 +148,9 @@ export function applyRun(rec, data, run) {
             if (keep && stage < MAX_STAGE) pick = { k: keep, stage: stage + 1 };
         }
     }
-    const outcome = outcomeOf(run.result, from, to, pick, data, id);
-    const hero = { ...h, stage: to.stage, extra: to.extra, runs: h.runs + 1, wins: h.wins + (run.result === 'won' ? 1 : 0), deaths: h.deaths + (run.result === 'fell' ? 1 : 0), best: Math.max(h.best ?? 1, to.stage) };
-    const entry = { id: run.id, character: id, runNo: h.runs + 1, stage: h.stage, result: run.result, day: run.day ?? null, outcome, at: run.at ?? null };
+    const outcome = outcomeOf(run.result, from, to, pick, data, id, earned);
+    const hero = { ...h0, stage: to.stage, extra: to.extra, runs: h0.runs + 1, wins: h0.wins + (jump ? 1 : 0), deaths: h0.deaths + (run.result === 'fell' ? 1 : 0), best: Math.max(h0.best ?? 1, to.stage), earned: (h0.earned ?? 0) + earned.length };
+    const entry = { id: run.id, character: id, runNo: h0.runs + 1, stage: h0.stage, result: run.result, day: run.day ?? null, outcome, at: run.at ?? null, ...(run.points != null ? { points: run.points } : {}), ...(earned.length ? { earned } : {}) };
     const runs = [...rec.runs, entry].slice(-KEEP_RUNS);
     return { rec: { ...rec, characters: { ...rec.characters, [id]: hero }, runs, pending: pick ? { character: id, runId: run.id, k: pick.k, stage: pick.stage } : rec.pending }, outcome };
 }

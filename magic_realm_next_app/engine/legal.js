@@ -14,6 +14,7 @@ import { denSide } from './combat.js';
 import { siteLeft, sitesHere } from './search.js';
 import { tradeFacts, TRADE_QUESTIONS } from './tradefacts.js';
 import { takeable } from './missions.js';
+import { choiceOf } from './growth.js';
 
 export const COMBAT_QUESTIONS = ['combat-pay', 'combat-drinks', 'combat-choice', 'combat-encounter', 'combat-melee', 'combat-shift', 'combat-wounds', 'combat-fatigue', 'combat-over', 'combat-lure', 'combat-charge', 'combat-deploy'];
 
@@ -175,9 +176,21 @@ export function legalCombat(state, data, who) {
     });
 }
 
+// open scoring: the chits he may take now, each a free `chit` action with the chit's facts as numbers and ids
+function chitEntries(st, data) {
+    const c = choiceOf(st, data);
+    return c ? c.options.map(o => ({ action: { type: 'chit', chit: o.id }, cost: { points: c.cost }, preview: { stage: c.stage, kind: o.chit.type, strength: o.chit.strength ?? null, time: o.chit.time, effort: o.chit.effort ?? 0 } })) : [];
+}
+
 /** `legal(state, viewer)` (legal.schema.json): the viewer's question and every way to answer it. `pending` is his question as `view` has it (null when he has none or is a spectator).
  * Built so far for the twelve combat questions (`covered: true`); another question comes back with `covered: false` and no answers until its slice lands (CONTRACT section 11). */
 export function legalFor(state, viewer, data, pending) {
+    const r = legalBase(state, viewer, data, pending);
+    if (!state.options?.openScoring || !viewer || !state.chars?.[viewer]) return r;
+    const st = clone(state), free = withActor(st, viewer, () => chitEntries(st, data));          // (open scoring: a chit his points have earned is a free action, one entry for each chit on offer: growth.js)
+    return free.length ? { ...r, free: [...r.free, ...free] } : r;
+}
+function legalBase(state, viewer, data, pending) {
     const waiting = state.asks.filter(a => a.who !== viewer).map(a => ({ who: a.who }));
     const base = { for: viewer ?? '', question: pending, answers: [], free: [], waiting };
     if (!viewer || !pending) return { ...base, covered: true };

@@ -2,7 +2,7 @@ import { h } from '../dom.js';
 import { sect } from '../ds.js';
 import { loadData } from '../dataload.js';
 import { bar, charLabel, foot, nb, portraitSrc, sum, switchRow } from '../front.js';
-import { chitsOwned, heroOf, loadRecord, playable, rememberGoals, runParams, runPlan, saveRecord, setLast, setUnlockedAll, stageLabel } from '../roguelike/campaign.js';
+import { chitsOwned, heroOf, isOpen, loadRecord, playable, rememberGoals, runParams, runPlan, saveRecord, setChooseGoals, setLast, setUnlockedAll, stageLabel } from '../roguelike/campaign.js';
 import { GOAL_NAME, GOAL_ORDER, GOAL_MAX, fitSpread, goalList, goalMax, goalWords, sameSpread, setGoal, spreadUsed, validSpread } from '../goalspread.js';
 import { howWinEl } from '../howwin.js';
 import { apiOf } from '../../engine/api.js';
@@ -77,8 +77,13 @@ export function campaignScreen(ctx) {
                 h('div', { class: 'rl-goalbtns' }, reset('Same as last time', plan.last ? fitSpread(plan.last, plan.vp) : null, 'goals-last'), reset('The usual spread', plan.usual, 'goals-usual'))) : null);
     }
 
+    // How growth works, in one plain sentence (open scoring): what counts, what a chit costs this hero, and that it is usable at once.
+    const growthSentence = plan => (plan.top
+        ? 'A hero of the fourth stage has every chit. Your points still count in your History.'
+        : `Fame, Notoriety, Gold, Great Treasures and spells all count: every ${plan.cost === 1 ? 'point' : plan.cost + ' points'} you earn gives you a chit of the next stage, and you can use it at once.`);
+
     function detail(id) {
-        const hero = heroOf(rec, id), plan = runPlan(rec, id), goals = goalsOf(id, plan), info = startOf(id, plan, goals), mine = chitsOwned(data, id, hero), extras = new Set(hero.extra);
+        const hero = heroOf(rec, id), plan = runPlan(rec, id), open = plan.open, goals = open ? null : goalsOf(id, plan), info = open ? null : startOf(id, plan, goals), mine = chitsOwned(data, id, hero), extras = new Set(hero.extra);
         const cards = data.characters[id].chits.map((c, i) => ({ c, id: `${id}-${i + 1}` })).filter(x => mine.includes(x.id));
         const chitEls = cards.map(x => { const f = chitFacts(x.c); return h('span', { class: `ds-chit ${f.type}${extras.has(x.id) ? ' on' : ''}`, 'data-chit': x.id, 'aria-label': `${f.line}${extras.has(x.id) ? ', an extra chit' : ''}` }, h('span', {}, f.label, f.stars ? h('sup', {}, '*'.repeat(f.stars)) : null), h('small', {}, f.kind.toUpperCase())); });
         const last = [...rec.runs].reverse().find(r => r.character === id);
@@ -90,11 +95,12 @@ export function campaignScreen(ctx) {
             sect(`The run that comes`, `Run ${plan.runNo}`),
             h('dl', { class: 'ds-kv rl-run', 'data-run': '' },
                 h('dt', {}, 'Length'), h('dd', {}, `${plan.days} days`),
-                h('dt', {}, 'Points'), h('dd', {}, `${plan.vp} victory points, spread over your goals`),
-                info?.total != null ? [h('dt', {}, 'Starts at'), h('dd', { 'data-start-score': '' }, `${info.total} (nothing earned yet)`)] : null),
-            goalsBlock(id, plan, goals, info),
-            howWinEl({ mode: 'month', lastDay: plan.days, start: info?.total ?? null }),
-            h('p', { class: 'ds-why', 'data-consequence': '' }, nb('Win: rise a stage. Survive: earn a chit. Fall: drop a stage.')),
+                open ? [h('dt', {}, 'Growth'), h('dd', { 'data-growth-how': '' }, growthSentence(plan))]
+                    : [h('dt', {}, 'Points'), h('dd', {}, `${plan.vp} victory points, spread over your goals`),
+                        info?.total != null ? [h('dt', {}, 'Starts at'), h('dd', { 'data-start-score': '' }, `${info.total} (nothing earned yet)`)] : null]),
+            open ? null : goalsBlock(id, plan, goals, info),
+            open ? null : howWinEl({ mode: 'month', lastDay: plan.days, start: info?.total ?? null }),
+            h('p', { class: 'ds-why', 'data-consequence': '' }, nb(open ? 'Flourish (survive with a chit earned in the run): rise a stage. Survive: earn a chit. Fall: drop a stage.' : 'Win: rise a stage. Survive: earn a chit. Fall: drop a stage.')),
             last ? h('p', { class: 'ds-meta rl-last', 'data-last': '' }, nb(`Last run: ${last.outcome.text}`)) : null);
     }
 
@@ -104,14 +110,20 @@ export function campaignScreen(ctx) {
         const all = Object.keys(data.characters), open = playable(rec, all), closed = all.filter(id => !open.includes(id));
         if (!st.sel || !open.includes(st.sel)) st.sel = open.includes(rec.last) ? rec.last : open[0];
         const waiting = rec.pending ? rec.pending.character : null;
-        const plan = st.sel ? runPlan(rec, st.sel) : null;
-        const goals = plan ? goalsOf(st.sel, plan) : null, left = plan ? plan.vp - spreadUsed(goals) : 0;
+        const plan = st.sel ? runPlan(rec, st.sel) : null, openRun = isOpen(rec);
+        const goals = plan && !openRun ? goalsOf(st.sel, plan) : null, left = plan && !openRun ? plan.vp - spreadUsed(goals) : 0;
         const stop = waiting ? 'Choose your chit first.' : left > 0 ? `${left} victory point${left === 1 ? '' : 's'} left to spend on goals.` : null;
         // a run still being played is ended by beginning another: it counts as a fall (9.2.2a), and the next run is built from the record as it stands after it
         const going = loadSaved(), inRun = going && going.period !== 'over' && going.session?.params?.roguelike ? going : null;
         const begin = () => {
             if (inRun) { settleAbandonedRun(inRun, data); rec = loadRecord(); }
-            const id = st.sel, now = runPlan(rec, id), mine = validSpread(goals, now.vp) ? goals : fitSpread(goals, now.vp);       // (the points change if beginning ended a run of this character: a fall)
+            const id = st.sel;
+            if (isOpen(rec)) {          // open scoring: no goals to remember; the engine records none
+                const next = setLast(rec, id); saveRecord(next); rec = next;
+                ctx.go('game', runParams(rec, id, { seed: Math.floor(Math.random() * 90000) + 1, options: defaultGame().options }));
+                return;
+            }
+            const now = runPlan(rec, id), mine = validSpread(goals, now.vp) ? goals : fitSpread(goals, now.vp);       // (the points change if beginning ended a run of this character: a fall)
             const next = setLast(rememberGoals(rec, id, mine), id); saveRecord(next); rec = next;
             delete st.draft[id]; st.goalsOpen = null;
             ctx.go('game', runParams(rec, id, { seed: Math.floor(Math.random() * 90000) + 1, options: defaultGame().options, goals: mine }));
@@ -120,13 +132,16 @@ export function campaignScreen(ctx) {
         return [bar('Campaign', { onBack: back }),
             h('div', { class: 'ds-scroll ds-pad ds-wizbody', 'data-step': 'campaign' },
                 h('p', { class: 'ds-voice lg ds-q' }, nb('One character you keep from run to run.')),
-                h('p', { class: 'ds-why ds-qwhy' }, nb('Survive and you earn a chit. Win and you rise a stage. Fall and you drop back one.')),
+                h('p', { class: 'ds-why ds-qwhy' }, nb(openRun ? 'Earn points as you play and take a chit each time you have enough. Survive having earned a chit and you rise a stage. Fall and you drop back one.' : 'Survive and you earn a chit. Win and you rise a stage. Fall and you drop back one.')),
                 inRun ? h('p', { class: 'ds-why rl-going', 'data-inrun': '' }, nb(`Your ${charLabel(inRun.session.params.roguelike.character)} is in a run, on day ${inRun.day} of ${inRun.lastDay}. Beginning another run ends it as a fall. Continue is on the title.`)) : null,
                 pick ? h('div', { class: 'rl-waiting', 'data-waiting': '' }, sect(`A chit is waiting for the ${charLabel(waiting)}`, ''), pick) : null,
                 sect('Your characters', `${open.length} open`),
                 h('div', { class: 'rl-grid', role: 'radiogroup', 'aria-label': 'Characters' }, open.map(id => card(id, true))),
                 st.sel ? detail(st.sel) : null,
                 closed.length ? [sect('Locked', plural(closed.length, 'character')), h('div', { class: 'rl-grid locked', 'data-locked-list': '' }, closed.map(id => card(id, false))), h('p', { class: 'ds-why', 'data-later': '' }, nb('More characters come in a later build.'))] : null,
+                sect('Advanced', ''),
+                switchRow({ title: 'Choose your goals', line: openRun ? 'Off: you choose no goals, and points of every kind earn chits during the run. On: you spread victory points over goals as in a normal game, and a win means meeting them.' : 'On: you spread victory points over goals as in a normal game, and a win means meeting them. Switch it off to play with no goals.', on: !openRun, attrs: { 'data-option': 'chooseGoals' }, label: ['Off', 'On'],
+                    onToggle: () => save(setChooseGoals(rec, openRun)) }),
                 sect('For testing', ''),
                 switchRow({ title: 'Open every character (testing)', line: 'Every character can be played, from stage 1. Switch it off to go back to the six.', on: rec.unlockedAll, attrs: { 'data-option': 'unlockAll' }, label: ['Off', 'On'],
                     onToggle: () => save(setUnlockedAll(rec, !rec.unlockedAll)) })),

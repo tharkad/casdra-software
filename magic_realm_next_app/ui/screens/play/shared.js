@@ -78,7 +78,7 @@ export function drawSheet(G) {
     if (!d) { G.ui.sheet = null; return h('div'); }
     const dawn = G.st.log.find(l => l.day === gameOf(G.st, G.data).day && /^Dawn of day/.test(l.t));
     const dawnText = dawn ? (voice() === 'story' ? (dawn.s ?? null) : dawn.t) : null;
-    const prowling = gameOf(G.st, G.data).prowl && !(voice() === 'story' && dawnText) ? (voice() === 'story' ? `The wilds stir: ${prowlers(G).join(', ') || 'no one'}.` : `Monster Roll ${gameOf(G.st, G.data).prowl}: ${prowlers(G).join(', ') || 'none left'}.`) : null;
+    const prowling = gameOf(G.st, G.data).prowl && !(voice() === 'story' && dawnText) ? (voice() === 'story' ? `The wilds stir: ${prowlers(G).join(', ') || 'no one'}.` : `Monster Roll ${gameOf(G.st, G.data).prowl}${gameOf(G.st, G.data).prowl2 ? ` and ${gameOf(G.st, G.data).prowl2}` : ''}: ${prowlers(G).join(', ') || 'none left'}.`) : null;
     const finished = dd.step >= d.order.length;
     const c = drawCard({ view: G.st, draw: d, people: G.crew, step: dd.step, finished, fresh: dd.fresh, dawn: dawnText, prowling,
         onSkip: () => { clearInterval(G.ui.drawTimer); G.ui.draw.step = d.order.length; G.ui.draw.fresh = false; render(G); }, onDone: () => endDraw(G) });
@@ -127,7 +127,7 @@ function tableIntroSheet(G) {
     const who = joinNames(others.map(p => `${p.player} (${p.character})`));
     const pvp = !!gameOf(G.st, G.data).options?.pvp;
     const body = h('div', { class: 'welcome table-welcome', 'data-welcome': 'table' },
-        h('p', { class: 'ds-voice' }, `You wake at the ${G.st.ch.startDwelling}${gear}. ${lengthLine(gameOf(G.st, G.data))}`.replace(/ (\d+)/g, '\u00A0$1')),
+        h('p', { class: 'ds-voice' }, `${ownSheet(G.st, G.data).onRoad?.entry ? 'You stand at the edge of the map' : `You wake at the ${G.st.ch.startDwelling}`}${gear}. ${lengthLine(gameOf(G.st, G.data))}`.replace(/ (\d+)/g, '\u00A0$1')),
         h('p', { class: 'ds-voice' }, others.length ? `${who} ${others.length === 1 ? 'shares' : 'share'} this realm with you, on one map.` : 'You share this realm with the others, on one map.'),
         h('p', { class: 'ds-voice' }, `Each morning you all plan in secret. Then the chits are drawn and the day is played one turn at a time: you wait for yours and watch the others. At night you fight whatever shares your clearing${pvp ? ', and players may charge one another' : '; nobody can attack another player'}.`));
     return modal(G, `Welcome, ${me?.player ?? ownSheet(G.st, G.data).name}`, body, { kind: 'result', eyebrow: 'A shared game', footer: footRow({ primary: primary('Begin', { 'data-act': 'welcome-ok', onclick: () => { setWelcomed(); G.ui.welcomeDone = true; render(G); } }) }) });

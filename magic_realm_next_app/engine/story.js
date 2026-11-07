@@ -1,6 +1,7 @@
 // The fight told as a story. Every line of the log keeps its plain, exact form (`t`), and carries this prose as `s` for the places that read the game
 // aloud (the fight's last-round panel, the day report, the journal). Phrases vary by the dice rolled so far, so a fight does not repeat itself, and the
 // same game always tells the same story.
+import { rowProwls } from './solitaire.js';
 const v = (st, arr, k = 0) => arr[(((st.rollSeq ?? 0) * 3 + k) % arr.length + arr.length) % arr.length];
 const The = n => `The ${n}`, the = n => `the ${n}`;
 const harmWord = L => ({ N: 'glances off', L: 'thuds against', M: 'bites into', H: 'hammers', T: 'crashes down on' }[L] ?? 'strikes');
@@ -58,7 +59,7 @@ const WILD_ORDER = ['Dragon', 'Giant', 'Ogre', 'Troll', 'Demon', 'Imp', 'Octopus
 const WORDNUM = { 10: 'ten', 11: 'eleven', 12: 'twelve', 13: 'thirteen', 14: 'fourteen', 15: 'fifteen', 16: 'sixteen', 17: 'seventeen', 18: 'eighteen', 19: 'nineteen', 20: 'twenty' };
 const cap1 = t => t.charAt(0).toUpperCase() + t.slice(1);
 export function wilds(st, data) {
-    const live = st.mons.filter(m => { const d = data.monsters[m.id]; return !m.dead && !m.hired && d && (d.homeRow === st.prowl || d.prowlsEveryDay); });
+    const live = st.mons.filter(m => { const d = data.monsters[m.id]; return !m.dead && !m.hired && d && (rowProwls(st, d.homeRow) || d.prowlsEveryDay); });
     const by = {}; for (const m of live) { const d = data.monsters[m.id]; (by[d.family] ??= []).push(d); }
     const clauses = WILD_ORDER.filter(f => by[f]).map(f => {
         const n = by[f].length, [noun, many, one] = WILD[f] ?? [f.toLowerCase(), 'stir', 'stirs'], winged = f === 'Dragon' && by[f].some(d => d.flies) && by[f].length > 1;

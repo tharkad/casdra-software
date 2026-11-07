@@ -1,6 +1,7 @@
 import { roll2, say, noteRoll, lvl } from './core.js';
 import { modRoll } from './modifiers.js';
 import { shielded, HERO } from './magic/fx.js';
+import { abilityOn } from './abilities.js';
 
 // Curses and the Power of the Pit (tables in data/src/tables.json; effects as RealmSpeak and digest 04 describe them).
 
@@ -20,7 +21,9 @@ export function hasCurse(st, name, ref = HERO) {
 export function rollCurse(st, data, target = HERO, roller = HERO) {
     void roller;
     const who = charOf(st, target), mine = !target || target.id === 'ch';
-    if (shielded(st, target)) { say(st, `${mine ? 'You are' : `${charName(st, target)} is`} shielded from magic: the curse finds nothing to hold on to.`, 'curse'); return 'nothing (Protection from Magic)'; }
+    // a Pentangle, Protection from Magic or Melt into Mist holds it off; so does the Druid's immunity (optional rule 10.A.6.3: no curse can take effect on him): nothing is rolled
+    const held = shielded(st, target) ? ['shielded from magic', 'nothing (Protection from Magic)'] : abilityOn(st, 'druidCurses', who) ? ['untouched by curses', 'nothing (immune to curses)'] : null;
+    if (held) { say(st, `${mine ? 'You are' : `${charName(st, target)} is`} ${held[0]}: the curse finds nothing to hold on to.`, 'curse'); return held[1]; }
     const r = modRoll(st, data, 'curse', roll2(st, 'curse'));       // (Bad Luck adds one, Illusion does not apply here)
     const row = data.tables.curses.rows[String(r.value)];
     noteRoll(st, 'Curse', r.dice, r.value, row.name, null, { ev: { code: 'roll.made', what: 'curse.laid' } });

@@ -22,6 +22,9 @@ export const OPTION_GROUPS = [
           text: 'The book lets characters trade and share information at the start of a phase or after the evening’s fights. This house rule adds Birdsong (and Midnight, which is the same moment) for the characters of one player standing in the same clearing: they may tell each other what they found and give each other belongings and gold, so everything is in the right hands for the plan of the day.' },
         { k: 'knightsAdjustment', title: "Knights’ Adjustment", rule: '10.A.6.8', line: 'Tames the Knights’ trading edge: their allies are only Friendly.',
           text: 'The White Knight is only Friendly with the Order, and the Black Knight Friendly with the Company, instead of Allies. It tames their trading advantage.' },
+        // (the characters made for teams, patched for a game played alone: the Solo mode turns it on; each ability begins at a development level, so a hero who begins lower has it only from that level)
+        { k: 'optionalAbilities', title: 'Optional abilities', rule: '10.A.6', line: 'Gives the characters made for teams what they lack when alone.',
+          text: 'Captain: rolls one die, not two, to hire (from the 3rd level). Druid: no curse can touch the Druid (3rd level), and at the 4th level Peace with Nature reaches Site chits. Magician: alerted Magic chits are only made unprepared at Midnight, not tired (2nd level). Wizard: the 2nd level MOVE M5 chit counts as a MAGIC III2* chit, and the Wizard enchants on every Enchant phase, with no meditation first (3rd level). Woods Girl: tracks in every woods clearing outside the Ruins and the Valleys (2nd level). Elf: the Elf is a Light Elf, who cannot play the Medium Fight and Move chits, or a Great Elf, who cannot play the MOVE L2* chit; those chits still pay for fatigue and wounds. Knights: the Knights’ Adjustment as well (3rd level). A hero who begins at a lower level has an ability only from its level.' },
     ] },
 ];
 

@@ -27,6 +27,7 @@ import { journalDock } from './journal.js';
 import { isWide } from '../../fit.js';
 import { doneLoading } from './states.js';
 import { renderTray } from './tray.js';
+import { chipOf, growthNow, growthWatch, growthWords } from './growth.js';
 import { myId, saveUi, vpNow } from './state.js';
 import { ownSheet, fresh, gameOf, questionOf, tableFight, charsOf, missionsOf, todayOf, tableModel, seatOf, mapChits, viewOf, standingOf, planSlots } from '../../combat/feed.js';
 
@@ -41,10 +42,10 @@ export function mapModel(G) {
     // every chit of a tile keeps its own spot on the picture, even while it is shown at its clearing instead
     const slotOf = {}, nextSlot = {};
     const chits = mapChits(G.st, G.data), me = ownSheet(G.st, G.data), seenIds = new Set(chits.filter(c => c.seen).map(c => c.id));
-    for (const c of chits) if (!c.pile && c.tile && !(c.kind === 'warning' && c.letter === 'V')) slotOf[c.id] = (nextSlot[c.tile] = (nextSlot[c.tile] ?? -1) + 1);
+    for (const c of chits) if (!c.pile && c.tile && !c.exchanged) slotOf[c.id] = (nextSlot[c.tile] = (nextSlot[c.tile] ?? -1) + 1);
     for (const c of chits) {
         if (c.pile || !c.tile) continue;
-        if (c.kind === 'warning' && c.letter === 'V') continue;
+        if (c.exchanged) continue;          // (a valley warning swapped for its dwelling: no marker. A solitaire valley chit still face down is a '?' like the others)
         const known = c.up || seenIds.has(c.id);
         const name = KINDNAME[c.kind] ?? c.name;
         // a site he has DISCOVERED (Locate, Discover chits) carries a tick and a gold edge: it may be looted. A site chit merely turned up does not.
@@ -280,10 +281,19 @@ function renderStrip(G) {
             stats: { 'aria-label': 'Fame, Notoriety and Gold: open your kit', onclick: () => { G.ui.sheet = G.ui.sheet === 'char' ? null : 'char'; render(G); } },
             vp: { 'data-act': 'vp', role: 'button', tabindex: '0', 'aria-label': `Victory points: ${f.tot}. Tap for your goals`, onclick: () => { G.ui.sheet = G.ui.sheet === 'score' ? null : 'score'; render(G); } },
         } });
+    // open scoring: there are no goals, so the chip that held the score tells how far the next chit is (growth.js); a toast says when points were earned
+    const gr = growthNow(G);
+    if (gr) {
+        const chip = chipOf(gr), vp = el.querySelector('.ds-vp');
+        vp.classList.remove('neg', 'pos', 'bad'); vp.classList.add('growth'); if (chip.ready) vp.classList.add('ready');
+        vp.querySelector('small').textContent = chip.label; vp.querySelector('b').textContent = chip.value;
+        vp.setAttribute('aria-label', `Growth: ${growthWords(gr)}. Tap to see what counts`);
+        growthWatch(G);
+    }
     if (!timed(gameOf(G.st, G.data))) el.querySelector('.ds-day b small')?.remove();
     // legacy hooks the tests read
     el.querySelector('.ds-day').classList.add('daybox', ...(magicToday.length ? ['magic'] : []));
-    el.querySelector('.ds-stats').classList.add('stats'); el.querySelector('.ds-vp').classList.add('vpchip', ...(f.tot < 0 ? ['neg'] : []));
+    el.querySelector('.ds-stats').classList.add('stats'); el.querySelector('.ds-vp').classList.add('vpchip', ...(f.tot < 0 && !gr ? ['neg'] : []));
     // a curse takes the use of a number away: it stays on screen, struck through (the Kit and the curse sheet say why)
     for (const [kind, cls] of [['gold', 'gold'], ['fame', 'fame']]) {
         const w = voidBy(G.st, kind), s = el.querySelector(`.ds-stat.${cls}`); s.dataset.stat = kind;
@@ -412,7 +422,8 @@ export function syncMapButton(G) {
 
 // Monsters whose home row the Monster Roll has just called: they are the ones that can come to you at the end of the turn.
 export function prowlers(G) {
-    const alive = tableModel(G.st, G.data).mons.filter(m => !m.dead && !m.hired && (G.data.monsters[m.id].homeRow === gameOf(G.st, G.data).prowl || G.data.monsters[m.id].prowlsEveryDay));
+    const g = gameOf(G.st, G.data), rows = [g.prowl, g.prowl2].filter(r => r != null);          // (solitaire has a second row)
+    const alive = tableModel(G.st, G.data).mons.filter(m => !m.dead && !m.hired && (rows.includes(G.data.monsters[m.id].homeRow) || G.data.monsters[m.id].prowlsEveryDay));
     const by = {};
     for (const m of alive) (by[G.data.monsters[m.id].name] ??= 0), by[G.data.monsters[m.id].name]++;
     return Object.entries(by).map(([name, n]) => (n > 1 ? `${name} x${n}` : name));

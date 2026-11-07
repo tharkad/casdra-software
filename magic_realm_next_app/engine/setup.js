@@ -1,5 +1,6 @@
 import { makeRng } from './rng.js';
 import { generateRealm, reachableFromBorderland } from './mapbuild.js';
+import { generateSolitaireRealm, startOnEdge } from './solitaire.js';
 import { shuffle, int, die, say, refuse } from './core.js';
 import { makeItem, defOf, priceOf } from './items.js';
 import { tileLetter } from './summon.js';
@@ -9,6 +10,8 @@ import { castable, ATTACK_SPELLS } from './spells.js';
 import { STATE_VERSION, hydrate, seat, withActor, DEFAULT_PLAYER } from './party.js';
 import { setupVisitorChits } from './missions.js';
 import { stageCard, MAX_STAGE } from './stages.js';
+import { abilityOn, knightsOn, ELF_KINDS, DEFAULT_ELF_KIND, elfCannotPlay, WIZARD_CHIT } from './abilities.js';
+import { start as startGrowth } from './growth.js';
 
 // Building a new game (rules digest 01 section 3): map, chits, dwellings, denizens, treasure, then the character.
 
@@ -16,6 +19,7 @@ const VALLEY_TO_DWELLING = { Stink: 'Inn', Smoke: 'House', Dank: 'Chapel', Ruins
 const GARRISON = { Inn: 'Rogues', House: 'Soldiers', Chapel: 'Order', 'Guard house': 'Guard' };
 const WARNING_NAMES = ['Bones', 'Dank', 'Ruins', 'Smoke', 'Stink'];
 export const MAX_CHARACTERS = 4;
+const NO_GOALS = () => ({ great: 0, spells: 0, fame: 0, notoriety: 0, gold: 0 });          // open scoring (10.E.6.10): no Victory Requirements are recorded
 
 export function newGame(data, opts = {}) {
     const seed = opts.seed ?? 1;
@@ -29,15 +33,17 @@ export function newGame(data, opts = {}) {
     };
     hydrate(st);                                      // from here on st.ch, st.pending, st.plan, st.turn and st.combat are the acting character's
     const rng = makeRng(seed);
-    st.placements = generateRealm(data.tiles, rng).placements;
+    const solo = !!opts.options?.solitaire;            // optional rules 10.E.1 (solitaire.js): the map from a pile of tiles, the Valley chits face down, the natives and Ghosts off the map until their chit is turned up
+    if (solo) st.mapKey += 's';          // (the graph of a realm is cached by this key: the same seed makes another realm in solitaire play)
+    st.placements = (solo ? generateSolitaireRealm : generateRealm)(data.tiles, rng).placements;
     placeChits(st, data, rng);
-    revealValleys(st, data);
-    placeDenizens(st, data);
+    revealValleys(st, data, solo);
+    placeDenizens(st, data, solo);
     setupTreasure(st, data);
     if (opts.pauseEvening) st.pauseEvening = true;          // the game screen: a one-character evening ends on the question where he may rearrange his belongings (day.js eveningDone)
     if (opts.pauseGear) st.pauseGear = true;                // the game screen: a phase in which he came by a belonging ends on the question where he may activate, deactivate or abandon it (4.3.2, day.js gearPause)
     if (opts.pauseVictory) { st.pauseVictory = true; st.pauseShift = true; }          // the game screen: stop on a result screen and on the Bracelets / Cloak offer
-    st.options = { knightsAdjustment: !!opts.options?.knightsAdjustment, watchfulNatives: !!opts.options?.watchfulNatives, quietMonsters: !!opts.options?.quietMonsters, ...(opts.options?.castAnytime ? { castAnytime: true } : {}), ...(opts.options?.hirelingRules ? { hirelingRules: true } : {}), ...(opts.options?.hireSections ? { hireSections: true } : {}), ...(opts.options?.shareAtBirdsong === false ? { shareAtBirdsong: false } : {}) };       // (castAnytime, hirelingRules and hireSections are in the state only when on, so a game without them is exactly as it was)
+    st.options = { knightsAdjustment: !!opts.options?.knightsAdjustment, watchfulNatives: !!opts.options?.watchfulNatives, quietMonsters: !!opts.options?.quietMonsters, ...(opts.options?.castAnytime ? { castAnytime: true } : {}), ...(opts.options?.hirelingRules ? { hirelingRules: true } : {}), ...(opts.options?.hireSections ? { hireSections: true } : {}), ...(opts.options?.shareAtBirdsong === false ? { shareAtBirdsong: false } : {}), ...(solo ? { solitaire: true } : {}), ...(opts.options?.optionalAbilities ? { optionalAbilities: true } : {}), ...(opts.openScoring || opts.options?.openScoring ? { openScoring: true } : {}) };       // (castAnytime, hirelingRules, hireSections, solitaire optionalAbilities and openScoring are in the state only when on, so a game without them is exactly as it was; the Solo mode of the New Game screen sets the last two: 10.E.1, 10.A.6)
     st.startGear = { weapon: opts.startGear?.weapon ?? true, armor: opts.startGear?.armor ?? true };
     if (opts.missions) setupVisitorChits(st, data, opts.missions);          // the visitor, mission and campaign chits (3.4, missions.js): only when asked for, so a game without them is as it was
     // One realm, one or several characters (2 to 4): each has his own gear, goals, start dwelling (a sealed choice from his card; the first listed by default) and spells.
@@ -45,7 +51,7 @@ export function newGame(data, opts = {}) {
     // player, 'p1', plays them all: pass `owner` for several players).
     const roster = opts.characters?.length
         ? opts.characters.map(c => ({ ...c, id: c.id ?? c.character }))
-        : [{ id: opts.character ?? 'black-knight', vp: opts.vp, startDwelling: opts.startDwelling, spells: opts.startSpells, owner: opts.owner, name: opts.playerName }];
+        : [{ id: opts.character ?? 'black-knight', vp: opts.vp, startDwelling: opts.startDwelling, spells: opts.startSpells, owner: opts.owner, name: opts.playerName, elfKind: opts.elfKind }];
     // Development (10.E.5.2): `startStage` (1 to 4) and `extraChits` begin a hero at an earlier stage; given at the top they are the default of every character listed, and each listed character may carry his own.
     // Absent, the hero is built as he always was (the fourth stage, twelve chits).
     const stageOf = r => stageFor(r.startStage ?? opts.startStage, r.extraChits ?? opts.extraChits);
@@ -54,15 +60,16 @@ export function newGame(data, opts = {}) {
     for (const c of roster) if (!data.characters[c.id]) throw new Error(`there is no character "${c.id}"`);
     const several = roster.length > 1;
     roster.forEach(r => {
-        const ch = makeCharacter(st, data, r.id, r.vp, { gear: st.startGear, dwelling: r.startDwelling ?? r.dwelling, spells: r.spells ?? r.startSpells, stage: stageOf(r) });
+        const ch = makeCharacter(st, data, r.id, r.vp ?? (st.options.openScoring ? NO_GOALS() : undefined), { gear: st.startGear, dwelling: r.startDwelling ?? r.dwelling, spells: r.spells ?? r.startSpells, stage: stageOf(r), elfKind: r.elfKind });
         seat(st, ch, { owner: r.owner ?? opts.owner ?? DEFAULT_PLAYER, name: r.playerName ?? r.name ?? opts.playerName ?? 'You' });
         ch.at = chooseStart(st, data, ch);
         ch.hidden = true;                                                   // every counter starts hidden at its dwelling (7.1.2, 3.6.4)
         if (several) st.gearSeen = true;                                    // a counter exists once: a later character whose starting gear is gone is given its price (makeCharacter)
-        if (!several) say(st, `${ch.name} begins at the ${ch.startDwelling}.`, 'day');
+        if (!several) say(st, `${ch.name} begins ${startWords(st, ch)}.`, 'day');
     });
-    if (several) for (const id of st.order) say(st, `${st.chars[id].name} begins at the ${st.chars[id].startDwelling}.`, 'day', null, { who: id });          // (once all are seated, so each line names its character)
+    if (several) for (const id of st.order) say(st, `${st.chars[id].name} begins ${startWords(st, st.chars[id])}.`, 'day', null, { who: id });          // (once all are seated, so each line names its character)
     beginDay(st, data);
+    startGrowth(st, data);                            // (open scoring: each character's points are counted from what he begins with; nothing without the option)
     return st;
 }
 
@@ -75,15 +82,19 @@ export function addCharacter(st, data, opts = {}) {
     if (st.order.length >= MAX_CHARACTERS) throw new Error(`a game holds at most ${MAX_CHARACTERS} characters`);
     if (st.day !== 1 || st.period !== 'birdsong' || st.order.some(c => st.chars[c].today.plan)) throw new Error('a character can join only before anyone has recorded a plan on day 1');
     st.gearSeen = true;
-    const ch = makeCharacter(st, data, id, opts.vp, { gear: st.startGear, dwelling: opts.dwelling, spells: opts.spells, stage: stageFor(opts.startStage, opts.extraChits) });
+    const ch = makeCharacter(st, data, id, opts.vp ?? (st.options?.openScoring ? NO_GOALS() : undefined), { gear: st.startGear, dwelling: opts.dwelling, spells: opts.spells, stage: stageFor(opts.startStage, opts.extraChits), elfKind: opts.elfKind });
     seat(st, ch, { owner: opts.owner ?? DEFAULT_PLAYER, name: opts.playerName ?? 'You' });
     ch.at = chooseStart(st, data, ch);
     ch.hidden = true;
     for (const c of st.order) st.chars[c].today.stage ??= 'plan';           // (the first character joins the shared day too)
-    say(st, `${ch.name} begins at the ${ch.startDwelling}.`, 'day', null, { who: id });
+    say(st, `${ch.name} begins ${startWords(st, ch)}.`, 'day', null, { who: id });
     withActor(st, id, () => beginChar(st, data));
+    startGrowth(st, data);
     return ch;
 }
+
+// Where he begins, in words: at his dwelling, or (solitaire, 10.E.1.6) on the road at the edge of the map.
+const startWords = (st, ch) => (st.options?.solitaire ? 'on the road at the edge of the map' : `at the ${ch.startDwelling}`);
 
 // ---- map chits ----
 function placeChits(st, data, rng) {
@@ -115,32 +126,34 @@ function placeChits(st, data, rng) {
     }
 }
 
-function revealValleys(st, data) {
+function revealValleys(st, data, solo = false) {
     const reach = reachableFromBorderland(data.tiles, st.placements);
     const gdata = data.tile;
     const valleys = st.chits.filter(c => c.kind === 'warning' && c.letter === 'V');
     for (const c of valleys) {
-        c.up = true;
         const spot = reach.has(c.tile + 5) ? 5 : 4;
         const at = c.tile + spot;
         const what = VALLEY_TO_DWELLING[c.name];
         c.clearing = null;
+        if (solo) { c.dwell = { kind: what, at }; continue; }          // 10.E.1.5: the chit stays face down and secret; the Dwelling or the Ghosts appear when it is turned up (solitaire.js revealValley)
+        c.up = true;
         if (what === 'Ghosts') st.ghostsAt = at;
         else { st.dwellings.push({ kind: what, at, tile: c.tile }); st.garrisonAt[what] = at; }
     }
 }
 
 // ---- monsters and natives ----
-function placeDenizens(st, data) {
+function placeDenizens(st, data, solo = false) {
     // Everything starts in its chart box. Garrison natives start at their dwelling. Ghosts start at the Bones valley.
     for (const m of Object.values(data.monsters)) {
-        if (m.family === 'Ghost' || m.homeRow === 0) st.mons.push({ id: m.id, loc: { c: st.ghostsAt }, dead: false, hired: false });
+        if (solo && m.family === 'Ghost') st.mons.push({ id: m.id, loc: { box: m.homeBox }, dead: false, hired: false });          // (off the map until the Bones chit is turned up)
+        else if (m.family === 'Ghost' || m.homeRow === 0) st.mons.push({ id: m.id, loc: { c: st.ghostsAt }, dead: false, hired: false });
         else st.mons.push({ id: m.id, loc: { box: m.homeBox }, dead: false, hired: false });
     }
     for (const n of Object.values(data.natives)) {
         const g = data.groups[n.group];
         const garrison = g.garrison;
-        st.nats.push({ id: n.id, loc: garrison ? { c: st.garrisonAt[garrison] } : { box: g.id }, dead: false, hired: false, horseDead: false });
+        st.nats.push({ id: n.id, loc: garrison && !solo ? { c: st.garrisonAt[garrison] } : { box: g.id }, dead: false, hired: false, horseDead: false });
     }
 }
 
@@ -184,7 +197,7 @@ function setupTreasure(st, data) {
 // ---- character ----
 // Optional rule 10.A.6.8 (Knights' Adjustment): the White Knight is only Friendly with the Order, the Black Knight with the Company.
 function knightsRel(st, id, rel) {
-    if (!st.options?.knightsAdjustment) return {};
+    if (!knightsOn(st)) return {};          // (its own switch, or the one for all the optional abilities, abilities.js)
     if (id === 'white-knight' && (rel.Order ?? 0) > 1) return { Order: 1 };
     if (id === 'black-knight' && (rel.Company ?? 0) > 1) return { Company: 1 };
     return {};
@@ -230,6 +243,7 @@ export function makeCharacter(st, data, id, vp, opt = {}) {
         adv: (c.advantages ?? []).map(a => a.key), spells: startingSpells(data, c, opt.spells), learned: [],
     };
     if (stage) ch.stage = stage;
+    optionalAbilitiesOf(st, ch, opt.elfKind);
     // The starting weapon and armor are taken from the native group that owns them (never bought). A counter exists once: look in the
     // natives' stock, then lying on the ground; failing both he gets its price in gold instead.
     const take = (name, pool, kind) => {
@@ -258,6 +272,18 @@ export function makeCharacter(st, data, id, vp, opt = {}) {
     return ch;
 }
 
+// The optional abilities that change what a hero is made of (rule 10.A.6, abilities.js; only when the game has the option, so every other game builds him as before):
+// 6.5 the Wizard's 2nd-level MOVE M5 chit is a MAGIC III2* chit; 6.7 the Elf is a Light or a Great Elf, and the chits that kind cannot play are marked `unplayable` (they still pay fatigue and wounds).
+function optionalAbilitiesOf(st, ch, elfKind) {
+    if (abilityOn(st, 'wizard', ch)) { const w = ch.chits.find(c => c.id === `${ch.id}-${WIZARD_CHIT.n}`); if (w) Object.assign(w, WIZARD_CHIT.becomes); }
+    if (abilityOn(st, 'elf', ch)) {
+        const kind = elfKind ?? DEFAULT_ELF_KIND;
+        if (!ELF_KINDS.includes(kind)) refuse('elf.kind', `the Elf is a Light Elf or a Great Elf, not ${JSON.stringify(kind)}`, { kind }, '10.A.6.7');
+        ch.elfKind = kind;
+        for (const c of ch.chits) if (elfCannotPlay(kind, c)) c.unplayable = true;
+    }
+}
+
 // A character who died may come back the next day as a fresh one at the Inn, with new goals (rules digest 01 section 7).
 // The goals a character is given: the five categories, each a whole number from 0 to 5, adding up to the budget (rule 3.3.6a: one point per week left, plus one).
 export const VP_CATS = ['great', 'spells', 'fame', 'notoriety', 'gold'];
@@ -275,14 +301,14 @@ export function restartAfterDeath(st, data, vp) {
     if (back > (st.lastDay ?? 28) && st.mode !== 'endless') throw new Error('the game is over');
     if (vp) checkVp(vp, Math.max(2, Math.ceil(((st.lastDay ?? 28) - (back - 1)) / 7) + 1));
     st.deaths = (st.deaths ?? 0) + 1;                      // from now on gear counters are never conjured from nothing
-    const ch = makeCharacter(st, data, old.id, vp, { gear: st.startGear, dwelling: data.characters[old.id].startDwellings[0], stage: old.stage });   // a new hero starts at the Inn (at the stage the old one began at, if the game began him at one)
+    const ch = makeCharacter(st, data, old.id, vp, { gear: st.startGear, dwelling: data.characters[old.id].startDwellings[0], stage: old.stage, elfKind: old.elfKind });   // a new hero starts at the Inn (at the stage the old one began at, if the game began him at one)
     ch.at = chooseStart(st, data, ch);
     ch.hidden = true;
     ch.owner = old.owner; ch.life = (old.life ?? 1) + 1;           // the same seat, the next life; his day carries over (assigning st.ch keeps `today`)
     st.ch = ch;
     st.over = null; st.score = null; st.combat = null; st.plan = null; st.turn = null;
     st.day = back;
-    say(st, `A new ${ch.name} arrives at the ${ch.startDwelling}.`, 'day');
+    say(st, `A new ${ch.name} arrives ${st.options?.solitaire ? 'at the edge of the map, on the road the first one used' : `at the ${ch.startDwelling}`}.`, 'day');
     beginDay(st, data);
     return st;
 }
@@ -302,7 +328,7 @@ export function restartChar(st, data, vp = null, character = null) {
     }
     if (vp) checkVp(vp, ask?.budget ?? null);
     st.deaths = (st.deaths ?? 0) + 1;                      // from now on gear counters are never conjured from nothing
-    const ch = makeCharacter(st, data, id, vp, { gear: st.startGear, dwelling: data.characters[id].startDwellings[0], stage: id === old.id ? old.stage : undefined });
+    const ch = makeCharacter(st, data, id, vp, { gear: st.startGear, dwelling: data.characters[id].startDwellings[0], stage: id === old.id ? old.stage : undefined, elfKind: id === old.id ? old.elfKind : undefined });
     ch.at = chooseStart(st, data, ch);
     ch.hidden = true;
     ch.owner = old.owner; ch.life = (old.life ?? 1) + 1;
@@ -316,12 +342,13 @@ export function restartChar(st, data, vp = null, character = null) {
         st.actor = id;
     }
     st.pending = null; st.combat = null; st.plan = null; st.turn = null;
-    say(st, `A new ${ch.name} arrives at the ${ch.startDwelling}.`, 'day');
+    say(st, `A new ${ch.name} arrives ${st.options?.solitaire ? 'at the edge of the map, on the road the first one used' : `at the ${ch.startDwelling}`}.`, 'day');
     beginChar(st, data);
     return st;
 }
 
 function chooseStart(st, data, ch) {
+    if (st.options?.solitaire) return startOnEdge(st, data, ch);          // 10.E.1.6: he stands on the road at the edge of the map; his first activity is a Move onto it
     // ruling S9 (Mike, 2026-10-26): a character whose card lists the Ghosts (the Witch King) may start in the clearing where the two Ghosts stand, with the Bones valley piece (3.3.5, 3.6.2a)
     if (ch.startDwelling === 'Ghosts' && st.ghostsAt) return st.ghostsAt;
     const d = st.dwellings.find(x => x.kind === ch.startDwelling) ?? st.dwellings.find(x => x.kind === 'Inn');
