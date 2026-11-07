@@ -39,11 +39,14 @@ export function pullDown(handle, target, done) {
     handle.addEventListener('pointerup', end); handle.addEventListener('pointercancel', end);
     // a swipe down on the content itself, when it is already at its top
     let ty = null, tx = 0;
-    target.addEventListener('touchstart', e => { ty = target.scrollTop <= 0 ? e.touches[0].clientY : null; tx = e.touches[0].clientX; }, { passive: true });
+    // (the sheet itself never scrolls: its body does, so it is the body's top that counts, or scrolling a long list back up would put the sheet away: note 149)
+    const body = target.querySelector('.ds-sheet-body') ?? target;
+    target.addEventListener('touchstart', e => { ty = target.scrollTop <= 0 && body.scrollTop <= 0 ? e.touches[0].clientY : null; tx = e.touches[0].clientX; }, { passive: true });
     target.addEventListener('touchmove', e => {
         if (ty == null) return;
+        if (body.scrollTop > 0) { ty = null; return; }
         const d = e.touches[0].clientY - ty, dx = Math.abs(e.touches[0].clientX - tx);
-        if (d > 70 && d > dx * 1.6) { ty = null; target.style.transition = 'transform .18s ease-out'; target.style.transform = 'translateY(100%)'; setTimeout(done, 170); }
+        if (d > 110 && d > dx * 1.6) { ty = null; target.style.transition = 'transform .18s ease-out'; target.style.transform = 'translateY(100%)'; setTimeout(done, 170); }
     }, { passive: true });
 }
 
