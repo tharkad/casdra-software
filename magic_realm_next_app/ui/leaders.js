@@ -53,8 +53,8 @@ export function introOf(tm, data, id) {
     if (!c?.leader) return null;
     const hirer = seatName(tm, c.leader.hirer), mon = c.leader.kind === 'mon', att = attentionOf(tm, data, id);
     return {
-        story: mon ? `${seatName(tm, id)} is under your spell: you plan its day, and it acts when its chit is drawn.` : `${seatName(tm, id)} works for ${hirer}: you plan his day, and he acts when his chit is drawn.`,
-        detail: `${seatName(tm, id)} ${mon ? 'is a controlled monster' : 'is a hired leader'} and a seat of ${hirer}’s party (6.2.5, 7.7.${mon ? '5e' : '2'}). ${att ? `${att.label}. ` : ''}${hirer} records his activities in Birdsong.`,
+        story: mon ? `${seatName(tm, id)} is under your spell: you plan its day, and it acts when its chit is drawn.` : `${seatName(tm, id)} works for ${hirer}: you plan the day, and the chit decides when it is played.`,
+        detail: `${seatName(tm, id)} ${mon ? 'is a controlled monster' : 'is a hired leader'} and a seat of ${hirer}’s party (6.2.5, 7.7.${mon ? '5e' : '2'}). ${att ? `${att.label}. ` : ''}${hirer} records the activities in Birdsong.`,
     };
 }
 
@@ -71,8 +71,8 @@ export function planActs(pending) {
 }
 
 export const PLAN_ONLY_NOTE = {
-    story: 'Alert and Rest do nothing for him. They are for the ones who follow him.',
-    detail: 'A leader records Alert and Rest only for the characters who follow him (6.2.5); he gets nothing from them himself. He cannot use Enchant phases.',
+    story: 'Alert and Rest do nothing for the leader. They are for the ones who follow.',
+    detail: 'A leader records Alert and Rest only for the characters who follow him (6.2.5); the leader gets nothing from them. Enchant phases are not available.',
 };
 export const MONSTER_PLAN_NOTE = {
     story: 'A creature in your power cannot trade or hire.',
@@ -166,5 +166,5 @@ export const discoveriesOf = (tm, id) => { const d = tm.chars?.[id]?.discovered 
 // Off until switched on. The engine's own name for it is `hirelingRules`.
 export const HIRELING_GROUP = { title: 'Hirelings', items: [
     { k: 'hirelingRules', title: 'Hirelings and hired leaders', rule: '6.2.5, 6.3.1, 7.7, 7.11', line: 'Hired leaders take their own turns, and each follower goes with a guide you name.',
-      text: 'A hired leader, or a monster you take in hand, is a seat of your party: he has an Attention chit and a sheet of his own, you record his plan in Birdsong, and he acts when his chit is drawn. Every other hireling is put with a guide each morning and goes only where that guide goes; you may leave him behind at the start of a phase. Hirelings hide only with their guide. Off: every hireling follows you everywhere, as in the printed game without these rules.' },
+      text: 'A hired leader, or a monster you take in hand, is a seat of your party: each has an Attention chit and a sheet of its own, you record the plan in Birdsong, and it acts when its chit is drawn. Every other hireling is put with a guide each morning and goes only where that guide goes; you may leave one behind at the start of a phase. Hirelings hide only with their guide. Off: every hireling follows you everywhere, as in the printed game without these rules.' },
 ] };

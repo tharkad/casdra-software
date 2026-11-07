@@ -18,7 +18,7 @@ export const SPELL_LINE = {
     'elven-grace': 'Quickens its target’s Move chits: the lighter, the quicker.',
     'faerie-lights': 'Reshapes your Magic chits: III becomes II, VII becomes VI.',
     'illusion': 'Adds one to every Search roll of its target.',
-    'lost': 'Its target stumbles to a random clearing whenever he moves.',
+    'lost': 'Its target stumbles to a random clearing whenever it moves.',
     'persuade': 'Pacifies a native group (or Giants, Ogres): hire them on Friendly terms.',
     'see-hidden-signs': 'Gives its target an extra Search phase.',
     // Type IV
@@ -40,7 +40,7 @@ export const SPELL_LINE = {
     // Type VII
     'control-bats': 'Takes control of every Bat in your clearing.',
     'peace-with-nature': 'Warning and Sound chits no longer call monsters on you.',
-    'premonition': 'Lets its target choose when to take his turn in Daylight.',
+    'premonition': 'Lets its target choose when to take its turn in Daylight.',
     'protection-from-magic': 'Shields its target from spells and curses for a round.',
     'sense-danger': 'Gives its target an extra Alert phase.',
 };

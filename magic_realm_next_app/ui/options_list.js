@@ -11,7 +11,7 @@ export const OPTION_GROUPS = [
     ] },
     { title: 'Denizens', items: [
         { k: 'quietMonsters', title: 'Quiet Monsters', rule: '10.B.1', line: 'A hidden character is left alone by wandering monsters.',
-          text: 'A character who is hidden when his turn ends does not turn up the chits in his tile, and monsters from the Appearance Chart do not come.' },
+          text: 'A character who is hidden when the turn ends does not turn up the chits in the tile, and monsters from the Appearance Chart do not come.' },
         { k: 'watchfulNatives', title: 'Watchful Natives', rule: '10.B.4', line: 'Natives you strike hit back in the same round.',
           text: 'Natives you strike surprise you back: the whole group fights you in the same round, not the next.' },
     ] },

@@ -42,7 +42,7 @@ export function campaignScreen(ctx) {
         return h('div', { class: 'rl-detail', 'data-detail': id },
             h('div', { class: 'rl-dhead' }, h('h2', { class: 'ds-h2' }, charLabel(id)), h('span', { class: 'ds-tag gold', 'data-stage-tag': '' }, stageLabel(hero.stage))),
             hero.stage > 4 ? h('p', { class: 'ds-why' }, 'A veteran plays as a fourth-stage hero. What a veteran earns above the fourth stage comes in a later build.') : null,
-            sect('His chits', `${chitsWord(mine.length)}${hero.extra.length ? `, ${hero.extra.length} beyond his stage` : ''}`),
+            sect('Chits', `${chitsWord(mine.length)}${hero.extra.length ? `, ${hero.extra.length} beyond the stage` : ''}`),
             h('div', { class: 'rl-chits', 'data-chits': '' }, ...chitEls),
             sect(`The run that comes`, `Run ${plan.runNo}`),
             h('dl', { class: 'ds-kv rl-run', 'data-run': '' },

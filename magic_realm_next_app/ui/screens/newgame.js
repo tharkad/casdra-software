@@ -158,7 +158,7 @@ export const CHARACTERS = [
 ];
 // The sentence in the spell row for a character whose spells are chosen for him (and the printed rule behind it stays on the card).
 const SPELL_NOTE = { 'white-knight': 'The White Knight begins with one spell. Choose it.', wizard: 'The Wizard begins with two spells. Choose them.',
-    sorceror: 'The Sorcerer begins with three spells, chosen for him. Change any.', 'woods-girl': 'The Woods Girl begins with one spell. Choose it.' };
+    sorceror: 'The Sorcerer begins with three spells, chosen for you. Change any.', 'woods-girl': 'The Woods Girl begins with one spell. Choose it.' };
 
 // ---- the game data (spells, printed text, where the dwellings are), fetched once ----
 let DATA = null;
@@ -271,8 +271,8 @@ function spellsSheet(g, i, redraw) {
 // "Start together": the row of a member after the first (default off); it says where he begins and whether he and the first member can follow each other
 function togetherRow(g, m, i, redraw) {
     const f = g.party[0], c = charOf(m.id), fc = charOf(f.id), can = canTogether(g, m), same = m.start === f.start;
-    const line = m.together ? v2(`Begins with the ${fc.name}, at ${the(f.start)}. If the ${fc.name} moves, so does ${c.her ? 'she' : 'he'}.`, `Start: ${f.start}, as the ${fc.name} (kept in step).`)
-        : !can ? v2(`The ${c.name} cannot begin at ${the(f.start)}, so ${c.her ? 'she' : 'he'} begins at ${the(m.start)}, apart from the ${fc.name}.`, `${f.start} is not on the ${c.name}\u2019s card (${c.starts.join(', ')}): he starts apart.`)
+    const line = m.together ? v2(`Begins with the ${fc.name}, at ${the(f.start)}. If the ${fc.name} moves, the ${c.name} moves too.`, `Start: ${f.start}, as the ${fc.name} (kept in step).`)
+        : !can ? v2(`The ${c.name} cannot begin at ${the(f.start)}, so the ${c.name} begins at ${the(m.start)}, apart from the ${fc.name}.`, `${f.start} is not on the ${c.name}\u2019s card (${c.starts.join(', ')}): they start apart.`)
         : same ? v2(`Already begins at ${the(m.start)}, where the ${fc.name} does: they can follow each other.`, `Start: ${m.start}, the same as the ${fc.name}: they can follow each other (7.11.3).`)
         : v2(`Begins at ${the(m.start)}, apart from the ${fc.name}: Follow needs the same clearing.`, `Start: ${m.start}; the ${fc.name}: ${f.start}. Follow needs one clearing (7.11.3).`);
     return h('div', { class: 'pt-together' }, switchRow({ title: 'Start together', line, on: !!m.together, label: ['Off', 'On'], attrs: { 'data-together': m.id, class: `ds-switch-row${can ? '' : ' dim'}`, 'aria-disabled': can ? null : 'true' },
@@ -297,9 +297,9 @@ export function pickStart(g, m, d) {
 function startPicker(g, m, redraw) {
     const c = charOf(m.id);
     if (c.starts.length < 2) {
-        return h('div', { 'data-start': m.id }, h('div', { class: 'lbl' }, 'Begins'), startLine(g, m), h('p', { class: 'ds-why', style: 'margin:6px 0 0' }, nb(`The ${c.name} has only the ${c.starts[0]} on ${c.her ? 'her' : 'his'} character card. ${dwellingBrief(m.start, c)}`.trim())));
+        return h('div', { 'data-start': m.id }, h('div', { class: 'lbl' }, 'Begins'), startLine(g, m), h('p', { class: 'ds-why', style: 'margin:6px 0 0' }, nb(`The ${c.name} has only the ${c.starts[0]} on the character card. ${dwellingBrief(m.start, c)}`.trim())));
     }
-    return h('div', { 'data-start': m.id }, h('div', { class: 'lbl' }, c.her ? 'Where she begins' : 'Where he begins'),
+    return h('div', { 'data-start': m.id }, h('div', { class: 'lbl' }, 'Where to begin'),
         h('div', { class: 'ds-seg', role: 'radiogroup', 'aria-label': 'Starting place' }, c.starts.map(d => h('button', { type: 'button', class: m.start === d ? 'on' : null, role: 'radio', 'aria-checked': m.start === d ? 'true' : 'false', 'data-dwelling': d,
             onclick: () => { pickStart(g, m, d); redraw(); } }, d))),
         h('p', { class: 'ds-why', 'data-start-brief': '', style: 'margin:6px 0 0' }, nb(startBrief(g, m))));
@@ -343,7 +343,7 @@ function partyStep(g, redraw, o) {
         g.party.length ? [sect(online ? 'Your character' : 'Your party', right), !online && apartHint(g) ? h('p', { class: 'ds-why pt-apart', 'data-apart': '' }, v2(apartHint(g).story, apartHint(g).detail)) : null, h('div', { class: 'pt-acc' }, g.party.map(row))]
             : h('div', { class: 'pt-empty' }, h('div', { class: 'pt-seats' }, [0, 1, 2, 3].map(i => h('span', { class: 'pt-seat' }, String(i + 1)))), h('p', { class: 'ds-voice' }, v2('No one yet. Add a character to begin. You can bring up to four.', `Choose at least one character. Up to ${MAX_PARTY}, all yours.`)), h('p', { class: 'ds-why' }, 'Add character is below.')),
         g._shared ? h('p', { class: 'ds-why', 'data-sealed': '' }, 'Your goals and starting spells are sealed: the others see them only when the game is over.') : null,
-        !online && g.party.length && !full ? h('p', { class: 'ds-why', style: 'margin-top:10px' }, 'Each character keeps his own spells, starting place and goals. Goals are chosen next.') : null];
+        !online && g.party.length && !full ? h('p', { class: 'ds-why', style: 'margin-top:10px' }, 'Each character keeps their own spells, starting place and goals. Goals are chosen next.') : null];
 }
 
 // ---- the picker: every character on one screen. It adds a member (solo) or changes the one character of a seat (a race or a shared table) ----
