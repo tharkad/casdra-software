@@ -97,7 +97,7 @@ function titleOf(G, g) {
 const CAN_DISMISS = new Set(['plan', 'phase', 'phase-pick']);
 function dismissRow(G, g, ctl) {
     const key = `${g.kind}:${g.key}`, can = CAN_DISMISS.has(questionOf(G.st, G.data)?.type), asking = G.ui.dismissAsk === key && can;
-    const who = g.members.length > 1 ? 'them' : g.kind === 'mon' ? 'it' : 'him';
+    const who = g.members.length > 1 ? 'them' : g.kind === 'mon' ? 'it' : 'them';
     const go = () => { G.ui.dismissAsk = null; for (const o of g.members) act(G, { type: 'dismiss', kind: g.kind === 'mon' ? 'monster' : 'native', id: o.id }); };
     if (asking) return h('div', { class: 'kit-dismiss asking', 'data-dismiss-ask': '' },
         h('span', { class: 'ds-why' }, steedAskWords(G, g) ?? `Send ${who} away for good?`),
@@ -111,7 +111,7 @@ function dismissRow(G, g, ctl) {
 function seatLinks(G, g) {
     if (!gameOf(G.st, G.data).options?.hirelingRules) return [];
     return g.members.filter(o => charsOf(G.st, G.data)[o.id]?.leader).map(o => h('button', { type: 'button', class: 'ds-btn sm kit-seatbtn', 'data-act': 'open-seat', 'data-seat': o.id,
-        onclick: () => { G.ui.sheet = 'char'; switchTo(G, o.id); G.ui.sheet = 'char'; render(G); } }, `${charsOf(G.st, G.data)[o.id].name}: his sheet and turn`));
+        onclick: () => { G.ui.sheet = 'char'; switchTo(G, o.id); G.ui.sheet = 'char'; render(G); } }, `${charsOf(G.st, G.data)[o.id].name}: sheet and turn`));
 }
 
 function groupCard(G, g, ctl) {

@@ -159,7 +159,7 @@ export function combatScene({ st: engineState, data, act, ui, render, peek, shar
     let anyTag = false;
     const foeEls = foes.map(({ d, dead, tag, turned: sideChanged }) => {
         let t = tag ?? null;
-        if (!t && !dead && d.pickedUp && (mode === 'encounter' || mode === 'melee')) t = { text: d.engagedBy ? 'ON YOUR MAN' : 'HOLDS YOU', short: 'HELD', kind: 'bad' };
+        if (!t && !dead && d.pickedUp && (mode === 'encounter' || mode === 'melee')) t = { text: d.engagedBy ? 'ON YOUR HIRELING' : 'HOLDS YOU', short: 'HELD', kind: 'bad' };
         else if (!t && !dead && d.pacified && (mode === 'encounter' || mode === 'melee')) t = { text: 'AT PEACE', short: 'PEACE', kind: 'ghost' };
         else if (!t && !dead && M.peacefulFoe(d) && (mode === 'encounter' || mode === 'melee')) t = { text: 'AT PEACE', short: 'PEACE', kind: 'ghost' };          // (a native group that is not fighting him: note 70)
         else if (!t && !dead && d.kind !== 'part' && (mode === 'encounter' || mode === 'melee') && sheetOf(fm, data)?.dens.find(x => x.uid === d.uid)?.onSheet) t = { text: 'FACING A HIRELING', short: 'HIRELING', kind: 'ghost' };          // (on a Melee Section: a hireling and it fight each other)

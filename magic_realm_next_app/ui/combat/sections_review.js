@@ -52,7 +52,7 @@ function chipEl(fm, data, chip) {
 
 function sectionEl(fm, data, rv) {
     const hireOwner = rv.ownerKind === 'hire';
-    const rows = [['circle', `Strike ${hireOwner ? 'him' : 'it'}`], ['box', hireOwner ? 'His box' : 'Its box'], ['square', `${hireOwner ? 'He' : 'It'} strikes`]];
+    const rows = [['circle', `Strike ${hireOwner ? 'them' : 'it'}`], ['box', hireOwner ? 'Their box' : 'Its box'], ['square', `${hireOwner ? 'They strike' : 'It strikes'}`]];
     const parts = [h('div', { class: 'sx-cols', 'aria-hidden': 'true' }, ...[0, 1, 2].map(i => h('span', {}, DIRS[i], h('small', {}, MNV[i]))))];
     for (const [zone, label] of rows) {
         if (!rv.cells[zone].some(col => col.length)) continue;

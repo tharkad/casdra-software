@@ -148,7 +148,7 @@ export function renderTray(G) {
     // hired followers and hired leaders (hirelingRules): leave a follower behind at the start of a phase; give to or take from his own leader
     if (p?.type === 'phase' && gameOf(st, G.data).options?.hirelingRules) {
         freeActs.push(...followerChips(G));
-        if (leaderGame(tableModel(G.st, G.data)) && meetWith(G).ok) freeActs.push(h('button', { type: 'button', class: 'ds-chip spellact handchip', 'data-act': 'handover-open', title: 'Give to him or take from him: it is done at once',
+        if (leaderGame(tableModel(G.st, G.data)) && meetWith(G).ok) freeActs.push(h('button', { type: 'button', class: 'ds-chip spellact handchip', 'data-act': 'handover-open', title: 'Give or take: it is done at once',
             onclick: () => { G.ui.hand = null; G.ui.sheet = 'handover'; render(G); } }, `Give or take: ${seatName(tableModel(G.st, G.data), meetWith(G).other)}`));
     }
     if (planning) {

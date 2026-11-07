@@ -128,7 +128,7 @@ function tradeWho(G, p, tf) {
     const body = h('div', { class: 'kit trade trade-who' },
         ask('Whom do you trade with?', 'Name one leader or visitor. Once you have, the choice is made for this Trade.'),
         voiced({ story: 'Counters lie in plain view. A Treasure card stays face down until you have said you are buying and taken the secret look.',
-            detail: 'He specifies one native leader or visitor (7.6.3, 7.6.3a). Counters are face up on the Setup Card; Treasure cards are face down and he may only count them (4.4.1a); the secret look comes when he buys (7.6.5).' }, { class: 'ds-meta kit-whomintro', 'data-whom-intro': '' }),
+            detail: 'You specify one native leader or visitor (7.6.3, 7.6.3a). Counters are face up on the Setup Card; Treasure cards are face down and you may only count them (4.4.1a); the secret look comes when you buy (7.6.5).' }, { class: 'ds-meta kit-whomintro', 'data-whom-intro': '' }),
         h('div', { class: 'ds-list kit-rows', role: 'radiogroup', 'data-tab': 'who' }, rows));
     const reset = () => { G.ui.tradePick = null; G.ui.tradeTab = null; G.ui.owedPick = null; G.ui.tradeWho = null; };
     const cancel = h('button', { type: 'button', class: 'ds-btn', 'data-act': 'trade-cancel', onclick: () => { reset(); act(G, { type: 'trade', act: 'back' }); } }, 'Cancel');

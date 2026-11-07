@@ -18,27 +18,27 @@ export const ordWord = i => ORD[i] ?? `number ${i + 1}`;
 export const DEPLOY_WORDS = {
     intro: {
         story: 'Who lures a creature, who goes in against one, and who stays out?',
-        detail: 'Deployment: each hireling may lure one denizen onto a Melee Section of his own (8.3.4c.2). The attackers nobody lured are assigned at random (8.3.5), and each hireling who is not being attacked is deployed at a target of your choice, in the order you choose (8.3.6a). One who stays out cannot attack (8.3.6).',
+        detail: 'Deployment: each hireling may lure one denizen onto a Melee Section of their own (8.3.4c.2). The attackers nobody lured are assigned at random (8.3.5), and each hireling who is not being attacked is deployed at a target of your choice, in the order you choose (8.3.6a). One who stays out cannot attack (8.3.6).',
     },
     heroHidden: {
         story: 'You are hidden, so nothing can be set on you. Lure the rest yourself and you are seen. If you do not, one of your hirelings takes them.',
-        detail: 'A hidden hero may lure what the hirelings did not, and is unhidden (8.3.4b). Otherwise the attackers go to one of his unhidden hirelings (8.3.5a.3); if every hireling is hidden too they stay unassigned (8.3.5b).',
+        detail: 'A hidden hero may lure what the hirelings did not, and is unhidden (8.3.4b). Otherwise the attackers go to one of your unhidden hirelings (8.3.5a.3); if every hireling is hidden too they stay unassigned (8.3.5b).',
     },
     heroSeen: {
         story: 'You are in plain sight, so whatever nobody lures is set on you.',
-        detail: 'An unhidden character must take the unlured attackers himself (8.3.5a.3).',
+        detail: 'An unhidden character must take the unlured attackers on, with no hireling to share them (8.3.5a.3).',
     },
     turn: {
-        story: 'He is going in as an attacker, so you may turn him over before he goes: the side that shows is the side that fights. His horse turns too.',
-        detail: 'A hireling placed as an attacker may be turned either side up, and so may his horse (8.3.6a.4). A hireling who defends is turned later, when you place him in the Melee step (8.4.5n.1).',
+        story: 'This hireling is going in as an attacker, so you may turn them over before they go: the side that shows is the side that fights. Their horse turns too.',
+        detail: 'A hireling placed as an attacker may be turned either side up, and so may their horse (8.3.6a.4). A hireling who defends is turned later, when you place them in the Melee step (8.4.5n.1).',
     },
     order: {
         story: 'They go in one after the other. If one is sent at a creature another is already facing, that creature turns to face the newcomer instead.',
         detail: 'Hirelings are deployed in the order you choose (8.3.6a). A target that was an attacker on another section leaves it and gets a section of its own (8.3.6a.5).',
     },
     taker: {
-        story: 'Who takes the creatures nobody lured? He will be set upon, so he cannot be sent anywhere.',
-        detail: 'With the hero hidden, an unlured attacker is assigned to one of his unhidden hirelings (8.3.5a.3). A hireling who is being attacked is not deployed (8.3.6a).',
+        story: 'Who takes the creatures nobody lured? That hireling will be set upon, so cannot be sent anywhere.',
+        detail: 'With the hero hidden, an unlured attacker is assigned to one of your unhidden hirelings (8.3.5a.3). A hireling who is being attacked is not deployed (8.3.6a).',
     },
     nobody: {
         story: 'Every hireling is hidden too, so nothing can be set on anyone. The creatures stay where they are.',
@@ -109,8 +109,8 @@ function jobRow(X, plan, hh, isTaker) {
         onclick: () => { if (off) { X.say(off); return; } D.setJob(fm, p, plan, hh.uid, job); render(); } }, jobWords[job]);
     const takerCan = D.takerNow(fm, p, plan);
     return h('div', { class: 'cb-aim dp-jobs', role: 'group', 'aria-label': `What ${hh.name} does` },
-        b('lure', noLure ? 'There is nothing left for him to lure.' : null),
-        b('send', noTarget ? 'There is nothing to send him at.' : takerCan?.uid === hh.uid && j.job !== 'send' ? 'He takes the creatures nobody lured, so he is being attacked and cannot be sent (8.3.6a).' : null),
+        b('lure', noLure ? 'There is nothing left for them to lure.' : null),
+        b('send', noTarget ? 'There is nothing to send them at.' : takerCan?.uid === hh.uid && j.job !== 'send' ? 'They take the creatures nobody lured, so they are being attacked and cannot be sent (8.3.6a).' : null),
         b('out'));
 }
 
@@ -132,7 +132,7 @@ function pickerFor(X, plan, hh, j) {
             counterBox(fm, data, d.uid, 32, 'dp-mini'), h('span', { class: 'dp-dname' }, nm(d.name), tag ? h('small', {}, tag) : null));
     });
     return h('div', { class: 'dp-pick', 'data-pick': j.job },
-        h('p', { class: 'cb-hint' }, lure ? 'Which creature does he lure?' : 'Which creature is he sent at?'),
+        h('p', { class: 'cb-hint' }, lure ? 'Which creature do they lure?' : 'Which creature are they sent at?'),
         h('div', { class: 'cb-aim' }, ...btns), ...notes.map(n => vhint(n, 'dp-why', { 'data-hint': 'warn' })));
 }
 
@@ -147,16 +147,16 @@ function turnBlock(X, plan, hh, j, sends) {
             h('span', { class: 'ds-cs-wrap', 'aria-hidden': 'true' }, counterEl(fm, data, hh.uid, 56, side)), h('small', {}, `${side === 'light' ? 'Light' : 'Dark'} · ${f.text}`));
     };
     const sides = (hh.sides ?? ['light', 'dark']);
-    rows.push(h('div', { class: 'dp-turn', 'data-turn': 'side' }, ...(sides.length > 1 ? sides.map(sideBtn) : [h('p', { class: 'cb-hint' }, 'He has one side only.')])));
+    rows.push(h('div', { class: 'dp-turn', 'data-turn': 'side' }, ...(sides.length > 1 ? sides.map(sideBtn) : [h('p', { class: 'cb-hint' }, 'They have one side only.')])));
     if (hh.horse) {
         const horseBtn = side => {
             const f = D.horseFacts(data, hh, side), on = (j.horse ?? hh.horse.side) === side;
             return h('button', { type: 'button', class: `ds-btn${on ? ' on' : ''}`, 'data-horse': side, 'aria-pressed': on ? 'true' : 'false', onclick: () => { j.horse = side; render(); } },
                 h('span', { class: 'dp-hname' }, cap(D.HORSE_WORD[side]), f ? h('small', {}, `${f.name} · moves ${f.move}`) : null));
         };
-        rows.push(h('div', { class: 'dp-horse', 'data-turn': 'horse' }, h('p', { class: 'cb-hint' }, `His ${D.horseFacts(data, hh, hh.horse.side)?.name?.toLowerCase() ?? 'horse'} is alive and comes with him.`), h('div', { class: 'cb-aim' }, horseBtn('light'), horseBtn('dark'))));
+        rows.push(h('div', { class: 'dp-horse', 'data-turn': 'horse' }, h('p', { class: 'cb-hint' }, `Their ${D.horseFacts(data, hh, hh.horse.side)?.name?.toLowerCase() ?? 'horse'} is alive and comes with them.`), h('div', { class: 'cb-aim' }, horseBtn('light'), horseBtn('dark'))));
     } else if (data.natives?.[hh.id]?.horse) {
-        rows.push(h('p', { class: 'cb-hint', 'data-turn': 'nohorse' }, 'He has no horse in this fight: it is dead, or this is a cave.'));
+        rows.push(h('p', { class: 'cb-hint', 'data-turn': 'nohorse' }, 'They have no horse in this fight: it is dead, or this is a cave.'));
     }
     if (sends.length > 1) {
         const i = sends.indexOf(hh.uid);
@@ -185,9 +185,9 @@ function takerBlock(X, plan, taker) {
     if (!pool.length) return vhint(DEPLOY_WORDS.nobody, 'dp-note', { 'data-hint': 'nobody' });
     const rows = D.hiresOf(p).map(hh => {
         const ok = pool.some(x => x.uid === hh.uid), on = taker?.uid === hh.uid;
-        const why = hh.held ? D.greyWhy(hh).story : hh.hidden ? 'He is hidden: nothing can be set on him.' : null;
+        const why = hh.held ? D.greyWhy(hh).story : hh.hidden ? 'They are hidden: nothing can be set on them.' : null;
         return h('button', { type: 'button', class: `ds-btn${on ? ' on' : ''}${ok ? '' : ' is-dim'}`, 'data-taker': hh.uid, 'aria-pressed': on ? 'true' : 'false', 'aria-disabled': ok ? null : 'true', 'aria-label': `${hh.name}${why ? `: ${why}` : ''}`,
-            onclick: () => { if (!ok) { X.say(why ?? 'He cannot take them.'); return; } D.setTaker(fm, p, plan, hh.uid); render(); } }, h('span', { class: 'dp-dname' }, nm(hh.name), why ? h('small', {}, hh.held ? 'held' : 'hidden') : null));
+            onclick: () => { if (!ok) { X.say(why ?? 'This hireling cannot take them.'); return; } D.setTaker(fm, p, plan, hh.uid); render(); } }, h('span', { class: 'dp-dname' }, nm(hh.name), why ? h('small', {}, hh.held ? 'held' : 'hidden') : null));
     });
     return h('div', { class: 'dp-taker', 'data-taker-block': '' }, h('p', { class: 'cb-hint' }, 'Who takes the creatures nobody lured?'), h('div', { class: 'cb-aim' }, ...rows), vhint(DEPLOY_WORDS.taker, '', { 'data-hint': 'taker' }));
 }

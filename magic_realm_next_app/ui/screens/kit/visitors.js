@@ -39,8 +39,8 @@ export function visitorPriceTag(G, group, it, price) {
 
 // ---- his Spell cards: a room of the Trade sheet ----
 export function spellsIntro(G, p) {
-    return voiced({ story: `Pick one of the ${p.group}’s Spell cards and ask: you roll for the price, 10 Gold to start. The card stays with him.`,
-        detail: 'He looks at the visitor\u2019s Spell cards, names one and rolls on the Meeting Table (7.6.7a); one spell a phase (7.6.7b); the card stays with the visitor (7.6.7c).' }, { class: 'ds-meta kit-spellsintro', 'data-spells-intro': '' });
+    return voiced({ story: `Pick one of the ${p.group}’s Spell cards and ask: you roll for the price, 10 Gold to start. The card stays with the visitor.`,
+        detail: 'You look at the visitor\u2019s Spell cards, name one and roll on the Meeting Table (7.6.7a); one spell a phase (7.6.7b); the card stays with the visitor (7.6.7c).' }, { class: 'ds-meta kit-spellsintro', 'data-spells-intro': '' });
 }
 export function spellsRoom(G, p, sel, onPick) {
     const cards = p.spells ?? [];
@@ -77,7 +77,7 @@ export function eraseBlock(G) {
     const ids = G.st.ch.spells ?? [], chosen = ids.includes(G.ui.spellErase) ? G.ui.spellErase : null, nameOf = id => G.data.spells?.[id]?.name ?? id;
     const node = h('div', { class: 'kit-erase', 'data-erase-block': chosen ?? '' },
         h('div', { class: 'ds-ask warn' }, h('b', {}, `You know ${MAX_SPELLS} spells: erase which one?`),
-            voiced({ story: 'Your spellbook is full. One spell is wiped to make room for the new one.', detail: 'A character knows at most fourteen spells; to learn another he erases one (7.5.6g).' })),
+            voiced({ story: 'Your spellbook is full. One spell is wiped to make room for the new one.', detail: 'A character knows at most fourteen spells; to learn another, one is erased (7.5.6g).' })),
         h('details', { class: 'kit-detail kit-erase-list', open: chosen ? null : '' }, h('summary', {}, chosen ? `Erase ${nameOf(chosen)} (tap to change)` : 'Choose the spell to erase'),
             h('div', { class: 'ds-list', role: 'radiogroup', 'aria-label': 'Erase which spell' }, ids.map(id => {
                 const s2 = G.data.spells?.[id], on = chosen === id;

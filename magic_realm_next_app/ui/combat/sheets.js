@@ -388,7 +388,7 @@ export function meleeSheet(X) {
         body = [h('div', { class: `cb-fields${rows.length >= 4 ? ' two' : ''}` }, ...rows)];
         // note 103 ("why don't I get to place the monster in a lane"): where he looks before he rolls, the reason he is not asked (the armor row's own line is Detail-only on a phone: it gives way to the gear)
         if (!SEC.inPlay(o) && !M.placementMatters(fm, o, m) && M.placementCounters(fm, o, m) >= 1) body.push(h('p', { class: 'cb-hint', 'data-hint': 'foes-die' }, voiced({ story: 'You do not place them: a die puts the creatures in their lanes after your plays, so no lane is the safe one.',
-            detail: 'He may place the creatures (8.4.5m), but one die then shuffles them among the three boxes after the plays (8.4.6a): with three or fewer attacking counters every placement is as likely afterwards, so none is asked for.' })));
+            detail: 'You may place the creatures (8.4.5m), but one die then shuffles them among the three boxes after the plays (8.4.6a): with three or fewer attacking counters every placement is as likely afterwards, so none is asked for.' })));
         lead = leadText(eff.over ? h('span', { class: 'bad', style: 'color:var(--danger)' }, `${eff.text}: ${eff.words}.`) : [`${eff.text}: `, eff.words, '.']);
         // note 132: with several characters on one phone the dice are rolled once, after the last of them has chosen: until then the button hands the phone on, it does not say "Roll"
         const waiting = (X.party?.members ?? []).filter(x => x.key === 'wait');

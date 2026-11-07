@@ -14,7 +14,7 @@ export const STAGES = [
     { key: 'daylight', name: 'Daylight', line: 'You act, one phase at a time.',
       more: ['Each phase goes in three steps. First you may trade or rearrange what you carry. Then you do the activity you planned. Then anyone may try to block you.',
           'A block ends your turn, and the phases you had left are lost. Monsters in your clearing block you at once unless you are hidden.',
-          'With a party, each character takes his whole turn before the next one begins.'] },
+          'With a party, each character takes their whole turn before the next one begins.'] },
     { key: 'dayend', name: 'Day’s end', line: 'Your turn closes.',
       more: ['Monsters prowling in your tile come to your clearing.',
           'The face-down chits in your tile turn up, and each may call monsters. They stay face up until Midnight and call only once a day.'] },
@@ -34,8 +34,8 @@ export const STAGES = [
 export const PARTY_LINES = [
     'Alone, you simply take every turn in turn.',
     'With a party, Birdsong is all at once and secret: the day waits for the last plan.',
-    'At Sunrise the Attention chits are drawn at random. That draw is the order of the whole day, and the first character drawn leads. Each takes his whole Daylight turn before the next begins.',
-    'A follower goes right after his guide. A hired leader, or a monster you take in hand, has a chit of its own.',
+    'At Sunrise the Attention chits are drawn at random. That draw is the order of the whole day, and the first character drawn leads. Each takes their whole Daylight turn before the next begins.',
+    'A follower goes right after their guide. A hired leader, or a monster you take in hand, has a chit of its own.',
     'The Evening keeps the same order: the clearing of the first character drawn fights first, then the first drawn of the clearings left. A clearing with several characters is one fight.',
 ];
 

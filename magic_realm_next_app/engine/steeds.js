@@ -51,7 +51,7 @@ export function nativeFlier(st, data, n) {
 // Why the acting character cannot ride at all just now, or null (7.3.3g.1: only characters ride; g.4: a transmorphized one only as one of four creatures).
 export function ridingError(st, rider = st.ch?.leader ? { kind: st.ch.leader.kind } : { kind: 'char' }) {          // (the acting seat: a hired leader is a native, a controlled monster a monster)
     if (rider.kind !== 'char') return 'Hired and controlled denizens cannot ride monsters (7.3.3g.1).';
-    if (st.ch.dead || st.ch.mist) return 'He cannot ride in this shape.';
+    if (st.ch.dead || st.ch.mist) return 'You cannot ride in this shape.';
     const cr = st.ch.morph?.creature;
     if (cr && !(MORPH_RIDERS.includes(cr.family) || (cr.family === 'Troll' && cr.size === 'H'))) return `A transmorphized character can ride flying monsters only as a Goblin, an Ogre, an Imp or a Heavy Troll, not as a ${cr.name} (7.3.3g.4).`;
     return null;
@@ -168,6 +168,6 @@ export function leftBehindOnFlight(st, data, from) {
         if (!o.hired || o.dead || o.guide !== st.ch.id || !o.loc || hasSeat(st, o.id)) continue;
         if (canFlyAlong(st, data, { kind: data.natives[o.id] ? 'nat' : 'mon', id: o.id })) continue;
         o.loc = { c: from }; o.guide = null;
-        say(st, `${data.natives[o.id]?.name ?? data.monsters[o.id]?.name} cannot fly: he is left behind in clearing ${from.slice(2)}.`, 'info');
+        say(st, `${data.natives[o.id]?.name ?? data.monsters[o.id]?.name} cannot fly and is left behind in clearing ${from.slice(2)}.`, 'info');
     }
 }

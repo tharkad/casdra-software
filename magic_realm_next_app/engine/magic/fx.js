@@ -182,9 +182,9 @@ export function checkFx(st) {
     }
     // the hero's forms and locations the spells set must agree with the records that set them (Melt into Mist: st.ch.mist; Broomstick, Hurricane Winds: st.ch.flying)
     const mine = (st.fx ?? []).filter(f => !elsewhere(st, f));          // (several characters: the effects of the one acting)
-    if (st.ch?.mist && !mine.some(f => f.spell === 'melt-into-mist' && f.state === 'live')) bad.push('he is mist with no live Melt into Mist');
-    if (!st.ch?.mist && mine.some(f => f.spell === 'melt-into-mist' && f.state === 'live' && !f.data?.duplicate)) bad.push('Melt into Mist is live but he is not mist');
-    if (st.ch?.flying && (!st.ch.flying.tile || !st.placements?.some(p => p.id === st.ch.flying.tile))) bad.push('he is in the air over a tile that is not on the map');
+    if (st.ch?.mist && !mine.some(f => f.spell === 'melt-into-mist' && f.state === 'live')) bad.push('the character is mist with no live Melt into Mist');
+    if (!st.ch?.mist && mine.some(f => f.spell === 'melt-into-mist' && f.state === 'live' && !f.data?.duplicate)) bad.push('Melt into Mist is live but the character is not mist');
+    if (st.ch?.flying && (!st.ch.flying.tile || !st.placements?.some(p => p.id === st.ch.flying.tile))) bad.push('the character is in the air over a tile that is not on the map');
     for (const c of st.ch?.chits ?? []) {
         // (a chit played in the Encounter step is committed before its spell comes to life in the Melee step: that spell is on the round's list, not yet in st.fx)
         if (c.state === 'committed') { const f = (st.fx ?? []).find(x => x.id === c.tie); if (!f && !st.combat?.casts?.some(x => x.chit === c.id && !x.done)) bad.push(`chit ${c.id} is committed with no spell`); }

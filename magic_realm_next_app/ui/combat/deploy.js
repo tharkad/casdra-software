@@ -151,11 +151,11 @@ export function horseFacts(data, h, side) {
 }
 // why a hireling is greyed out, in both voices (null when he can act)
 export function greyWhy(h) {
-    if (h.held) return { story: 'A great monster has hold of him. He cannot be sent or lure anything.', detail: 'A red-side-up Tremendous monster holds him: it stays on him, and he can neither lure nor be deployed (8.6.2).' };
+    if (h.held) return { story: 'A great monster has hold of this hireling. They cannot be sent or lure anything.', detail: 'A red-side-up Tremendous monster holds the hireling: it stays on them, and they can neither lure nor be deployed (8.6.2).' };
     return null;
 }
 export function hiddenWhy(h) {
     if (!h.hidden) return null;
-    return { story: 'He is hidden. Nothing can be set on him, and if he lures or attacks he is seen.', detail: 'A hidden hireling cannot be assigned an attacker (8.3.5a.3); if he lures (8.3.4c.3) or is sent at a target (8.4.2b.2) he is no longer hidden.' };
+    return { story: 'This hireling is hidden. Nothing can be set on them, and if they lure or attack they are seen.', detail: 'A hidden hireling cannot be assigned an attacker (8.3.5a.3); if they lure (8.3.4c.3) or are sent at a target (8.4.2b.2) they are no longer hidden.' };
 }
 export const nameOfDen = (fm, data, d) => denSide(fm, data, d).name;

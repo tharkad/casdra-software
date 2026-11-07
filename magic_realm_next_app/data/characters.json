@@ -268,7 +268,7 @@
     {
      "n": 1,
      "key": "disembodied",
-     "text": "Must search with Magic Sight; carries only Negligible weight until he owns magic items."
+     "text": "Must search with Magic Sight; carries only Negligible weight until they own magic items."
     },
     {
      "n": 2,
@@ -869,7 +869,7 @@
     {
      "n": 2,
      "key": "peace-with-nature",
-     "text": "At the end of his own turn, warning and sound chits in his tile do not summon."
+     "text": "At the end of their own turn, warning and sound chits in their tile do not summon."
     }
    ],
    "optionalAdvantages": [
@@ -1067,7 +1067,7 @@
     {
      "n": 1,
      "key": "heavenly-protection",
-     "text": "Demons and the Imp cannot attack him or be assigned to him; he can still attack them."
+     "text": "Demons and the Imp cannot attack the Pilgrim or be assigned to the Pilgrim, who can still attack them."
     },
     {
      "n": 2,
@@ -2447,7 +2447,7 @@
     {
      "n": "O1",
      "key": "elvish-studies",
-     "text": "His second-stage Move M5 chit counts as Magic III 2*."
+     "text": "Second-stage Move M5 chit counts as Magic III 2*."
     },
     {
      "n": "O2",
@@ -3074,7 +3074,7 @@
     {
      "n": 2,
      "key": "clever",
-     "text": "Chooses when to take his single Daylight turn."
+     "text": "Chooses when to take the single Daylight turn."
     }
    ],
    "optionalAdvantages": [],

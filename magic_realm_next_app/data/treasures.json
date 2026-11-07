@@ -1096,7 +1096,7 @@
    "fameReward": null,
    "discardTo": null,
    "effectSection": 12,
-   "effectText": "After the plays are revealed, may move his attack to any attack circle if every target has a maneuver time of 5 or more.",
+   "effectText": "After the plays are revealed, may move the attack to any attack circle if every target has a maneuver time of 5 or more.",
    "magic": null,
    "spellCount": 0,
    "tags": []
@@ -1113,7 +1113,7 @@
    "fameReward": null,
    "discardTo": null,
    "effectSection": 12,
-   "effectText": "After the plays are revealed, may move his maneuver to any maneuver square if every attack aimed at him has an attack time of 5 or more.",
+   "effectText": "After the plays are revealed, may move the maneuver to any maneuver square if every attack aimed at that target has an attack time of 5 or more.",
    "magic": null,
    "spellCount": 0,
    "tags": []

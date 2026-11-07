@@ -19,23 +19,23 @@ export const SECTION_WORDS = {
     },
     place: {
         story: 'Fill as many circles as you can before you stack two in one. A head, a club or a horse never stands with its owner.',
-        detail: 'As many Attack circles as possible must hold a counter before any holds two; a head, club or horse of an unhired denizen cannot stand in the same circle or square as its owner (8.4.5n.2). A hireling and his own horse may share a lane (8.4.2f).',
+        detail: 'As many Attack circles as possible must hold a counter before any holds two; a head, club or horse of an unhired denizen cannot stand in the same circle or square as its owner (8.4.5n.2). A hireling and their own horse may share a lane (8.4.2f).',
     },
     chooses: {
-        story: 'Several are at him. He strikes back at one of them, and you pick which.',
-        detail: 'A hireling who is attacked by several denizens chooses his target among them, and cannot choose not to attack (8.4.2e).',
+        story: 'Several are at this hireling. They strike back at one of them, and you pick which.',
+        detail: 'A hireling who is attacked by several denizens chooses their target among them, and cannot choose not to attack (8.4.2e).',
     },
     side: {
-        story: 'Pick the side he shows. Once the round begins he cannot be turned over.',
-        detail: 'A defending hireling is placed either side up now (8.4.5n.1). An attacker was turned at Deployment (8.3.6a.4) and stays as he is; a defender’s horse is never turned.',
+        story: 'Pick the side the hireling shows. Once the round begins they cannot be turned over.',
+        detail: 'A defending hireling is placed either side up now (8.4.5n.1). An attacker was turned at Deployment (8.3.6a.4) and stays as they are; a defender’s horse is never turned.',
     },
     den: {
         story: 'It is placed by the rules. You place only what comes at it.',
         detail: 'An uncontrolled defender is placed by the rules: its body in the Charge and Thrust box, its head, club and horse in the Dodge and Swing box (8.4.2a). The target and the other attackers are placed by the hirer (8.4.2f).',
     },
     held: {
-        story: 'A great monster has hold of him and fights him alone.',
-        detail: 'A red-side-up Tremendous monster that holds a hireling stays on him: he is its target (8.6.2).',
+        story: 'A great monster has hold of this hireling and fights them alone.',
+        detail: 'A red-side-up Tremendous monster that holds a hireling stays on them: they are its target (8.6.2).',
     },
 };
 
@@ -59,7 +59,7 @@ function cardEl(X, plan, card) {
         if (card.error) kids.push(h('p', { class: 'cb-hint bad sx-err', role: 'alert', 'data-sec-error': card.id }, `${cap(card.error)}${/[.!?]$/.test(card.error) ? '' : '.'}`));
         kids.push(h('div', { class: 'sx-cols', 'aria-hidden': 'true' }, ...[0, 1, 2].map(i => h('span', {}, S.DIRS[i], h('small', {}, S.MNV[i])))));
         const hireOwner = card.ownerKind === 'hire';
-        const rows = [['circle', `Strike ${hireOwner ? 'him' : 'it'} (circles)`], ['box', `${hireOwner ? 'His' : 'Its'} box`], ['square', `${hireOwner ? 'He' : 'It'} strikes (square)`]];
+        const rows = [['circle', `Strike ${hireOwner ? 'them' : 'it'} (circles)`], ['box', `${hireOwner ? 'Their' : 'Its'} box`], ['square', `${hireOwner ? 'They strike' : 'It strikes'} (square)`]];
         for (const [zone, label] of rows) {
             if (!card.cells[zone].some(col => col.length)) continue;
             kids.push(h('div', { class: 'sx-row', 'data-zone': zone }, h('p', { class: 'sx-lbl' }, label),

@@ -27,7 +27,7 @@ export default {
             const cancelled = mine ? cancelCasts(st, data, ctx.cast) : [];
             if (mine && st.combat.attackSpell && st.combat.attackSpell.spell !== 'peace') st.combat.attackSpell = null;
             ctx.fx({ targets: [t], expires: { day: st.day, at: 'midnight' } });
-            ctx.log(`Peace: ${mine ? 'you take' : 'the target takes'} back ${mine ? 'your' : 'his'} Attention chit${cancelled.length ? ` and ${cancelled.join(', ')} is cancelled` : ''}; until Midnight ${mine ? 'you' : 'he'} cannot charge or specify a target for an attack or spell.`);
+            ctx.log(`Peace: ${mine ? 'you take' : 'the target takes'} back ${mine ? 'your' : 'their'} Attention chit${cancelled.length ? ` and ${cancelled.join(', ')} is cancelled` : ''}; until Midnight ${mine ? 'you' : 'they'} cannot charge or specify a target for an attack or spell.`);
             return;
         }
         const den = denOf(st, ctx.targets[0]);

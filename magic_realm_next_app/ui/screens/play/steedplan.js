@@ -27,7 +27,7 @@ export function flyWithNow(G, i) {
 export function flyChoice(G, i) {
     const slots = G.ui.draft.slots;
     if (ownSheet(G.st, G.data).flying || airborneAt(slots, i)) {
-        return airborneAt(slots, i) ? [h('p', { class: 'ds-hint-line', 'data-hint': 'fly-airborne' }, voiced({ story: 'You are already in the air from the phase before: this flight needs no chit and no steed.', detail: 'A Fly phase that follows another needs no Fly chit of its own: he is already in the air (7.3.3a).' }))] : [];
+        return airborneAt(slots, i) ? [h('p', { class: 'ds-hint-line', 'data-hint': 'fly-airborne' }, voiced({ story: 'You are already in the air from the phase before: this flight needs no chit and no steed.', detail: 'A Fly phase that follows another needs no Fly chit of its own: you are already in the air (7.3.3a).' }))] : [];
     }
     const opts = flyOptions(G);
     if (!opts.length) return [];

@@ -3,7 +3,7 @@
 // result cards and the Journal (storyvoice.js lineFor calls it for a line whose `who` is a seat). Pure text, both voices. It is a small, careful rewrite, not a grammar: every pattern is a plain
 // word the engine really writes, and a sentence it does not understand is left as it is (the engine's own words are never lost).
 //
-//   seatVoice(text, { name, kind })   kind: 'nat' (he / his / him), 'mon' (it / its / it) or 'named' (the name wherever a pronoun would stand: a character of a party on one phone)
+//   seatVoice(text, { name, kind })   kind: 'mon' (it / its / it), or 'nat' / 'named' (the name wherever a pronoun would stand: a hired leader, or a character of a party on one phone)
 
 const IRREGULAR = { are: 'is', were: 'was', have: 'has', do: 'does', go: 'goes', don: 'doesn', 'don’t': 'doesn’t', "don't": "doesn't", "haven't": "hasn't", "aren't": "isn't", "can't": "can't" };
 const MODAL = new Set(['can', 'cannot', 'may', 'might', 'will', 'would', 'must', 'should', 'could', 'shall', 'did', 'had', 'was', 'got', 'took', 'found', 'saw', 'made', 'lost', 'left', 'fell', 'rolled', 'won', 'came', 'went', 'felt']);
@@ -23,8 +23,8 @@ const OBJECT = /\b(stops?|finds?|sees?|blocks?|follows?|leaves?|to|from|for|on|a
 
 export function seatVoice(text, { name, kind = 'nat' } = {}) {
     if (typeof text !== 'string' || !/\byou(r|rs|rself)?\b/i.test(text)) return text;
-    // 'named': another character of the party on this phone (note 136). The book gives them no pronoun and the engine says "themselves" of a character, so the name stands wherever "he" would
-    const P = kind === 'mon' ? { he: 'it', him: 'it', his: 'its', himself: 'itself' } : kind === 'named' ? { he: name, him: name, his: `${name}\u2019s`, himself: 'themselves' } : { he: 'he', him: 'him', his: 'his', himself: 'himself' };
+    // 'named' (and a hired leader): the book gives people no pronoun and the engine says "themselves" of a character, so the name stands wherever a pronoun would (note 136, note 151)
+    const P = kind === 'mon' ? { he: 'it', him: 'it', his: 'its', himself: 'itself' } : { he: name, him: name, his: `${name}\u2019s`, himself: 'themselves' };
     const cap = w => w[0].toUpperCase() + w.slice(1);
     const re = /\byou(rself|rs|r)?\b/gi, lead = /^Phase \d+:\s+/.exec(text)?.[0].length ?? 0;
     let out = '', i = 0, m, named = false;
@@ -56,4 +56,4 @@ export function seatVoice(text, { name, kind = 'nat' } = {}) {
     }
     return out + text.slice(i);
 }
-const NOT_VERB = new Set(['the', 'a', 'an', 'his', 'its', 'her', 'their', 'him', 'it', 'he', 'she', 'they', 'you', 'your', 'no', 'nothing', 'some', 'one', 'two', 'three', 'this', 'that', 'then', 'on', 'in', 'at', 'to']);
+const NOT_VERB = new Set(['the', 'a', 'an', 'its', 'their', 'them', 'it', 'they', 'themselves', 'you', 'your', 'no', 'nothing', 'some', 'one', 'two', 'three', 'this', 'that', 'then', 'on', 'in', 'at', 'to']);

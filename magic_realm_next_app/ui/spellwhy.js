@@ -53,8 +53,8 @@ export function energizeWords(st, data, o) {
 
 // ---- 8.3.7d: in one action he may activate one belonging and deactivate one belonging ----
 export const gearPairWhy = kind => (kind === 'on'
-    ? { story: 'One action switches on one thing. Switch another off, or do the first and then the second next round.', detail: 'In one action he may activate one belonging and deactivate another, but not activate two (8.3.7d).' }
-    : { story: 'One action switches off one thing. Switch another on, or do the first and then the second next round.', detail: 'In one action he may deactivate one belonging and activate another, but not deactivate two (8.3.7d).' });
+    ? { story: 'One action switches on one thing. Switch another off, or do the first and then the second next round.', detail: 'In one action a character may activate one belonging and deactivate another, but not activate two (8.3.7d).' }
+    : { story: 'One action switches off one thing. Switch another on, or do the first and then the second next round.', detail: 'In one action a character may deactivate one belonging and activate another, but not deactivate two (8.3.7d).' });
 
 // ---- 7.3.3e, 4.6.7e.3, 7.3.3d.3: what a Fly activity uses ----
 export function flyWords(st, data) {

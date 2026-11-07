@@ -29,10 +29,10 @@ export function followerCard(G) {
     const tm = tableModel(G.st, G.data), g = guideOfActor(G);
     if (!g) return null;
     const me = tm.ch.name, gn = who(G, g.id), card = g.now
-        ? voiced({ story: `${me} follows ${gn} today. He goes where ${gn} goes and plays no turn of his own: to go on, play ${gn}’s turn.`,
-            detail: `${me} follows ${gn} (7.11): his turn is ${gn}’s, and his own chit is not drawn. He may stop following at the start of any of ${gn}’s activities (7.11.5); his turn then ends where he stands.` })
-        : voiced({ story: `${me} has recorded to follow ${gn}. The day begins when everyone has planned, and his turn will be ${gn}’s.`,
-            detail: `Plan recorded: Follow ${gn} (7.11.2). At Sunrise ${me} goes with ${gn} and his own chit is not drawn, unless ${gn} is gone or they follow each other.` });
+        ? voiced({ story: `${me} follows ${gn} today. ${me} goes where ${gn} goes and plays no turn of their own: to go on, play ${gn}’s turn.`,
+            detail: `${me} follows ${gn} (7.11): ${me}’s turn is ${gn}’s, and their own chit is not drawn. ${me} may stop following at the start of any of ${gn}’s activities (7.11.5); their turn then ends where they stand.` })
+        : voiced({ story: `${me} has recorded to follow ${gn}. The day begins when everyone has planned, and their turn will be ${gn}’s.`,
+            detail: `Plan recorded: Follow ${gn} (7.11.2). At Sunrise ${me} goes with ${gn} and their own chit is not drawn, unless ${gn} is gone or they follow each other.` });
     const body = [h('div', { class: 'ds-ask', 'data-hint': g.now ? 'following' : 'follow-recorded' }, h('b', {}, g.now ? `${me} follows ${gn}` : `${me} will follow ${gn}`), card)];
     if (!g.now) return { body, lead: null, primary: primary(`To ${gn}`, { 'data-act': 'to-guide', onclick: () => switchTo(G, g.id) }) };
     return { body,
@@ -43,7 +43,7 @@ export function followerCard(G) {
 /** Journal notes: "X follows Y today." for each pair Sunrise made; before Sunrise, in a hot seat, "X has recorded to follow Y." */
 export function followNotes(G) {
     const tm = tableModel(G.st, G.data), out = [];
-    for (const f of followsToday(tm)) out.push(h('span', { class: 'ds-note', 'data-act': 'follows', 'data-follower': f.follower }, icon('right'), isStory() ? `${f.text} today.` : `${f.text} (7.11): his turn is ${who(G, f.guide)}’s.`));
+    for (const f of followsToday(tm)) out.push(h('span', { class: 'ds-note', 'data-act': 'follows', 'data-follower': f.follower }, icon('right'), isStory() ? `${f.text} today.` : `${f.text} (7.11): their turn is ${who(G, f.guide)}’s.`));
     if (!G.shared && tm.period === 'birdsong') {
         for (const id of tm.order) {
             const s = tm.chars[id].today?.plan?.[0];

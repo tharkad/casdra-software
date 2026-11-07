@@ -26,7 +26,7 @@ export function giveFacts(G) {
 // When it can be done, said by the engine's code: the start of a phase of the day (a fight, the evening before the fights are done are not the time; with the house rule on, Birdsong and Midnight are too); the rest is the engine's own sentence.
 const WHEN = {
     time: n => ({ story: `You can hand things to ${n} at the start of a phase of the day.`, detail: `Characters trade at the start of a phase of someone’s turn, or after the evening’s fights (7.2.1, 4.5.5h).` }),
-    group: (n, g) => ({ story: 'Belongings change hands with the one whose turn it is, at the start of one of his phases.', detail: g.why }),
+    group: (n, g) => ({ story: 'Belongings change hands with the one whose turn it is, at the start of one of their phases.', detail: g.why }),
 };
 const whenText = (g) => voiced((WHEN[g.code] ?? ((n, x) => ({ story: `${n} cannot take it now.`, detail: x.why ?? '' })))(g.name, g));
 

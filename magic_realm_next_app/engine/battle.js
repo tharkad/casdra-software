@@ -271,7 +271,7 @@ function sweep(st, data) {
             const group = data.natives[h.id].group, foe = h.targetChar;
             if (b.battling[group]?.includes(foe) || b.members[foe]?.state !== 'in' || st.chars[foe].dead || st.chars[foe].today.combat?.ended) continue;          // (not on one who has fallen or left in the same round)
             inSheet(st, foe, () => parts.startBattling(st, data, group));
-            say(st, `${nameOf(st, id)}'s ${group}, set free by his death, turn on ${nameOf(st, foe)}.`, 'combat', null, { who: null, ev: { code: 'hire.freed', hireling: h.uid, against: foe } });
+            say(st, `${nameOf(st, id)}'s ${group}, set free by their death, turn on ${nameOf(st, foe)}.`, 'combat', null, { who: null, ev: { code: 'hire.freed', hireling: h.uid, against: foe } });
         }
     }
 }
@@ -290,12 +290,12 @@ function lureAction(st, data, a) {
     const options = lurables(st, data, id), uids = [...new Set(a.dens ?? [])];
     for (const u of uids) if (!options.some(o => o.uid === u)) throw new Error('you cannot lure that creature onto your sheet');
     inSheet(st, id, c => {
-        if (uids.length && st.ch.hidden) { st.ch.hidden = false; say(st, `${st.ch.name} gives himself away by luring.`, 'combat'); }
+        if (uids.length && st.ch.hidden) { st.ch.hidden = false; say(st, `${st.ch.name} gives themselves away by luring.`, 'combat'); }
         for (const u of uids) {
             const d = c.dens.find(x => x.uid === u), from = d.sheet;
             d.assigned = true; d.elsewhere = false; d.sheet = id;                                   // (from the pool or from another sheet)
             if (d.kind === 'nat') parts.startBattling(st, data, data.natives[d.id].group);
-            say(st, `${st.ch.name} lures the ${denSide(st, data, d).name} ${from ? `away from ${nameOf(st, from)}` : 'onto his sheet'}.`, 'combat');
+            say(st, `${st.ch.name} lures the ${denSide(st, data, d).name} ${from ? `away from ${nameOf(st, from)}` : 'onto their sheet'}.`, 'combat');
         }
         if (!uids.length) say(st, `${st.ch.name} lures nothing.`, 'combat');
     });
@@ -366,7 +366,7 @@ function chargeAction(st, data, a) {
             for (const [uid, t] of Object.entries(deploy)) {
                 const h = c.hires.find(x => x.uid === uid);
                 h.targetChar = t;
-                say(st, `${st.ch.name} sends his ${hireStats(data, h.id, h.kind, st).name} at ${nameOf(st, t)}.`, 'combat');
+                say(st, `${st.ch.name} sends their ${hireStats(data, h.id, h.kind, st).name} at ${nameOf(st, t)}.`, 'combat');
                 if (st.chars[t].hidden) { st.chars[t].hidden = false; say(st, `${nameOf(st, t)}, who was hidden, is found and revealed.`, 'combat'); }          // (8.3.6c: the target, and the leader sent at him, are no longer hidden)
                 hs.entered(st, data, h);
             }
@@ -376,7 +376,7 @@ function chargeAction(st, data, a) {
             b.charges.push({ by: id, on: a.target, time: chit.time });
             m.charged = a.target;
             say(st, `${st.ch.name} charges ${nameOf(st, a.target)}.`, 'combat', null, { ev: { code: 'charge.made', who: id, on: a.target } });
-            if (st.ch.hidden) { st.ch.hidden = false; say(st, `${st.ch.name} gives himself away by charging.`, 'combat'); }
+            if (st.ch.hidden) { st.ch.hidden = false; say(st, `${st.ch.name} gives themselves away by charging.`, 'combat'); }
             if (st.chars[a.target].hidden) { st.chars[a.target].hidden = false; say(st, `${nameOf(st, a.target)}, who was hidden, is found and revealed.`, 'combat'); }
         };
         if (!chit) sendAll();

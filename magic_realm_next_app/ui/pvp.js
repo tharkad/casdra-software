@@ -196,7 +196,7 @@ function swingOfEvent(ev, byId) {
     return { dir: ev.dir[0].toUpperCase() + ev.dir.slice(1), atMember, result: ev.code === 'blow.landed' ? 'hit' : 'miss', maneuver: lane === 'none' ? null : lane[0].toUpperCase() + lane.slice(1), horse };
 }
 // ("You: Thrust at Captain (Dodge (his horse)): hit by undercutting (your time 4 beats his 5)." / "... (Dodge): miss (Thrust hits Charge; his time 2 is not slower than your 6).": a hit or a miss, with or without a note; the maneuver is a word, with his horse when it was the horse's)
-const SWING = /^You: (Thrust|Swing|Smash) at (.+?) \((no maneuver|[A-Za-z]+(?: \(his horse\))?)\): (hit|miss)\b[;:]? ?(.*?)\.?$/;
+const SWING = /^You: (Thrust|Swing|Smash) at (.+?) \((no maneuver|[A-Za-z]+(?: \((?:his|their) horse\))?)\): (hit|miss)\b[;:]? ?(.*?)\.?$/;
 /** The facts of a round that involve characters, from the lines the server sent the viewer (each in the voice of the one it happened to) and the table's record:
  *  swings  every attack named at someone: { by, dir, at, atMember, result, maneuver, note }
  *  blows   every blow that landed on a character: { from:{ member|name }, label, dir, harm, to, gear:{name,fate}|null, wound, slain, noEffect, horse }
@@ -219,8 +219,8 @@ export function pvpRound(view, f, report, round = report?.round, data = null) {
             }
             if ((x = SWING.exec(t))) {
                 const at = x[2], atMember = byName.get(at) ?? null;
-                const horse = / \(his horse\)$/.test(x[3]);
-                swings.push({ by: m, dir: x[1], at, atMember, result: x[4], maneuver: x[3] === 'no maneuver' ? null : x[3].replace(/ \(his horse\)$/, ''), horse, note: '', story: l.s ?? null, line: l });
+                const horse = / \((?:his|their) horse\)$/.test(x[3]);
+                swings.push({ by: m, dir: x[1], at, atMember, result: x[4], maneuver: x[3] === 'no maneuver' ? null : x[3].replace(/ \((?:his|their) horse\)$/, ''), horse, note: '', story: l.s ?? null, line: l });
                 cur = null; continue;
             }
             // a blow that falls on this character (told in his voice): the event where the line has one the data can read, else the sentence
@@ -351,7 +351,7 @@ export function blowStory(view, b) {
 }
 /** A swing that did not land, in the table's voice. */
 export function missStory(s) {
-    const man = s.maneuver ? `, who plays ${s.maneuver}${s.horse ? ' on his horse' : ''}` : '';
+    const man = s.maneuver ? `, who plays ${s.maneuver}${s.horse ? ' on their horse' : ''}` : '';
     return `${s.by.player}’s ${s.dir.toLowerCase()} at ${s.at}${man} finds nothing.`;
 }
 

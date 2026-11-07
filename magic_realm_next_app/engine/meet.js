@@ -73,7 +73,7 @@ export function tradeProblem(st, a, b) {
     if (birdsongShare(st, a, b)) return null;
     const w = phaseWindow(st);
     if (!w) return { code: 'time', text: 'you can trade at the start of a phase of someone\'s turn, or in the window after the day\'s fights (7.2.1, R-5)' };
-    if (!w.group.includes(a) && !w.group.includes(b)) return { code: 'group', text: `only ${nameOfChar(st, w.actor)} and those who follow him can trade now: the others can trade with him, not with each other (7.2.1)` };
+    if (!w.group.includes(a) && !w.group.includes(b)) return { code: 'group', text: `only ${nameOfChar(st, w.actor)} and those who follow ${nameOfChar(st, w.actor)} can trade now: the others can trade with ${nameOfChar(st, w.actor)}, not with each other (7.2.1)` };
     for (const id of [a, b]) if (isBlocked(st.chars[id])) return { code: 'blocked', text: `${nameOfChar(st, id)} was blocked today and cannot trade with those who are about to start phases (7.12.4b)` };
     return null;
 }
@@ -206,7 +206,7 @@ function checkSide(st, data, id, side, at, { strict, named = false }) {
     const c = st.chars[id], name = c.name;
     for (const u of side.items) {
         const it = c.items.find(i => i.uid === u && !i.destroyed);
-        if (!it || (named && !visibleTo(it))) throw new Error(named ? `you cannot ask ${name} for that: it is not something you can see him hold` : 'you do not have that');
+        if (!it || (named && !visibleTo(it))) throw new Error(named ? `you cannot ask ${name} for that: it is not something you can see them hold` : 'you do not have that');
         if (!named) { const why = committed(st, data, id, it); if (why) throw new Error(why); }          // 6.2.4d: a belonging that gives a recorded extra phase is not his to hand over yet
     }
     if (strict && side.gold > c.gold) throw new Error(id === st.actor ? 'you do not have that much gold' : `${name} does not have that much gold`);
@@ -276,7 +276,7 @@ function cancelOffer(st, data, a) {
     if (!o) throw new Error('you have no offer open');
     closeOffer(st, o);
     say(st, `You withdraw your offer to ${nameOfChar(st, o.to)}.`, 'trade', null, { who: o.from, vis: 'owner' });
-    say(st, `${nameOfChar(st, o.from)} withdraws the offer he made you.`, 'trade', null, { who: o.to, vis: 'owner' });
+    say(st, `${nameOfChar(st, o.from)} withdraws the offer they made you.`, 'trade', null, { who: o.to, vis: 'owner' });
     return afterMeet(st, data);
 }
 
@@ -534,7 +534,7 @@ export function dropFollower(st, data, f, why = '') {
     if (!Object.keys(st.follows).length) delete st.follows;
     withActor(st, f, () => {
         st.ch.today.stage = 'done';
-        say(st, `${st.ch.name} stops following ${nameOfChar(st, g)}${why ? ` (${why})` : ''}: his turn ends here.`, 'day', null, { who: f, p: `${pn(st, f)} stops following ${pn(st, g)}${why ? ` (${why})` : ''}: the turn ends here.` });
+        say(st, `${st.ch.name} stops following ${nameOfChar(st, g)}${why ? ` (${why})` : ''}: their turn ends here.`, 'day', null, { who: f, p: `${pn(st, f)} stops following ${pn(st, g)}${why ? ` (${why})` : ''}: the turn ends here.` });
         hooks.followerEnds(st, data);
     });
 }
@@ -672,7 +672,7 @@ export function followWhy(st, who) {
         else if (g.dead) { row.code = 'dead'; row.why = `${g.name} is dead`; }
         else if (st.period !== 'birdsong' || me.today.stage !== 'plan') { row.code = 'time'; row.why = 'Follow is chosen at Birdsong, while you plan'; }
         else if (!here(me)) { row.code = 'you-away'; row.why = me.flying ? 'you are in the air, not in a clearing' : 'you are on a road, not in a clearing'; }
-        else if (!here(g)) { row.code = 'him-away'; row.why = g.flying ? `${g.name} is in the air, not in a clearing` : `${g.name} is on a road, not in a clearing`; }
+        else if (!here(g)) { row.code = 'guide-away'; row.why = g.flying ? `${g.name} is in the air, not in a clearing` : `${g.name} is on a road, not in a clearing`; }
         else if (g.at !== me.at) { row.code = 'apart'; row.why = `${g.name} is not in your clearing`; row.at = nameOfClearing(g.at); row.from = nameOfClearing(me.at); }
         else if (row.goes === who) { row.code = 'circle'; row.why = `${g.name} has already recorded to follow you`; }
         else row.ok = true;

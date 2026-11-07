@@ -189,13 +189,13 @@ export function followReason(r) {
     const n = r.name;
     switch (r.code) {
         case 'apart': return { story: `${n} is not in your clearing: ${n} is at ${r.at}. Move there first (on an earlier day), or start together.`,
-            detail: `${n} is not in your clearing (${n}: ${r.at}; you: ${r.from}). A follower stands in his guide’s clearing at Birdsong (7.11.3). Move there on an earlier day, or choose Start together in the party step of a new game.` };
+            detail: `${n} is not in your clearing (${n}: ${r.at}; you: ${r.from}). A follower stands in their guide’s clearing at Birdsong (7.11.3). Move there on an earlier day, or choose Start together in the party step of a new game.` };
         case 'circle': return { story: `${n} has already recorded to follow you, so you cannot follow back: you would both stay home.`,
-            detail: `${n} has already recorded Follow with you as his guide. Two who follow each other make a circle: it cancels, and neither has a turn (7.11).` };
+            detail: `${n} has already recorded Follow with you as their guide. Two who follow each other make a circle: it cancels, and neither has a turn (7.11).` };
         case 'dead': return { story: r.why[0].toUpperCase() + r.why.slice(1) + '.', detail: `${r.why[0].toUpperCase() + r.why.slice(1)}: a dead character cannot be followed or follow (7.11.3).` };
         case 'time': return { story: 'Follow is chosen at Birdsong, while you plan your day.', detail: 'Follow is recorded in the plan at Birdsong, with the guide in your clearing (7.11.2, 7.11.3).' };
-        case 'you-away': return { story: `${r.why[0].toUpperCase() + r.why.slice(1)}.`, detail: `${r.why[0].toUpperCase() + r.why.slice(1)}: a follower and his guide both stand in a clearing at Birdsong (7.11.3).` };
-        case 'him-away': return { story: `${r.why[0].toUpperCase() + r.why.slice(1)}.`, detail: `${r.why[0].toUpperCase() + r.why.slice(1)}: a guide stands in the follower’s clearing at Birdsong (7.11.3).` };
+        case 'you-away': return { story: `${r.why[0].toUpperCase() + r.why.slice(1)}.`, detail: `${r.why[0].toUpperCase() + r.why.slice(1)}: a follower and their guide both stand in a clearing at Birdsong (7.11.3).` };
+        case 'guide-away': return { story: `${r.why[0].toUpperCase() + r.why.slice(1)}.`, detail: `${r.why[0].toUpperCase() + r.why.slice(1)}: a guide stands in the follower’s clearing at Birdsong (7.11.3).` };
         default: return { story: `${r.why ?? 'Not now'}.`, detail: `${r.why ?? 'Not now'}.` };
     }
 }
@@ -209,13 +209,13 @@ const GAVE_ME = /^(.+?) gives you: (.+); you give: (.+)\.$/;
 const TURNED = /^You turn down (.+?)'s offer\.$/;
 const TURNED_ME = /^(.+?) turns down your offer\.$/;
 const WITHDREW = /^You withdraw your offer to (.+?)\.$/;
-const WITHDREW_ME = /^(.+?) withdraws the offer he made you\.$/;
+const WITHDREW_ME = /^(.+?) withdraws the offer (?:he|they) made you\.$/;
 const LAPSE_TO = /^(.+?)'s offer lapses: (.+)\.$/;
 const LAPSE_FROM = /^Your offer to (.+?) lapses: (.+)\.$/;
 const SAW = /^You saw (.+?) (use|loot|search|sell) (.+): you know of it now\.$/;
 const BLOCKED_ME = /^(.+?) blocks? you! The rest of your turn is lost\.$/;
 const BLOCKS = /^(.+?) blocks (.+?)\.$/;
-const STOPS = /^(.+?) stops following (.+?)(?: \((.+)\))?: his turn ends here\.$/;
+const STOPS = /^(.+?) stops following (.+?)(?: \((.+)\))?: (?:his|their) turn ends here\.$/;
 const ENDS_WITH = /^(.+?)'s turn ends with (.+?)'s\.$/;
 const FOLLOWS = /^(.+?) follows (.+?)\.$/;
 // ... the same lines as the table tells them with the players' names (`p`)

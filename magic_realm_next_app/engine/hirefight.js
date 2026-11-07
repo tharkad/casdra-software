@@ -182,12 +182,12 @@ export function deployAction(st, data, a) {
         d.assigned = false;
         lureEffects(st, data, d);
         (ownerSheet(c, h.uid) ?? newSheet(c, h.uid, 'hire')).attackers.push(d.uid);
-        say(st, `${nameOfHire(st, data, h)} lures the ${nameOfDen(st, data, d)} onto a Melee Section of his own.`, 'combat', null, { ev: { code: 'lure.made', who: st.ch.id, den: [d.uid], broke: false } });
-        if (h.hidden) { unhide(st, data, h); say(st, `${nameOfHire(st, data, h)} gives himself away by luring (8.3.4c.3).`, 'combat'); }
+        say(st, `${nameOfHire(st, data, h)} lures the ${nameOfDen(st, data, d)} onto a Melee Section of their own.`, 'combat', null, { ev: { code: 'lure.made', who: st.ch.id, den: [d.uid], broke: false } });
+        if (h.hidden) { unhide(st, data, h); say(st, `${nameOfHire(st, data, h)} gives themselves away by luring (8.3.4c.3).`, 'combat'); }
     }
     // 2. the hero lures (8.3.4b)
     if (plan.heroLures) {
-        if (!st.ch.hidden) throw new Error('only a hidden character lures; an unhidden one has the creatures set on him anyway');
+        if (!st.ch.hidden) throw new Error('only a hidden character lures; an unhidden one has the creatures set on them anyway');
         const left = lurable(st, data).filter(d => !d.assigned);
         if (!left.length) throw new Error('there is nothing left for you to lure');
         st.ch.hidden = false;
@@ -198,7 +198,7 @@ export function deployAction(st, data, a) {
     const cand = () => c.dens.filter(d => isUnit(d) && !d.dead && !d.assigned && !d.bystander && !d.pacified && !d.pickedUp && !d.elsewhere && !onSheet(c, d.uid));
     const assigns = plan.assigns ?? {};
     if (!st.ch.hidden) {
-        if (Object.keys(assigns).length) throw new Error('an unhidden character must assign the attackers to himself (8.3.5a.3)');
+        if (Object.keys(assigns).length) throw new Error('an unhidden character must assign the attackers to themselves (8.3.5a.3)');
         for (const d of cand()) if (!K.barredFromHero(st, data, d)) d.assigned = true;
     } else {
         const pool = liveHires(c).filter(h => !h.hidden && !heldBy(c, h.uid));
@@ -247,7 +247,7 @@ function setSide(st, data, h, side) {
     h.side = side;
 }
 function setHorse(st, data, h, side) {
-    if (side === null || !['light', 'dark'].includes(side)) throw new Error('a hired native with a horse must always be played with his horse and cannot dismount (8.3.6a, 8.4.5k.4)');
+    if (side === null || !['light', 'dark'].includes(side)) throw new Error('a hired native with a horse must always be played with their horse and cannot dismount (8.3.6a, 8.4.5k.4)');
     if (!h.horse) throw new Error(`${nameOfHire(st, data, h)} has no horse in this fight`);
     h.horse.side = side;
 }
@@ -277,7 +277,7 @@ function attach(st, data, h, t) {
         say(st, `${nameOfHire(st, data, h)} is sent at the ${nameOfDen(st, data, t)}.`, 'combat');
     }
     s.attackers.push(h.uid);
-    if (moved) { s.attackers.push(moved); c.sec.deployed.push(moved); say(st, `${nameOf(st, data, moved)}, alone on his section, moves onto the ${nameOfDen(st, data, t)}'s as its newest attacker (8.3.6a.6).`, 'combat'); }
+    if (moved) { s.attackers.push(moved); c.sec.deployed.push(moved); say(st, `${nameOf(st, data, moved)}, alone on their section, moves onto the ${nameOfDen(st, data, t)}'s as its newest attacker (8.3.6a.6).`, 'combat'); }
     if (h.hidden) { unhide(st, data, h); }
     // sending a hireling at what a spell calmed or protects breaks the spell (8.4.2h.2); at a native, its group begins to battle him and his hirelings (8.3.6a.9)
     K.namedTarget(st, data, t, text => say(st, text, 'combat'));
@@ -422,7 +422,7 @@ export function checkPlay(st, data, p) {
     for (const [u, t] of Object.entries(p.hireTargets ?? {})) {
         const s = c.sec.sheets.find(x => x.owner === u && x.ownerKind === 'hire');
         if (!s || !s.attackers.length) throw new Error('a hireling nobody is attacking does not choose a target (8.4.2e)');
-        if (!s.attackers.includes(t)) throw new Error('a hireling must choose his target among the attackers on his own section: not another section, not a character (8.4.2e)');
+        if (!s.attackers.includes(t)) throw new Error('a hireling must choose their target among the attackers on their own section: not another section, not a character (8.4.2e)');
     }
     for (const [u, side] of Object.entries(p.hireSides ?? {})) {
         const h = hireOf(c, u);
@@ -447,7 +447,7 @@ export function setup(st, data, p, log) {
         try { pos = layout(st, data, s, p.positions ?? {}); } catch (e) { pos = layout(st, data, s, {}); }          // (a spell changed the section after the plan was judged: the defaults)
         s.pos = pos; s.start = { ...pos };
         const t = s.target ? nameOf(st, data, s.target) : null;
-        log(`${nameOf(st, data, s.owner)}'s section: ${s.attackers.map(u => nameOf(st, data, u)).join(', ')} ${s.attackers.length > 1 ? 'attack' : 'attacks'} ${s.ownerKind === 'hire' ? 'him' : 'it'}${t ? `; ${s.ownerKind === 'hire' ? 'he' : 'it'} attacks ${t}` : ''}.`);
+        log(`${nameOf(st, data, s.owner)}'s section: ${s.attackers.map(u => nameOf(st, data, u)).join(', ')} ${s.attackers.length > 1 ? 'attack' : 'attacks'} ${s.ownerKind === 'hire' ? 'them' : 'it'}${t ? `; ${s.ownerKind === 'hire' ? 'they attack' : 'it attacks'} ${t}` : ''}.`);
     }
 }
 
@@ -557,8 +557,8 @@ export function thunk(st, data, h, alive, log) {
     const c = st.combat, attHire = hireOf(c, h.att), defHire = hireOf(c, h.def);
     const attOk = attHire ? !attHire.dead : alive.has(h.att) && alive.has(h.via);
     const defOk = defHire ? !defHire.dead : alive.has(h.def);
-    if (!attOk) { log(attHire && !ownerRec(st, attHire)?.dead ? `${nameOf(st, data, h.via)} is no longer your hireling: his blow is cancelled (8.4.2g.1).` : `${nameOf(st, data, h.via)} is dead before its blow can land.`); return null; }
-    if (!defOk) { log(defHire && !ownerRec(st, defHire)?.dead ? `${nameOf(st, data, h.via)}'s blow at ${nameOf(st, data, h.def)} is cancelled: he is no longer your hireling (8.4.2g.1).` : `${nameOf(st, data, h.via)}'s blow finds ${nameOf(st, data, h.def)} already dead.`); return null; }
+    if (!attOk) { log(attHire && !ownerRec(st, attHire)?.dead ? `${nameOf(st, data, h.via)} is no longer your hireling: their blow is cancelled (8.4.2g.1).` : `${nameOf(st, data, h.via)} is dead before its blow can land.`); return null; }
+    if (!defOk) { log(defHire && !ownerRec(st, defHire)?.dead ? `${nameOf(st, data, h.via)}'s blow at ${nameOf(st, data, h.def)} is cancelled: ${nameOf(st, data, h.via)} is no longer your hireling (8.4.2g.1).` : `${nameOf(st, data, h.via)}'s blow finds ${nameOf(st, data, h.def)} already dead.`); return null; }
     if (attHire) return () => hireBlow(st, data, attHire, denOf(c, h.def), h, log);
     return () => denBlow(st, data, denOf(c, h.via), defHire, h, log);
 }

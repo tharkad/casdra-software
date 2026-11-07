@@ -30,7 +30,7 @@ export default {
         const t = ctx.targets?.[0];
         if (t && t.kind !== 'char') {
             const fx = startFx(ctx, [t], { state: 'held', expires: null, data: { strength: 'L', time: 1 } });
-            if (fx) ctx.log('Broomstick: your hireling now holds a Fly chit (Light, time 1). He uses it in place of his own move values, to follow you when you fly. It is spent when you land.');
+            if (fx) ctx.log('Broomstick: your hireling now holds a Fly chit (Light, time 1). The hireling uses it in place of their own move values, to follow you when you fly. It is spent when you land.');
             return;
         }
         const fx = startFx(ctx, [HERO], { state: 'held', expires: null, data: { strength: 'L', time: 1 } });

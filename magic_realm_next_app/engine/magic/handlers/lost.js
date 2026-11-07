@@ -14,7 +14,7 @@ export default {
     useful: hostileOnly,
     aim: st => [{ ref: HERO, label: 'Yourself (nobody else is here)' }, ...(st.ch.at ? [{ ref: tileRef(tileOf(st.ch.at)), label: 'Everyone on this tile' }] : [])],
     start(ctx) {
-        if (startFx(ctx, targetsOr(ctx, HERO))) ctx.log('Lost: the target will wander randomly whenever he leaves a clearing while this is energized.');
+        if (startFx(ctx, targetsOr(ctx, HERO))) ctx.log('Lost: the target will wander randomly whenever they leave a clearing while this is energized.');
     },
     tags: () => ({ randomMove: true }),
     ai: { role: 'control' },

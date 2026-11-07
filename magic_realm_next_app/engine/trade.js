@@ -149,12 +149,12 @@ export function tradeAction(st, data, p, a) {
     if (a.act === 'group') {
         if (p.mode || p.sold.length || p.drinks) throw new Error('you have already started dealing with one leader');
         if (!p.groups.includes(a.group)) throw new Error('no such leader here');
-        if (p.named === true && a.group !== g) refuse('trade.named', `You have named the ${g}: he can specify only one native leader or visitor (7.6.3a).`, { group: g }, '7.6.3a');
+        if (p.named === true && a.group !== g) refuse('trade.named', `You have named the ${g}: you can specify only one native leader or visitor (7.6.3a).`, { group: g }, '7.6.3a');
         p.group = a.group; if (p.groups.length > 1) p.named = true; st.pending = p; return undefined;
     }
     if (a.act === 'look') {
         // 7.6.5 / 7.6.7a: buying, he gets a secret look at all of the seller's Treasure cards (a visitor's Spell cards too); once he has looked he must specify something and roll.
-        if (p.mode === 'sell' || p.sold.length) refuse('trade.look-after-sale', 'you cannot both buy and sell in one phase; selling, he does not look at the buyer\'s cards (7.6.4)', null, '7.6.4');
+        if (p.mode === 'sell' || p.sold.length) refuse('trade.look-after-sale', 'you cannot both buy and sell in one phase; selling, you do not look at the buyer\'s cards (7.6.4)', null, '7.6.4');
         if (hasCurse(st, 'Ashes')) refuse('trade.ashes', 'Your gold is worthless under the Ashes curse: nobody will sell to you.');
         const held = heldCards(st, p);
         if (!held.cards && !held.spells) refuse('trade.no-cards', `The ${g} hold no cards to look at.`, { group: g }, '7.6.5');

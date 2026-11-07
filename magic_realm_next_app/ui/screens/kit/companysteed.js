@@ -11,11 +11,11 @@ export function steedNote(G, g) {
     if (fc) out.push(voiced(fc, { class: 'ds-meta st-note', 'data-fly-note': g.group }));
     if (g.kind === 'mon') {
         const air = steedAloft(G.st, G.data);
-        if (air && g.members.some(o => o.id === air.id)) out.push(voiced({ story: `You are riding it now.`, detail: 'He is in the air on it (7.3.3g); it lands with him.' }, { class: 'ds-meta st-note', 'data-steed-note': 'riding' }));
+        if (air && g.members.some(o => o.id === air.id)) out.push(voiced({ story: `You are riding it now.`, detail: 'You are in the air on it (7.3.3g); it lands with you.' }, { class: 'ds-meta st-note', 'data-steed-note': 'riding' }));
         else {
             let rides = []; try { rides = steedSources(G.st, G.data); } catch { rides = []; }
             if (g.members.some(o => rides.some(r => r.steed === o.id))) out.push(voiced({ story: `${g.members.length > 1 ? 'One of them' : 'It'} can carry you. Plan a Fly phase and ride it, by day. It is not used up.`,
-                detail: `A flying monster that follows him can be ridden in a Fly phase, in Daylight only (7.3.3g, 7.11.6a.7); unlike a Fly chit it is not used up.` }, { class: 'ds-meta st-note', 'data-steed-note': 'ride' }));
+                detail: `A flying monster that follows you can be ridden in a Fly phase, in Daylight only (7.3.3g, 7.11.6a.7); unlike a Fly chit it is not used up.` }, { class: 'ds-meta st-note', 'data-steed-note': 'ride' }));
         }
     }
     return out;
@@ -25,5 +25,5 @@ export function steedNote(G, g) {
 export function steedAskWords(G, g) {
     const air = steedAloft(G.st, G.data);
     if (!air || !g.members.some(o => o.id === air.id)) return null;
-    return isStory() ? `You are flying on it. If you let it go, you both come down at once. Let it go?` : `He is in the air on it: letting it go brings both down together, by the usual die (7.3.3g.5). Let it go?`;
+    return isStory() ? `You are flying on it. If you let it go, you both come down at once. Let it go?` : `You are in the air on it: letting it go brings both down together, by the usual die (7.3.3g.5). Let it go?`;
 }

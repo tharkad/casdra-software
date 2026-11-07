@@ -124,7 +124,7 @@ export function syncSeats(st, data, { quiet = false } = {}) {
         const ch = seatRecord(st, data, w.kind, w.rec, w.hirer);
         if (was === 1 && st.period === 'birdsong') for (const id of st.order) st.chars[id].today.stage ??= st.chars[id].today.plan ? 'planned' : 'plan';          // (the first seat after the hirer makes it a shared day)
         joinParty(st, ch);
-        if (!quiet) say(st, `${ch.name} gets an Attention chit and a sheet of his own: ${w.kind === 'nat' ? 'he acts for' : 'it acts for'} ${st.chars[w.hirer].name} from now on.`, 'day', null, { who: null });
+        if (!quiet) say(st, `${ch.name} gets an Attention chit and a sheet of ${w.kind === 'nat' ? 'their' : 'its'} own: ${w.kind === 'nat' ? 'they act for' : 'it acts for'} ${st.chars[w.hirer].name} from now on.`, 'day', null, { who: null });
         if (st.period === 'birdsong' && hooks.beginChar) withActor(st, ch.id, () => hooks.beginChar(st, data));
     }
 }
@@ -173,7 +173,7 @@ export function unseat(st, data, id) {
     if (st.evening) { for (const u of st.evening.units) u.ids = u.ids.filter(x => x !== id); }
     for (const a of st.asks) if (a.pending?.type === 'meet-offer' && (a.pending.from === id)) a.pending = a.pending.resume ?? a.pending;
     if (st.order.length === 1) { const last = st.chars[st.order[0]]; if (last?.today) delete last.today.stage; }          // (back to a day of one character)
-    say(st, `${c.name} is no longer ${c.leader.kind === 'nat' ? 'in your pay' : 'in your hand'}${where ? `: what he carried goes to the ${where}` : ''}.`, 'trade', null, st.order.length > 1 ? { who: c.leader.hirer } : null);
+    say(st, `${c.name} is no longer ${c.leader.kind === 'nat' ? 'in your pay' : 'in your hand'}${where ? `: what was carried goes to the ${where}` : ''}.`, 'trade', null, st.order.length > 1 ? { who: c.leader.hirer } : null);
 }
 
 // The game is over for a single player with leaders: the seats take no further part, and the final question is the player's (day.js, died / midnight / endGame).

@@ -281,7 +281,7 @@ export function nextDayGear(st, data) {
             else if (k === 'pony') { act = 'move'; gives = 'a second Move phase after each other Move phase (never the first Move of the day)'; }
             else continue;
         } else if (it.kind === 'treasure' && EXTRA[it.id]) { act = EXTRA[it.id]; gives = `an extra ${act} phase`; }
-        else if (it.kind === 'treasure' && it.id === 'shielded-lantern') { act = null; gives = 'an extra phase for any activity, usable only when he stands in a cave clearing'; }
+        else if (it.kind === 'treasure' && it.id === 'shielded-lantern') { act = null; gives = 'an extra phase for any activity, usable only while standing in a cave clearing'; }
         else continue;
         const why = it.active ? null : (gearLockedWhy(st) ?? activationBlock(st, data, it));
         out.push({ uid: it.uid, id: it.id, name: nameOf(data, it), kind: it.kind, active: !!it.active, act, gives, canActivate: !it.active && !why, why, last: 'evening' });

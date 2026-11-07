@@ -31,9 +31,9 @@ export function partyPlan(G) {
 export function planOf(G, id, party = partyPlan(G)) {
     const q = party?.kind(id);
     if (q?.type === 'restart') return { whole: false, set: 0, total: null, final: null, line: null, sentence: null, restart: true };
-    if (id === actorOf(G)) return q?.prophecy && !G.ui.draft ? { whole: true, set: 0, total: 0, final: [], line: null, sentence: 'He lives the day as it comes' } : planSnapshot(G);
+    if (id === actorOf(G)) return q?.prophecy && !G.ui.draft ? { whole: true, set: 0, total: 0, final: [], line: null, sentence: 'Lives the day as it comes' } : planSnapshot(G);
     const kept = G.ui.drafts?.[id];
-    return kept?.snap ?? (q?.prophecy ? { whole: true, set: 0, total: 0, final: [], line: null, sentence: 'He lives the day as it comes' } : { whole: false, set: 0, total: null, final: null, line: null, sentence: null });
+    return kept?.snap ?? (q?.prophecy ? { whole: true, set: 0, total: 0, final: [], line: null, sentence: 'Lives the day as it comes' } : { whole: false, set: 0, total: null, final: null, line: null, sentence: null });
 }
 
 const nameOf = (G, id) => displayName(charsOf(G.st, G.data)[id]?.name ?? id);

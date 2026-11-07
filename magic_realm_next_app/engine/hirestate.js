@@ -47,16 +47,16 @@ export function assign(st, data, hirer, map) {
         if (!o) throw new Error(`${id} is not one of your hired underlings`);
         if (gid == null) { plan.push([o, null]); continue; }
         if (st.period !== 'birdsong') throw new Error('underlings are assigned to their guides in Birdsong (6.3.1)');
-        if (o.hiredDay === st.day) throw new Error(`${nameOf(data, o)} was hired today: he cannot follow anyone until the next Birdsong (7.11.3)`);
+        if (o.hiredDay === st.day) throw new Error(`${nameOf(data, o)} was hired today and cannot follow anyone until the next Birdsong (7.11.3)`);
         const g = st.chars[gid];
         if (!g || g.dead) throw new Error(`there is no ${gid} to follow`);
-        if (!o.loc?.c || !guidesAt(st, o.loc.c).includes(gid)) throw new Error(`${g.name} is not in the clearing of ${nameOf(data, o)}: an underling can follow only a character or hired leader in his own clearing (6.3.1)`);
+        if (!o.loc?.c || !guidesAt(st, o.loc.c).includes(gid)) throw new Error(`${g.name} is not in the clearing of ${nameOf(data, o)}: an underling can follow only a character or hired leader in their own clearing (6.3.1)`);
         plan.push([o, gid]);
     }
     for (const [o, gid] of plan) {
         if ((o.guide ?? null) === gid) continue;
         o.guide = gid;
-        say(st, gid ? `${nameOf(data, o)} will follow ${st.chars[gid].name} today.` : `${nameOf(data, o)} will spend the day where he is.`, 'info');
+        say(st, gid ? `${nameOf(data, o)} will follow ${st.chars[gid].name} today.` : `${nameOf(data, o)} will spend the day where they are.`, 'info');
     }
 }
 
@@ -67,7 +67,7 @@ export function stay(st, data, hirer, ids) {
     if (st.period !== 'daylight') throw new Error('underlings can stay behind only when their guide starts an activity (7.11.5)');
     for (const o of mine) {
         const g = st.chars[o.guide];
-        if (!g || !turnOn(st, o.guide) || !atPhaseStart(st, o.guide)) throw new Error(`${nameOf(data, o)} can stay behind only when ${g?.name ?? 'his guide'} is about to start an activity (7.11.5)`);
+        if (!g || !turnOn(st, o.guide) || !atPhaseStart(st, o.guide)) throw new Error(`${nameOf(data, o)} can stay behind only when ${g?.name ?? 'their guide'} is about to start an activity (7.11.5)`);
     }
     for (const o of mine) {
         say(st, `${nameOf(data, o)} stays behind in clearing ${o.loc?.c ?? '?'}.`, 'info');
@@ -172,7 +172,7 @@ export function entered(st, data, h) {
     const o = counterOf(st, h);
     if (!o?.hidden) return;
     o.hidden = false; o.side = 'light'; delete h.hidden;
-    say(st, `${nameOf(data, o)} gives away his hiding place: he is no longer hidden.`, 'combat');
+    say(st, `${nameOf(data, o)} gives away their hiding place and is no longer hidden.`, 'combat');
 }
 // The fight is over: hired counters are turned dark side up if they are still hidden and light side up if unhidden; unhired denizens are all light side up (8.8.6).
 export function combatEnd(st, data, c) {

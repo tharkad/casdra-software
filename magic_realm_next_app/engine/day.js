@@ -350,7 +350,7 @@ function nextTurn(st, data) {
 function noTurn(st, data) {
     st.ch.hidden = false;
     st.period = 'daylight';
-    say(st, `${st.ch.name} was caught before his turn began: he has no turn today.`, 'block');
+    say(st, `${st.ch.name} was caught before their turn began, so there is no turn today.`, 'block');
     const here = st.ch.at;
     st.turn = { i: 0, climb: null, blocked: true, results: [], movedHere: null, auto: false, base: st.planBase ?? 4, kinds: st.planKinds ?? null, noTurn: true };
     st.turn.end = { at: here, tile: here ? tileOf(here) : null, prowl: st.prowl, arrivals: [], flipped: [], chits: [], natives: [] };
@@ -382,7 +382,7 @@ function blockOthers(st, data, res) {
         if (!here.length) continue;
         c.today.noTurn = true;
         stopBlockers(st, here.map(a => a.id));                                                          // (7.12.5: what blocked him stops where it is)
-        say(st, `${here.map(a => a.name).join(', ')} close in on ${c.name} before his chit is drawn: he is blocked and will have no turn today.`, 'block', null, { who: id });
+        say(st, `${here.map(a => a.name).join(', ')} close in on ${c.name} before their chit is drawn: ${c.name} is blocked and will have no turn today.`, 'block', null, { who: id });
     }
 }
 
@@ -460,7 +460,7 @@ function runPhase(st, data) {
 // Once he has sold, bought drinks or rolled for a deal, the phase is committed and has to be finished.
 function cancelDealing(st, data, p) {
     const fresh = (p.type === 'trade' && !p.mode && !(p.sold?.length) && !p.drinks && p.named !== true) || p.type === 'hire';          // (named: with several leaders here he has named one, and that binds the Trade activity, 7.6.3a: he may skip the phase, not unsay the name)
-    if (!fresh) throw new Error(p.named === true && !p.mode && !p.sold?.length && !p.drinks ? 'You have named the ' + p.group + ': he can specify only one leader or visitor in a Trade activity, so skip the phase or deal with them (7.6.3a).' : 'you have already begun dealing: finish this phase');
+    if (!fresh) throw new Error(p.named === true && !p.mode && !p.sold?.length && !p.drinks ? 'You have named the ' + p.group + ': you can specify only one leader or visitor in a Trade activity, so skip the phase or deal with them (7.6.3a).' : 'you have already begun dealing: finish this phase');
     const t = st.turn; t.auto = false;
     st.pending = t.pro ? proPending(st, data) : { type: 'phase', i: t.i };
     return st;
@@ -793,7 +793,7 @@ function died(st, data, carryOn = true) {
 // (so the day after); at Birdsong the day he sits out is today (so tomorrow).
 function suicide(st, data, p) {
     const c = st.ch, midnightNow = p.type === 'evening-end', rejoin = st.day + (midnightNow ? 2 : 1), at = c.at ?? c.onRoad?.from ?? null;
-    say(st, `${c.name} takes his own life.`, 'day', null, multi(st) ? { who: c.id, ev: { code: 'char.dies', who: c.id, cause: 'suicide' } } : { ev: { code: 'char.dies', who: c.id, cause: 'suicide' } });
+    say(st, `${c.name} takes their own life.`, 'day', null, multi(st) ? { who: c.id, ev: { code: 'char.dies', who: c.id, cause: 'suicide' } } : { ev: { code: 'char.dies', who: c.id, cause: 'suicide' } });
     c.dead = true; c.hidden = false;
     st.slain = null;
     st.pending = null;
@@ -934,7 +934,7 @@ function forcedRest(st, data) {
     const ill = hasCurse(st, 'Ill Health');
     if ((ill || !restOptions(st).length) && (ill || st.ch.chits.every(c => c.state === 'committed'))) {
         st.ch.dead = true;
-        st.slain = { by: null, text: ill ? 'Ill Health: every chit was spent and he could not rest.' : 'Every chit was committed to a spell: there was nothing to rest.', at: st.ch.at, day: st.day };
+        st.slain = { by: null, text: ill ? 'Ill Health: every chit was spent and there was no way to rest.' : 'Every chit was committed to a spell: there was nothing to rest.', at: st.ch.at, day: st.day };
         say(st, 'Every chit is spent and you cannot rest: you die.', 'info');
         return 'You can only rest, and you cannot: you die.';
     }
@@ -1270,7 +1270,7 @@ function step(st, data, action) {
     if (action.type === 'hireling') return hs.act(st, data, action);        // assigning underlings to guides, letting them stay behind (hirestate.js); the hirer may, with or without a question
     const p = st.pending;
     if (multi(st) && st.offers && meet.openOffer(st, st.actor) && p) throw new Error(`wait: ${st.chars[meet.openOffer(st, st.actor).to].name} has not answered your offer yet (withdraw it to go on)`);
-    if (!p) refuse('question.none', multi(st) ? `${st.ch.name} has nothing to answer now (it is not his turn, or the others are still to answer)` : 'nothing to do');
+    if (!p) refuse('question.none', multi(st) ? `${st.ch.name} has nothing to answer now (it is not their turn, or the others are still to answer)` : 'nothing to do');
     switch (action.type) {
         case 'plan': {
             if (p.type !== 'plan') refuse('question.mismatch', 'not planning');
@@ -1435,10 +1435,10 @@ function step(st, data, action) {
         case 'suicide': {
             // 8.9.4, 9.2.2a: "A character can suicide at Midnight of any day." The engine offers it where the day ends for him: the `evening-end` question (one character, before Midnight is worked out) and the
             // Birdsong plan (the moment right after Midnight, the only one a table of several characters has). The two come to the same: he sits out one complete day (9.2.2a) and starts again as after a death.
-            if (p.type !== 'evening-end' && p.type !== 'plan') refuse('suicide.not-now', 'A character can suicide only at Midnight: when his evening is over, or at the Birdsong that follows (8.9.4).', null, '8.9.4');
-            if (st.ch.leader) refuse('suicide.leader', 'A hired leader is not a character: he cannot suicide.', null, '9.2.2a');
+            if (p.type !== 'evening-end' && p.type !== 'plan') refuse('suicide.not-now', 'A character can suicide only at Midnight: when their evening is over, or at the Birdsong that follows (8.9.4).', null, '8.9.4');
+            if (st.ch.leader) refuse('suicide.leader', 'A hired leader is not a character, so cannot suicide.', null, '9.2.2a');
             if (st.ch.dead) refuse('suicide.dead', 'your character is dead already', null, '9.2.2a');
-            if (st.ch.flying) refuse('suicide.in-air', 'He must be on the ground to suicide: his belongings are abandoned in his clearing (9.2.2a).', null, '9.2.2a');
+            if (st.ch.flying) refuse('suicide.in-air', 'You must be on the ground to suicide: your belongings are abandoned in your clearing (9.2.2a).', null, '9.2.2a');
             return suicide(st, data, p);
         }
         case 'restart': {

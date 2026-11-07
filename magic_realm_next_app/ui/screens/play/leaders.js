@@ -124,14 +124,14 @@ export function assignSheet(G) {
     const cards = rows.map(r => h('div', { class: `as-card${r.today ? ' dim' : ''}`, 'data-underling-row': r.id },
         h('div', { class: 'as-head' }, counterEl(G, { id: r.id, side: r.side, hidden: r.hidden }, 'sm'),
             h('span', { class: 'main' }, h('b', {}, r.name), h('span', {}, r.atName ? `in ${nb(r.atName)}` : 'not on the map'))),
-        r.today ? h('p', { class: 'ds-hint-line' }, voiced({ story: 'Hired today: he waits until tomorrow.', detail: 'A hireling does not begin following until the Birdsong after he is hired (7.11.3).' }))
-            : !r.guides.length ? h('p', { class: 'ds-hint-line' }, voiced({ story: 'None of your people stand with him, so he stays here.', detail: 'An underling can follow only a character or hired leader in his own clearing (6.3.1).' }))
+        r.today ? h('p', { class: 'ds-hint-line' }, voiced({ story: 'Hired today: they wait until tomorrow.', detail: 'A hireling does not begin following until the Birdsong after being hired (7.11.3).' }))
+            : !r.guides.length ? h('p', { class: 'ds-hint-line' }, voiced({ story: 'None of your people stand with them, so they stay here.', detail: 'An underling can follow only a character or hired leader in their own clearing (6.3.1).' }))
                 : guideChips(G, r),
-        !r.today && r.remembered && r.choice === r.remembered && !(r.id in a.picked) ? h('p', { class: 'ds-hint-line as-same' }, voiced({ story: 'The same as yesterday.', detail: 'The guide he had yesterday (6.3.1: the choice is made again every Birdsong).' })) : null));
+        !r.today && r.remembered && r.choice === r.remembered && !(r.id in a.picked) ? h('p', { class: 'ds-hint-line as-same' }, voiced({ story: 'The same as yesterday.', detail: 'The guide they had yesterday (6.3.1: the choice is made again every Birdsong).' })) : null));
     const body = h('div', { class: 'as', 'data-assign': '' },
         h('p', { class: 'ds-voice as-intro' }, voiced({
             story: 'Each follower goes with one of your people all day, or stays here.',
-            detail: 'Underlings are assigned to a guide in Birdsong (6.3.1). They go where the guide goes, hide only when he hides (6.3.1b, 7.4.5), and are put back on the map where he ends his turn (7.7.3b). Not assigned: they spend the day where they are.' })),
+            detail: 'Underlings are assigned to a guide in Birdsong (6.3.1). They go where the guide goes, hide only when the guide hides (6.3.1b, 7.4.5), and are put back on the map where the guide ends their turn (7.7.3b). Not assigned: they spend the day where they are.' })),
         everyone ? h('button', { type: 'button', class: 'ds-btn sm as-all', 'data-act': 'assign-all', onclick: () => { for (const r of live) a.picked[r.id] = everyone; render(G); } }, `Everyone with ${seatName(tableModel(G.st, G.data), everyone)}`) : null,
         ...cards);
     const sum = assignSummary(rows);
@@ -156,15 +156,15 @@ export function followerChips(G) {
     const hirer = stayHirer(tableModel(G.st, G.data), id);
     return followersOf(tableModel(G.st, G.data), G.data, id).map(o => {
         const name = nameOfCounter(G.data, o);
-        return h('button', { type: 'button', class: 'ds-chip spellact leavechip', 'data-act': 'leave-behind', 'data-id': o.id, title: `${name} stays where ${seatName(tableModel(G.st, G.data), id)} stands now, and goes no further with him today (7.7.3a)`,
+        return h('button', { type: 'button', class: 'ds-chip spellact leavechip', 'data-act': 'leave-behind', 'data-id': o.id, title: `${name} stays where ${seatName(tableModel(G.st, G.data), id)} stands now, and goes no further with ${seatName(tableModel(G.st, G.data), id)} today (7.7.3a)`,
             onclick: () => act(G, { type: 'hireling', kind: 'stay', ids: [o.id], who: hirer }) }, counterEl(G, o, 'xs'), `Leave ${name} behind`);
     });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------- his sheet
 const lockWhy = {
-    story: 'He can leave a thing at the start of one of his phases.',
-    detail: 'A hired leader can abandon belongings at the start of a phase of his own turn but cannot activate or deactivate them (4.3.2, 7.2.2b).',
+    story: 'A leader can leave a thing at the start of any phase.',
+    detail: 'A hired leader can abandon belongings at the start of a phase of their own turn but cannot activate or deactivate them (4.3.2, 7.2.2b).',
 };
 
 export function leaderSheet(G) {
@@ -181,16 +181,16 @@ export function leaderSheet(G) {
     const body = h('div', { class: 'ls', 'data-leader-sheet': id },
         intro ? h('p', { class: 'ds-voice ls-intro' }, voiced(intro)) : null,
         h('div', { class: 'ls-facts' },
-            h('div', { class: 'ls-fact' }, attnChit(att, 'lg'), h('span', {}, h('b', {}, att?.label ?? 'No chit'), h('small', {}, 'his Attention chit'))),
-            carryWord(tableModel(G.st, G.data), id) ? h('div', { class: 'ls-fact' }, icon('bag'), h('span', {}, h('b', {}, carryWord(tableModel(G.st, G.data), id)), h('small', {}, 'the most he can carry'))) : null),
-        sect('He carries', gear.length ? `${gear.length}` : ''),
+            h('div', { class: 'ls-fact' }, attnChit(att, 'lg'), h('span', {}, h('b', {}, att?.label ?? 'No chit'), h('small', {}, 'Attention chit'))),
+            carryWord(tableModel(G.st, G.data), id) ? h('div', { class: 'ls-fact' }, icon('bag'), h('span', {}, h('b', {}, carryWord(tableModel(G.st, G.data), id)), h('small', {}, 'the most that can be carried'))) : null),
+        sect('Carries', gear.length ? `${gear.length}` : ''),
         gear.length ? h('div', { class: 'ds-list' }, ...rowsGear) : h('p', { class: 'ds-meta' }, 'Nothing.'),
         gear.length ? h('p', { class: 'ds-hint-line' }, voiced(lockWhy)) : null,
         sect('Gold'),
-        h('p', { class: 'ls-gold' }, h('b', { 'data-ls-gold': '' }, `${c.gold ?? 0} gold`), ' ', h('span', { class: 'ds-meta' }, voiced({ story: `It is ${hn}’s, but ${hn} cannot spend it while it is with him.`, detail: `Gold, belongings and discoveries on a leader’s sheet belong to ${hn} but are out of his reach, and do not count toward his goals (7.7.2a).` }))),
-        sect('What he has found'),
-        h('p', { class: 'ls-disc' }, disc.paths || disc.sites ? `${disc.paths} hidden path${disc.paths === 1 ? '' : 's'} and ${disc.sites} site${disc.sites === 1 ? '' : 's'}. ${hn} can learn them when he hands them over.` : 'Nothing yet.'),
-        followers.length ? sect('Walking with him') : null,
+        h('p', { class: 'ls-gold' }, h('b', { 'data-ls-gold': '' }, `${c.gold ?? 0} gold`), ' ', h('span', { class: 'ds-meta' }, voiced({ story: `It is ${hn}’s, but ${hn} cannot spend it while it stays on this sheet.`, detail: `Gold, belongings and discoveries on a leader’s sheet belong to ${hn} but are out of reach, and do not count toward any goals (7.7.2a).` }))),
+        sect('What has been found'),
+        h('p', { class: 'ls-disc' }, disc.paths || disc.sites ? `${disc.paths} hidden path${disc.paths === 1 ? '' : 's'} and ${disc.sites} site${disc.sites === 1 ? '' : 's'}. ${hn} can learn them once ${hn} hands them over.` : 'Nothing yet.'),
+        followers.length ? sect('Followers') : null,
         followers.length ? h('div', { class: 'ls-follow' }, ...followers.map(o => h('span', { class: 'ls-fl' }, counterEl(G, o, 'sm'), nameOfCounter(G.data, o)))) : null);
     const meet = meetWith(G, id);
     const foot = footRow({ note: meet.why, secondary: btn(`To ${hn}`, 'quiet', { 'data-act': 'to-hirer', onclick: () => { G.ui.sheet = null; switchTo(G, hirer); } }),
@@ -209,7 +209,7 @@ export function meetWith(G, id = seatOf(G.st, G.data)) {
     const p = o?.partners?.find(x => others.includes(x.id));
     if (p) return { ok: true, other: p.id, why: '' };
     const near = others.find(x => tableModel(st, G.data).chars[x] && !tableModel(st, G.data).chars[x].dead && tableModel(st, G.data).chars[x].at && tableModel(st, G.data).chars[x].at === c.at && !c.onRoad);
-    return { ok: false, other: near ?? others[0] ?? null, why: near ? (isStory() ? WINDOW.story : WINDOW.detail) : `${seatName(tableModel(G.st, G.data), others[0] ?? id)} is not in his clearing.` };
+    return { ok: false, other: near ?? others[0] ?? null, why: near ? (isStory() ? WINDOW.story : WINDOW.detail) : `${seatName(tableModel(G.st, G.data), others[0] ?? id)} is not in the same clearing.` };
 }
 
 /** Gold stepper and ticked lists for one direction of a gift. State in `G.ui.hand`: { dir: 'give' | 'take', items: [uid], gold, disc: [key] }. */
@@ -240,7 +240,7 @@ export function handoverSheet(G) {
         actMany(G, [{ type: 'meet', kind: 'offer', who: from, to, give, want: { items: [], gold: 0 } }, { type: 'meet', kind: 'answer', who: to, accept: true }], { ok: () => { G.ui.sheet = null; G.ui.hand = null; showToast(G, `${nameFrom} gave ${nameTo} ${parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0]}.`); } });
     };
     const body = h('div', { class: 'ho', 'data-handover': '' },
-        h('p', { class: 'ds-voice ho-intro' }, voiced({ story: `${seatName(tableModel(G.st, G.data), hirer)} and ${seatName(tableModel(G.st, G.data), leader)} stand together. A gift goes across at once, whole.`, detail: `An offer and its answer, sent together: a character trades with his own leader as with any character (7.2.1). The engine never answers an offer for the other (rulings L10).` })),
+        h('p', { class: 'ds-voice ho-intro' }, voiced({ story: `${seatName(tableModel(G.st, G.data), hirer)} and ${seatName(tableModel(G.st, G.data), leader)} stand together. A gift goes across at once, whole.`, detail: `An offer and its answer, sent together: a character trades with their own leader as with any character (7.2.1). The engine never answers an offer for the other (rulings L10).` })),
         h('div', { class: 'ds-seg ho-dir', role: 'radiogroup', 'aria-label': 'Which way' },
             h('button', { type: 'button', class: d.dir === 'give' ? 'on' : null, role: 'radio', 'aria-checked': d.dir === 'give' ? 'true' : 'false', 'data-dir': 'give', onclick: () => { d.dir = 'give'; d.items = []; d.gold = 0; d.disc = []; render(G); } }, `${seatName(tableModel(G.st, G.data), hirer)} gives`),
             h('button', { type: 'button', class: d.dir === 'take' ? 'on' : null, role: 'radio', 'aria-checked': d.dir === 'take' ? 'true' : 'false', 'data-dir': 'take', onclick: () => { d.dir = 'take'; d.items = []; d.gold = 0; d.disc = []; render(G); } }, `${seatName(tableModel(G.st, G.data), leader)} gives`)),
@@ -248,7 +248,7 @@ export function handoverSheet(G) {
         h('div', { class: 'ds-list' }, ...(itemRows.length ? itemRows : [h('p', { class: 'ds-meta' }, `${nameFrom} has nothing to give.`)]),
             h('div', { class: `ds-row mt-gold${d.gold ? ' sel' : ''}`, 'data-gold': 'give' }, h('div', { class: 'main mt-gl' }, h('b', {}, 'Gold'), h('span', {}, `${nameFrom} has ${mine.gold}`)),
                 h('div', { class: 'ds-stepper mt-stepper' }, step(-5, '−5'), step(-1, '−'), h('div', { class: 'v' }, h('span', { 'data-gold-n': 'give' }, String(d.gold))), step(1, '+'), step(5, '+5')))),
-        ...(discRows.length ? [sect('What he has found'), h('div', { class: 'ds-list' }, ...discRows)] : []));
+        ...(discRows.length ? [sect('What has been found'), h('div', { class: 'ds-list' }, ...discRows)] : []));
     return modal(G, 'Give or take', body, { close, eyebrow: `${nameFrom} → ${nameTo}`, detent: 'tall', bare: true,
         footer: footRow({ note: say, secondary: btn('Cancel', 'quiet', { 'data-act': 'handover-cancel', onclick: close }), primary: primary(ok ? `Give to ${nameTo}` : 'Choose first', { 'data-act': 'handover-go', disabled: !ok || null, onclick: send }) }) });
 }
@@ -273,7 +273,7 @@ export function sunriseSheet(G) {
             h('span', { class: 'main' }, h('b', {}, seatName(tableModel(G.st, G.data), id)), h('span', {}, who)));
     });
     const body = h('div', { class: 'sr' },
-        h('p', { class: 'ds-voice sr-line' }, voiced({ story: fn ? `The chits are drawn. ${fn} is first.` : 'The chits are drawn.', detail: `The Attention chits are mixed and drawn (7.1.1). ${fn ? `${fn} plays first; ` : ''}each seat plays his whole turn when his chit comes up.` })),
+        h('p', { class: 'ds-voice sr-line' }, voiced({ story: fn ? `The chits are drawn. ${fn} is first.` : 'The chits are drawn.', detail: `The Attention chits are mixed and drawn (7.1.1). ${fn ? `${fn} plays first; ` : ''}each seat plays a whole turn when its chit comes up.` })),
         h('div', { class: 'ds-list' }, ...rows));
     return modal(G, 'Sunrise', body, { close, eyebrow: `Day ${gameOf(st, G.data).day} \u00B7 the order of the day`, bare: true, footer: footRow({ primary: primary('Begin the day', { 'data-act': 'sunrise-ok', onclick: close }) }) });
 }
@@ -287,7 +287,7 @@ export function unattendedBlock(G, day) {
         const place = f.place ? nb(f.place) : 'a clearing', fell = f.kills.length ? ` ${f.kills.length === 1 ? `The ${f.kills[0]} fell` : `${f.kills.length} fell: ${f.kills.join(', ')}`}.` : '';
         const rest = f.lines.slice(1).filter(l => l.k === 'combat').map(l => logText(l, G.st));          // (the dice of an unattended fight are noise: the lines say what came of them)
         return h('div', { class: 'ds-ask un-fight', 'data-unattended': f.id },
-            h('b', {}, voiced({ story: `${f.name} fought at ${place}, and nobody was there to play it.${fell}`, detail: `Fight at ${place}: ${f.name} stood there without ${seatName(tableModel(G.st, G.data), hirerOf(tableModel(G.st, G.data), f.id))} (8.1.2b). His hirelings fought; nothing was bought, paid or played.${fell}` })),
+            h('b', {}, voiced({ story: `${f.name} fought at ${place}, and nobody was there to play it.${fell}`, detail: `Fight at ${place}: ${f.name} stood there without ${seatName(tableModel(G.st, G.data), hirerOf(tableModel(G.st, G.data), f.id))} (8.1.2b). ${f.name}’s hirelings fought; nothing was bought, paid or played.${fell}` })),
             h('details', { class: 'un-lines' }, h('summary', {}, 'What happened'), ...(rest.length ? rest : ['Nothing was said.']).map(t => h('p', { class: 'j-combat' }, t))));
     });
 }
@@ -306,7 +306,7 @@ export function showSeat(G, id) {
 // The end-of-turn sheet of a seat, told of him and not of "you": hidden or in plain sight, what blocked him, what arrived. (The player's own character has the longer sheet in phases.js.)
 export function seatTurnEndSheet(G) {
     const st = G.st, t = todayOf(st, G.data).turnEnd, id = seatOf(st, G.data), name = seatName(tableModel(G.st, G.data), id), mon = tableModel(st, G.data).chars[id]?.leader?.kind === 'mon';
-    const he = mon ? 'it' : 'he', him = mon ? 'it' : 'him', his = mon ? 'its' : 'his', place = nb(nameOfClearing(t.at));
+    const he = mon ? 'it' : name, him = mon ? 'it' : name, his = mon ? 'its' : `${name}’s`, place = nb(nameOfClearing(t.at));
     const uniq = list => [...new Set(list)], many = list => (list.length <= 1 ? (list[0] ?? '') : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`);
     const called = uniq(t.chits.flatMap(c => c.summons ?? [])), arrived = uniq([...(t.arrivals ?? []).map(a => a.name), ...called]), natives = (t.natives ?? []).map(n => `the ${n.group}`);
     const lost = t.blocked ? planSlots(st, G.data).filter((s, i) => i >= (t.plan?.length ?? 0) && s && s.act !== 'nothing').length : 0;

@@ -89,11 +89,11 @@ export function engineCheck(fm, data, ex) {
 }
 
 // ---- words ----
-export function titleOf(card) { return card.ownerKind === 'hire' ? `${card.ownerName} defends` : card.held ? `${card.ownerName} holds him` : `${card.ownerName} defends`; }
+export function titleOf(card) { return card.ownerKind === 'hire' ? `${card.ownerName} defends` : card.held ? `${card.ownerName} holds them` : `${card.ownerName} defends`; }
 export function subOf(card) {
     const who = listOf(card.attackers.map(a => a.name));
     if (card.held) return `It has hold of ${who}: they fight alone`;
-    if (card.ownerKind === 'hire') return `${who} ${card.attackers.length > 1 ? 'come' : 'comes'} at him`;
+    if (card.ownerKind === 'hire') return `${who} ${card.attackers.length > 1 ? 'come' : 'comes'} at them`;
     return `${who} ${card.attackers.length > 1 ? 'go' : 'goes'} at it`;
 }
 export const laneName = (zone, dir) => (zone === 'box' ? BOX[dir] : zone === 'square' ? MNV[dir] : DIRS[dir]);

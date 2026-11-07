@@ -84,7 +84,7 @@ export function flyChitWords(st, data, members, kind) {
     const names = held.map(x => nameOfDenizen(data, x.o.id)), many = held.length > 1, who = many ? 'They hold' : `${names[0]} holds`;
     const use = held.some(x => x.s.inUse);
     return {
-        story: use ? `${many ? 'They are' : `${names[0]} is`} in the air with you on a Fly chit. ${many ? 'It is' : 'It is'} spent when you land.` : `${who} a Fly chit. ${many ? 'They' : 'He'} can follow you in flight. It is spent when you land.`,
+        story: use ? `${many ? 'They are' : `${names[0]} is`} in the air with you on a Fly chit. ${many ? 'It is' : 'It is'} spent when you land.` : `${who} a Fly chit. ${many ? 'They' : 'It'} can follow you in flight. It is spent when you land.`,
         detail: use ? `Broomstick: the Fly chit is in use while its guide is in the air; it expires the instant the guide lands (4.6.7e.1, 7.3.3d.2).` : `Broomstick on a denizen (4.6.7e.2, 7.3.3d.2): it uses the Fly chit in place of its own move values, so it can follow a flying guide (7.3.3a.4). Unused, the chit stays; it expires when the guide lands.`,
     };
 }
@@ -94,10 +94,10 @@ export function flyChitWords(st, data, members, kind) {
 const shortName = n => { const w = String(n).split(' '); return w.length >= 3 ? w.slice(1).join('\u00A0') : String(n); };
 // The words for each option of the chooser: who, and what he does with the chit. `o` is an engine aim option { ref, label }.
 export function broomstickOption(o, data) {
-    if (o.ref.kind === 'char') return { title: 'Yourself', short: 'Yourself', story: 'The Fly chit is yours: use it in a Fly phase, or in a fight to fly away.', detail: 'He plays the Fly chit directly, without a Move chit, in a Fly phase or in the Encounter step to fly away (Broomstick, 8.3.8e). It is spent when used.' };
+    if (o.ref.kind === 'char') return { title: 'Yourself', short: 'Yourself', story: 'The Fly chit is yours: use it in a Fly phase, or in a fight to fly away.', detail: 'You play the Fly chit directly, without a Move chit, in a Fly phase or in the Encounter step to fly away (Broomstick, 8.3.8e). It is spent when used.' };
     const name = nameOfDenizen(data, o.ref.id);
-    return { title: `${name} (yours)`, short: shortName(String(o.label ?? name).replace(/ \(yours\)$/, '')), story: `${name} holds the chit and uses it in place of his own moves, to follow you when you fly. It is spent when you land.`,
-        detail: `A denizen can use the Fly chit in place of his own move values (4.6.7e.2, 7.3.3d.2), so he can follow a flying guide (7.3.3a.4); the chit expires when the guide lands (4.6.7e.1). The spellcaster controls when it is used.` };
+    return { title: `${name} (yours)`, short: shortName(String(o.label ?? name).replace(/ \(yours\)$/, '')), story: `${name} holds the chit and uses it in place of their own moves, to follow you when you fly. It is spent when you land.`,
+        detail: `A denizen can use the Fly chit in place of their own move values (4.6.7e.2, 7.3.3d.2), so they can follow a flying guide (7.3.3a.4); the chit expires when the guide lands (4.6.7e.1). The spellcaster controls when it is used.` };
 }
 
 // The steeds he could ride now: [{ id, steed, name, strength, time }] (view.me.magic.fly.rides).

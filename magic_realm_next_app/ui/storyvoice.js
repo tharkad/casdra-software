@@ -348,8 +348,8 @@ rule(/^You fly to the (.+?) on the (.+?)\.(?: You had to leave behind: (.+?)\.)?
 rule(/^You cannot ride that/, () => 'That one cannot carry you today: it is no flier of yours that follows you. The hour is lost.');
 rule(/^You send the (.+?) away\.?$/, m => [`You send the ${m[1]} away.`, `You let the ${m[1]} go its own way.`]);
 rule(/^Your steed is no longer yours: you and the (.+?) come down in (.+?)\.?$/, m => [`The ${m[1]} is yours no longer. The two of you come down together in ${m[2]}.`, `Your steed goes free, and you both come down in ${m[2]}.`]);
-rule(/^(.+?) cannot fly: (?:he|she|it) is left behind in clearing (\d+)\.?$/, m => `${m[1]} cannot fly, and is left behind in clearing ${m[2]}.`);
-rule(/^You release (.+?) from your service\.?$/, m => [`${m[1]} is released from your service and goes his way.`, `You let ${m[1]} go.`]);
+rule(/^(.+?) cannot fly(?:: (?:he|she|it)| and) is left behind in clearing (\d+)\.?$/, m => `${m[1]} cannot fly, and is left behind in clearing ${m[2]}.`);
+rule(/^You release (.+?) from your service\.?$/, m => [`${m[1]} is released from your service and goes on their way.`, `You let ${m[1]} go.`]);
 rule(/^You fly to the (.+?)\.(?: You had to leave behind: (.+?)\.)?$/, (m) => { const left = m[2] && list(m[2].split(/,\s*/).map(x => `the ${x}`)); return [`You rise and cross to the ${m[1]}.${left ? ` You leave ${left} behind.` : ''}`, `You take to the air toward the ${m[1]}.${left ? ` ${cap(left)} stays on the ground.` : ''}`]; });
 rule(/^(?:You land|Landing) in (.+?)\.?$/, m => [`You come down in ${m[1]}.`, `The air sets you down in ${m[1]}.`]);
 rule(/^That tile is too far away to fly to/, () => 'That tile is too far to reach on the wing. The hour is lost.');
@@ -489,7 +489,7 @@ rule(/^Whistle for Monsters: the (.+?) from clearing/, m => `You whistle for mon
 rule(/^Pentangle: you are shielded/, () => 'A pentangle flares: no demon or spell can touch you.');
 rule(/^(.+?) is held off by the (Pentangle|mist)\.?$/, m => `${m[1]} cannot get past the ${m[2]}.`);
 // ---- the rulings of 2026-10-26 (S2, S3, S6, S7, S8, R5, R7, M4): Peace, Wish for Peace, the Pit on a character, the split Melee step, luring, the Vault, the edge of the map
-rule(/^Peace: (?:you take|the target takes) back (?:your|his) Attention chit/, () => ['Peace takes the fight out of you: no target, no attack until midnight.', 'A calm falls over you. You cannot name a target until midnight.']);
+rule(/^Peace: (?:you take|the target takes) back (?:your|his|their) Attention chit/, () => ['Peace takes the fight out of you: no target, no attack until midnight.', 'A calm falls over you. You cannot name a target until midnight.']);
 rule(/^Peace takes back your Attention chit: the attack you were playing is cancelled/, () => 'Peace takes the fight out of you: the attack you were playing is called off.');
 rule(/^Peace: no one in this clearing may target or attack anyone for two more rounds/, () => ['A hush falls: for two more rounds nobody here may strike or name a target.', 'Peace settles over the clearing for two more rounds. Everyone may act, but nobody may attack.']);
 rule(/^The Wish for Peace: nobody may target or attack anyone; the attack you were playing is cancelled/, () => 'The wish for peace takes hold: the attack you were playing is called off.');

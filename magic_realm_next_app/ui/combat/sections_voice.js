@@ -10,18 +10,18 @@ const LANE = { Thrust: 'thrust', Swing: 'swing', Smash: 'smash' }, VERB = { Thru
 
 export const SECTION_RULES = [
     // ---- luring and deployment (8.3.4c, 8.3.5, 8.3.6a)
-    [/^(.+?) lures the (.+?) onto a Melee Section of his own\.?$/, m => [`${cap(noHash(m[1]))} draws the ${noHash(m[2])} onto himself.`, `${cap(noHash(m[1]))} calls out the ${noHash(m[2])}, and it comes for him.`]],
-    [/^(.+?) gives himself away by luring/, m => `${cap(noHash(m[1]))} is seen: he has given himself away.`],
+    [/^(.+?) lures the (.+?) onto a Melee Section of (?:his|their) own\.?$/, m => [`${cap(noHash(m[1]))} draws the ${noHash(m[2])} onto themselves.`, `${cap(noHash(m[1]))} calls out the ${noHash(m[2])}, and it comes for them.`]],
+    [/^(.+?) gives (?:himself|themselves) away by luring/, m => `${cap(noHash(m[1]))} is seen, having given themselves away.`],
     [/^You lure the creatures onto your sheet and give yourself away/, () => 'You lure the creatures onto you, and they see you.'],
     [/^The (.+?) is set on (.+?)\.?$/, m => [`The ${noHash(m[1])} turns on ${noHash(m[2])}.`, `The ${noHash(m[1])} goes for ${noHash(m[2])}.`]],
     [/^(.+?) stays out of the fight this round\.?$/, m => `${cap(noHash(m[1]))} holds back this round.`],
-    [/^The (.+?) is attacked by (.+?): it leaves the section it was on and is the defender on one of its own\.?$/, m => `${cap(noHash(m[2]))} goes at the ${noHash(m[1])}, and it turns from what it was fighting to face him.`],
+    [/^The (.+?) is attacked by (.+?): it leaves the section it was on and is the defender on one of its own\.?$/, m => `${cap(noHash(m[2]))} goes at the ${noHash(m[1])}, and it turns from what it was fighting to face them.`],
     [/^(.+?) is sent at the (.+?)\.?$/, m => [`${cap(noHash(m[1]))} goes in against the ${noHash(m[2])}.`, `${cap(noHash(m[1]))} is sent at the ${noHash(m[2])}.`]],
-    [/^(.+?), alone on his section, moves onto the (.+?)'s as its newest attacker/, m => `${cap(noHash(m[1]))}, left on his own, joins the fight against the ${noHash(m[2])}.`],
+    [/^(.+?), alone on (?:his|their) section, moves onto the (.+?)'s as its newest attacker/, m => `${cap(noHash(m[1]))}, left alone, joins the fight against the ${noHash(m[2])}.`],
     // ---- the sections of the round
-    [/^(.+?)'s section: (.+?) attacks? (him|it)(?:; (?:he|it) attacks (.+?))?\.?$/, m => {
+    [/^(.+?)'s section: (.+?) attacks? (them|him|it)(?:; (?:they attack|he attacks|it attacks) (.+?))?\.?$/, m => {
         const who = names(m[2]), many = who.length > 1, back = m[4] ? noHash(m[4]) : null, owner = noHash(m[1]);
-        return m[3] === 'him'
+        return m[3] !== 'it'
             ? `${cap(list(who))} ${many ? 'come' : 'comes'} at ${owner}${back ? `, who strikes back at ${back}` : ''}.`
             : `${cap(list(who))} ${many ? 'go' : 'goes'} at the ${owner}${back ? `, which strikes at ${back}` : ''}.`;
     }],
@@ -32,9 +32,9 @@ export const SECTION_RULES = [
     [/^(.+?): (Thrust|Swing|Smash) at (.+?) \((?:Charge|Dodge|Duck)(, on the horse)?\): hit by undercutting\.?$/, m => `${cap(noHash(m[1]))}'s ${LANE[m[2]]} gets under the guard of ${noHash(m[3])}.`],
     [/^(.+?): (Thrust|Swing|Smash) at (.+?) \((?:Charge|Dodge|Duck)(, on the horse)?\): hit\.?$/, m => `${cap(noHash(m[1]))}'s ${LANE[m[2]]} lands on ${noHash(m[3])}.`],
     [/^(.+?) cannot attack on this side\.?$/, m => `${cap(noHash(m[1]))} has no attack on the side that shows.`],
-    [/^(.+?) is no longer your hireling: his blow is cancelled/, m => `${cap(noHash(m[1]))} is no longer yours, so his blow comes to nothing.`],
+    [/^(.+?) is no longer your hireling: (?:his|their) blow is cancelled/, m => `${cap(noHash(m[1]))} is no longer yours, so their blow comes to nothing.`],
     [/^(.+?) is dead before its blow can land\.?$/, m => `${cap(noHash(m[1]))} falls before its blow can land.`],
-    [/^(.+?)'s blow at (.+?) is cancelled: he is no longer your hireling/, m => `${cap(noHash(m[1]))}'s blow at ${noHash(m[2])} is called off: he is no longer yours.`],
+    [/^(.+?)'s blow at (.+?) is cancelled: (?:.+? |he )?is no longer your hireling/, m => `${cap(noHash(m[1]))}'s blow at ${noHash(m[2])} is called off: ${cap(noHash(m[1]))} is no longer yours.`],
     [/^(.+?)'s blow finds (.+?) already dead\.?$/, m => `${cap(noHash(m[1]))}'s blow finds ${noHash(m[2])} already fallen.`],
     // ---- a horse takes the blow (8.4.9i)
     [/^The (.+?) strikes down (.+?)'s (.+?)\.?$/, m => `The ${noHash(m[1])} brings down ${noHash(m[2])}'s ${m[3].toLowerCase()}.`],

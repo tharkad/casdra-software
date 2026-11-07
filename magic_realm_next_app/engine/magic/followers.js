@@ -92,6 +92,6 @@ export function breakPacify(st, data, den, log) {
     const m = st.mons.find(x => x.id === den.id);
     for (const p of [...(m?.pacify ?? [])]) {
         const fx = st.fx?.find(f => f.id === p.fx);
-        if (fx) { log?.('Your attack breaks the spell that kept the peace.'); breakFx(st, data, fx.id, 'he attacked what it pacified'); }
+        if (fx) { log?.('Your attack breaks the spell that kept the peace.'); breakFx(st, data, fx.id, 'what it pacified was attacked'); }
     }
 }

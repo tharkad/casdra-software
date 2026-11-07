@@ -760,7 +760,7 @@ function gearAction(st, data, a) {
     const list = uids.map(uid => st.ch.items.find(i => i.uid === uid) ?? (() => { throw new Error('no such item'); })());
     if (!a.drop) {
         for (const it of list) if (it.destroyed) throw new Error('that item is destroyed');
-        if (list.filter(it => it.active).length > 1 || list.filter(it => !it.active).length > 1) throw new Error('in one action he can switch on one belonging and switch off one belonging (8.3.7d)');
+        if (list.filter(it => it.active).length > 1 || list.filter(it => !it.active).length > 1) throw new Error('in one action only one belonging can be switched on and one switched off (8.3.7d)');
     }
     if (a.drop) {
         for (const it of list) {
@@ -1009,7 +1009,7 @@ export function meleeSetup(st, data, p) {
         if (hire.owner === st.ch.id) {
             // 8.4.2g Treachery: he names his own hired native, and its whole group under his hire rebels, wherever it is; he loses Fame equal to their Notoriety bounties. The rebel is then
             // a native like any other that is fighting him, and it is the one he strikes.
-            say(st, `${st.ch.name} names his own ${hs.name} as his target: that is treachery.`, 'combat');
+            say(st, `${st.ch.name} names their own ${hs.name} as their target: that is treachery.`, 'combat');
             rebelGroup(st, data, data.natives[hire.id].group, [], 'you did');
             target = c.dens.find(d => d.kind === 'nat' && d.id === hire.id && !d.dead) ?? null;
         } else hireTarget = hire.uid;
@@ -1037,7 +1037,7 @@ export function meleeSetup(st, data, p) {
     const wasHidden = hiddenAtStart;
     c.toRed = []; c.toRedHire = [];
     if (st.ch.hidden && (target || victim || hireTarget || spChars.length)) { st.ch.hidden = false; log('You strike from hiding and are revealed.', tell.ambush(st)); }
-    for (const v of new Set([victim, ...spChars].filter(Boolean))) if (st.chars[v].hidden) { st.chars[v].hidden = false; log(`You find ${st.chars[v].name}, who was hidden: he is revealed (8.4.2b).`); }          // naming a hidden character unhides them both
+    for (const v of new Set([victim, ...spChars].filter(Boolean))) if (st.chars[v].hidden) { st.chars[v].hidden = false; log(`You find ${st.chars[v].name}, who was hidden, and is revealed (8.4.2b).`); }          // naming a hidden character unhides them both
     for (const t of new Set([target, ...spTargets].filter(Boolean))) if (t.pacified) breakPacify(st, data, t, log);          // he named a pacified monster: the pacifying spell is broken
     for (const t of new Set([target, ...spTargets].filter(Boolean))) {
         if (t.assigned || t.elsewhere || HF.denOnSheet(st, t) || barredFromHero(st, data, t)) continue;          // (a creature on a hireling's Melee Section stays there: being named does not re-assign it, 8.4.2c) (attacking a Demon or Imp does not set it on a Pilgrim; a creature on another character's sheet stays there)
@@ -1154,7 +1154,7 @@ export function meleeCollect(st, data, X, peers = null) {
                 const rival = peers?.[t.char], vname = st.chars[t.char].name;
                 if (!rival || rival.stop) { log(`${spName}: ${vname} is no longer there to be struck.`, null, blowEv(false, st.ch.id, t.char, sp0.spell, null, 'gone')); continue; }
                 const vm = rival.X.move, vdir = rival.X.p.moveDir, noMnv = !vm || vdir == null, inLane = !noMnv && vdir === myDir, fast = !noMnv && side.time != null && vm.time != null && side.time < vm.time;
-                const where = noMnv ? 'no maneuver' : `${MANEUVERS[vdir]}${vm.isHorse ? ' (his horse)' : ''}`;
+                const where = noMnv ? 'no maneuver' : `${MANEUVERS[vdir]}${vm.isHorse ? ' (their horse)' : ''}`;
                 if (noMnv || inLane || fast) {
                     for (let k = 0; k < n; k++) hits.push({ who: 'me', char: t.char, time: side.time, length: side.length, side, spell: spName });
                     log(`${spName}: ${DIRS[myDir]} at ${vname} (${where}): ${n > 1 ? `${n} hits` : 'hit'}${noMnv || inLane ? '' : ' by undercutting'}.`, null, blowEv(true, st.ch.id, t.char, sp0.spell, DIRS[myDir].toLowerCase(), noMnv ? 'free' : inLane ? 'box' : 'undercut', noMnv ? null : MANEUVERS[vdir].toLowerCase()));
@@ -1203,12 +1203,12 @@ export function meleeCollect(st, data, X, peers = null) {
             const vm = rival.X.move, vdir = rival.X.p.moveDir, vtime = vm ? vm.time : null, bite = !hm && hasTreasure(st, 'ointment-of-bite');
             const noMnv = !vm || vdir == null, inLane = !noMnv && vdir === myDir;
             const fast = !noMnv && attackTime != null && vtime != null && (bite ? attackTime <= vtime : attackTime < vtime);
-            const where = noMnv ? 'no maneuver' : `${MANEUVERS[vdir]}${vm.isHorse ? ' (his horse)' : ''}`, lane = noMnv ? 'none' : `${MANEUVERS[vdir].toLowerCase()}${vm.isHorse ? '-horse' : ''}`;          // (`lane`: the maneuver he met, as a code)
+            const where = noMnv ? 'no maneuver' : `${MANEUVERS[vdir]}${vm.isHorse ? ' (their horse)' : ''}`, lane = noMnv ? 'none' : `${MANEUVERS[vdir].toLowerCase()}${vm.isHorse ? '-horse' : ''}`;          // (`lane`: the maneuver he met, as a code)
             if (noMnv || inLane || fast) {
                 hits.push({ who: 'me', char: vid, time: attackTime, length: mySide.length });
-                log(noMnv ? `You: ${DIRS[myDir]} at ${vname} (${where}): hit; everything on a sheet with no maneuver is hit.` : inLane ? `You: ${DIRS[myDir]} at ${vname} (${where}): hit.` : `You: ${DIRS[myDir]} at ${vname} (${where}): hit by undercutting (your time ${attackTime} beats his ${vtime}).`, null,
+                log(noMnv ? `You: ${DIRS[myDir]} at ${vname} (${where}): hit; everything on a sheet with no maneuver is hit.` : inLane ? `You: ${DIRS[myDir]} at ${vname} (${where}): hit.` : `You: ${DIRS[myDir]} at ${vname} (${where}): hit by undercutting (your time ${attackTime} beats their ${vtime}).`, null,
                     blowEv(true, st.ch.id, vid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), noMnv ? 'free' : inLane ? 'box' : 'undercut', null, { lane }));
-            } else log(`You: ${DIRS[myDir]} at ${vname} (${where}): miss (${DIRS[myDir]} hits ${MANEUVERS[myDir]}${vtime != null ? `; his time ${vtime} is not slower than your ${attackTime}` : ''}).`, null, blowEv(false, st.ch.id, vid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), 'slow', null, { lane }));
+            } else log(`You: ${DIRS[myDir]} at ${vname} (${where}): miss (${DIRS[myDir]} hits ${MANEUVERS[myDir]}${vtime != null ? `; their time ${vtime} is not slower than your ${attackTime}` : ''}).`, null, blowEv(false, st.ch.id, vid, w?.item.id ?? 'bare-hands', DIRS[myDir].toLowerCase(), 'slow', null, { lane }));
         }
     }
     // pvp: a blow at someone else's hireling: it has no maneuver of its own, so a die gives the lane it stands in; it also hits if it undercuts the hireling's move time
@@ -1936,7 +1936,7 @@ function settleKills(st, data, kills, parts, run) {
             if (n) { bits.push(`${n} Notoriety`); own.push(`${n} Notoriety`); }
             if (f) { bits.push(`${f} Fame`); own.push(`${f} Fame`); }
             if (gold) own.push(`${gold} gold`);
-            if (k === taker && taken.length) { const goods = `his belongings (${taken.map(it => nameOfItem(st, data, it)).join(', ')})`; bits.push(goods); own.push(goods); }
+            if (k === taker && taken.length) { const goods = `${ch.name}'s belongings (${taken.map(it => nameOfItem(st, data, it)).join(', ')})`; bits.push(goods); own.push(goods); }
             // R-23: the gold a victim carried is recorded and secret; the killer reads it off him (a line of his own, below), the others in the fight see what is public (Notoriety, belongings)
             const head = `${st.chars[k.killer].name}${k.hire ? "'s hireling" : ''} killed ${ch.name}${list.length > 1 ? ' (shared)' : ''}`;
             said.push({ k, v, text: `${head}${bits.length ? ` and takes ${bits.join(', ')}` : ''}.`, own: gold ? `${head} and takes ${own.join(', ')}.` : null, reveal: { victim: ch.name, gold: s.gold, notoriety: s.notoriety },

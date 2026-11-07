@@ -45,7 +45,7 @@ function learnState(st, sp) {
 // Trade action `buy` with `spell`: the card he names, checked before the Meeting Table is rolled (7.6.7a). Returns { name, base, learnable, why } or throws.
 export function spellWanted(st, data, p, a) {
     const g = p.group;
-    if (p.by || st.ch.leader) throw new Error('A hired leader cannot buy and learn spells on behalf of the character who hired him (7.6.7d).');          // (`st.ch.leader`: the acting seat is a hired leader, leaders.js; `p.by` for a caller that names him)
+    if (p.by || st.ch.leader) throw new Error('A hired leader cannot buy and learn spells on behalf of the character who hired the leader (7.6.7d).');          // (`st.ch.leader`: the acting seat is a hired leader, leaders.js; `p.by` for a caller that names him)
     if (!isVisitorName(g)) throw new Error(`Only a visitor sells spells: the ${g} have no Spell cards (7.6.7).`);
     const card = (st.spellBox?.visitors?.[g] ?? []).find(c => c.id === a.spell);
     if (!card) throw new Error(`The ${g} has no such Spell card.`);

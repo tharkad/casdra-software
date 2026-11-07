@@ -105,13 +105,13 @@ export function fightLines(view, myId) {
 
 // ---- second person to third: the lines are told to "you" by the engine; the table reads them with a name ----
 const IRREG = { are: 'is', have: 'has', do: 'does', go: 'goes', were: 'was', am: 'is' };
-const he = verb => IRREG[verb] ?? (/(?:s|x|z|ch|sh)$/.test(verb) ? `${verb}es` : /[^aeiou]y$/.test(verb) ? `${verb.slice(0, -1)}ies` : `${verb}s`);
+const thirdForm = verb => IRREG[verb] ?? (/(?:s|x|z|ch|sh)$/.test(verb) ? `${verb}es` : /[^aeiou]y$/.test(verb) ? `${verb.slice(0, -1)}ies` : `${verb}s`);
 /** "You kill the Wolf. Your Mace ... at you" told of Ann: "Ann kills the Wolf. Ann's Mace ... at them". Past-tense verbs stay as they are; present ones take the -s. */
 export function third(text, name) {
     if (text == null) return text;
     let s = String(text);
     s = s.replace(/^You: /, `${name}: `);
-    s = s.replace(/(^|[.!?;:] )You (\w+)/g, (m, pre, verb) => `${pre}${name} ${/ed$|^(took|lost|found|fell|struck|broke|won|was|were|had|did|could|would|played|cut|put)$/.test(verb) ? verb : he(verb)}`);
+    s = s.replace(/(^|[.!?;:] )You (\w+)/g, (m, pre, verb) => `${pre}${name} ${/ed$|^(took|lost|found|fell|struck|broke|won|was|were|had|did|could|would|played|cut|put)$/.test(verb) ? verb : thirdForm(verb)}`);
     s = s.replace(/(^|[.!?;:] )Your /g, `$1${name}’s `);
     s = s.replace(/\byou(?= (?:took|were|had|did|could|would|played|[a-z]+ed)\b)/g, 'they');
     s = s.replace(/\byou are\b/g, 'they are').replace(/\byourself\b/g, 'themself').replace(/\byour\b/g, 'their').replace(/\byou\b/g, 'them').replace(/\bYou\b/g, name);
