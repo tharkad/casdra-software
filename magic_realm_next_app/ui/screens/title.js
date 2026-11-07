@@ -30,7 +30,7 @@ export function titleScreen(ctx) {
     // The answer to a dim tap has a place of its own above the buttons, reserved at all times, so nothing on the title moves when it appears (DR-10)
     const note = h('p', { class: 'ds-title-say', role: 'status', 'aria-live': 'polite' });
     // New game over a game in progress asks first: who, which day, what it costs, what survives (review FD-01). Keep playing is the safe, gold choice.
-    const askNew = () => confirmSheet({ eyebrow: 'New game', title: 'Start a new game?', lines: [where(last), 'A new game ends that adventure. It stays in History as abandoned.'],
+    const askNew = () => confirmSheet({ eyebrow: 'New game', title: 'Start a new game?', lines: [where(last), last?.roguelike ? 'A new game ends this run. In the roguelike that counts as a fall: your character drops back a stage. It stays in History as abandoned.' : 'A new game ends that adventure. It stays in History as abandoned.'],
         attrs: { 'data-confirm': 'new', role: 'alertdialog' },
         safe: { label: 'Keep playing', attrs: { 'data-act': 'keep-playing' }, onclick: () => ctx.go('game', { id: last?.id }) },
         risky: { label: 'Start a new game', attrs: { 'data-act': 'replace' }, onclick: () => ctx.go('newgame') } });

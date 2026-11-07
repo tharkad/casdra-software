@@ -1,6 +1,6 @@
 import { makeRng } from './rng.js';
 import { generateRealm, reachableFromBorderland } from './mapbuild.js';
-import { shuffle, int, die, say } from './core.js';
+import { shuffle, int, die, say, refuse } from './core.js';
 import { makeItem, defOf, priceOf } from './items.js';
 import { tileLetter } from './summon.js';
 import { beginDay, beginChar } from './day.js';
@@ -8,6 +8,7 @@ import { dealSpells } from './runes.js';
 import { castable, ATTACK_SPELLS } from './spells.js';
 import { STATE_VERSION, hydrate, seat, withActor, DEFAULT_PLAYER } from './party.js';
 import { setupVisitorChits } from './missions.js';
+import { stageCard, MAX_STAGE } from './stages.js';
 
 // Building a new game (rules digest 01 section 3): map, chits, dwellings, denizens, treasure, then the character.
 
@@ -45,12 +46,15 @@ export function newGame(data, opts = {}) {
     const roster = opts.characters?.length
         ? opts.characters.map(c => ({ ...c, id: c.id ?? c.character }))
         : [{ id: opts.character ?? 'black-knight', vp: opts.vp, startDwelling: opts.startDwelling, spells: opts.startSpells, owner: opts.owner, name: opts.playerName }];
+    // Development (10.E.5.2): `startStage` (1 to 4) and `extraChits` begin a hero at an earlier stage; given at the top they are the default of every character listed, and each listed character may carry his own.
+    // Absent, the hero is built as he always was (the fourth stage, twelve chits).
+    const stageOf = r => stageFor(r.startStage ?? opts.startStage, r.extraChits ?? opts.extraChits);
     if (roster.length > MAX_CHARACTERS) throw new Error(`a game holds at most ${MAX_CHARACTERS} characters`);
     if (new Set(roster.map(c => c.id)).size !== roster.length) throw new Error('a character is in use by one player at a time');
     for (const c of roster) if (!data.characters[c.id]) throw new Error(`there is no character "${c.id}"`);
     const several = roster.length > 1;
     roster.forEach(r => {
-        const ch = makeCharacter(st, data, r.id, r.vp, { gear: st.startGear, dwelling: r.startDwelling ?? r.dwelling, spells: r.spells ?? r.startSpells });
+        const ch = makeCharacter(st, data, r.id, r.vp, { gear: st.startGear, dwelling: r.startDwelling ?? r.dwelling, spells: r.spells ?? r.startSpells, stage: stageOf(r) });
         seat(st, ch, { owner: r.owner ?? opts.owner ?? DEFAULT_PLAYER, name: r.playerName ?? r.name ?? opts.playerName ?? 'You' });
         ch.at = chooseStart(st, data, ch);
         ch.hidden = true;                                                   // every counter starts hidden at its dwelling (7.1.2, 3.6.4)
@@ -71,7 +75,7 @@ export function addCharacter(st, data, opts = {}) {
     if (st.order.length >= MAX_CHARACTERS) throw new Error(`a game holds at most ${MAX_CHARACTERS} characters`);
     if (st.day !== 1 || st.period !== 'birdsong' || st.order.some(c => st.chars[c].today.plan)) throw new Error('a character can join only before anyone has recorded a plan on day 1');
     st.gearSeen = true;
-    const ch = makeCharacter(st, data, id, opts.vp, { gear: st.startGear, dwelling: opts.dwelling, spells: opts.spells });
+    const ch = makeCharacter(st, data, id, opts.vp, { gear: st.startGear, dwelling: opts.dwelling, spells: opts.spells, stage: stageFor(opts.startStage, opts.extraChits) });
     seat(st, ch, { owner: opts.owner ?? DEFAULT_PLAYER, name: opts.playerName ?? 'You' });
     ch.at = chooseStart(st, data, ch);
     ch.hidden = true;
@@ -200,18 +204,32 @@ function startingSpells(data, c, chosen = null) {
     return all.filter(s => castable(s) && types.includes(s.type)).map((s, i) => ({ s, i })).sort((a, b) => first(a.s.id) - first(b.s.id) || a.i - b.i).slice(0, want).map(x => x.s.id);
 }
 
+// The stage option of one character as makeCharacter takes it: { start, extra } or undefined. Extra chits without a start stage are refused (they mean nothing at the usual full hero).
+function stageFor(startStage, extraChits) {
+    if (startStage == null) { if (extraChits?.length) refuse('stage.extra', 'extraChits are kept only with a startStage', null, '10.E.5.4'); return undefined; }
+    return { start: startStage, extra: extraChits ?? [] };
+}
+
+// `opt.stage` ({ start, extra }, see stages.js) builds the hero of that development stage from his card (10.E.5.2); the character keeps `stage` (start and extra chit ids) so that a fresh start after a death
+// is at the same stage. A fourth-stage hero without extras is the full hero and records nothing.
 export function makeCharacter(st, data, id, vp, opt = {}) {
-    const c = data.characters[id];
+    let c = data.characters[id], stage = null;
+    if (opt.stage) {
+        c = stageCard(c, opt.stage.start, opt.stage.extra);
+        stage = { start: opt.stage.start, extra: c.chits.filter(x => x.stage > opt.stage.start).map(x => `${id}-${x.n}`) };
+        if (stage.start >= MAX_STAGE && !stage.extra.length) stage = null;
+    }
     // Rule 3.3.5: a hero starts at a dwelling his card lists (the first one by default). Anything else is refused, never sent to the Inn.
     const dwelling = opt.dwelling ?? c.startDwellings[0];
     if (!c.startDwellings.includes(dwelling)) throw new Error(`the ${c.name} may start only at ${c.startDwellings.join(' or ')}, not at "${dwelling}"`);
     const ch = {
         id, name: c.name, weight: c.weight, at: null, hidden: true, dead: false, gold: c.startGold ?? 10, fame: 0, notoriety: 0,
-        chits: c.chits.map((x, i) => ({ id: `${id}-${i + 1}`, type: x.type, strength: x.strength, time: x.time, effort: x.effort ?? 0, state: 'active', stage: x.stage, numeral: x.magicNumeral ?? null })),
+        chits: c.chits.map((x, i) => ({ id: `${id}-${x.n ?? i + 1}`, type: x.type, strength: x.strength, time: x.time, effort: x.effort ?? 0, state: 'active', stage: x.stage, numeral: x.magicNumeral ?? null })),
         items: [], rel: { ...c.relationships, ...knightsRel(st, id, c.relationships) }, discovered: { paths: [], sites: [] }, seen: [], hiddenEnemies: false, killsToday: 0,
         vp: vp ?? { great: 0, spells: 0, fame: 3, notoriety: 2, gold: 0 }, onRoad: null, startDwelling: dwelling, startValue: 10,
         adv: (c.advantages ?? []).map(a => a.key), spells: startingSpells(data, c, opt.spells), learned: [],
     };
+    if (stage) ch.stage = stage;
     // The starting weapon and armor are taken from the native group that owns them (never bought). A counter exists once: look in the
     // natives' stock, then lying on the ground; failing both he gets its price in gold instead.
     const take = (name, pool, kind) => {
@@ -257,7 +275,7 @@ export function restartAfterDeath(st, data, vp) {
     if (back > (st.lastDay ?? 28) && st.mode !== 'endless') throw new Error('the game is over');
     if (vp) checkVp(vp, Math.max(2, Math.ceil(((st.lastDay ?? 28) - (back - 1)) / 7) + 1));
     st.deaths = (st.deaths ?? 0) + 1;                      // from now on gear counters are never conjured from nothing
-    const ch = makeCharacter(st, data, old.id, vp, { gear: st.startGear, dwelling: data.characters[old.id].startDwellings[0] });   // a new hero starts at the Inn
+    const ch = makeCharacter(st, data, old.id, vp, { gear: st.startGear, dwelling: data.characters[old.id].startDwellings[0], stage: old.stage });   // a new hero starts at the Inn (at the stage the old one began at, if the game began him at one)
     ch.at = chooseStart(st, data, ch);
     ch.hidden = true;
     ch.owner = old.owner; ch.life = (old.life ?? 1) + 1;           // the same seat, the next life; his day carries over (assigning st.ch keeps `today`)
@@ -284,7 +302,7 @@ export function restartChar(st, data, vp = null, character = null) {
     }
     if (vp) checkVp(vp, ask?.budget ?? null);
     st.deaths = (st.deaths ?? 0) + 1;                      // from now on gear counters are never conjured from nothing
-    const ch = makeCharacter(st, data, id, vp, { gear: st.startGear, dwelling: data.characters[id].startDwellings[0] });
+    const ch = makeCharacter(st, data, id, vp, { gear: st.startGear, dwelling: data.characters[id].startDwellings[0], stage: id === old.id ? old.stage : undefined });
     ch.at = chooseStart(st, data, ch);
     ch.hidden = true;
     ch.owner = old.owner; ch.life = (old.life ?? 1) + 1;

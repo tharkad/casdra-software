@@ -28,6 +28,10 @@ export function slainBy(log) {
 
 // What happened to a game, in words: { kind, title, bad, sub }. `live` is the id of the game that is on this device now (its record is "in progress" and plays on).
 export function outcome(rec, live) {
+    const o = outcomeOf(rec, live), rl = rec.params?.roguelike;          // a run of the roguelike campaign says so (and which run, at which stage)
+    return rl ? { ...o, roguelike: true, sub: [`Roguelike run ${rl.runNo} \u00b7 stage ${rl.stage}`, o.sub].filter(Boolean).join(' \u00b7 ') } : o;
+}
+function outcomeOf(rec, live) {
     const m = rec.meta ?? {}, name = m.name ?? rec.params?.character ?? 'Game', date = dateLabel(rec.startedAt);
     if (m.result === 'died') { const by = slainBy(rec.log); return { kind: 'died', name, bad: true, label: `Died day ${m.day}`, sub: [by ? `Slain by the ${by}` : null, date].filter(Boolean).join(' \u00b7 ') }; }
     if (m.result === 'abandoned') return { kind: 'abandoned', name, label: `Abandoned day ${m.day}`, sub: date };

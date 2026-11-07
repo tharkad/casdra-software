@@ -15,6 +15,7 @@ import { mapModel, render, wireShell } from './shell.js';
 import { plainReason, showError, showLoading } from './states.js';
 import { loadSaved, myId, noteError, persist, restoreUi, saveGame } from './state.js';
 import { ownSheet, gameOf } from '../../combat/feed.js';
+import { settleAbandonedRun } from '../../roguelike/endblock.js';
 
 export function boot(G) {
     showLoading(G);
@@ -68,8 +69,10 @@ export function boot(G) {
                 // a game that was in progress and is being replaced is closed in the History as abandoned, not left "in progress" for ever
                 const prev = loadSaved();
                 if (prev?.session?.id && prev.period !== 'over') getRecord(prev.session.id).then(r => { if (r && !r.meta?.result) { finalize(r, prev); r.meta.result = 'abandoned'; putRecord(r); } }).catch(() => {});
+                if (prev?.session?.id && prev.period !== 'over' && prev.session.params?.roguelike) settleAbandonedRun(prev, G.data);          // a roguelike run that is left is a fall (9.2.2a: ending a character's life himself is a death)
                 fresh = { seed: G.ctx.params?.seed ?? (Math.floor(Math.random() * 90000) + 1), character: G.ctx.params?.character ?? 'white-knight', vp: G.ctx.params?.vp, mode: G.ctx.params?.mode, lastDay: G.ctx.params?.lastDay,
-                    startDwelling: G.ctx.params?.startDwelling, startGear: G.ctx.params?.startGear, options: G.ctx.params?.options, missions: G.ctx.params?.missions, pauseVictory: true, pauseEvening: true, pauseGear: true, startSpells: G.ctx.params?.startSpells, characters: G.ctx.params?.characters };
+                    startDwelling: G.ctx.params?.startDwelling, startGear: G.ctx.params?.startGear, options: G.ctx.params?.options, missions: G.ctx.params?.missions, pauseVictory: true, pauseEvening: true, pauseGear: true, startSpells: G.ctx.params?.startSpells, characters: G.ctx.params?.characters,
+                    startStage: G.ctx.params?.startStage, extraChits: G.ctx.params?.extraChits, roguelike: G.ctx.params?.roguelike };          // (startStage and extraChits: the roguelike's hero, rule 10.E.5.2; `roguelike` is only a tag the end screen and the History read)
                 G.st = apiOf(G.data).newGame(fresh).state;          // (through the API: the game records its events, which the fight's voice reads)
                 G.st.session = { id: String(Date.now()), started: new Date().toISOString(), version: VERSION, params: JSON.parse(JSON.stringify(fresh)) };
                 saveGame(G.st);

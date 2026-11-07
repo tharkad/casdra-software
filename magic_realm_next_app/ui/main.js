@@ -2,6 +2,7 @@ import './channel.js';
 import { clear } from './dom.js';
 import { titleScreen } from './screens/title.js';
 import { newGameScreen } from './screens/newgame.js';
+import { campaignScreen } from './screens/campaign.js';
 import { realmScreen } from './screens/realm.js';
 import { gameScreen, loadSaved } from './screens/game.js';
 import { helpScreen, settingsScreen } from './screens/info.js';
@@ -16,7 +17,7 @@ import { initKeys } from './keys.js';
 
 // A very small router: the app is a stack of full-screen views. Each screen is a function (ctx) -> element.
 const app = document.getElementById('app');
-const SCREENS = { title: titleScreen, newgame: newGameScreen, realm: realmScreen, game: gameScreen, rules: helpScreen, history: historyScreen, online: onlineScreen, sharedlobby: sharedLobbyScreen, settings: settingsScreen };
+const SCREENS = { title: titleScreen, newgame: newGameScreen, realm: realmScreen, game: gameScreen, rules: helpScreen, history: historyScreen, online: onlineScreen, sharedlobby: sharedLobbyScreen, settings: settingsScreen, campaign: campaignScreen };
 
 const ctx = {
     screen: 'title',
@@ -27,7 +28,7 @@ const ctx = {
 function render() {
     if (ctx.screen === 'title') {
         const s = loadSaved();
-        ctx.saved = s && s.period !== 'over' ? [{ id: 'auto', character: s.ch.name, characters: (s.order ?? []).map(id => s.chars?.[id]?.name).filter(Boolean), day: s.day, period: s.period, gold: s.ch.gold, mode: s.mode, lastDay: s.lastDay }] : [];
+        ctx.saved = s && s.period !== 'over' ? [{ id: 'auto', character: s.ch.name, characters: (s.order ?? []).map(id => s.chars?.[id]?.name).filter(Boolean), day: s.day, period: s.period, gold: s.ch.gold, mode: s.mode, lastDay: s.lastDay, roguelike: !!s.session?.params?.roguelike }] : [];
     }
     clear(app);
     const make = SCREENS[ctx.screen] ?? SCREENS.title;

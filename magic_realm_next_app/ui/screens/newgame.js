@@ -12,6 +12,7 @@ import { realmThumb } from './realm.js';
 import { OPTION_GROUPS } from '../options_list.js';
 import { HIRELING_GROUP } from '../leaders.js';
 import { openPlacement, placementStatus } from './placement.js';
+import { spreadVp } from '../goalspread.js';
 
 // New game: a four-step wizard, one question each (mockup 05): how long, the realm and its rules, who, where and what for.
 // Everything here is a *choice about the rules*, so the facts come from docs/rules/01 and 06 (see the notes beside each option). The engine inputs are unchanged.
@@ -29,6 +30,8 @@ export const LENGTHS = [
     { id: 'custom', title: 'Choose the length', line: 'Any whole number of weeks.', badge: (g, on) => (on ? `${g.weeks * 7} days · ${g.weeks + 1} VP` : 'any weeks') },
     { id: 'sudden', title: 'Sudden death', line: 'Ends at the first midnight someone has met every goal.', badge: g => `${g.suddenVp} VP` },
     { id: 'endless', title: 'Endless', line: 'No end and no scoring. Play until you stop.', badge: () => 'no limit' },
+    // The roguelike (docs/design/roguelike/ROGUELIKE-V0.md): not a length but a campaign, so choosing it replaces the steps that follow with the Campaign screen. A solo game only: a race or a shared table does not offer it.
+    { id: 'roguelike', title: 'Roguelike', line: 'A campaign: one character you keep from run to run. Survive to grow, die and fall back.', badge: () => 'campaign', solo: true },
 ];
 
 // (The old "How much of the game?" switch is gone: it reached neither the engine nor the saved game, so it changed nothing. Verified: no `depth` is read by start(), by the online
@@ -60,9 +63,10 @@ export const MAX_PARTY = 4;
 export const defaultGame = () => ({ step: 0, length: 'month', weeks: 4, suddenVp: 5, party: [], open: null, goalOpen: null, view: 'party', seed: Math.floor(Math.random() * 9999) + 1, missions: { on: false, place: [] }, options: { knightsAdjustment: false, watchfulNatives: false, quietMonsters: false, castAnytime: true, shareAtBirdsong: true } });
 
 
-export const vpTotal = g => g.length === 'month' ? 5 : g.length === 'custom' ? g.weeks + 1 : g.length === 'sudden' ? g.suddenVp : 5;
+export const vpTotal = g => g.length === 'roguelike' ? 5 : g.length === 'month' ? 5 : g.length === 'custom' ? g.weeks + 1 : g.length === 'sudden' ? g.suddenVp : 5;
 
 export function summary(g) {
+    if (g.length === 'roguelike') return 'Roguelike campaign';
     const len = g.length === 'month' ? '28 days' : g.length === 'custom' ? `${g.weeks} week${g.weeks === 1 ? '' : 's'}` : g.length === 'sudden' ? 'Sudden death' : 'Endless';
     const vp = g.length === 'month' ? '5 VP' : g.length === 'custom' ? `${g.weeks + 1} VP` : g.length === 'sudden' ? `${g.suddenVp} VP` : 'no scoring';
     return `${len} · ${vp}`;
@@ -85,8 +89,8 @@ function lengthCard(g, opt, redraw) {
     on && opt.id === 'sudden' ? h('div', { class: 'ds-choice-extra' }, stepper(g.suddenVp, () => 'victory points', 1, 12, v => { g.suddenVp = v; redraw(); }), why('The points you spread over Great Treasures, Spells, Fame, Notoriety and Gold.')) : null];
 }
 
-function typeStep(g, redraw) {
-    return [q('How long is the game?'), h('div', { class: 'ds-choices', role: 'radiogroup', 'aria-label': 'Game length' }, LENGTHS.flatMap(o => lengthCard(g, o, redraw)))];
+function typeStep(g, redraw, online = false) {
+    return [q('How long is the game?'), h('div', { class: 'ds-choices', role: 'radiogroup', 'aria-label': 'Game length' }, LENGTHS.filter(o => !(online && o.solo)).flatMap(o => lengthCard(g, o, redraw)))];
 }
 
 const VP_ROWS = [
@@ -494,8 +498,7 @@ export function newGameScreen(ctx) {
         const total = vpTotal(g);
         for (const m of g.party) {
             if (goalsUsed(m) === total) continue;
-            const fame = Math.min(5, Math.ceil(total * 0.6)), notoriety = Math.min(5, total - fame);
-            m.vp = { great: 0, spells: 0, fame, notoriety, gold: Math.max(0, total - fame - notoriety) };
+            m.vp = spreadVp(total);
         }
     };
     const start = () => {
@@ -578,9 +581,10 @@ export function newGameScreen(ctx) {
                 foot(h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'pick-back', onclick: closePicker }, 'Back'),
                     h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'pick-ok', disabled: free ? null : true, onclick: pickOk }, online ? `Use the ${charOf(g.pick).name}` : g.pick ? `Add ${charOf(g.pick).name}` : 'Choose a character'))];
         }
-        const bodyEls = g.step === 0 ? typeStep(g, redraw) : g.step === 1 ? realmStep(g, redraw, ctx.go, ctx, { shared: shared && online?.mode === 'create', online: !!online })
+        const bodyEls = g.step === 0 ? typeStep(g, redraw, !!online) : g.step === 1 ? realmStep(g, redraw, ctx.go, ctx, { shared: shared && online?.mode === 'create', online: !!online })
             : g.step === 2 ? partyStep(g, redraw, { online: !!online, joinNote }) : goalsStep(g, redraw, !!online);
         const stop = blocker(), busy = g.loading || g.busy;
+        const rogue = g.step === 0 && g.length === 'roguelike' && !online;          // the roguelike is a campaign of its own: the next screen is the Campaign, not the steps of a single game
         // left slot: Quick start on step 1, Add character on the party step, a counter or summary where there is one, else Back
         let leftEl;
         if (g.step === 2) leftEl = h('button', { type: 'button', class: 'ds-btn', 'data-act': 'add', disabled: busy || (!online && g.party.length >= MAX_PARTY) ? true : null, onclick: openPicker }, icon('plus'), online ? 'Change character' : 'Add character');
@@ -588,10 +592,11 @@ export function newGameScreen(ctx) {
         else if (stop) leftEl = sum(h('b', { class: 'bad' }, stop));
         else if (last) leftEl = g.party.length > 1 ? sum(h('b', { class: 'gold' }, `${g.party.length} characters`), ' · all goals set') : sum('Goals: ', h('b', {}, goalsText(g.party[0]) || 'none'));
         else if (online?.mode === 'join' && g.race) leftEl = sum(joinNote);
-        else if (g.step === 0 && !online) leftEl = h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'quick', onclick: start }, 'Quick start');
+        else if (g.step === 0 && !online && !rogue) leftEl = h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'quick', onclick: start }, 'Quick start');
         else leftEl = h('button', { type: 'button', class: 'ds-btn quiet', 'data-act': 'back', onclick: back }, 'Back');
-        const primary = h('button', { type: 'button', class: 'ds-btn primary', 'data-act': last ? 'start' : 'next', disabled: busy || stop ? true : null, onclick: last ? start : next }, last ? goLabel() : g.step === 2 ? 'Continue' : 'Next');
-        return [bar(title(), { onBack: back, step: at, of: n }),
+        const primary = rogue ? h('button', { type: 'button', class: 'ds-btn primary', 'data-act': 'campaign', onclick: () => ctx.go('campaign') }, 'Open the campaign')
+            : h('button', { type: 'button', class: 'ds-btn primary', 'data-act': last ? 'start' : 'next', disabled: busy || stop ? true : null, onclick: last ? start : next }, last ? goLabel() : g.step === 2 ? 'Continue' : 'Next');
+        return [bar(title(), rogue ? { onBack: back } : { onBack: back, step: at, of: n }),
             h('div', { class: 'ds-scroll ds-pad ds-wizbody', 'data-step': STEPS[g.step].id, onscroll: e => { g._scroll = e.target.scrollTop; } }, ...bodyEls),
             foot(leftEl, primary)];
     }

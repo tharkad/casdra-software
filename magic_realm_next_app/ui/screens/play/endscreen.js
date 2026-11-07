@@ -17,6 +17,7 @@ import { act } from './actions.js';
 import { modal } from './kit.js';
 import { render } from './shell.js';
 import { clearSaved } from './state.js';
+import { campaignBlock, rlOf, settleRun, waitingFor } from '../../roguelike/endblock.js';
 
 const NAME = { great: 'Great Treasures', spells: 'Spells', fame: 'Fame', notoriety: 'Notoriety', gold: 'Gold' };
 const COLOR = { great: 'var(--gold-hi)', spells: 'var(--magic-purple, #b79af0)', fame: 'var(--c-fame)', notoriety: 'var(--c-notor)', gold: 'var(--c-gold)' };
@@ -106,8 +107,11 @@ function saleLine(G) {
 export function overScreen(G) {
     const st = G.st, g = gameOf(st, G.data), me = ownSheet(st, G.data), o = g.over ?? {}, dead = o.reason === 'died' || !!me.dead, s = viewOf(st, G.data).table.score ?? standingOf(st, G.data).score;
     const rows = goalRows(G), won = !dead && s.won, mode = g.mode ?? 'month';
-    const canRestart = dead && mode !== 'endless' && g.day < g.lastDay && !G.race;
+    const rl = !G.race && !G.shared ? rlOf(G) : null;          // a run of the roguelike campaign: its end is settled with the campaign, and there is no fresh start on the next day
+    const canRestart = dead && mode !== 'endless' && g.day < g.lastDay && !G.race && !rl;
     const goTitle = () => { clearSaved(); G.ctx.go('title'); };
+    const settled = rl ? settleRun(G, { dead, won, day: o.day ?? g.day }) : null;
+    const rlBlock = settled ? campaignBlock(G, settled, () => render(G)) : null;
     const place = o.at ? nbsp(nameOfClearing(o.at)) : null;
     const f = runFacts(G);
     let hero, middle;
@@ -148,12 +152,14 @@ export function overScreen(G) {
         h('p', { class: 'ds-meta', 'data-v': 'detail' }, `Days ${f.days} · kills ${f.kills} · looted ${f.looted} · sites found ${f.sites} · wounds taken ${f.wounds}${f.deaths ? ` · deaths ${f.deaths}` : ''}.`));
     const restart = () => { G.ui.restartVp = carriedGoals(me.vp, Math.max(2, Math.ceil((g.lastDay - g.day) / 7) + 1)); render(G); };
     const late = (me.death?.rejoin ?? g.day + 1) - g.day > 1;          // (a suicide at Midnight sits out one whole day first: 9.2.2a; the engine says the day he may return)
-    const primary = canRestart ? btn(twoLine(late ? 'Return in two days' : 'Return tomorrow', `as a new ${me.name}`), 'primary', { 'data-act': 'restart', onclick: restart })
+    const waiting = settled ? waitingFor(G, settled) : false;
+    const primary = rl ? btn('Back to the campaign', `primary${waiting ? ' is-dim' : ''}`, { 'data-act': 'over-campaign', disabled: waiting ? true : null, onclick: () => { clearSaved(); G.ctx.go('campaign', { from: 'over' }); } })
+        : canRestart ? btn(twoLine(late ? 'Return in two days' : 'Return tomorrow', `as a new ${me.name}`), 'primary', { 'data-act': 'restart', onclick: restart })
         : G.race ? btn('Back to the title', 'primary', { 'data-act': 'over-title', onclick: goTitle })
             : btn(dead ? 'Begin again' : 'New game', 'primary', { 'data-act': 'over-new', onclick: () => { clearSaved(); G.ctx.go('newgame'); } });
     const quiet = G.race ? null : btn('History', 'quiet', { 'data-act': 'over-history', onclick: () => { clearSaved(); G.ctx.go('history'); } });
     const screen = h('main', { class: `ds-end ds-screen ${dead ? 'dead' : won ? 'won' : 'lost'}`, 'data-screen': 'over', role: 'dialog', 'aria-label': dead ? (o.suicide ? 'You ended your adventure' : 'You have fallen') : won ? 'Victory' : 'The game is over' },
-        h('div', { class: 'ds-scroll ds-fade-b end-scroll' }, hero, ...middle, story,
+        h('div', { class: 'ds-scroll ds-fade-b end-scroll' }, hero, rlBlock, ...middle, story,
             h('div', { class: 'end-title' }, btn('Menu', 'quiet sm', { 'data-act': 'menu', onclick: () => { G.ui.sheet = 'menu'; render(G); } }), G.race ? null : btn('Back to the title', 'quiet sm', { 'data-act': 'over-title', onclick: goTitle }))),
         h('div', { class: 'ds-foot' }, quiet, primary));
     // every button of the end screen, the leaving ones too, waits a moment: the taps that were on their way to the fight's last primary (Roll) must not land on "Begin again" or "Back to the title" (QA-4)

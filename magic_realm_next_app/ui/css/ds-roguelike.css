@@ -1,0 +1,45 @@
+/* css/ds-roguelike.css: the roguelike campaign (screens/campaign.js, roguelike/chitpick.js, the campaign block of the end screen). Uses the design tokens only; text is 12px and up, controls 44px and up. */
+.rl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 4px 0 8px; }
+.rl-grid.locked { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.rl-card { display: flex; align-items: center; gap: 10px; min-height: 76px; padding: 8px 10px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); text-align: left; color: var(--ink); min-width: 0; }
+.rl-card .pt-who { flex: none; width: 48px; height: 48px; }
+.rl-card .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rl-card .nm { font: 700 calc(16px * var(--ts, 1))/1.15 var(--font-ui); overflow-wrap: anywhere; }
+.rl-card .rl-stage { font: 600 calc(13px * var(--ts, 1))/1.2 var(--font-ui); color: var(--gold-hi); }
+.rl-card small { font: 500 calc(12px * var(--ts, 1))/1.25 var(--font-ui); color: var(--ink-3); }
+.rl-card.on { border: 2px solid var(--gold); background: var(--gold-wash-2); padding: 7px 9px; }
+.rl-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.rl-card.locked { flex-direction: column; justify-content: flex-start; align-items: center; gap: 4px; min-height: 0; padding: 6px 2px; text-align: center; background: transparent; border-style: dashed; border-color: var(--line-1); color: var(--ink-3); }
+.rl-card.locked .pt-who { width: 40px; height: 40px; }
+.rl-card.locked .pt-face { filter: grayscale(.85) brightness(.6); }
+.rl-card.locked .nm { font: 600 calc(12px * var(--ts, 1))/1.15 var(--font-ui); color: var(--ink-3); }
+.rl-detail { margin: 6px 0 14px; padding: 12px; border-radius: var(--r-md); border: 1px solid var(--line-1); background: var(--surface-2); }
+.rl-dhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rl-dhead h2 { margin: 0; }
+.rl-chits { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0 8px; }
+.rl-chits .ds-chit.on { transform: none; }
+.rl-run { margin: 4px 0 8px; }
+.rl-last { margin-top: 8px; }
+.rl-waiting { margin: 4px 0 12px; padding: 10px 12px 12px; border-radius: var(--r-md); border: 1px solid var(--line-gold); background: var(--gold-wash); }
+/* the chit choice */
+.rl-chits-pick { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 8px 0; }
+.rl-chit { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 8px 12px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-3); text-align: left; color: var(--ink); }
+.rl-chit .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rl-chit b { font: 700 calc(16px * var(--ts, 1))/1.2 var(--font-ui); }
+.rl-chit .main > span { font: 400 calc(14px * var(--ts, 1))/1.3 var(--font-voice); color: var(--ink-2); }
+.rl-chit .ds-chit { flex: none; }
+.rl-chit.on { border: 2px solid var(--gold); background: var(--gold-wash-2); padding: 7px 11px; }
+.rl-tick { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line-2); }
+.rl-chit.on .rl-tick { border-color: var(--gold); background: var(--gold) radial-gradient(circle, var(--ink-on-gold) 0 30%, transparent 32%); }
+.rl-take { display: flex; justify-content: flex-end; }
+.rl-take .ds-btn { min-height: 48px; }
+.rl-picknote { min-height: 1.3em; margin: 0 0 6px; }
+/* the campaign on the end screen of a run */
+.rl-end { margin: 12px 0; padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--line-gold); background: var(--gold-wash); text-align: left; }
+.rl-end .rl-line { margin: 6px 0 0; }
+.rl-end .rl-stages { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0; font: 600 calc(14px * var(--ts, 1))/1.2 var(--font-ui); color: var(--ink-2); }
+@media (min-width: 700px) {
+    .rl-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .rl-grid.locked { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+    .rl-chits-pick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
